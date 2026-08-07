@@ -7,33 +7,50 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Seguimiento de Alumnos - Mandala</title>
+    
+    <!-- Quill.js CSS para el editor de texto enriquecido -->
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    
     <style>
         body { margin: 0; font-family: sans-serif; background-color: #f9f9f9; }
         #login-container { display: flex; height: 100vh; justify-content: center; align-items: center; background-color: #fff; }
         .btn-google { display: flex; align-items: center; background-color: #fff; color: #3c4043; border: 1px solid #dadce0; border-radius: 4px; padding: 8px 16px; font-size: 14px; font-weight: 500; cursor: pointer; box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3); }
         .btn-google:hover { background-color: #f8f9fa; box-shadow: 0 1px 3px 1px rgba(60,64,67,0.15); }
         .btn-google svg { width: 18px; height: 18px; margin-right: 8px; }
+        
         #app-container { display: none; height: 100vh; width: 100%; }
         #sidebar { width: 250px; background: #f4f4f4; padding: 20px; border-right: 1px solid #ccc; }
         #main { flex-grow: 1; padding: 20px; overflow-y: auto; background-color: #fff; }
         .nav-item { cursor: pointer; padding: 10px; margin-bottom: 5px; background: #ddd; }
         .nav-item:hover { background: #ccc; }
-        dialog { padding: 20px; border: 1px solid #ccc; border-radius: 5px; width: 80%; max-width: 600px; }
-        .dia-disponibilidad { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
+        
+        dialog { padding: 20px; border: 1px solid #ccc; border-radius: 5px; width: 85%; max-width: 800px; max-height: 90vh; overflow-y: auto; }
+        .dia-disponibilidad { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .dia-disponibilidad label { width: 80px; font-weight: bold; }
+        .estado-disp { font-weight: bold; font-size: 0.9em; margin-left: 10px; }
+        
         .opcion-horario { margin-bottom: 15px; padding: 10px; border: 1px solid #eee; background: #fff; }
         .opcion-horario button { margin-right: 5px; margin-top: 5px; cursor: pointer; padding: 5px 10px; }
-        .alumno-item { padding: 10px; border: 1px solid #ddd; margin-bottom: 10px; background: #fff; }
+        .alumno-item { padding: 10px; border: 1px solid #ddd; margin-bottom: 10px; background: #fff; display: flex; justify-content: space-between; align-items: center; }
+        
         #header-auth { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
         #user-info { font-weight: bold; }
         #btn-logout { cursor: pointer; padding: 5px 10px; background: #dc3545; color: white; border: none; border-radius: 3px; }
+        
         .abm-container { margin-bottom: 20px; }
         .abm-container input { padding: 8px; width: 200px; margin-right: 5px;}
         .abm-container button { padding: 8px 15px; cursor: pointer; }
         .abm-item { display: flex; justify-content: space-between; padding: 10px; border: 1px solid #ddd; margin-bottom: 5px; background: #fff; align-items: center; }
-        .btn-eliminar { background: #dc3545; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 3px; }
+        .btn-acciones button { padding: 5px 10px; margin-left: 5px; cursor: pointer; border: none; border-radius: 3px; color: white; }
+        .btn-eliminar { background: #dc3545; }
+        .btn-editar { background: #ffc107; color: black !important; }
+        
+        /* Contenedor del editor Quill */
+        #editor-container { height: 150px; margin-bottom: 20px; background: white; }
     </style>
 </head>
 <body>
+    <!-- Pantalla Login -->
     <div id="login-container">
         <button id="btn-login" class="btn-google">
             <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
@@ -46,6 +63,7 @@
         </button>
     </div>
 
+    <!-- App Main -->
     <div id="app-container">
         <nav id="sidebar">
             <h3>Vistas</h3>
@@ -69,34 +87,62 @@
         </main>
     </div>
 
+    <!-- Modal Formulario Alumnos -->
     <dialog id="modal-alumno">
-        <h3>Datos del Alumno</h3>
+        <h3 id="modal-alumno-titulo">Datos del Alumno</h3>
         <form id="form-alumno">
+            <input type="hidden" id="alumno-id">
+            
             <label>Nombre: <input type="text" id="nombre" required></label><br><br>
             <label>Celular: <input type="text" id="celular" required></label><br><br>
             <label>Edad: <input type="number" id="edad"></label><br><br>
             <label>Instrumento: <select id="instrumento" required><option value="">Cargando...</option></select></label><br><br>
             <label>Suscripción: <select id="tipo_suscripcion" required><option value="">Cargando...</option></select></label><br><br>
+            
+            <h4>Descripción del Alumno</h4>
+            <div id="editor-container"></div>
+            <br>
+            
             <h4>Disponibilidad</h4>
-            <div class="dia-disponibilidad"><label>Lunes:</label><input type="time" id="disp-L-inicio"> a <input type="time" id="disp-L-fin"></div>
-            <div class="dia-disponibilidad"><label>Martes:</label><input type="time" id="disp-M-inicio"> a <input type="time" id="disp-M-fin"></div>
-            <div class="dia-disponibilidad"><label>Miércoles:</label><input type="time" id="disp-X-inicio"> a <input type="time" id="disp-X-fin"></div>
-            <div class="dia-disponibilidad"><label>Jueves:</label><input type="time" id="disp-J-inicio"> a <input type="time" id="disp-J-fin"></div>
-            <div class="dia-disponibilidad"><label>Viernes:</label><input type="time" id="disp-V-inicio"> a <input type="time" id="disp-V-fin"></div>
-            <div class="dia-disponibilidad"><label>Sábado:</label><input type="time" id="disp-S-inicio"> a <input type="time" id="disp-S-fin"></div>
+            <!-- Generado dinámicamente por JS para asegurar IDs -->
+            <div id="contenedor-disponibilidad"></div>
+            
             <br>
             <button type="submit">Guardar Alumno</button>
             <button type="button" id="btn-cerrar-alumno">Cancelar</button>
         </form>
     </dialog>
 
+    <!-- Modal Buscador de Agenda -->
     <dialog id="modal-agenda">
-        <h3>Agendas Disponibles (Próximos 7 días)</h3>
-        <div id="resultados-agenda"></div>
+        <h3>Buscar Agenda</h3>
+        <div style="margin-bottom: 15px; padding: 10px; background: #f4f4f4; border-radius: 5px;">
+            <label>Desde: <input type="date" id="agenda-start"></label>
+            <label style="margin-left: 15px;">Hasta: <input type="date" id="agenda-end"></label>
+            <button id="btn-ejecutar-busqueda" style="margin-left: 15px; cursor:pointer;">Buscar en Calendar</button>
+        </div>
+        <div id="resultados-agenda">
+            <p>Selecciona las fechas y haz clic en Buscar.</p>
+        </div>
         <br>
         <button type="button" id="btn-cerrar-agenda">Cerrar</button>
     </dialog>
 
+    <!-- Modal Edición ABM -->
+    <dialog id="modal-abm-edit">
+        <h3>Editar Registro</h3>
+        <input type="hidden" id="abm-edit-id">
+        <input type="hidden" id="abm-edit-coleccion">
+        <label>Nombre: <input type="text" id="abm-edit-nombre"></label><br><br>
+        <label id="lbl-abm-edit-correo" style="display:none;">Email Calendario: <input type="email" id="abm-edit-correo"></label><br><br>
+        <button id="btn-guardar-abm-edit">Actualizar</button>
+        <button type="button" id="btn-cerrar-abm-edit">Cancelar</button>
+    </dialog>
+
+    <!-- Quill.js Librería -->
+    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+
+    <!-- Lógica de la Aplicación -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -120,22 +166,64 @@
         let googleAccessToken = null; 
         let alumnoIdActual = null;
         let estadoActualVista = 'Gestión en curso';
+        let tituloABMActual = '';
 
-        const loginContainer = document.getElementById('login-container');
-        const appContainer = document.getElementById('app-container');
-        const btnLogin = document.getElementById('btn-login');
-        const btnLogout = document.getElementById('btn-logout');
-        const userInfo = document.getElementById('user-info');
-        const btnNuevoAlumno = document.getElementById('btn-nuevo-alumno');
-        const modalAlumno = document.getElementById('modal-alumno');
-        const modalAgenda = document.getElementById('modal-agenda');
-        const formAlumno = document.getElementById('form-alumno');
-        const vistaTitulo = document.getElementById('vista-titulo');
-        const listaAlumnos = document.getElementById('lista-alumnos');
+        // Inicialización del Editor Quill
+        const quill = new Quill('#editor-container', {
+            theme: 'snow',
+            modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'size': ['small', false, 'large', 'huge'] }], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] }
+        });
+
+        // --- RENDERIZADO UI DISPONIBILIDAD ---
+        const diasSemana = [
+            { id: 'L', nombre: 'Lunes' }, { id: 'M', nombre: 'Martes' }, { id: 'X', nombre: 'Miércoles' },
+            { id: 'J', nombre: 'Jueves' }, { id: 'V', nombre: 'Viernes' }, { id: 'S', nombre: 'Sábado' }
+        ];
+        const contDisp = document.getElementById('contenedor-disponibilidad');
+        
+        diasSemana.forEach(dia => {
+            contDisp.innerHTML += `
+                <div class="dia-disponibilidad">
+                    <label>${dia.nombre}:</label>
+                    <input type="time" id="disp-${dia.id}-inicio"> a <input type="time" id="disp-${dia.id}-fin">
+                    <label style="font-weight:normal; width:auto; margin-left:10px;"><input type="checkbox" id="disp-${dia.id}-all"> Todo el día</label>
+                    <label style="font-weight:normal; width:auto; margin-left:10px;"><input type="checkbox" id="disp-${dia.id}-none"> No disp.</label>
+                    <span id="estado-${dia.id}" class="estado-disp"></span>
+                </div>
+            `;
+        });
+
+        // Lógica visual de los checkboxes
+        diasSemana.forEach(dia => {
+            const chkAll = document.getElementById(`disp-${dia.id}-all`);
+            const chkNone = document.getElementById(`disp-${dia.id}-none`);
+            const tIni = document.getElementById(`disp-${dia.id}-inicio`);
+            const tFin = document.getElementById(`disp-${dia.id}-fin`);
+            const spanE = document.getElementById(`estado-${dia.id}`);
+
+            function updateDispState(source) {
+                if (source === 'all' && chkAll.checked) {
+                    chkNone.checked = false;
+                    tIni.disabled = true; tFin.disabled = true;
+                    tIni.value = ''; tFin.value = '';
+                    spanE.textContent = "Disponible todo el día"; spanE.style.color = "green";
+                } else if (source === 'none' && chkNone.checked) {
+                    chkAll.checked = false;
+                    tIni.disabled = true; tFin.disabled = true;
+                    tIni.value = ''; tFin.value = '';
+                    spanE.textContent = "No disponible"; spanE.style.color = "red";
+                } else {
+                    tIni.disabled = false; tFin.disabled = false;
+                    spanE.textContent = "";
+                }
+            }
+            chkAll.addEventListener('change', () => updateDispState('all'));
+            chkNone.addEventListener('change', () => updateDispState('none'));
+        });
 
         // --- FUNCIONES UTILITARIAS Y API CALENDAR ---
         function formatoLocalISO(date) {
-            const tzo = -date.getTimezoneOffset(), dif = tzo >= 0 ? '+' : '-', pad = function(num) { return (num < 10 ? '0' : '') + num; };
+            const tzo = -date.getTimezoneOffset(), dif = tzo >= 0 ? '+' : '-', pad = num => (num < 10 ? '0' : '') + num;
             return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + 'T' + pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds()) + dif + pad(Math.floor(Math.abs(tzo) / 60)) + ':' + pad(Math.abs(tzo) % 60);
         }
 
@@ -157,14 +245,17 @@
             return await res.json();
         }
 
-        function generarOpcionesAgenda(disponibilidadAlumno, eventosAPI, esBateria, profesores) {
+        function generarOpcionesAgenda(disponibilidadAlumno, eventosAPI, esBateria, profesores, dStart, dEnd) {
             const opciones = [];
             const mapaDias = { 0: "D", 1: "L", 2: "M", 3: "X", 4: "J", 5: "V", 6: "S" };
-            const duracionMs = 60 * 60 * 1000; // 1 hora
-            const hoy = new Date();
+            const duracionMs = 60 * 60 * 1000; 
 
-            for (let i = 0; i < 7; i++) {
-                const fechaEval = new Date(hoy);
+            // Calculamos la diferencia en días para el bucle
+            const diffTime = Math.abs(dEnd - dStart);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            for (let i = 0; i <= diffDays; i++) {
+                const fechaEval = new Date(dStart);
                 fechaEval.setDate(fechaEval.getDate() + i);
                 const letraDia = mapaDias[fechaEval.getDay()];
 
@@ -186,8 +277,8 @@
                         }
 
                         while (horaInicioBloque.getTime() + duracionMs <= horaFinRango.getTime()) {
-                            const inicioBloqueMs = horaInicioBloque.getTime();
-                            const finBloqueMs = inicioBloqueMs + duracionMs;
+                            const inicioMs = horaInicioBloque.getTime();
+                            const finMs = inicioMs + duracionMs;
 
                             let eventosSimultaneos = 0;
                             let bateriasSimultaneas = 0;
@@ -197,8 +288,7 @@
                                 if (!ev.start || !ev.start.dateTime) return;
                                 const evInicio = new Date(ev.start.dateTime).getTime();
                                 const evFin = new Date(ev.end.dateTime).getTime();
-
-                                if (inicioBloqueMs < evFin && finBloqueMs > evInicio) {
+                                if (inicioMs < evFin && finMs > evInicio) {
                                     eventosSimultaneos++;
                                     profesoresOcupados.add(ev.profeId);
                                     if (ev.summary && ev.summary.includes('🥁')) bateriasSimultaneas++;
@@ -214,7 +304,7 @@
                                             profeNombre: profe.nombre,
                                             calId: profe.calId,
                                             inicioData: formatoLocalISO(horaInicioBloque),
-                                            finData: formatoLocalISO(new Date(finBloqueMs))
+                                            finData: formatoLocalISO(new Date(finMs))
                                         });
                                     }
                                 });
@@ -228,25 +318,24 @@
         }
 
         // --- AUTENTICACIÓN ---
-        btnLogin.addEventListener('click', async () => {
+        document.getElementById('btn-login').addEventListener('click', async () => {
             try { 
                 const result = await signInWithPopup(auth, provider); 
                 googleAccessToken = GoogleAuthProvider.credentialFromResult(result).accessToken;
-            } 
-            catch (error) { alert("Error al iniciar sesión."); }
+            } catch (error) { alert("Error al iniciar sesión."); }
         });
 
-        btnLogout.addEventListener('click', async () => { await signOut(auth); googleAccessToken = null; });
+        document.getElementById('btn-logout').addEventListener('click', async () => { await signOut(auth); googleAccessToken = null; });
 
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                loginContainer.style.display = 'none';
-                appContainer.style.display = 'flex';
-                userInfo.textContent = user.email;
+                document.getElementById('login-container').style.display = 'none';
+                document.getElementById('app-container').style.display = 'flex';
+                document.getElementById('user-info').textContent = user.email;
                 cargarVista('Gestión en curso'); 
             } else {
-                loginContainer.style.display = 'flex';
-                appContainer.style.display = 'none';
+                document.getElementById('login-container').style.display = 'flex';
+                document.getElementById('app-container').style.display = 'none';
             }
         });
 
@@ -257,80 +346,158 @@
 
         async function cargarVista(estado) {
             estadoActualVista = estado;
-            vistaTitulo.textContent = estado;
-            btnNuevoAlumno.style.display = 'inline-block';
+            document.getElementById('vista-titulo').textContent = estado;
+            document.getElementById('btn-nuevo-alumno').style.display = 'inline-block';
+            const listaAlumnos = document.getElementById('lista-alumnos');
             listaAlumnos.innerHTML = 'Cargando...';
             
-            const q = query(collection(db, "alumnos"), where("estado_agenda", "==", estado));
             try {
-                const querySnapshot = await getDocs(q);
+                const querySnapshot = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", estado)));
                 listaAlumnos.innerHTML = ''; 
                 if (querySnapshot.empty) { listaAlumnos.innerHTML = '<p>No hay alumnos en este estado.</p>'; return; }
 
                 querySnapshot.forEach((docSnap) => {
-                    const alumno = docSnap.data();
-                    const div = document.createElement('div');
-                    div.className = 'alumno-item';
-                    div.innerHTML = `
-                        <strong>${alumno.nombre}</strong> - ${alumno.instrumento} (${alumno.tipo_suscripcion})<br>
-                        Celular: ${alumno.celular}<br>
-                        <button class="btn-abrir-agenda" data-id="${docSnap.id}">Buscar agenda disponible</button>
+                    const al = docSnap.data();
+                    listaAlumnos.innerHTML += `
+                        <div class="alumno-item">
+                            <div>
+                                <strong>${al.nombre}</strong> - ${al.instrumento} (${al.tipo_suscripcion})<br>
+                                Celular: ${al.celular}
+                            </div>
+                            <div class="btn-acciones">
+                                <button class="btn-abrir-agenda" data-id="${docSnap.id}" style="background:#28a745;">Agenda</button>
+                                <button class="btn-editar-alumno btn-editar" data-id="${docSnap.id}">Editar</button>
+                                <button class="btn-eliminar-alumno btn-eliminar" data-id="${docSnap.id}">Eliminar</button>
+                            </div>
+                        </div>
                     `;
-                    listaAlumnos.appendChild(div);
                 });
 
+                // Asignar eventos Agenda
                 document.querySelectorAll('.btn-abrir-agenda').forEach(btn => {
-                    btn.addEventListener('click', async (e) => {
-                        if(!googleAccessToken) { alert("Requiere token activo. Cierra sesión y vuelve a entrar."); return; }
+                    btn.addEventListener('click', (e) => {
+                        if(!googleAccessToken) { alert("Requiere token. Inicia sesión nuevamente."); return; }
                         alumnoIdActual = e.target.getAttribute('data-id');
-                        const resDiv = document.getElementById('resultados-agenda');
-                        resDiv.innerHTML = '<p>Cruzando datos con Google Calendar...</p>';
-                        modalAgenda.showModal();
-
-                        try {
-                            const alumnoDoc = await getDoc(doc(db, "alumnos", alumnoIdActual));
-                            const alumno = alumnoDoc.data();
-                            const esBateria = alumno.instrumento.toLowerCase().includes('bater');
-
-                            const profesSnap = await getDocs(collection(db, "profesores"));
-                            const profesores = [];
-                            profesSnap.forEach(p => { if(p.data().correo_calendario) profesores.push({ id: p.id, nombre: p.data().nombre, calId: p.data().correo_calendario }); });
-                            if (profesores.length === 0) { resDiv.innerHTML = '<p>No hay profesores con calendario asignado en el ABM.</p>'; return; }
-
-                            const hoy = new Date();
-                            const enSieteDias = new Date();
-                            enSieteDias.setDate(hoy.getDate() + 7);
-                            
-                            let todosLosEventos = [];
-                            for (const profe of profesores) {
-                                try {
-                                    const data = await getEventosCalendario(profe.calId, hoy.toISOString(), enSieteDias.toISOString());
-                                    if(data.items) {
-                                        const evs = data.items.map(ev => ({ ...ev, profeId: profe.id }));
-                                        todosLosEventos = todosLosEventos.concat(evs);
-                                    }
-                                } catch(err) { console.error(`Error calendario ${profe.nombre}:`, err); }
-                            }
-
-                            const opciones = generarOpcionesAgenda(alumno.disponibilidad, todosLosEventos, esBateria, profesores);
-
-                            if (opciones.length === 0) {
-                                resDiv.innerHTML = '<p>No se encontraron horarios libres que coincidan.</p>';
-                            } else {
-                                resDiv.innerHTML = opciones.map(op => `
-                                    <div class="opcion-horario">
-                                        <span>${op.fechaTexto} a las ${op.horaTexto} (Profe: ${op.profeNombre})</span><br>
-                                        <button class="btn-reservar" data-calid="${op.calId}" data-start="${op.inicioData}" data-end="${op.finData}">Reservar horario</button>
-                                        <button class="btn-validar-profe" data-hora="${op.fechaTexto} a las ${op.horaTexto}">Validar con profe</button>
-                                        <button class="btn-validar-alumno" data-hora="${op.fechaTexto} a las ${op.horaTexto}">Validar con alumno</button>
-                                    </div>
-                                `).join('');
-                            }
-                        } catch (error) { resDiv.innerHTML = '<p>Error al ejecutar el algoritmo.</p>'; console.error(error); }
+                        
+                        // Setear fechas por defecto en selectores
+                        const hoy = new Date();
+                        document.getElementById('agenda-start').value = hoy.toISOString().split('T')[0];
+                        const s7 = new Date(hoy); s7.setDate(s7.getDate() + 7);
+                        document.getElementById('agenda-end').value = s7.toISOString().split('T')[0];
+                        document.getElementById('resultados-agenda').innerHTML = '<p>Selecciona las fechas y haz clic en Buscar.</p>';
+                        
+                        document.getElementById('modal-agenda').showModal();
                     });
                 });
-            } catch (error) { listaAlumnos.innerHTML = '<p>Error al cargar los datos.</p>'; }
+
+                // Asignar eventos Editar Alumno
+                document.querySelectorAll('.btn-editar-alumno').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        const id = e.target.getAttribute('data-id');
+                        const docAl = await getDoc(doc(db, "alumnos", id));
+                        const data = docAl.data();
+                        
+                        document.getElementById('modal-alumno-titulo').textContent = 'Editar Alumno';
+                        document.getElementById('alumno-id').value = id;
+                        document.getElementById('nombre').value = data.nombre;
+                        document.getElementById('celular').value = data.celular;
+                        document.getElementById('edad').value = data.edad;
+                        
+                        await cargarSelectsFormulario();
+                        document.getElementById('instrumento').value = data.instrumento;
+                        document.getElementById('tipo_suscripcion').value = data.tipo_suscripcion;
+                        quill.root.innerHTML = data.descripcion || '';
+                        
+                        // Cargar disponibilidad visual
+                        diasSemana.forEach(dia => {
+                            const dData = data.disponibilidad[dia.id];
+                            const tIni = document.getElementById(`disp-${dia.id}-inicio`);
+                            const tFin = document.getElementById(`disp-${dia.id}-fin`);
+                            const chkAll = document.getElementById(`disp-${dia.id}-all`);
+                            const chkNone = document.getElementById(`disp-${dia.id}-none`);
+                            const spanE = document.getElementById(`estado-${dia.id}`);
+                            
+                            // Reset state
+                            tIni.disabled = false; tFin.disabled = false; chkAll.checked = false; chkNone.checked = false; spanE.textContent = "";
+                            
+                            if (!dData || dData.length === 0) {
+                                chkNone.checked = true;
+                                tIni.disabled = true; tFin.disabled = true;
+                                tIni.value = ''; tFin.value = '';
+                                spanE.textContent = "No disponible"; spanE.style.color = "red";
+                            } else if (dData[0].inicio === '09:00' && dData[0].fin === '22:00') {
+                                chkAll.checked = true;
+                                tIni.disabled = true; tFin.disabled = true;
+                                tIni.value = ''; tFin.value = '';
+                                spanE.textContent = "Disponible todo el día"; spanE.style.color = "green";
+                            } else {
+                                tIni.value = dData[0].inicio;
+                                tFin.value = dData[0].fin;
+                            }
+                        });
+                        
+                        document.getElementById('modal-alumno').showModal();
+                    });
+                });
+
+                // Asignar eventos Eliminar Alumno
+                document.querySelectorAll('.btn-eliminar-alumno').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        if(confirm("¿Eliminar alumno?")) {
+                            await deleteDoc(doc(db, "alumnos", e.target.getAttribute('data-id')));
+                            cargarVista(estadoActualVista);
+                        }
+                    });
+                });
+
+            } catch (error) { console.error(error); }
         }
+
+        // --- BUSQUEDA AGENDA EJECUCIÓN ---
+        document.getElementById('btn-ejecutar-busqueda').addEventListener('click', async () => {
+            const dStrStart = document.getElementById('agenda-start').value;
+            const dStrEnd = document.getElementById('agenda-end').value;
+            if(!dStrStart || !dStrEnd) return alert("Selecciona inicio y fin.");
+            
+            const resDiv = document.getElementById('resultados-agenda');
+            resDiv.innerHTML = '<p>Cruzando datos con Google Calendar...</p>';
+
+            try {
+                const alumnoDoc = await getDoc(doc(db, "alumnos", alumnoIdActual));
+                const alumno = alumnoDoc.data();
+                const esBateria = alumno.instrumento.toLowerCase().includes('bater');
+
+                const profesSnap = await getDocs(collection(db, "profesores"));
+                const profesores = [];
+                profesSnap.forEach(p => { if(p.data().correo_calendario) profesores.push({ id: p.id, nombre: p.data().nombre, calId: p.data().correo_calendario }); });
+                if (profesores.length === 0) { resDiv.innerHTML = '<p>No hay profesores con calendario.</p>'; return; }
+
+                const dStart = new Date(dStrStart + 'T00:00:00');
+                const dEnd = new Date(dStrEnd + 'T23:59:59');
+                
+                let todosLosEventos = [];
+                for (const profe of profesores) {
+                    try {
+                        const data = await getEventosCalendario(profe.calId, dStart.toISOString(), dEnd.toISOString());
+                        if(data.items) todosLosEventos = todosLosEventos.concat(data.items.map(ev => ({ ...ev, profeId: profe.id })));
+                    } catch(err) { console.error(err); }
+                }
+
+                const opciones = generarOpcionesAgenda(alumno.disponibilidad, todosLosEventos, esBateria, profesores, dStart, dEnd);
+
+                if (opciones.length === 0) resDiv.innerHTML = '<p>No se encontraron horarios libres.</p>';
+                else {
+                    resDiv.innerHTML = opciones.map(op => `
+                        <div class="opcion-horario">
+                            <span>${op.fechaTexto} a las ${op.horaTexto} (Profe: ${op.profeNombre})</span><br>
+                            <button class="btn-reservar" data-calid="${op.calId}" data-start="${op.inicioData}" data-end="${op.finData}">Reservar horario</button>
+                            <button class="btn-validar-profe" data-hora="${op.fechaTexto} a las ${op.horaTexto}">Validar con profe</button>
+                            <button class="btn-validar-alumno" data-hora="${op.fechaTexto} a las ${op.horaTexto}">Validar con alumno</button>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) { resDiv.innerHTML = '<p>Error al ejecutar el algoritmo.</p>'; }
+        });
 
         // --- VISTAS ABM ---
         document.getElementById('btn-abm-profes').addEventListener('click', () => { if(auth.currentUser) cargarABM('profesores', 'Profesores') });
@@ -338,10 +505,11 @@
         document.getElementById('btn-abm-susc').addEventListener('click', () => { if(auth.currentUser) cargarABM('tipos_suscripcion', 'Suscripciones') });
 
         async function cargarABM(coleccion, titulo) {
-            vistaTitulo.textContent = 'Administración: ' + titulo;
-            btnNuevoAlumno.style.display = 'none';
-            listaAlumnos.innerHTML = 'Cargando...';
-
+            tituloABMActual = titulo;
+            document.getElementById('vista-titulo').textContent = 'Administración: ' + titulo;
+            document.getElementById('btn-nuevo-alumno').style.display = 'none';
+            const listaAlumnos = document.getElementById('lista-alumnos');
+            
             try {
                 const querySnapshot = await getDocs(collection(db, coleccion));
                 let html = `<div class="abm-container"><input type="text" id="input-nuevo-abm" placeholder="Nombre">`;
@@ -351,7 +519,14 @@
                 querySnapshot.forEach((docSnap) => {
                     const data = docSnap.data();
                     const correoTxt = data.correo_calendario ? ` (${data.correo_calendario})` : '';
-                    html += `<div class="abm-item"><span>${data.nombre}${correoTxt}</span><button class="btn-eliminar" data-id="${docSnap.id}">Eliminar</button></div>`;
+                    html += `
+                        <div class="abm-item">
+                            <span>${data.nombre}${correoTxt}</span>
+                            <div class="btn-acciones">
+                                <button class="btn-editar-abm btn-editar" data-id="${docSnap.id}" data-coleccion="${coleccion}" data-nombre="${data.nombre}" data-correo="${data.correo_calendario || ''}">Editar</button>
+                                <button class="btn-eliminar-abm btn-eliminar" data-id="${docSnap.id}" data-coleccion="${coleccion}">Eliminar</button>
+                            </div>
+                        </div>`;
                 });
                 html += '</div>';
                 listaAlumnos.innerHTML = html;
@@ -368,16 +543,46 @@
                     cargarABM(coleccion, titulo);
                 });
 
-                document.querySelectorAll('.btn-eliminar').forEach(btn => {
+                document.querySelectorAll('.btn-eliminar-abm').forEach(btn => {
                     btn.addEventListener('click', async (e) => {
-                        await deleteDoc(doc(db, coleccion, e.target.getAttribute('data-id')));
+                        await deleteDoc(doc(db, e.target.getAttribute('data-coleccion'), e.target.getAttribute('data-id')));
                         cargarABM(coleccion, titulo);
                     });
                 });
-            } catch (error) { listaAlumnos.innerHTML = '<p>Error.</p>'; }
+
+                document.querySelectorAll('.btn-editar-abm').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const col = e.target.getAttribute('data-coleccion');
+                        document.getElementById('abm-edit-id').value = e.target.getAttribute('data-id');
+                        document.getElementById('abm-edit-coleccion').value = col;
+                        document.getElementById('abm-edit-nombre').value = e.target.getAttribute('data-nombre');
+                        
+                        if (col === 'profesores') {
+                            document.getElementById('lbl-abm-edit-correo').style.display = 'inline-block';
+                            document.getElementById('abm-edit-correo').value = e.target.getAttribute('data-correo');
+                        } else {
+                            document.getElementById('lbl-abm-edit-correo').style.display = 'none';
+                        }
+                        document.getElementById('modal-abm-edit').showModal();
+                    });
+                });
+            } catch (error) { console.error(error); }
         }
 
-        // --- FORMULARIO ALUMNOS ---
+        // --- EDICIÓN ABM ---
+        document.getElementById('btn-guardar-abm-edit').addEventListener('click', async () => {
+            const id = document.getElementById('abm-edit-id').value;
+            const coleccion = document.getElementById('abm-edit-coleccion').value;
+            const dataObj = { nombre: document.getElementById('abm-edit-nombre').value };
+            if (coleccion === 'profesores') dataObj.correo_calendario = document.getElementById('abm-edit-correo').value;
+            
+            await updateDoc(doc(db, coleccion, id), dataObj);
+            document.getElementById('modal-abm-edit').close();
+            cargarABM(coleccion, tituloABMActual);
+        });
+        document.getElementById('btn-cerrar-abm-edit').addEventListener('click', () => document.getElementById('modal-abm-edit').close());
+
+        // --- FORMULARIO ALUMNOS (ALTA Y EDICIÓN) ---
         async function cargarSelectsFormulario() {
             const selectInst = document.getElementById('instrumento');
             const selectSusc = document.getElementById('tipo_suscripcion');
@@ -389,68 +594,101 @@
             suscSnap.forEach(d => { selectSusc.innerHTML += `<option value="${d.data().nombre}">${d.data().nombre}</option>`; });
         }
 
-        btnNuevoAlumno.addEventListener('click', async () => { await cargarSelectsFormulario(); modalAlumno.showModal(); });
-        document.getElementById('btn-cerrar-alumno').addEventListener('click', () => { modalAlumno.close(); formAlumno.reset(); });
-        document.getElementById('btn-cerrar-agenda').addEventListener('click', () => modalAgenda.close());
+        document.getElementById('btn-nuevo-alumno').addEventListener('click', async () => { 
+            document.getElementById('modal-alumno-titulo').textContent = 'Datos del Alumno';
+            document.getElementById('alumno-id').value = '';
+            document.getElementById('form-alumno').reset();
+            quill.setContents([]);
+            
+            // Limpiar UI Disponibilidad
+            diasSemana.forEach(dia => {
+                document.getElementById(`disp-${dia.id}-all`).checked = false;
+                document.getElementById(`disp-${dia.id}-none`).checked = false;
+                document.getElementById(`disp-${dia.id}-inicio`).disabled = false;
+                document.getElementById(`disp-${dia.id}-fin`).disabled = false;
+                document.getElementById(`estado-${dia.id}`).textContent = "";
+            });
 
-        formAlumno.addEventListener('submit', async (e) => {
+            await cargarSelectsFormulario(); 
+            document.getElementById('modal-alumno').showModal(); 
+        });
+        
+        document.getElementById('btn-cerrar-alumno').addEventListener('click', () => document.getElementById('modal-alumno').close());
+        document.getElementById('btn-cerrar-agenda').addEventListener('click', () => document.getElementById('modal-agenda').close());
+
+        document.getElementById('form-alumno').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const nuevoAlumno = {
+            
+            const objDisponibilidad = {};
+            diasSemana.forEach(dia => {
+                const chkAll = document.getElementById(`disp-${dia.id}-all`).checked;
+                const chkNone = document.getElementById(`disp-${dia.id}-none`).checked;
+                let ini = document.getElementById(`disp-${dia.id}-inicio`).value;
+                let fin = document.getElementById(`disp-${dia.id}-fin`).value;
+
+                if (chkNone) {
+                    objDisponibilidad[dia.id] = [];
+                } else if (chkAll) {
+                    objDisponibilidad[dia.id] = [{ inicio: '09:00', fin: '22:00' }];
+                } else {
+                    if (ini || fin) {
+                        if (ini && !fin) fin = '22:00';
+                        if (!ini && fin) ini = '09:00';
+                        objDisponibilidad[dia.id] = [{ inicio: ini, fin: fin }];
+                    } else {
+                        objDisponibilidad[dia.id] = [];
+                    }
+                }
+            });
+
+            const dataAlumno = {
                 nombre: document.getElementById('nombre').value,
                 celular: document.getElementById('celular').value,
                 edad: Number(document.getElementById('edad').value),
                 instrumento: document.getElementById('instrumento').value,
                 tipo_suscripcion: document.getElementById('tipo_suscripcion').value,
-                estado_agenda: "Gestión en curso",
-                disponibilidad: {
-                    L: [{ inicio: document.getElementById('disp-L-inicio').value, fin: document.getElementById('disp-L-fin').value }],
-                    M: [{ inicio: document.getElementById('disp-M-inicio').value, fin: document.getElementById('disp-M-fin').value }],
-                    X: [{ inicio: document.getElementById('disp-X-inicio').value, fin: document.getElementById('disp-X-fin').value }],
-                    J: [{ inicio: document.getElementById('disp-J-inicio').value, fin: document.getElementById('disp-J-fin').value }],
-                    V: [{ inicio: document.getElementById('disp-V-inicio').value, fin: document.getElementById('disp-V-fin').value }],
-                    S: [{ inicio: document.getElementById('disp-S-inicio').value, fin: document.getElementById('disp-S-fin').value }]
-                }
+                descripcion: quill.root.innerHTML,
+                estado_agenda: document.getElementById('alumno-id').value ? undefined : "Gestión en curso", // No sobreescribir si edita
+                disponibilidad: objDisponibilidad
             };
-            try { await addDoc(collection(db, "alumnos"), nuevoAlumno); modalAlumno.close(); formAlumno.reset(); cargarVista(estadoActualVista); } 
-            catch (error) { alert("Error al guardar."); }
+
+            try {
+                const idEdicion = document.getElementById('alumno-id').value;
+                if (idEdicion) {
+                    delete dataAlumno.estado_agenda; // Evita blanquear estado actual
+                    await updateDoc(doc(db, "alumnos", idEdicion), dataAlumno);
+                } else {
+                    await addDoc(collection(db, "alumnos"), dataAlumno);
+                }
+                document.getElementById('modal-alumno').close(); 
+                cargarVista(estadoActualVista); 
+            } catch (error) { alert("Error al guardar."); }
         });
 
         // --- ACCIONES DE RESERVA ---
         document.getElementById('resultados-agenda').addEventListener('click', async (e) => {
             if (!alumnoIdActual) return;
             const docRef = doc(db, "alumnos", alumnoIdActual);
-
             try {
                 if (e.target.classList.contains('btn-validar-profe')) {
-                    const horaTxt = e.target.getAttribute('data-hora');
-                    await navigator.clipboard.writeText(`Hola, ¿podés tomar una clase de admisión el ${horaTxt}?`);
+                    await navigator.clipboard.writeText(`Hola, ¿podés tomar una clase de admisión el ${e.target.getAttribute('data-hora')}?`);
                     await updateDoc(docRef, { estado_agenda: "Validación con profe" });
-                    modalAgenda.close(); cargarVista(estadoActualVista);
+                    document.getElementById('modal-agenda').close(); cargarVista(estadoActualVista);
                 }
                 if (e.target.classList.contains('btn-validar-alumno')) {
-                    const horaTxt = e.target.getAttribute('data-hora');
-                    await navigator.clipboard.writeText(`Hola, tenemos disponibilidad para tu clase de prueba el ${horaTxt}. ¿Te sirve este horario?`);
+                    await navigator.clipboard.writeText(`Hola, tenemos disponibilidad para tu clase de prueba el ${e.target.getAttribute('data-hora')}. ¿Te sirve este horario?`);
                     await updateDoc(docRef, { estado_agenda: "Se ofrece agenda" });
-                    modalAgenda.close(); cargarVista(estadoActualVista);
+                    document.getElementById('modal-agenda').close(); cargarVista(estadoActualVista);
                 }
-                
                 if (e.target.classList.contains('btn-reservar')) {
-                    const calId = e.target.getAttribute('data-calid');
-                    const start = e.target.getAttribute('data-start');
-                    const end = e.target.getAttribute('data-end');
-                    
-                    const alumnoDoc = await getDoc(docRef);
-                    const titulo = `RESERVA - ${alumnoDoc.data().nombre} (${alumnoDoc.data().instrumento})`;
-                    
-                    const eventoObj = await crearEventoCalendario(calId, titulo, start, end);
-                    await updateDoc(docRef, { id_evento_reserva: eventoObj.id, id_calendario_usado: calId, estado_agenda: "Se ofrece agenda" });
-                    alert("Reserva registrada en Google Calendar.");
-                    modalAgenda.close(); cargarVista(estadoActualVista);
+                    const alDoc = await getDoc(docRef);
+                    const titulo = `RESERVA - ${alDoc.data().nombre} (${alDoc.data().instrumento})`;
+                    const evObj = await crearEventoCalendario(e.target.getAttribute('data-calid'), titulo, e.target.getAttribute('data-start'), e.target.getAttribute('data-end'));
+                    await updateDoc(docRef, { id_evento_reserva: evObj.id, id_calendario_usado: e.target.getAttribute('data-calid'), estado_agenda: "Se ofrece agenda" });
+                    alert("Reserva registrada.");
+                    document.getElementById('modal-agenda').close(); cargarVista(estadoActualVista);
                 }
-            } catch (error) { 
-                console.error(error);
-                alert("Error al ejecutar acción."); 
-            }
+            } catch (error) { alert("Error al ejecutar acción."); }
         });
     </script>
 </body>
