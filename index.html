@@ -492,10 +492,10 @@
                 });
             });
 
-            // Botón nuevo: Bloquear en Calendar manualmente (click en etiqueta gris)
+            // Botón nuevo: Bloquear en Calendar central manualmente
             document.querySelectorAll('.btn-bloquear-agenda').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
-                    if(confirm("¿Quieres reservar este horario en el calendario del profesor (bloqueo preventivo)?")) {
+                    if(confirm("¿Quieres reservar este horario en tu calendario central (bloqueo preventivo)?")) {
                         const id = e.target.getAttribute('data-id');
                         try {
                             const al = (await getDoc(doc(db, "alumnos", id))).data();
@@ -503,13 +503,14 @@
                             const instStr = Array.isArray(al.instrumento) ? al.instrumento.join('/') : al.instrumento;
                             
                             const tituloEv = reemplazarVariables(cfg.formato_evento_reserva, { profe: al.reserva_profe_nombre, alumno: al.nombre, instrumento: instStr });
-                            const evObj = await crearEventoCalendario(al.reserva_cal_id, tituloEv, al.reserva_inicio, al.reserva_fin);
+                            // Se carga en la cuenta central (productora)
+                            const evObj = await crearEventoCalendario('productora.mandalahouse@gmail.com', tituloEv, al.reserva_inicio, al.reserva_fin);
                             
                             await updateDoc(doc(db, "alumnos", id), { id_evento_reserva: evObj.id });
                             cargarVista(estadoActualVista);
                         } catch(err) {
                             console.error(err);
-                            alert("Error al bloquear la agenda en Calendar. Revisa permisos.");
+                            alert("Error al bloquear la agenda en Calendar.");
                         }
                     }
                 });
@@ -532,12 +533,12 @@
                         const textoPortapapeles = reemplazarVariables(cfg.texto_alumno, datosTpl);
                         await navigator.clipboard.writeText(textoPortapapeles);
                         
-                        // Lógica: Crear reserva SOLAMENTE si no existe ya (por el botón anterior)
+                        // Lógica: Crear reserva SOLAMENTE si no existe ya. Escribimos al calendario central.
                         let evId = al.id_evento_reserva;
                         if (!evId) {
                             const instStr = Array.isArray(al.instrumento) ? al.instrumento.join('/') : al.instrumento;
                             const tituloEv = reemplazarVariables(cfg.formato_evento_reserva, { profe: al.reserva_profe_nombre, alumno: al.nombre, instrumento: instStr });
-                            const evObj = await crearEventoCalendario(al.reserva_cal_id, tituloEv, al.reserva_inicio, al.reserva_fin);
+                            const evObj = await crearEventoCalendario('productora.mandalahouse@gmail.com', tituloEv, al.reserva_inicio, al.reserva_fin);
                             evId = evObj.id;
                         }
                         
@@ -559,7 +560,8 @@
                         
                         const tituloEv = reemplazarVariables(cfg.formato_evento_confirmado, { instrumento: instStr, alumno: al.nombre, edad: al.edad || '' });
                         
-                        await actualizarEventoCalendario(al.reserva_cal_id, al.id_evento_reserva, tituloEv, descPlana);
+                        // Actualizamos el evento en el calendario central.
+                        await actualizarEventoCalendario('productora.mandalahouse@gmail.com', al.id_evento_reserva, tituloEv, descPlana);
                         await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Agenda confirmada" });
                         alert("Entrevista confirmada en Calendar.");
                         cargarVista(estadoActualVista);
@@ -595,6 +597,7 @@
                 let profesores = [];
                 pSnap.forEach(p => {
                     const data = p.data();
+                    // Lee de los calendarios de los profesores para buscar disponibilidad
                     if(data.correo_calendario && data.entrevista === true && (!filtroProfeId || p.id === filtroProfeId)) {
                         profesores.push({ id: p.id, nombre: data.nombre, calId: data.correo_calendario });
                     }
