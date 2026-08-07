@@ -8,14 +8,15 @@
     <meta http-equiv="Expires" content="0">
     <title>Seguimiento de Alumnos - Mandala</title>
     
-    <!-- Quill.js CSS para el editor de texto enriquecido -->
+    <!-- Quill.js CSS -->
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <!-- MDTimePicker CSS (Reloj Analógico) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/dmuy/MDTimePicker@2.0.3/dist/mdtimepicker.min.css">
     
     <style>
         body { margin: 0; font-family: sans-serif; background-color: #f9f9f9; }
         #login-container { display: flex; height: 100vh; justify-content: center; align-items: center; background-color: #fff; }
-        .btn-google { display: flex; align-items: center; background-color: #fff; color: #3c4043; border: 1px solid #dadce0; border-radius: 4px; padding: 8px 16px; font-size: 14px; font-weight: 500; cursor: pointer; box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3); }
-        .btn-google:hover { background-color: #f8f9fa; box-shadow: 0 1px 3px 1px rgba(60,64,67,0.15); }
+        .btn-google { display: flex; align-items: center; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; padding: 8px 16px; cursor: pointer; box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3); }
         .btn-google svg { width: 18px; height: 18px; margin-right: 8px; }
         
         #app-container { display: none; height: 100vh; width: 100%; }
@@ -28,29 +29,28 @@
         .dia-disponibilidad { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 5px; }
         .dia-disponibilidad label { width: 80px; font-weight: bold; }
         .estado-disp { font-weight: bold; font-size: 0.9em; margin-left: 10px; }
+        .timepicker { width: 80px; text-align: center; cursor: pointer; }
         
         .opcion-horario { margin-bottom: 15px; padding: 10px; border: 1px solid #eee; background: #fff; }
         .opcion-horario button { margin-right: 5px; margin-top: 5px; cursor: pointer; padding: 5px 10px; }
-        .alumno-item { padding: 10px; border: 1px solid #ddd; margin-bottom: 10px; background: #fff; display: flex; justify-content: space-between; align-items: center; }
+        
+        .item-clickable { padding: 10px; border: 1px solid #ddd; margin-bottom: 10px; background: #fff; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: background 0.2s; }
+        .item-clickable:hover { background: #f1f1f1; }
         
         #header-auth { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
-        #user-info { font-weight: bold; }
         #btn-logout { cursor: pointer; padding: 5px 10px; background: #dc3545; color: white; border: none; border-radius: 3px; }
         
         .abm-container { margin-bottom: 20px; }
         .abm-container input { padding: 8px; width: 200px; margin-right: 5px;}
         .abm-container button { padding: 8px 15px; cursor: pointer; }
-        .abm-item { display: flex; justify-content: space-between; padding: 10px; border: 1px solid #ddd; margin-bottom: 5px; background: #fff; align-items: center; }
-        .btn-acciones button { padding: 5px 10px; margin-left: 5px; cursor: pointer; border: none; border-radius: 3px; color: white; }
-        .btn-eliminar { background: #dc3545; }
-        .btn-editar { background: #ffc107; color: black !important; }
+        .btn-acciones button { padding: 5px 10px; margin-left: 5px; cursor: pointer; border: none; border-radius: 3px; }
+        .btn-eliminar { background: transparent; font-size: 1.2em; }
         
-        /* Contenedor del editor Quill */
         #editor-container { height: 150px; margin-bottom: 20px; background: white; }
+        select[multiple] { min-height: 60px; }
     </style>
 </head>
 <body>
-    <!-- Pantalla Login -->
     <div id="login-container">
         <button id="btn-login" class="btn-google">
             <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
@@ -63,7 +63,6 @@
         </button>
     </div>
 
-    <!-- App Main -->
     <div id="app-container">
         <nav id="sidebar">
             <h3>Vistas</h3>
@@ -75,6 +74,7 @@
             <div class="nav-item" id="btn-abm-profes">Profesores</div>
             <div class="nav-item" id="btn-abm-inst">Instrumentos</div>
             <div class="nav-item" id="btn-abm-susc">Suscripciones</div>
+            <div class="nav-item" id="btn-config">Configuración</div>
         </nav>
         <main id="main">
             <div id="header-auth">
@@ -92,21 +92,21 @@
         <h3 id="modal-alumno-titulo">Datos del Alumno</h3>
         <form id="form-alumno">
             <input type="hidden" id="alumno-id">
-            
             <label>Nombre: <input type="text" id="nombre" required></label><br><br>
             <label>Celular: <input type="text" id="celular" required></label><br><br>
             <label>Edad: <input type="number" id="edad"></label><br><br>
-            <label>Instrumento: <select id="instrumento" required><option value="">Cargando...</option></select></label><br><br>
-            <label>Suscripción: <select id="tipo_suscripcion" required><option value="">Cargando...</option></select></label><br><br>
+            <label>Instrumento(s): <br>
+                <select id="instrumento" multiple required style="width: 200px;"></select>
+                <br><small>(Ctrl o Cmd + Click para varios)</small>
+            </label><br><br>
+            <label>Suscripción: <select id="tipo_suscripcion" required></select></label><br><br>
             
             <h4>Descripción del Alumno</h4>
             <div id="editor-container"></div>
             <br>
             
             <h4>Disponibilidad</h4>
-            <!-- Generado dinámicamente por JS para asegurar IDs -->
             <div id="contenedor-disponibilidad"></div>
-            
             <br>
             <button type="submit">Guardar Alumno</button>
             <button type="button" id="btn-cerrar-alumno">Cancelar</button>
@@ -119,11 +119,15 @@
         <div style="margin-bottom: 15px; padding: 10px; background: #f4f4f4; border-radius: 5px;">
             <label>Desde: <input type="date" id="agenda-start"></label>
             <label style="margin-left: 15px;">Hasta: <input type="date" id="agenda-end"></label>
+            <br><br>
+            <label>Profesor: 
+                <select id="agenda-profe-filtro">
+                    <option value="">Todos los profesores</option>
+                </select>
+            </label>
             <button id="btn-ejecutar-busqueda" style="margin-left: 15px; cursor:pointer;">Buscar en Calendar</button>
         </div>
-        <div id="resultados-agenda">
-            <p>Selecciona las fechas y haz clic en Buscar.</p>
-        </div>
+        <div id="resultados-agenda"></div>
         <br>
         <button type="button" id="btn-cerrar-agenda">Cerrar</button>
     </dialog>
@@ -139,13 +143,14 @@
         <button type="button" id="btn-cerrar-abm-edit">Cancelar</button>
     </dialog>
 
-    <!-- Quill.js Librería -->
+    <!-- Scripts CDN -->
     <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/dmuy/MDTimePicker@2.0.3/dist/mdtimepicker.min.js"></script>
 
     <!-- Lógica de la Aplicación -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
         const firebaseConfig = {
@@ -168,24 +173,23 @@
         let estadoActualVista = 'Gestión en curso';
         let tituloABMActual = '';
 
-        // Inicialización del Editor Quill
         const quill = new Quill('#editor-container', {
             theme: 'snow',
             modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'size': ['small', false, 'large', 'huge'] }], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] }
         });
 
-        // --- RENDERIZADO UI DISPONIBILIDAD ---
+        // --- UI DISPONIBILIDAD ---
         const diasSemana = [
             { id: 'L', nombre: 'Lunes' }, { id: 'M', nombre: 'Martes' }, { id: 'X', nombre: 'Miércoles' },
             { id: 'J', nombre: 'Jueves' }, { id: 'V', nombre: 'Viernes' }, { id: 'S', nombre: 'Sábado' }
         ];
-        const contDisp = document.getElementById('contenedor-disponibilidad');
         
         diasSemana.forEach(dia => {
-            contDisp.innerHTML += `
+            document.getElementById('contenedor-disponibilidad').innerHTML += `
                 <div class="dia-disponibilidad">
                     <label>${dia.nombre}:</label>
-                    <input type="time" id="disp-${dia.id}-inicio"> a <input type="time" id="disp-${dia.id}-fin">
+                    <input type="text" class="timepicker" id="disp-${dia.id}-inicio" readonly placeholder="00:00"> a 
+                    <input type="text" class="timepicker" id="disp-${dia.id}-fin" readonly placeholder="00:00">
                     <label style="font-weight:normal; width:auto; margin-left:10px;"><input type="checkbox" id="disp-${dia.id}-all"> Todo el día</label>
                     <label style="font-weight:normal; width:auto; margin-left:10px;"><input type="checkbox" id="disp-${dia.id}-none"> No disp.</label>
                     <span id="estado-${dia.id}" class="estado-disp"></span>
@@ -193,7 +197,9 @@
             `;
         });
 
-        // Lógica visual de los checkboxes
+        // Inicializar relojes (MDTimePicker)
+        mdtimepicker('.timepicker', { format: 'hh:mm', is24hour: true });
+
         diasSemana.forEach(dia => {
             const chkAll = document.getElementById(`disp-${dia.id}-all`);
             const chkNone = document.getElementById(`disp-${dia.id}-none`);
@@ -221,7 +227,7 @@
             chkNone.addEventListener('change', () => updateDispState('none'));
         });
 
-        // --- FUNCIONES UTILITARIAS Y API CALENDAR ---
+        // --- API CALENDAR & ALGORITMO ---
         function formatoLocalISO(date) {
             const tzo = -date.getTimezoneOffset(), dif = tzo >= 0 ? '+' : '-', pad = num => (num < 10 ? '0' : '') + num;
             return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + 'T' + pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds()) + dif + pad(Math.floor(Math.abs(tzo) / 60)) + ':' + pad(Math.abs(tzo) % 60);
@@ -245,14 +251,11 @@
             return await res.json();
         }
 
-        function generarOpcionesAgenda(disponibilidadAlumno, eventosAPI, esBateria, profesores, dStart, dEnd) {
+        function generarOpcionesAgenda(disponibilidadAlumno, eventosAPI, esBateria, profesores, dStart, dEnd, idBateriaCfg) {
             const opciones = [];
             const mapaDias = { 0: "D", 1: "L", 2: "M", 3: "X", 4: "J", 5: "V", 6: "S" };
             const duracionMs = 60 * 60 * 1000; 
-
-            // Calculamos la diferencia en días para el bucle
-            const diffTime = Math.abs(dEnd - dStart);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            const diffDays = Math.ceil(Math.abs(dEnd - dStart) / (1000 * 60 * 60 * 24));
 
             for (let i = 0; i <= diffDays; i++) {
                 const fechaEval = new Date(dStart);
@@ -272,32 +275,29 @@
                         const horaFinRango = new Date(fechaEval);
                         horaFinRango.setHours(parseInt(hFin), parseInt(mFin), 0, 0);
 
-                        if (horaInicioBloque < new Date()) {
-                            horaInicioBloque.setHours(new Date().getHours() + 1, 0, 0, 0);
-                        }
+                        if (horaInicioBloque < new Date()) horaInicioBloque.setHours(new Date().getHours() + 1, 0, 0, 0);
 
                         while (horaInicioBloque.getTime() + duracionMs <= horaFinRango.getTime()) {
                             const inicioMs = horaInicioBloque.getTime();
                             const finMs = inicioMs + duracionMs;
-
-                            let eventosSimultaneos = 0;
-                            let bateriasSimultaneas = 0;
-                            let profesoresOcupados = new Set();
+                            let eventosSim = 0;
+                            let bateriasSim = 0;
+                            let profesOcupados = new Set();
 
                             eventosAPI.forEach(ev => {
                                 if (!ev.start || !ev.start.dateTime) return;
-                                const evInicio = new Date(ev.start.dateTime).getTime();
-                                const evFin = new Date(ev.end.dateTime).getTime();
-                                if (inicioMs < evFin && finMs > evInicio) {
-                                    eventosSimultaneos++;
-                                    profesoresOcupados.add(ev.profeId);
-                                    if (ev.summary && ev.summary.includes('🥁')) bateriasSimultaneas++;
+                                const evIn = new Date(ev.start.dateTime).getTime();
+                                const evFn = new Date(ev.end.dateTime).getTime();
+                                if (inicioMs < evFn && finMs > evIn) {
+                                    eventosSim++;
+                                    profesOcupados.add(ev.profeId);
+                                    if (ev.summary && ev.summary.toLowerCase().includes(idBateriaCfg.toLowerCase())) bateriasSim++;
                                 }
                             });
 
-                            if (eventosSimultaneos < 3 && (esBateria ? bateriasSimultaneas < 2 : true)) {
+                            if (eventosSim < 3 && (esBateria ? bateriasSim < 2 : true)) {
                                 profesores.forEach(profe => {
-                                    if (!profesoresOcupados.has(profe.id)) {
+                                    if (!profesOcupados.has(profe.id)) {
                                         opciones.push({
                                             fechaTexto: fechaEval.toLocaleDateString('es-AR'),
                                             horaTexto: horaInicioBloque.toLocaleTimeString('es-AR', {hour: '2-digit', minute:'2-digit'}),
@@ -319,10 +319,8 @@
 
         // --- AUTENTICACIÓN ---
         document.getElementById('btn-login').addEventListener('click', async () => {
-            try { 
-                const result = await signInWithPopup(auth, provider); 
-                googleAccessToken = GoogleAuthProvider.credentialFromResult(result).accessToken;
-            } catch (error) { alert("Error al iniciar sesión."); }
+            try { googleAccessToken = GoogleAuthProvider.credentialFromResult(await signInWithPopup(auth, provider)).accessToken; } 
+            catch (error) { alert("Error al iniciar sesión."); }
         });
 
         document.getElementById('btn-logout').addEventListener('click', async () => { await signOut(auth); googleAccessToken = null; });
@@ -352,129 +350,146 @@
             listaAlumnos.innerHTML = 'Cargando...';
             
             try {
-                const querySnapshot = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", estado)));
+                const qSnap = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", estado)));
                 listaAlumnos.innerHTML = ''; 
-                if (querySnapshot.empty) { listaAlumnos.innerHTML = '<p>No hay alumnos en este estado.</p>'; return; }
+                if (qSnap.empty) { listaAlumnos.innerHTML = '<p>No hay alumnos.</p>'; return; }
 
-                querySnapshot.forEach((docSnap) => {
+                qSnap.forEach((docSnap) => {
                     const al = docSnap.data();
+                    const instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento;
                     listaAlumnos.innerHTML += `
-                        <div class="alumno-item">
+                        <div class="item-clickable alumno-item" data-id="${docSnap.id}">
                             <div>
-                                <strong>${al.nombre}</strong> - ${al.instrumento} (${al.tipo_suscripcion})<br>
+                                <strong>${al.nombre}</strong> - ${instStr} (${al.tipo_suscripcion})<br>
                                 Celular: ${al.celular}
                             </div>
                             <div class="btn-acciones">
-                                <button class="btn-abrir-agenda" data-id="${docSnap.id}" style="background:#28a745;">Agenda</button>
-                                <button class="btn-editar-alumno btn-editar" data-id="${docSnap.id}">Editar</button>
-                                <button class="btn-eliminar-alumno btn-eliminar" data-id="${docSnap.id}">Eliminar</button>
+                                <button class="btn-abrir-agenda" style="background:#28a745; color:white;">Agenda</button>
+                                <button class="btn-eliminar-alumno btn-eliminar">❌</button>
                             </div>
                         </div>
                     `;
                 });
-
-                // Asignar eventos Agenda
-                document.querySelectorAll('.btn-abrir-agenda').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        if(!googleAccessToken) { alert("Requiere token. Inicia sesión nuevamente."); return; }
-                        alumnoIdActual = e.target.getAttribute('data-id');
-                        
-                        // Setear fechas por defecto en selectores
-                        const hoy = new Date();
-                        document.getElementById('agenda-start').value = hoy.toISOString().split('T')[0];
-                        const s7 = new Date(hoy); s7.setDate(s7.getDate() + 7);
-                        document.getElementById('agenda-end').value = s7.toISOString().split('T')[0];
-                        document.getElementById('resultados-agenda').innerHTML = '<p>Selecciona las fechas y haz clic en Buscar.</p>';
-                        
-                        document.getElementById('modal-agenda').showModal();
-                    });
-                });
-
-                // Asignar eventos Editar Alumno
-                document.querySelectorAll('.btn-editar-alumno').forEach(btn => {
-                    btn.addEventListener('click', async (e) => {
-                        const id = e.target.getAttribute('data-id');
-                        const docAl = await getDoc(doc(db, "alumnos", id));
-                        const data = docAl.data();
-                        
-                        document.getElementById('modal-alumno-titulo').textContent = 'Editar Alumno';
-                        document.getElementById('alumno-id').value = id;
-                        document.getElementById('nombre').value = data.nombre;
-                        document.getElementById('celular').value = data.celular;
-                        document.getElementById('edad').value = data.edad;
-                        
-                        await cargarSelectsFormulario();
-                        document.getElementById('instrumento').value = data.instrumento;
-                        document.getElementById('tipo_suscripcion').value = data.tipo_suscripcion;
-                        quill.root.innerHTML = data.descripcion || '';
-                        
-                        // Cargar disponibilidad visual
-                        diasSemana.forEach(dia => {
-                            const dData = data.disponibilidad[dia.id];
-                            const tIni = document.getElementById(`disp-${dia.id}-inicio`);
-                            const tFin = document.getElementById(`disp-${dia.id}-fin`);
-                            const chkAll = document.getElementById(`disp-${dia.id}-all`);
-                            const chkNone = document.getElementById(`disp-${dia.id}-none`);
-                            const spanE = document.getElementById(`estado-${dia.id}`);
-                            
-                            // Reset state
-                            tIni.disabled = false; tFin.disabled = false; chkAll.checked = false; chkNone.checked = false; spanE.textContent = "";
-                            
-                            if (!dData || dData.length === 0) {
-                                chkNone.checked = true;
-                                tIni.disabled = true; tFin.disabled = true;
-                                tIni.value = ''; tFin.value = '';
-                                spanE.textContent = "No disponible"; spanE.style.color = "red";
-                            } else if (dData[0].inicio === '09:00' && dData[0].fin === '22:00') {
-                                chkAll.checked = true;
-                                tIni.disabled = true; tFin.disabled = true;
-                                tIni.value = ''; tFin.value = '';
-                                spanE.textContent = "Disponible todo el día"; spanE.style.color = "green";
-                            } else {
-                                tIni.value = dData[0].inicio;
-                                tFin.value = dData[0].fin;
-                            }
-                        });
-                        
-                        document.getElementById('modal-alumno').showModal();
-                    });
-                });
-
-                // Asignar eventos Eliminar Alumno
-                document.querySelectorAll('.btn-eliminar-alumno').forEach(btn => {
-                    btn.addEventListener('click', async (e) => {
-                        if(confirm("¿Eliminar alumno?")) {
-                            await deleteDoc(doc(db, "alumnos", e.target.getAttribute('data-id')));
-                            cargarVista(estadoActualVista);
-                        }
-                    });
-                });
-
             } catch (error) { console.error(error); }
         }
 
-        // --- BUSQUEDA AGENDA EJECUCIÓN ---
+        // Delegación de Eventos para Alumnos (Click en fila = Editar)
+        document.getElementById('lista-alumnos').addEventListener('click', async (e) => {
+            const item = e.target.closest('.item-clickable');
+            if (!item) return;
+            const id = item.getAttribute('data-id');
+
+            // 1. Botón Agenda
+            if (e.target.closest('.btn-abrir-agenda')) {
+                e.stopPropagation();
+                if(!googleAccessToken) return alert("Requiere token. Inicia sesión nuevamente.");
+                alumnoIdActual = id;
+                
+                document.getElementById('agenda-start').value = new Date().toISOString().split('T')[0];
+                const s7 = new Date(); s7.setDate(s7.getDate() + 7);
+                document.getElementById('agenda-end').value = s7.toISOString().split('T')[0];
+                
+                const selectProfe = document.getElementById('agenda-profe-filtro');
+                selectProfe.innerHTML = '<option value="">Todos los profesores</option>';
+                const pSnap = await getDocs(collection(db, "profesores"));
+                pSnap.forEach(p => { selectProfe.innerHTML += `<option value="${p.id}">${p.data().nombre}</option>`; });
+                
+                document.getElementById('resultados-agenda').innerHTML = '<p>Configura y busca.</p>';
+                document.getElementById('modal-agenda').showModal();
+                return;
+            }
+
+            // 2. Botón Eliminar (❌)
+            if (e.target.closest('.btn-eliminar')) {
+                e.stopPropagation();
+                if(confirm("¿Eliminar registro?")) {
+                    if (item.classList.contains('alumno-item')) {
+                        await deleteDoc(doc(db, "alumnos", id));
+                        cargarVista(estadoActualVista);
+                    } else {
+                        await deleteDoc(doc(db, item.getAttribute('data-col'), id));
+                        cargarABM(item.getAttribute('data-col'), tituloABMActual);
+                    }
+                }
+                return;
+            }
+
+            // 3. Click en la fila (Editar)
+            if (item.classList.contains('alumno-item')) {
+                const docAl = await getDoc(doc(db, "alumnos", id));
+                const data = docAl.data();
+                document.getElementById('modal-alumno-titulo').textContent = 'Editar Alumno';
+                document.getElementById('alumno-id').value = id;
+                document.getElementById('nombre').value = data.nombre;
+                document.getElementById('celular').value = data.celular;
+                document.getElementById('edad').value = data.edad;
+                
+                await cargarSelectsFormulario();
+                const selInst = document.getElementById('instrumento');
+                Array.from(selInst.options).forEach(opt => opt.selected = data.instrumento.includes(opt.value));
+                document.getElementById('tipo_suscripcion').value = data.tipo_suscripcion;
+                quill.root.innerHTML = data.descripcion || '';
+                
+                diasSemana.forEach(dia => {
+                    const dData = data.disponibilidad[dia.id];
+                    const tIni = document.getElementById(`disp-${dia.id}-inicio`);
+                    const tFin = document.getElementById(`disp-${dia.id}-fin`);
+                    const chkAll = document.getElementById(`disp-${dia.id}-all`);
+                    const chkNone = document.getElementById(`disp-${dia.id}-none`);
+                    const spanE = document.getElementById(`estado-${dia.id}`);
+                    tIni.disabled = false; tFin.disabled = false; chkAll.checked = false; chkNone.checked = false; spanE.textContent = "";
+                    
+                    if (!dData || dData.length === 0) {
+                        chkNone.checked = true; tIni.disabled = true; tFin.disabled = true; tIni.value = ''; tFin.value = '';
+                        spanE.textContent = "No disponible"; spanE.style.color = "red";
+                    } else if (dData[0].inicio === '09:00' && dData[0].fin === '22:00') {
+                        chkAll.checked = true; tIni.disabled = true; tFin.disabled = true; tIni.value = ''; tFin.value = '';
+                        spanE.textContent = "Disponible todo el día"; spanE.style.color = "green";
+                    } else { tIni.value = dData[0].inicio; tFin.value = dData[0].fin; }
+                });
+                document.getElementById('modal-alumno').showModal();
+            } else if (item.classList.contains('abm-item')) {
+                const col = item.getAttribute('data-col');
+                document.getElementById('abm-edit-id').value = id;
+                document.getElementById('abm-edit-coleccion').value = col;
+                document.getElementById('abm-edit-nombre').value = item.getAttribute('data-nombre');
+                if (col === 'profesores') {
+                    document.getElementById('lbl-abm-edit-correo').style.display = 'inline-block';
+                    document.getElementById('abm-edit-correo').value = item.getAttribute('data-correo');
+                } else document.getElementById('lbl-abm-edit-correo').style.display = 'none';
+                document.getElementById('modal-abm-edit').showModal();
+            }
+        });
+
+        // --- BUSQUEDA AGENDA ---
         document.getElementById('btn-ejecutar-busqueda').addEventListener('click', async () => {
             const dStrStart = document.getElementById('agenda-start').value;
             const dStrEnd = document.getElementById('agenda-end').value;
-            if(!dStrStart || !dStrEnd) return alert("Selecciona inicio y fin.");
+            const filtroProfeId = document.getElementById('agenda-profe-filtro').value;
+            if(!dStrStart || !dStrEnd) return alert("Selecciona fechas.");
             
             const resDiv = document.getElementById('resultados-agenda');
-            resDiv.innerHTML = '<p>Cruzando datos con Google Calendar...</p>';
+            resDiv.innerHTML = '<p>Buscando...</p>';
 
             try {
-                const alumnoDoc = await getDoc(doc(db, "alumnos", alumnoIdActual));
-                const alumno = alumnoDoc.data();
-                const esBateria = alumno.instrumento.toLowerCase().includes('bater');
+                // Obtener configuración de batería
+                const cfgDoc = await getDoc(doc(db, "configuracion", "general"));
+                const idBateriaCfg = cfgDoc.exists() ? (cfgDoc.data().identificador_bateria || '🥁') : '🥁';
 
-                const profesSnap = await getDocs(collection(db, "profesores"));
-                const profesores = [];
-                profesSnap.forEach(p => { if(p.data().correo_calendario) profesores.push({ id: p.id, nombre: p.data().nombre, calId: p.data().correo_calendario }); });
-                if (profesores.length === 0) { resDiv.innerHTML = '<p>No hay profesores con calendario.</p>'; return; }
+                const alumno = (await getDoc(doc(db, "alumnos", alumnoIdActual))).data();
+                const arrayInst = Array.isArray(alumno.instrumento) ? alumno.instrumento : [alumno.instrumento];
+                const esBateria = arrayInst.some(i => i.toLowerCase().includes('bater'));
+
+                const pSnap = await getDocs(collection(db, "profesores"));
+                let profesores = [];
+                pSnap.forEach(p => { 
+                    if(p.data().correo_calendario && (!filtroProfeId || p.id === filtroProfeId)) 
+                        profesores.push({ id: p.id, nombre: p.data().nombre, calId: p.data().correo_calendario }); 
+                });
+                if (profesores.length === 0) return resDiv.innerHTML = '<p>No hay profesores.</p>'; 
 
                 const dStart = new Date(dStrStart + 'T00:00:00');
                 const dEnd = new Date(dStrEnd + 'T23:59:59');
-                
                 let todosLosEventos = [];
                 for (const profe of profesores) {
                     try {
@@ -483,88 +498,74 @@
                     } catch(err) { console.error(err); }
                 }
 
-                const opciones = generarOpcionesAgenda(alumno.disponibilidad, todosLosEventos, esBateria, profesores, dStart, dEnd);
+                const opciones = generarOpcionesAgenda(alumno.disponibilidad, todosLosEventos, esBateria, profesores, dStart, dEnd, idBateriaCfg);
 
-                if (opciones.length === 0) resDiv.innerHTML = '<p>No se encontraron horarios libres.</p>';
-                else {
-                    resDiv.innerHTML = opciones.map(op => `
-                        <div class="opcion-horario">
-                            <span>${op.fechaTexto} a las ${op.horaTexto} (Profe: ${op.profeNombre})</span><br>
-                            <button class="btn-reservar" data-calid="${op.calId}" data-start="${op.inicioData}" data-end="${op.finData}">Reservar horario</button>
-                            <button class="btn-validar-profe" data-hora="${op.fechaTexto} a las ${op.horaTexto}">Validar con profe</button>
-                            <button class="btn-validar-alumno" data-hora="${op.fechaTexto} a las ${op.horaTexto}">Validar con alumno</button>
-                        </div>
-                    `).join('');
-                }
-            } catch (error) { resDiv.innerHTML = '<p>Error al ejecutar el algoritmo.</p>'; }
+                if (opciones.length === 0) resDiv.innerHTML = '<p>Sin horarios libres.</p>';
+                else resDiv.innerHTML = opciones.map(op => `
+                    <div class="opcion-horario">
+                        <span>${op.fechaTexto} - ${op.horaTexto}hs (${op.profeNombre})</span><br>
+                        <button class="btn-reservar" data-calid="${op.calId}" data-start="${op.inicioData}" data-end="${op.finData}">Reservar</button>
+                        <button class="btn-validar-profe" data-hora="${op.fechaTexto} ${op.horaTexto}hs">Profe</button>
+                        <button class="btn-validar-alumno" data-hora="${op.fechaTexto} ${op.horaTexto}hs">Alumno</button>
+                    </div>`).join('');
+            } catch (error) { resDiv.innerHTML = '<p>Error.</p>'; }
         });
 
-        // --- VISTAS ABM ---
+        // --- VISTAS ABM & CONFIG ---
         document.getElementById('btn-abm-profes').addEventListener('click', () => { if(auth.currentUser) cargarABM('profesores', 'Profesores') });
         document.getElementById('btn-abm-inst').addEventListener('click', () => { if(auth.currentUser) cargarABM('instrumentos', 'Instrumentos') });
         document.getElementById('btn-abm-susc').addEventListener('click', () => { if(auth.currentUser) cargarABM('tipos_suscripcion', 'Suscripciones') });
+        
+        document.getElementById('btn-config').addEventListener('click', async () => {
+            if(!auth.currentUser) return;
+            document.getElementById('vista-titulo').textContent = 'Configuración General';
+            document.getElementById('btn-nuevo-alumno').style.display = 'none';
+            
+            const cfg = await getDoc(doc(db, "configuracion", "general"));
+            const val = cfg.exists() ? (cfg.data().identificador_bateria || '🥁') : '🥁';
+            
+            document.getElementById('lista-alumnos').innerHTML = `
+                <div class="abm-container">
+                    <label>Texto/Emoji que identifica las clases de batería en el Calendario:</label><br><br>
+                    <input type="text" id="cfg-bateria" value="${val}" style="width:100px; text-align:center;">
+                    <button id="btn-guardar-cfg">Guardar</button>
+                </div>
+            `;
+            document.getElementById('btn-guardar-cfg').addEventListener('click', async () => {
+                await setDoc(doc(db, "configuracion", "general"), { identificador_bateria: document.getElementById('cfg-bateria').value }, { merge: true });
+                alert('Guardado.');
+            });
+        });
 
         async function cargarABM(coleccion, titulo) {
             tituloABMActual = titulo;
             document.getElementById('vista-titulo').textContent = 'Administración: ' + titulo;
             document.getElementById('btn-nuevo-alumno').style.display = 'none';
-            const listaAlumnos = document.getElementById('lista-alumnos');
+            const lst = document.getElementById('lista-alumnos');
             
             try {
-                const querySnapshot = await getDocs(collection(db, coleccion));
+                const qSnap = await getDocs(collection(db, coleccion));
                 let html = `<div class="abm-container"><input type="text" id="input-nuevo-abm" placeholder="Nombre">`;
                 if (coleccion === 'profesores') html += `<input type="email" id="input-correo-abm" placeholder="Email Calendario">`;
-                html += `<button id="btn-guardar-abm">Agregar</button></div><div id="lista-items-abm">`;
+                html += `<button id="btn-guardar-abm">Agregar</button></div>`;
                 
-                querySnapshot.forEach((docSnap) => {
-                    const data = docSnap.data();
-                    const correoTxt = data.correo_calendario ? ` (${data.correo_calendario})` : '';
+                qSnap.forEach((dSnap) => {
+                    const data = dSnap.data();
                     html += `
-                        <div class="abm-item">
-                            <span>${data.nombre}${correoTxt}</span>
-                            <div class="btn-acciones">
-                                <button class="btn-editar-abm btn-editar" data-id="${docSnap.id}" data-coleccion="${coleccion}" data-nombre="${data.nombre}" data-correo="${data.correo_calendario || ''}">Editar</button>
-                                <button class="btn-eliminar-abm btn-eliminar" data-id="${docSnap.id}" data-coleccion="${coleccion}">Eliminar</button>
-                            </div>
+                        <div class="item-clickable abm-item" data-id="${dSnap.id}" data-col="${coleccion}" data-nombre="${data.nombre}" data-correo="${data.correo_calendario || ''}">
+                            <span>${data.nombre} ${data.correo_calendario ? `(${data.correo_calendario})` : ''}</span>
+                            <div class="btn-acciones"><button class="btn-eliminar">❌</button></div>
                         </div>`;
                 });
-                html += '</div>';
-                listaAlumnos.innerHTML = html;
+                lst.innerHTML = html;
 
                 document.getElementById('btn-guardar-abm').addEventListener('click', async () => {
-                    const nombre = document.getElementById('input-nuevo-abm').value.trim();
-                    if (!nombre) return;
-                    const dataObj = { nombre: nombre };
-                    if (coleccion === 'profesores') {
-                        const correo = document.getElementById('input-correo-abm').value.trim();
-                        if (correo) dataObj.correo_calendario = correo;
-                    }
-                    await addDoc(collection(db, coleccion), dataObj);
+                    const nom = document.getElementById('input-nuevo-abm').value.trim();
+                    if (!nom) return;
+                    const dObj = { nombre: nom };
+                    if (coleccion === 'profesores') dObj.correo_calendario = document.getElementById('input-correo-abm').value.trim();
+                    await addDoc(collection(db, coleccion), dObj);
                     cargarABM(coleccion, titulo);
-                });
-
-                document.querySelectorAll('.btn-eliminar-abm').forEach(btn => {
-                    btn.addEventListener('click', async (e) => {
-                        await deleteDoc(doc(db, e.target.getAttribute('data-coleccion'), e.target.getAttribute('data-id')));
-                        cargarABM(coleccion, titulo);
-                    });
-                });
-
-                document.querySelectorAll('.btn-editar-abm').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        const col = e.target.getAttribute('data-coleccion');
-                        document.getElementById('abm-edit-id').value = e.target.getAttribute('data-id');
-                        document.getElementById('abm-edit-coleccion').value = col;
-                        document.getElementById('abm-edit-nombre').value = e.target.getAttribute('data-nombre');
-                        
-                        if (col === 'profesores') {
-                            document.getElementById('lbl-abm-edit-correo').style.display = 'inline-block';
-                            document.getElementById('abm-edit-correo').value = e.target.getAttribute('data-correo');
-                        } else {
-                            document.getElementById('lbl-abm-edit-correo').style.display = 'none';
-                        }
-                        document.getElementById('modal-abm-edit').showModal();
-                    });
                 });
             } catch (error) { console.error(error); }
         }
@@ -572,26 +573,24 @@
         // --- EDICIÓN ABM ---
         document.getElementById('btn-guardar-abm-edit').addEventListener('click', async () => {
             const id = document.getElementById('abm-edit-id').value;
-            const coleccion = document.getElementById('abm-edit-coleccion').value;
-            const dataObj = { nombre: document.getElementById('abm-edit-nombre').value };
-            if (coleccion === 'profesores') dataObj.correo_calendario = document.getElementById('abm-edit-correo').value;
-            
-            await updateDoc(doc(db, coleccion, id), dataObj);
+            const col = document.getElementById('abm-edit-coleccion').value;
+            const dObj = { nombre: document.getElementById('abm-edit-nombre').value };
+            if (col === 'profesores') dObj.correo_calendario = document.getElementById('abm-edit-correo').value;
+            await updateDoc(doc(db, col, id), dObj);
             document.getElementById('modal-abm-edit').close();
-            cargarABM(coleccion, tituloABMActual);
+            cargarABM(col, tituloABMActual);
         });
         document.getElementById('btn-cerrar-abm-edit').addEventListener('click', () => document.getElementById('modal-abm-edit').close());
 
-        // --- FORMULARIO ALUMNOS (ALTA Y EDICIÓN) ---
+        // --- FORMULARIO ALUMNOS ---
         async function cargarSelectsFormulario() {
-            const selectInst = document.getElementById('instrumento');
-            const selectSusc = document.getElementById('tipo_suscripcion');
-            selectInst.innerHTML = '<option value="">Seleccione...</option>';
-            selectSusc.innerHTML = '<option value="">Seleccione...</option>';
-            const instSnap = await getDocs(collection(db, "instrumentos"));
-            instSnap.forEach(d => { selectInst.innerHTML += `<option value="${d.data().nombre}">${d.data().nombre}</option>`; });
-            const suscSnap = await getDocs(collection(db, "tipos_suscripcion"));
-            suscSnap.forEach(d => { selectSusc.innerHTML += `<option value="${d.data().nombre}">${d.data().nombre}</option>`; });
+            const sInst = document.getElementById('instrumento');
+            const sSusc = document.getElementById('tipo_suscripcion');
+            sInst.innerHTML = ''; sSusc.innerHTML = '<option value="">Seleccione...</option>';
+            const iSnap = await getDocs(collection(db, "instrumentos"));
+            iSnap.forEach(d => { sInst.innerHTML += `<option value="${d.data().nombre}">${d.data().nombre}</option>`; });
+            const sSnap = await getDocs(collection(db, "tipos_suscripcion"));
+            sSnap.forEach(d => { sSusc.innerHTML += `<option value="${d.data().nombre}">${d.data().nombre}</option>`; });
         }
 
         document.getElementById('btn-nuevo-alumno').addEventListener('click', async () => { 
@@ -600,7 +599,6 @@
             document.getElementById('form-alumno').reset();
             quill.setContents([]);
             
-            // Limpiar UI Disponibilidad
             diasSemana.forEach(dia => {
                 document.getElementById(`disp-${dia.id}-all`).checked = false;
                 document.getElementById(`disp-${dia.id}-none`).checked = false;
@@ -618,7 +616,6 @@
 
         document.getElementById('form-alumno').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
             const objDisponibilidad = {};
             diasSemana.forEach(dia => {
                 const chkAll = document.getElementById(`disp-${dia.id}-all`).checked;
@@ -626,38 +623,36 @@
                 let ini = document.getElementById(`disp-${dia.id}-inicio`).value;
                 let fin = document.getElementById(`disp-${dia.id}-fin`).value;
 
-                if (chkNone) {
-                    objDisponibilidad[dia.id] = [];
-                } else if (chkAll) {
-                    objDisponibilidad[dia.id] = [{ inicio: '09:00', fin: '22:00' }];
-                } else {
+                if (chkNone) objDisponibilidad[dia.id] = [];
+                else if (chkAll) objDisponibilidad[dia.id] = [{ inicio: '09:00', fin: '22:00' }];
+                else {
                     if (ini || fin) {
                         if (ini && !fin) fin = '22:00';
                         if (!ini && fin) ini = '09:00';
                         objDisponibilidad[dia.id] = [{ inicio: ini, fin: fin }];
-                    } else {
-                        objDisponibilidad[dia.id] = [];
-                    }
+                    } else objDisponibilidad[dia.id] = [];
                 }
             });
+
+            const selInst = document.getElementById('instrumento');
+            const instValues = Array.from(selInst.selectedOptions).map(opt => opt.value);
 
             const dataAlumno = {
                 nombre: document.getElementById('nombre').value,
                 celular: document.getElementById('celular').value,
                 edad: Number(document.getElementById('edad').value),
-                instrumento: document.getElementById('instrumento').value,
+                instrumento: instValues,
                 tipo_suscripcion: document.getElementById('tipo_suscripcion').value,
                 descripcion: quill.root.innerHTML,
-                estado_agenda: document.getElementById('alumno-id').value ? undefined : "Gestión en curso", // No sobreescribir si edita
                 disponibilidad: objDisponibilidad
             };
 
             try {
                 const idEdicion = document.getElementById('alumno-id').value;
                 if (idEdicion) {
-                    delete dataAlumno.estado_agenda; // Evita blanquear estado actual
                     await updateDoc(doc(db, "alumnos", idEdicion), dataAlumno);
                 } else {
+                    dataAlumno.estado_agenda = "Gestión en curso";
                     await addDoc(collection(db, "alumnos"), dataAlumno);
                 }
                 document.getElementById('modal-alumno').close(); 
@@ -682,7 +677,8 @@
                 }
                 if (e.target.classList.contains('btn-reservar')) {
                     const alDoc = await getDoc(docRef);
-                    const titulo = `RESERVA - ${alDoc.data().nombre} (${alDoc.data().instrumento})`;
+                    const instStr = Array.isArray(alDoc.data().instrumento) ? alDoc.data().instrumento.join('/') : alDoc.data().instrumento;
+                    const titulo = `RESERVA - ${alDoc.data().nombre} (${instStr})`;
                     const evObj = await crearEventoCalendario(e.target.getAttribute('data-calid'), titulo, e.target.getAttribute('data-start'), e.target.getAttribute('data-end'));
                     await updateDoc(docRef, { id_evento_reserva: evObj.id, id_calendario_usado: e.target.getAttribute('data-calid'), estado_agenda: "Se ofrece agenda" });
                     alert("Reserva registrada.");
