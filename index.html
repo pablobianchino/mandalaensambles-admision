@@ -288,6 +288,16 @@
             return await fetchCalendarAPI(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, 'PATCH', { summary: titulo, description: descripcion });
         }
 
+        async function eliminarEventoCalendario(calendarId, eventId) {
+            if (!googleAccessToken) throw new Error("Falta token.");
+            const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${googleAccessToken}` }
+            });
+            if (!res.ok && res.status !== 410 && res.status !== 404) throw new Error("Error al eliminar evento.");
+            return true;
+        }
+
         function generarOpcionesAgenda(disponibilidadAlumno, eventosAPI, esBateria, profesores, dStart, dEnd, idBateriaCfg) {
             const opciones = [];
             const mapaDias = { 0: "D", 1: "L", 2: "M", 3: "X", 4: "J", 5: "V", 6: "S" };
@@ -403,6 +413,7 @@
                     const id = docSnap.id;
                     
                     let htmlAcciones = '';
+                    let etiquetaConfirmada = '';
                     
                     if (vistaSeleccionada === 'Gestión en curso') {
                         htmlAcciones += `<select class="select-estado" data-id="${id}">
@@ -411,7 +422,6 @@
                             <option value="Pendiente validación por alumno" ${al.estado_agenda === 'Pendiente validación por alumno' ? 'selected' : ''}>Pendiente validación por alumno</option>
                         </select>`;
 
-                        // Tag o Boton de reserva
                         let tagReserva = '';
                         if (al.reserva_fecha_texto) {
                             if (al.id_evento_reserva) {
@@ -430,8 +440,11 @@
                             htmlAcciones += tagReserva;
                             htmlAcciones += `<button class="btn-confirmar-entrevista btn-accion-flujo" data-id="${id}">Confirmar Entrevista</button>`;
                         }
-                        
                         htmlAcciones += `<button class="btn-abrir-suspender btn-suspender" data-id="${id}">Suspender</button>`;
+                        
+                    } else if (vistaSeleccionada === 'Agenda confirmada') {
+                        etiquetaConfirmada = `<br><span style="display:inline-block; margin-top:5px; font-size:0.9em; background:#28a745; padding:4px 8px; border-radius:3px; color:white;">✅ Confirmado: ${al.reserva_fecha_texto} (${al.reserva_profe_nombre})</span>`;
+                        htmlAcciones += `<button class="btn-cancelar-agenda btn-suspender" data-id="${id}">Cancelar Confirmación</button>`;
                     }
 
                     listaAlumnos.innerHTML += `
@@ -440,6 +453,7 @@
                                 <div>
                                     <strong>${al.nombre}</strong> - ${instStr} (${al.tipo_suscripcion})<br>
                                     <small>Celular: ${al.celular} | Edad: ${al.edad || '-'}</small>
+                                    ${etiquetaConfirmada}
                                 </div>
                                 <span style="font-size:0.85em; font-weight:bold; color:#666;">${al.estado_agenda}</span>
                             </div>
@@ -492,7 +506,6 @@
                 });
             });
 
-            // Botón nuevo: Bloquear en Calendar central manualmente
             document.querySelectorAll('.btn-bloquear-agenda').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     if(confirm("¿Quieres reservar este horario en tu calendario central (bloqueo preventivo)?")) {
@@ -503,7 +516,6 @@
                             const instStr = Array.isArray(al.instrumento) ? al.instrumento.join('/') : al.instrumento;
                             
                             const tituloEv = reemplazarVariables(cfg.formato_evento_reserva, { profe: al.reserva_profe_nombre, alumno: al.nombre, instrumento: instStr });
-                            // Se carga en la cuenta central (productora)
                             const evObj = await crearEventoCalendario('productora.mandalahouse@gmail.com', tituloEv, al.reserva_inicio, al.reserva_fin);
                             
                             await updateDoc(doc(db, "alumnos", id), { id_evento_reserva: evObj.id });
@@ -533,7 +545,6 @@
                         const textoPortapapeles = reemplazarVariables(cfg.texto_alumno, datosTpl);
                         await navigator.clipboard.writeText(textoPortapapeles);
                         
-                        // Lógica: Crear reserva SOLAMENTE si no existe ya. Escribimos al calendario central.
                         let evId = al.id_evento_reserva;
                         if (!evId) {
                             const instStr = Array.isArray(al.instrumento) ? al.instrumento.join('/') : al.instrumento;
@@ -560,12 +571,39 @@
                         
                         const tituloEv = reemplazarVariables(cfg.formato_evento_confirmado, { instrumento: instStr, alumno: al.nombre, edad: al.edad || '' });
                         
-                        // Actualizamos el evento en el calendario central.
                         await actualizarEventoCalendario('productora.mandalahouse@gmail.com', al.id_evento_reserva, tituloEv, descPlana);
                         await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Agenda confirmada" });
                         alert("Entrevista confirmada en Calendar.");
                         cargarVista(estadoActualVista);
                     } catch(err) { console.error(err); alert("Error al confirmar en Calendar."); }
+                });
+            });
+
+            document.querySelectorAll('.btn-cancelar-agenda').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    if (confirm("¿Estás seguro de cancelar esta confirmación? Esto eliminará el evento en Google Calendar y devolverá al alumno al estado 'Pendiente procesar'.")) {
+                        const id = e.target.getAttribute('data-id');
+                        try {
+                            const al = (await getDoc(doc(db, "alumnos", id))).data();
+                            if (al.id_evento_reserva) {
+                                await eliminarEventoCalendario('productora.mandalahouse@gmail.com', al.id_evento_reserva);
+                            }
+                            
+                            const updateData = { 
+                                estado_agenda: "Pendiente procesar",
+                                reserva_profe_id: null, reserva_profe_nombre: null,
+                                reserva_cal_id: null, reserva_fecha_texto: null,
+                                reserva_inicio: null, reserva_fin: null, id_evento_reserva: null
+                            };
+                            
+                            await updateDoc(doc(db, "alumnos", id), updateData);
+                            alert("Evento eliminado y agenda cancelada.");
+                            cargarVista(estadoActualVista);
+                        } catch(err) {
+                            console.error(err);
+                            alert("Error al cancelar la agenda. Verifica permisos.");
+                        }
+                    }
                 });
             });
 
@@ -597,7 +635,6 @@
                 let profesores = [];
                 pSnap.forEach(p => {
                     const data = p.data();
-                    // Lee de los calendarios de los profesores para buscar disponibilidad
                     if(data.correo_calendario && data.entrevista === true && (!filtroProfeId || p.id === filtroProfeId)) {
                         profesores.push({ id: p.id, nombre: data.nombre, calId: data.correo_calendario });
                     }
@@ -662,7 +699,22 @@
             const id = document.getElementById('susp-alumno-id').value;
             const mtv = document.getElementById('susp-motivo').value;
             if(!mtv) return alert("Seleccione motivo");
-            await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Agenda suspendida", motivo_suspension: mtv });
+            
+            // Si tenía evento bloqueado, lo eliminamos al suspender.
+            try {
+                const al = (await getDoc(doc(db, "alumnos", id))).data();
+                if (al.id_evento_reserva) {
+                    await eliminarEventoCalendario('productora.mandalahouse@gmail.com', al.id_evento_reserva);
+                }
+            } catch(e) {}
+
+            await updateDoc(doc(db, "alumnos", id), { 
+                estado_agenda: "Agenda suspendida", 
+                motivo_suspension: mtv,
+                reserva_profe_id: null, reserva_profe_nombre: null,
+                reserva_cal_id: null, reserva_fecha_texto: null,
+                reserva_inicio: null, reserva_fin: null, id_evento_reserva: null
+            });
             document.getElementById('modal-suspender').close();
             cargarVista(estadoActualVista);
         });
