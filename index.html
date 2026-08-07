@@ -52,7 +52,6 @@
         #user-info { font-weight: bold; }
         #btn-logout { cursor: pointer; padding: 5px 10px; background: #dc3545; color: white; border: none; border-radius: 3px; }
         
-        /* Estilos ABM */
         .abm-container { margin-bottom: 20px; }
         .abm-container input { padding: 8px; width: 200px; }
         .abm-container button { padding: 8px 15px; cursor: pointer; }
@@ -96,9 +95,7 @@
             <h2 id="vista-titulo">Gestión en curso</h2>
             <button id="btn-nuevo-alumno">Cargar Nuevo Alumno</button>
             
-            <div id="lista-alumnos" style="margin-top: 20px;">
-                <!-- Renderizado de vistas y ABMs -->
-            </div>
+            <div id="lista-alumnos" style="margin-top: 20px;"></div>
         </main>
     </div>
 
@@ -110,25 +107,31 @@
             <label>Edad: <input type="number" id="edad"></label><br><br>
             
             <label>Instrumento: 
-                <select id="instrumento" required>
-                    <option value="">Cargando...</option>
-                </select>
+                <select id="instrumento" required><option value="">Cargando...</option></select>
             </label><br><br>
             
             <label>Suscripción: 
-                <select id="tipo_suscripcion" required>
-                    <option value="">Cargando...</option>
-                </select>
+                <select id="tipo_suscripcion" required><option value="">Cargando...</option></select>
             </label><br><br>
 
             <h4>Disponibilidad</h4>
             <div class="dia-disponibilidad">
-                <label>Lunes:</label>
-                <input type="time" id="disp-L-inicio"> a <input type="time" id="disp-L-fin">
+                <label>Lunes:</label><input type="time" id="disp-L-inicio"> a <input type="time" id="disp-L-fin">
             </div>
             <div class="dia-disponibilidad">
-                <label>Martes:</label>
-                <input type="time" id="disp-M-inicio"> a <input type="time" id="disp-M-fin">
+                <label>Martes:</label><input type="time" id="disp-M-inicio"> a <input type="time" id="disp-M-fin">
+            </div>
+            <div class="dia-disponibilidad">
+                <label>Miércoles:</label><input type="time" id="disp-X-inicio"> a <input type="time" id="disp-X-fin">
+            </div>
+            <div class="dia-disponibilidad">
+                <label>Jueves:</label><input type="time" id="disp-J-inicio"> a <input type="time" id="disp-J-fin">
+            </div>
+            <div class="dia-disponibilidad">
+                <label>Viernes:</label><input type="time" id="disp-V-inicio"> a <input type="time" id="disp-V-fin">
+            </div>
+            <div class="dia-disponibilidad">
+                <label>Sábado:</label><input type="time" id="disp-S-inicio"> a <input type="time" id="disp-S-fin">
             </div>
 
             <br>
@@ -140,13 +143,7 @@
     <dialog id="modal-agenda">
         <h3>Agendas Disponibles</h3>
         <div id="resultados-agenda">
-            <div class="opcion-horario">
-                <span>Martes 10/08 - 18:00hs (Profe: Juan)</span><br>
-                <button class="btn-reservar">Reservar horario</button>
-                <button class="btn-validar-profe">Validar con profe</button>
-                <button class="btn-validar-alumno">Validar con alumno</button>
-                <button class="btn-agendar">Agendar (Confirmar)</button>
-            </div>
+            <!-- Renderizado dinámico del algoritmo -->
         </div>
         <br>
         <button type="button" id="btn-cerrar-agenda">Cerrar</button>
@@ -154,7 +151,6 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        // Se añade importación de deleteDoc
         import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
@@ -171,6 +167,9 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
+        
+        // El scope de calendar se pedirá cuando implementemos el punto 3
+        provider.addScope('https://www.googleapis.com/auth/calendar.events');
 
         let alumnoIdActual = null;
         let estadoActualVista = 'Gestión en curso';
@@ -188,7 +187,83 @@
         const vistaTitulo = document.getElementById('vista-titulo');
         const listaAlumnos = document.getElementById('lista-alumnos');
 
-        // Autenticación
+        // --- ALGORITMO DE BÚSQUEDA DE AGENDA ---
+        function generarOpcionesAgenda(disponibilidadAlumno, eventosAPI, esBateria, idProfeRequerido) {
+            // disponibilidadAlumno: { L: [{inicio, fin}], M: [...], ... }
+            // eventosAPI: Array de eventos obtenidos de Google Calendar (todos los profes para ese día)
+            // { id, start: { dateTime }, end: { dateTime }, summary: string, creator: { email } }
+            
+            const opcionesSugeridas = [];
+            const duracionClaseMs = 60 * 60 * 1000; // 1 hora
+            const emojiBateria = '🥁'; 
+            
+            // Simulación de iteración sobre los bloques de tiempo del alumno
+            // Por cada día y cada rango, se generan bloques de 1 hora
+            for (const dia in disponibilidadAlumno) {
+                disponibilidadAlumno[dia].forEach(rango => {
+                    if (!rango.inicio || !rango.fin) return;
+                    
+                    // Transformar HH:MM a fecha/hora comparable (simplificado para lógica)
+                    let horaActual = new Date(`1970-01-01T${rango.inicio}:00`);
+                    const horaFinRango = new Date(`1970-01-01T${rango.fin}:00`);
+
+                    while (horaActual.getTime() + duracionClaseMs <= horaFinRango.getTime()) {
+                        const inicioBloque = horaActual.getTime();
+                        const finBloque = inicioBloque + duracionClaseMs;
+                        
+                        let eventosEnEsteBloque = 0;
+                        let bateriasEnEsteBloque = 0;
+                        let profeOcupado = false;
+                        let huecoMinimo = Infinity;
+
+                        // Evaluar eventos existentes en la API para este bloque
+                        eventosAPI.forEach(evento => {
+                            const evInicio = new Date(evento.start.dateTime).getTime();
+                            const evFin = new Date(evento.end.dateTime).getTime();
+                            
+                            // Si hay superposición
+                            if (inicioBloque < evFin && finBloque > evInicio) {
+                                eventosEnEsteBloque++;
+                                
+                                if (evento.summary && evento.summary.includes(emojiBateria)) {
+                                    bateriasEnEsteBloque++;
+                                }
+                                
+                                if (evento.creator.email === idProfeRequerido) {
+                                    profeOcupado = true;
+                                }
+                            } else if (evento.creator.email === idProfeRequerido) {
+                                // Calcular cercanía temporal (en minutos) si el profe no está ocupado en ese bloque exacto
+                                const difInicio = Math.abs(inicioBloque - evFin) / 60000;
+                                const difFin = Math.abs(evInicio - finBloque) / 60000;
+                                huecoMinimo = Math.min(huecoMinimo, difInicio, difFin);
+                            }
+                        });
+
+                        // Reglas de validación
+                        const hayAulasLibres = eventosEnEsteBloque < 3;
+                        const hayAulasBateria = esBateria ? bateriasEnEsteBloque < 2 : true;
+
+                        if (hayAulasLibres && hayAulasBateria && !profeOcupado) {
+                            opcionesSugeridas.push({
+                                dia: dia,
+                                horaTexto: `${horaActual.getHours()}:${horaActual.getMinutes().toString().padStart(2, '0')}`,
+                                huecoAlProfe: huecoMinimo === Infinity ? 0 : huecoMinimo // 0 si no tiene clases ese día
+                            });
+                        }
+                        
+                        horaActual.setHours(horaActual.getHours() + 1); // Avanzar 1 hora
+                    }
+                });
+            }
+
+            // Ordenamiento por proximidad (Menor hueco = Mejor opción)
+            opcionesSugeridas.sort((a, b) => a.huecoAlProfe - b.huecoAlProfe);
+
+            return opcionesSugeridas;
+        }
+
+        // Autenticación y Vistas
         btnLogin.addEventListener('click', async () => {
             try { await signInWithPopup(auth, provider); } 
             catch (error) { alert("Error al iniciar sesión."); }
@@ -208,7 +283,6 @@
             }
         });
 
-        // Navegación Vistas Alumnos
         document.getElementById('btn-gestion').addEventListener('click', () => { if(auth.currentUser) cargarVista('Gestión en curso') });
         document.getElementById('btn-confirmadas').addEventListener('click', () => { if(auth.currentUser) cargarVista('Agenda confirmada') });
         document.getElementById('btn-suspendidas').addEventListener('click', () => { if(auth.currentUser) cargarVista('Agenda suspendida') });
@@ -216,7 +290,7 @@
         async function cargarVista(estado) {
             estadoActualVista = estado;
             vistaTitulo.textContent = estado;
-            btnNuevoAlumno.style.display = 'inline-block'; // Mostrar botón de nuevo alumno
+            btnNuevoAlumno.style.display = 'inline-block';
             listaAlumnos.innerHTML = 'Cargando...';
             
             const q = query(collection(db, "alumnos"), where("estado_agenda", "==", estado));
@@ -245,88 +319,79 @@
                 document.querySelectorAll('.btn-abrir-agenda').forEach(btn => {
                     btn.addEventListener('click', (e) => {
                         alumnoIdActual = e.target.getAttribute('data-id');
+                        
+                        // MOCK DE UI HASTA CONECTAR LA API
+                        document.getElementById('resultados-agenda').innerHTML = `
+                            <div class="opcion-horario">
+                                <span>Simulación - 18:00hs (Profe: Juan)</span><br>
+                                <button class="btn-reservar">Reservar horario</button>
+                                <button class="btn-validar-profe">Validar con profe</button>
+                                <button class="btn-validar-alumno">Validar con alumno</button>
+                                <button class="btn-agendar">Agendar (Confirmar)</button>
+                            </div>
+                        `;
                         modalAgenda.showModal();
                     });
                 });
-            } catch (error) {
-                listaAlumnos.innerHTML = '<p>Error al cargar los datos.</p>';
-            }
+            } catch (error) { listaAlumnos.innerHTML = '<p>Error al cargar los datos.</p>'; }
         }
 
-        // Navegación Vistas ABM
         document.getElementById('btn-abm-profes').addEventListener('click', () => { if(auth.currentUser) cargarABM('profesores', 'Profesores') });
         document.getElementById('btn-abm-inst').addEventListener('click', () => { if(auth.currentUser) cargarABM('instrumentos', 'Instrumentos') });
         document.getElementById('btn-abm-susc').addEventListener('click', () => { if(auth.currentUser) cargarABM('tipos_suscripcion', 'Suscripciones') });
 
-        // Función CRUD para ABM
         async function cargarABM(coleccion, titulo) {
             vistaTitulo.textContent = 'Administración: ' + titulo;
-            btnNuevoAlumno.style.display = 'none'; // Ocultar botón de nuevo alumno
+            btnNuevoAlumno.style.display = 'none';
             listaAlumnos.innerHTML = 'Cargando...';
 
             try {
                 const querySnapshot = await getDocs(collection(db, coleccion));
-                
-                // Formulario de alta para ABM
                 let html = `
                     <div class="abm-container">
-                        <input type="text" id="input-nuevo-abm" placeholder="Nuevo registro de ${titulo}">
+                        <input type="text" id="input-nuevo-abm" placeholder="Nuevo registro">
                         <button id="btn-guardar-abm">Agregar</button>
                     </div>
                     <div id="lista-items-abm">
                 `;
-
                 querySnapshot.forEach((docSnap) => {
-                    const data = docSnap.data();
                     html += `
                         <div class="abm-item">
-                            <span>${data.nombre}</span>
+                            <span>${docSnap.data().nombre}</span>
                             <button class="btn-eliminar" data-id="${docSnap.id}">Eliminar</button>
                         </div>
                     `;
                 });
-                
                 html += '</div>';
                 listaAlumnos.innerHTML = html;
 
-                // Evento Guardar ABM
                 document.getElementById('btn-guardar-abm').addEventListener('click', async () => {
                     const nombre = document.getElementById('input-nuevo-abm').value.trim();
                     if (!nombre) return;
                     await addDoc(collection(db, coleccion), { nombre: nombre });
-                    cargarABM(coleccion, titulo); // Recargar la vista
+                    cargarABM(coleccion, titulo);
                 });
 
-                // Eventos Eliminar ABM
                 document.querySelectorAll('.btn-eliminar').forEach(btn => {
                     btn.addEventListener('click', async (e) => {
-                        const id = e.target.getAttribute('data-id');
-                        await deleteDoc(doc(db, coleccion, id));
-                        cargarABM(coleccion, titulo); // Recargar la vista
+                        await deleteDoc(doc(db, coleccion, e.target.getAttribute('data-id')));
+                        cargarABM(coleccion, titulo);
                     });
                 });
-
-            } catch (error) {
-                listaAlumnos.innerHTML = '<p>Error al cargar la administración.</p>';
-            }
+            } catch (error) { listaAlumnos.innerHTML = '<p>Error.</p>'; }
         }
 
-        // Lógica de Formulario Dinámico de Alumno
         async function cargarSelectsFormulario() {
             const selectInst = document.getElementById('instrumento');
             const selectSusc = document.getElementById('tipo_suscripcion');
-            
             selectInst.innerHTML = '<option value="">Seleccione...</option>';
             selectSusc.innerHTML = '<option value="">Seleccione...</option>';
-            
             const instSnap = await getDocs(collection(db, "instrumentos"));
             instSnap.forEach(d => { selectInst.innerHTML += `<option value="${d.data().nombre}">${d.data().nombre}</option>`; });
-            
             const suscSnap = await getDocs(collection(db, "tipos_suscripcion"));
             suscSnap.forEach(d => { selectSusc.innerHTML += `<option value="${d.data().nombre}">${d.data().nombre}</option>`; });
         }
 
-        // Modales
         btnNuevoAlumno.addEventListener('click', async () => { 
             await cargarSelectsFormulario();
             modalAlumno.showModal(); 
@@ -334,7 +399,6 @@
         document.getElementById('btn-cerrar-alumno').addEventListener('click', () => { modalAlumno.close(); formAlumno.reset(); });
         document.getElementById('btn-cerrar-agenda').addEventListener('click', () => modalAgenda.close());
 
-        // Alta alumno
         formAlumno.addEventListener('submit', async (e) => {
             e.preventDefault();
             const nuevoAlumno = {
@@ -346,7 +410,11 @@
                 estado_agenda: "Gestión en curso",
                 disponibilidad: {
                     L: [{ inicio: document.getElementById('disp-L-inicio').value, fin: document.getElementById('disp-L-fin').value }],
-                    M: [{ inicio: document.getElementById('disp-M-inicio').value, fin: document.getElementById('disp-M-fin').value }]
+                    M: [{ inicio: document.getElementById('disp-M-inicio').value, fin: document.getElementById('disp-M-fin').value }],
+                    X: [{ inicio: document.getElementById('disp-X-inicio').value, fin: document.getElementById('disp-X-fin').value }],
+                    J: [{ inicio: document.getElementById('disp-J-inicio').value, fin: document.getElementById('disp-J-fin').value }],
+                    V: [{ inicio: document.getElementById('disp-V-inicio').value, fin: document.getElementById('disp-V-fin').value }],
+                    S: [{ inicio: document.getElementById('disp-S-inicio').value, fin: document.getElementById('disp-S-fin').value }]
                 }
             };
             try {
@@ -357,7 +425,6 @@
             } catch (error) { alert("Error al guardar."); }
         });
 
-        // Agenda
         document.getElementById('resultados-agenda').addEventListener('click', async (e) => {
             if (!alumnoIdActual) return;
             const fechaHora = "Martes 10/08 a las 18:00hs"; 
