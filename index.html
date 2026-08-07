@@ -20,8 +20,8 @@
         .nav-item:hover { background: #ccc; }
         dialog { padding: 20px; border: 1px solid #ccc; border-radius: 5px; width: 80%; max-width: 600px; }
         .dia-disponibilidad { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
-        .opcion-horario { margin-bottom: 15px; padding: 10px; border: 1px solid #eee; }
-        .opcion-horario button { margin-right: 5px; margin-top: 5px; }
+        .opcion-horario { margin-bottom: 15px; padding: 10px; border: 1px solid #eee; background: #fff; }
+        .opcion-horario button { margin-right: 5px; margin-top: 5px; cursor: pointer; padding: 5px 10px; }
         .alumno-item { padding: 10px; border: 1px solid #ddd; margin-bottom: 10px; background: #fff; }
         #header-auth { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
         #user-info { font-weight: bold; }
@@ -91,7 +91,7 @@
     </dialog>
 
     <dialog id="modal-agenda">
-        <h3>Agendas Disponibles</h3>
+        <h3>Agendas Disponibles (Próximos 7 días)</h3>
         <div id="resultados-agenda"></div>
         <br>
         <button type="button" id="btn-cerrar-agenda">Cerrar</button>
@@ -99,7 +99,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
         const firebaseConfig = {
@@ -117,7 +117,7 @@
         const provider = new GoogleAuthProvider();
         provider.addScope('https://www.googleapis.com/auth/calendar.events');
 
-        let googleAccessToken = null; // Token para Google APIs
+        let googleAccessToken = null; 
         let alumnoIdActual = null;
         let estadoActualVista = 'Gestión en curso';
 
@@ -133,57 +133,105 @@
         const vistaTitulo = document.getElementById('vista-titulo');
         const listaAlumnos = document.getElementById('lista-alumnos');
 
-        // --- FUNCIONES API GOOGLE CALENDAR ---
+        // --- FUNCIONES UTILITARIAS Y API CALENDAR ---
+        function formatoLocalISO(date) {
+            const tzo = -date.getTimezoneOffset(), dif = tzo >= 0 ? '+' : '-', pad = function(num) { return (num < 10 ? '0' : '') + num; };
+            return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + 'T' + pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds()) + dif + pad(Math.floor(Math.abs(tzo) / 60)) + ':' + pad(Math.abs(tzo) % 60);
+        }
+
         async function getEventosCalendario(calendarId, timeMin, timeMax) {
-            if (!googleAccessToken) throw new Error("Falta token. Vuelve a iniciar sesión.");
             const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true`;
             const res = await fetch(url, { headers: { 'Authorization': `Bearer ${googleAccessToken}` } });
-            if (!res.ok) throw new Error("Error al leer calendario.");
+            if (!res.ok) throw new Error("Error leyendo calendario");
             return await res.json();
         }
 
         async function crearEventoCalendario(calendarId, titulo, inicioStr, finStr) {
-            if (!googleAccessToken) throw new Error("Falta token.");
             const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`;
             const res = await fetch(url, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${googleAccessToken}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    summary: titulo,
-                    start: { dateTime: inicioStr, timeZone: 'America/Argentina/Buenos_Aires' },
-                    end: { dateTime: finStr, timeZone: 'America/Argentina/Buenos_Aires' }
-                })
+                body: JSON.stringify({ summary: titulo, start: { dateTime: inicioStr }, end: { dateTime: finStr } })
             });
-            if (!res.ok) throw new Error("Error al crear evento.");
+            if (!res.ok) throw new Error("Error creando evento");
             return await res.json();
         }
 
-        async function actualizarEventoCalendario(calendarId, eventId, titulo) {
-            if (!googleAccessToken) throw new Error("Falta token.");
-            const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`;
-            const res = await fetch(url, {
-                method: 'PATCH',
-                headers: { 'Authorization': `Bearer ${googleAccessToken}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ summary: titulo })
-            });
-            return await res.json();
-        }
+        function generarOpcionesAgenda(disponibilidadAlumno, eventosAPI, esBateria, profesores) {
+            const opciones = [];
+            const mapaDias = { 0: "D", 1: "L", 2: "M", 3: "X", 4: "J", 5: "V", 6: "S" };
+            const duracionMs = 60 * 60 * 1000; // 1 hora
+            const hoy = new Date();
 
-        function generarOpcionesAgenda(disponibilidadAlumno, eventosAPI, esBateria, idProfeRequerido) {
-            // Lógica estructural del algoritmo (pendiente integrar fechas reales según la semana actual)
-            const opcionesSugeridas = [];
-            opcionesSugeridas.push({
-                dia: "L", horaTexto: "18:00", huecoAlProfe: 0, inicioData: "2026-08-10T18:00:00-03:00", finData: "2026-08-10T19:00:00-03:00", profeCalId: idProfeRequerido
-            });
-            return opcionesSugeridas;
+            for (let i = 0; i < 7; i++) {
+                const fechaEval = new Date(hoy);
+                fechaEval.setDate(fechaEval.getDate() + i);
+                const letraDia = mapaDias[fechaEval.getDay()];
+
+                if (disponibilidadAlumno[letraDia] && disponibilidadAlumno[letraDia].length > 0) {
+                    disponibilidadAlumno[letraDia].forEach(rango => {
+                        if (!rango.inicio || !rango.fin) return;
+                        
+                        const [hIni, mIni] = rango.inicio.split(':');
+                        const [hFin, mFin] = rango.fin.split(':');
+                        
+                        const horaInicioBloque = new Date(fechaEval);
+                        horaInicioBloque.setHours(parseInt(hIni), parseInt(mIni), 0, 0);
+                        
+                        const horaFinRango = new Date(fechaEval);
+                        horaFinRango.setHours(parseInt(hFin), parseInt(mFin), 0, 0);
+
+                        if (horaInicioBloque < new Date()) {
+                            horaInicioBloque.setHours(new Date().getHours() + 1, 0, 0, 0);
+                        }
+
+                        while (horaInicioBloque.getTime() + duracionMs <= horaFinRango.getTime()) {
+                            const inicioBloqueMs = horaInicioBloque.getTime();
+                            const finBloqueMs = inicioBloqueMs + duracionMs;
+
+                            let eventosSimultaneos = 0;
+                            let bateriasSimultaneas = 0;
+                            let profesoresOcupados = new Set();
+
+                            eventosAPI.forEach(ev => {
+                                if (!ev.start || !ev.start.dateTime) return;
+                                const evInicio = new Date(ev.start.dateTime).getTime();
+                                const evFin = new Date(ev.end.dateTime).getTime();
+
+                                if (inicioBloqueMs < evFin && finBloqueMs > evInicio) {
+                                    eventosSimultaneos++;
+                                    profesoresOcupados.add(ev.profeId);
+                                    if (ev.summary && ev.summary.includes('🥁')) bateriasSimultaneas++;
+                                }
+                            });
+
+                            if (eventosSimultaneos < 3 && (esBateria ? bateriasSimultaneas < 2 : true)) {
+                                profesores.forEach(profe => {
+                                    if (!profesoresOcupados.has(profe.id)) {
+                                        opciones.push({
+                                            fechaTexto: fechaEval.toLocaleDateString('es-AR'),
+                                            horaTexto: horaInicioBloque.toLocaleTimeString('es-AR', {hour: '2-digit', minute:'2-digit'}),
+                                            profeNombre: profe.nombre,
+                                            calId: profe.calId,
+                                            inicioData: formatoLocalISO(horaInicioBloque),
+                                            finData: formatoLocalISO(new Date(finBloqueMs))
+                                        });
+                                    }
+                                });
+                            }
+                            horaInicioBloque.setHours(horaInicioBloque.getHours() + 1);
+                        }
+                    });
+                }
+            }
+            return opciones;
         }
 
         // --- AUTENTICACIÓN ---
         btnLogin.addEventListener('click', async () => {
             try { 
                 const result = await signInWithPopup(auth, provider); 
-                const credential = GoogleAuthProvider.credentialFromResult(result);
-                googleAccessToken = credential.accessToken; // Guardamos el token
+                googleAccessToken = GoogleAuthProvider.credentialFromResult(result).accessToken;
             } 
             catch (error) { alert("Error al iniciar sesión."); }
         });
@@ -233,21 +281,52 @@
 
                 document.querySelectorAll('.btn-abrir-agenda').forEach(btn => {
                     btn.addEventListener('click', async (e) => {
-                        if(!googleAccessToken) { alert("Vuelve a iniciar sesión para conectar el calendario."); return; }
+                        if(!googleAccessToken) { alert("Requiere token activo. Cierra sesión y vuelve a entrar."); return; }
                         alumnoIdActual = e.target.getAttribute('data-id');
-                        
-                        // MOCK: Renderizado con los atributos listos para enviar a Calendar
-                        const contenedorOpciones = document.getElementById('resultados-agenda');
-                        contenedorOpciones.innerHTML = `
-                            <div class="opcion-horario">
-                                <span>Simulación - 18:00hs (Profe: primario)</span><br>
-                                <button class="btn-reservar" data-calid="primary" data-start="2026-08-10T18:00:00-03:00" data-end="2026-08-10T19:00:00-03:00">Reservar</button>
-                                <button class="btn-validar-profe" data-hora="Lunes 18:00hs">Validar con profe</button>
-                                <button class="btn-validar-alumno" data-hora="Lunes 18:00hs">Validar con alumno</button>
-                                <button class="btn-agendar" data-calid="primary" data-eventid="ID_MOCK">Agendar (Confirmar)</button>
-                            </div>
-                        `;
+                        const resDiv = document.getElementById('resultados-agenda');
+                        resDiv.innerHTML = '<p>Cruzando datos con Google Calendar...</p>';
                         modalAgenda.showModal();
+
+                        try {
+                            const alumnoDoc = await getDoc(doc(db, "alumnos", alumnoIdActual));
+                            const alumno = alumnoDoc.data();
+                            const esBateria = alumno.instrumento.toLowerCase().includes('bater');
+
+                            const profesSnap = await getDocs(collection(db, "profesores"));
+                            const profesores = [];
+                            profesSnap.forEach(p => { if(p.data().correo_calendario) profesores.push({ id: p.id, nombre: p.data().nombre, calId: p.data().correo_calendario }); });
+                            if (profesores.length === 0) { resDiv.innerHTML = '<p>No hay profesores con calendario asignado en el ABM.</p>'; return; }
+
+                            const hoy = new Date();
+                            const enSieteDias = new Date();
+                            enSieteDias.setDate(hoy.getDate() + 7);
+                            
+                            let todosLosEventos = [];
+                            for (const profe of profesores) {
+                                try {
+                                    const data = await getEventosCalendario(profe.calId, hoy.toISOString(), enSieteDias.toISOString());
+                                    if(data.items) {
+                                        const evs = data.items.map(ev => ({ ...ev, profeId: profe.id }));
+                                        todosLosEventos = todosLosEventos.concat(evs);
+                                    }
+                                } catch(err) { console.error(`Error calendario ${profe.nombre}:`, err); }
+                            }
+
+                            const opciones = generarOpcionesAgenda(alumno.disponibilidad, todosLosEventos, esBateria, profesores);
+
+                            if (opciones.length === 0) {
+                                resDiv.innerHTML = '<p>No se encontraron horarios libres que coincidan.</p>';
+                            } else {
+                                resDiv.innerHTML = opciones.map(op => `
+                                    <div class="opcion-horario">
+                                        <span>${op.fechaTexto} a las ${op.horaTexto} (Profe: ${op.profeNombre})</span><br>
+                                        <button class="btn-reservar" data-calid="${op.calId}" data-start="${op.inicioData}" data-end="${op.finData}">Reservar horario</button>
+                                        <button class="btn-validar-profe" data-hora="${op.fechaTexto} a las ${op.horaTexto}">Validar con profe</button>
+                                        <button class="btn-validar-alumno" data-hora="${op.fechaTexto} a las ${op.horaTexto}">Validar con alumno</button>
+                                    </div>
+                                `).join('');
+                            }
+                        } catch (error) { resDiv.innerHTML = '<p>Error al ejecutar el algoritmo.</p>'; console.error(error); }
                     });
                 });
             } catch (error) { listaAlumnos.innerHTML = '<p>Error al cargar los datos.</p>'; }
@@ -265,23 +344,14 @@
 
             try {
                 const querySnapshot = await getDocs(collection(db, coleccion));
-                let html = `<div class="abm-container">
-                    <input type="text" id="input-nuevo-abm" placeholder="Nombre">`;
-                
-                if (coleccion === 'profesores') {
-                    html += `<input type="email" id="input-correo-abm" placeholder="Email Calendario">`;
-                }
-                
+                let html = `<div class="abm-container"><input type="text" id="input-nuevo-abm" placeholder="Nombre">`;
+                if (coleccion === 'profesores') html += `<input type="email" id="input-correo-abm" placeholder="Email Calendario">`;
                 html += `<button id="btn-guardar-abm">Agregar</button></div><div id="lista-items-abm">`;
                 
                 querySnapshot.forEach((docSnap) => {
                     const data = docSnap.data();
                     const correoTxt = data.correo_calendario ? ` (${data.correo_calendario})` : '';
-                    html += `
-                        <div class="abm-item">
-                            <span>${data.nombre}${correoTxt}</span>
-                            <button class="btn-eliminar" data-id="${docSnap.id}">Eliminar</button>
-                        </div>`;
+                    html += `<div class="abm-item"><span>${data.nombre}${correoTxt}</span><button class="btn-eliminar" data-id="${docSnap.id}">Eliminar</button></div>`;
                 });
                 html += '</div>';
                 listaAlumnos.innerHTML = html;
@@ -345,7 +415,7 @@
             catch (error) { alert("Error al guardar."); }
         });
 
-        // --- INTERACCIONES DE AGENDA ---
+        // --- ACCIONES DE RESERVA ---
         document.getElementById('resultados-agenda').addEventListener('click', async (e) => {
             if (!alumnoIdActual) return;
             const docRef = doc(db, "alumnos", alumnoIdActual);
@@ -364,27 +434,22 @@
                     modalAgenda.close(); cargarVista(estadoActualVista);
                 }
                 
-                // INTEGRACIÓN REAL CALENDAR
                 if (e.target.classList.contains('btn-reservar')) {
                     const calId = e.target.getAttribute('data-calid');
                     const start = e.target.getAttribute('data-start');
                     const end = e.target.getAttribute('data-end');
-                    const titulo = `RESERVA - Alumno ${alumnoIdActual}`;
+                    
+                    const alumnoDoc = await getDoc(docRef);
+                    const titulo = `RESERVA - ${alumnoDoc.data().nombre} (${alumnoDoc.data().instrumento})`;
                     
                     const eventoObj = await crearEventoCalendario(calId, titulo, start, end);
-                    await updateDoc(docRef, { id_evento_reserva: eventoObj.id, id_calendario_usado: calId });
+                    await updateDoc(docRef, { id_evento_reserva: eventoObj.id, id_calendario_usado: calId, estado_agenda: "Se ofrece agenda" });
                     alert("Reserva registrada en Google Calendar.");
                     modalAgenda.close(); cargarVista(estadoActualVista);
                 }
-                
-                if (e.target.classList.contains('btn-agendar')) {
-                    // Aquí se usaría el ID real guardado en la base de datos y la función actualizarEventoCalendario()
-                    await updateDoc(docRef, { estado_agenda: "Agenda confirmada" });
-                    modalAgenda.close(); cargarVista('Agenda confirmada'); 
-                }
             } catch (error) { 
                 console.error(error);
-                alert("Error en la base de datos o en Calendar."); 
+                alert("Error al ejecutar acción."); 
             }
         });
     </script>
