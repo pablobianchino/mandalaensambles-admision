@@ -43,10 +43,13 @@
         #btn-logout { cursor: pointer; padding: 5px 10px; background: #dc3545; color: white; border: none; border-radius: 3px; }
         
         .abm-container { margin-bottom: 20px; }
-        .abm-container input { padding: 8px; width: 190px; margin-right: 5px;}
+        .abm-container input[type="text"], .abm-container input[type="email"] { padding: 8px; width: 170px; margin-right: 5px; margin-bottom:5px;}
         .abm-container button { padding: 8px 15px; cursor: pointer; }
         .abm-item { display: flex; justify-content: space-between; padding: 10px; border: 1px solid #ddd; margin-bottom: 5px; background: #fff; align-items: center; cursor: pointer;}
         .abm-item:hover { background: #f1f1f1; }
+        .badge-entrevista { font-size: 0.8em; padding: 3px 6px; border-radius: 12px; margin-left: 10px; }
+        .badge-si { background: #d4edda; color: #155724; }
+        .badge-no { background: #f8d7da; color: #721c24; }
         
         #editor-container { height: 150px; margin-bottom: 20px; background: white; }
         select[multiple] { min-height: 60px; }
@@ -123,8 +126,8 @@
             <label>Desde: <input type="date" id="agenda-start"></label>
             <label style="margin-left: 15px;">Hasta: <input type="date" id="agenda-end"></label>
             <br><br>
-            <label>Profesor: 
-                <select id="agenda-profe-filtro"><option value="">Todos los profesores</option></select>
+            <label>Profesor (habilitados p/entrevista): 
+                <select id="agenda-profe-filtro"><option value="">Todos</option></select>
             </label>
             <button id="btn-ejecutar-busqueda" style="margin-left: 15px; cursor:pointer; padding:5px 10px;">Buscar en Calendar</button>
         </div>
@@ -155,9 +158,10 @@
         <input type="hidden" id="abm-edit-id">
         <input type="hidden" id="abm-edit-coleccion">
         <label>Nombre: <input type="text" id="abm-edit-nombre"></label><br><br>
-        <div id="div-abm-edit-profe" style="display:none;">
-            <label>Email Calendario: <input type="email" id="abm-edit-correo"></label><br><br>
-            <label>Alias a transferir: <input type="text" id="abm-edit-alias"></label><br><br>
+        <div id="div-abm-edit-profe" style="display:none; padding:10px; background:#f4f4f4; border-radius:5px; margin-bottom:10px;">
+            <label>Email Calendario: <br><input type="email" id="abm-edit-correo"></label><br><br>
+            <label>Alias a transferir: <br><input type="text" id="abm-edit-alias"></label><br><br>
+            <label><input type="checkbox" id="abm-edit-entrevista"> Habilitado para dar entrevistas/clases de prueba</label>
         </div>
         <button id="btn-guardar-abm-edit" style="padding:5px 10px; cursor:pointer;">Actualizar</button>
         <button type="button" id="btn-cerrar-abm-edit" style="padding:5px 10px; cursor:pointer;">Cancelar</button>
@@ -196,7 +200,6 @@
             modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'size': ['small', false, 'large', 'huge'] }], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] }
         });
 
-        // Configuración Default
         const defaultCfg = {
             identificador_bateria: '🥁',
             valor_clase: '$10.000',
@@ -478,7 +481,12 @@
                     const selectProfe = document.getElementById('agenda-profe-filtro');
                     selectProfe.innerHTML = '<option value="">Todos los profesores</option>';
                     const pSnap = await getDocs(collection(db, "profesores"));
-                    pSnap.forEach(p => { selectProfe.innerHTML += `<option value="${p.id}">${p.data().nombre}</option>`; });
+                    pSnap.forEach(p => { 
+                        // SOLAMENTE MOSTRAR PROFESORES HABILITADOS PARA ENTREVISTAS
+                        if(p.data().entrevista === true) {
+                            selectProfe.innerHTML += `<option value="${p.id}">${p.data().nombre}</option>`; 
+                        }
+                    });
                     
                     document.getElementById('resultados-agenda').innerHTML = '<p>Configura y busca.</p>';
                     document.getElementById('modal-agenda').showModal();
@@ -559,11 +567,14 @@
 
                 const pSnap = await getDocs(collection(db, "profesores"));
                 let profesores = [];
-                pSnap.forEach(p => { 
-                    if(p.data().correo_calendario && (!filtroProfeId || p.id === filtroProfeId)) 
-                        profesores.push({ id: p.id, nombre: p.data().nombre, calId: p.data().correo_calendario }); 
+                pSnap.forEach(p => {
+                    const data = p.data();
+                    // SOLAMENTE BUSCAR EN CALENDARIOS DE PROFES HABILITADOS
+                    if(data.correo_calendario && data.entrevista === true && (!filtroProfeId || p.id === filtroProfeId)) {
+                        profesores.push({ id: p.id, nombre: data.nombre, calId: data.correo_calendario });
+                    }
                 });
-                if (profesores.length === 0) return resDiv.innerHTML = '<p>No hay profesores.</p>'; 
+                if (profesores.length === 0) return resDiv.innerHTML = '<p>No hay profesores habilitados configurados.</p>'; 
 
                 const dStart = new Date(dStrStart + 'T00:00:00');
                 const dEnd = new Date(dStrEnd + 'T23:59:59');
@@ -722,18 +733,25 @@
             
             try {
                 const qSnap = await getDocs(collection(db, coleccion));
-                let html = `<div class="abm-container"><input type="text" id="input-nuevo-abm" placeholder="Nombre">`;
+                let html = `<div class="abm-container">
+                    <input type="text" id="input-nuevo-abm" placeholder="Nombre">`;
                 if (coleccion === 'profesores') {
-                    html += `<input type="email" id="input-correo-abm" placeholder="Email Calendario">`;
-                    html += `<input type="text" id="input-alias-abm" placeholder="Alias de transferencia">`;
+                    html += `<br><input type="email" id="input-correo-abm" placeholder="Email Calendario" style="margin-top:5px;">`;
+                    html += `<input type="text" id="input-alias-abm" placeholder="Alias de transferencia" style="margin-top:5px;">`;
+                    html += `<label style="margin-left:5px;"><input type="checkbox" id="input-entrevista-abm" checked> Da entrevistas</label>`;
                 }
-                html += `<button id="btn-guardar-abm" style="background:#28a745; color:white; border:none;">Agregar</button></div>`;
+                html += `<br><button id="btn-guardar-abm" style="background:#28a745; color:white; border:none; margin-top:10px;">Agregar</button></div>`;
                 
                 qSnap.forEach((dSnap) => {
                     const data = dSnap.data();
+                    let extraInfo = '';
+                    if (coleccion === 'profesores') {
+                        if (data.correo_calendario) extraInfo += ` (${data.correo_calendario})`;
+                        extraInfo += data.entrevista ? ` <span class="badge-entrevista badge-si">Entrevistas: SÍ</span>` : ` <span class="badge-entrevista badge-no">Entrevistas: NO</span>`;
+                    }
                     html += `
-                        <div class="abm-item" onclick="abrirEdicionABM('${dSnap.id}', '${coleccion}', '${data.nombre}', '${data.correo_calendario || ''}', '${data.alias_transferencia || ''}')">
-                            <span>${data.nombre} ${data.correo_calendario ? `(${data.correo_calendario})` : ''}</span>
+                        <div class="abm-item" onclick="abrirEdicionABM('${dSnap.id}', '${coleccion}', '${data.nombre}', '${data.correo_calendario || ''}', '${data.alias_transferencia || ''}', ${!!data.entrevista})">
+                            <span>${data.nombre}${extraInfo}</span>
                             <button class="btn-eliminar" onclick="event.stopPropagation(); eliminarABM('${dSnap.id}', '${coleccion}')">❌</button>
                         </div>`;
                 });
@@ -746,6 +764,7 @@
                     if (coleccion === 'profesores') {
                         dObj.correo_calendario = document.getElementById('input-correo-abm').value.trim();
                         dObj.alias_transferencia = document.getElementById('input-alias-abm').value.trim();
+                        dObj.entrevista = document.getElementById('input-entrevista-abm').checked;
                     }
                     await addDoc(collection(db, coleccion), dObj);
                     cargarABM(coleccion, titulo);
@@ -753,7 +772,7 @@
             } catch (error) { console.error(error); }
         }
 
-        window.abrirEdicionABM = function(id, col, nombre, correo, alias) {
+        window.abrirEdicionABM = function(id, col, nombre, correo, alias, entrevista) {
             document.getElementById('abm-edit-id').value = id;
             document.getElementById('abm-edit-coleccion').value = col;
             document.getElementById('abm-edit-nombre').value = nombre;
@@ -761,6 +780,7 @@
                 document.getElementById('div-abm-edit-profe').style.display = 'block';
                 document.getElementById('abm-edit-correo').value = correo;
                 document.getElementById('abm-edit-alias').value = alias;
+                document.getElementById('abm-edit-entrevista').checked = entrevista;
             } else document.getElementById('div-abm-edit-profe').style.display = 'none';
             document.getElementById('modal-abm-edit').showModal();
         }
@@ -779,6 +799,7 @@
             if (col === 'profesores') {
                 dObj.correo_calendario = document.getElementById('abm-edit-correo').value;
                 dObj.alias_transferencia = document.getElementById('abm-edit-alias').value;
+                dObj.entrevista = document.getElementById('abm-edit-entrevista').checked;
             }
             await updateDoc(doc(db, col, id), dObj);
             document.getElementById('modal-abm-edit').close();
