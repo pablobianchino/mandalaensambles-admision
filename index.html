@@ -3,51 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Control de Caché: Obliga al navegador a obtener la última versión -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
     <title>Seguimiento de Alumnos - Mandala</title>
     <style>
-        body { display: flex; height: 100vh; margin: 0; font-family: sans-serif; }
+        body { margin: 0; font-family: sans-serif; background-color: #f9f9f9; }
+        
+        /* Contenedor de Login (Pantalla en blanco) */
+        #login-container { 
+            display: flex; 
+            height: 100vh; 
+            justify-content: center; 
+            align-items: center; 
+            background-color: #fff;
+        }
+        .btn-google {
+            display: flex;
+            align-items: center;
+            background-color: #fff;
+            color: #3c4043;
+            border: 1px solid #dadce0;
+            border-radius: 4px;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3);
+        }
+        .btn-google:hover { background-color: #f8f9fa; box-shadow: 0 1px 3px 1px rgba(60,64,67,0.15); }
+        .btn-google svg { width: 18px; height: 18px; margin-right: 8px; }
+
+        /* Contenedor de la Aplicación */
+        #app-container { display: none; height: 100vh; width: 100%; }
+        
         #sidebar { width: 250px; background: #f4f4f4; padding: 20px; border-right: 1px solid #ccc; }
-        #main { flex-grow: 1; padding: 20px; overflow-y: auto; }
+        #main { flex-grow: 1; padding: 20px; overflow-y: auto; background-color: #fff; }
         .nav-item { cursor: pointer; padding: 10px; margin-bottom: 5px; background: #ddd; }
         .nav-item:hover { background: #ccc; }
+        
         dialog { padding: 20px; border: 1px solid #ccc; border-radius: 5px; width: 80%; max-width: 600px; }
         .dia-disponibilidad { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
         .opcion-horario { margin-bottom: 15px; padding: 10px; border: 1px solid #eee; }
         .opcion-horario button { margin-right: 5px; margin-top: 5px; }
         .alumno-item { padding: 10px; border: 1px solid #ddd; margin-bottom: 10px; background: #fff; }
+        
         #header-auth { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
         #user-info { font-weight: bold; }
+        #btn-logout { cursor: pointer; padding: 5px 10px; background: #dc3545; color: white; border: none; border-radius: 3px; }
     </style>
 </head>
 <body>
 
-    <!-- Panel Izquierdo -->
-    <nav id="sidebar">
-        <h3>Vistas</h3>
-        <div class="nav-item" id="btn-gestion">Gestión en curso</div>
-        <div class="nav-item" id="btn-confirmadas">Agenda confirmada</div>
-        <div class="nav-item" id="btn-suspendidas">Agenda suspendida</div>
-        <hr>
-        <h3>Administración</h3>
-        <div class="nav-item" id="btn-abm-profes">Profesores</div>
-        <div class="nav-item" id="btn-abm-inst">Instrumentos</div>
-        <div class="nav-item" id="btn-abm-susc">Suscripciones</div>
-    </nav>
+    <!-- Pantalla de Login -->
+    <div id="login-container">
+        <button id="btn-login" class="btn-google">
+            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+            </svg>
+            Iniciar sesión con Google
+        </button>
+    </div>
 
-    <!-- Área Principal -->
-    <main id="main">
-        <div id="header-auth">
-            <button id="btn-login">Iniciar sesión con Google</button>
-            <div id="user-info">No has iniciado sesión</div>
-        </div>
+    <!-- Contenedor de la Aplicación -->
+    <div id="app-container">
+        <!-- Panel Izquierdo -->
+        <nav id="sidebar">
+            <h3>Vistas</h3>
+            <div class="nav-item" id="btn-gestion">Gestión en curso</div>
+            <div class="nav-item" id="btn-confirmadas">Agenda confirmada</div>
+            <div class="nav-item" id="btn-suspendidas">Agenda suspendida</div>
+            <hr>
+            <h3>Administración</h3>
+            <div class="nav-item" id="btn-abm-profes">Profesores</div>
+            <div class="nav-item" id="btn-abm-inst">Instrumentos</div>
+            <div class="nav-item" id="btn-abm-susc">Suscripciones</div>
+        </nav>
 
-        <h2 id="vista-titulo">Gestión en curso</h2>
-        <button id="btn-nuevo-alumno" style="display: none;">Cargar Nuevo Alumno</button>
-        
-        <div id="lista-alumnos" style="margin-top: 20px;">
-            <p>Inicia sesión para ver los datos.</p>
-        </div>
-    </main>
+        <!-- Área Principal -->
+        <main id="main">
+            <div id="header-auth">
+                <div id="user-info">Cargando...</div>
+                <button id="btn-logout">Cerrar Sesión</button>
+            </div>
+
+            <h2 id="vista-titulo">Gestión en curso</h2>
+            <button id="btn-nuevo-alumno">Cargar Nuevo Alumno</button>
+            
+            <div id="lista-alumnos" style="margin-top: 20px;">
+                <!-- Lista de alumnos dinámicos -->
+            </div>
+        </main>
+    </div>
 
     <!-- Modal: Formulario Alta de Alumno -->
     <dialog id="modal-alumno">
@@ -101,9 +154,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs, updateDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-        // 1. Inicialización de Firebase con tu configuración
         const firebaseConfig = {
             apiKey: "AIzaSyCgAg2EwTJh4zbMdpkqG3VKTGfDeofblyg",
             authDomain: "priel-mdl-seguimientos.firebaseapp.com",
@@ -118,50 +170,52 @@
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
 
-        // Variables globales
         let alumnoIdActual = null;
         let estadoActualVista = 'Gestión en curso';
 
-        // 2. Referencias del DOM
+        const loginContainer = document.getElementById('login-container');
+        const appContainer = document.getElementById('app-container');
+        const btnLogin = document.getElementById('btn-login');
+        const btnLogout = document.getElementById('btn-logout');
+        const userInfo = document.getElementById('user-info');
+        
         const modalAlumno = document.getElementById('modal-alumno');
         const modalAgenda = document.getElementById('modal-agenda');
         const formAlumno = document.getElementById('form-alumno');
         const vistaTitulo = document.getElementById('vista-titulo');
         const listaAlumnos = document.getElementById('lista-alumnos');
-        const btnLogin = document.getElementById('btn-login');
-        const userInfo = document.getElementById('user-info');
-        const btnNuevoAlumno = document.getElementById('btn-nuevo-alumno');
 
-        // 3. Autenticación con Google
+        // Autenticación
         btnLogin.addEventListener('click', async () => {
             try {
                 await signInWithPopup(auth, provider);
             } catch (error) {
                 console.error("Error de autenticación: ", error);
-                alert("Hubo un error al iniciar sesión.");
+                alert("Error al iniciar sesión.");
             }
+        });
+
+        btnLogout.addEventListener('click', async () => {
+            await signOut(auth);
         });
 
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                btnLogin.style.display = 'none';
-                btnNuevoAlumno.style.display = 'inline-block';
-                userInfo.textContent = `Sesión iniciada: ${user.email}`;
-                cargarVista('Gestión en curso'); // Cargar datos al iniciar sesión
+                loginContainer.style.display = 'none';
+                appContainer.style.display = 'flex';
+                userInfo.textContent = user.email;
+                cargarVista('Gestión en curso'); 
             } else {
-                btnLogin.style.display = 'inline-block';
-                btnNuevoAlumno.style.display = 'none';
-                userInfo.textContent = 'No has iniciado sesión';
-                listaAlumnos.innerHTML = '<p>Inicia sesión para ver los datos.</p>';
+                loginContainer.style.display = 'flex';
+                appContainer.style.display = 'none';
             }
         });
 
-        // 4. Control del Panel Izquierdo (Filtros de Vistas)
+        // Vistas
         document.getElementById('btn-gestion').addEventListener('click', () => { if(auth.currentUser) cargarVista('Gestión en curso') });
         document.getElementById('btn-confirmadas').addEventListener('click', () => { if(auth.currentUser) cargarVista('Agenda confirmada') });
         document.getElementById('btn-suspendidas').addEventListener('click', () => { if(auth.currentUser) cargarVista('Agenda suspendida') });
 
-        // LECTURA (READ): Obtener alumnos filtrados por estado
         async function cargarVista(estado) {
             estadoActualVista = estado;
             vistaTitulo.textContent = estado;
@@ -190,26 +244,24 @@
                     listaAlumnos.appendChild(div);
                 });
 
-                // Asignar eventos a los botones generados dinámicamente
                 document.querySelectorAll('.btn-abrir-agenda').forEach(btn => {
                     btn.addEventListener('click', (e) => {
                         alumnoIdActual = e.target.getAttribute('data-id');
                         modalAgenda.showModal();
                     });
                 });
-
             } catch (error) {
                 console.error("Error al cargar la vista: ", error);
-                listaAlumnos.innerHTML = '<p>Error al cargar los datos. Verifica los permisos de Firestore.</p>';
+                listaAlumnos.innerHTML = '<p>Error al cargar los datos.</p>';
             }
         }
 
-        // 5. Control de Modales
-        btnNuevoAlumno.addEventListener('click', () => modalAlumno.showModal());
+        // Modales
+        document.getElementById('btn-nuevo-alumno').addEventListener('click', () => modalAlumno.showModal());
         document.getElementById('btn-cerrar-alumno').addEventListener('click', () => { modalAlumno.close(); formAlumno.reset(); });
         document.getElementById('btn-cerrar-agenda').addEventListener('click', () => modalAgenda.close());
 
-        // ESCRITURA (CREATE): Alta de nuevo alumno
+        // Alta alumno
         formAlumno.addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -228,17 +280,16 @@
 
             try {
                 await addDoc(collection(db, "alumnos"), nuevoAlumno);
-                alert("Alumno guardado correctamente.");
                 modalAlumno.close();
                 formAlumno.reset();
                 cargarVista(estadoActualVista); 
             } catch (error) {
                 console.error("Error al guardar alumno: ", error);
-                alert("Error al guardar el alumno. Verifica los permisos de escritura.");
+                alert("Error al guardar.");
             }
         });
 
-        // ACTUALIZACIÓN (UPDATE): Interacciones de Agenda
+        // Agenda
         document.getElementById('resultados-agenda').addEventListener('click', async (e) => {
             if (!alumnoIdActual) return;
             
@@ -250,7 +301,6 @@
                     const texto = `Hola, ¿podés tomar una clase de admisión el ${fechaHora}?`;
                     await navigator.clipboard.writeText(texto);
                     await updateDoc(docRef, { estado_agenda: "Validación con profe" });
-                    alert("Texto copiado para el profesor. Estado actualizado.");
                     modalAgenda.close();
                     cargarVista(estadoActualVista);
                 }
@@ -259,14 +309,13 @@
                     const texto = `Hola, tenemos disponibilidad para tu clase de prueba el ${fechaHora}. ¿Te sirve este horario?`;
                     await navigator.clipboard.writeText(texto);
                     await updateDoc(docRef, { estado_agenda: "Se ofrece agenda" });
-                    alert("Texto copiado para el alumno. Estado actualizado.");
                     modalAgenda.close();
                     cargarVista(estadoActualVista);
                 }
                 
                 if (e.target.classList.contains('btn-reservar')) {
                     await updateDoc(docRef, { id_evento_reserva: "ID_TEMPORAL_CALENDAR" });
-                    alert("Evento de reserva guardado en base de datos.");
+                    alert("Reserva registrada.");
                 }
 
                 if (e.target.classList.contains('btn-agendar')) {
@@ -274,13 +323,12 @@
                         estado_agenda: "Agenda confirmada",
                         id_evento_confirmado: "ID_FINAL_CALENDAR" 
                     });
-                    alert("Agenda confirmada en base de datos.");
                     modalAgenda.close();
                     cargarVista('Agenda confirmada'); 
                 }
             } catch (error) {
-                console.error("Error al actualizar el estado: ", error);
-                alert("Error al actualizar la base de datos.");
+                console.error("Error al actualizar: ", error);
+                alert("Error en la base de datos.");
             }
         });
     </script>
