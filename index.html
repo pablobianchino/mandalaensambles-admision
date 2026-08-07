@@ -15,6 +15,8 @@
         .opcion-horario { margin-bottom: 15px; padding: 10px; border: 1px solid #eee; }
         .opcion-horario button { margin-right: 5px; margin-top: 5px; }
         .alumno-item { padding: 10px; border: 1px solid #ddd; margin-bottom: 10px; background: #fff; }
+        #header-auth { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
+        #user-info { font-weight: bold; }
     </style>
 </head>
 <body>
@@ -34,11 +36,16 @@
 
     <!-- Área Principal -->
     <main id="main">
+        <div id="header-auth">
+            <button id="btn-login">Iniciar sesión con Google</button>
+            <div id="user-info">No has iniciado sesión</div>
+        </div>
+
         <h2 id="vista-titulo">Gestión en curso</h2>
-        <button id="btn-nuevo-alumno">Cargar Nuevo Alumno</button>
+        <button id="btn-nuevo-alumno" style="display: none;">Cargar Nuevo Alumno</button>
         
         <div id="lista-alumnos" style="margin-top: 20px;">
-            <!-- La lista se renderiza aquí dinámicamente -->
+            <p>Inicia sesión para ver los datos.</p>
         </div>
     </main>
 
@@ -94,8 +101,9 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs, updateDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-        // 1. Inicialización de Firebase
+        // 1. Inicialización de Firebase con tu configuración
         const firebaseConfig = {
             apiKey: "AIzaSyCgAg2EwTJh4zbMdpkqG3VKTGfDeofblyg",
             authDomain: "priel-mdl-seguimientos.firebaseapp.com",
@@ -107,6 +115,8 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
 
         // Variables globales
         let alumnoIdActual = null;
@@ -118,11 +128,38 @@
         const formAlumno = document.getElementById('form-alumno');
         const vistaTitulo = document.getElementById('vista-titulo');
         const listaAlumnos = document.getElementById('lista-alumnos');
+        const btnLogin = document.getElementById('btn-login');
+        const userInfo = document.getElementById('user-info');
+        const btnNuevoAlumno = document.getElementById('btn-nuevo-alumno');
 
-        // 3. Control del Panel Izquierdo (Filtros de Vistas)
-        document.getElementById('btn-gestion').addEventListener('click', () => cargarVista('Gestión en curso'));
-        document.getElementById('btn-confirmadas').addEventListener('click', () => cargarVista('Agenda confirmada'));
-        document.getElementById('btn-suspendidas').addEventListener('click', () => cargarVista('Agenda suspendida'));
+        // 3. Autenticación con Google
+        btnLogin.addEventListener('click', async () => {
+            try {
+                await signInWithPopup(auth, provider);
+            } catch (error) {
+                console.error("Error de autenticación: ", error);
+                alert("Hubo un error al iniciar sesión.");
+            }
+        });
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                btnLogin.style.display = 'none';
+                btnNuevoAlumno.style.display = 'inline-block';
+                userInfo.textContent = `Sesión iniciada: ${user.email}`;
+                cargarVista('Gestión en curso'); // Cargar datos al iniciar sesión
+            } else {
+                btnLogin.style.display = 'inline-block';
+                btnNuevoAlumno.style.display = 'none';
+                userInfo.textContent = 'No has iniciado sesión';
+                listaAlumnos.innerHTML = '<p>Inicia sesión para ver los datos.</p>';
+            }
+        });
+
+        // 4. Control del Panel Izquierdo (Filtros de Vistas)
+        document.getElementById('btn-gestion').addEventListener('click', () => { if(auth.currentUser) cargarVista('Gestión en curso') });
+        document.getElementById('btn-confirmadas').addEventListener('click', () => { if(auth.currentUser) cargarVista('Agenda confirmada') });
+        document.getElementById('btn-suspendidas').addEventListener('click', () => { if(auth.currentUser) cargarVista('Agenda suspendida') });
 
         // LECTURA (READ): Obtener alumnos filtrados por estado
         async function cargarVista(estado) {
@@ -163,15 +200,12 @@
 
             } catch (error) {
                 console.error("Error al cargar la vista: ", error);
-                listaAlumnos.innerHTML = '<p>Error al cargar los datos.</p>';
+                listaAlumnos.innerHTML = '<p>Error al cargar los datos. Verifica los permisos de Firestore.</p>';
             }
         }
 
-        // Carga inicial
-        cargarVista('Gestión en curso');
-
-        // 4. Control de Modales
-        document.getElementById('btn-nuevo-alumno').addEventListener('click', () => modalAlumno.showModal());
+        // 5. Control de Modales
+        btnNuevoAlumno.addEventListener('click', () => modalAlumno.showModal());
         document.getElementById('btn-cerrar-alumno').addEventListener('click', () => { modalAlumno.close(); formAlumno.reset(); });
         document.getElementById('btn-cerrar-agenda').addEventListener('click', () => modalAgenda.close());
 
@@ -197,10 +231,10 @@
                 alert("Alumno guardado correctamente.");
                 modalAlumno.close();
                 formAlumno.reset();
-                cargarVista(estadoActualVista); // Refrescar la vista actual
+                cargarVista(estadoActualVista); 
             } catch (error) {
                 console.error("Error al guardar alumno: ", error);
-                alert("Error al guardar el alumno.");
+                alert("Error al guardar el alumno. Verifica los permisos de escritura.");
             }
         });
 
@@ -231,20 +265,18 @@
                 }
                 
                 if (e.target.classList.contains('btn-reservar')) {
-                    // Aquí irá la lógica de Calendar API
                     await updateDoc(docRef, { id_evento_reserva: "ID_TEMPORAL_CALENDAR" });
                     alert("Evento de reserva guardado en base de datos.");
                 }
 
                 if (e.target.classList.contains('btn-agendar')) {
-                    // Aquí irá la lógica de Calendar API final
                     await updateDoc(docRef, { 
                         estado_agenda: "Agenda confirmada",
                         id_evento_confirmado: "ID_FINAL_CALENDAR" 
                     });
                     alert("Agenda confirmada en base de datos.");
                     modalAgenda.close();
-                    cargarVista('Agenda confirmada'); // Redirige a la vista de confirmadas
+                    cargarVista('Agenda confirmada'); 
                 }
             } catch (error) {
                 console.error("Error al actualizar el estado: ", error);
