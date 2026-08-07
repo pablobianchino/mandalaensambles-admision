@@ -32,7 +32,8 @@
         .opcion-horario button { margin-right: 5px; margin-top: 5px; cursor: pointer; padding: 5px 10px; }
         
         .alumno-item { padding: 15px; border: 1px solid #ddd; margin-bottom: 15px; background: #fff; border-left: 4px solid #007bff; }
-        .alumno-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        .alumno-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; transition: opacity 0.2s; }
+        .alumno-header:hover { opacity: 0.8; }
         .alumno-actions { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; }
         .btn-accion-flujo { background: #28a745; color: white; padding: 6px 12px; border: none; border-radius: 3px; cursor: pointer; font-weight: bold; }
         .btn-secundario { background: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 3px; cursor: pointer; }
@@ -93,8 +94,9 @@
         </main>
     </div>
 
-    <dialog id="modal-alumno">
-        <h3 id="modal-alumno-titulo">Datos del Alumno</h3>
+    <!-- Contenedor móvil para el formulario. Se mueve entre el Pop-up y el Acordeón -->
+    <div id="form-alumno-wrapper" style="display:none;">
+        <h3 id="form-titulo" style="margin-top:0;">Datos del Alumno</h3>
         <form id="form-alumno">
             <input type="hidden" id="alumno-id">
             <label>Nombre: <input type="text" id="nombre" required></label><br><br>
@@ -114,8 +116,12 @@
             <div id="contenedor-disponibilidad"></div>
             <br>
             <button type="submit" style="padding:8px 15px; background:#28a745; color:white; border:none; cursor:pointer;">Guardar Alumno</button>
-            <button type="button" id="btn-cerrar-alumno" style="padding:8px 15px; cursor:pointer;">Cancelar</button>
+            <button type="button" id="btn-cerrar-alumno" style="padding:8px 15px; cursor:pointer;">Cancelar / Cerrar</button>
         </form>
+    </div>
+
+    <dialog id="modal-alumno">
+        <!-- El wrapper se inyecta aquí al cargar uno nuevo -->
     </dialog>
 
     <dialog id="modal-agenda">
@@ -414,6 +420,7 @@
                     
                     let htmlAcciones = '';
                     let etiquetaConfirmada = '';
+                    let etiquetaSuspendido = '';
                     
                     if (vistaSeleccionada === 'Gestión en curso') {
                         htmlAcciones += `<select class="select-estado" data-id="${id}">
@@ -443,21 +450,25 @@
                         htmlAcciones += `<button class="btn-abrir-suspender btn-suspender" data-id="${id}">Suspender</button>`;
                         
                     } else if (vistaSeleccionada === 'Agenda confirmada') {
-                        etiquetaConfirmada = `<br><span style="display:inline-block; margin-top:5px; font-size:0.9em; background:#28a745; padding:4px 8px; border-radius:3px; color:white;">✅ Confirmado: ${al.reserva_fecha_texto} (${al.reserva_profe_nombre})</span>`;
+                        etiquetaConfirmada = `<br><span style="display:inline-block; margin-top:5px; font-size:0.9em; background:#28a745; padding:4px 8px; border-radius:3px; color:white;">✅ Confirmado: ${al.reserva_fecha_texto || '-'} (${al.reserva_profe_nombre || '-'})</span>`;
                         htmlAcciones += `<button class="btn-cancelar-agenda btn-suspender" data-id="${id}">Cancelar Confirmación</button>`;
+                    } else if (vistaSeleccionada === 'Agenda suspendida') {
+                        etiquetaSuspendido = `<br><span style="display:inline-block; margin-top:5px; font-size:0.9em; background:#dc3545; padding:4px 8px; border-radius:3px; color:white;">Motivo: ${al.motivo_suspension || 'No especificado'}</span>`;
                     }
 
                     listaAlumnos.innerHTML += `
                         <div class="alumno-item" data-id="${id}">
-                            <div class="alumno-header" style="cursor:pointer;" onclick="abrirEdicionAlumno('${id}')">
+                            <div class="alumno-header" style="cursor:pointer;" onclick="toggleAccordion('${id}')">
                                 <div>
                                     <strong>${al.nombre}</strong> - ${instStr} (${al.tipo_suscripcion})<br>
                                     <small>Celular: ${al.celular} | Edad: ${al.edad || '-'}</small>
                                     ${etiquetaConfirmada}
+                                    ${etiquetaSuspendido}
                                 </div>
                                 <span style="font-size:0.85em; font-weight:bold; color:#666;">${al.estado_agenda}</span>
                             </div>
                             ${htmlAcciones ? `<div class="alumno-actions">${htmlAcciones}</div>` : ''}
+                            <div id="accordion-${id}" style="display:none; padding:15px; border-top:1px solid #eee; background:#fafafa; margin-top:10px; border-radius:4px;"></div>
                         </div>
                     `;
                 });
@@ -700,7 +711,6 @@
             const mtv = document.getElementById('susp-motivo').value;
             if(!mtv) return alert("Seleccione motivo");
             
-            // Si tenía evento bloqueado, lo eliminamos al suspender.
             try {
                 const al = (await getDoc(doc(db, "alumnos", id))).data();
                 if (al.id_evento_reserva) {
@@ -720,10 +730,30 @@
         });
         document.getElementById('btn-cerrar-suspension').addEventListener('click', () => document.getElementById('modal-suspender').close());
 
-        window.abrirEdicionAlumno = async function(id) {
+
+        // --- LOGICA DE ACORDEON PARA EDICIÓN ---
+        window.toggleAccordion = async function(id) {
+            const accordionDiv = document.getElementById(`accordion-${id}`);
+            const wrapper = document.getElementById('form-alumno-wrapper');
+
+            // Si se hace clic en el mismo acordeon que esta abierto, se cierra
+            if (accordionDiv.contains(wrapper) && wrapper.style.display === 'block') {
+                wrapper.style.display = 'none';
+                return;
+            }
+
+            // Ocultar wrapper de cualquier otro lugar
+            wrapper.style.display = 'none';
+            document.querySelectorAll('[id^="accordion-"]').forEach(el => el.style.display = 'none');
+
+            // Mover wrapper al nuevo contenedor y mostrar
+            accordionDiv.appendChild(wrapper);
+            wrapper.style.display = 'block';
+            accordionDiv.style.display = 'block';
+            document.getElementById('form-titulo').textContent = 'Editar Alumno';
+
             const docAl = await getDoc(doc(db, "alumnos", id));
             const data = docAl.data();
-            document.getElementById('modal-alumno-titulo').textContent = 'Editar Alumno';
             document.getElementById('alumno-id').value = id;
             document.getElementById('nombre').value = data.nombre;
             document.getElementById('celular').value = data.celular;
@@ -752,9 +782,9 @@
                     spanE.textContent = "Disponible todo el día"; spanE.style.color = "green";
                 } else { tIni.value = dData[0].inicio; tFin.value = dData[0].fin; }
             });
-            document.getElementById('modal-alumno').showModal();
         }
 
+        // --- VISTAS ABM & CONFIG ---
         document.getElementById('btn-abm-profes').addEventListener('click', () => { if(auth.currentUser) cargarABM('profesores', 'Profesores') });
         document.getElementById('btn-abm-inst').addEventListener('click', () => { if(auth.currentUser) cargarABM('instrumentos', 'Instrumentos') });
         document.getElementById('btn-abm-susc').addEventListener('click', () => { if(auth.currentUser) cargarABM('tipos_suscripcion', 'Suscripciones') });
@@ -894,7 +924,11 @@
         }
 
         document.getElementById('btn-nuevo-alumno').addEventListener('click', async () => { 
-            document.getElementById('modal-alumno-titulo').textContent = 'Datos del Alumno';
+            const wrapper = document.getElementById('form-alumno-wrapper');
+            document.getElementById('modal-alumno').appendChild(wrapper);
+            wrapper.style.display = 'block';
+            
+            document.getElementById('form-titulo').textContent = 'Nuevo Alumno';
             document.getElementById('alumno-id').value = '';
             document.getElementById('form-alumno').reset();
             quill.setContents([]);
@@ -911,7 +945,11 @@
             document.getElementById('modal-alumno').showModal(); 
         });
         
-        document.getElementById('btn-cerrar-alumno').addEventListener('click', () => document.getElementById('modal-alumno').close());
+        document.getElementById('btn-cerrar-alumno').addEventListener('click', () => {
+            document.getElementById('form-alumno-wrapper').style.display = 'none';
+            document.querySelectorAll('[id^="accordion-"]').forEach(el => el.style.display = 'none');
+            document.getElementById('modal-alumno').close();
+        });
 
         document.getElementById('form-alumno').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -954,6 +992,7 @@
                     dataAlumno.estado_agenda = "Pendiente procesar";
                     await addDoc(collection(db, "alumnos"), dataAlumno);
                 }
+                document.getElementById('form-alumno-wrapper').style.display = 'none';
                 document.getElementById('modal-alumno').close(); 
                 cargarVista(estadoActualVista); 
             } catch (error) { alert("Error al guardar."); }
