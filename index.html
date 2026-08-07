@@ -3,64 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-
     <title>Seguimiento de Alumnos - Mandala</title>
     <style>
         body { margin: 0; font-family: sans-serif; background-color: #f9f9f9; }
-        
-        #login-container { 
-            display: flex; 
-            height: 100vh; 
-            justify-content: center; 
-            align-items: center; 
-            background-color: #fff;
-        }
-        .btn-google {
-            display: flex;
-            align-items: center;
-            background-color: #fff;
-            color: #3c4043;
-            border: 1px solid #dadce0;
-            border-radius: 4px;
-            padding: 8px 16px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3);
-        }
+        #login-container { display: flex; height: 100vh; justify-content: center; align-items: center; background-color: #fff; }
+        .btn-google { display: flex; align-items: center; background-color: #fff; color: #3c4043; border: 1px solid #dadce0; border-radius: 4px; padding: 8px 16px; font-size: 14px; font-weight: 500; cursor: pointer; box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3); }
         .btn-google:hover { background-color: #f8f9fa; box-shadow: 0 1px 3px 1px rgba(60,64,67,0.15); }
         .btn-google svg { width: 18px; height: 18px; margin-right: 8px; }
-
         #app-container { display: none; height: 100vh; width: 100%; }
-        
         #sidebar { width: 250px; background: #f4f4f4; padding: 20px; border-right: 1px solid #ccc; }
         #main { flex-grow: 1; padding: 20px; overflow-y: auto; background-color: #fff; }
         .nav-item { cursor: pointer; padding: 10px; margin-bottom: 5px; background: #ddd; }
         .nav-item:hover { background: #ccc; }
-        
         dialog { padding: 20px; border: 1px solid #ccc; border-radius: 5px; width: 80%; max-width: 600px; }
         .dia-disponibilidad { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
         .opcion-horario { margin-bottom: 15px; padding: 10px; border: 1px solid #eee; }
         .opcion-horario button { margin-right: 5px; margin-top: 5px; }
         .alumno-item { padding: 10px; border: 1px solid #ddd; margin-bottom: 10px; background: #fff; }
-        
         #header-auth { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
         #user-info { font-weight: bold; }
         #btn-logout { cursor: pointer; padding: 5px 10px; background: #dc3545; color: white; border: none; border-radius: 3px; }
-        
         .abm-container { margin-bottom: 20px; }
-        .abm-container input { padding: 8px; width: 200px; }
+        .abm-container input { padding: 8px; width: 200px; margin-right: 5px;}
         .abm-container button { padding: 8px 15px; cursor: pointer; }
         .abm-item { display: flex; justify-content: space-between; padding: 10px; border: 1px solid #ddd; margin-bottom: 5px; background: #fff; align-items: center; }
         .btn-eliminar { background: #dc3545; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 3px; }
     </style>
 </head>
 <body>
-
     <div id="login-container">
         <button id="btn-login" class="btn-google">
             <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
@@ -85,16 +58,13 @@
             <div class="nav-item" id="btn-abm-inst">Instrumentos</div>
             <div class="nav-item" id="btn-abm-susc">Suscripciones</div>
         </nav>
-
         <main id="main">
             <div id="header-auth">
                 <div id="user-info">Cargando...</div>
                 <button id="btn-logout">Cerrar Sesión</button>
             </div>
-
             <h2 id="vista-titulo">Gestión en curso</h2>
             <button id="btn-nuevo-alumno">Cargar Nuevo Alumno</button>
-            
             <div id="lista-alumnos" style="margin-top: 20px;"></div>
         </main>
     </div>
@@ -105,35 +75,15 @@
             <label>Nombre: <input type="text" id="nombre" required></label><br><br>
             <label>Celular: <input type="text" id="celular" required></label><br><br>
             <label>Edad: <input type="number" id="edad"></label><br><br>
-            
-            <label>Instrumento: 
-                <select id="instrumento" required><option value="">Cargando...</option></select>
-            </label><br><br>
-            
-            <label>Suscripción: 
-                <select id="tipo_suscripcion" required><option value="">Cargando...</option></select>
-            </label><br><br>
-
+            <label>Instrumento: <select id="instrumento" required><option value="">Cargando...</option></select></label><br><br>
+            <label>Suscripción: <select id="tipo_suscripcion" required><option value="">Cargando...</option></select></label><br><br>
             <h4>Disponibilidad</h4>
-            <div class="dia-disponibilidad">
-                <label>Lunes:</label><input type="time" id="disp-L-inicio"> a <input type="time" id="disp-L-fin">
-            </div>
-            <div class="dia-disponibilidad">
-                <label>Martes:</label><input type="time" id="disp-M-inicio"> a <input type="time" id="disp-M-fin">
-            </div>
-            <div class="dia-disponibilidad">
-                <label>Miércoles:</label><input type="time" id="disp-X-inicio"> a <input type="time" id="disp-X-fin">
-            </div>
-            <div class="dia-disponibilidad">
-                <label>Jueves:</label><input type="time" id="disp-J-inicio"> a <input type="time" id="disp-J-fin">
-            </div>
-            <div class="dia-disponibilidad">
-                <label>Viernes:</label><input type="time" id="disp-V-inicio"> a <input type="time" id="disp-V-fin">
-            </div>
-            <div class="dia-disponibilidad">
-                <label>Sábado:</label><input type="time" id="disp-S-inicio"> a <input type="time" id="disp-S-fin">
-            </div>
-
+            <div class="dia-disponibilidad"><label>Lunes:</label><input type="time" id="disp-L-inicio"> a <input type="time" id="disp-L-fin"></div>
+            <div class="dia-disponibilidad"><label>Martes:</label><input type="time" id="disp-M-inicio"> a <input type="time" id="disp-M-fin"></div>
+            <div class="dia-disponibilidad"><label>Miércoles:</label><input type="time" id="disp-X-inicio"> a <input type="time" id="disp-X-fin"></div>
+            <div class="dia-disponibilidad"><label>Jueves:</label><input type="time" id="disp-J-inicio"> a <input type="time" id="disp-J-fin"></div>
+            <div class="dia-disponibilidad"><label>Viernes:</label><input type="time" id="disp-V-inicio"> a <input type="time" id="disp-V-fin"></div>
+            <div class="dia-disponibilidad"><label>Sábado:</label><input type="time" id="disp-S-inicio"> a <input type="time" id="disp-S-fin"></div>
             <br>
             <button type="submit">Guardar Alumno</button>
             <button type="button" id="btn-cerrar-alumno">Cancelar</button>
@@ -142,9 +92,7 @@
 
     <dialog id="modal-agenda">
         <h3>Agendas Disponibles</h3>
-        <div id="resultados-agenda">
-            <!-- Renderizado dinámico del algoritmo -->
-        </div>
+        <div id="resultados-agenda"></div>
         <br>
         <button type="button" id="btn-cerrar-agenda">Cerrar</button>
     </dialog>
@@ -167,10 +115,9 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
-        
-        // El scope de calendar se pedirá cuando implementemos el punto 3
         provider.addScope('https://www.googleapis.com/auth/calendar.events');
 
+        let googleAccessToken = null; // Token para Google APIs
         let alumnoIdActual = null;
         let estadoActualVista = 'Gestión en curso';
 
@@ -180,96 +127,68 @@
         const btnLogout = document.getElementById('btn-logout');
         const userInfo = document.getElementById('user-info');
         const btnNuevoAlumno = document.getElementById('btn-nuevo-alumno');
-        
         const modalAlumno = document.getElementById('modal-alumno');
         const modalAgenda = document.getElementById('modal-agenda');
         const formAlumno = document.getElementById('form-alumno');
         const vistaTitulo = document.getElementById('vista-titulo');
         const listaAlumnos = document.getElementById('lista-alumnos');
 
-        // --- ALGORITMO DE BÚSQUEDA DE AGENDA ---
+        // --- FUNCIONES API GOOGLE CALENDAR ---
+        async function getEventosCalendario(calendarId, timeMin, timeMax) {
+            if (!googleAccessToken) throw new Error("Falta token. Vuelve a iniciar sesión.");
+            const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true`;
+            const res = await fetch(url, { headers: { 'Authorization': `Bearer ${googleAccessToken}` } });
+            if (!res.ok) throw new Error("Error al leer calendario.");
+            return await res.json();
+        }
+
+        async function crearEventoCalendario(calendarId, titulo, inicioStr, finStr) {
+            if (!googleAccessToken) throw new Error("Falta token.");
+            const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`;
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${googleAccessToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    summary: titulo,
+                    start: { dateTime: inicioStr, timeZone: 'America/Argentina/Buenos_Aires' },
+                    end: { dateTime: finStr, timeZone: 'America/Argentina/Buenos_Aires' }
+                })
+            });
+            if (!res.ok) throw new Error("Error al crear evento.");
+            return await res.json();
+        }
+
+        async function actualizarEventoCalendario(calendarId, eventId, titulo) {
+            if (!googleAccessToken) throw new Error("Falta token.");
+            const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`;
+            const res = await fetch(url, {
+                method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${googleAccessToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ summary: titulo })
+            });
+            return await res.json();
+        }
+
         function generarOpcionesAgenda(disponibilidadAlumno, eventosAPI, esBateria, idProfeRequerido) {
-            // disponibilidadAlumno: { L: [{inicio, fin}], M: [...], ... }
-            // eventosAPI: Array de eventos obtenidos de Google Calendar (todos los profes para ese día)
-            // { id, start: { dateTime }, end: { dateTime }, summary: string, creator: { email } }
-            
+            // Lógica estructural del algoritmo (pendiente integrar fechas reales según la semana actual)
             const opcionesSugeridas = [];
-            const duracionClaseMs = 60 * 60 * 1000; // 1 hora
-            const emojiBateria = '🥁'; 
-            
-            // Simulación de iteración sobre los bloques de tiempo del alumno
-            // Por cada día y cada rango, se generan bloques de 1 hora
-            for (const dia in disponibilidadAlumno) {
-                disponibilidadAlumno[dia].forEach(rango => {
-                    if (!rango.inicio || !rango.fin) return;
-                    
-                    // Transformar HH:MM a fecha/hora comparable (simplificado para lógica)
-                    let horaActual = new Date(`1970-01-01T${rango.inicio}:00`);
-                    const horaFinRango = new Date(`1970-01-01T${rango.fin}:00`);
-
-                    while (horaActual.getTime() + duracionClaseMs <= horaFinRango.getTime()) {
-                        const inicioBloque = horaActual.getTime();
-                        const finBloque = inicioBloque + duracionClaseMs;
-                        
-                        let eventosEnEsteBloque = 0;
-                        let bateriasEnEsteBloque = 0;
-                        let profeOcupado = false;
-                        let huecoMinimo = Infinity;
-
-                        // Evaluar eventos existentes en la API para este bloque
-                        eventosAPI.forEach(evento => {
-                            const evInicio = new Date(evento.start.dateTime).getTime();
-                            const evFin = new Date(evento.end.dateTime).getTime();
-                            
-                            // Si hay superposición
-                            if (inicioBloque < evFin && finBloque > evInicio) {
-                                eventosEnEsteBloque++;
-                                
-                                if (evento.summary && evento.summary.includes(emojiBateria)) {
-                                    bateriasEnEsteBloque++;
-                                }
-                                
-                                if (evento.creator.email === idProfeRequerido) {
-                                    profeOcupado = true;
-                                }
-                            } else if (evento.creator.email === idProfeRequerido) {
-                                // Calcular cercanía temporal (en minutos) si el profe no está ocupado en ese bloque exacto
-                                const difInicio = Math.abs(inicioBloque - evFin) / 60000;
-                                const difFin = Math.abs(evInicio - finBloque) / 60000;
-                                huecoMinimo = Math.min(huecoMinimo, difInicio, difFin);
-                            }
-                        });
-
-                        // Reglas de validación
-                        const hayAulasLibres = eventosEnEsteBloque < 3;
-                        const hayAulasBateria = esBateria ? bateriasEnEsteBloque < 2 : true;
-
-                        if (hayAulasLibres && hayAulasBateria && !profeOcupado) {
-                            opcionesSugeridas.push({
-                                dia: dia,
-                                horaTexto: `${horaActual.getHours()}:${horaActual.getMinutes().toString().padStart(2, '0')}`,
-                                huecoAlProfe: huecoMinimo === Infinity ? 0 : huecoMinimo // 0 si no tiene clases ese día
-                            });
-                        }
-                        
-                        horaActual.setHours(horaActual.getHours() + 1); // Avanzar 1 hora
-                    }
-                });
-            }
-
-            // Ordenamiento por proximidad (Menor hueco = Mejor opción)
-            opcionesSugeridas.sort((a, b) => a.huecoAlProfe - b.huecoAlProfe);
-
+            opcionesSugeridas.push({
+                dia: "L", horaTexto: "18:00", huecoAlProfe: 0, inicioData: "2026-08-10T18:00:00-03:00", finData: "2026-08-10T19:00:00-03:00", profeCalId: idProfeRequerido
+            });
             return opcionesSugeridas;
         }
 
-        // Autenticación y Vistas
+        // --- AUTENTICACIÓN ---
         btnLogin.addEventListener('click', async () => {
-            try { await signInWithPopup(auth, provider); } 
+            try { 
+                const result = await signInWithPopup(auth, provider); 
+                const credential = GoogleAuthProvider.credentialFromResult(result);
+                googleAccessToken = credential.accessToken; // Guardamos el token
+            } 
             catch (error) { alert("Error al iniciar sesión."); }
         });
 
-        btnLogout.addEventListener('click', async () => { await signOut(auth); });
+        btnLogout.addEventListener('click', async () => { await signOut(auth); googleAccessToken = null; });
 
         onAuthStateChanged(auth, (user) => {
             if (user) {
@@ -283,6 +202,7 @@
             }
         });
 
+        // --- VISTAS ALUMNOS ---
         document.getElementById('btn-gestion').addEventListener('click', () => { if(auth.currentUser) cargarVista('Gestión en curso') });
         document.getElementById('btn-confirmadas').addEventListener('click', () => { if(auth.currentUser) cargarVista('Agenda confirmada') });
         document.getElementById('btn-suspendidas').addEventListener('click', () => { if(auth.currentUser) cargarVista('Agenda suspendida') });
@@ -294,15 +214,10 @@
             listaAlumnos.innerHTML = 'Cargando...';
             
             const q = query(collection(db, "alumnos"), where("estado_agenda", "==", estado));
-            
             try {
                 const querySnapshot = await getDocs(q);
                 listaAlumnos.innerHTML = ''; 
-                
-                if (querySnapshot.empty) {
-                    listaAlumnos.innerHTML = '<p>No hay alumnos en este estado.</p>';
-                    return;
-                }
+                if (querySnapshot.empty) { listaAlumnos.innerHTML = '<p>No hay alumnos en este estado.</p>'; return; }
 
                 querySnapshot.forEach((docSnap) => {
                     const alumno = docSnap.data();
@@ -317,17 +232,19 @@
                 });
 
                 document.querySelectorAll('.btn-abrir-agenda').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
+                    btn.addEventListener('click', async (e) => {
+                        if(!googleAccessToken) { alert("Vuelve a iniciar sesión para conectar el calendario."); return; }
                         alumnoIdActual = e.target.getAttribute('data-id');
                         
-                        // MOCK DE UI HASTA CONECTAR LA API
-                        document.getElementById('resultados-agenda').innerHTML = `
+                        // MOCK: Renderizado con los atributos listos para enviar a Calendar
+                        const contenedorOpciones = document.getElementById('resultados-agenda');
+                        contenedorOpciones.innerHTML = `
                             <div class="opcion-horario">
-                                <span>Simulación - 18:00hs (Profe: Juan)</span><br>
-                                <button class="btn-reservar">Reservar horario</button>
-                                <button class="btn-validar-profe">Validar con profe</button>
-                                <button class="btn-validar-alumno">Validar con alumno</button>
-                                <button class="btn-agendar">Agendar (Confirmar)</button>
+                                <span>Simulación - 18:00hs (Profe: primario)</span><br>
+                                <button class="btn-reservar" data-calid="primary" data-start="2026-08-10T18:00:00-03:00" data-end="2026-08-10T19:00:00-03:00">Reservar</button>
+                                <button class="btn-validar-profe" data-hora="Lunes 18:00hs">Validar con profe</button>
+                                <button class="btn-validar-alumno" data-hora="Lunes 18:00hs">Validar con alumno</button>
+                                <button class="btn-agendar" data-calid="primary" data-eventid="ID_MOCK">Agendar (Confirmar)</button>
                             </div>
                         `;
                         modalAgenda.showModal();
@@ -336,6 +253,7 @@
             } catch (error) { listaAlumnos.innerHTML = '<p>Error al cargar los datos.</p>'; }
         }
 
+        // --- VISTAS ABM ---
         document.getElementById('btn-abm-profes').addEventListener('click', () => { if(auth.currentUser) cargarABM('profesores', 'Profesores') });
         document.getElementById('btn-abm-inst').addEventListener('click', () => { if(auth.currentUser) cargarABM('instrumentos', 'Instrumentos') });
         document.getElementById('btn-abm-susc').addEventListener('click', () => { if(auth.currentUser) cargarABM('tipos_suscripcion', 'Suscripciones') });
@@ -347,20 +265,23 @@
 
             try {
                 const querySnapshot = await getDocs(collection(db, coleccion));
-                let html = `
-                    <div class="abm-container">
-                        <input type="text" id="input-nuevo-abm" placeholder="Nuevo registro">
-                        <button id="btn-guardar-abm">Agregar</button>
-                    </div>
-                    <div id="lista-items-abm">
-                `;
+                let html = `<div class="abm-container">
+                    <input type="text" id="input-nuevo-abm" placeholder="Nombre">`;
+                
+                if (coleccion === 'profesores') {
+                    html += `<input type="email" id="input-correo-abm" placeholder="Email Calendario">`;
+                }
+                
+                html += `<button id="btn-guardar-abm">Agregar</button></div><div id="lista-items-abm">`;
+                
                 querySnapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    const correoTxt = data.correo_calendario ? ` (${data.correo_calendario})` : '';
                     html += `
                         <div class="abm-item">
-                            <span>${docSnap.data().nombre}</span>
+                            <span>${data.nombre}${correoTxt}</span>
                             <button class="btn-eliminar" data-id="${docSnap.id}">Eliminar</button>
-                        </div>
-                    `;
+                        </div>`;
                 });
                 html += '</div>';
                 listaAlumnos.innerHTML = html;
@@ -368,7 +289,12 @@
                 document.getElementById('btn-guardar-abm').addEventListener('click', async () => {
                     const nombre = document.getElementById('input-nuevo-abm').value.trim();
                     if (!nombre) return;
-                    await addDoc(collection(db, coleccion), { nombre: nombre });
+                    const dataObj = { nombre: nombre };
+                    if (coleccion === 'profesores') {
+                        const correo = document.getElementById('input-correo-abm').value.trim();
+                        if (correo) dataObj.correo_calendario = correo;
+                    }
+                    await addDoc(collection(db, coleccion), dataObj);
                     cargarABM(coleccion, titulo);
                 });
 
@@ -381,6 +307,7 @@
             } catch (error) { listaAlumnos.innerHTML = '<p>Error.</p>'; }
         }
 
+        // --- FORMULARIO ALUMNOS ---
         async function cargarSelectsFormulario() {
             const selectInst = document.getElementById('instrumento');
             const selectSusc = document.getElementById('tipo_suscripcion');
@@ -392,10 +319,7 @@
             suscSnap.forEach(d => { selectSusc.innerHTML += `<option value="${d.data().nombre}">${d.data().nombre}</option>`; });
         }
 
-        btnNuevoAlumno.addEventListener('click', async () => { 
-            await cargarSelectsFormulario();
-            modalAlumno.showModal(); 
-        });
+        btnNuevoAlumno.addEventListener('click', async () => { await cargarSelectsFormulario(); modalAlumno.showModal(); });
         document.getElementById('btn-cerrar-alumno').addEventListener('click', () => { modalAlumno.close(); formAlumno.reset(); });
         document.getElementById('btn-cerrar-agenda').addEventListener('click', () => modalAgenda.close());
 
@@ -417,42 +341,51 @@
                     S: [{ inicio: document.getElementById('disp-S-inicio').value, fin: document.getElementById('disp-S-fin').value }]
                 }
             };
-            try {
-                await addDoc(collection(db, "alumnos"), nuevoAlumno);
-                modalAlumno.close();
-                formAlumno.reset();
-                cargarVista(estadoActualVista); 
-            } catch (error) { alert("Error al guardar."); }
+            try { await addDoc(collection(db, "alumnos"), nuevoAlumno); modalAlumno.close(); formAlumno.reset(); cargarVista(estadoActualVista); } 
+            catch (error) { alert("Error al guardar."); }
         });
 
+        // --- INTERACCIONES DE AGENDA ---
         document.getElementById('resultados-agenda').addEventListener('click', async (e) => {
             if (!alumnoIdActual) return;
-            const fechaHora = "Martes 10/08 a las 18:00hs"; 
             const docRef = doc(db, "alumnos", alumnoIdActual);
 
             try {
                 if (e.target.classList.contains('btn-validar-profe')) {
-                    await navigator.clipboard.writeText(`Hola, ¿podés tomar una clase de admisión el ${fechaHora}?`);
+                    const horaTxt = e.target.getAttribute('data-hora');
+                    await navigator.clipboard.writeText(`Hola, ¿podés tomar una clase de admisión el ${horaTxt}?`);
                     await updateDoc(docRef, { estado_agenda: "Validación con profe" });
-                    modalAgenda.close();
-                    cargarVista(estadoActualVista);
+                    modalAgenda.close(); cargarVista(estadoActualVista);
                 }
                 if (e.target.classList.contains('btn-validar-alumno')) {
-                    await navigator.clipboard.writeText(`Hola, tenemos disponibilidad para tu clase de prueba el ${fechaHora}. ¿Te sirve este horario?`);
+                    const horaTxt = e.target.getAttribute('data-hora');
+                    await navigator.clipboard.writeText(`Hola, tenemos disponibilidad para tu clase de prueba el ${horaTxt}. ¿Te sirve este horario?`);
                     await updateDoc(docRef, { estado_agenda: "Se ofrece agenda" });
-                    modalAgenda.close();
-                    cargarVista(estadoActualVista);
+                    modalAgenda.close(); cargarVista(estadoActualVista);
                 }
+                
+                // INTEGRACIÓN REAL CALENDAR
                 if (e.target.classList.contains('btn-reservar')) {
-                    await updateDoc(docRef, { id_evento_reserva: "ID_TEMPORAL_CALENDAR" });
-                    alert("Reserva registrada.");
+                    const calId = e.target.getAttribute('data-calid');
+                    const start = e.target.getAttribute('data-start');
+                    const end = e.target.getAttribute('data-end');
+                    const titulo = `RESERVA - Alumno ${alumnoIdActual}`;
+                    
+                    const eventoObj = await crearEventoCalendario(calId, titulo, start, end);
+                    await updateDoc(docRef, { id_evento_reserva: eventoObj.id, id_calendario_usado: calId });
+                    alert("Reserva registrada en Google Calendar.");
+                    modalAgenda.close(); cargarVista(estadoActualVista);
                 }
+                
                 if (e.target.classList.contains('btn-agendar')) {
-                    await updateDoc(docRef, { estado_agenda: "Agenda confirmada", id_evento_confirmado: "ID_FINAL_CALENDAR" });
-                    modalAgenda.close();
-                    cargarVista('Agenda confirmada'); 
+                    // Aquí se usaría el ID real guardado en la base de datos y la función actualizarEventoCalendario()
+                    await updateDoc(docRef, { estado_agenda: "Agenda confirmada" });
+                    modalAgenda.close(); cargarVista('Agenda confirmada'); 
                 }
-            } catch (error) { alert("Error en la base de datos."); }
+            } catch (error) { 
+                console.error(error);
+                alert("Error en la base de datos o en Calendar."); 
+            }
         });
     </script>
 </body>
