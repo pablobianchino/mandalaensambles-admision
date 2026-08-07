@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seguimiento de Alumnos - Mandala</title>
+    <style>
+        body { display: flex; height: 100vh; margin: 0; font-family: sans-serif; }
+        #sidebar { width: 250px; background: #f4f4f4; padding: 20px; border-right: 1px solid #ccc; }
+        #main { flex-grow: 1; padding: 20px; overflow-y: auto; }
+        .nav-item { cursor: pointer; padding: 10px; margin-bottom: 5px; background: #ddd; }
+        .nav-item:hover { background: #ccc; }
+        dialog { padding: 20px; border: 1px solid #ccc; border-radius: 5px; width: 80%; max-width: 600px; }
+        .dia-disponibilidad { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
+        .opcion-horario { margin-bottom: 15px; padding: 10px; border: 1px solid #eee; }
+        .opcion-horario button { margin-right: 5px; margin-top: 5px; }
+        .alumno-item { padding: 10px; border: 1px solid #ddd; margin-bottom: 10px; background: #fff; }
+    </style>
+</head>
+<body>
+
+    <!-- Panel Izquierdo -->
+    <nav id="sidebar">
+        <h3>Vistas</h3>
+        <div class="nav-item" id="btn-gestion">Gestión en curso</div>
+        <div class="nav-item" id="btn-confirmadas">Agenda confirmada</div>
+        <div class="nav-item" id="btn-suspendidas">Agenda suspendida</div>
+        <hr>
+        <h3>Administración</h3>
+        <div class="nav-item" id="btn-abm-profes">Profesores</div>
+        <div class="nav-item" id="btn-abm-inst">Instrumentos</div>
+        <div class="nav-item" id="btn-abm-susc">Suscripciones</div>
+    </nav>
+
+    <!-- Área Principal -->
+    <main id="main">
+        <h2 id="vista-titulo">Gestión en curso</h2>
+        <button id="btn-nuevo-alumno">Cargar Nuevo Alumno</button>
+        
+        <div id="lista-alumnos" style="margin-top: 20px;">
+            <!-- La lista se renderiza aquí dinámicamente -->
+        </div>
+    </main>
+
+    <!-- Modal: Formulario Alta de Alumno -->
+    <dialog id="modal-alumno">
+        <h3>Datos del Alumno</h3>
+        <form id="form-alumno">
+            <label>Nombre: <input type="text" id="nombre" required></label><br><br>
+            <label>Celular: <input type="text" id="celular" required></label><br><br>
+            <label>Edad: <input type="number" id="edad"></label><br><br>
+            
+            <label>Instrumento: 
+                <select id="instrumento"><option>Batería</option><option>Guitarra</option></select>
+            </label><br><br>
+            
+            <label>Suscripción: 
+                <select id="tipo_suscripcion"><option>Clase</option><option>Ensamble</option></select>
+            </label><br><br>
+
+            <h4>Disponibilidad</h4>
+            <div class="dia-disponibilidad">
+                <label>Lunes:</label>
+                <input type="time" id="disp-L-inicio"> a <input type="time" id="disp-L-fin">
+            </div>
+            <div class="dia-disponibilidad">
+                <label>Martes:</label>
+                <input type="time" id="disp-M-inicio"> a <input type="time" id="disp-M-fin">
+            </div>
+
+            <br>
+            <button type="submit">Guardar Alumno</button>
+            <button type="button" id="btn-cerrar-alumno">Cancelar</button>
+        </form>
+    </dialog>
+
+    <!-- Modal: Búsqueda y Gestión de Agenda -->
+    <dialog id="modal-agenda">
+        <h3>Agendas Disponibles</h3>
+        <div id="resultados-agenda">
+            <div class="opcion-horario">
+                <span>Martes 10/08 - 18:00hs (Profe: Juan)</span><br>
+                <button class="btn-reservar">Reservar horario</button>
+                <button class="btn-validar-profe">Validar con profe</button>
+                <button class="btn-validar-alumno">Validar con alumno</button>
+                <button class="btn-agendar">Agendar (Confirmar)</button>
+            </div>
+        </div>
+        <br>
+        <button type="button" id="btn-cerrar-agenda">Cerrar</button>
+    </dialog>
+
+    <!-- LÓGICA JAVASCRIPT INTEGRADA -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, updateDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        // 1. Inicialización de Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyCgAg2EwTJh4zbMdpkqG3VKTGfDeofblyg",
+            authDomain: "priel-mdl-seguimientos.firebaseapp.com",
+            projectId: "priel-mdl-seguimientos",
+            storageBucket: "priel-mdl-seguimientos.firebasestorage.app",
+            messagingSenderId: "118730133451",
+            appId: "1:118730133451:web:9e407e81a9b22ae9d0704e"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Variables globales
+        let alumnoIdActual = null;
+        let estadoActualVista = 'Gestión en curso';
+
+        // 2. Referencias del DOM
+        const modalAlumno = document.getElementById('modal-alumno');
+        const modalAgenda = document.getElementById('modal-agenda');
+        const formAlumno = document.getElementById('form-alumno');
+        const vistaTitulo = document.getElementById('vista-titulo');
+        const listaAlumnos = document.getElementById('lista-alumnos');
+
+        // 3. Control del Panel Izquierdo (Filtros de Vistas)
+        document.getElementById('btn-gestion').addEventListener('click', () => cargarVista('Gestión en curso'));
+        document.getElementById('btn-confirmadas').addEventListener('click', () => cargarVista('Agenda confirmada'));
+        document.getElementById('btn-suspendidas').addEventListener('click', () => cargarVista('Agenda suspendida'));
+
+        // LECTURA (READ): Obtener alumnos filtrados por estado
+        async function cargarVista(estado) {
+            estadoActualVista = estado;
+            vistaTitulo.textContent = estado;
+            listaAlumnos.innerHTML = 'Cargando...';
+            
+            const q = query(collection(db, "alumnos"), where("estado_agenda", "==", estado));
+            
+            try {
+                const querySnapshot = await getDocs(q);
+                listaAlumnos.innerHTML = ''; 
+                
+                if (querySnapshot.empty) {
+                    listaAlumnos.innerHTML = '<p>No hay alumnos en este estado.</p>';
+                    return;
+                }
+
+                querySnapshot.forEach((docSnap) => {
+                    const alumno = docSnap.data();
+                    const div = document.createElement('div');
+                    div.className = 'alumno-item';
+                    div.innerHTML = `
+                        <strong>${alumno.nombre}</strong> - ${alumno.instrumento} (${alumno.tipo_suscripcion})<br>
+                        Celular: ${alumno.celular}<br>
+                        <button class="btn-abrir-agenda" data-id="${docSnap.id}">Buscar agenda disponible</button>
+                    `;
+                    listaAlumnos.appendChild(div);
+                });
+
+                // Asignar eventos a los botones generados dinámicamente
+                document.querySelectorAll('.btn-abrir-agenda').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        alumnoIdActual = e.target.getAttribute('data-id');
+                        modalAgenda.showModal();
+                    });
+                });
+
+            } catch (error) {
+                console.error("Error al cargar la vista: ", error);
+                listaAlumnos.innerHTML = '<p>Error al cargar los datos.</p>';
+            }
+        }
+
+        // Carga inicial
+        cargarVista('Gestión en curso');
+
+        // 4. Control de Modales
+        document.getElementById('btn-nuevo-alumno').addEventListener('click', () => modalAlumno.showModal());
+        document.getElementById('btn-cerrar-alumno').addEventListener('click', () => { modalAlumno.close(); formAlumno.reset(); });
+        document.getElementById('btn-cerrar-agenda').addEventListener('click', () => modalAgenda.close());
+
+        // ESCRITURA (CREATE): Alta de nuevo alumno
+        formAlumno.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const nuevoAlumno = {
+                nombre: document.getElementById('nombre').value,
+                celular: document.getElementById('celular').value,
+                edad: Number(document.getElementById('edad').value),
+                instrumento: document.getElementById('instrumento').value,
+                tipo_suscripcion: document.getElementById('tipo_suscripcion').value,
+                estado_agenda: "Gestión en curso",
+                disponibilidad: {
+                    L: [{ inicio: document.getElementById('disp-L-inicio').value, fin: document.getElementById('disp-L-fin').value }],
+                    M: [{ inicio: document.getElementById('disp-M-inicio').value, fin: document.getElementById('disp-M-fin').value }]
+                }
+            };
+
+            try {
+                await addDoc(collection(db, "alumnos"), nuevoAlumno);
+                alert("Alumno guardado correctamente.");
+                modalAlumno.close();
+                formAlumno.reset();
+                cargarVista(estadoActualVista); // Refrescar la vista actual
+            } catch (error) {
+                console.error("Error al guardar alumno: ", error);
+                alert("Error al guardar el alumno.");
+            }
+        });
+
+        // ACTUALIZACIÓN (UPDATE): Interacciones de Agenda
+        document.getElementById('resultados-agenda').addEventListener('click', async (e) => {
+            if (!alumnoIdActual) return;
+            
+            const fechaHora = "Martes 10/08 a las 18:00hs"; 
+            const docRef = doc(db, "alumnos", alumnoIdActual);
+
+            try {
+                if (e.target.classList.contains('btn-validar-profe')) {
+                    const texto = `Hola, ¿podés tomar una clase de admisión el ${fechaHora}?`;
+                    await navigator.clipboard.writeText(texto);
+                    await updateDoc(docRef, { estado_agenda: "Validación con profe" });
+                    alert("Texto copiado para el profesor. Estado actualizado.");
+                    modalAgenda.close();
+                    cargarVista(estadoActualVista);
+                }
+                
+                if (e.target.classList.contains('btn-validar-alumno')) {
+                    const texto = `Hola, tenemos disponibilidad para tu clase de prueba el ${fechaHora}. ¿Te sirve este horario?`;
+                    await navigator.clipboard.writeText(texto);
+                    await updateDoc(docRef, { estado_agenda: "Se ofrece agenda" });
+                    alert("Texto copiado para el alumno. Estado actualizado.");
+                    modalAgenda.close();
+                    cargarVista(estadoActualVista);
+                }
+                
+                if (e.target.classList.contains('btn-reservar')) {
+                    // Aquí irá la lógica de Calendar API
+                    await updateDoc(docRef, { id_evento_reserva: "ID_TEMPORAL_CALENDAR" });
+                    alert("Evento de reserva guardado en base de datos.");
+                }
+
+                if (e.target.classList.contains('btn-agendar')) {
+                    // Aquí irá la lógica de Calendar API final
+                    await updateDoc(docRef, { 
+                        estado_agenda: "Agenda confirmada",
+                        id_evento_confirmado: "ID_FINAL_CALENDAR" 
+                    });
+                    alert("Agenda confirmada en base de datos.");
+                    modalAgenda.close();
+                    cargarVista('Agenda confirmada'); // Redirige a la vista de confirmadas
+                }
+            } catch (error) {
+                console.error("Error al actualizar el estado: ", error);
+                alert("Error al actualizar la base de datos.");
+            }
+        });
+    </script>
+</body>
+</html>
