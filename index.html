@@ -43,7 +43,7 @@
         #btn-logout { cursor: pointer; padding: 5px 10px; background: #dc3545; color: white; border: none; border-radius: 3px; }
         
         .abm-container { margin-bottom: 20px; }
-        .abm-container input { padding: 8px; width: 200px; margin-right: 5px;}
+        .abm-container input { padding: 8px; width: 190px; margin-right: 5px;}
         .abm-container button { padding: 8px 15px; cursor: pointer; }
         .abm-item { display: flex; justify-content: space-between; padding: 10px; border: 1px solid #ddd; margin-bottom: 5px; background: #fff; align-items: center; cursor: pointer;}
         .abm-item:hover { background: #f1f1f1; }
@@ -155,7 +155,10 @@
         <input type="hidden" id="abm-edit-id">
         <input type="hidden" id="abm-edit-coleccion">
         <label>Nombre: <input type="text" id="abm-edit-nombre"></label><br><br>
-        <label id="lbl-abm-edit-correo" style="display:none;">Email Calendario: <input type="email" id="abm-edit-correo"></label><br><br>
+        <div id="div-abm-edit-profe" style="display:none;">
+            <label>Email Calendario: <input type="email" id="abm-edit-correo"></label><br><br>
+            <label>Alias a transferir: <input type="text" id="abm-edit-alias"></label><br><br>
+        </div>
         <button id="btn-guardar-abm-edit" style="padding:5px 10px; cursor:pointer;">Actualizar</button>
         <button type="button" id="btn-cerrar-abm-edit" style="padding:5px 10px; cursor:pointer;">Cancelar</button>
     </dialog>
@@ -193,14 +196,14 @@
             modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'size': ['small', false, 'large', 'huge'] }], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] }
         });
 
-        // Configuración Default por si no existe en BD
+        // Configuración Default
         const defaultCfg = {
             identificador_bateria: '🥁',
             valor_clase: '$10.000',
             formato_evento_reserva: '? {profe} Ent {alumno}',
             formato_evento_confirmado: '📋🎸{instrumento} - {alumno} {edad}',
             texto_profe: "*⚠ PRE CHECK - ENTREVISTA*\n*🎈 CONFIRMAR ASISTENCIA*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Clase: {suscripcion}\n\n*Por favor confirmar asistencia y agendar en tu calendario. En cuanto reciba el OK y pago del alumno, te aviso con la confirmación definitiva. Si 24hs antes no se recibió el pago, te voy a estar avisando para que puedas liberar tu agenda*\n\n*📰 INFO PARA LA ENTREVISTA:*\n{descripcion}",
-            texto_alumno: "📅 *Agenda de clase de admisión*\n\n🧩 Día y horario: {fecha_hora}\n🧩 Profe: {profe}\n\nhttps://forms.gle/rHWd6ZMwCMexLzaZ7\n\n✅ Inscripción\nPara completar la inscripción dejanos tus datos acá porfa ☝️\n\n🤝 *Reserva de horario*\nPara reservar tu lugar, por favor transferinos el valor del primer encuentro por adelantado.\nEs parte de la inscripción para ya dejarte reservado el horario y que no lo tome otro alumno.\n\n💸 *Datos Transferencia*\n🧩 Valor: {valor}\n🧩 Alias a transferir: (TU ALIAS AQUI)"
+            texto_alumno: "📅 *Agenda de clase de admisión*\n\n🧩 Día y horario: {fecha_hora}\n🧩 Profe: {profe}\n\nhttps://forms.gle/rHWd6ZMwCMexLzaZ7\n\n✅ Inscripción\nPara completar la inscripción dejanos tus datos acá porfa ☝️\n\n🤝 *Reserva de horario*\nPara reservar tu lugar, por favor transferinos el valor del primer encuentro por adelantado.\nEs parte de la inscripción para ya dejarte reservado el horario y que no lo tome otro alumno.\n\n💸 *Datos Transferencia*\n🧩 Valor: {valor}\n🧩 Alias a transferir: {alias_profe}"
         };
 
         async function getCfg() {
@@ -333,6 +336,7 @@
                                     if (!profesOcupados.has(profe.id)) {
                                         opciones.push({
                                             fechaTextoAmi: formatearFechaTextoAmigable(horaInicioBloque.toISOString()),
+                                            profeId: profe.id,
                                             profeNombre: profe.nombre,
                                             calId: profe.calId,
                                             inicioData: formatoLocalISO(horaInicioBloque),
@@ -384,16 +388,12 @@
             try {
                 let qSnap;
                 if (vistaSeleccionada === 'Gestión en curso') {
-                    // Unifica los 3 estados iniciales
-                    const estadosGest = ["Pendiente procesar", "Pendiente validación por profe", "Pendiente validación por alumno"];
                     const refAlumnos = collection(db, "alumnos");
-                    const q1 = query(refAlumnos, where("estado_agenda", "==", "Pendiente procesar"));
-                    const q2 = query(refAlumnos, where("estado_agenda", "==", "Pendiente validación por profe"));
-                    const q3 = query(refAlumnos, where("estado_agenda", "==", "Pendiente validación por alumno"));
-                    
-                    // Firestore lite no soporta 'in' tan facil sin crear indice a veces, o requiere consultas compuestas. 
-                    // Lo resolvemos haciendo getDocs multiples para robustez sin requerir configurar indices manuales en la db.
-                    const [res1, res2, res3] = await Promise.all([getDocs(q1), getDocs(q2), getDocs(q3)]);
+                    const [res1, res2, res3] = await Promise.all([
+                        getDocs(query(refAlumnos, where("estado_agenda", "==", "Pendiente procesar"))),
+                        getDocs(query(refAlumnos, where("estado_agenda", "==", "Pendiente validación por profe"))),
+                        getDocs(query(refAlumnos, where("estado_agenda", "==", "Pendiente validación por alumno")))
+                    ]);
                     const docs = [...res1.docs, ...res2.docs, ...res3.docs];
                     qSnap = { empty: docs.length === 0, forEach: cb => docs.forEach(cb) };
                 } else {
@@ -451,14 +451,12 @@
 
         // --- ASIGNACIÓN DE EVENTOS DE FLUJO ---
         function asignarEventosFlujo() {
-            // Cambio manual de estado
             document.querySelectorAll('.select-estado').forEach(sel => {
                 sel.addEventListener('change', async (e) => {
                     const id = e.target.getAttribute('data-id');
                     const nuevoEst = e.target.value;
                     const updateData = { estado_agenda: nuevoEst };
                     if (nuevoEst === 'Pendiente procesar') {
-                        // Limpia rastros de reserva
                         updateData.reserva_profe_id = null; updateData.reserva_profe_nombre = null;
                         updateData.reserva_cal_id = null; updateData.reserva_fecha_texto = null;
                         updateData.reserva_inicio = null; updateData.reserva_fin = null; updateData.id_evento_reserva = null;
@@ -468,7 +466,6 @@
                 });
             });
 
-            // 1. Buscar Agenda
             document.querySelectorAll('.btn-buscar-agenda').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     if(!googleAccessToken) return alert("Requiere token. Inicia sesión nuevamente.");
@@ -488,7 +485,6 @@
                 });
             });
 
-            // 2. Validar con Alumno
             document.querySelectorAll('.btn-validar-alumno').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const id = e.target.getAttribute('data-id');
@@ -496,17 +492,20 @@
                         const al = (await getDoc(doc(db, "alumnos", id))).data();
                         const cfg = await getCfg();
                         
-                        // Generar y Copiar Texto
-                        const datosTpl = { fecha_hora: al.reserva_fecha_texto, profe: al.reserva_profe_nombre, valor: cfg.valor_clase };
+                        let aliasProfe = '';
+                        if (al.reserva_profe_id) {
+                            const pDoc = await getDoc(doc(db, "profesores", al.reserva_profe_id));
+                            if (pDoc.exists()) aliasProfe = pDoc.data().alias_transferencia || '';
+                        }
+                        
+                        const datosTpl = { fecha_hora: al.reserva_fecha_texto, profe: al.reserva_profe_nombre, valor: cfg.valor_clase, alias_profe: aliasProfe };
                         const textoPortapapeles = reemplazarVariables(cfg.texto_alumno, datosTpl);
                         await navigator.clipboard.writeText(textoPortapapeles);
                         
-                        // Crear Evento Calendario Reserva
                         const instStr = Array.isArray(al.instrumento) ? al.instrumento.join('/') : al.instrumento;
                         const tituloEv = reemplazarVariables(cfg.formato_evento_reserva, { profe: al.reserva_profe_nombre, alumno: al.nombre, instrumento: instStr });
                         const evObj = await crearEventoCalendario(al.reserva_cal_id, tituloEv, al.reserva_inicio, al.reserva_fin);
                         
-                        // Actualizar DB
                         await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente validación por alumno", id_evento_reserva: evObj.id });
                         alert("Texto copiado y Reserva creada en Calendar.");
                         cargarVista(estadoActualVista);
@@ -514,7 +513,6 @@
                 });
             });
 
-            // 3. Confirmar Entrevista
             document.querySelectorAll('.btn-confirmar-entrevista').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const id = e.target.getAttribute('data-id');
@@ -534,7 +532,6 @@
                 });
             });
 
-            // Suspender
             document.querySelectorAll('.btn-abrir-suspender').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     document.getElementById('susp-alumno-id').value = e.target.getAttribute('data-id');
@@ -585,12 +582,11 @@
                     <div class="opcion-horario">
                         <span>${op.fechaTextoAmi} (${op.profeNombre})</span><br>
                         <button class="btn-seleccionar-profe btn-accion-flujo" 
-                            data-calid="${op.calId}" data-profe="${op.profeNombre}" data-start="${op.inicioData}" data-end="${op.finData}" data-fechatxt="${op.fechaTextoAmi}">
+                            data-calid="${op.calId}" data-profe="${op.profeNombre}" data-profeid="${op.profeId}" data-start="${op.inicioData}" data-end="${op.finData}" data-fechatxt="${op.fechaTextoAmi}">
                             Validar con profe
                         </button>
                     </div>`).join('');
                 
-                // Botón "Validar con profe" en resultados
                 document.querySelectorAll('.btn-seleccionar-profe').forEach(btn => {
                     btn.addEventListener('click', async (e) => {
                         const al = (await getDoc(doc(db, "alumnos", alumnoIdActual))).data();
@@ -605,7 +601,7 @@
                         
                         await updateDoc(doc(db, "alumnos", alumnoIdActual), {
                             estado_agenda: "Pendiente validación por profe",
-                            reserva_profe_id: '', // Se podría buscar el id real si es necesario, pero guardamos nombre
+                            reserva_profe_id: e.target.getAttribute('data-profeid'),
                             reserva_profe_nombre: e.target.getAttribute('data-profe'),
                             reserva_cal_id: e.target.getAttribute('data-calid'),
                             reserva_fecha_texto: e.target.getAttribute('data-fechatxt'),
@@ -727,13 +723,16 @@
             try {
                 const qSnap = await getDocs(collection(db, coleccion));
                 let html = `<div class="abm-container"><input type="text" id="input-nuevo-abm" placeholder="Nombre">`;
-                if (coleccion === 'profesores') html += `<input type="email" id="input-correo-abm" placeholder="Email Calendario">`;
+                if (coleccion === 'profesores') {
+                    html += `<input type="email" id="input-correo-abm" placeholder="Email Calendario">`;
+                    html += `<input type="text" id="input-alias-abm" placeholder="Alias de transferencia">`;
+                }
                 html += `<button id="btn-guardar-abm" style="background:#28a745; color:white; border:none;">Agregar</button></div>`;
                 
                 qSnap.forEach((dSnap) => {
                     const data = dSnap.data();
                     html += `
-                        <div class="abm-item" onclick="abrirEdicionABM('${dSnap.id}', '${coleccion}', '${data.nombre}', '${data.correo_calendario || ''}')">
+                        <div class="abm-item" onclick="abrirEdicionABM('${dSnap.id}', '${coleccion}', '${data.nombre}', '${data.correo_calendario || ''}', '${data.alias_transferencia || ''}')">
                             <span>${data.nombre} ${data.correo_calendario ? `(${data.correo_calendario})` : ''}</span>
                             <button class="btn-eliminar" onclick="event.stopPropagation(); eliminarABM('${dSnap.id}', '${coleccion}')">❌</button>
                         </div>`;
@@ -744,21 +743,25 @@
                     const nom = document.getElementById('input-nuevo-abm').value.trim();
                     if (!nom) return;
                     const dObj = { nombre: nom };
-                    if (coleccion === 'profesores') dObj.correo_calendario = document.getElementById('input-correo-abm').value.trim();
+                    if (coleccion === 'profesores') {
+                        dObj.correo_calendario = document.getElementById('input-correo-abm').value.trim();
+                        dObj.alias_transferencia = document.getElementById('input-alias-abm').value.trim();
+                    }
                     await addDoc(collection(db, coleccion), dObj);
                     cargarABM(coleccion, titulo);
                 });
             } catch (error) { console.error(error); }
         }
 
-        window.abrirEdicionABM = function(id, col, nombre, correo) {
+        window.abrirEdicionABM = function(id, col, nombre, correo, alias) {
             document.getElementById('abm-edit-id').value = id;
             document.getElementById('abm-edit-coleccion').value = col;
             document.getElementById('abm-edit-nombre').value = nombre;
             if (col === 'profesores') {
-                document.getElementById('lbl-abm-edit-correo').style.display = 'inline-block';
+                document.getElementById('div-abm-edit-profe').style.display = 'block';
                 document.getElementById('abm-edit-correo').value = correo;
-            } else document.getElementById('lbl-abm-edit-correo').style.display = 'none';
+                document.getElementById('abm-edit-alias').value = alias;
+            } else document.getElementById('div-abm-edit-profe').style.display = 'none';
             document.getElementById('modal-abm-edit').showModal();
         }
 
@@ -773,7 +776,10 @@
             const id = document.getElementById('abm-edit-id').value;
             const col = document.getElementById('abm-edit-coleccion').value;
             const dObj = { nombre: document.getElementById('abm-edit-nombre').value };
-            if (col === 'profesores') dObj.correo_calendario = document.getElementById('abm-edit-correo').value;
+            if (col === 'profesores') {
+                dObj.correo_calendario = document.getElementById('abm-edit-correo').value;
+                dObj.alias_transferencia = document.getElementById('abm-edit-alias').value;
+            }
             await updateDoc(doc(db, col, id), dObj);
             document.getElementById('modal-abm-edit').close();
             cargarABM(col, tituloABMActual);
