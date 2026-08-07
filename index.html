@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
-    <!-- Control de Caché: Obliga al navegador a obtener la última versión -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -13,7 +12,6 @@
     <style>
         body { margin: 0; font-family: sans-serif; background-color: #f9f9f9; }
         
-        /* Contenedor de Login (Pantalla en blanco) */
         #login-container { 
             display: flex; 
             height: 100vh; 
@@ -37,7 +35,6 @@
         .btn-google:hover { background-color: #f8f9fa; box-shadow: 0 1px 3px 1px rgba(60,64,67,0.15); }
         .btn-google svg { width: 18px; height: 18px; margin-right: 8px; }
 
-        /* Contenedor de la Aplicación */
         #app-container { display: none; height: 100vh; width: 100%; }
         
         #sidebar { width: 250px; background: #f4f4f4; padding: 20px; border-right: 1px solid #ccc; }
@@ -54,11 +51,17 @@
         #header-auth { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
         #user-info { font-weight: bold; }
         #btn-logout { cursor: pointer; padding: 5px 10px; background: #dc3545; color: white; border: none; border-radius: 3px; }
+        
+        /* Estilos ABM */
+        .abm-container { margin-bottom: 20px; }
+        .abm-container input { padding: 8px; width: 200px; }
+        .abm-container button { padding: 8px 15px; cursor: pointer; }
+        .abm-item { display: flex; justify-content: space-between; padding: 10px; border: 1px solid #ddd; margin-bottom: 5px; background: #fff; align-items: center; }
+        .btn-eliminar { background: #dc3545; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 3px; }
     </style>
 </head>
 <body>
 
-    <!-- Pantalla de Login -->
     <div id="login-container">
         <button id="btn-login" class="btn-google">
             <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
@@ -71,9 +74,7 @@
         </button>
     </div>
 
-    <!-- Contenedor de la Aplicación -->
     <div id="app-container">
-        <!-- Panel Izquierdo -->
         <nav id="sidebar">
             <h3>Vistas</h3>
             <div class="nav-item" id="btn-gestion">Gestión en curso</div>
@@ -86,7 +87,6 @@
             <div class="nav-item" id="btn-abm-susc">Suscripciones</div>
         </nav>
 
-        <!-- Área Principal -->
         <main id="main">
             <div id="header-auth">
                 <div id="user-info">Cargando...</div>
@@ -97,12 +97,11 @@
             <button id="btn-nuevo-alumno">Cargar Nuevo Alumno</button>
             
             <div id="lista-alumnos" style="margin-top: 20px;">
-                <!-- Lista de alumnos dinámicos -->
+                <!-- Renderizado de vistas y ABMs -->
             </div>
         </main>
     </div>
 
-    <!-- Modal: Formulario Alta de Alumno -->
     <dialog id="modal-alumno">
         <h3>Datos del Alumno</h3>
         <form id="form-alumno">
@@ -111,11 +110,15 @@
             <label>Edad: <input type="number" id="edad"></label><br><br>
             
             <label>Instrumento: 
-                <select id="instrumento"><option>Batería</option><option>Guitarra</option></select>
+                <select id="instrumento" required>
+                    <option value="">Cargando...</option>
+                </select>
             </label><br><br>
             
             <label>Suscripción: 
-                <select id="tipo_suscripcion"><option>Clase</option><option>Ensamble</option></select>
+                <select id="tipo_suscripcion" required>
+                    <option value="">Cargando...</option>
+                </select>
             </label><br><br>
 
             <h4>Disponibilidad</h4>
@@ -134,7 +137,6 @@
         </form>
     </dialog>
 
-    <!-- Modal: Búsqueda y Gestión de Agenda -->
     <dialog id="modal-agenda">
         <h3>Agendas Disponibles</h3>
         <div id="resultados-agenda">
@@ -150,10 +152,10 @@
         <button type="button" id="btn-cerrar-agenda">Cerrar</button>
     </dialog>
 
-    <!-- LÓGICA JAVASCRIPT INTEGRADA -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, updateDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        // Se añade importación de deleteDoc
+        import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
         const firebaseConfig = {
@@ -178,6 +180,7 @@
         const btnLogin = document.getElementById('btn-login');
         const btnLogout = document.getElementById('btn-logout');
         const userInfo = document.getElementById('user-info');
+        const btnNuevoAlumno = document.getElementById('btn-nuevo-alumno');
         
         const modalAlumno = document.getElementById('modal-alumno');
         const modalAgenda = document.getElementById('modal-agenda');
@@ -187,17 +190,11 @@
 
         // Autenticación
         btnLogin.addEventListener('click', async () => {
-            try {
-                await signInWithPopup(auth, provider);
-            } catch (error) {
-                console.error("Error de autenticación: ", error);
-                alert("Error al iniciar sesión.");
-            }
+            try { await signInWithPopup(auth, provider); } 
+            catch (error) { alert("Error al iniciar sesión."); }
         });
 
-        btnLogout.addEventListener('click', async () => {
-            await signOut(auth);
-        });
+        btnLogout.addEventListener('click', async () => { await signOut(auth); });
 
         onAuthStateChanged(auth, (user) => {
             if (user) {
@@ -211,7 +208,7 @@
             }
         });
 
-        // Vistas
+        // Navegación Vistas Alumnos
         document.getElementById('btn-gestion').addEventListener('click', () => { if(auth.currentUser) cargarVista('Gestión en curso') });
         document.getElementById('btn-confirmadas').addEventListener('click', () => { if(auth.currentUser) cargarVista('Agenda confirmada') });
         document.getElementById('btn-suspendidas').addEventListener('click', () => { if(auth.currentUser) cargarVista('Agenda suspendida') });
@@ -219,6 +216,7 @@
         async function cargarVista(estado) {
             estadoActualVista = estado;
             vistaTitulo.textContent = estado;
+            btnNuevoAlumno.style.display = 'inline-block'; // Mostrar botón de nuevo alumno
             listaAlumnos.innerHTML = 'Cargando...';
             
             const q = query(collection(db, "alumnos"), where("estado_agenda", "==", estado));
@@ -251,20 +249,94 @@
                     });
                 });
             } catch (error) {
-                console.error("Error al cargar la vista: ", error);
                 listaAlumnos.innerHTML = '<p>Error al cargar los datos.</p>';
             }
         }
 
+        // Navegación Vistas ABM
+        document.getElementById('btn-abm-profes').addEventListener('click', () => { if(auth.currentUser) cargarABM('profesores', 'Profesores') });
+        document.getElementById('btn-abm-inst').addEventListener('click', () => { if(auth.currentUser) cargarABM('instrumentos', 'Instrumentos') });
+        document.getElementById('btn-abm-susc').addEventListener('click', () => { if(auth.currentUser) cargarABM('tipos_suscripcion', 'Suscripciones') });
+
+        // Función CRUD para ABM
+        async function cargarABM(coleccion, titulo) {
+            vistaTitulo.textContent = 'Administración: ' + titulo;
+            btnNuevoAlumno.style.display = 'none'; // Ocultar botón de nuevo alumno
+            listaAlumnos.innerHTML = 'Cargando...';
+
+            try {
+                const querySnapshot = await getDocs(collection(db, coleccion));
+                
+                // Formulario de alta para ABM
+                let html = `
+                    <div class="abm-container">
+                        <input type="text" id="input-nuevo-abm" placeholder="Nuevo registro de ${titulo}">
+                        <button id="btn-guardar-abm">Agregar</button>
+                    </div>
+                    <div id="lista-items-abm">
+                `;
+
+                querySnapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    html += `
+                        <div class="abm-item">
+                            <span>${data.nombre}</span>
+                            <button class="btn-eliminar" data-id="${docSnap.id}">Eliminar</button>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                listaAlumnos.innerHTML = html;
+
+                // Evento Guardar ABM
+                document.getElementById('btn-guardar-abm').addEventListener('click', async () => {
+                    const nombre = document.getElementById('input-nuevo-abm').value.trim();
+                    if (!nombre) return;
+                    await addDoc(collection(db, coleccion), { nombre: nombre });
+                    cargarABM(coleccion, titulo); // Recargar la vista
+                });
+
+                // Eventos Eliminar ABM
+                document.querySelectorAll('.btn-eliminar').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        const id = e.target.getAttribute('data-id');
+                        await deleteDoc(doc(db, coleccion, id));
+                        cargarABM(coleccion, titulo); // Recargar la vista
+                    });
+                });
+
+            } catch (error) {
+                listaAlumnos.innerHTML = '<p>Error al cargar la administración.</p>';
+            }
+        }
+
+        // Lógica de Formulario Dinámico de Alumno
+        async function cargarSelectsFormulario() {
+            const selectInst = document.getElementById('instrumento');
+            const selectSusc = document.getElementById('tipo_suscripcion');
+            
+            selectInst.innerHTML = '<option value="">Seleccione...</option>';
+            selectSusc.innerHTML = '<option value="">Seleccione...</option>';
+            
+            const instSnap = await getDocs(collection(db, "instrumentos"));
+            instSnap.forEach(d => { selectInst.innerHTML += `<option value="${d.data().nombre}">${d.data().nombre}</option>`; });
+            
+            const suscSnap = await getDocs(collection(db, "tipos_suscripcion"));
+            suscSnap.forEach(d => { selectSusc.innerHTML += `<option value="${d.data().nombre}">${d.data().nombre}</option>`; });
+        }
+
         // Modales
-        document.getElementById('btn-nuevo-alumno').addEventListener('click', () => modalAlumno.showModal());
+        btnNuevoAlumno.addEventListener('click', async () => { 
+            await cargarSelectsFormulario();
+            modalAlumno.showModal(); 
+        });
         document.getElementById('btn-cerrar-alumno').addEventListener('click', () => { modalAlumno.close(); formAlumno.reset(); });
         document.getElementById('btn-cerrar-agenda').addEventListener('click', () => modalAgenda.close());
 
         // Alta alumno
         formAlumno.addEventListener('submit', async (e) => {
             e.preventDefault();
-            
             const nuevoAlumno = {
                 nombre: document.getElementById('nombre').value,
                 celular: document.getElementById('celular').value,
@@ -277,59 +349,43 @@
                     M: [{ inicio: document.getElementById('disp-M-inicio').value, fin: document.getElementById('disp-M-fin').value }]
                 }
             };
-
             try {
                 await addDoc(collection(db, "alumnos"), nuevoAlumno);
                 modalAlumno.close();
                 formAlumno.reset();
                 cargarVista(estadoActualVista); 
-            } catch (error) {
-                console.error("Error al guardar alumno: ", error);
-                alert("Error al guardar.");
-            }
+            } catch (error) { alert("Error al guardar."); }
         });
 
         // Agenda
         document.getElementById('resultados-agenda').addEventListener('click', async (e) => {
             if (!alumnoIdActual) return;
-            
             const fechaHora = "Martes 10/08 a las 18:00hs"; 
             const docRef = doc(db, "alumnos", alumnoIdActual);
 
             try {
                 if (e.target.classList.contains('btn-validar-profe')) {
-                    const texto = `Hola, ¿podés tomar una clase de admisión el ${fechaHora}?`;
-                    await navigator.clipboard.writeText(texto);
+                    await navigator.clipboard.writeText(`Hola, ¿podés tomar una clase de admisión el ${fechaHora}?`);
                     await updateDoc(docRef, { estado_agenda: "Validación con profe" });
                     modalAgenda.close();
                     cargarVista(estadoActualVista);
                 }
-                
                 if (e.target.classList.contains('btn-validar-alumno')) {
-                    const texto = `Hola, tenemos disponibilidad para tu clase de prueba el ${fechaHora}. ¿Te sirve este horario?`;
-                    await navigator.clipboard.writeText(texto);
+                    await navigator.clipboard.writeText(`Hola, tenemos disponibilidad para tu clase de prueba el ${fechaHora}. ¿Te sirve este horario?`);
                     await updateDoc(docRef, { estado_agenda: "Se ofrece agenda" });
                     modalAgenda.close();
                     cargarVista(estadoActualVista);
                 }
-                
                 if (e.target.classList.contains('btn-reservar')) {
                     await updateDoc(docRef, { id_evento_reserva: "ID_TEMPORAL_CALENDAR" });
                     alert("Reserva registrada.");
                 }
-
                 if (e.target.classList.contains('btn-agendar')) {
-                    await updateDoc(docRef, { 
-                        estado_agenda: "Agenda confirmada",
-                        id_evento_confirmado: "ID_FINAL_CALENDAR" 
-                    });
+                    await updateDoc(docRef, { estado_agenda: "Agenda confirmada", id_evento_confirmado: "ID_FINAL_CALENDAR" });
                     modalAgenda.close();
                     cargarVista('Agenda confirmada'); 
                 }
-            } catch (error) {
-                console.error("Error al actualizar: ", error);
-                alert("Error en la base de datos.");
-            }
+            } catch (error) { alert("Error en la base de datos."); }
         });
     </script>
 </body>
