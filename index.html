@@ -279,7 +279,6 @@
             <button id="btn-ejecutar-busqueda" style="background:var(--primary); color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:600; height:38px; margin-top:25px;">Buscar</button>
         </div>
         
-        <!-- Buscador dentro del popup -->
         <input type="text" id="input-buscador-popup" placeholder="Filtrar resultados (ej. Nacho, 18hs, viernes)..." style="margin-bottom: 15px; width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ced4da; box-sizing: border-box; display:none; outline:none;">
         
         <div id="resultados-agenda" style="margin-bottom:15px; max-height:40vh; overflow-y:auto; padding-right:5px;"></div>
@@ -491,6 +490,7 @@
                 googleAccessToken = GoogleAuthProvider.credentialFromResult(res).accessToken;
                 localStorage.setItem('gCalToken', googleAccessToken);
                 localStorage.setItem('gCalTokenTime', Date.now());
+                document.getElementById('btn-conectar-cal').style.display = 'none';
                 return true;
             } catch (err) { 
                 console.error(err);
@@ -830,6 +830,11 @@
                 acciones += `<button class="btn-recuperar-agenda btn-accion-main" data-id="${id}">Recuperar Agenda</button>`;
             }
             
+            let labelEstado = al.estado_agenda;
+            if (labelEstado === 'Pendiente procesar') labelEstado = 'Sin Agendar';
+            else if (labelEstado === 'Pendiente validación por profe') labelEstado = 'Validando Profe';
+            else if (labelEstado === 'Pendiente validación por alumno') labelEstado = 'Validando Alumno';
+
             return `
                 <div class="alumno-item ${extraClass}" data-id="${id}">
                     <div class="alumno-header btn-editar-alumno" data-id="${id}">
@@ -932,6 +937,7 @@
         document.addEventListener('click', async (e) => {
             const target = e.target;
             
+            // Copiar / Pegar disponibilidad Alumnos
             if (target.classList.contains('btn-copy-disp')) {
                 e.stopPropagation();
                 const d = target.getAttribute('data-dia');
@@ -956,6 +962,7 @@
                 return;
             }
             
+            // Copiar / Pegar disponibilidad Profesores
             if (target.classList.contains('btn-copy-disp-p')) {
                 e.stopPropagation();
                 const d = target.getAttribute('data-dia');
@@ -980,6 +987,7 @@
                 return;
             }
 
+            // Eliminar Alumno por completo
             if (target.classList.contains('btn-eliminar-alumno')) {
                 e.stopPropagation();
                 if(confirm("¿Eliminar este alumno por completo? Si tiene un turno en Calendar, también será borrado.")) {
@@ -997,6 +1005,7 @@
                 return;
             }
 
+            // Historial Interacciones
             if (target.id === 'btn-agregar-nota') {
                 const textarea = document.getElementById('nueva-nota-texto');
                 const texto = textarea.value.trim();
@@ -1027,6 +1036,7 @@
                 return;
             }
 
+            // Acordeón Editar Alumno
             const headerAl = target.closest('.btn-editar-alumno');
             if (headerAl && !target.classList.contains('btn-eliminar-alumno')) {
                 const id = headerAl.getAttribute('data-id');
@@ -1061,7 +1071,7 @@
 
                 try {
                     const selectProfe = document.getElementById('agenda-profe-filtro');
-                    selectProfe.innerHTML = '<option value="" selected>Todos los profesores</option>';
+                    selectProfe.innerHTML = '<option value="">Todos los profesores habilitados</option>';
                     const pSnap = await getDocs(collection(db, "profesores"));
                     pSnap.forEach(p => { if(p.data().entrevista) selectProfe.innerHTML += `<option value="${p.id}">${p.data().nombre}</option>`; });
                     
@@ -1297,14 +1307,6 @@
             }
         });
 
-        document.getElementById('btn-guardar-suspension').addEventListener('click', async () => {
-            const id = document.getElementById('susp-alumno-id').value, mtv = document.getElementById('susp-motivo').value;
-            if(!mtv) return alert("Seleccione motivo");
-            try { const al = (await getDoc(doc(db, "alumnos", id))).data(); if (al.id_evento_reserva) await eliminarEventoCalendario('productora.mandalahouse@gmail.com', al.id_evento_reserva); } catch(e){}
-            await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Agenda suspendida", motivo_suspension: mtv, reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null });
-            document.getElementById('modal-suspender').close(); cargarVista(estadoActualVista);
-        });
-
         // --- MANEJO FORMULARIOS ALUMNOS ---
         async function cargarSelectsAlumnos() {
             const sI = document.getElementById('instrumento'), sS = document.getElementById('tipo_suscripcion');
@@ -1409,10 +1411,8 @@
             });
         }
 
-        let dataCacheABM = {};
         async function cargarABM(coleccion, titulo, cont) {
             tituloABMActual = titulo;
-            dataCacheABM = {};
             try {
                 const qS = await getDocs(collection(db, coleccion));
                 let h = `<div class="abm-container" style="display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap; padding:25px;">
@@ -1427,7 +1427,6 @@
                 
                 qS.forEach(d => {
                     const dt = d.data();
-                    dataCacheABM[d.id] = dt;
                     let ex = coleccion==='profesores' ? ` <br><small style="color:#6c757d;">${dt.correo_calendario}</small> <span class="badge ${dt.entrevista?'badge-success':'badge-danger'}" style="margin-left:10px;">${dt.entrevista?'SÍ':'NO'} Entrevistas</span>` : '';
                     h += `<div class="abm-item" onclick="abrirEdicionABM('${d.id}', '${coleccion}', '${dt.nombre}', '${dt.correo_calendario||''}', '${dt.alias_transferencia||''}', ${!!dt.entrevista})">
                             <span style="font-weight:600; color:#212529; font-size:1.05em;">${dt.nombre}${ex}</span>
@@ -1454,27 +1453,28 @@
             } catch(e) { console.error(e); }
         }
 
-        window.abrirEdicionABM = function(id, col, nom, cor, ali, ent) {
+        window.abrirEdicionABM = async function(id, col, nom, cor, ali, ent) {
             document.getElementById('abm-edit-id').value = id; document.getElementById('abm-edit-coleccion').value = col; document.getElementById('abm-edit-nombre').value = nom;
             if(col==='profesores') { 
                 document.getElementById('div-abm-edit-profe').style.display='block'; document.getElementById('abm-edit-correo').value=cor; document.getElementById('abm-edit-alias').value=ali; document.getElementById('abm-edit-entrevista').checked=ent; 
                 
-                const d = dataCacheABM[id];
-                const hApe = configApp.hora_apertura || '09:00';
-                const hCie = configApp.hora_cierre || '22:00';
-                
-                diasSemana.forEach(dia => {
-                    const dD = d.disponibilidad ? d.disponibilidad[dia.id] : [];
-                    const tI = document.getElementById(`disp-p-${dia.id}-inicio`), tF = document.getElementById(`disp-p-${dia.id}-fin`);
-                    const cA = document.getElementById(`disp-p-${dia.id}-all`), cN = document.getElementById(`disp-p-${dia.id}-none`);
-                    const sE = document.getElementById(`estado-p-${dia.id}`);
-                    tI.disabled=false; tF.disabled=false; cA.checked=false; cN.checked=false; sE.textContent="";
+                try {
+                    const pr = (await getDoc(doc(db, col, id))).data();
+                    const hApe = configApp.hora_apertura || '09:00';
+                    const hCie = configApp.hora_cierre || '22:00';
                     
-                    if (!dD || dD.length===0) { cN.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Bloqueado"; sE.style.color="#dc3545"; }
-                    else if (dD[0].inicio===hApe && dD[0].fin===hCie) { cA.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Libre"; sE.style.color="#28a745"; }
-                    else { tI.value = dD[0].inicio; tF.value = dD[0].fin; }
-                });
-                
+                    diasSemana.forEach(dia => {
+                        const dD = pr.disponibilidad ? pr.disponibilidad[dia.id] : [];
+                        const tI = document.getElementById(`disp-p-${dia.id}-inicio`), tF = document.getElementById(`disp-p-${dia.id}-fin`);
+                        const cA = document.getElementById(`disp-p-${dia.id}-all`), cN = document.getElementById(`disp-p-${dia.id}-none`);
+                        const sE = document.getElementById(`estado-p-${dia.id}`);
+                        tI.disabled=false; tF.disabled=false; cA.checked=false; cN.checked=false; sE.textContent="";
+                        
+                        if (!dD || dD.length===0) { cN.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Bloqueado"; sE.style.color="#dc3545"; }
+                        else if (dD[0].inicio===hApe && dD[0].fin===hCie) { cA.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Libre"; sE.style.color="#28a745"; }
+                        else { tI.value = dD[0].inicio; tF.value = dD[0].fin; }
+                    });
+                } catch(e) { console.error(e); }
             }
             else document.getElementById('div-abm-edit-profe').style.display='none';
             document.getElementById('modal-abm-edit').showModal();
