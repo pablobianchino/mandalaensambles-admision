@@ -12,7 +12,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
-        /* === VARIABLES Y RESET === */
         :root {
             --bg-main: #f4f6f9;
             --bg-sidebar: #f8f9fa;
@@ -22,23 +21,19 @@
             --primary-hover: #138496;
             --border-color: #dee2e6;
             --active-bg: #e9ecef;
-            
-            /* Colores de Tableros (Borde Superior) */
-            --c-sin-agendar: #dc3545; /* Rojo */
-            --c-val-profe: #6f42c1; /* Violeta */
-            --c-val-alumno: #ffc107; /* Amarillo */
-            --c-confirmada: #28a745; /* Verde */
-            --c-suspendida: #6c757d; /* Gris */
+            --c-sin-agendar: #dc3545;
+            --c-val-profe: #6f42c1;
+            --c-val-alumno: #ffc107;
+            --c-confirmada: #28a745;
+            --c-suspendida: #6c757d;
         }
         body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-main); color: var(--color-text); }
         
-        /* === LOGIN === */
         #login-container { display: flex; height: 100vh; justify-content: center; align-items: center; background-color: #fff; }
         .btn-google { display: flex; align-items: center; background-color: #fff; border: 1px solid #dadce0; border-radius: 8px; padding: 12px 24px; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-size:16px; font-weight:600; transition:0.2s;}
         .btn-google:hover { background-color: #f8f9fa; }
         .btn-google svg { width: 24px; height: 24px; margin-right: 12px; }
         
-        /* === LAYOUT PRINCIPAL RESPONSIVO === */
         #app-container { display: none; height: 100vh; width: 100%; overflow: hidden; flex-direction: row; }
         
         #sidebar { width: 240px; background: var(--bg-sidebar); border-right: 1px solid var(--border-color); display:flex; flex-direction:column; overflow-y:auto; padding-top:20px; flex-shrink: 0;}
@@ -60,7 +55,6 @@
             .board-column { min-width: 100%; border-top: 4px solid #ccc; background:#fff; padding:15px; border-radius:8px;}
         }
 
-        /* === HEADER Y CONTROLES === */
         #header-auth { display: flex; justify-content: flex-end; align-items: center; margin-bottom: 5px; gap:15px;}
         #btn-conectar-cal { background: #ffc107; color: #000; border: none; padding: 6px 12px; border-radius: 6px; font-weight:600; cursor:pointer; display:none; font-size:0.85em;}
         #btn-logout { cursor: pointer; padding: 6px 12px; background: transparent; color: var(--color-text-mut); border: 1px solid var(--border-color); border-radius: 6px; font-weight:600; font-size:0.85em;}
@@ -69,9 +63,7 @@
         #vista-titulo { margin:0; font-size:1.6em; color:#212529; font-weight:700;}
         #btn-nuevo-alumno { padding:8px 16px; background:var(--primary); color:white; border:none; cursor:pointer; border-radius:6px; font-weight:600; font-size:0.95em;}
 
-        /* === TABLEROS Y TARJETAS === */
         .board-container { display: flex; gap: 20px; align-items: flex-start; overflow-x: auto; flex-grow: 1; padding-bottom:10px; width:100%;}
-        
         .board-column { flex: 1; min-width: 300px; display: flex; flex-direction: column; gap: 15px; max-height: 100%; overflow-y:auto; background:#fdfdfd; padding:15px; border-radius:8px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.04);}
         .col-sin-agendar { border-top: 4px solid var(--c-sin-agendar); }
         .col-val-profe { border-top: 4px solid var(--c-val-profe); }
@@ -80,13 +72,11 @@
         
         .alumno-item { padding: 15px; border-radius: 8px; background: #fff; border: 1px solid var(--border-color); display:flex; flex-direction:column; gap:10px; transition:0.2s;}
         .alumno-item:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-        
         .item-confirmada { border-left: 4px solid var(--c-confirmada); }
         .item-suspendida { border-left: 4px solid var(--c-suspendida); }
 
         .alumno-header { cursor:pointer; position:relative; }
         .btn-eliminar-alumno { position:absolute; top:0; right:0; background:transparent; border:none; color:#dc3545; cursor:pointer; font-size:1.1em; padding:0; line-height:1;}
-        
         .badge { display:inline-block; font-size:0.75em; padding:4px 8px; border-radius:4px; font-weight:600; margin-bottom:8px;}
         .badge-warning { background: #fff3cd; color: #856404; }
         .badge-success { background: #d4edda; color: #155724; }
@@ -101,7 +91,6 @@
         
         .lista-generica { width: 100%; display:flex; flex-direction:column; gap:15px; }
 
-        /* === DIALOGOS Y FORMULARIOS === */
         dialog { padding: 25px; border: none; border-radius: 10px; width: 95%; max-width: 700px; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
         dialog::backdrop { background: rgba(0,0,0,0.5); }
         input[type="text"], input[type="number"], input[type="email"], select, input[type="date"] { padding: 8px 12px; border: 1px solid #ced4da; border-radius:6px; width:100%; box-sizing:border-box; margin-top:5px; font-family:inherit;}
@@ -121,7 +110,6 @@
         #editor-container { height: 150px; margin-bottom: 20px; background: white; border-radius:0 0 6px 6px; }
         textarea.config-box { width: 100%; height: 100px; font-family: monospace; padding: 10px; margin-bottom: 10px; border-radius:6px; border:1px solid #ced4da;}
         
-        /* === ESTADÍSTICAS === */
         #estadisticas-container { display:flex; flex-wrap:wrap; gap:20px; width:100%; align-items:flex-start;}
         .chart-box { flex:1; min-width:300px; background:#fff; padding:20px; border-radius:12px; border: 1px solid var(--border-color); cursor:pointer;}
     </style>
@@ -367,7 +355,7 @@
 
         // === CONFIGURACIÓN DEFAULT ===
         const defaultCfg = {
-            identificador_bateria: '🥁', valor_clase: '$10.000', cantidad_aulas: '3', cantidad_baterias: '2',
+            identificador_bateria: '[BAT]', valor_clase: '$10.000', cantidad_aulas: '3', cantidad_baterias: '2',
             formato_evento_reserva: '? {profe} Ent {alumno}', formato_evento_confirmado: '📋🎸{instrumento} - {alumno} {edad}',
             texto_profe: "*⚠ PRE CHECK - ENTREVISTA*\n📅 *FECHA: {fecha_hora}*\n*👥 ALUMNO:*\n🔹 {nombre} ({edad})\n🔹 {instrumento} | {suscripcion}\n*INFO:*\n{descripcion}",
             texto_alumno: "📅 *Agenda de clase*\n🧩 {fecha_hora} con Profe {profe}\n✅ Inscripción: forms.gle/xxx\n💸 Valor: {valor}\n🧩 Alias: {alias_profe}"
@@ -400,65 +388,7 @@
         async function actualizarEventoCalendario(calendarId, eventId, titulo, descripcion) { return await fetchCalendarAPI(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, 'PATCH', { summary: titulo, description: descripcion }); }
         async function eliminarEventoCalendario(calendarId, eventId) { return await fetchCalendarAPI(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, 'DELETE'); }
 
-        /**
-         * Lógica de Overlap Preciso para Baterías y Aulas
-         */
-        function chequearDisponibilidadExacta(inicioTestMs, finTestMs, eventosAPI, cantAulas, cantBat, esBateria, cfgEmoji) {
-            let picosAulas = 0;
-            let picosBateria = 0;
-            let profesOcupados = new Set();
-            
-            // Creamos puntos de tiempo relevantes en el rango propuesto para buscar el "peor caso"
-            // Solo nos interesan los eventos que realmente cruzan con el bloque [inicioTestMs, finTestMs]
-            const eventosCruzados = eventosAPI.filter(ev => {
-                if (!ev.start || !ev.start.dateTime) return false;
-                const evIn = new Date(ev.start.dateTime).getTime();
-                const evFn = new Date(ev.end.dateTime).getTime();
-                return (inicioTestMs < evFn && finTestMs > evIn);
-            });
-            
-            if (eventosCruzados.length === 0) return { valido: true, profesOcupados: new Set() };
-            
-            // Recolectar todos los puntos de tiempo donde algo cambia (empieza o termina un evento)
-            const puntosDeTiempo = new Set([inicioTestMs, finTestMs]);
-            eventosCruzados.forEach(ev => {
-                const i = new Date(ev.start.dateTime).getTime();
-                const f = new Date(ev.end.dateTime).getTime();
-                if (i > inicioTestMs && i < finTestMs) puntosDeTiempo.add(i);
-                if (f > inicioTestMs && f < finTestMs) puntosDeTiempo.add(f);
-            });
-            
-            const arrayPuntos = Array.from(puntosDeTiempo).sort((a,b) => a-b);
-            
-            // Evaluamos la carga en cada sub-segmento de tiempo
-            for (let i = 0; i < arrayPuntos.length - 1; i++) {
-                const puntoMedioMs = arrayPuntos[i] + 1000; // Tomamos un segundo despues del inicio del segmento para testear estado activo
-                
-                let simultaneosAulas = 0;
-                let simultaneosBat = 0;
-                
-                eventosCruzados.forEach(ev => {
-                    const evIn = new Date(ev.start.dateTime).getTime();
-                    const evFn = new Date(ev.end.dateTime).getTime();
-                    
-                    if (puntoMedioMs >= evIn && puntoMedioMs < evFn) {
-                        simultaneosAulas++;
-                        profesOcupados.add(ev.profeId);
-                        if (ev.summary && ev.summary.toLowerCase().includes(cfgEmoji.toLowerCase())) {
-                            simultaneosBat++;
-                        }
-                    }
-                });
-                
-                if (simultaneosAulas > picosAulas) picosAulas = simultaneosAulas;
-                if (simultaneosBat > picosBateria) picosBateria = simultaneosBat;
-            }
-            
-            const valido = (picosAulas < cantAulas) && (esBateria ? picosBateria < cantBat : true);
-            return { valido, profesOcupados };
-        }
-
-        function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, profes, dStart, dEnd, cfg) {
+        function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, todosLosProfes, profesFiltradosIDs, dStart, dEnd, cfg) {
             const opciones = [], mapaDias = { 0:"D", 1:"L", 2:"M", 3:"X", 4:"J", 5:"V", 6:"S" };
             const durMs = 60*60*1000, cantAulas = parseInt(cfg.cantidad_aulas)||3, cantBat = parseInt(cfg.cantidad_baterias)||2;
             const diffDays = Math.floor(Math.abs(dEnd - dStart) / (1000*60*60*24));
@@ -479,14 +409,42 @@
                         while (hIniB.getTime() + durMs <= hFinR.getTime()) {
                             const inMs = hIniB.getTime(), finMs = inMs + durMs;
                             
-                            const evalOverlap = chequearDisponibilidadExacta(inMs, finMs, eventosAPI, cantAulas, cantBat, esBateria, cfg.identificador_bateria);
+                            const evsCruzados = eventosAPI.filter(ev => {
+                                if (!ev.start || !ev.start.dateTime) return false;
+                                return (new Date(ev.start.dateTime).getTime() < finMs && new Date(ev.end.dateTime).getTime() > inMs);
+                            });
 
-                            if (evalOverlap.valido) {
-                                profes.forEach(profe => {
-                                    if (!evalOverlap.profesOcupados.has(profe.id)) {
+                            const pts = new Set([inMs, finMs]);
+                            evsCruzados.forEach(ev => {
+                                const iT = new Date(ev.start.dateTime).getTime(), fT = new Date(ev.end.dateTime).getTime();
+                                if (iT > inMs && iT < finMs) pts.add(iT);
+                                if (fT > inMs && fT < finMs) pts.add(fT);
+                            });
+                            const arrPts = Array.from(pts).sort((a,b)=>a-b);
+
+                            let picosAulas = 0, picosBat = 0, profesOcupadosBloque = new Set();
+                            
+                            for (let j=0; j < arrPts.length - 1; j++) {
+                                const midMs = arrPts[j] + 1000; 
+                                let simA = 0, simB = 0;
+                                evsCruzados.forEach(ev => {
+                                    const iT = new Date(ev.start.dateTime).getTime(), fT = new Date(ev.end.dateTime).getTime();
+                                    if (midMs >= iT && midMs < fT) {
+                                        simA++;
+                                        profesOcupadosBloque.add(ev.profeId);
+                                        if (ev.summary && ev.summary.toLowerCase().includes(cfg.identificador_bateria.toLowerCase())) simB++;
+                                    }
+                                });
+                                if (simA > picosAulas) picosAulas = simA;
+                                if (simB > picosBat) picosBat = simB;
+                            }
+
+                            if (picosAulas < cantAulas && (esBateria ? picosBat < cantBat : true)) {
+                                todosLosProfes.forEach(pr => {
+                                    if (profesFiltradosIDs.includes(pr.id) && !profesOcupadosBloque.has(pr.id)) {
                                         opciones.push({
-                                            fechaTextoAmi: formatearFechaAmi(hIniB.toISOString()), profeId: profe.id,
-                                            profeNombre: profe.nombre, calId: profe.calId,
+                                            fechaTextoAmi: formatearFechaAmi(hIniB.toISOString()), profeId: pr.id,
+                                            profeNombre: pr.nombre, calId: pr.calId,
                                             inicioData: formatoLocalISO(hIniB), finData: formatoLocalISO(new Date(finMs))
                                         });
                                     }
@@ -793,16 +751,30 @@
                     if(!algunValido) return resDiv.innerHTML = '<p style="color:#dc3545;"><b>Aviso:</b> El rango elegido solo abarca días domingos o días que el alumno marcó como "No disponible". Cambia las fechas.</p>';
 
                     const pS = await getDocs(collection(db, "profesores"));
-                    const profes = [];
-                    pS.forEach(p => { const d=p.data(); if(d.correo_calendario && d.entrevista && (!fProf || p.id === fProf)) profes.push({ id: p.id, nombre: d.nombre, calId: d.correo_calendario }); });
-                    if(profes.length===0) return resDiv.innerHTML = '<p>No hay profes habilitados.</p>';
+                    const todosLosProfes = [];
+                    const profesFiltradosIDs = [];
+                    
+                    pS.forEach(p => { 
+                        const d = p.data(); 
+                        if(d.correo_calendario) {
+                            todosLosProfes.push({ id: p.id, nombre: d.nombre, calId: d.correo_calendario });
+                            if (d.entrevista && (!fProf || p.id === fProf)) {
+                                profesFiltradosIDs.push(p.id);
+                            }
+                        }
+                    });
+
+                    if(profesFiltradosIDs.length === 0) return resDiv.innerHTML = '<p>No hay profes habilitados.</p>';
 
                     let allEv = [];
-                    for(const pr of profes) {
-                        try { const data = await getEventosCalendario(pr.calId, dS.toISOString(), dE.toISOString()); if(data.items) allEv = allEv.concat(data.items.map(ev => ({...ev, profeId: pr.id}))); } catch(e){}
+                    for(const pr of todosLosProfes) {
+                        try { 
+                            const data = await getEventosCalendario(pr.calId, dS.toISOString(), dE.toISOString()); 
+                            if(data.items) allEv = allEv.concat(data.items.map(ev => ({...ev, profeId: pr.id}))); 
+                        } catch(e){}
                     }
 
-                    const opts = generarOpcionesAgenda(al.disponibilidad, allEv, esBat, profes, dS, dE, configApp);
+                    const opts = generarOpcionesAgenda(al.disponibilidad, allEv, esBat, todosLosProfes, profesFiltradosIDs, dS, dE, configApp);
                     if(opts.length===0) resDiv.innerHTML='<p>No hay huecos libres que cumplan las condiciones.</p>';
                     else resDiv.innerHTML = opts.map(op => `
                         <div class="opcion-horario">
