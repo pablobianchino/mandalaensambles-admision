@@ -355,8 +355,8 @@
         let chartGestionesInst = null;
         let chartGlobalInst = null;
         
-        let clipboardDisponibilidad = null; // Para Copiar/Pegar 
-        let historialActual = []; // Historial local del form
+        let clipboardDisponibilidad = null; 
+        let historialActual = []; 
 
         // === INICIALIZACIÓN QUILL & DISPONIBILIDAD ===
         const quill = new Quill('#editor-container', { theme: 'snow', modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] } });
@@ -430,10 +430,10 @@
         const defaultCfg = {
             identificador_bateria: '[BAT]', valor_clase: '$10.000', cantidad_aulas: '3', cantidad_baterias: '2',
             formato_evento_reserva: '? {profe} Ent {alumno}', formato_evento_confirmado: '📋🎸{instrumento} - {alumno} {edad}',
-            texto_profe: "*⚠ PRE CHECK - ENTREVISTA*\n📅 *FECHA: {fecha_hora}*\n*👥 ALUMNO:*\n🔹 {nombre} ({edad})\n🔹 {instrumento} | {suscripcion}\n*INFO:*\n{descripcion}",
+            texto_profe: "*⚠ PRE CHECK - ENTREVISTA*\n📅 *FECHA: {fecha_hora}*\n*👥 ALUMNO:*\n🔹 {nombre} ({edad})\n🔹 {instrumento} | {suscripcion}\n*INFO:*\n{descripcion}\n\n*HISTORIAL DE CONTACTO:*\n{historial}",
             texto_alumno: "📅 *Agenda de clase*\n🧩 {fecha_hora} con Profe {profe}\n✅ Inscripción: forms.gle/xxx\n💸 Valor: {valor}\n🧩 Alias: {alias_profe}",
             texto_conf_alumno: "Genial Gracias!\nTe esperamos!\n\n🧩 Día y horario: {fecha_hora}\n🧩 Profe: {profe}\n📍 *Dirección:* Av. Cabildo 2970, Piso 1, Depto C.\n\n⚠️ *A tener en cuenta:*\n\n- *Puntualidad:* La reserva del espacio es por 45 minutos. Te pido llegar puntual para aprovechar al máximo el encuentr* 🙏🏻.\n\n- *Reprogramaciones:* Se puede reprogramar una sola vez con aviso previo de 24 hs. De lo contrario, se pierde el turno y el valor abonado.\n\nEl profe te va a estar escribiendo el mismo día!",
-            texto_conf_profe: "*✅ ENTREVISTA CONFIRMADA*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Clase: {suscripcion}\n\n*📰 INFO PARA LA ENTREVISTA:*\n{descripcion}"
+            texto_conf_profe: "*✅ ENTREVISTA CONFIRMADA*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Clase: {suscripcion}\n\n*📰 INFO PARA LA ENTREVISTA:*\n{descripcion}\n\n*HISTORIAL:*\n{historial}"
         };
 
         async function cargarConfig() {
@@ -702,7 +702,7 @@
                             descripcion: desc,
                             disponibilidad: dispGlobal,
                             estado_agenda: estadoAgenda,
-                            historial: [] // Inicializar array vacio
+                            historial: [] 
                         };
 
                         if (estadoAgenda === 'Pendiente validación por alumno' || estadoAgenda === 'Agenda confirmada') {
@@ -1056,9 +1056,10 @@
                     const al = (await getDoc(doc(db, "alumnos", id))).data();
                     const iS = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento;
                     const dP = al.descripcion ? al.descripcion.replace(/<[^>]*>?/gm, '').trim() : '';
+                    const hT = (al.historial && al.historial.length > 0) ? [...al.historial].sort((a,b)=>a.id-b.id).map(h => `[${h.fecha}] ${h.texto}`).join('\n') : 'Sin historial registrado.';
                     
                     const template = target.classList.contains('btn-reenviar-profe') ? configApp.texto_profe : configApp.texto_conf_profe;
-                    const txt = reemplazarVariables(template, { fecha_hora: al.reserva_fecha_texto, nombre: al.nombre, edad: al.edad||'-', instrumento: iS, suscripcion: al.tipo_suscripcion, descripcion: dP });
+                    const txt = reemplazarVariables(template, { fecha_hora: al.reserva_fecha_texto, nombre: al.nombre, edad: al.edad||'-', instrumento: iS, suscripcion: al.tipo_suscripcion, descripcion: dP, historial: hT });
                     await navigator.clipboard.writeText(txt);
                     alert("Texto para el PROFESOR copiado al portapapeles.");
                 } catch(e) { console.error(e); }
@@ -1159,8 +1160,9 @@
                     const al = (await getDoc(doc(db, "alumnos", alumnoIdActual))).data();
                     const iS = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento;
                     const dP = al.descripcion ? al.descripcion.replace(/<[^>]*>?/gm, '').trim() : '';
+                    const hT = (al.historial && al.historial.length > 0) ? [...al.historial].sort((a,b)=>a.id-b.id).map(h => `[${h.fecha}] ${h.texto}`).join('\n') : 'Sin historial registrado.';
                     
-                    const txt = reemplazarVariables(configApp.texto_profe, { fecha_hora: target.getAttribute('data-fechatxt'), nombre: al.nombre, edad: al.edad||'-', instrumento: iS, suscripcion: al.tipo_suscripcion, descripcion: dP });
+                    const txt = reemplazarVariables(configApp.texto_profe, { fecha_hora: target.getAttribute('data-fechatxt'), nombre: al.nombre, edad: al.edad||'-', instrumento: iS, suscripcion: al.tipo_suscripcion, descripcion: dP, historial: hT });
                     await navigator.clipboard.writeText(txt);
                     
                     await updateDoc(doc(db, "alumnos", alumnoIdActual), {
