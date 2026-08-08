@@ -8,31 +8,27 @@
     <meta http-equiv="Expires" content="0">
     <title>Mandala Ensambles Seguimientos</title>
     
-    <!-- Librerías CDN: Quill (Texto), Chart.js (Gráficos), Flatpickr (Fechas) -->
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="https://npmcdn.com/flatpickr/dist/l10n/es.js"></script>
     
     <style>
         /* === VARIABLES Y RESET === */
         :root {
             --bg-main: #f4f6f9;
-            --bg-sidebar: #ffffff;
-            --color-text: #333333;
-            --color-text-mut: #777777;
-            --primary: #008CBA;
-            --primary-hover: #007399;
-            --border-color: #e0e0e0;
-            --active-bg: #f0f4f8;
+            --bg-sidebar: #f8f9fa;
+            --color-text: #212529;
+            --color-text-mut: #6c757d;
+            --primary: #17a2b8;
+            --primary-hover: #138496;
+            --border-color: #dee2e6;
+            --active-bg: #e9ecef;
             
-            /* Colores de Tableros / Tarjetas */
-            --c-sin-agendar: #e74c3c;
-            --c-val-profe: #9b59b6;
-            --c-val-alumno: #f1c40f;
-            --c-confirmada: #2ecc71;
-            --c-suspendida: #7f8c8d;
+            /* Colores de Tableros (Borde Superior) */
+            --c-sin-agendar: #dc3545; /* Rojo */
+            --c-val-profe: #6f42c1; /* Violeta */
+            --c-val-alumno: #ffc107; /* Amarillo */
+            --c-confirmada: #28a745; /* Verde */
+            --c-suspendida: #6c757d; /* Gris */
         }
         body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-main); color: var(--color-text); }
         
@@ -42,91 +38,96 @@
         .btn-google:hover { background-color: #f8f9fa; }
         .btn-google svg { width: 24px; height: 24px; margin-right: 12px; }
         
-        /* === LAYOUT PRINCIPAL === */
-        #app-container { display: none; height: 100vh; width: 100%; overflow: hidden; }
+        /* === LAYOUT PRINCIPAL RESPONSIVO === */
+        #app-container { display: none; height: 100vh; width: 100%; overflow: hidden; flex-direction: row; }
         
-        #sidebar { width: 260px; background: var(--bg-sidebar); border-right: 1px solid var(--border-color); display:flex; flex-direction:column; overflow-y:auto; padding-top:20px; }
+        #sidebar { width: 240px; background: var(--bg-sidebar); border-right: 1px solid var(--border-color); display:flex; flex-direction:column; overflow-y:auto; padding-top:20px; flex-shrink: 0;}
         .sidebar-brand { padding: 0 20px 20px 20px; border-bottom: 1px solid var(--border-color); margin-bottom: 15px;}
-        .sidebar-brand h2 { margin:0; font-size:1.3em; color:#111; }
+        .sidebar-brand h2 { margin:0; font-size:1.2em; color:#111; font-weight:700;}
         .sidebar-brand small { color: var(--color-text-mut); font-size:0.85em; }
         
-        #sidebar h3 { padding: 0 20px; font-size: 0.8em; text-transform: uppercase; color: #aaa; letter-spacing: 1px; margin: 15px 0 5px 0; }
-        .nav-item { cursor: pointer; padding: 10px 15px; margin: 2px 15px; border-radius: 8px; transition: 0.2s; color: #555; font-size:0.95em; }
-        .nav-item:hover { background: #f9f9f9; }
-        .nav-item.active { background: var(--active-bg); font-weight:bold; color: #000; }
+        .nav-item { cursor: pointer; padding: 10px 15px; margin: 2px 15px; border-radius: 8px; transition: 0.2s; color: #495057; font-size:0.95em; display:flex; align-items:center;}
+        .nav-item:hover { background: #e2e6ea; }
+        .nav-item.active { background: var(--active-bg); font-weight:600; color: #212529; }
         
-        #main { flex-grow: 1; padding: 20px 30px; overflow-y: auto; display:flex; flex-direction:column; }
+        #main { flex-grow: 1; padding: 20px 30px; overflow-y: auto; display:flex; flex-direction:column; width: calc(100% - 240px);}
         
-        /* === HEADER Y CONTROLES SUPERIORES === */
-        #header-auth { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .header-buttons { display:flex; gap:10px; align-items:center; }
-        #btn-conectar-cal { background: #f1c40f; color: #000; border: none; padding: 6px 12px; border-radius: 6px; font-weight:bold; cursor:pointer; display:none; }
-        #btn-logout { cursor: pointer; padding: 6px 12px; background: transparent; color: var(--color-text-mut); border: 1px solid #ccc; border-radius: 6px; font-weight:600; transition:0.2s;}
-        #btn-logout:hover { background: #f1f1f1; color:#000;}
-        
-        .vista-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
-        #vista-titulo { margin:0; font-size:1.5em; color:#111; }
-        #btn-nuevo-alumno { padding:10px 20px; background:var(--primary); color:white; border:none; cursor:pointer; border-radius:6px; font-weight:600; font-size:0.95em; transition:0.2s;}
-        #btn-nuevo-alumno:hover { background:var(--primary-hover); }
+        /* Ocultar sidebar en móviles (simplificado) */
+        @media (max-width: 768px) {
+            #app-container { flex-direction: column; }
+            #sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--border-color); padding-bottom:10px;}
+            #main { width: 100%; padding: 15px; }
+            .board-container { flex-direction: column; }
+            .board-column { min-width: 100%; border-top: 4px solid #ccc; background:#fff; padding:15px; border-radius:8px;}
+        }
 
-        /* === TABLEROS Y TARJETAS (ESTILO NUEVO) === */
-        .board-container { display: flex; gap: 20px; align-items: flex-start; overflow-x: auto; flex-grow: 1; padding-bottom:10px; }
-        .board-column { flex: 1; min-width: 320px; display: flex; flex-direction: column; gap: 15px; max-height: 100%; overflow-y:auto; padding-bottom:20px; }
-        .board-column h4 { margin: 0 0 5px 0; color: #444; font-size:1.05em; font-weight:600;}
+        /* === HEADER Y CONTROLES === */
+        #header-auth { display: flex; justify-content: flex-end; align-items: center; margin-bottom: 5px; gap:15px;}
+        #btn-conectar-cal { background: #ffc107; color: #000; border: none; padding: 6px 12px; border-radius: 6px; font-weight:600; cursor:pointer; display:none; font-size:0.85em;}
+        #btn-logout { cursor: pointer; padding: 6px 12px; background: transparent; color: var(--color-text-mut); border: 1px solid var(--border-color); border-radius: 6px; font-weight:600; font-size:0.85em;}
         
-        /* Tarjetas estilo UI solicitada */
-        .alumno-item { padding: 15px; border-radius: 8px; background: #fff; border: 1px solid var(--border-color); box-shadow: 0 2px 5px rgba(0,0,0,0.02); display:flex; flex-direction:column; gap:10px; }
-        
-        /* Colores de Borde Superior según estado */
-        .col-sin-agendar .alumno-item { border-top: 4px solid var(--c-sin-agendar); }
-        .col-val-profe .alumno-item { border-top: 4px solid var(--c-val-profe); }
-        .col-val-alumno .alumno-item { border-top: 4px solid var(--c-val-alumno); }
-        .item-confirmada { border-top: 4px solid var(--c-confirmada); }
-        .item-suspendida { border-top: 4px solid var(--c-suspendida); }
+        .vista-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;}
+        #vista-titulo { margin:0; font-size:1.6em; color:#212529; font-weight:700;}
+        #btn-nuevo-alumno { padding:8px 16px; background:var(--primary); color:white; border:none; cursor:pointer; border-radius:6px; font-weight:600; font-size:0.95em;}
 
-        .alumno-header { cursor:pointer; transition: opacity 0.2s; }
-        .alumno-header:hover { opacity: 0.7; }
-        .badge { display:inline-block; font-size:0.75em; padding:3px 8px; border-radius:12px; font-weight:bold; background:#eee; color:#333; margin-bottom:8px;}
-        .badge.bg-warning { background: #fff3cd; color: #856404; }
-        .badge.bg-success { background: #d4edda; color: #155724; }
-        .badge.bg-danger { background: #f8d7da; color: #721c24; }
+        /* === TABLEROS Y TARJETAS (NUEVO DISEÑO FULL WIDTH) === */
+        .board-container { display: flex; gap: 20px; align-items: flex-start; overflow-x: auto; flex-grow: 1; padding-bottom:10px; width:100%;}
+        
+        /* Columnas con borde superior de color */
+        .board-column { flex: 1; min-width: 300px; display: flex; flex-direction: column; gap: 15px; max-height: 100%; overflow-y:auto; background:#fdfdfd; padding:15px; border-radius:8px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.04);}
+        .col-sin-agendar { border-top: 4px solid var(--c-sin-agendar); }
+        .col-val-profe { border-top: 4px solid var(--c-val-profe); }
+        .col-val-alumno { border-top: 4px solid var(--c-val-alumno); }
+        .board-column h4 { margin: 0 0 10px 0; color: #495057; font-size:1.05em; font-weight:600;}
+        
+        /* Tarjetas estilo UI (blancas, minimalistas) */
+        .alumno-item { padding: 15px; border-radius: 8px; background: #fff; border: 1px solid var(--border-color); display:flex; flex-direction:column; gap:10px; transition:0.2s;}
+        .alumno-item:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        
+        /* Bordes para vistas de lista (Confirmadas/Suspendidas) */
+        .item-confirmada { border-left: 4px solid var(--c-confirmada); }
+        .item-suspendida { border-left: 4px solid var(--c-suspendida); }
 
-        .alumno-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding-top: 10px; border-top: 1px solid #f0f0f0; }
+        .alumno-header { cursor:pointer; position:relative; }
+        .btn-eliminar-alumno { position:absolute; top:0; right:0; background:transparent; border:none; color:#dc3545; cursor:pointer; font-size:1.1em; padding:0; line-height:1;}
         
-        /* Botones de acción en tarjetas */
-        .btn-accion-flujo { background: #28a745; color: white; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size:0.85em; transition:0.2s;}
-        .btn-accion-flujo:hover { background: #218838; }
-        .btn-secundario { background: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-size:0.85em; }
-        .btn-suspender { background: transparent; color: #e74c3c; padding: 6px 12px; border: 1px solid #e74c3c; border-radius: 6px; cursor: pointer; font-size:0.85em; font-weight:600;}
-        .btn-bloquear-agenda { font-size:0.85em; background:#f8f9fa; border:1px solid #ccc; padding:6px 12px; border-radius:6px; cursor:pointer; color:#333; font-weight:600;}
-        .select-estado { padding: 6px; border-radius: 6px; border: 1px solid #ccc; font-size:0.85em; width:100%; background:#f8f9fa; }
+        .badge { display:inline-block; font-size:0.75em; padding:4px 8px; border-radius:4px; font-weight:600; margin-bottom:8px;}
+        .badge-warning { background: #fff3cd; color: #856404; }
+        .badge-success { background: #d4edda; color: #155724; }
+        .badge-danger { background: #f8d7da; color: #721c24; }
+
+        .alumno-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding-top: 10px; border-top: 1px dashed #eee; }
+        .btn-accion-flujo { background: #e9ecef; color: #495057; padding: 6px 12px; border: 1px solid #ced4da; border-radius: 6px; cursor: pointer; font-weight: 600; font-size:0.85em;}
+        .btn-accion-flujo:hover { background: #dde2e6; }
+        .btn-accion-main { background: var(--primary); color: white; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size:0.85em;}
+        .btn-suspender { background: transparent; color: #dc3545; padding: 6px 12px; border: 1px solid #dc3545; border-radius: 6px; cursor: pointer; font-size:0.85em; font-weight:600;}
+        .select-estado { padding: 6px; border-radius: 6px; border: 1px solid #ced4da; font-size:0.85em; width:100%; background:#fff; color:#495057;}
         
-        .lista-generica { max-width: 800px; display:flex; flex-direction:column; gap:15px; }
+        .lista-generica { width: 100%; display:flex; flex-direction:column; gap:15px; }
 
         /* === DIALOGOS Y FORMULARIOS === */
-        dialog { padding: 25px; border: none; border-radius: 10px; width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.15); }
-        dialog::backdrop { background: rgba(0,0,0,0.4); }
-        input[type="text"], input[type="number"], input[type="email"], select { padding: 10px; border: 1px solid #ccc; border-radius:6px; width:100%; box-sizing:border-box; margin-top:5px; font-family:inherit;}
+        dialog { padding: 25px; border: none; border-radius: 10px; width: 95%; max-width: 700px; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        dialog::backdrop { background: rgba(0,0,0,0.5); }
+        input[type="text"], input[type="number"], input[type="email"], select, input[type="date"] { padding: 8px 12px; border: 1px solid #ced4da; border-radius:6px; width:100%; box-sizing:border-box; margin-top:5px; font-family:inherit;}
         
         .dia-disponibilidad { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; border-bottom: 1px solid #f0f0f0; padding-bottom: 8px; flex-wrap:wrap;}
-        .dia-disponibilidad label { width: 85px; font-weight: 600; color:#444;}
-        .estado-disp { font-weight: bold; font-size: 0.9em; margin-left: 10px; }
-        input[type="time"] { padding: 6px; font-size: 14px; cursor: pointer; width:auto; border-radius:6px; border:1px solid #ccc;}
+        .dia-disponibilidad label { width: 85px; font-weight: 600; color:#495057; font-size:0.9em;}
+        .estado-disp { font-weight: 600; font-size: 0.85em; margin-left: 10px; }
+        input[type="time"] { padding: 6px; font-size: 14px; cursor: pointer; width:auto;}
         
-        .opcion-horario { margin-bottom: 15px; padding: 15px; border: 1px solid #e0e0e0; background: #fff; border-radius:8px; display:flex; justify-content:space-between; align-items:center;}
-        .opcion-horario span { font-weight:600; font-size:1.05em; color:#2c3e50;}
+        .opcion-horario { margin-bottom: 10px; padding: 12px; border: 1px solid #dee2e6; background: #fff; border-radius:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;}
+        .opcion-horario span { font-weight:600; font-size:0.95em; color:#212529;}
         
         .abm-container { margin-bottom: 20px; background:#fff; padding:20px; border-radius:8px; border: 1px solid var(--border-color);}
-        .abm-item { display: flex; justify-content: space-between; padding: 15px; border: 1px solid #eee; margin-bottom: 8px; background: #fff; align-items: center; cursor: pointer; border-radius:6px; transition:0.2s;}
-        .abm-item:hover { border-color: var(--primary); }
+        .abm-item { display: flex; justify-content: space-between; padding: 15px; border: 1px solid #dee2e6; margin-bottom: 8px; background: #fff; align-items: center; cursor: pointer; border-radius:8px;}
+        .abm-item:hover { border-color: #adb5bd; }
         
-        #editor-container { height: 180px; margin-bottom: 20px; background: white; border-radius:0 0 6px 6px; }
-        textarea.config-box { width: 100%; height: 120px; font-family: monospace; padding: 10px; margin-bottom: 10px; border-radius:6px; border:1px solid #ccc;}
+        #editor-container { height: 150px; margin-bottom: 20px; background: white; border-radius:0 0 6px 6px; }
+        textarea.config-box { width: 100%; height: 100px; font-family: monospace; padding: 10px; margin-bottom: 10px; border-radius:6px; border:1px solid #ced4da;}
         
         /* === ESTADÍSTICAS === */
-        #estadisticas-container { display:flex; flex-wrap:wrap; gap:30px; justify-content:flex-start; align-items:flex-start; max-width:900px; margin-top:10px;}
-        .chart-box { width: 320px; background:#fff; padding:20px; border-radius:12px; border: 1px solid var(--border-color); cursor:pointer; transition:transform 0.2s;}
-        .chart-box:hover { transform: translateY(-3px); box-shadow: 0 4px 10px rgba(0,0,0,0.05);}
+        #estadisticas-container { display:flex; flex-wrap:wrap; gap:20px; width:100%; align-items:flex-start;}
+        .chart-box { flex:1; min-width:300px; background:#fff; padding:20px; border-radius:12px; border: 1px solid var(--border-color); cursor:pointer;}
     </style>
 </head>
 <body>
@@ -146,7 +147,7 @@
         <nav id="sidebar">
             <div class="sidebar-brand">
                 <h2>Mandala Records</h2>
-                <small>Ensambles Seguimientos</small>
+                <small>Estudio & Ensambles</small>
             </div>
             
             <div class="nav-item active" data-vista="Gestiones en Curso">Gestiones en Curso</div>
@@ -163,11 +164,9 @@
         
         <main id="main">
             <div id="header-auth">
-                <div id="user-info" style="font-weight:600; color:#555;">Cargando...</div>
-                <div class="header-buttons">
-                    <button id="btn-conectar-cal" title="Habilita la integración con tu agenda">⚠️ Conectar Calendar</button>
-                    <button id="btn-logout">Cerrar Sesión</button>
-                </div>
+                <button id="btn-conectar-cal" title="Habilita la integración con tu agenda">⚠️ Conectar Calendar</button>
+                <div id="user-info" style="font-size:0.85em; color:#6c757d;"></div>
+                <button id="btn-logout">Salir</button>
             </div>
             
             <div class="vista-header">
@@ -175,10 +174,9 @@
                 <button id="btn-nuevo-alumno">+ Nuevo alumno</button>
             </div>
             
-            <!-- Contenedor Dinámico Principal -->
             <div id="contenedor-principal" style="display:flex; flex-grow:1; flex-direction:column; overflow:hidden;">
                 
-                <!-- Tablero Kanban (Solo para Gestiones en curso) -->
+                <!-- Tablero Kanban -->
                 <div id="tablero-gestiones" class="board-container">
                     <div class="board-column col-sin-agendar">
                         <h4>Alumnos sin agendar</h4>
@@ -194,17 +192,17 @@
                     </div>
                 </div>
 
-                <!-- Lista Genérica (Confirmadas, Suspendidas, ABMs) -->
+                <!-- Lista Genérica -->
                 <div id="lista-generica" class="lista-generica" style="display:none; overflow-y:auto; padding-bottom:20px;"></div>
 
                 <!-- Estadísticas -->
                 <div id="estadisticas-container" style="display:none;">
                     <div class="chart-box" id="chart-box-gestiones">
-                        <h4 style="text-align:center; margin-top:0; color:#333;">Gestiones en Curso</h4>
+                        <h4 style="text-align:center; margin-top:0; color:#495057;">Gestiones en Curso</h4>
                         <canvas id="chartGestiones"></canvas>
                     </div>
                     <div class="chart-box" id="chart-box-general">
-                        <h4 style="text-align:center; margin-top:0; color:#333;">Estado Global</h4>
+                        <h4 style="text-align:center; margin-top:0; color:#495057;">Estado Global</h4>
                         <canvas id="chartGlobal"></canvas>
                     </div>
                 </div>
@@ -213,36 +211,36 @@
     </div>
 
     <!-- Acordeón Formulario Edición/Alta -->
-    <div id="form-alumno-wrapper" style="display:none; background:#fff; padding:20px; border-radius:8px; border:1px solid #ddd; margin-top:10px;">
-        <h3 id="form-titulo" style="margin-top:0; color:#111;">Datos del Alumno</h3>
+    <div id="form-alumno-wrapper" style="display:none; background:#fff; padding:20px; border-radius:8px; border:1px solid #ced4da; margin-top:10px;">
+        <h3 id="form-titulo" style="margin-top:0; color:#212529; font-size:1.1em;">Datos del Alumno</h3>
         <form id="form-alumno">
             <input type="hidden" id="alumno-id">
             <div style="display:flex; gap:15px; margin-bottom:10px; flex-wrap:wrap;">
-                <div style="flex:1; min-width:200px;"><label>Nombre: <input type="text" id="nombre" required></label></div>
-                <div style="flex:1; min-width:150px;"><label>Celular: <input type="text" id="celular" required></label></div>
-                <div style="width:80px;"><label>Edad: <input type="number" id="edad"></label></div>
+                <div style="flex:1; min-width:180px;"><label>Nombre: <input type="text" id="nombre" required></label></div>
+                <div style="flex:1; min-width:140px;"><label>Celular: <input type="text" id="celular" required></label></div>
+                <div style="width:70px;"><label>Edad: <input type="number" id="edad"></label></div>
             </div>
             
             <div style="display:flex; gap:15px; margin-bottom:15px; flex-wrap:wrap;">
-                <div style="flex:1; min-width:200px;">
+                <div style="flex:1; min-width:180px;">
                     <label>Instrumento(s): <br>
-                        <select id="instrumento" multiple required style="height:80px;"></select>
+                        <select id="instrumento" multiple required style="height:70px;"></select>
                     </label>
                 </div>
-                <div style="flex:1; min-width:200px;">
+                <div style="flex:1; min-width:180px;">
                     <label>Suscripción: <select id="tipo_suscripcion" required></select></label>
                 </div>
             </div>
             
-            <h4 style="margin:10px 0 5px 0; color:#444;">Descripción / Info</h4>
+            <h4 style="margin:10px 0 5px 0; color:#495057; font-size:0.95em;">Descripción / Info</h4>
             <div id="editor-container"></div>
             
-            <h4 style="margin:15px 0 10px 0; border-bottom:1px solid #eee; padding-bottom:5px; color:#444;">Disponibilidad Horaria</h4>
+            <h4 style="margin:15px 0 10px 0; border-bottom:1px solid #e9ecef; padding-bottom:5px; color:#495057; font-size:0.95em;">Disponibilidad Horaria</h4>
             <div id="contenedor-disponibilidad"></div>
             
-            <div style="margin-top:20px; display:flex; gap:10px;">
-                <button type="submit" style="padding:10px 20px; background:#28a745; color:white; border:none; cursor:pointer; border-radius:6px; font-weight:bold;">Guardar Datos</button>
-                <button type="button" id="btn-cerrar-alumno" style="padding:10px 20px; background:#e2e3e5; color:#333; border:none; cursor:pointer; border-radius:6px; font-weight:600;">Cancelar / Cerrar</button>
+            <div style="margin-top:20px; display:flex; gap:10px; justify-content:flex-end;">
+                <button type="button" id="btn-cerrar-alumno" style="padding:8px 16px; background:#e9ecef; color:#495057; border:none; cursor:pointer; border-radius:6px; font-weight:600;">Cancelar</button>
+                <button type="submit" style="padding:8px 16px; background:var(--primary); color:white; border:none; cursor:pointer; border-radius:6px; font-weight:600;">Guardar Datos</button>
             </div>
         </form>
     </div>
@@ -253,62 +251,61 @@
     </dialog>
 
     <dialog id="modal-agenda">
-        <h3 style="margin-top:0; color:#111;">Buscar Disponibilidad</h3>
-        <div style="margin-bottom: 15px; padding: 15px; background: #f8f9fa; border:1px solid #eee; border-radius: 8px; display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap;">
+        <h3 style="margin-top:0; color:#212529; font-size:1.2em;">Buscar Disponibilidad</h3>
+        <div style="margin-bottom: 15px; padding: 15px; background: #f8f9fa; border:1px solid #ced4da; border-radius: 8px; display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap;">
             <div>
-                <label style="display:block; font-size:0.9em; font-weight:600; margin-bottom:5px;">Desde:</label>
-                <input type="text" id="agenda-start" placeholder="Seleccione fecha">
+                <label style="display:block; font-size:0.85em; font-weight:600; margin-bottom:5px; color:#495057;">Desde:</label>
+                <input type="date" id="agenda-start" required>
             </div>
             <div>
-                <label style="display:block; font-size:0.9em; font-weight:600; margin-bottom:5px;">Hasta:</label>
-                <input type="text" id="agenda-end" placeholder="Seleccione fecha">
+                <label style="display:block; font-size:0.85em; font-weight:600; margin-bottom:5px; color:#495057;">Hasta:</label>
+                <input type="date" id="agenda-end" required>
             </div>
-            <div style="flex-grow:1; min-width:200px;">
-                <label style="display:block; font-size:0.9em; font-weight:600; margin-bottom:5px;">Profesor (habilitados):</label>
+            <div style="flex-grow:1; min-width:180px;">
+                <label style="display:block; font-size:0.85em; font-weight:600; margin-bottom:5px; color:#495057;">Profesor:</label>
                 <select id="agenda-profe-filtro"><option value="">Todos</option></select>
             </div>
-            <button id="btn-ejecutar-busqueda" style="background:#008CBA; color:white; border:none; padding:10px 20px; border-radius:6px; cursor:pointer; font-weight:bold; height:40px;">🔍 Buscar</button>
+            <button id="btn-ejecutar-busqueda" style="background:var(--primary); color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:600; height:38px;">Buscar</button>
         </div>
-        <div id="resultados-agenda" style="margin-bottom:15px; max-height:40vh; overflow-y:auto; padding-right:5px;"></div>
+        <div id="resultados-agenda" style="margin-bottom:15px; max-height:45vh; overflow-y:auto; padding-right:5px;"></div>
         <div style="text-align:right;">
-            <button type="button" class="btn-cerrar-modal" data-modal="modal-agenda" style="padding:8px 15px; border:none; border-radius:6px; cursor:pointer; background:#e2e3e5; font-weight:600;">Cerrar</button>
+            <button type="button" class="btn-cerrar-modal" data-modal="modal-agenda" style="padding:8px 16px; border:none; border-radius:6px; cursor:pointer; background:#e9ecef; font-weight:600; color:#495057;">Cerrar</button>
         </div>
     </dialog>
 
     <dialog id="modal-suspender">
-        <h3 style="margin-top:0; color:#c0392b;">Suspender Gestión</h3>
+        <h3 style="margin-top:0; color:#dc3545; font-size:1.2em;">Suspender Gestión</h3>
         <input type="hidden" id="susp-alumno-id">
-        <label style="display:block; margin-bottom:15px;">Motivo de suspensión:
-            <select id="susp-motivo" required style="margin-top:5px;">
+        <label style="display:block; margin-bottom:20px; color:#495057; font-weight:600;">Motivo:
+            <select id="susp-motivo" required style="margin-top:8px;">
                 <option value="">Seleccione motivo...</option>
                 <option value="No responde">No responde</option>
                 <option value="Arrepentido">Arrepentido</option>
                 <option value="Sin disponibilidad">Sin disponibilidad</option>
             </select>
         </label>
-        <div style="display:flex; gap:10px;">
-            <button id="btn-guardar-suspension" style="padding:10px 15px; background:#e74c3c; color:white; border:none; cursor:pointer; border-radius:6px; font-weight:bold;">Confirmar Suspensión</button>
-            <button type="button" class="btn-cerrar-modal" data-modal="modal-suspender" style="padding:10px 15px; cursor:pointer; border:none; border-radius:6px; background:#eee; font-weight:600;">Cancelar</button>
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <button type="button" class="btn-cerrar-modal" data-modal="modal-suspender" style="padding:8px 16px; cursor:pointer; border:none; border-radius:6px; background:#e9ecef; font-weight:600; color:#495057;">Cancelar</button>
+            <button id="btn-guardar-suspension" style="padding:8px 16px; background:#dc3545; color:white; border:none; cursor:pointer; border-radius:6px; font-weight:bold;">Confirmar</button>
         </div>
     </dialog>
 
     <dialog id="modal-abm-edit">
-        <h3 style="margin-top:0;">Editar Registro</h3>
+        <h3 style="margin-top:0; font-size:1.2em; color:#212529;">Editar Registro</h3>
         <input type="hidden" id="abm-edit-id">
         <input type="hidden" id="abm-edit-coleccion">
-        <label style="display:block; margin-bottom:10px;">Nombre: <input type="text" id="abm-edit-nombre"></label>
-        <div id="div-abm-edit-profe" style="display:none; padding:15px; background:#f8f9fa; border:1px solid #ddd; border-radius:6px; margin-bottom:15px;">
-            <label style="display:block; margin-bottom:10px;">Email Calendario: <input type="email" id="abm-edit-correo"></label>
-            <label style="display:block; margin-bottom:10px;">Alias a transferir: <input type="text" id="abm-edit-alias"></label>
-            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:600; color:#2c3e50;"><input type="checkbox" id="abm-edit-entrevista" style="width:auto; margin:0;"> Habilitado para dar entrevistas/pruebas</label>
+        <label style="display:block; margin-bottom:10px; font-weight:600; font-size:0.9em; color:#495057;">Nombre: <input type="text" id="abm-edit-nombre"></label>
+        <div id="div-abm-edit-profe" style="display:none; padding:15px; background:#f8f9fa; border:1px solid #ced4da; border-radius:6px; margin-bottom:15px;">
+            <label style="display:block; margin-bottom:10px; font-weight:600; font-size:0.9em; color:#495057;">Email Calendario: <input type="email" id="abm-edit-correo"></label>
+            <label style="display:block; margin-bottom:10px; font-weight:600; font-size:0.9em; color:#495057;">Alias a transferir: <input type="text" id="abm-edit-alias"></label>
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:600; color:#212529; font-size:0.9em;"><input type="checkbox" id="abm-edit-entrevista" style="width:auto; margin:0;"> Habilitado para entrevistas</label>
         </div>
-        <div style="display:flex; gap:10px;">
-            <button id="btn-guardar-abm-edit" style="padding:10px 15px; background:#28a745; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">Actualizar Registro</button>
-            <button type="button" class="btn-cerrar-modal" data-modal="modal-abm-edit" style="padding:10px 15px; border:none; border-radius:6px; cursor:pointer; background:#eee; font-weight:600;">Cancelar</button>
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <button type="button" class="btn-cerrar-modal" data-modal="modal-abm-edit" style="padding:8px 16px; border:none; border-radius:6px; cursor:pointer; background:#e9ecef; font-weight:600; color:#495057;">Cancelar</button>
+            <button id="btn-guardar-abm-edit" style="padding:8px 16px; background:var(--primary); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">Actualizar</button>
         </div>
     </dialog>
 
-    <!-- Scripts de la Aplicación -->
     <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
@@ -330,7 +327,6 @@
         const provider = new GoogleAuthProvider();
         provider.addScope('https://www.googleapis.com/auth/calendar.events');
 
-        // === VARIABLES GLOBALES ===
         let googleAccessToken = sessionStorage.getItem('gCalToken') || null; 
         let alumnoIdActual = null;
         let estadoActualVista = 'Gestiones en Curso';
@@ -338,13 +334,9 @@
         let configApp = {};
         let chartGestionesInst = null;
         let chartGlobalInst = null;
-        let fpStart, fpEnd; // Instancias Flatpickr
 
         // === INICIALIZACIÓN QUILL & DISPONIBILIDAD ===
-        const quill = new Quill('#editor-container', {
-            theme: 'snow',
-            modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] }
-        });
+        const quill = new Quill('#editor-container', { theme: 'snow', modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] } });
 
         const diasSemana = [
             { id: 'L', nombre: 'Lunes', ind: 1 }, { id: 'M', nombre: 'Martes', ind: 2 }, { id: 'X', nombre: 'Miércoles', ind: 3 },
@@ -372,10 +364,10 @@
             function updateDispState(source) {
                 if (source === 'all' && chkAll.checked) {
                     chkNone.checked = false; tIni.disabled = tFin.disabled = true; tIni.value = tFin.value = '';
-                    spanE.textContent = "Disponible todo el día"; spanE.style.color = "#27ae60";
+                    spanE.textContent = "Libre"; spanE.style.color = "#28a745";
                 } else if (source === 'none' && chkNone.checked) {
                     chkAll.checked = false; tIni.disabled = tFin.disabled = true; tIni.value = tFin.value = '';
-                    spanE.textContent = "No disponible"; spanE.style.color = "#c0392b";
+                    spanE.textContent = "Bloqueado"; spanE.style.color = "#dc3545";
                 } else { tIni.disabled = tFin.disabled = false; spanE.textContent = ""; }
             }
             chkAll.addEventListener('change', () => updateDispState('all'));
@@ -395,55 +387,27 @@
             configApp = docSnap.exists() ? { ...defaultCfg, ...docSnap.data() } : defaultCfg;
         }
 
-        // === FUNCIONES UTILITARIAS CALENDAR ===
-        function reemplazarVariables(texto, datos) {
-            let res = texto;
-            for (const [key, value] of Object.entries(datos)) res = res.replaceAll(`{${key}}`, value || '');
-            return res;
-        }
-
-        function formatoLocalISO(date) {
-            const tzo = -date.getTimezoneOffset(), dif = tzo >= 0 ? '+' : '-', pad = num => (num < 10 ? '0' : '') + num;
-            return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + 'T' + pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds()) + dif + pad(Math.floor(Math.abs(tzo) / 60)) + ':' + pad(Math.abs(tzo) % 60);
-        }
-
-        function formatearFechaAmi(fechaIsoStr) {
-            const d = new Date(fechaIsoStr), dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-            return `${dias[d.getDay()]} ${d.getDate()}/${d.getMonth()+1} ${d.getHours()}hs`;
-        }
+        // === FUNCIONES UTILITARIAS ===
+        function reemplazarVariables(texto, datos) { let res = texto; for (const [key, value] of Object.entries(datos)) res = res.replaceAll(`{${key}}`, value || ''); return res; }
+        function formatoLocalISO(date) { const tzo = -date.getTimezoneOffset(), dif = tzo >= 0 ? '+' : '-', pad = num => (num < 10 ? '0' : '') + num; return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + 'T' + pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds()) + dif + pad(Math.floor(Math.abs(tzo) / 60)) + ':' + pad(Math.abs(tzo) % 60); }
+        function formatearFechaAmi(fechaIsoStr) { const d = new Date(fechaIsoStr), dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']; return `${dias[d.getDay()]} ${d.getDate()}/${d.getMonth()+1} ${d.getHours()}hs`; }
 
         async function fetchCalendarAPI(url, method, body = null) {
-            if (!googleAccessToken) {
-                document.getElementById('btn-conectar-cal').style.display = 'inline-block';
-                throw new Error("Token caducado. Clic en 'Conectar Calendar'.");
-            }
+            if (!googleAccessToken) { document.getElementById('btn-conectar-cal').style.display = 'inline-block'; throw new Error("Token caducado."); }
             const options = { method, headers: { 'Authorization': `Bearer ${googleAccessToken}`, 'Content-Type': 'application/json' } };
             if (body) options.body = JSON.stringify(body);
             const res = await fetch(url, options);
             if (res.status === 401 || res.status === 403) {
-                sessionStorage.removeItem('gCalToken'); googleAccessToken = null;
-                document.getElementById('btn-conectar-cal').style.display = 'inline-block';
-                throw new Error("Permisos insuficientes o token caducado. Reconecta.");
+                sessionStorage.removeItem('gCalToken'); googleAccessToken = null; document.getElementById('btn-conectar-cal').style.display = 'inline-block'; throw new Error("Token caducado. Reconecta.");
             }
             if (!res.ok && res.status !== 410 && res.status !== 404) throw new Error(`API Error: ${res.statusText}`);
             return method === 'DELETE' ? true : await res.json();
         }
 
-        async function getEventosCalendario(calendarId, timeMin, timeMax) {
-            return await fetchCalendarAPI(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true`, 'GET');
-        }
-
-        async function crearEventoCalendario(calendarId, titulo, inicioStr, finStr) {
-            return await fetchCalendarAPI(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`, 'POST', { summary: titulo, start: { dateTime: inicioStr }, end: { dateTime: finStr } });
-        }
-
-        async function actualizarEventoCalendario(calendarId, eventId, titulo, descripcion) {
-            return await fetchCalendarAPI(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, 'PATCH', { summary: titulo, description: descripcion });
-        }
-
-        async function eliminarEventoCalendario(calendarId, eventId) {
-            return await fetchCalendarAPI(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, 'DELETE');
-        }
+        async function getEventosCalendario(calendarId, timeMin, timeMax) { return await fetchCalendarAPI(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true`, 'GET'); }
+        async function crearEventoCalendario(calendarId, titulo, inicioStr, finStr) { return await fetchCalendarAPI(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`, 'POST', { summary: titulo, start: { dateTime: inicioStr }, end: { dateTime: finStr } }); }
+        async function actualizarEventoCalendario(calendarId, eventId, titulo, descripcion) { return await fetchCalendarAPI(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, 'PATCH', { summary: titulo, description: descripcion }); }
+        async function eliminarEventoCalendario(calendarId, eventId) { return await fetchCalendarAPI(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, 'DELETE'); }
 
         function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, profes, dStart, dEnd, cfg) {
             const opciones = [], mapaDias = { 0:"D", 1:"L", 2:"M", 3:"X", 4:"J", 5:"V", 6:"S" };
@@ -542,43 +506,44 @@
 
             if (vista === 'Gestiones en Curso') {
                 acciones += `<select class="select-estado" data-id="${id}">
-                    <option value="Pendiente procesar" ${al.estado_agenda === 'Pendiente procesar'?'selected':''}>Mover a Sin Agendar</option>
-                    <option value="Pendiente validación por profe" ${al.estado_agenda === 'Pendiente validación por profe'?'selected':''}>Mover a Validando Profe</option>
-                    <option value="Pendiente validación por alumno" ${al.estado_agenda === 'Pendiente validación por alumno'?'selected':''}>Mover a Validando Alumno</option>
+                    <option value="Pendiente procesar" ${al.estado_agenda === 'Pendiente procesar'?'selected':''}>Columna: Sin Agendar</option>
+                    <option value="Pendiente validación por profe" ${al.estado_agenda === 'Pendiente validación por profe'?'selected':''}>Columna: Validando Profe</option>
+                    <option value="Pendiente validación por alumno" ${al.estado_agenda === 'Pendiente validación por alumno'?'selected':''}>Columna: Validando Alumno</option>
                 </select>`;
 
                 if (al.reserva_fecha_texto) {
-                    if (al.id_evento_reserva) tags += `<div class="badge bg-warning">🔒 Bloqueado: ${al.reserva_fecha_texto} (${al.reserva_profe_nombre})</div>`;
+                    if (al.id_evento_reserva) tags += `<div class="badge badge-warning">🔒 Bloqueado: ${al.reserva_fecha_texto} (${al.reserva_profe_nombre})</div>`;
                     else tags += `<button class="btn-bloquear-agenda badge" data-id="${id}">⏳ Propuesto: ${al.reserva_fecha_texto} (${al.reserva_profe_nombre})</button>`;
                 }
 
                 if (al.estado_agenda === 'Pendiente procesar') {
-                    acciones += `<button class="btn-buscar-agenda btn-secundario" data-id="${id}">🔍 Buscar Agenda</button>`;
+                    acciones += `<button class="btn-buscar-agenda btn-accion-flujo" data-id="${id}">🔍 Buscar Agenda</button>`;
                 } else if (al.estado_agenda === 'Pendiente validación por profe') {
-                    acciones += `<button class="btn-validar-alumno btn-accion-flujo" data-id="${id}">Validar con Alumno</button>`;
+                    acciones += `<button class="btn-validar-alumno btn-accion-flujo" data-id="${id}">Pasar a Alumno</button>`;
                 } else if (al.estado_agenda === 'Pendiente validación por alumno') {
-                    acciones += `<button class="btn-confirmar-entrevista btn-accion-flujo" data-id="${id}">Confirmar Entrevista</button>`;
+                    acciones += `<button class="btn-confirmar-entrevista btn-accion-main" data-id="${id}">Confirmar</button>`;
                 }
                 acciones += `<button class="btn-abrir-suspender btn-suspender" data-id="${id}">Suspender</button>`;
             
             } else if (vista === 'Agendas Confirmadas') {
                 extraClass = 'item-confirmada';
-                tags += `<div class="badge bg-success">✅ Confirmado: ${al.reserva_fecha_texto||'-'} (${al.reserva_profe_nombre||'-'})</div>`;
+                tags += `<div class="badge badge-success">✅ Confirmado: ${al.reserva_fecha_texto||'-'} (${al.reserva_profe_nombre||'-'})</div>`;
                 acciones += `<button class="btn-cancelar-agenda btn-suspender" data-id="${id}">Deshacer Confirmación</button>`;
             } else if (vista === 'Agendas Suspendidas') {
                 extraClass = 'item-suspendida';
-                tags += `<div class="badge bg-danger">Motivo: ${al.motivo_suspension||'S/D'}</div>`;
-                acciones += `<button class="btn-recuperar-agenda btn-accion-flujo" data-id="${id}">Recuperar Agenda</button>`;
+                tags += `<div class="badge badge-danger">Motivo: ${al.motivo_suspension||'S/D'}</div>`;
+                acciones += `<button class="btn-recuperar-agenda btn-accion-main" data-id="${id}">Recuperar Agenda</button>`;
             }
 
             return `
                 <div class="alumno-item ${extraClass}" data-id="${id}">
                     <div class="alumno-header btn-editar-alumno" data-id="${id}">
-                        <div style="width:100%;">
+                        <button class="btn-eliminar-alumno" title="Eliminar Alumno">❌</button>
+                        <div style="width:90%;">
                             ${tags}
-                            <div style="font-size:1.1em; font-weight:bold;">${al.nombre}</div>
-                            <div style="color:#555;">${instStr} (${al.tipo_suscripcion})</div>
-                            <div style="color:#888; font-size:0.85em; margin-top:5px;">Cel: ${al.celular} | Edad: ${al.edad||'-'}</div>
+                            <div style="font-size:1.1em; font-weight:700; color:#212529;">${al.nombre}</div>
+                            <div style="color:#495057; font-size:0.9em; margin-top:2px;">${instStr} (${al.tipo_suscripcion})</div>
+                            <div style="color:#868e96; font-size:0.8em; margin-top:5px;">Cel: ${al.celular} | Edad: ${al.edad||'-'}</div>
                         </div>
                     </div>
                     ${acciones ? `<div class="alumno-actions">${acciones}</div>` : ''}
@@ -596,7 +561,7 @@
             const contEstad = document.getElementById('estadisticas-container');
             
             btnNuevo.style.display = 'none'; contTablero.style.display = 'none'; contLista.style.display = 'none'; contEstad.style.display = 'none';
-            document.getElementById('form-alumno-wrapper').style.display = 'none'; // ocultar forms abiertos
+            document.getElementById('form-alumno-wrapper').style.display = 'none';
 
             if (vista === 'Gestiones en Curso') {
                 btnNuevo.style.display = 'block'; contTablero.style.display = 'flex';
@@ -610,9 +575,9 @@
                         getDocs(query(refAl, where("estado_agenda", "==", "Pendiente validación por alumno")))
                     ]);
                     
-                    document.getElementById('col-1-content').innerHTML = r1.empty ? '' : r1.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
-                    document.getElementById('col-2-content').innerHTML = r2.empty ? '' : r2.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
-                    document.getElementById('col-3-content').innerHTML = r3.empty ? '' : r3.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
+                    if(!r1.empty) document.getElementById('col-1-content').innerHTML = r1.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
+                    if(!r2.empty) document.getElementById('col-2-content').innerHTML = r2.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
+                    if(!r3.empty) document.getElementById('col-3-content').innerHTML = r3.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
                 } catch(e) { console.error(e); }
                 
             } else if (vista === 'Agendas Confirmadas' || vista === 'Agendas Suspendidas') {
@@ -620,7 +585,7 @@
                 try {
                     const estMap = { 'Agendas Confirmadas': 'Agenda confirmada', 'Agendas Suspendidas': 'Agenda suspendida' };
                     const qSnap = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", estMap[vista])));
-                    contLista.innerHTML = qSnap.empty ? '' : qSnap.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
+                    if(!qSnap.empty) contLista.innerHTML = qSnap.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
                 } catch(e) { console.error(e); }
                 
             } else if (vista === 'Estadísticas') {
@@ -648,27 +613,34 @@
 
                 chartGestionesInst = new Chart(document.getElementById('chartGestiones'), {
                     type: 'doughnut',
-                    data: { labels: ['Sin Agendar', 'Validando Profe', 'Validando Alumno'], datasets: [{ data: [counts['Pendiente procesar'], counts['Pendiente validación por profe'], counts['Pendiente validación por alumno']], backgroundColor: ['#e74c3c', '#9b59b6', '#f1c40f'] }] }
+                    data: { labels: ['Sin Agendar', 'Validando Profe', 'Validando Alumno'], datasets: [{ data: [counts['Pendiente procesar'], counts['Pendiente validación por profe'], counts['Pendiente validación por alumno']], backgroundColor: ['#dc3545', '#6f42c1', '#ffc107'] }] }
                 });
 
                 chartGlobalInst = new Chart(document.getElementById('chartGlobal'), {
                     type: 'pie',
-                    data: { labels: ['En Curso (Total)', 'Confirmadas', 'Suspendidas'], datasets: [{ data: [counts['Pendiente procesar']+counts['Pendiente validación por profe']+counts['Pendiente validación por alumno'], counts['Agenda confirmada'], counts['Agenda suspendida']], backgroundColor: ['#3498db', '#2ecc71', '#7f8c8d'] }] }
+                    data: { labels: ['En Curso (Total)', 'Confirmadas', 'Suspendidas'], datasets: [{ data: [counts['Pendiente procesar']+counts['Pendiente validación por profe']+counts['Pendiente validación por alumno'], counts['Agenda confirmada'], counts['Agenda suspendida']], backgroundColor: ['#17a2b8', '#28a745', '#6c757d'] }] }
                 });
             } catch(e) { console.error(e); }
         }
 
-        document.getElementById('chart-box-gestiones').addEventListener('click', () => { document.querySelector('[data-vista="Gestiones en Curso"]').click(); });
-        document.getElementById('chart-box-general').addEventListener('click', () => { document.querySelector('[data-vista="Agendas Confirmadas"]').click(); });
-
-        // === EVENT DELEGATION (Clicks Generales) ===
+        // === EVENT DELEGATION ===
         document.addEventListener('click', async (e) => {
             const target = e.target;
             
-            // 1. Selector de Estado Rápido
             if(target.classList.contains('select-estado')) return;
 
-            // 2. Editar Alumno (Acordeón)
+            // Eliminar Alumno (desde cruz en tarjeta)
+            if (target.classList.contains('btn-eliminar-alumno')) {
+                e.stopPropagation();
+                if(confirm("¿Eliminar este alumno por completo?")) {
+                    const id = target.closest('.alumno-item').getAttribute('data-id');
+                    await deleteDoc(doc(db, "alumnos", id));
+                    cargarVista(estadoActualVista);
+                }
+                return;
+            }
+
+            // Editar Alumno (Acordeón)
             const headerAl = target.closest('.btn-editar-alumno');
             if (headerAl) {
                 const id = headerAl.getAttribute('data-id');
@@ -679,7 +651,6 @@
                 wrap.style.display = 'none';
                 document.querySelectorAll('[id^="accordion-"]').forEach(el => el.style.display = 'none');
                 
-                document.getElementById('alumno-id').value = id; // Asegurar ID para evitar duplicados
                 await llenarFormularioAlumno(id);
                 accDiv.appendChild(wrap);
                 document.getElementById('form-titulo').textContent = 'Editar Alumno';
@@ -687,43 +658,30 @@
                 return;
             }
 
-            // 3. Buscar Agenda (Modal)
+            // Buscar Agenda (Modal nativo sin Flatpickr)
             if (target.classList.contains('btn-buscar-agenda')) {
                 if(!googleAccessToken) { document.getElementById('btn-conectar-cal').style.display='inline-block'; return alert("Requiere token. Conecta el calendario arriba."); }
                 alumnoIdActual = target.getAttribute('data-id');
                 const modal = document.getElementById('modal-agenda');
                 const resDiv = document.getElementById('resultados-agenda');
-                resDiv.innerHTML = '<p>Cargando disponibilidad del alumno...</p>';
-                modal.showModal();
+                
+                // Set defaults html nativo
+                const hoy = new Date(); const d7 = new Date(); d7.setDate(d7.getDate()+7);
+                document.getElementById('agenda-start').value = hoy.toISOString().split('T')[0];
+                document.getElementById('agenda-end').value = d7.toISOString().split('T')[0];
 
                 try {
-                    const al = (await getDoc(doc(db, "alumnos", alumnoIdActual))).data();
-                    const dMap = { 'D':0, 'L':1, 'M':2, 'X':3, 'J':4, 'V':5, 'S':6 };
-                    const diasHab = [];
-                    for (const [l, arr] of Object.entries(al.disponibilidad)) { if (arr && arr.length > 0) diasHab.push(dMap[l]); }
-                    
-                    const fConfig = {
-                        disable: [ function(date) { return date.getDay() === 0 || !diasHab.includes(date.getDay()); } ],
-                        locale: "es", dateFormat: "Y-m-d", defaultDate: new Date(),
-                        appendTo: document.getElementById('modal-agenda') // Corrige el z-index de Flatpickr
-                    };
-                    if(fpStart) fpStart.destroy(); if(fpEnd) fpEnd.destroy();
-                    fpStart = flatpickr("#agenda-start", fConfig);
-                    
-                    const fConfigEnd = {...fConfig}; const d7 = new Date(); d7.setDate(d7.getDate()+7); fConfigEnd.defaultDate = d7;
-                    fpEnd = flatpickr("#agenda-end", fConfigEnd);
-
                     const selectProfe = document.getElementById('agenda-profe-filtro');
                     selectProfe.innerHTML = '<option value="">Todos los profesores habilitados</option>';
                     const pSnap = await getDocs(collection(db, "profesores"));
                     pSnap.forEach(p => { if(p.data().entrevista) selectProfe.innerHTML += `<option value="${p.id}">${p.data().nombre}</option>`; });
                     
                     resDiv.innerHTML = '<p>Selecciona el rango y haz clic en Buscar.</p>';
-                } catch(err) { console.error(err); resDiv.innerHTML = '<p>Error al leer alumno.</p>'; }
+                    modal.showModal();
+                } catch(err) { console.error(err); resDiv.innerHTML = '<p>Error.</p>'; }
                 return;
             }
 
-            // 4. Bloquear Preventivamente
             if (target.classList.contains('btn-bloquear-agenda')) {
                 if(confirm("¿Reservar preventivamente este horario en tu calendario central?")) {
                     const id = target.getAttribute('data-id');
@@ -739,14 +697,12 @@
                 return;
             }
 
-            // 5. Validar Alumno (Copiar WP)
             if (target.classList.contains('btn-validar-alumno')) {
                 const id = target.getAttribute('data-id');
                 try {
                     const al = (await getDoc(doc(db, "alumnos", id))).data();
                     let aliasP = '';
                     if (al.reserva_profe_id) { const pDoc = await getDoc(doc(db, "profesores", al.reserva_profe_id)); if(pDoc.exists()) aliasP = pDoc.data().alias_transferencia||''; }
-                    
                     const txt = reemplazarVariables(configApp.texto_alumno, { fecha_hora: al.reserva_fecha_texto, profe: al.reserva_profe_nombre, valor: configApp.valor_clase, alias_profe: aliasP });
                     await navigator.clipboard.writeText(txt);
                     
@@ -756,14 +712,12 @@
                         const tit = reemplazarVariables(configApp.formato_evento_reserva, { profe: al.reserva_profe_nombre, alumno: al.nombre, instrumento: instStr });
                         evId = (await crearEventoCalendario('productora.mandalahouse@gmail.com', tit, al.reserva_inicio, al.reserva_fin)).id;
                     }
-                    
                     await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente validación por alumno", id_evento_reserva: evId });
-                    alert("Texto copiado al portapapeles y reserva procesada."); cargarVista(estadoActualVista);
-                } catch(e) { console.error(e); alert("Error API Calendar."); }
+                    alert("Texto copiado y reserva procesada."); cargarVista(estadoActualVista);
+                } catch(e) { console.error(e); alert("Error API."); }
                 return;
             }
 
-            // 6. Confirmar Entrevista
             if (target.classList.contains('btn-confirmar-entrevista')) {
                 const id = target.getAttribute('data-id');
                 try {
@@ -771,76 +725,46 @@
                     const instStr = Array.isArray(al.instrumento) ? al.instrumento.join('/') : al.instrumento;
                     const descP = al.descripcion ? al.descripcion.replace(/<[^>]*>?/gm, '').trim() : '';
                     const tit = reemplazarVariables(configApp.formato_evento_confirmado, { instrumento: instStr, alumno: al.nombre, edad: al.edad||'' });
-                    
                     await actualizarEventoCalendario('productora.mandalahouse@gmail.com', al.id_evento_reserva, tit, descP);
                     await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Agenda confirmada" });
-                    alert("¡Confirmada y actualizada en Calendar!"); cargarVista(estadoActualVista);
-                } catch(e) { console.error(e); alert("Error al actualizar Calendar."); }
+                    alert("¡Confirmada!"); cargarVista(estadoActualVista);
+                } catch(e) { console.error(e); alert("Error al actualizar."); }
                 return;
             }
 
-            // 7. Suspender
-            if (target.classList.contains('btn-abrir-suspender')) {
-                document.getElementById('susp-alumno-id').value = target.getAttribute('data-id');
-                document.getElementById('susp-motivo').value = "";
-                document.getElementById('modal-suspender').showModal();
-                return;
-            }
-
-            // 8. Cancelar Confirmación
-            if (target.classList.contains('btn-cancelar-agenda')) {
-                if (confirm("¿Deshacer confirmación? Eliminará el evento en Calendar y volverá a Sin Agendar.")) {
-                    const id = target.getAttribute('data-id');
-                    try {
-                        const al = (await getDoc(doc(db, "alumnos", id))).data();
-                        if (al.id_evento_reserva) await eliminarEventoCalendario('productora.mandalahouse@gmail.com', al.id_evento_reserva);
-                        await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente procesar", reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null });
-                        cargarVista(estadoActualVista);
-                    } catch(e) { console.error(e); alert("Error al cancelar."); }
-                }
-                return;
-            }
-
-            // 9. Recuperar Suspendido
-            if (target.classList.contains('btn-recuperar-agenda')) {
-                const id = target.getAttribute('data-id');
-                await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente procesar", motivo_suspension: null });
-                cargarVista(estadoActualVista);
-                return;
-            }
-
-            // 10. Cerrar Modales (Genérico)
-            if (target.classList.contains('btn-cerrar-modal')) {
-                document.getElementById(target.getAttribute('data-modal')).close();
-                return;
-            }
+            if (target.classList.contains('btn-abrir-suspender')) { document.getElementById('susp-alumno-id').value = target.getAttribute('data-id'); document.getElementById('susp-motivo').value = ""; document.getElementById('modal-suspender').showModal(); return; }
+            if (target.classList.contains('btn-recuperar-agenda')) { await updateDoc(doc(db, "alumnos", target.getAttribute('data-id')), { estado_agenda: "Pendiente procesar", motivo_suspension: null }); cargarVista(estadoActualVista); return; }
+            if (target.classList.contains('btn-cerrar-modal')) { document.getElementById(target.getAttribute('data-modal')).close(); return; }
             
-            // 11. Ejecutar Búsqueda Agenda API
+            // Ejecutar Búsqueda Agenda
             if (target.id === 'btn-ejecutar-busqueda') {
-                const resDiv = document.getElementById('resultados-agenda');
-                const dStrStart = document.getElementById('agenda-start').value;
-                const dStrEnd = document.getElementById('agenda-end').value;
-                const fProf = document.getElementById('agenda-profe-filtro').value;
+                const resDiv = document.getElementById('resultados-agenda'), dStrStart = document.getElementById('agenda-start').value, dStrEnd = document.getElementById('agenda-end').value, fProf = document.getElementById('agenda-profe-filtro').value;
                 if(!dStrStart || !dStrEnd) return alert("Fechas inválidas.");
                 
-                resDiv.innerHTML = '<p>Cruzando datos con Calendar...</p>';
+                resDiv.innerHTML = '<p>Buscando...</p>';
                 try {
                     const al = (await getDoc(doc(db, "alumnos", alumnoIdActual))).data();
                     const arrI = Array.isArray(al.instrumento) ? al.instrumento : [al.instrumento];
                     const esBat = arrI.some(i => i.toLowerCase().includes('bater'));
                     
+                    // Validar si puso un rango dentro de dias bloqueados por el alumno
+                    const dMap = { 'D':0, 'L':1, 'M':2, 'X':3, 'J':4, 'V':5, 'S':6 };
+                    const diasHab = []; for (const [l, arr] of Object.entries(al.disponibilidad)) { if (arr && arr.length > 0) diasHab.push(dMap[l]); }
+                    
+                    const dS = new Date(dStrStart+'T00:00:00'), dE = new Date(dStrEnd+'T23:59:59');
+                    // Checkeamos si todos los dias del rango solicitado son domingos o invalidos.
+                    let algunValido = false;
+                    for(let x = new Date(dS); x <= dE; x.setDate(x.getDate()+1)) { if(x.getDay()!==0 && diasHab.includes(x.getDay())) algunValido=true; }
+                    if(!algunValido) return resDiv.innerHTML = '<p style="color:#dc3545;"><b>Aviso:</b> El rango elegido solo abarca días domingos o días que el alumno marcó como "No disponible". Cambia las fechas.</p>';
+
                     const pS = await getDocs(collection(db, "profesores"));
                     const profes = [];
                     pS.forEach(p => { const d=p.data(); if(d.correo_calendario && d.entrevista && (!fProf || p.id === fProf)) profes.push({ id: p.id, nombre: d.nombre, calId: d.correo_calendario }); });
                     if(profes.length===0) return resDiv.innerHTML = '<p>No hay profes habilitados.</p>';
 
-                    const dS = new Date(dStrStart+'T00:00:00'), dE = new Date(dStrEnd+'T23:59:59');
                     let allEv = [];
                     for(const pr of profes) {
-                        try {
-                            const data = await getEventosCalendario(pr.calId, dS.toISOString(), dE.toISOString());
-                            if(data.items) allEv = allEv.concat(data.items.map(ev => ({...ev, profeId: pr.id})));
-                        } catch(e){}
+                        try { const data = await getEventosCalendario(pr.calId, dS.toISOString(), dE.toISOString()); if(data.items) allEv = allEv.concat(data.items.map(ev => ({...ev, profeId: pr.id}))); } catch(e){}
                     }
 
                     const opts = generarOpcionesAgenda(al.disponibilidad, allEv, esBat, profes, dS, dE, configApp);
@@ -848,36 +772,27 @@
                     else resDiv.innerHTML = opts.map(op => `
                         <div class="opcion-horario">
                             <span>${op.fechaTextoAmi} (${op.profeNombre})</span>
-                            <button class="btn-seleccionar-profe btn-accion-flujo" data-calid="${op.calId}" data-profe="${op.profeNombre}" data-profeid="${op.profeId}" data-start="${op.inicioData}" data-end="${op.finData}" data-fechatxt="${op.fechaTextoAmi}">Validar con Profe</button>
+                            <button class="btn-seleccionar-profe btn-accion-main" data-calid="${op.calId}" data-profe="${op.profeNombre}" data-profeid="${op.profeId}" data-start="${op.inicioData}" data-end="${op.finData}" data-fechatxt="${op.fechaTextoAmi}">Validar con Profe</button>
                         </div>`).join('');
                 } catch(e) { console.error(e); resDiv.innerHTML='<p>Error.</p>'; }
                 return;
             }
             
-            // 12. Validar Profe (Seleccionar opcion de busqueda)
+            // Validar Profe
             if (target.classList.contains('btn-seleccionar-profe')) {
                 try {
                     const al = (await getDoc(doc(db, "alumnos", alumnoIdActual))).data();
                     const iS = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento;
                     const dP = al.descripcion ? al.descripcion.replace(/<[^>]*>?/gm, '').trim() : '';
-                    
                     const txt = reemplazarVariables(configApp.texto_profe, { fecha_hora: target.getAttribute('data-fechatxt'), nombre: al.nombre, edad: al.edad||'-', instrumento: iS, suscripcion: al.tipo_suscripcion, descripcion: dP });
                     await navigator.clipboard.writeText(txt);
-                    
-                    await updateDoc(doc(db, "alumnos", alumnoIdActual), {
-                        estado_agenda: "Pendiente validación por profe",
-                        reserva_profe_id: target.getAttribute('data-profeid'), reserva_profe_nombre: target.getAttribute('data-profe'),
-                        reserva_cal_id: target.getAttribute('data-calid'), reserva_fecha_texto: target.getAttribute('data-fechatxt'),
-                        reserva_inicio: target.getAttribute('data-start'), reserva_fin: target.getAttribute('data-end')
-                    });
-                    
-                    alert("Copiado al portapapeles. Estado avanzado.");
-                    document.getElementById('modal-agenda').close(); cargarVista(estadoActualVista);
+                    await updateDoc(doc(db, "alumnos", alumnoIdActual), { estado_agenda: "Pendiente validación por profe", reserva_profe_id: target.getAttribute('data-profeid'), reserva_profe_nombre: target.getAttribute('data-profe'), reserva_cal_id: target.getAttribute('data-calid'), reserva_fecha_texto: target.getAttribute('data-fechatxt'), reserva_inicio: target.getAttribute('data-start'), reserva_fin: target.getAttribute('data-end') });
+                    alert("Copiado. Estado avanzado."); document.getElementById('modal-agenda').close(); cargarVista(estadoActualVista);
                 } catch(e) { console.error(e); }
                 return;
             }
             
-            // 13. Nuevo Alumno / Cierre Forms
+            // Nuevo Alumno
             if (target.id === 'btn-nuevo-alumno') {
                 const wrap = document.getElementById('form-alumno-wrapper');
                 document.getElementById('modal-alta-alumno').appendChild(wrap);
@@ -887,31 +802,33 @@
                 await cargarSelectsAlumnos(); document.getElementById('modal-alta-alumno').showModal();
                 return;
             }
-            if (target.id === 'btn-cerrar-alumno') {
-                document.getElementById('form-alumno-wrapper').style.display = 'none';
-                document.getElementById('modal-alta-alumno').close();
+            if (target.id === 'btn-cerrar-alumno') { document.getElementById('form-alumno-wrapper').style.display = 'none'; document.getElementById('modal-alta-alumno').close(); return; }
+            if (target.classList.contains('btn-cancelar-agenda')) {
+                if (confirm("¿Deshacer confirmación? Volverá a Sin Agendar.")) {
+                    const id = target.getAttribute('data-id');
+                    try {
+                        const al = (await getDoc(doc(db, "alumnos", id))).data();
+                        if (al.id_evento_reserva) await eliminarEventoCalendario('productora.mandalahouse@gmail.com', al.id_evento_reserva);
+                        await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente procesar", reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null });
+                        cargarVista(estadoActualVista);
+                    } catch(e) { console.error(e); alert("Error."); }
+                }
                 return;
             }
         });
 
-        // 'change' event para el select de estados manual
         document.addEventListener('change', async (e) => {
             if (e.target.classList.contains('select-estado')) {
-                const id = e.target.getAttribute('data-id'), nEst = e.target.value;
-                const ud = { estado_agenda: nEst };
+                const id = e.target.getAttribute('data-id'), nEst = e.target.value, ud = { estado_agenda: nEst };
                 if (nEst === 'Pendiente procesar') { ud.reserva_profe_id = null; ud.reserva_profe_nombre = null; ud.reserva_cal_id = null; ud.reserva_fecha_texto = null; ud.reserva_inicio = null; ud.reserva_fin = null; ud.id_evento_reserva = null; }
                 await updateDoc(doc(db, "alumnos", id), ud); cargarVista(estadoActualVista);
             }
         });
 
-        // Formulario Guardar Suspensión
         document.getElementById('btn-guardar-suspension').addEventListener('click', async () => {
             const id = document.getElementById('susp-alumno-id').value, mtv = document.getElementById('susp-motivo').value;
             if(!mtv) return alert("Seleccione motivo");
-            try {
-                const al = (await getDoc(doc(db, "alumnos", id))).data();
-                if (al.id_evento_reserva) await eliminarEventoCalendario('productora.mandalahouse@gmail.com', al.id_evento_reserva);
-            } catch(e){}
+            try { const al = (await getDoc(doc(db, "alumnos", id))).data(); if (al.id_evento_reserva) await eliminarEventoCalendario('productora.mandalahouse@gmail.com', al.id_evento_reserva); } catch(e){}
             await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Agenda suspendida", motivo_suspension: mtv, reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null });
             document.getElementById('modal-suspender').close(); cargarVista(estadoActualVista);
         });
@@ -925,7 +842,7 @@
         }
 
         async function llenarFormularioAlumno(id) {
-            document.getElementById('alumno-id').value = id; // Asegurar ID
+            document.getElementById('alumno-id').value = id; 
             const d = (await getDoc(doc(db, "alumnos", id))).data();
             document.getElementById('nombre').value = d.nombre; document.getElementById('celular').value = d.celular; document.getElementById('edad').value = d.edad||'';
             await cargarSelectsAlumnos();
@@ -935,8 +852,8 @@
             diasSemana.forEach(dia => {
                 const dD = d.disponibilidad[dia.id], tI = document.getElementById(`disp-${dia.id}-inicio`), tF = document.getElementById(`disp-${dia.id}-fin`), cA = document.getElementById(`disp-${dia.id}-all`), cN = document.getElementById(`disp-${dia.id}-none`), sE = document.getElementById(`estado-${dia.id}`);
                 tI.disabled=false; tF.disabled=false; cA.checked=false; cN.checked=false; sE.textContent="";
-                if (!dD || dD.length===0) { cN.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="No disponible"; sE.style.color="#c0392b"; }
-                else if (dD[0].inicio==='09:00' && dD[0].fin==='22:00') { cA.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Disponible todo el día"; sE.style.color="#27ae60"; }
+                if (!dD || dD.length===0) { cN.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Bloqueado"; sE.style.color="#dc3545"; }
+                else if (dD[0].inicio==='09:00' && dD[0].fin==='22:00') { cA.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Libre"; sE.style.color="#28a745"; }
                 else { tI.value = dD[0].inicio; tF.value = dD[0].fin; }
             });
         }
@@ -967,19 +884,18 @@
             cont.innerHTML = `
                 <div class="abm-container" style="max-width:800px;">
                     <h3 style="margin-top:0; color:#333;">Límites y Reglas de Calendario</h3>
-                    <div style="display:flex; gap:15px; margin-bottom:20px;">
-                        <div><label>Aulas totales:<br><input type="number" id="cfg-aulas" value="${configApp.cantidad_aulas}" style="width:100px;"></label></div>
-                        <div><label>Baterías totales:<br><input type="number" id="cfg-bats" value="${configApp.cantidad_baterias}" style="width:100px;"></label></div>
-                        <div style="flex-grow:1;"><label>Filtro eventos de Batería en Calendar (Emoji/Texto):<br><input type="text" id="cfg-idbat" value="${configApp.identificador_bateria}"></label></div>
+                    <div style="display:flex; gap:15px; margin-bottom:20px; flex-wrap:wrap;">
+                        <div style="flex:1; min-width:150px;"><label style="display:block; font-weight:600;">Aulas totales:<br><input type="number" id="cfg-aulas" value="${configApp.cantidad_aulas}"></label></div>
+                        <div style="flex:1; min-width:150px;"><label style="display:block; font-weight:600;">Baterías totales:<br><input type="number" id="cfg-bats" value="${configApp.cantidad_baterias}"></label></div>
+                        <div style="flex:1; min-width:200px;"><label style="display:block; font-weight:600;">Tag Calendario (Batería):<br><input type="text" id="cfg-idbat" value="${configApp.identificador_bateria}"></label></div>
                     </div>
-                    
                     <h3 style="margin-top:0; color:#333; border-top:1px solid #eee; padding-top:15px;">Mensajes y Textos</h3>
-                    <label style="display:block; margin-bottom:15px;">Valor de Clase (Monto): <input type="text" id="cfg-valor" value="${configApp.valor_clase}"></label>
-                    <label style="display:block; margin-bottom:15px;">Título de Evento para Reservas Previas: <input type="text" id="cfg-evt-res" value="${configApp.formato_evento_reserva}"></label>
-                    <label style="display:block; margin-bottom:15px;">Título de Evento Confirmado: <input type="text" id="cfg-evt-conf" value="${configApp.formato_evento_confirmado}"></label>
-                    <label style="display:block; margin-bottom:15px;">Texto Validación con Profe: <textarea id="cfg-txt-p" class="config-box">${configApp.texto_profe}</textarea></label>
-                    <label style="display:block; margin-bottom:15px;">Texto Validación con Alumno: <textarea id="cfg-txt-a" class="config-box">${configApp.texto_alumno}</textarea></label>
-                    <button id="btn-guardar-cfg" class="btn-accion-flujo" style="padding:10px 20px; font-size:1em;">Guardar Configuración</button>
+                    <label style="display:block; margin-bottom:15px; font-weight:600;">Valor de Clase (Monto): <input type="text" id="cfg-valor" value="${configApp.valor_clase}"></label>
+                    <label style="display:block; margin-bottom:15px; font-weight:600;">Título Evento (Reserva): <input type="text" id="cfg-evt-res" value="${configApp.formato_evento_reserva}"></label>
+                    <label style="display:block; margin-bottom:15px; font-weight:600;">Título Evento (Confirmado): <input type="text" id="cfg-evt-conf" value="${configApp.formato_evento_confirmado}"></label>
+                    <label style="display:block; margin-bottom:15px; font-weight:600;">Texto Validación con Profe: <textarea id="cfg-txt-p" class="config-box">${configApp.texto_profe}</textarea></label>
+                    <label style="display:block; margin-bottom:15px; font-weight:600;">Texto Validación con Alumno: <textarea id="cfg-txt-a" class="config-box">${configApp.texto_alumno}</textarea></label>
+                    <button id="btn-guardar-cfg" class="btn-accion-main" style="padding:10px 20px; font-size:1em;">Guardar Configuración</button>
                 </div>
             `;
             document.getElementById('btn-guardar-cfg').addEventListener('click', async () => {
@@ -993,21 +909,21 @@
             try {
                 const qS = await getDocs(collection(db, coleccion));
                 let h = `<div class="abm-container" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                            <input type="text" id="input-nuevo-abm" placeholder="Nombre">`;
+                            <input type="text" id="input-nuevo-abm" placeholder="Nombre" style="width:auto; flex-grow:1; min-width:150px;">`;
                 if(coleccion === 'profesores') { 
-                    h += `<input type="email" id="input-correo-abm" placeholder="Email Calendario">
-                          <input type="text" id="input-alias-abm" placeholder="Alias">
-                          <label style="white-space:nowrap; cursor:pointer;"><input type="checkbox" id="input-entrevista-abm" checked> Entrevistas</label>`; 
+                    h += `<input type="email" id="input-correo-abm" placeholder="Email Calendario" style="width:auto; flex-grow:1; min-width:200px;">
+                          <input type="text" id="input-alias-abm" placeholder="Alias" style="width:auto; flex-grow:1; min-width:150px;">
+                          <label style="white-space:nowrap; cursor:pointer; font-weight:600;"><input type="checkbox" id="input-entrevista-abm" checked> Entrevistas</label>`; 
                 }
-                h += `<button id="btn-guardar-abm" class="btn-accion-flujo" style="margin-left:auto;">+ Agregar Nuevo</button>
+                h += `<button id="btn-guardar-abm" class="btn-accion-main" style="margin-left:auto; height:38px; margin-top:5px;">+ Nuevo</button>
                       </div>`;
                 
                 qS.forEach(d => {
                     const dt = d.data();
-                    let ex = coleccion==='profesores' ? ` (${dt.correo_calendario}) <span class="badge ${dt.entrevista?'bg-success':'bg-danger'}" style="margin-left:10px;">${dt.entrevista?'SÍ':'NO'} Entrevistas</span>` : '';
+                    let ex = coleccion==='profesores' ? ` <br><small style="color:#6c757d;">${dt.correo_calendario}</small> <span class="badge ${dt.entrevista?'badge-success':'badge-danger'}" style="margin-left:10px;">${dt.entrevista?'SÍ':'NO'} Entrevistas</span>` : '';
                     h += `<div class="abm-item" onclick="abrirEdicionABM('${d.id}', '${coleccion}', '${dt.nombre}', '${dt.correo_calendario||''}', '${dt.alias_transferencia||''}', ${!!dt.entrevista})">
-                            <span><strong>${dt.nombre}</strong>${ex}</span>
-                            <button class="btn-suspender" onclick="event.stopPropagation(); eliminarABM('${d.id}', '${coleccion}')" style="padding:4px 8px;">❌</button>
+                            <span style="font-weight:600; color:#212529;">${dt.nombre}${ex}</span>
+                            <button class="btn-suspender" onclick="event.stopPropagation(); eliminarABM('${d.id}', '${coleccion}')" style="padding:4px 8px; border:none;">❌</button>
                           </div>`;
                 });
                 cont.innerHTML = h;
