@@ -59,9 +59,13 @@
         #btn-conectar-cal { background: #ffc107; color: #000; border: none; padding: 6px 12px; border-radius: 6px; font-weight:600; cursor:pointer; display:none; font-size:0.85em;}
         #btn-logout { cursor: pointer; padding: 6px 12px; background: transparent; color: var(--color-text-mut); border: 1px solid var(--border-color); border-radius: 6px; font-weight:600; font-size:0.85em;}
         
-        .vista-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;}
+        .vista-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:10px;}
         #vista-titulo { margin:0; font-size:1.6em; color:#212529; font-weight:700;}
         #btn-nuevo-alumno { padding:8px 16px; background:var(--primary); color:white; border:none; cursor:pointer; border-radius:6px; font-weight:600; font-size:0.95em;}
+        
+        /* Buscador General */
+        .search-container { margin-bottom: 20px; width: 100%; max-width: 400px; }
+        #input-buscador-general { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ced4da; font-size: 1em; box-sizing: border-box;}
 
         .board-container { display: flex; gap: 20px; align-items: flex-start; overflow-x: auto; flex-grow: 1; padding-bottom:10px; width:100%;}
         .board-column { flex: 1; min-width: 300px; display: flex; flex-direction: column; gap: 15px; max-height: 100%; overflow-y:auto; background:#fdfdfd; padding:15px; border-radius:8px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.04);}
@@ -87,9 +91,11 @@
         .btn-accion-flujo:hover { background: #dde2e6; }
         .btn-accion-main { background: var(--primary); color: white; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size:0.85em;}
         .btn-secundario { background: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size:0.85em; }
-        .btn-suspender { background: transparent; color: #dc3545; padding: 6px 12px; border: 1px solid #dc3545; border-radius: 6px; cursor: pointer; font-size:0.85em; font-weight:600;}
+        .btn-suspender { background: transparent; color: #6c757d; padding: 6px 12px; border: 1px solid #6c757d; border-radius: 6px; cursor: pointer; font-size:0.85em; font-weight:600;}
         .btn-violeta { background: #e2d9f3; color: #495057; padding: 6px 12px; border: 1px solid #d0c5e3; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.85em; transition: 0.2s; }
         .btn-violeta:hover { background: #d0c5e3; }
+        .btn-verde-claro { background: #2ecc71; color: white; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.85em; transition: 0.2s; }
+        .btn-verde-claro:hover { background: #27ae60; }
         .btn-bloquear-agenda { font-size:0.85em; background:#f8f9fa; border:1px solid #ccc; padding:6px 12px; border-radius:6px; cursor:pointer; color:#333; font-weight:600;}
         
         .lista-generica { width: 100%; display:flex; flex-direction:column; gap:15px; }
@@ -160,6 +166,11 @@
                 <h2 id="vista-titulo">Gestiones en Curso</h2>
                 <button id="btn-nuevo-alumno">+ Nuevo alumno</button>
             </div>
+
+            <!-- BUSCADOR GENERAL ALUMNOS -->
+            <div class="search-container" id="search-container-general" style="display:none;">
+                <input type="text" id="input-buscador-general" placeholder="Buscar alumno por nombre...">
+            </div>
             
             <div id="contenedor-principal" style="display:flex; flex-grow:1; flex-direction:column; overflow:hidden;">
                 
@@ -194,7 +205,6 @@
         </main>
     </div>
 
-    <!-- Acordeón Formulario Edición/Alta -->
     <div id="form-alumno-wrapper" style="display:none; background:#fff; padding:20px; border-radius:8px; border:1px solid #ced4da; margin-top:10px;">
         <h3 id="form-titulo" style="margin-top:0; color:#212529; font-size:1.1em;">Datos del Alumno</h3>
         <form id="form-alumno">
@@ -249,6 +259,10 @@
             </div>
             <button id="btn-ejecutar-busqueda" style="background:var(--primary); color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:600; height:38px;">Buscar</button>
         </div>
+        
+        <!-- Buscador dentro del popup -->
+        <input type="text" id="input-buscador-popup" placeholder="Filtrar por horario, día o profe..." style="margin-bottom: 15px; width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ced4da; box-sizing: border-box; display:none;">
+        
         <div id="resultados-agenda" style="margin-bottom:15px; max-height:45vh; overflow-y:auto; padding-right:5px;"></div>
         <div style="text-align:right;">
             <button type="button" class="btn-cerrar-modal" data-modal="modal-agenda" style="padding:8px 16px; border:none; border-radius:6px; cursor:pointer; background:#e9ecef; font-weight:600; color:#495057;">Cerrar</button>
@@ -551,6 +565,25 @@
             });
         });
 
+        // === BUSCADORES EN TIEMPO REAL ===
+        // Buscador General (Lista de Alumnos)
+        document.getElementById('input-buscador-general').addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            document.querySelectorAll('.alumno-item').forEach(item => {
+                const nombre = item.querySelector('strong').textContent.toLowerCase();
+                item.style.display = nombre.includes(query) ? 'flex' : 'none';
+            });
+        });
+
+        // Buscador Popup Agenda
+        document.getElementById('input-buscador-popup').addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            document.querySelectorAll('.opcion-horario').forEach(item => {
+                const texto = item.querySelector('span').textContent.toLowerCase();
+                item.style.display = texto.includes(query) ? 'flex' : 'none';
+            });
+        });
+
         // === RENDER TARJETAS ===
         function generarTarjetaAlumno(al, id, vista) {
             const instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento;
@@ -569,12 +602,12 @@
                     acciones += `<button class="btn-abrir-suspender btn-suspender" data-id="${id}">Suspender</button>`;
                 } else if (al.estado_agenda === 'Pendiente validación por profe') {
                     acciones += `<button class="btn-confirmada-profe btn-violeta" data-id="${id}">Agenda confirmada por profesor</button>`;
-                    acciones += `<button class="btn-reenviar-profe btn-secundario" data-id="${id}">Re-enviar validación</button>`;
+                    acciones += `<button class="btn-reenviar-profe btn-verde-claro" data-id="${id}">Re-enviar validación</button>`;
                     acciones += `<button class="btn-cancelar-reserva btn-suspender" data-id="${id}">Cancelar Validación</button>`;
                     acciones += `<button class="btn-abrir-suspender btn-suspender" data-id="${id}">Suspender</button>`;
                 } else if (al.estado_agenda === 'Pendiente validación por alumno') {
                     acciones += `<button class="btn-confirmar-entrevista btn-accion-main" data-id="${id}">Confirmar Agenda</button>`;
-                    acciones += `<button class="btn-reenviar-alumno btn-secundario" data-id="${id}">Re-Enviar validación p/alumno</button>`;
+                    acciones += `<button class="btn-reenviar-alumno btn-verde-claro" data-id="${id}">Re-Enviar validación p/alumno</button>`;
                     acciones += `<button class="btn-cancelar-reserva btn-suspender" data-id="${id}">Cancelar Agenda</button>`;
                     acciones += `<button class="btn-abrir-suspender btn-suspender" data-id="${id}">Suspender</button>`;
                 }
@@ -582,8 +615,8 @@
             } else if (vista === 'Agendas Confirmadas') {
                 extraClass = 'item-confirmada';
                 tags += `<div class="badge badge-success">✅ Confirmado: ${al.reserva_fecha_texto||'-'} (${al.reserva_profe_nombre||'-'})</div>`;
-                acciones += `<button class="btn-enviar-conf-profe btn-accion-flujo" data-id="${id}">Enviar confirmación Profe</button>`;
-                acciones += `<button class="btn-enviar-conf-alumno btn-accion-flujo" data-id="${id}">Enviar confirmación Alumno</button>`;
+                acciones += `<button class="btn-enviar-conf-profe btn-verde-claro" data-id="${id}">Enviar confirmación Profe</button>`;
+                acciones += `<button class="btn-enviar-conf-alumno btn-verde-claro" data-id="${id}">Enviar confirmación Alumno</button>`;
                 acciones += `<button class="btn-cancelar-reserva btn-suspender" data-id="${id}">Deshacer Confirmación</button>`;
             } else if (vista === 'Agendas Suspendidas') {
                 extraClass = 'item-suspendida';
@@ -591,12 +624,6 @@
                 acciones += `<button class="btn-recuperar-agenda btn-accion-main" data-id="${id}">Recuperar Agenda</button>`;
             }
             
-            // Reemplazo visual de los estados
-            let labelEstado = al.estado_agenda;
-            if (labelEstado === 'Pendiente procesar') labelEstado = 'Sin Agendar';
-            else if (labelEstado === 'Pendiente validación por profe') labelEstado = 'Validando Profe';
-            else if (labelEstado === 'Pendiente validación por alumno') labelEstado = 'Validando Alumno';
-
             return `
                 <div class="alumno-item ${extraClass}" data-id="${id}">
                     <div class="alumno-header btn-editar-alumno" data-id="${id}">
@@ -618,22 +645,20 @@
             estadoActualVista = vista;
             document.getElementById('vista-titulo').textContent = vista;
             const btnNuevo = document.getElementById('btn-nuevo-alumno');
+            const searchGen = document.getElementById('search-container-general');
             const contTablero = document.getElementById('tablero-gestiones');
             const contLista = document.getElementById('lista-generica');
             const contEstad = document.getElementById('estadisticas-container');
             
-            // ¡RESCATE DEL FORMULARIO!
-            // Evita que el formulario se destruya si estaba dentro de un acordeón de un alumno al limpiar la lista.
-            const formWrapper = document.getElementById('form-alumno-wrapper');
-            if (formWrapper) {
-                formWrapper.style.display = 'none';
-                document.body.appendChild(formWrapper); 
-            }
-            
-            btnNuevo.style.display = 'none'; contTablero.style.display = 'none'; contLista.style.display = 'none'; contEstad.style.display = 'none';
+            // Ocultar todo y resetear buscadores
+            btnNuevo.style.display = 'none'; searchGen.style.display = 'none'; 
+            contTablero.style.display = 'none'; contLista.style.display = 'none'; contEstad.style.display = 'none';
+            document.getElementById('form-alumno-wrapper').style.display = 'none';
+            document.getElementById('input-buscador-general').value = '';
 
             if (vista === 'Gestiones en Curso') {
-                btnNuevo.style.display = 'block'; contTablero.style.display = 'flex';
+                btnNuevo.style.display = 'block'; searchGen.style.display = 'block'; contTablero.style.display = 'flex';
+                document.getElementById('col-1-content').innerHTML = ''; document.getElementById('col-2-content').innerHTML = ''; document.getElementById('col-3-content').innerHTML = '';
                 
                 try {
                     const refAl = collection(db, "alumnos");
@@ -643,17 +668,17 @@
                         getDocs(query(refAl, where("estado_agenda", "==", "Pendiente validación por alumno")))
                     ]);
                     
-                    document.getElementById('col-1-content').innerHTML = r1.empty ? '' : r1.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
-                    document.getElementById('col-2-content').innerHTML = r2.empty ? '' : r2.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
-                    document.getElementById('col-3-content').innerHTML = r3.empty ? '' : r3.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
+                    if(!r1.empty) document.getElementById('col-1-content').innerHTML = r1.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
+                    if(!r2.empty) document.getElementById('col-2-content').innerHTML = r2.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
+                    if(!r3.empty) document.getElementById('col-3-content').innerHTML = r3.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
                 } catch(e) { console.error(e); }
                 
             } else if (vista === 'Agendas Confirmadas' || vista === 'Agendas Suspendidas') {
-                contLista.style.display = 'flex'; 
+                searchGen.style.display = 'block'; contLista.style.display = 'flex'; contLista.innerHTML = '';
                 try {
                     const estMap = { 'Agendas Confirmadas': 'Agenda confirmada', 'Agendas Suspendidas': 'Agenda suspendida' };
                     const qSnap = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", estMap[vista])));
-                    contLista.innerHTML = qSnap.empty ? '' : qSnap.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
+                    if(!qSnap.empty) contLista.innerHTML = qSnap.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
                 } catch(e) { console.error(e); }
                 
             } else if (vista === 'Estadísticas') {
@@ -735,6 +760,10 @@
                 alumnoIdActual = target.getAttribute('data-id');
                 const modal = document.getElementById('modal-agenda');
                 const resDiv = document.getElementById('resultados-agenda');
+                const inputBuscadorPop = document.getElementById('input-buscador-popup');
+                
+                inputBuscadorPop.style.display = 'none'; inputBuscadorPop.value = '';
+                resDiv.innerHTML = '';
                 
                 const hoy = new Date(); const d7 = new Date(); d7.setDate(d7.getDate()+7);
                 document.getElementById('agenda-start').value = hoy.toISOString().split('T')[0];
@@ -857,6 +886,7 @@
             
             if (target.id === 'btn-ejecutar-busqueda') {
                 const resDiv = document.getElementById('resultados-agenda'), dStrStart = document.getElementById('agenda-start').value, dStrEnd = document.getElementById('agenda-end').value, fProf = document.getElementById('agenda-profe-filtro').value;
+                const inputBuscadorPop = document.getElementById('input-buscador-popup');
                 if(!dStrStart || !dStrEnd) return alert("Fechas inválidas.");
                 
                 resDiv.innerHTML = '<p>Buscando...</p>';
@@ -871,7 +901,7 @@
                     const dS = new Date(dStrStart+'T00:00:00'), dE = new Date(dStrEnd+'T23:59:59');
                     let algunValido = false;
                     for(let x = new Date(dS); x <= dE; x.setDate(x.getDate()+1)) { if(x.getDay()!==0 && diasHab.includes(x.getDay())) algunValido=true; }
-                    if(!algunValido) return resDiv.innerHTML = '<p style="color:#dc3545;"><b>Aviso:</b> El rango elegido solo abarca días domingos o días que el alumno marcó como "No disponible". Cambia las fechas.</p>';
+                    if(!algunValido) { inputBuscadorPop.style.display = 'none'; return resDiv.innerHTML = '<p style="color:#dc3545;"><b>Aviso:</b> El rango elegido solo abarca días domingos o días que el alumno marcó como "No disponible". Cambia las fechas.</p>'; }
 
                     const pS = await getDocs(collection(db, "profesores"));
                     const todosLosProfes = [];
@@ -887,7 +917,7 @@
                         }
                     });
 
-                    if(profesFiltradosIDs.length === 0) return resDiv.innerHTML = '<p>No hay profes habilitados.</p>';
+                    if(profesFiltradosIDs.length === 0) { inputBuscadorPop.style.display = 'none'; return resDiv.innerHTML = '<p>No hay profes habilitados.</p>';}
 
                     let allEv = [];
                     for(const pr of todosLosProfes) {
@@ -898,13 +928,16 @@
                     }
 
                     const opts = generarOpcionesAgenda(al.disponibilidad, allEv, esBat, todosLosProfes, profesFiltradosIDs, dS, dE, configApp);
-                    if(opts.length===0) resDiv.innerHTML='<p>No hay huecos libres que cumplan las condiciones.</p>';
-                    else resDiv.innerHTML = opts.map(op => `
-                        <div class="opcion-horario">
-                            <span>${op.fechaTextoAmi} (${op.profeNombre})</span>
-                            <button class="btn-seleccionar-profe btn-accion-main" data-calid="${op.calId}" data-profe="${op.profeNombre}" data-profeid="${op.profeId}" data-start="${op.inicioData}" data-end="${op.finData}" data-fechatxt="${op.fechaTextoAmi}">Validar con Profe</button>
-                        </div>`).join('');
-                } catch(e) { console.error(e); resDiv.innerHTML='<p>Error.</p>'; }
+                    if(opts.length===0) { inputBuscadorPop.style.display = 'none'; resDiv.innerHTML='<p>No hay huecos libres que cumplan las condiciones.</p>';}
+                    else {
+                        inputBuscadorPop.style.display = 'block';
+                        resDiv.innerHTML = opts.map(op => `
+                            <div class="opcion-horario">
+                                <span>${op.fechaTextoAmi} (${op.profeNombre})</span>
+                                <button class="btn-seleccionar-profe btn-accion-main" data-calid="${op.calId}" data-profe="${op.profeNombre}" data-profeid="${op.profeId}" data-start="${op.inicioData}" data-end="${op.finData}" data-fechatxt="${op.fechaTextoAmi}">Validar con Profe</button>
+                            </div>`).join('');
+                    }
+                } catch(e) { console.error(e); inputBuscadorPop.style.display = 'none'; resDiv.innerHTML='<p>Error.</p>'; }
                 return;
             }
             
@@ -942,7 +975,7 @@
             if (target.id === 'btn-cerrar-alumno') {
                 const wrap = document.getElementById('form-alumno-wrapper');
                 wrap.style.display = 'none'; 
-                document.body.appendChild(wrap); // Seguridad
+                document.body.appendChild(wrap); 
                 document.getElementById('modal-alta-alumno').close(); 
                 return; 
             }
