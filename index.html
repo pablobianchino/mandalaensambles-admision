@@ -92,7 +92,6 @@
 
         .alumno-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding-top: 10px; border-top: 1px dashed #eee; }
         
-        /* Botones de acción mejorados */
         .btn-accion-flujo { background: #e9ecef; color: #495057; padding: 6px 12px; border: 1px solid #ced4da; border-radius: 6px; cursor: pointer; font-weight: 600; font-size:0.85em; transition: 0.2s;}
         .btn-accion-flujo:hover { background: #dde2e6; }
         
@@ -113,7 +112,7 @@
         .lista-generica { width: 100%; display:flex; flex-direction:column; gap:15px; }
 
         /* Dialogos y Componentes Generales */
-        dialog { padding: 25px; border: none; border-radius: 10px; width: 95%; max-width: 700px; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        dialog { padding: 25px; border: none; border-radius: 10px; width: 95%; max-width: 750px; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
         dialog::backdrop { background: rgba(0,0,0,0.5); }
         input[type="text"], input[type="number"], input[type="email"], select, input[type="date"] { padding: 8px 12px; border: 1px solid #ced4da; border-radius:6px; width:100%; box-sizing:border-box; margin-top:5px; font-family:inherit;}
         
@@ -247,10 +246,17 @@
             <h4 style="margin:10px 0 5px 0; color:#495057; font-size:0.95em;">Descripción / Info</h4>
             <div id="editor-container"></div>
             
-            <h4 style="margin:15px 0 10px 0; border-bottom:1px solid #e9ecef; padding-bottom:5px; color:#495057; font-size:0.95em;">Disponibilidad Horaria</h4>
+            <h4 style="margin:25px 0 10px 0; border-bottom:1px solid #e9ecef; padding-bottom:5px; color:#495057; font-size:0.95em;">Disponibilidad Horaria</h4>
             <div id="contenedor-disponibilidad"></div>
+
+            <h4 style="margin:25px 0 10px 0; border-bottom:1px solid #e9ecef; padding-bottom:5px; color:#495057; font-size:0.95em;">Historial de Contacto</h4>
+            <div style="display:flex; gap:10px; margin-bottom:15px; align-items:flex-start;">
+                <textarea id="nueva-nota-texto" rows="2" style="flex-grow:1; resize:vertical; padding:8px; border-radius:6px; border:1px solid #ced4da;" placeholder="Escribe un nuevo registro o nota..."></textarea>
+                <button type="button" id="btn-agregar-nota" class="btn-accion-flujo" style="height:40px; margin-top:0;">Agregar Nota</button>
+            </div>
+            <div id="lista-historial" style="display:flex; flex-direction:column; gap:10px; max-height:220px; overflow-y:auto; padding-right:5px; margin-bottom:15px;"></div>
             
-            <div style="margin-top:20px; display:flex; gap:10px; justify-content:flex-end;">
+            <div style="margin-top:20px; display:flex; gap:10px; justify-content:flex-end; border-top:1px solid #eee; padding-top:15px;">
                 <button type="button" id="btn-cerrar-alumno" style="padding:8px 16px; background:#e9ecef; color:#495057; border:none; cursor:pointer; border-radius:6px; font-weight:600;">Cancelar</button>
                 <button type="submit" style="padding:8px 16px; background:var(--primary); color:white; border:none; cursor:pointer; border-radius:6px; font-weight:600;">Guardar Datos</button>
             </div>
@@ -281,7 +287,7 @@
         <!-- Buscador dentro del popup -->
         <input type="text" id="input-buscador-popup" placeholder="Filtrar resultados (ej. Nacho, 18hs, viernes)..." style="margin-bottom: 15px; width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ced4da; box-sizing: border-box; display:none; outline:none;">
         
-        <div id="resultados-agenda" style="margin-bottom:15px; max-height:45vh; overflow-y:auto; padding-right:5px;"></div>
+        <div id="resultados-agenda" style="margin-bottom:15px; max-height:40vh; overflow-y:auto; padding-right:5px;"></div>
         <div style="text-align:right;">
             <button type="button" class="btn-cerrar-modal" data-modal="modal-agenda" style="padding:8px 16px; border:none; border-radius:6px; cursor:pointer; background:#e9ecef; font-weight:600; color:#495057;">Cerrar</button>
         </div>
@@ -348,6 +354,9 @@
         let configApp = {};
         let chartGestionesInst = null;
         let chartGlobalInst = null;
+        
+        let clipboardDisponibilidad = null; // Para Copiar/Pegar 
+        let historialActual = []; // Historial local del form
 
         // === INICIALIZACIÓN QUILL & DISPONIBILIDAD ===
         const quill = new Quill('#editor-container', { theme: 'snow', modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] } });
@@ -362,31 +371,60 @@
             contDisp.innerHTML += `
                 <div class="dia-disponibilidad">
                     <label>${dia.nombre}:</label>
-                    <input type="time" id="disp-${dia.id}-inicio"> a <input type="time" id="disp-${dia.id}-fin">
+                    <input type="time" id="disp-${dia.id}-inicio"> <span>a</span> <input type="time" id="disp-${dia.id}-fin">
                     <label style="font-weight:normal; width:auto; margin-left:10px; cursor:pointer;"><input type="checkbox" id="disp-${dia.id}-all"> Todo el día</label>
                     <label style="font-weight:normal; width:auto; margin-left:10px; cursor:pointer;"><input type="checkbox" id="disp-${dia.id}-none"> No disp.</label>
-                    <span id="estado-${dia.id}" class="estado-disp"></span>
+                    
+                    <button type="button" class="btn-copy-disp" data-dia="${dia.id}" title="Copiar disponibilidad" style="background:none; border:none; cursor:pointer; font-size:1.1em; margin-left:auto;">📋</button>
+                    <button type="button" class="btn-paste-disp" data-dia="${dia.id}" title="Pegar disponibilidad" style="background:none; border:none; cursor:pointer; font-size:1.1em;">📥</button>
+                    
+                    <span id="estado-${dia.id}" class="estado-disp" style="width:80px; text-align:right;"></span>
                 </div>
             `;
         });
 
-        diasSemana.forEach(dia => {
-            const chkAll = document.getElementById(`disp-${dia.id}-all`), chkNone = document.getElementById(`disp-${dia.id}-none`);
-            const tIni = document.getElementById(`disp-${dia.id}-inicio`), tFin = document.getElementById(`disp-${dia.id}-fin`);
-            const spanE = document.getElementById(`estado-${dia.id}`);
+        window.updateDispStateForDay = function(dId) {
+            const chkAll = document.getElementById(`disp-${dId}-all`), chkNone = document.getElementById(`disp-${dId}-none`);
+            const tIni = document.getElementById(`disp-${dId}-inicio`), tFin = document.getElementById(`disp-${dId}-fin`);
+            const spanE = document.getElementById(`estado-${dId}`);
 
-            function updateDispState(source) {
-                if (source === 'all' && chkAll.checked) {
-                    chkNone.checked = false; tIni.disabled = tFin.disabled = true; tIni.value = tFin.value = '';
-                    spanE.textContent = "Libre"; spanE.style.color = "#28a745";
-                } else if (source === 'none' && chkNone.checked) {
-                    chkAll.checked = false; tIni.disabled = tFin.disabled = true; tIni.value = tFin.value = '';
-                    spanE.textContent = "Bloqueado"; spanE.style.color = "#dc3545";
-                } else { tIni.disabled = tFin.disabled = false; spanE.textContent = ""; }
-            }
-            chkAll.addEventListener('change', () => updateDispState('all'));
-            chkNone.addEventListener('change', () => updateDispState('none'));
+            if (chkAll.checked) {
+                chkNone.checked = false; tIni.disabled = tFin.disabled = true; tIni.value = tFin.value = '';
+                spanE.textContent = "Libre"; spanE.style.color = "#28a745";
+            } else if (chkNone.checked) {
+                chkAll.checked = false; tIni.disabled = tFin.disabled = true; tIni.value = tFin.value = '';
+                spanE.textContent = "Bloqueado"; spanE.style.color = "#dc3545";
+            } else { tIni.disabled = tFin.disabled = false; spanE.textContent = ""; }
+        }
+
+        diasSemana.forEach(dia => {
+            document.getElementById(`disp-${dia.id}-all`).addEventListener('change', () => updateDispStateForDay(dia.id));
+            document.getElementById(`disp-${dia.id}-none`).addEventListener('change', () => updateDispStateForDay(dia.id));
         });
+
+        // Historial Funciones
+        function renderHistorial() {
+            const container = document.getElementById('lista-historial');
+            container.innerHTML = '';
+            if(historialActual.length === 0) {
+                container.innerHTML = '<p style="color:#6c757d; font-size:0.9em; margin:0;">No hay registros en el historial.</p>';
+                return;
+            }
+            const sorted = [...historialActual].sort((a,b) => b.id - a.id);
+            sorted.forEach(nota => {
+                const textoLimpio = nota.texto.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
+                container.innerHTML += `
+                    <div style="background:#f8f9fa; border:1px solid #dee2e6; padding:12px; border-radius:6px; position:relative;">
+                        <div style="font-size:0.8em; color:#6c757d; margin-bottom:5px; font-weight:600;">🕒 ${nota.fecha}</div>
+                        <div style="font-size:0.95em; color:#212529;">${textoLimpio}</div>
+                        <div style="position:absolute; top:10px; right:10px; display:flex; gap:5px;">
+                            <button type="button" class="btn-editar-nota" data-id="${nota.id}" style="background:transparent; border:none; cursor:pointer; font-size:1.1em;" title="Editar">✏️</button>
+                            <button type="button" class="btn-eliminar-nota" data-id="${nota.id}" style="background:transparent; border:none; cursor:pointer; font-size:1.1em;" title="Eliminar">❌</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
 
         // === CONFIGURACIÓN DEFAULT ===
         const defaultCfg = {
@@ -495,8 +533,8 @@
 
         function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, todosLosProfes, profesFiltradosIDs, dStart, dEnd, cfg) {
             const opciones = [], mapaDias = { 0:"D", 1:"L", 2:"M", 3:"X", 4:"J", 5:"V", 6:"S" };
-            const durMs = 60*60*1000; // Duración siempre de 1 hora
-            const slotPasoMs = 30*60*1000; // Avanza cada media hora
+            const durMs = 60*60*1000; 
+            const slotPasoMs = 30*60*1000; 
             const cantAulas = parseInt(cfg.cantidad_aulas)||3, cantBat = parseInt(cfg.cantidad_baterias)||2;
             const diffDays = Math.floor(Math.abs(dEnd - dStart) / (1000*60*60*24));
 
@@ -511,7 +549,6 @@
                         const hIniB = new Date(fEval); hIniB.setHours(parseInt(hIni), parseInt(mIni), 0, 0);
                         const hFinR = new Date(fEval); hFinR.setHours(parseInt(hFin), parseInt(mFin), 0, 0);
 
-                        // Si la hora de inicio es anterior a AHORA, avanzamos al proximo modulo de media hora
                         if (hIniB < new Date()) {
                             let curr = new Date();
                             let m = curr.getMinutes();
@@ -664,7 +701,8 @@
                             tipo_suscripcion: row['Clase'] || '',
                             descripcion: desc,
                             disponibilidad: dispGlobal,
-                            estado_agenda: estadoAgenda
+                            estado_agenda: estadoAgenda,
+                            historial: [] // Inicializar array vacio
                         };
 
                         if (estadoAgenda === 'Pendiente validación por alumno' || estadoAgenda === 'Agenda confirmada') {
@@ -836,7 +874,33 @@
         // === EVENT DELEGATION ===
         document.addEventListener('click', async (e) => {
             const target = e.target;
+            
+            // Copiar / Pegar disponibilidad
+            if (target.classList.contains('btn-copy-disp')) {
+                e.stopPropagation();
+                const d = target.getAttribute('data-dia');
+                clipboardDisponibilidad = {
+                    inicio: document.getElementById(`disp-${d}-inicio`).value,
+                    fin: document.getElementById(`disp-${d}-fin`).value,
+                    all: document.getElementById(`disp-${d}-all`).checked,
+                    none: document.getElementById(`disp-${d}-none`).checked
+                };
+                return;
+            }
 
+            if (target.classList.contains('btn-paste-disp')) {
+                e.stopPropagation();
+                if (!clipboardDisponibilidad) return alert("Primero copia una disponibilidad de otro día usando 📋.");
+                const d = target.getAttribute('data-dia');
+                document.getElementById(`disp-${d}-inicio`).value = clipboardDisponibilidad.inicio;
+                document.getElementById(`disp-${d}-fin`).value = clipboardDisponibilidad.fin;
+                document.getElementById(`disp-${d}-all`).checked = clipboardDisponibilidad.all;
+                document.getElementById(`disp-${d}-none`).checked = clipboardDisponibilidad.none;
+                updateDispStateForDay(d);
+                return;
+            }
+
+            // Eliminar Alumno por completo
             if (target.classList.contains('btn-eliminar-alumno')) {
                 e.stopPropagation();
                 if(confirm("¿Eliminar este alumno por completo? Si tiene un turno en Calendar, también será borrado.")) {
@@ -854,8 +918,40 @@
                 return;
             }
 
+            // Historial Interacciones
+            if (target.id === 'btn-agregar-nota') {
+                const textarea = document.getElementById('nueva-nota-texto');
+                const texto = textarea.value.trim();
+                if(!texto) return;
+                const now = new Date();
+                const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+                historialActual.push({ id: Date.now(), texto: texto, fecha: fechaStr });
+                textarea.value = '';
+                renderHistorial();
+                return;
+            }
+
+            if (target.classList.contains('btn-eliminar-nota')) {
+                const id = parseInt(target.getAttribute('data-id'));
+                historialActual = historialActual.filter(n => n.id !== id);
+                renderHistorial();
+                return;
+            }
+
+            if (target.classList.contains('btn-editar-nota')) {
+                const id = parseInt(target.getAttribute('data-id'));
+                const notaIndex = historialActual.findIndex(n => n.id === id);
+                if (notaIndex !== -1) {
+                    document.getElementById('nueva-nota-texto').value = historialActual[notaIndex].texto;
+                    historialActual.splice(notaIndex, 1);
+                    renderHistorial();
+                }
+                return;
+            }
+
+            // Acordeón Editar Alumno
             const headerAl = target.closest('.btn-editar-alumno');
-            if (headerAl) {
+            if (headerAl && !target.classList.contains('btn-eliminar-alumno')) {
                 const id = headerAl.getAttribute('data-id');
                 const accDiv = document.getElementById(`accordion-${id}`);
                 const wrap = document.getElementById('form-alumno-wrapper');
@@ -915,6 +1011,7 @@
                 return;
             }
             
+            // Boton de Agenda Confirmada por Profe
             if (target.classList.contains('btn-confirmada-profe')) {
                 const id = target.getAttribute('data-id');
                 try {
@@ -1084,6 +1181,7 @@
                 document.getElementById('modal-alta-alumno').appendChild(wrap);
                 wrap.style.display = 'block'; document.getElementById('form-titulo').textContent = 'Nuevo Alumno';
                 document.getElementById('alumno-id').value = ''; document.getElementById('form-alumno').reset(); quill.setContents([]);
+                historialActual = []; renderHistorial();
                 diasSemana.forEach(d => { document.getElementById(`disp-${d.id}-all`).checked=false; document.getElementById(`disp-${d.id}-none`).checked=false; document.getElementById(`estado-${d.id}`).textContent=""; });
                 await cargarSelectsAlumnos(); document.getElementById('modal-alta-alumno').showModal();
                 return;
@@ -1121,6 +1219,9 @@
             const sI = document.getElementById('instrumento'); Array.from(sI.options).forEach(o => o.selected = (d.instrumento||[]).includes(o.value));
             document.getElementById('tipo_suscripcion').value = d.tipo_suscripcion; quill.root.innerHTML = d.descripcion||'';
             
+            historialActual = d.historial || [];
+            renderHistorial();
+            
             diasSemana.forEach(dia => {
                 const dD = d.disponibilidad[dia.id], tI = document.getElementById(`disp-${dia.id}-inicio`), tF = document.getElementById(`disp-${dia.id}-fin`), cA = document.getElementById(`disp-${dia.id}-all`), cN = document.getElementById(`disp-${dia.id}-none`), sE = document.getElementById(`estado-${dia.id}`);
                 tI.disabled=false; tF.disabled=false; cA.checked=false; cN.checked=false; sE.textContent="";
@@ -1141,7 +1242,11 @@
                 else { if(i||f) disp[d.id] = [{inicio: i||'09:00', fin: f||'22:00'}]; else disp[d.id] = []; }
             });
             const selInst = document.getElementById('instrumento'), instV = Array.from(selInst.selectedOptions).map(o=>o.value);
-            const data = { nombre: document.getElementById('nombre').value, celular: document.getElementById('celular').value, edad: Number(document.getElementById('edad').value), instrumento: instV, tipo_suscripcion: document.getElementById('tipo_suscripcion').value, descripcion: quill.root.innerHTML, disponibilidad: disp };
+            const data = { 
+                nombre: document.getElementById('nombre').value, celular: document.getElementById('celular').value, edad: Number(document.getElementById('edad').value), 
+                instrumento: instV, tipo_suscripcion: document.getElementById('tipo_suscripcion').value, descripcion: quill.root.innerHTML, disponibilidad: disp,
+                historial: historialActual
+            };
 
             try {
                 const id = document.getElementById('alumno-id').value;
