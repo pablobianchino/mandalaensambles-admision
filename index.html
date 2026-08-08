@@ -87,7 +87,9 @@
         .btn-accion-flujo:hover { background: #dde2e6; }
         .btn-accion-main { background: var(--primary); color: white; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size:0.85em;}
         .btn-suspender { background: transparent; color: #dc3545; padding: 6px 12px; border: 1px solid #dc3545; border-radius: 6px; cursor: pointer; font-size:0.85em; font-weight:600;}
-        .select-estado { padding: 6px; border-radius: 6px; border: 1px solid #ced4da; font-size:0.85em; width:100%; background:#fff; color:#495057;}
+        .btn-violeta { background: #e2d9f3; color: #495057; padding: 6px 12px; border: 1px solid #d0c5e3; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.85em; transition: 0.2s; }
+        .btn-violeta:hover { background: #d0c5e3; }
+        .btn-bloquear-agenda { font-size:0.85em; background:#f8f9fa; border:1px solid #ccc; padding:6px 12px; border-radius:6px; cursor:pointer; color:#333; font-weight:600;}
         
         .lista-generica { width: 100%; display:flex; flex-direction:column; gap:15px; }
 
@@ -376,6 +378,15 @@
             let minStr = min === 0 ? 'hs' : `:${min < 10 ? '0'+min : min}hs`;
             return `${dias[d.getDay()]} ${d.getDate()}/${d.getMonth()+1} ${d.getHours()}${minStr}`; 
         }
+        
+        function getTituloConBateria(al, baseTitle, cfg) {
+            const arrI = Array.isArray(al.instrumento) ? al.instrumento : [al.instrumento];
+            const esBat = arrI.some(i => i && i.toLowerCase().includes('bater'));
+            if (esBat && cfg.identificador_bateria) {
+                return cfg.identificador_bateria + ' ' + baseTitle;
+            }
+            return baseTitle;
+        }
 
         async function fetchCalendarAPI(url, method, body = null) {
             if (!googleAccessToken) { document.getElementById('btn-conectar-cal').style.display = 'inline-block'; throw new Error("Token caducado."); }
@@ -465,10 +476,9 @@
                         const hIniB = new Date(fEval); hIniB.setHours(parseInt(hIni), parseInt(mIni), 0, 0);
                         const hFinR = new Date(fEval); hFinR.setHours(parseInt(hFin), parseInt(mFin), 0, 0);
 
-                        // Si la hora de inicio es anterior a AHORA, avanzamos al proximo modulo de media hora en el futuro
+                        // Si la hora de inicio es anterior a AHORA, avanzamos al proximo modulo de media hora
                         if (hIniB < new Date()) {
                             let curr = new Date();
-                            // Redondear al proximo intervalo de 30 mins
                             let m = curr.getMinutes();
                             let rem = 30 - (m % 30);
                             curr.setMinutes(m + rem, 0, 0);
@@ -491,7 +501,6 @@
                                     }
                                 });
                             }
-                            // Avanzamos de a 30 minutos en vez de 60
                             hIniB.setTime(hIniB.getTime() + slotPasoMs);
                         }
                     });
@@ -546,35 +555,39 @@
             let extraClass = '';
 
             if (vista === 'Gestiones en Curso') {
-                acciones += `<select class="select-estado" data-id="${id}">
-                    <option value="Pendiente procesar" ${al.estado_agenda === 'Pendiente procesar'?'selected':''}>Sin Agendar</option>
-                    <option value="Pendiente validación por profe" ${al.estado_agenda === 'Pendiente validación por profe'?'selected':''}>Validando Profe</option>
-                    <option value="Pendiente validación por alumno" ${al.estado_agenda === 'Pendiente validación por alumno'?'selected':''}>Validando Alumno</option>
-                </select>`;
-
                 if (al.reserva_fecha_texto) {
                     if (al.id_evento_reserva) tags += `<div class="badge badge-warning">🔒 Bloqueado: ${al.reserva_fecha_texto} (${al.reserva_profe_nombre})</div>`;
                     else tags += `<button class="btn-bloquear-agenda badge" data-id="${id}">⏳ Propuesto: ${al.reserva_fecha_texto} (${al.reserva_profe_nombre})</button>`;
                 }
 
                 if (al.estado_agenda === 'Pendiente procesar') {
-                    acciones += `<button class="btn-buscar-agenda btn-accion-flujo" data-id="${id}">🔍 Buscar Agenda</button>`;
+                    acciones += `<button class="btn-buscar-agenda btn-accion-main" data-id="${id}">🔍 Buscar Agenda</button>`;
+                    acciones += `<button class="btn-abrir-suspender btn-accion-flujo" data-id="${id}">Suspender</button>`;
                 } else if (al.estado_agenda === 'Pendiente validación por profe') {
-                    acciones += `<button class="btn-validar-alumno btn-accion-flujo" data-id="${id}">Pasar a Alumno</button>`;
+                    acciones += `<button class="btn-confirmada-profe btn-violeta" data-id="${id}">Agenda confirmada por profesor</button>`;
+                    acciones += `<button class="btn-cancelar-reserva btn-suspender" data-id="${id}">Cancelar Validación</button>`;
+                    acciones += `<button class="btn-abrir-suspender btn-accion-flujo" data-id="${id}">Suspender</button>`;
                 } else if (al.estado_agenda === 'Pendiente validación por alumno') {
-                    acciones += `<button class="btn-confirmar-entrevista btn-accion-main" data-id="${id}">Confirmar</button>`;
+                    acciones += `<button class="btn-confirmar-entrevista btn-accion-main" data-id="${id}">Confirmar Agenda</button>`;
+                    acciones += `<button class="btn-cancelar-reserva btn-suspender" data-id="${id}">Cancelar Agenda</button>`;
+                    acciones += `<button class="btn-abrir-suspender btn-accion-flujo" data-id="${id}">Suspender</button>`;
                 }
-                acciones += `<button class="btn-abrir-suspender btn-suspender" data-id="${id}">Suspender</button>`;
             
             } else if (vista === 'Agendas Confirmadas') {
                 extraClass = 'item-confirmada';
                 tags += `<div class="badge badge-success">✅ Confirmado: ${al.reserva_fecha_texto||'-'} (${al.reserva_profe_nombre||'-'})</div>`;
-                acciones += `<button class="btn-cancelar-agenda btn-suspender" data-id="${id}">Deshacer Confirmación</button>`;
+                acciones += `<button class="btn-cancelar-reserva btn-suspender" data-id="${id}">Deshacer Confirmación</button>`;
             } else if (vista === 'Agendas Suspendidas') {
                 extraClass = 'item-suspendida';
                 tags += `<div class="badge badge-danger">Motivo: ${al.motivo_suspension||'S/D'}</div>`;
                 acciones += `<button class="btn-recuperar-agenda btn-accion-main" data-id="${id}">Recuperar Agenda</button>`;
             }
+            
+            // Reemplazo visual de los estados
+            let labelEstado = al.estado_agenda;
+            if (labelEstado === 'Pendiente procesar') labelEstado = 'Sin Agendar';
+            else if (labelEstado === 'Pendiente validación por profe') labelEstado = 'Validando Profe';
+            else if (labelEstado === 'Pendiente validación por alumno') labelEstado = 'Validando Alumno';
 
             return `
                 <div class="alumno-item ${extraClass}" data-id="${id}">
@@ -668,8 +681,6 @@
         document.addEventListener('click', async (e) => {
             const target = e.target;
             
-            if(target.classList.contains('select-estado')) return;
-
             if (target.classList.contains('btn-eliminar-alumno')) {
                 e.stopPropagation();
                 if(confirm("¿Eliminar este alumno por completo?")) {
@@ -726,7 +737,9 @@
                     try {
                         const al = (await getDoc(doc(db, "alumnos", id))).data();
                         const instStr = Array.isArray(al.instrumento) ? al.instrumento.join('/') : al.instrumento;
-                        const tituloEv = reemplazarVariables(configApp.formato_evento_reserva, { profe: al.reserva_profe_nombre, alumno: al.nombre, instrumento: instStr });
+                        let tituloEv = reemplazarVariables(configApp.formato_evento_reserva, { profe: al.reserva_profe_nombre, alumno: al.nombre, instrumento: instStr });
+                        tituloEv = getTituloConBateria(al, tituloEv, configApp); // Agrega Tag Bat
+                        
                         const evObj = await crearEventoCalendario('productora.mandalahouse@gmail.com', tituloEv, al.reserva_inicio, al.reserva_fin);
                         await updateDoc(doc(db, "alumnos", id), { id_evento_reserva: evObj.id });
                         cargarVista(estadoActualVista);
@@ -734,8 +747,9 @@
                 }
                 return;
             }
-
-            if (target.classList.contains('btn-validar-alumno')) {
+            
+            // Boton de Agenda Confirmada por Profe
+            if (target.classList.contains('btn-confirmada-profe')) {
                 const id = target.getAttribute('data-id');
                 try {
                     const al = (await getDoc(doc(db, "alumnos", id))).data();
@@ -747,11 +761,12 @@
                     let evId = al.id_evento_reserva;
                     if (!evId) {
                         const instStr = Array.isArray(al.instrumento) ? al.instrumento.join('/') : al.instrumento;
-                        const tit = reemplazarVariables(configApp.formato_evento_reserva, { profe: al.reserva_profe_nombre, alumno: al.nombre, instrumento: instStr });
+                        let tit = reemplazarVariables(configApp.formato_evento_reserva, { profe: al.reserva_profe_nombre, alumno: al.nombre, instrumento: instStr });
+                        tit = getTituloConBateria(al, tit, configApp);
                         evId = (await crearEventoCalendario('productora.mandalahouse@gmail.com', tit, al.reserva_inicio, al.reserva_fin)).id;
                     }
                     await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente validación por alumno", id_evento_reserva: evId });
-                    alert("Texto copiado y reserva procesada."); cargarVista(estadoActualVista);
+                    alert("Texto para el alumno copiado al portapapeles y estado avanzado."); cargarVista(estadoActualVista);
                 } catch(e) { console.error(e); alert("Error API."); }
                 return;
             }
@@ -762,11 +777,27 @@
                     const al = (await getDoc(doc(db, "alumnos", id))).data();
                     const instStr = Array.isArray(al.instrumento) ? al.instrumento.join('/') : al.instrumento;
                     const descP = al.descripcion ? al.descripcion.replace(/<[^>]*>?/gm, '').trim() : '';
-                    const tit = reemplazarVariables(configApp.formato_evento_confirmado, { instrumento: instStr, alumno: al.nombre, edad: al.edad||'' });
+                    let tit = reemplazarVariables(configApp.formato_evento_confirmado, { instrumento: instStr, alumno: al.nombre, edad: al.edad||'' });
+                    tit = getTituloConBateria(al, tit, configApp);
+                    
                     await actualizarEventoCalendario('productora.mandalahouse@gmail.com', al.id_evento_reserva, tit, descP);
                     await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Agenda confirmada" });
-                    alert("¡Confirmada!"); cargarVista(estadoActualVista);
+                    alert("¡Agenda Confirmada!"); cargarVista(estadoActualVista);
                 } catch(e) { console.error(e); alert("Error al actualizar."); }
+                return;
+            }
+
+            // Cancelar Validación, Cancelar Agenda y Deshacer Confirmación usan la misma lógica
+            if (target.classList.contains('btn-cancelar-reserva')) {
+                if (confirm("¿Estás seguro de cancelar? Se eliminará la reserva (si existe) y el alumno volverá a Sin Agendar.")) {
+                    const id = target.getAttribute('data-id');
+                    try {
+                        const al = (await getDoc(doc(db, "alumnos", id))).data();
+                        if (al.id_evento_reserva) await eliminarEventoCalendario('productora.mandalahouse@gmail.com', al.id_evento_reserva);
+                        await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente procesar", reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null });
+                        cargarVista(estadoActualVista);
+                    } catch(e) { console.error(e); alert("Error al cancelar."); }
+                }
                 return;
             }
 
@@ -784,6 +815,14 @@
                     const arrI = Array.isArray(al.instrumento) ? al.instrumento : [al.instrumento];
                     const esBat = arrI.some(i => i.toLowerCase().includes('bater'));
                     
+                    const dMap = { 'D':0, 'L':1, 'M':2, 'X':3, 'J':4, 'V':5, 'S':6 };
+                    const diasHab = []; for (const [l, arr] of Object.entries(al.disponibilidad)) { if (arr && arr.length > 0) diasHab.push(dMap[l]); }
+                    
+                    const dS = new Date(dStrStart+'T00:00:00'), dE = new Date(dStrEnd+'T23:59:59');
+                    let algunValido = false;
+                    for(let x = new Date(dS); x <= dE; x.setDate(x.getDate()+1)) { if(x.getDay()!==0 && diasHab.includes(x.getDay())) algunValido=true; }
+                    if(!algunValido) return resDiv.innerHTML = '<p style="color:#dc3545;"><b>Aviso:</b> El rango elegido solo abarca días domingos o días que el alumno marcó como "No disponible". Cambia las fechas.</p>';
+
                     const pS = await getDocs(collection(db, "profesores"));
                     const todosLosProfes = [];
                     const profesFiltradosIDs = [];
@@ -799,8 +838,6 @@
                     });
 
                     if(profesFiltradosIDs.length === 0) return resDiv.innerHTML = '<p>No hay profes habilitados.</p>';
-
-                    const dS = new Date(dStrStart+'T00:00:00'), dE = new Date(dStrEnd+'T23:59:59');
 
                     let allEv = [];
                     for(const pr of todosLosProfes) {
@@ -853,26 +890,6 @@
                 return;
             }
             if (target.id === 'btn-cerrar-alumno') { document.getElementById('form-alumno-wrapper').style.display = 'none'; document.getElementById('modal-alta-alumno').close(); return; }
-            if (target.classList.contains('btn-cancelar-agenda')) {
-                if (confirm("¿Deshacer confirmación? Volverá a Sin Agendar.")) {
-                    const id = target.getAttribute('data-id');
-                    try {
-                        const al = (await getDoc(doc(db, "alumnos", id))).data();
-                        if (al.id_evento_reserva) await eliminarEventoCalendario('productora.mandalahouse@gmail.com', al.id_evento_reserva);
-                        await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente procesar", reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null });
-                        cargarVista(estadoActualVista);
-                    } catch(e) { console.error(e); alert("Error."); }
-                }
-                return;
-            }
-        });
-
-        document.addEventListener('change', async (e) => {
-            if (e.target.classList.contains('select-estado')) {
-                const id = e.target.getAttribute('data-id'), nEst = e.target.value, ud = { estado_agenda: nEst };
-                if (nEst === 'Pendiente procesar') { ud.reserva_profe_id = null; ud.reserva_profe_nombre = null; ud.reserva_cal_id = null; ud.reserva_fecha_texto = null; ud.reserva_inicio = null; ud.reserva_fin = null; ud.id_evento_reserva = null; }
-                await updateDoc(doc(db, "alumnos", id), ud); cargarVista(estadoActualVista);
-            }
         });
 
         document.getElementById('btn-guardar-suspension').addEventListener('click', async () => {
