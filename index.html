@@ -352,7 +352,7 @@
         let configApp = {};
         let chartGestionesInst = null;
         let chartGlobalInst = null;
-        let dataCacheABM = {}; // Para guardar disp de profes al editar
+        let dataCacheABM = {}; 
         
         let clipboardDisponibilidad = null; 
         let clipboardDisponibilidadProfe = null; 
@@ -550,7 +550,7 @@
         }
 
         function chequearProfeDisponible(pr, hIniB, finMs, lDia) {
-            if (!pr.disponibilidad || !pr.disponibilidad[lDia] || pr.disponibilidad[lDia].length === 0) return false; // Bloqueado entero
+            if (!pr.disponibilidad || !pr.disponibilidad[lDia] || pr.disponibilidad[lDia].length === 0) return false; 
             
             const slotStartMins = hIniB.getHours() * 60 + hIniB.getMinutes();
             let endH = new Date(finMs).getHours();
@@ -606,7 +606,6 @@
                             if (evalOverlap.valido) {
                                 todosLosProfes.forEach(pr => {
                                     if (profesFiltradosIDs.includes(pr.id) && !evalOverlap.profesOcupados.has(pr.id)) {
-                                        // Validar si el profesor trabaja en ese rango
                                         if (chequearProfeDisponible(pr, hIniB, finMs, lDia)) {
                                             opciones.push({
                                                 fechaTextoAmi: formatearFechaAmi(hIniB.toISOString()), profeId: pr.id,
@@ -846,7 +845,6 @@
             const contLista = document.getElementById('lista-generica');
             const contEstad = document.getElementById('estadisticas-container');
             
-            // ¡RESCATE DEL FORMULARIO!
             const formWrapper = document.getElementById('form-alumno-wrapper');
             if (formWrapper) {
                 formWrapper.style.display = 'none';
@@ -1136,7 +1134,6 @@
 
                     let template = target.classList.contains('btn-reenviar-profe') ? configApp.texto_profe : configApp.texto_conf_profe;
                     
-                    // Limpieza preventiva si el usuario guardó en BD el texto viejo con {historial}
                     template = template.replace(/\n*\*HISTORIAL DE CONTACTO:\*\n\{historial\}/gi, '{bloque_historial}');
                     template = template.replace(/\n*\*HISTORIAL:\*\n\{historial\}/gi, '{bloque_historial}');
                     template = template.replace('{historial}', '{bloque_historial}'); 
@@ -1393,7 +1390,6 @@
             });
         }
 
-        let dataCacheABM = {};
         async function cargarABM(coleccion, titulo, cont) {
             tituloABMActual = titulo;
             dataCacheABM = {};
