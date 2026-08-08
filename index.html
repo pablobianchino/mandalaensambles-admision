@@ -86,6 +86,7 @@
         .btn-accion-flujo { background: #e9ecef; color: #495057; padding: 6px 12px; border: 1px solid #ced4da; border-radius: 6px; cursor: pointer; font-weight: 600; font-size:0.85em;}
         .btn-accion-flujo:hover { background: #dde2e6; }
         .btn-accion-main { background: var(--primary); color: white; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size:0.85em;}
+        .btn-secundario { background: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size:0.85em; }
         .btn-suspender { background: transparent; color: #dc3545; padding: 6px 12px; border: 1px solid #dc3545; border-radius: 6px; cursor: pointer; font-size:0.85em; font-weight:600;}
         .btn-violeta { background: #e2d9f3; color: #495057; padding: 6px 12px; border: 1px solid #d0c5e3; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.85em; transition: 0.2s; }
         .btn-violeta:hover { background: #d0c5e3; }
@@ -110,7 +111,7 @@
         .abm-item:hover { border-color: #adb5bd; }
         
         #editor-container { height: 150px; margin-bottom: 20px; background: white; border-radius:0 0 6px 6px; }
-        textarea.config-box { width: 100%; height: 100px; font-family: monospace; padding: 10px; margin-bottom: 10px; border-radius:6px; border:1px solid #ced4da;}
+        textarea.config-box { width: 100%; font-family: monospace; padding: 10px; margin-bottom: 10px; border-radius:6px; border:1px solid #ced4da;}
         
         #estadisticas-container { display:flex; flex-wrap:wrap; gap:20px; width:100%; align-items:flex-start;}
         .chart-box { flex:1; min-width:300px; background:#fff; padding:20px; border-radius:12px; border: 1px solid var(--border-color); cursor:pointer;}
@@ -193,7 +194,6 @@
         </main>
     </div>
 
-    <!-- Acordeón Formulario Edición/Alta -->
     <div id="form-alumno-wrapper" style="display:none; background:#fff; padding:20px; border-radius:8px; border:1px solid #ced4da; margin-top:10px;">
         <h3 id="form-titulo" style="margin-top:0; color:#212529; font-size:1.1em;">Datos del Alumno</h3>
         <form id="form-alumno">
@@ -360,7 +360,9 @@
             identificador_bateria: '[BAT]', valor_clase: '$10.000', cantidad_aulas: '3', cantidad_baterias: '2',
             formato_evento_reserva: '? {profe} Ent {alumno}', formato_evento_confirmado: '📋🎸{instrumento} - {alumno} {edad}',
             texto_profe: "*⚠ PRE CHECK - ENTREVISTA*\n📅 *FECHA: {fecha_hora}*\n*👥 ALUMNO:*\n🔹 {nombre} ({edad})\n🔹 {instrumento} | {suscripcion}\n*INFO:*\n{descripcion}",
-            texto_alumno: "📅 *Agenda de clase*\n🧩 {fecha_hora} con Profe {profe}\n✅ Inscripción: forms.gle/xxx\n💸 Valor: {valor}\n🧩 Alias: {alias_profe}"
+            texto_alumno: "📅 *Agenda de clase*\n🧩 {fecha_hora} con Profe {profe}\n✅ Inscripción: forms.gle/xxx\n💸 Valor: {valor}\n🧩 Alias: {alias_profe}",
+            texto_conf_alumno: "Genial Gracias!\nTe esperamos!\n\n🧩 Día y horario: {fecha_hora}\n🧩 Profe: {profe}\n📍 *Dirección:* Av. Cabildo 2970, Piso 1, Depto C.\n\n⚠️ *A tener en cuenta:*\n\n- *Puntualidad:* La reserva del espacio es por 45 minutos. Te pido llegar puntual para aprovechar al máximo el encuentr* 🙏🏻.\n\n- *Reprogramaciones:* Se puede reprogramar una sola vez con aviso previo de 24 hs. De lo contrario, se pierde el turno y el valor abonado.\n\nEl profe te va a estar escribiendo el mismo día!",
+            texto_conf_profe: "*✅ ENTREVISTA CONFIRMADA*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Clase: {suscripcion}\n\n*📰 INFO PARA LA ENTREVISTA:*\n{descripcion}"
         };
 
         async function cargarConfig() {
@@ -460,8 +462,8 @@
 
         function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, todosLosProfes, profesFiltradosIDs, dStart, dEnd, cfg) {
             const opciones = [], mapaDias = { 0:"D", 1:"L", 2:"M", 3:"X", 4:"J", 5:"V", 6:"S" };
-            const durMs = 60*60*1000; // Duración siempre de 1 hora
-            const slotPasoMs = 30*60*1000; // Avanza cada media hora
+            const durMs = 60*60*1000; 
+            const slotPasoMs = 30*60*1000; 
             const cantAulas = parseInt(cfg.cantidad_aulas)||3, cantBat = parseInt(cfg.cantidad_baterias)||2;
             const diffDays = Math.floor(Math.abs(dEnd - dStart) / (1000*60*60*24));
 
@@ -476,7 +478,6 @@
                         const hIniB = new Date(fEval); hIniB.setHours(parseInt(hIni), parseInt(mIni), 0, 0);
                         const hFinR = new Date(fEval); hFinR.setHours(parseInt(hFin), parseInt(mFin), 0, 0);
 
-                        // Si la hora de inicio es anterior a AHORA, avanzamos al proximo modulo de media hora
                         if (hIniB < new Date()) {
                             let curr = new Date();
                             let m = curr.getMinutes();
@@ -555,6 +556,7 @@
             let extraClass = '';
 
             if (vista === 'Gestiones en Curso') {
+
                 if (al.reserva_fecha_texto) {
                     if (al.id_evento_reserva) tags += `<div class="badge badge-warning">🔒 Bloqueado: ${al.reserva_fecha_texto} (${al.reserva_profe_nombre})</div>`;
                     else tags += `<button class="btn-bloquear-agenda badge" data-id="${id}">⏳ Propuesto: ${al.reserva_fecha_texto} (${al.reserva_profe_nombre})</button>`;
@@ -562,20 +564,24 @@
 
                 if (al.estado_agenda === 'Pendiente procesar') {
                     acciones += `<button class="btn-buscar-agenda btn-accion-main" data-id="${id}">🔍 Buscar Agenda</button>`;
-                    acciones += `<button class="btn-abrir-suspender btn-accion-flujo" data-id="${id}">Suspender</button>`;
+                    acciones += `<button class="btn-abrir-suspender btn-suspender" data-id="${id}">Suspender</button>`;
                 } else if (al.estado_agenda === 'Pendiente validación por profe') {
                     acciones += `<button class="btn-confirmada-profe btn-violeta" data-id="${id}">Agenda confirmada por profesor</button>`;
+                    acciones += `<button class="btn-reenviar-profe btn-secundario" data-id="${id}">Re-enviar validación</button>`;
                     acciones += `<button class="btn-cancelar-reserva btn-suspender" data-id="${id}">Cancelar Validación</button>`;
-                    acciones += `<button class="btn-abrir-suspender btn-accion-flujo" data-id="${id}">Suspender</button>`;
+                    acciones += `<button class="btn-abrir-suspender btn-suspender" data-id="${id}">Suspender</button>`;
                 } else if (al.estado_agenda === 'Pendiente validación por alumno') {
                     acciones += `<button class="btn-confirmar-entrevista btn-accion-main" data-id="${id}">Confirmar Agenda</button>`;
+                    acciones += `<button class="btn-reenviar-alumno btn-secundario" data-id="${id}">Re-Enviar validación p/alumno</button>`;
                     acciones += `<button class="btn-cancelar-reserva btn-suspender" data-id="${id}">Cancelar Agenda</button>`;
-                    acciones += `<button class="btn-abrir-suspender btn-accion-flujo" data-id="${id}">Suspender</button>`;
+                    acciones += `<button class="btn-abrir-suspender btn-suspender" data-id="${id}">Suspender</button>`;
                 }
             
             } else if (vista === 'Agendas Confirmadas') {
                 extraClass = 'item-confirmada';
                 tags += `<div class="badge badge-success">✅ Confirmado: ${al.reserva_fecha_texto||'-'} (${al.reserva_profe_nombre||'-'})</div>`;
+                acciones += `<button class="btn-enviar-conf-profe btn-accion-flujo" data-id="${id}">Enviar confirmación Profe</button>`;
+                acciones += `<button class="btn-enviar-conf-alumno btn-accion-flujo" data-id="${id}">Enviar confirmación Alumno</button>`;
                 acciones += `<button class="btn-cancelar-reserva btn-suspender" data-id="${id}">Deshacer Confirmación</button>`;
             } else if (vista === 'Agendas Suspendidas') {
                 extraClass = 'item-suspendida';
@@ -583,7 +589,6 @@
                 acciones += `<button class="btn-recuperar-agenda btn-accion-main" data-id="${id}">Recuperar Agenda</button>`;
             }
             
-            // Reemplazo visual de los estados
             let labelEstado = al.estado_agenda;
             if (labelEstado === 'Pendiente procesar') labelEstado = 'Sin Agendar';
             else if (labelEstado === 'Pendiente validación por profe') labelEstado = 'Validando Profe';
@@ -680,11 +685,18 @@
         // === EVENT DELEGATION ===
         document.addEventListener('click', async (e) => {
             const target = e.target;
-            
+
             if (target.classList.contains('btn-eliminar-alumno')) {
                 e.stopPropagation();
-                if(confirm("¿Eliminar este alumno por completo?")) {
+                if(confirm("¿Eliminar este alumno por completo? Si tiene un turno en Calendar, también será borrado.")) {
                     const id = target.closest('.alumno-item').getAttribute('data-id');
+                    try {
+                        const al = (await getDoc(doc(db, "alumnos", id))).data();
+                        if (al && al.id_evento_reserva) {
+                            await eliminarEventoCalendario('productora.mandalahouse@gmail.com', al.id_evento_reserva);
+                        }
+                    } catch(err) { console.error("No se pudo borrar de Calendar", err); }
+                    
                     await deleteDoc(doc(db, "alumnos", id));
                     cargarVista(estadoActualVista);
                 }
@@ -738,7 +750,7 @@
                         const al = (await getDoc(doc(db, "alumnos", id))).data();
                         const instStr = Array.isArray(al.instrumento) ? al.instrumento.join('/') : al.instrumento;
                         let tituloEv = reemplazarVariables(configApp.formato_evento_reserva, { profe: al.reserva_profe_nombre, alumno: al.nombre, instrumento: instStr });
-                        tituloEv = getTituloConBateria(al, tituloEv, configApp); // Agrega Tag Bat
+                        tituloEv = getTituloConBateria(al, tituloEv, configApp);
                         
                         const evObj = await crearEventoCalendario('productora.mandalahouse@gmail.com', tituloEv, al.reserva_inicio, al.reserva_fin);
                         await updateDoc(doc(db, "alumnos", id), { id_evento_reserva: evObj.id });
@@ -787,9 +799,38 @@
                 return;
             }
 
-            // Cancelar Validación, Cancelar Agenda y Deshacer Confirmación usan la misma lógica
+            if (target.classList.contains('btn-reenviar-profe') || target.classList.contains('btn-enviar-conf-profe')) {
+                try {
+                    const id = target.getAttribute('data-id');
+                    const al = (await getDoc(doc(db, "alumnos", id))).data();
+                    const iS = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento;
+                    const dP = al.descripcion ? al.descripcion.replace(/<[^>]*>?/gm, '').trim() : '';
+                    
+                    const template = target.classList.contains('btn-reenviar-profe') ? configApp.texto_profe : configApp.texto_conf_profe;
+                    const txt = reemplazarVariables(template, { fecha_hora: al.reserva_fecha_texto, nombre: al.nombre, edad: al.edad||'-', instrumento: iS, suscripcion: al.tipo_suscripcion, descripcion: dP });
+                    await navigator.clipboard.writeText(txt);
+                    alert("Texto para el PROFESOR copiado al portapapeles.");
+                } catch(e) { console.error(e); }
+                return;
+            }
+
+            if (target.classList.contains('btn-reenviar-alumno') || target.classList.contains('btn-enviar-conf-alumno')) {
+                try {
+                    const id = target.getAttribute('data-id');
+                    const al = (await getDoc(doc(db, "alumnos", id))).data();
+                    let aliasP = '';
+                    if (al.reserva_profe_id) { const pDoc = await getDoc(doc(db, "profesores", al.reserva_profe_id)); if(pDoc.exists()) aliasP = pDoc.data().alias_transferencia||''; }
+                    
+                    const template = target.classList.contains('btn-reenviar-alumno') ? configApp.texto_alumno : configApp.texto_conf_alumno;
+                    const txt = reemplazarVariables(template, { fecha_hora: al.reserva_fecha_texto, profe: al.reserva_profe_nombre, valor: configApp.valor_clase, alias_profe: aliasP });
+                    await navigator.clipboard.writeText(txt);
+                    alert("Texto para el ALUMNO copiado al portapapeles.");
+                } catch(e) { console.error(e); }
+                return;
+            }
+
             if (target.classList.contains('btn-cancelar-reserva')) {
-                if (confirm("¿Estás seguro de cancelar? Se eliminará la reserva (si existe) y el alumno volverá a Sin Agendar.")) {
+                if (confirm("¿Estás seguro de cancelar? Se eliminará la reserva en Calendar y volverá a Sin Agendar.")) {
                     const id = target.getAttribute('data-id');
                     try {
                         const al = (await getDoc(doc(db, "alumnos", id))).data();
@@ -961,12 +1002,25 @@
                     <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Título Evento (Reserva): <input type="text" id="cfg-evt-res" value="${configApp.formato_evento_reserva}"></label>
                     <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Título Evento (Confirmado): <input type="text" id="cfg-evt-conf" value="${configApp.formato_evento_confirmado}"></label>
                     <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Texto Validación con Profe: <textarea id="cfg-txt-p" class="config-box">${configApp.texto_profe}</textarea></label>
-                    <label style="display:block; margin-bottom:20px; font-weight:600; color:#495057;">Texto Validación con Alumno: <textarea id="cfg-txt-a" class="config-box">${configApp.texto_alumno}</textarea></label>
+                    <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Texto Validación con Alumno: <textarea id="cfg-txt-a" class="config-box">${configApp.texto_alumno}</textarea></label>
+                    <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Texto Confirmación Agenda para Profe: <textarea id="cfg-txt-conf-p" class="config-box" style="height:150px;">${configApp.texto_conf_profe}</textarea></label>
+                    <label style="display:block; margin-bottom:20px; font-weight:600; color:#495057;">Texto Confirmación Agenda para Alumno: <textarea id="cfg-txt-conf-a" class="config-box" style="height:200px;">${configApp.texto_conf_alumno}</textarea></label>
                     <button id="btn-guardar-cfg" class="btn-accion-main" style="padding:10px 20px; font-size:1.05em; width:100%;">Guardar Configuración</button>
                 </div>
             `;
             document.getElementById('btn-guardar-cfg').addEventListener('click', async () => {
-                await setDoc(doc(db, "configuracion", "general"), { cantidad_aulas: document.getElementById('cfg-aulas').value, cantidad_baterias: document.getElementById('cfg-bats').value, identificador_bateria: document.getElementById('cfg-idbat').value, valor_clase: document.getElementById('cfg-valor').value, formato_evento_reserva: document.getElementById('cfg-evt-res').value, formato_evento_confirmado: document.getElementById('cfg-evt-conf').value, texto_profe: document.getElementById('cfg-txt-p').value, texto_alumno: document.getElementById('cfg-txt-a').value }, { merge: true });
+                await setDoc(doc(db, "configuracion", "general"), { 
+                    cantidad_aulas: document.getElementById('cfg-aulas').value, 
+                    cantidad_baterias: document.getElementById('cfg-bats').value, 
+                    identificador_bateria: document.getElementById('cfg-idbat').value, 
+                    valor_clase: document.getElementById('cfg-valor').value, 
+                    formato_evento_reserva: document.getElementById('cfg-evt-res').value, 
+                    formato_evento_confirmado: document.getElementById('cfg-evt-conf').value, 
+                    texto_profe: document.getElementById('cfg-txt-p').value, 
+                    texto_alumno: document.getElementById('cfg-txt-a').value,
+                    texto_conf_profe: document.getElementById('cfg-txt-conf-p').value,
+                    texto_conf_alumno: document.getElementById('cfg-txt-conf-a').value
+                }, { merge: true });
                 await cargarConfig(); alert('Guardado.');
             });
         }
