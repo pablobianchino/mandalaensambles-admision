@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Seguimiento de Alumnos - Mandala</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Mandala Ensambles Seguimientos</title>
     
     <!-- Librerías CDN: Quill (Texto), Chart.js (Gráficos), Flatpickr (Fechas) -->
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
@@ -13,75 +16,117 @@
     <script src="https://npmcdn.com/flatpickr/dist/l10n/es.js"></script>
     
     <style>
-        body { margin: 0; font-family: sans-serif; background-color: #f4f6f9; color: #333; }
+        /* === VARIABLES Y RESET === */
+        :root {
+            --bg-main: #f4f6f9;
+            --bg-sidebar: #ffffff;
+            --color-text: #333333;
+            --color-text-mut: #777777;
+            --primary: #008CBA;
+            --primary-hover: #007399;
+            --border-color: #e0e0e0;
+            --active-bg: #f0f4f8;
+            
+            /* Colores de Tableros / Tarjetas */
+            --c-sin-agendar: #e74c3c;
+            --c-val-profe: #9b59b6;
+            --c-val-alumno: #f1c40f;
+            --c-confirmada: #2ecc71;
+            --c-suspendida: #7f8c8d;
+        }
+        body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-main); color: var(--color-text); }
+        
+        /* === LOGIN === */
         #login-container { display: flex; height: 100vh; justify-content: center; align-items: center; background-color: #fff; }
-        .btn-google { display: flex; align-items: center; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; padding: 10px 20px; cursor: pointer; box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3); font-size:16px; font-weight:bold;}
-        .btn-google svg { width: 24px; height: 24px; margin-right: 10px; }
+        .btn-google { display: flex; align-items: center; background-color: #fff; border: 1px solid #dadce0; border-radius: 8px; padding: 12px 24px; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-size:16px; font-weight:600; transition:0.2s;}
+        .btn-google:hover { background-color: #f8f9fa; }
+        .btn-google svg { width: 24px; height: 24px; margin-right: 12px; }
         
+        /* === LAYOUT PRINCIPAL === */
         #app-container { display: none; height: 100vh; width: 100%; overflow: hidden; }
-        #sidebar { width: 260px; background: #2c3e50; color:#ecf0f1; padding: 20px 0; display:flex; flex-direction:column; overflow-y:auto; }
-        #sidebar h3 { padding: 0 20px; font-size: 0.9em; text-transform: uppercase; color: #95a5a6; letter-spacing: 1px; margin-top:20px; }
-        .nav-item { cursor: pointer; padding: 12px 20px; transition: 0.2s; border-left: 4px solid transparent; }
-        .nav-item:hover { background: #34495e; border-left-color: #3498db; }
-        .nav-item.active { background: #34495e; border-left-color: #3498db; font-weight:bold; }
         
-        #main { flex-grow: 1; padding: 20px; overflow-y: auto; display:flex; flex-direction:column; }
+        #sidebar { width: 260px; background: var(--bg-sidebar); border-right: 1px solid var(--border-color); display:flex; flex-direction:column; overflow-y:auto; padding-top:20px; }
+        .sidebar-brand { padding: 0 20px 20px 20px; border-bottom: 1px solid var(--border-color); margin-bottom: 15px;}
+        .sidebar-brand h2 { margin:0; font-size:1.3em; color:#111; }
+        .sidebar-brand small { color: var(--color-text-mut); font-size:0.85em; }
         
-        /* UI Header */
-        #header-auth { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #eaeaea; }
+        #sidebar h3 { padding: 0 20px; font-size: 0.8em; text-transform: uppercase; color: #aaa; letter-spacing: 1px; margin: 15px 0 5px 0; }
+        .nav-item { cursor: pointer; padding: 10px 15px; margin: 2px 15px; border-radius: 8px; transition: 0.2s; color: #555; font-size:0.95em; }
+        .nav-item:hover { background: #f9f9f9; }
+        .nav-item.active { background: var(--active-bg); font-weight:bold; color: #000; }
+        
+        #main { flex-grow: 1; padding: 20px 30px; overflow-y: auto; display:flex; flex-direction:column; }
+        
+        /* === HEADER Y CONTROLES SUPERIORES === */
+        #header-auth { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         .header-buttons { display:flex; gap:10px; align-items:center; }
-        #btn-conectar-cal { background: #f1c40f; color: #000; border: none; padding: 6px 12px; border-radius: 4px; font-weight:bold; cursor:pointer; display:none; }
-        #btn-logout { cursor: pointer; padding: 6px 12px; background: #e74c3c; color: white; border: none; border-radius: 4px; font-weight:bold; }
+        #btn-conectar-cal { background: #f1c40f; color: #000; border: none; padding: 6px 12px; border-radius: 6px; font-weight:bold; cursor:pointer; display:none; }
+        #btn-logout { cursor: pointer; padding: 6px 12px; background: transparent; color: var(--color-text-mut); border: 1px solid #ccc; border-radius: 6px; font-weight:600; transition:0.2s;}
+        #btn-logout:hover { background: #f1f1f1; color:#000;}
         
-        /* Tableros Kanban */
-        .board-container { display: flex; gap: 15px; align-items: flex-start; overflow-x: auto; flex-grow: 1; padding-bottom:10px; }
-        .board-column { flex: 1; min-width: 320px; border-radius: 8px; padding: 15px; display: flex; flex-direction: column; gap: 15px; max-height: 100%; overflow-y:auto; }
-        .col-sin-agendar { background-color: #f8d7da; border: 1px solid #f5c6cb; } /* Rojo Claro */
-        .col-val-profe { background-color: #e2d9f3; border: 1px solid #d0c5e3; } /* Violeta Claro */
-        .col-val-alumno { background-color: #fff3cd; border: 1px solid #ffeeba; } /* Amarillo Claro */
-        .board-column h4 { margin: 0 0 10px 0; text-align: center; color: #333; font-size:1.1em; }
-        
-        /* Tarjetas de Alumnos */
-        .alumno-item { padding: 15px; border-radius: 6px; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border-left: 4px solid #3498db; display:flex; flex-direction:column; gap:10px; }
-        .alumno-header { display: flex; justify-content: space-between; align-items: flex-start; cursor:pointer; }
-        .alumno-header:hover { opacity: 0.8; }
-        .alumno-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding-top: 10px; border-top: 1px dashed #eee; }
-        
-        /* Botones de acción */
-        .btn-accion-flujo { background: #28a745; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size:0.85em;}
-        .btn-secundario { background: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size:0.85em; }
-        .btn-suspender { background: #e74c3c; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size:0.85em; }
-        .btn-bloquear-agenda { font-size:0.85em; background:#e2e3e5; padding:6px 12px; border:none; border-radius:4px; cursor:pointer; color:#333; }
-        .tag-bloqueada { font-size:0.85em; background:#f1c40f; padding:6px 12px; border-radius:4px; color:#000; font-weight:bold; }
-        .select-estado { padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-size:0.85em; width:100%; }
-        
-        /* Vistas de Lista Genéricas */
-        .lista-generica { max-width: 900px; display:flex; flex-direction:column; gap:15px; }
+        .vista-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+        #vista-titulo { margin:0; font-size:1.5em; color:#111; }
+        #btn-nuevo-alumno { padding:10px 20px; background:var(--primary); color:white; border:none; cursor:pointer; border-radius:6px; font-weight:600; font-size:0.95em; transition:0.2s;}
+        #btn-nuevo-alumno:hover { background:var(--primary-hover); }
 
-        /* Dialogos y Formularios */
-        dialog { padding: 25px; border: none; border-radius: 8px; width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
-        dialog::backdrop { background: rgba(0,0,0,0.5); }
-        input[type="text"], input[type="number"], input[type="email"], select { padding: 8px; border: 1px solid #ccc; border-radius:4px; width:100%; box-sizing:border-box; margin-top:5px; }
+        /* === TABLEROS Y TARJETAS (ESTILO NUEVO) === */
+        .board-container { display: flex; gap: 20px; align-items: flex-start; overflow-x: auto; flex-grow: 1; padding-bottom:10px; }
+        .board-column { flex: 1; min-width: 320px; display: flex; flex-direction: column; gap: 15px; max-height: 100%; overflow-y:auto; padding-bottom:20px; }
+        .board-column h4 { margin: 0 0 5px 0; color: #444; font-size:1.05em; font-weight:600;}
         
-        .dia-disponibilidad { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 5px; flex-wrap:wrap;}
-        .dia-disponibilidad label { width: 85px; font-weight: bold; }
+        /* Tarjetas estilo UI solicitada */
+        .alumno-item { padding: 15px; border-radius: 8px; background: #fff; border: 1px solid var(--border-color); box-shadow: 0 2px 5px rgba(0,0,0,0.02); display:flex; flex-direction:column; gap:10px; }
+        
+        /* Colores de Borde Superior según estado */
+        .col-sin-agendar .alumno-item { border-top: 4px solid var(--c-sin-agendar); }
+        .col-val-profe .alumno-item { border-top: 4px solid var(--c-val-profe); }
+        .col-val-alumno .alumno-item { border-top: 4px solid var(--c-val-alumno); }
+        .item-confirmada { border-top: 4px solid var(--c-confirmada); }
+        .item-suspendida { border-top: 4px solid var(--c-suspendida); }
+
+        .alumno-header { cursor:pointer; transition: opacity 0.2s; }
+        .alumno-header:hover { opacity: 0.7; }
+        .badge { display:inline-block; font-size:0.75em; padding:3px 8px; border-radius:12px; font-weight:bold; background:#eee; color:#333; margin-bottom:8px;}
+        .badge.bg-warning { background: #fff3cd; color: #856404; }
+        .badge.bg-success { background: #d4edda; color: #155724; }
+        .badge.bg-danger { background: #f8d7da; color: #721c24; }
+
+        .alumno-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding-top: 10px; border-top: 1px solid #f0f0f0; }
+        
+        /* Botones de acción en tarjetas */
+        .btn-accion-flujo { background: #28a745; color: white; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size:0.85em; transition:0.2s;}
+        .btn-accion-flujo:hover { background: #218838; }
+        .btn-secundario { background: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-size:0.85em; }
+        .btn-suspender { background: transparent; color: #e74c3c; padding: 6px 12px; border: 1px solid #e74c3c; border-radius: 6px; cursor: pointer; font-size:0.85em; font-weight:600;}
+        .btn-bloquear-agenda { font-size:0.85em; background:#f8f9fa; border:1px solid #ccc; padding:6px 12px; border-radius:6px; cursor:pointer; color:#333; font-weight:600;}
+        .select-estado { padding: 6px; border-radius: 6px; border: 1px solid #ccc; font-size:0.85em; width:100%; background:#f8f9fa; }
+        
+        .lista-generica { max-width: 800px; display:flex; flex-direction:column; gap:15px; }
+
+        /* === DIALOGOS Y FORMULARIOS === */
+        dialog { padding: 25px; border: none; border-radius: 10px; width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.15); }
+        dialog::backdrop { background: rgba(0,0,0,0.4); }
+        input[type="text"], input[type="number"], input[type="email"], select { padding: 10px; border: 1px solid #ccc; border-radius:6px; width:100%; box-sizing:border-box; margin-top:5px; font-family:inherit;}
+        
+        .dia-disponibilidad { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; border-bottom: 1px solid #f0f0f0; padding-bottom: 8px; flex-wrap:wrap;}
+        .dia-disponibilidad label { width: 85px; font-weight: 600; color:#444;}
         .estado-disp { font-weight: bold; font-size: 0.9em; margin-left: 10px; }
-        input[type="time"] { padding: 5px; font-size: 14px; cursor: pointer; width:auto;}
+        input[type="time"] { padding: 6px; font-size: 14px; cursor: pointer; width:auto; border-radius:6px; border:1px solid #ccc;}
         
-        .opcion-horario { margin-bottom: 15px; padding: 12px; border: 1px solid #dee2e6; background: #f8f9fa; border-radius:6px;}
-        .opcion-horario span { font-weight:bold; font-size:1.1em; display:block; margin-bottom:8px; color:#2c3e50;}
+        .opcion-horario { margin-bottom: 15px; padding: 15px; border: 1px solid #e0e0e0; background: #fff; border-radius:8px; display:flex; justify-content:space-between; align-items:center;}
+        .opcion-horario span { font-weight:600; font-size:1.05em; color:#2c3e50;}
         
-        .abm-container { margin-bottom: 20px; background:#fff; padding:15px; border-radius:6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);}
-        .abm-item { display: flex; justify-content: space-between; padding: 12px; border: 1px solid #ddd; margin-bottom: 5px; background: #fff; align-items: center; cursor: pointer; border-radius:4px;}
-        .abm-item:hover { background: #f1f1f1; }
+        .abm-container { margin-bottom: 20px; background:#fff; padding:20px; border-radius:8px; border: 1px solid var(--border-color);}
+        .abm-item { display: flex; justify-content: space-between; padding: 15px; border: 1px solid #eee; margin-bottom: 8px; background: #fff; align-items: center; cursor: pointer; border-radius:6px; transition:0.2s;}
+        .abm-item:hover { border-color: var(--primary); }
         
-        #editor-container { height: 180px; margin-bottom: 20px; background: white; border-radius:0 0 4px 4px; }
-        textarea.config-box { width: 100%; height: 150px; font-family: monospace; padding: 10px; margin-bottom: 10px; border-radius:4px; border:1px solid #ccc;}
+        #editor-container { height: 180px; margin-bottom: 20px; background: white; border-radius:0 0 6px 6px; }
+        textarea.config-box { width: 100%; height: 120px; font-family: monospace; padding: 10px; margin-bottom: 10px; border-radius:6px; border:1px solid #ccc;}
         
-        /* Estadísticas */
-        #estadisticas-container { display:flex; flex-wrap:wrap; gap:30px; justify-content:center; align-items:center; max-width:900px; margin-top:20px;}
-        .chart-box { width: 300px; background:#fff; padding:20px; border-radius:8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); cursor:pointer; transition:transform 0.2s;}
-        .chart-box:hover { transform: scale(1.02); }
+        /* === ESTADÍSTICAS === */
+        #estadisticas-container { display:flex; flex-wrap:wrap; gap:30px; justify-content:flex-start; align-items:flex-start; max-width:900px; margin-top:10px;}
+        .chart-box { width: 320px; background:#fff; padding:20px; border-radius:12px; border: 1px solid var(--border-color); cursor:pointer; transition:transform 0.2s;}
+        .chart-box:hover { transform: translateY(-3px); box-shadow: 0 4px 10px rgba(0,0,0,0.05);}
     </style>
 </head>
 <body>
@@ -99,12 +144,16 @@
 
     <div id="app-container">
         <nav id="sidebar">
-            <h3>Mandala Ensambles Seguimientos</h3>
+            <div class="sidebar-brand">
+                <h2>Mandala Records</h2>
+                <small>Ensambles Seguimientos</small>
+            </div>
+            
             <div class="nav-item active" data-vista="Gestiones en Curso">Gestiones en Curso</div>
             <div class="nav-item" data-vista="Agendas Confirmadas">Agendas Confirmadas</div>
             <div class="nav-item" data-vista="Agendas Suspendidas">Agendas Suspendidas</div>
             <div class="nav-item" data-vista="Estadísticas">Estadísticas</div>
-            <hr style="border-color:#455a64; width:80%;">
+            
             <h3>Administración</h3>
             <div class="nav-item" data-vista="ABM-Profesores">Profesores</div>
             <div class="nav-item" data-vista="ABM-Instrumentos">Instrumentos</div>
@@ -114,21 +163,22 @@
         
         <main id="main">
             <div id="header-auth">
-                <div id="user-info">Cargando...</div>
+                <div id="user-info" style="font-weight:600; color:#555;">Cargando...</div>
                 <div class="header-buttons">
                     <button id="btn-conectar-cal" title="Habilita la integración con tu agenda">⚠️ Conectar Calendar</button>
                     <button id="btn-logout">Cerrar Sesión</button>
                 </div>
             </div>
             
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                <h2 id="vista-titulo" style="margin:0; color:#2c3e50;">Gestiones en Curso</h2>
-                <button id="btn-nuevo-alumno" style="padding:10px 20px; background:#3498db; color:white; border:none; cursor:pointer; border-radius:4px; font-weight:bold; font-size:1em;">+ Cargar Nuevo Alumno</button>
+            <div class="vista-header">
+                <h2 id="vista-titulo">Gestiones en Curso</h2>
+                <button id="btn-nuevo-alumno">+ Nuevo alumno</button>
             </div>
             
             <!-- Contenedor Dinámico Principal -->
             <div id="contenedor-principal" style="display:flex; flex-grow:1; flex-direction:column; overflow:hidden;">
-                <!-- Tablero Kanban -->
+                
+                <!-- Tablero Kanban (Solo para Gestiones en curso) -->
                 <div id="tablero-gestiones" class="board-container">
                     <div class="board-column col-sin-agendar">
                         <h4>Alumnos sin agendar</h4>
@@ -145,16 +195,16 @@
                 </div>
 
                 <!-- Lista Genérica (Confirmadas, Suspendidas, ABMs) -->
-                <div id="lista-generica" class="lista-generica" style="display:none; overflow-y:auto;"></div>
+                <div id="lista-generica" class="lista-generica" style="display:none; overflow-y:auto; padding-bottom:20px;"></div>
 
                 <!-- Estadísticas -->
                 <div id="estadisticas-container" style="display:none;">
                     <div class="chart-box" id="chart-box-gestiones">
-                        <h4 style="text-align:center; margin-top:0;">Gestiones en Curso</h4>
+                        <h4 style="text-align:center; margin-top:0; color:#333;">Gestiones en Curso</h4>
                         <canvas id="chartGestiones"></canvas>
                     </div>
                     <div class="chart-box" id="chart-box-general">
-                        <h4 style="text-align:center; margin-top:0;">Estado Global</h4>
+                        <h4 style="text-align:center; margin-top:0; color:#333;">Estado Global</h4>
                         <canvas id="chartGlobal"></canvas>
                     </div>
                 </div>
@@ -163,36 +213,36 @@
     </div>
 
     <!-- Acordeón Formulario Edición/Alta -->
-    <div id="form-alumno-wrapper" style="display:none; background:#fff; padding:20px; border-radius:6px; box-shadow:inset 0 2px 4px rgba(0,0,0,0.05); margin-top:10px; border:1px solid #ddd;">
-        <h3 id="form-titulo" style="margin-top:0; color:#2c3e50;">Datos del Alumno</h3>
+    <div id="form-alumno-wrapper" style="display:none; background:#fff; padding:20px; border-radius:8px; border:1px solid #ddd; margin-top:10px;">
+        <h3 id="form-titulo" style="margin-top:0; color:#111;">Datos del Alumno</h3>
         <form id="form-alumno">
             <input type="hidden" id="alumno-id">
-            <div style="display:flex; gap:15px; margin-bottom:10px;">
-                <div style="flex:1;"><label>Nombre: <input type="text" id="nombre" required></label></div>
-                <div style="flex:1;"><label>Celular: <input type="text" id="celular" required></label></div>
+            <div style="display:flex; gap:15px; margin-bottom:10px; flex-wrap:wrap;">
+                <div style="flex:1; min-width:200px;"><label>Nombre: <input type="text" id="nombre" required></label></div>
+                <div style="flex:1; min-width:150px;"><label>Celular: <input type="text" id="celular" required></label></div>
                 <div style="width:80px;"><label>Edad: <input type="number" id="edad"></label></div>
             </div>
             
-            <div style="display:flex; gap:15px; margin-bottom:15px;">
-                <div style="flex:1;">
+            <div style="display:flex; gap:15px; margin-bottom:15px; flex-wrap:wrap;">
+                <div style="flex:1; min-width:200px;">
                     <label>Instrumento(s): <br>
                         <select id="instrumento" multiple required style="height:80px;"></select>
                     </label>
                 </div>
-                <div style="flex:1;">
+                <div style="flex:1; min-width:200px;">
                     <label>Suscripción: <select id="tipo_suscripcion" required></select></label>
                 </div>
             </div>
             
-            <h4 style="margin:10px 0 5px 0;">Descripción / Info</h4>
+            <h4 style="margin:10px 0 5px 0; color:#444;">Descripción / Info</h4>
             <div id="editor-container"></div>
             
-            <h4 style="margin:15px 0 10px 0; border-bottom:1px solid #ccc; padding-bottom:5px;">Disponibilidad Horaria</h4>
+            <h4 style="margin:15px 0 10px 0; border-bottom:1px solid #eee; padding-bottom:5px; color:#444;">Disponibilidad Horaria</h4>
             <div id="contenedor-disponibilidad"></div>
             
             <div style="margin-top:20px; display:flex; gap:10px;">
-                <button type="submit" style="padding:10px 20px; background:#28a745; color:white; border:none; cursor:pointer; border-radius:4px; font-weight:bold;">Guardar Datos</button>
-                <button type="button" id="btn-cerrar-alumno" style="padding:10px 20px; background:#e2e3e5; color:#333; border:none; cursor:pointer; border-radius:4px;">Cancelar / Cerrar</button>
+                <button type="submit" style="padding:10px 20px; background:#28a745; color:white; border:none; cursor:pointer; border-radius:6px; font-weight:bold;">Guardar Datos</button>
+                <button type="button" id="btn-cerrar-alumno" style="padding:10px 20px; background:#e2e3e5; color:#333; border:none; cursor:pointer; border-radius:6px; font-weight:600;">Cancelar / Cerrar</button>
             </div>
         </form>
     </div>
@@ -203,25 +253,25 @@
     </dialog>
 
     <dialog id="modal-agenda">
-        <h3 style="margin-top:0; color:#2c3e50;">Buscar Disponibilidad</h3>
-        <div style="margin-bottom: 15px; padding: 15px; background: #fff; border:1px solid #ddd; border-radius: 6px; display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap;">
+        <h3 style="margin-top:0; color:#111;">Buscar Disponibilidad</h3>
+        <div style="margin-bottom: 15px; padding: 15px; background: #f8f9fa; border:1px solid #eee; border-radius: 8px; display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap;">
             <div>
-                <label style="display:block; font-size:0.9em; font-weight:bold; margin-bottom:5px;">Desde:</label>
+                <label style="display:block; font-size:0.9em; font-weight:600; margin-bottom:5px;">Desde:</label>
                 <input type="text" id="agenda-start" placeholder="Seleccione fecha">
             </div>
             <div>
-                <label style="display:block; font-size:0.9em; font-weight:bold; margin-bottom:5px;">Hasta:</label>
+                <label style="display:block; font-size:0.9em; font-weight:600; margin-bottom:5px;">Hasta:</label>
                 <input type="text" id="agenda-end" placeholder="Seleccione fecha">
             </div>
             <div style="flex-grow:1; min-width:200px;">
-                <label style="display:block; font-size:0.9em; font-weight:bold; margin-bottom:5px;">Profesor (habilitados):</label>
+                <label style="display:block; font-size:0.9em; font-weight:600; margin-bottom:5px;">Profesor (habilitados):</label>
                 <select id="agenda-profe-filtro"><option value="">Todos</option></select>
             </div>
-            <button id="btn-ejecutar-busqueda" style="background:#3498db; color:white; border:none; padding:10px 20px; border-radius:4px; cursor:pointer; font-weight:bold; height:38px;">🔍 Buscar en Calendar</button>
+            <button id="btn-ejecutar-busqueda" style="background:#008CBA; color:white; border:none; padding:10px 20px; border-radius:6px; cursor:pointer; font-weight:bold; height:40px;">🔍 Buscar</button>
         </div>
-        <div id="resultados-agenda" style="margin-bottom:15px; max-height:40vh; overflow-y:auto;"></div>
+        <div id="resultados-agenda" style="margin-bottom:15px; max-height:40vh; overflow-y:auto; padding-right:5px;"></div>
         <div style="text-align:right;">
-            <button type="button" class="btn-cerrar-modal" data-modal="modal-agenda" style="padding:8px 15px; border:none; border-radius:4px; cursor:pointer; background:#e2e3e5;">Cerrar Buscador</button>
+            <button type="button" class="btn-cerrar-modal" data-modal="modal-agenda" style="padding:8px 15px; border:none; border-radius:6px; cursor:pointer; background:#e2e3e5; font-weight:600;">Cerrar</button>
         </div>
     </dialog>
 
@@ -237,8 +287,8 @@
             </select>
         </label>
         <div style="display:flex; gap:10px;">
-            <button id="btn-guardar-suspension" style="padding:8px 15px; background:#e74c3c; color:white; border:none; cursor:pointer; border-radius:4px; font-weight:bold;">Confirmar Suspensión</button>
-            <button type="button" class="btn-cerrar-modal" data-modal="modal-suspender" style="padding:8px 15px; cursor:pointer; border:none; border-radius:4px;">Cancelar</button>
+            <button id="btn-guardar-suspension" style="padding:10px 15px; background:#e74c3c; color:white; border:none; cursor:pointer; border-radius:6px; font-weight:bold;">Confirmar Suspensión</button>
+            <button type="button" class="btn-cerrar-modal" data-modal="modal-suspender" style="padding:10px 15px; cursor:pointer; border:none; border-radius:6px; background:#eee; font-weight:600;">Cancelar</button>
         </div>
     </dialog>
 
@@ -247,14 +297,14 @@
         <input type="hidden" id="abm-edit-id">
         <input type="hidden" id="abm-edit-coleccion">
         <label style="display:block; margin-bottom:10px;">Nombre: <input type="text" id="abm-edit-nombre"></label>
-        <div id="div-abm-edit-profe" style="display:none; padding:15px; background:#f8f9fa; border:1px solid #ddd; border-radius:4px; margin-bottom:15px;">
+        <div id="div-abm-edit-profe" style="display:none; padding:15px; background:#f8f9fa; border:1px solid #ddd; border-radius:6px; margin-bottom:15px;">
             <label style="display:block; margin-bottom:10px;">Email Calendario: <input type="email" id="abm-edit-correo"></label>
             <label style="display:block; margin-bottom:10px;">Alias a transferir: <input type="text" id="abm-edit-alias"></label>
-            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:bold; color:#2c3e50;"><input type="checkbox" id="abm-edit-entrevista" style="width:auto; margin:0;"> Habilitado para dar entrevistas/pruebas</label>
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:600; color:#2c3e50;"><input type="checkbox" id="abm-edit-entrevista" style="width:auto; margin:0;"> Habilitado para dar entrevistas/pruebas</label>
         </div>
         <div style="display:flex; gap:10px;">
-            <button id="btn-guardar-abm-edit" style="padding:8px 15px; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Actualizar Registro</button>
-            <button type="button" class="btn-cerrar-modal" data-modal="modal-abm-edit" style="padding:8px 15px; border:none; border-radius:4px; cursor:pointer;">Cancelar</button>
+            <button id="btn-guardar-abm-edit" style="padding:10px 15px; background:#28a745; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">Actualizar Registro</button>
+            <button type="button" class="btn-cerrar-modal" data-modal="modal-abm-edit" style="padding:10px 15px; border:none; border-radius:6px; cursor:pointer; background:#eee; font-weight:600;">Cancelar</button>
         </div>
     </dialog>
 
@@ -379,6 +429,22 @@
             return method === 'DELETE' ? true : await res.json();
         }
 
+        async function getEventosCalendario(calendarId, timeMin, timeMax) {
+            return await fetchCalendarAPI(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true`, 'GET');
+        }
+
+        async function crearEventoCalendario(calendarId, titulo, inicioStr, finStr) {
+            return await fetchCalendarAPI(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`, 'POST', { summary: titulo, start: { dateTime: inicioStr }, end: { dateTime: finStr } });
+        }
+
+        async function actualizarEventoCalendario(calendarId, eventId, titulo, descripcion) {
+            return await fetchCalendarAPI(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, 'PATCH', { summary: titulo, description: descripcion });
+        }
+
+        async function eliminarEventoCalendario(calendarId, eventId) {
+            return await fetchCalendarAPI(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, 'DELETE');
+        }
+
         function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, profes, dStart, dEnd, cfg) {
             const opciones = [], mapaDias = { 0:"D", 1:"L", 2:"M", 3:"X", 4:"J", 5:"V", 6:"S" };
             const durMs = 60*60*1000, cantAulas = parseInt(cfg.cantidad_aulas)||3, cantBat = parseInt(cfg.cantidad_baterias)||2;
@@ -472,49 +538,51 @@
         function generarTarjetaAlumno(al, id, vista) {
             const instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento;
             let tags = '', acciones = '';
+            let extraClass = '';
 
             if (vista === 'Gestiones en Curso') {
                 acciones += `<select class="select-estado" data-id="${id}">
-                    <option value="Pendiente procesar" ${al.estado_agenda === 'Pendiente procesar'?'selected':''}>Volver a Sin Agendar</option>
-                    <option value="Pendiente validación por profe" ${al.estado_agenda === 'Pendiente validación por profe'?'selected':''}>Validando Profe</option>
-                    <option value="Pendiente validación por alumno" ${al.estado_agenda === 'Pendiente validación por alumno'?'selected':''}>Validando Alumno</option>
+                    <option value="Pendiente procesar" ${al.estado_agenda === 'Pendiente procesar'?'selected':''}>Mover a Sin Agendar</option>
+                    <option value="Pendiente validación por profe" ${al.estado_agenda === 'Pendiente validación por profe'?'selected':''}>Mover a Validando Profe</option>
+                    <option value="Pendiente validación por alumno" ${al.estado_agenda === 'Pendiente validación por alumno'?'selected':''}>Mover a Validando Alumno</option>
                 </select>`;
 
                 if (al.reserva_fecha_texto) {
-                    if (al.id_evento_reserva) tags += `<span class="tag-bloqueada">🔒 Bloqueado: ${al.reserva_fecha_texto} (${al.reserva_profe_nombre})</span>`;
-                    else tags += `<button class="btn-bloquear-agenda" data-id="${id}">⏳ Propuesto: ${al.reserva_fecha_texto} (${al.reserva_profe_nombre})</button>`;
+                    if (al.id_evento_reserva) tags += `<div class="badge bg-warning">🔒 Bloqueado: ${al.reserva_fecha_texto} (${al.reserva_profe_nombre})</div>`;
+                    else tags += `<button class="btn-bloquear-agenda badge" data-id="${id}">⏳ Propuesto: ${al.reserva_fecha_texto} (${al.reserva_profe_nombre})</button>`;
                 }
 
                 if (al.estado_agenda === 'Pendiente procesar') {
                     acciones += `<button class="btn-buscar-agenda btn-secundario" data-id="${id}">🔍 Buscar Agenda</button>`;
                 } else if (al.estado_agenda === 'Pendiente validación por profe') {
-                    acciones += tags;
-                    acciones += `<button class="btn-validar-alumno btn-accion-flujo" data-id="${id}">Pasar a Validar Alumno</button>`;
+                    acciones += `<button class="btn-validar-alumno btn-accion-flujo" data-id="${id}">Validar con Alumno</button>`;
                 } else if (al.estado_agenda === 'Pendiente validación por alumno') {
-                    acciones += tags;
                     acciones += `<button class="btn-confirmar-entrevista btn-accion-flujo" data-id="${id}">Confirmar Entrevista</button>`;
                 }
                 acciones += `<button class="btn-abrir-suspender btn-suspender" data-id="${id}">Suspender</button>`;
             
             } else if (vista === 'Agendas Confirmadas') {
-                tags += `<br><span style="display:inline-block; margin-top:5px; font-size:0.9em; background:#27ae60; padding:4px 8px; border-radius:4px; color:white;">✅ Confirmado: ${al.reserva_fecha_texto||'-'} (${al.reserva_profe_nombre||'-'})</span>`;
+                extraClass = 'item-confirmada';
+                tags += `<div class="badge bg-success">✅ Confirmado: ${al.reserva_fecha_texto||'-'} (${al.reserva_profe_nombre||'-'})</div>`;
                 acciones += `<button class="btn-cancelar-agenda btn-suspender" data-id="${id}">Deshacer Confirmación</button>`;
             } else if (vista === 'Agendas Suspendidas') {
-                tags += `<br><span style="display:inline-block; margin-top:5px; font-size:0.9em; background:#c0392b; padding:4px 8px; border-radius:4px; color:white;">Motivo: ${al.motivo_suspension||'S/D'}</span>`;
+                extraClass = 'item-suspendida';
+                tags += `<div class="badge bg-danger">Motivo: ${al.motivo_suspension||'S/D'}</div>`;
                 acciones += `<button class="btn-recuperar-agenda btn-accion-flujo" data-id="${id}">Recuperar Agenda</button>`;
             }
 
             return `
-                <div class="alumno-item" data-id="${id}">
+                <div class="alumno-item ${extraClass}" data-id="${id}">
                     <div class="alumno-header btn-editar-alumno" data-id="${id}">
-                        <div>
-                            <strong>${al.nombre}</strong> - ${instStr} (${al.tipo_suscripcion})<br>
-                            <small style="color:#7f8c8d;">Cel: ${al.celular} | Edad: ${al.edad||'-'}</small>
+                        <div style="width:100%;">
                             ${tags}
+                            <div style="font-size:1.1em; font-weight:bold;">${al.nombre}</div>
+                            <div style="color:#555;">${instStr} (${al.tipo_suscripcion})</div>
+                            <div style="color:#888; font-size:0.85em; margin-top:5px;">Cel: ${al.celular} | Edad: ${al.edad||'-'}</div>
                         </div>
                     </div>
                     ${acciones ? `<div class="alumno-actions">${acciones}</div>` : ''}
-                    <div id="accordion-${id}" style="display:none;"></div>
+                    <div id="accordion-${id}" style="display:none; margin-top:10px;"></div>
                 </div>
             `;
         }
@@ -532,7 +600,7 @@
 
             if (vista === 'Gestiones en Curso') {
                 btnNuevo.style.display = 'block'; contTablero.style.display = 'flex';
-                document.getElementById('col-1-content').innerHTML = '...'; document.getElementById('col-2-content').innerHTML = '...'; document.getElementById('col-3-content').innerHTML = '...';
+                document.getElementById('col-1-content').innerHTML = ''; document.getElementById('col-2-content').innerHTML = ''; document.getElementById('col-3-content').innerHTML = '';
                 
                 try {
                     const refAl = collection(db, "alumnos");
@@ -542,24 +610,24 @@
                         getDocs(query(refAl, where("estado_agenda", "==", "Pendiente validación por alumno")))
                     ]);
                     
-                    document.getElementById('col-1-content').innerHTML = r1.empty ? '<small>Vacío</small>' : r1.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
-                    document.getElementById('col-2-content').innerHTML = r2.empty ? '<small>Vacío</small>' : r2.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
-                    document.getElementById('col-3-content').innerHTML = r3.empty ? '<small>Vacío</small>' : r3.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
+                    document.getElementById('col-1-content').innerHTML = r1.empty ? '' : r1.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
+                    document.getElementById('col-2-content').innerHTML = r2.empty ? '' : r2.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
+                    document.getElementById('col-3-content').innerHTML = r3.empty ? '' : r3.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
                 } catch(e) { console.error(e); }
                 
             } else if (vista === 'Agendas Confirmadas' || vista === 'Agendas Suspendidas') {
-                contLista.style.display = 'flex'; contLista.innerHTML = 'Cargando...';
+                contLista.style.display = 'flex'; contLista.innerHTML = '';
                 try {
                     const estMap = { 'Agendas Confirmadas': 'Agenda confirmada', 'Agendas Suspendidas': 'Agenda suspendida' };
                     const qSnap = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", estMap[vista])));
-                    contLista.innerHTML = qSnap.empty ? '<p>Vacío</p>' : qSnap.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
+                    contLista.innerHTML = qSnap.empty ? '' : qSnap.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
                 } catch(e) { console.error(e); }
                 
             } else if (vista === 'Estadísticas') {
                 contEstad.style.display = 'flex';
                 renderCharts();
             } else if (vista.startsWith('ABM') || vista === 'Configuración') {
-                contLista.style.display = 'flex'; contLista.innerHTML = 'Cargando...';
+                contLista.style.display = 'flex'; contLista.innerHTML = '';
                 if(vista === 'Configuración') renderConfig(contLista);
                 else {
                     const colMap = { 'ABM-Profesores': 'profesores', 'ABM-Instrumentos': 'instrumentos', 'ABM-Suscripciones': 'tipos_suscripcion' };
@@ -580,12 +648,12 @@
 
                 chartGestionesInst = new Chart(document.getElementById('chartGestiones'), {
                     type: 'doughnut',
-                    data: { labels: ['Sin Agendar', 'Validando Profe', 'Validando Alumno'], datasets: [{ data: [counts['Pendiente procesar'], counts['Pendiente validación por profe'], counts['Pendiente validación por alumno']], backgroundColor: ['#f8d7da', '#e2d9f3', '#fff3cd'] }] }
+                    data: { labels: ['Sin Agendar', 'Validando Profe', 'Validando Alumno'], datasets: [{ data: [counts['Pendiente procesar'], counts['Pendiente validación por profe'], counts['Pendiente validación por alumno']], backgroundColor: ['#e74c3c', '#9b59b6', '#f1c40f'] }] }
                 });
 
                 chartGlobalInst = new Chart(document.getElementById('chartGlobal'), {
                     type: 'pie',
-                    data: { labels: ['En Curso (Total)', 'Confirmadas', 'Suspendidas'], datasets: [{ data: [counts['Pendiente procesar']+counts['Pendiente validación por profe']+counts['Pendiente validación por alumno'], counts['Agenda confirmada'], counts['Agenda suspendida']], backgroundColor: ['#3498db', '#2ecc71', '#e74c3c'] }] }
+                    data: { labels: ['En Curso (Total)', 'Confirmadas', 'Suspendidas'], datasets: [{ data: [counts['Pendiente procesar']+counts['Pendiente validación por profe']+counts['Pendiente validación por alumno'], counts['Agenda confirmada'], counts['Agenda suspendida']], backgroundColor: ['#3498db', '#2ecc71', '#7f8c8d'] }] }
                 });
             } catch(e) { console.error(e); }
         }
@@ -593,12 +661,12 @@
         document.getElementById('chart-box-gestiones').addEventListener('click', () => { document.querySelector('[data-vista="Gestiones en Curso"]').click(); });
         document.getElementById('chart-box-general').addEventListener('click', () => { document.querySelector('[data-vista="Agendas Confirmadas"]').click(); });
 
-        // === EVENT DELEGATION (Clicks Generales para evitar colgados) ===
+        // === EVENT DELEGATION (Clicks Generales) ===
         document.addEventListener('click', async (e) => {
             const target = e.target;
             
             // 1. Selector de Estado Rápido
-            if(target.classList.contains('select-estado')) return; // handled by 'change' event instead
+            if(target.classList.contains('select-estado')) return;
 
             // 2. Editar Alumno (Acordeón)
             const headerAl = target.closest('.btn-editar-alumno');
@@ -611,15 +679,17 @@
                 wrap.style.display = 'none';
                 document.querySelectorAll('[id^="accordion-"]').forEach(el => el.style.display = 'none');
                 
+                document.getElementById('alumno-id').value = id; // Asegurar ID para evitar duplicados
+                await llenarFormularioAlumno(id);
                 accDiv.appendChild(wrap);
                 document.getElementById('form-titulo').textContent = 'Editar Alumno';
-                await llenarFormularioAlumno(id);
                 wrap.style.display = 'block'; accDiv.style.display = 'block';
                 return;
             }
 
             // 3. Buscar Agenda (Modal)
             if (target.classList.contains('btn-buscar-agenda')) {
+                if(!googleAccessToken) { document.getElementById('btn-conectar-cal').style.display='inline-block'; return alert("Requiere token. Conecta el calendario arriba."); }
                 alumnoIdActual = target.getAttribute('data-id');
                 const modal = document.getElementById('modal-agenda');
                 const resDiv = document.getElementById('resultados-agenda');
@@ -627,7 +697,6 @@
                 modal.showModal();
 
                 try {
-                    // Inicializar Flatpickr con las fechas deshabilitadas según disponibilidad
                     const al = (await getDoc(doc(db, "alumnos", alumnoIdActual))).data();
                     const dMap = { 'D':0, 'L':1, 'M':2, 'X':3, 'J':4, 'V':5, 'S':6 };
                     const diasHab = [];
@@ -635,7 +704,8 @@
                     
                     const fConfig = {
                         disable: [ function(date) { return date.getDay() === 0 || !diasHab.includes(date.getDay()); } ],
-                        locale: "es", dateFormat: "Y-m-d", defaultDate: new Date()
+                        locale: "es", dateFormat: "Y-m-d", defaultDate: new Date(),
+                        appendTo: document.getElementById('modal-agenda') // Corrige el z-index de Flatpickr
                     };
                     if(fpStart) fpStart.destroy(); if(fpEnd) fpEnd.destroy();
                     fpStart = flatpickr("#agenda-start", fConfig);
@@ -681,7 +751,7 @@
                     await navigator.clipboard.writeText(txt);
                     
                     let evId = al.id_evento_reserva;
-                    if (!evId) { // Crear reserva si no se hizo manual
+                    if (!evId) {
                         const instStr = Array.isArray(al.instrumento) ? al.instrumento.join('/') : al.instrumento;
                         const tit = reemplazarVariables(configApp.formato_evento_reserva, { profe: al.reserva_profe_nombre, alumno: al.nombre, instrumento: instStr });
                         evId = (await crearEventoCalendario('productora.mandalahouse@gmail.com', tit, al.reserva_inicio, al.reserva_fin)).id;
@@ -719,7 +789,7 @@
 
             // 8. Cancelar Confirmación
             if (target.classList.contains('btn-cancelar-agenda')) {
-                if (confirm("¿Deshacer confirmación? Eliminará el evento en Calendar y volverá a Pendiente Procesar.")) {
+                if (confirm("¿Deshacer confirmación? Eliminará el evento en Calendar y volverá a Sin Agendar.")) {
                     const id = target.getAttribute('data-id');
                     try {
                         const al = (await getDoc(doc(db, "alumnos", id))).data();
@@ -855,6 +925,7 @@
         }
 
         async function llenarFormularioAlumno(id) {
+            document.getElementById('alumno-id').value = id; // Asegurar ID
             const d = (await getDoc(doc(db, "alumnos", id))).data();
             document.getElementById('nombre').value = d.nombre; document.getElementById('celular').value = d.celular; document.getElementById('edad').value = d.edad||'';
             await cargarSelectsAlumnos();
@@ -895,15 +966,20 @@
         function renderConfig(cont) {
             cont.innerHTML = `
                 <div class="abm-container" style="max-width:800px;">
-                    <label>Aulas totales (Límite simultáneo general): <input type="number" id="cfg-aulas" value="${configApp.cantidad_aulas}" style="width:80px;"></label><br><br>
-                    <label>Baterías totales (Límite simultáneo batería): <input type="number" id="cfg-bats" value="${configApp.cantidad_baterias}" style="width:80px;"></label><br><br>
-                    <label>Identificador de Batería en Calendar (Emoji/Texto): <input type="text" id="cfg-idbat" value="${configApp.identificador_bateria}" style="width:80px;"></label><br><br>
-                    <label>Valor de Clase: <input type="text" id="cfg-valor" value="${configApp.valor_clase}"></label><br><br>
-                    <label>Formato Título Evento (Reserva): <input type="text" id="cfg-evt-res" value="${configApp.formato_evento_reserva}" style="width:100%;"></label><br><br>
-                    <label>Formato Título Evento (Confirmado): <input type="text" id="cfg-evt-conf" value="${configApp.formato_evento_confirmado}" style="width:100%;"></label><br><br>
-                    <label>Texto Profe: <textarea id="cfg-txt-p" class="config-box">${configApp.texto_profe}</textarea></label>
-                    <label>Texto Alumno: <textarea id="cfg-txt-a" class="config-box">${configApp.texto_alumno}</textarea></label>
-                    <button id="btn-guardar-cfg" class="btn-accion-flujo">Guardar Configuración</button>
+                    <h3 style="margin-top:0; color:#333;">Límites y Reglas de Calendario</h3>
+                    <div style="display:flex; gap:15px; margin-bottom:20px;">
+                        <div><label>Aulas totales:<br><input type="number" id="cfg-aulas" value="${configApp.cantidad_aulas}" style="width:100px;"></label></div>
+                        <div><label>Baterías totales:<br><input type="number" id="cfg-bats" value="${configApp.cantidad_baterias}" style="width:100px;"></label></div>
+                        <div style="flex-grow:1;"><label>Filtro eventos de Batería en Calendar (Emoji/Texto):<br><input type="text" id="cfg-idbat" value="${configApp.identificador_bateria}"></label></div>
+                    </div>
+                    
+                    <h3 style="margin-top:0; color:#333; border-top:1px solid #eee; padding-top:15px;">Mensajes y Textos</h3>
+                    <label style="display:block; margin-bottom:15px;">Valor de Clase (Monto): <input type="text" id="cfg-valor" value="${configApp.valor_clase}"></label>
+                    <label style="display:block; margin-bottom:15px;">Título de Evento para Reservas Previas: <input type="text" id="cfg-evt-res" value="${configApp.formato_evento_reserva}"></label>
+                    <label style="display:block; margin-bottom:15px;">Título de Evento Confirmado: <input type="text" id="cfg-evt-conf" value="${configApp.formato_evento_confirmado}"></label>
+                    <label style="display:block; margin-bottom:15px;">Texto Validación con Profe: <textarea id="cfg-txt-p" class="config-box">${configApp.texto_profe}</textarea></label>
+                    <label style="display:block; margin-bottom:15px;">Texto Validación con Alumno: <textarea id="cfg-txt-a" class="config-box">${configApp.texto_alumno}</textarea></label>
+                    <button id="btn-guardar-cfg" class="btn-accion-flujo" style="padding:10px 20px; font-size:1em;">Guardar Configuración</button>
                 </div>
             `;
             document.getElementById('btn-guardar-cfg').addEventListener('click', async () => {
@@ -916,16 +992,22 @@
             tituloABMActual = titulo;
             try {
                 const qS = await getDocs(collection(db, coleccion));
-                let h = `<div class="abm-container"><input type="text" id="input-nuevo-abm" placeholder="Nombre">`;
-                if(coleccion === 'profesores') { h += `<input type="email" id="input-correo-abm" placeholder="Email Calendario"><input type="text" id="input-alias-abm" placeholder="Alias"><label style="margin-left:5px;"><input type="checkbox" id="input-entrevista-abm" checked> Entrevistas</label>`; }
-                h += `<button id="btn-guardar-abm" class="btn-accion-flujo" style="margin-left:5px;">Agregar</button></div>`;
+                let h = `<div class="abm-container" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                            <input type="text" id="input-nuevo-abm" placeholder="Nombre">`;
+                if(coleccion === 'profesores') { 
+                    h += `<input type="email" id="input-correo-abm" placeholder="Email Calendario">
+                          <input type="text" id="input-alias-abm" placeholder="Alias">
+                          <label style="white-space:nowrap; cursor:pointer;"><input type="checkbox" id="input-entrevista-abm" checked> Entrevistas</label>`; 
+                }
+                h += `<button id="btn-guardar-abm" class="btn-accion-flujo" style="margin-left:auto;">+ Agregar Nuevo</button>
+                      </div>`;
                 
                 qS.forEach(d => {
                     const dt = d.data();
-                    let ex = coleccion==='profesores' ? ` (${dt.correo_calendario}) <span class="badge-entrevista ${dt.entrevista?'badge-si':'badge-no'}">${dt.entrevista?'SÍ':'NO'} Entrevistas</span>` : '';
+                    let ex = coleccion==='profesores' ? ` (${dt.correo_calendario}) <span class="badge ${dt.entrevista?'bg-success':'bg-danger'}" style="margin-left:10px;">${dt.entrevista?'SÍ':'NO'} Entrevistas</span>` : '';
                     h += `<div class="abm-item" onclick="abrirEdicionABM('${d.id}', '${coleccion}', '${dt.nombre}', '${dt.correo_calendario||''}', '${dt.alias_transferencia||''}', ${!!dt.entrevista})">
-                            <span>${dt.nombre}${ex}</span>
-                            <button class="btn-eliminar" onclick="event.stopPropagation(); eliminarABM('${d.id}', '${coleccion}')">❌</button>
+                            <span><strong>${dt.nombre}</strong>${ex}</span>
+                            <button class="btn-suspender" onclick="event.stopPropagation(); eliminarABM('${d.id}', '${coleccion}')" style="padding:4px 8px;">❌</button>
                           </div>`;
                 });
                 cont.innerHTML = h;
