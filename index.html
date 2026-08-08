@@ -130,8 +130,8 @@
     <div id="app-container">
         <nav id="sidebar">
             <div class="sidebar-brand">
-                <h2>Mandala Records</h2>
-                <small>Estudio & Ensambles</small>
+                <h2>Mandala Ensambles</h2>
+                <small>Seguimiento de nuevos alumnos</small>
             </div>
             
             <div class="nav-item active" data-vista="Gestiones en Curso">Gestiones en Curso</div>
@@ -369,7 +369,13 @@
         // === FUNCIONES UTILITARIAS ===
         function reemplazarVariables(texto, datos) { let res = texto; for (const [key, value] of Object.entries(datos)) res = res.replaceAll(`{${key}}`, value || ''); return res; }
         function formatoLocalISO(date) { const tzo = -date.getTimezoneOffset(), dif = tzo >= 0 ? '+' : '-', pad = num => (num < 10 ? '0' : '') + num; return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + 'T' + pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds()) + dif + pad(Math.floor(Math.abs(tzo) / 60)) + ':' + pad(Math.abs(tzo) % 60); }
-        function formatearFechaAmi(fechaIsoStr) { const d = new Date(fechaIsoStr), dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']; return `${dias[d.getDay()]} ${d.getDate()}/${d.getMonth()+1} ${d.getHours()}hs`; }
+        
+        function formatearFechaAmi(fechaIsoStr) { 
+            const d = new Date(fechaIsoStr), dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']; 
+            let min = d.getMinutes();
+            let minStr = min === 0 ? 'hs' : `:${min < 10 ? '0'+min : min}hs`;
+            return `${dias[d.getDay()]} ${d.getDate()}/${d.getMonth()+1} ${d.getHours()}${minStr}`; 
+        }
 
         async function fetchCalendarAPI(url, method, body = null) {
             if (!googleAccessToken) { document.getElementById('btn-conectar-cal').style.display = 'inline-block'; throw new Error("Token caducado."); }
@@ -388,9 +394,64 @@
         async function actualizarEventoCalendario(calendarId, eventId, titulo, descripcion) { return await fetchCalendarAPI(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, 'PATCH', { summary: titulo, description: descripcion }); }
         async function eliminarEventoCalendario(calendarId, eventId) { return await fetchCalendarAPI(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, 'DELETE'); }
 
+        /**
+         * Lógica de Overlap Preciso para Baterías y Aulas (Slots de 30 mins)
+         */
+        function chequearDisponibilidadExacta(inicioTestMs, finTestMs, eventosAPI, cantAulas, cantBat, esBateria, cfgEmoji) {
+            let picosAulas = 0;
+            let picosBateria = 0;
+            let profesOcupados = new Set();
+            
+            const eventosCruzados = eventosAPI.filter(ev => {
+                if (!ev.start || !ev.start.dateTime) return false;
+                const evIn = new Date(ev.start.dateTime).getTime();
+                const evFn = new Date(ev.end.dateTime).getTime();
+                return (inicioTestMs < evFn && finTestMs > evIn);
+            });
+            
+            if (eventosCruzados.length === 0) return { valido: true, profesOcupados: new Set() };
+            
+            const puntosDeTiempo = new Set([inicioTestMs, finTestMs]);
+            eventosCruzados.forEach(ev => {
+                const i = new Date(ev.start.dateTime).getTime();
+                const f = new Date(ev.end.dateTime).getTime();
+                if (i > inicioTestMs && i < finTestMs) puntosDeTiempo.add(i);
+                if (f > inicioTestMs && f < finTestMs) puntosDeTiempo.add(f);
+            });
+            
+            const arrayPuntos = Array.from(puntosDeTiempo).sort((a,b) => a-b);
+            
+            for (let i = 0; i < arrayPuntos.length - 1; i++) {
+                const puntoMedioMs = arrayPuntos[i] + 1000; 
+                let simultaneosAulas = 0;
+                let simultaneosBat = 0;
+                
+                eventosCruzados.forEach(ev => {
+                    const evIn = new Date(ev.start.dateTime).getTime();
+                    const evFn = new Date(ev.end.dateTime).getTime();
+                    
+                    if (puntoMedioMs >= evIn && puntoMedioMs < evFn) {
+                        simultaneosAulas++;
+                        profesOcupados.add(ev.profeId);
+                        if (ev.summary && ev.summary.toLowerCase().includes(cfgEmoji.toLowerCase())) {
+                            simultaneosBat++;
+                        }
+                    }
+                });
+                
+                if (simultaneosAulas > picosAulas) picosAulas = simultaneosAulas;
+                if (simultaneosBat > picosBateria) picosBateria = simultaneosBat;
+            }
+            
+            const valido = (picosAulas < cantAulas) && (esBateria ? picosBateria < cantBat : true);
+            return { valido, profesOcupados };
+        }
+
         function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, todosLosProfes, profesFiltradosIDs, dStart, dEnd, cfg) {
             const opciones = [], mapaDias = { 0:"D", 1:"L", 2:"M", 3:"X", 4:"J", 5:"V", 6:"S" };
-            const durMs = 60*60*1000, cantAulas = parseInt(cfg.cantidad_aulas)||3, cantBat = parseInt(cfg.cantidad_baterias)||2;
+            const durMs = 60*60*1000; // Duración siempre de 1 hora
+            const slotPasoMs = 30*60*1000; // Avanza cada media hora
+            const cantAulas = parseInt(cfg.cantidad_aulas)||3, cantBat = parseInt(cfg.cantidad_baterias)||2;
             const diffDays = Math.floor(Math.abs(dEnd - dStart) / (1000*60*60*24));
 
             for (let i = 0; i <= diffDays; i++) {
@@ -404,44 +465,24 @@
                         const hIniB = new Date(fEval); hIniB.setHours(parseInt(hIni), parseInt(mIni), 0, 0);
                         const hFinR = new Date(fEval); hFinR.setHours(parseInt(hFin), parseInt(mFin), 0, 0);
 
-                        if (hIniB < new Date()) hIniB.setHours(new Date().getHours() + 1, 0, 0, 0);
+                        // Si la hora de inicio es anterior a AHORA, avanzamos al proximo modulo de media hora en el futuro
+                        if (hIniB < new Date()) {
+                            let curr = new Date();
+                            // Redondear al proximo intervalo de 30 mins
+                            let m = curr.getMinutes();
+                            let rem = 30 - (m % 30);
+                            curr.setMinutes(m + rem, 0, 0);
+                            hIniB.setTime(curr.getTime());
+                        }
 
                         while (hIniB.getTime() + durMs <= hFinR.getTime()) {
                             const inMs = hIniB.getTime(), finMs = inMs + durMs;
                             
-                            const evsCruzados = eventosAPI.filter(ev => {
-                                if (!ev.start || !ev.start.dateTime) return false;
-                                return (new Date(ev.start.dateTime).getTime() < finMs && new Date(ev.end.dateTime).getTime() > inMs);
-                            });
+                            const evalOverlap = chequearDisponibilidadExacta(inMs, finMs, eventosAPI, cantAulas, cantBat, esBateria, cfg.identificador_bateria);
 
-                            const pts = new Set([inMs, finMs]);
-                            evsCruzados.forEach(ev => {
-                                const iT = new Date(ev.start.dateTime).getTime(), fT = new Date(ev.end.dateTime).getTime();
-                                if (iT > inMs && iT < finMs) pts.add(iT);
-                                if (fT > inMs && fT < finMs) pts.add(fT);
-                            });
-                            const arrPts = Array.from(pts).sort((a,b)=>a-b);
-
-                            let picosAulas = 0, picosBat = 0, profesOcupadosBloque = new Set();
-                            
-                            for (let j=0; j < arrPts.length - 1; j++) {
-                                const midMs = arrPts[j] + 1000; 
-                                let simA = 0, simB = 0;
-                                evsCruzados.forEach(ev => {
-                                    const iT = new Date(ev.start.dateTime).getTime(), fT = new Date(ev.end.dateTime).getTime();
-                                    if (midMs >= iT && midMs < fT) {
-                                        simA++;
-                                        profesOcupadosBloque.add(ev.profeId);
-                                        if (ev.summary && ev.summary.toLowerCase().includes(cfg.identificador_bateria.toLowerCase())) simB++;
-                                    }
-                                });
-                                if (simA > picosAulas) picosAulas = simA;
-                                if (simB > picosBat) picosBat = simB;
-                            }
-
-                            if (picosAulas < cantAulas && (esBateria ? picosBat < cantBat : true)) {
+                            if (evalOverlap.valido) {
                                 todosLosProfes.forEach(pr => {
-                                    if (profesFiltradosIDs.includes(pr.id) && !profesOcupadosBloque.has(pr.id)) {
+                                    if (profesFiltradosIDs.includes(pr.id) && !evalOverlap.profesOcupados.has(pr.id)) {
                                         opciones.push({
                                             fechaTextoAmi: formatearFechaAmi(hIniB.toISOString()), profeId: pr.id,
                                             profeNombre: pr.nombre, calId: pr.calId,
@@ -450,7 +491,8 @@
                                     }
                                 });
                             }
-                            hIniB.setHours(hIniB.getHours() + 1);
+                            // Avanzamos de a 30 minutos en vez de 60
+                            hIniB.setTime(hIniB.getTime() + slotPasoMs);
                         }
                     });
                 }
@@ -505,9 +547,9 @@
 
             if (vista === 'Gestiones en Curso') {
                 acciones += `<select class="select-estado" data-id="${id}">
-                    <option value="Pendiente procesar" ${al.estado_agenda === 'Pendiente procesar'?'selected':''}>Columna: Sin Agendar</option>
-                    <option value="Pendiente validación por profe" ${al.estado_agenda === 'Pendiente validación por profe'?'selected':''}>Columna: Validando Profe</option>
-                    <option value="Pendiente validación por alumno" ${al.estado_agenda === 'Pendiente validación por alumno'?'selected':''}>Columna: Validando Alumno</option>
+                    <option value="Pendiente procesar" ${al.estado_agenda === 'Pendiente procesar'?'selected':''}>Sin Agendar</option>
+                    <option value="Pendiente validación por profe" ${al.estado_agenda === 'Pendiente validación por profe'?'selected':''}>Validando Profe</option>
+                    <option value="Pendiente validación por alumno" ${al.estado_agenda === 'Pendiente validación por alumno'?'selected':''}>Validando Alumno</option>
                 </select>`;
 
                 if (al.reserva_fecha_texto) {
@@ -742,14 +784,6 @@
                     const arrI = Array.isArray(al.instrumento) ? al.instrumento : [al.instrumento];
                     const esBat = arrI.some(i => i.toLowerCase().includes('bater'));
                     
-                    const dMap = { 'D':0, 'L':1, 'M':2, 'X':3, 'J':4, 'V':5, 'S':6 };
-                    const diasHab = []; for (const [l, arr] of Object.entries(al.disponibilidad)) { if (arr && arr.length > 0) diasHab.push(dMap[l]); }
-                    
-                    const dS = new Date(dStrStart+'T00:00:00'), dE = new Date(dStrEnd+'T23:59:59');
-                    let algunValido = false;
-                    for(let x = new Date(dS); x <= dE; x.setDate(x.getDate()+1)) { if(x.getDay()!==0 && diasHab.includes(x.getDay())) algunValido=true; }
-                    if(!algunValido) return resDiv.innerHTML = '<p style="color:#dc3545;"><b>Aviso:</b> El rango elegido solo abarca días domingos o días que el alumno marcó como "No disponible". Cambia las fechas.</p>';
-
                     const pS = await getDocs(collection(db, "profesores"));
                     const todosLosProfes = [];
                     const profesFiltradosIDs = [];
@@ -765,6 +799,8 @@
                     });
 
                     if(profesFiltradosIDs.length === 0) return resDiv.innerHTML = '<p>No hay profes habilitados.</p>';
+
+                    const dS = new Date(dStrStart+'T00:00:00'), dE = new Date(dStrEnd+'T23:59:59');
 
                     let allEv = [];
                     for(const pr of todosLosProfes) {
