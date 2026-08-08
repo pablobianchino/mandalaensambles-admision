@@ -57,6 +57,7 @@
         }
 
         #header-auth { display: flex; justify-content: flex-end; align-items: center; margin-bottom: 5px; gap:15px;}
+        #btn-conectar-cal { background: #ffc107; color: #000; border: none; padding: 6px 12px; border-radius: 6px; font-weight:600; cursor:pointer; display:none; font-size:0.85em;}
         #btn-logout { cursor: pointer; padding: 6px 12px; background: transparent; color: var(--color-text-mut); border: 1px solid var(--border-color); border-radius: 6px; font-weight:600; font-size:0.85em;}
         
         .vista-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;}
@@ -65,6 +66,7 @@
         #btn-carga-masiva { padding:8px 16px; background:#6c757d; color:white; border:none; cursor:pointer; border-radius:6px; font-weight:600; font-size:0.95em; transition:0.2s;}
         #btn-carga-masiva:hover { background:#5a6268; }
 
+        /* Buscador General */
         .search-container { margin-bottom: 20px; width: 100%; max-width: 400px; }
         #input-buscador-general { width: 100%; padding: 10px 15px; border-radius: 6px; border: 2px solid #2c3e50; font-size: 1em; box-sizing: border-box; outline:none; transition:0.2s;}
         #input-buscador-general:focus { border-color: var(--primary); }
@@ -104,6 +106,7 @@
         
         .lista-generica { width: 100%; display:flex; flex-direction:column; gap:15px; }
 
+        /* Dialogos y Componentes Generales */
         dialog { padding: 25px; border: none; border-radius: 10px; width: 95%; max-width: 750px; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
         dialog::backdrop { background: rgba(0,0,0,0.5); }
         input[type="text"], input[type="number"], input[type="email"], select, input[type="date"], input[type="time"] { padding: 8px 12px; border: 1px solid #ced4da; border-radius:6px; width:100%; box-sizing:border-box; margin-top:5px; font-family:inherit;}
@@ -161,6 +164,7 @@
         
         <main id="main">
             <div id="header-auth">
+                <button id="btn-conectar-cal" title="Habilita la integración con tu agenda">⚠️ Conectar Calendar</button>
                 <div id="user-info" style="font-size:0.85em; color:#6c757d;"></div>
                 <button id="btn-logout">Salir</button>
             </div>
@@ -372,6 +376,7 @@
         const contDispProfe = document.getElementById('contenedor-disponibilidad-profe');
         
         diasSemana.forEach(dia => {
+            // Disp Alumnos
             contDisp.innerHTML += `
                 <div class="dia-disponibilidad">
                     <label>${dia.nombre}:</label>
@@ -383,6 +388,7 @@
                     <span id="estado-${dia.id}" class="estado-disp" style="width:80px; text-align:right;"></span>
                 </div>
             `;
+            // Disp Profes
             contDispProfe.innerHTML += `
                 <div class="dia-disponibilidad">
                     <label>${dia.nombre}:</label>
@@ -419,6 +425,7 @@
             document.getElementById(`disp-p-${dia.id}-none`).addEventListener('change', () => updateDispStateForDay(dia.id, true));
         });
 
+        // Historial Funciones
         function renderHistorial() {
             const container = document.getElementById('lista-historial');
             container.innerHTML = '';
@@ -478,30 +485,13 @@
             return baseTitle;
         }
 
-        async function conectarGoogle() {
-            try { 
-                const res = await signInWithPopup(auth, provider);
-                googleAccessToken = GoogleAuthProvider.credentialFromResult(res).accessToken;
-                localStorage.setItem('gCalToken', googleAccessToken);
-                localStorage.setItem('gCalTokenTime', Date.now());
-                return true;
-            } catch (err) { 
-                console.error(err);
-                alert("Se requiere acceso al calendario para esta acción. Por favor, acepta el permiso de Google."); 
-                throw err;
-            }
-        }
-
         async function fetchCalendarAPI(url, method, body = null) {
-            if (!googleAccessToken) { await conectarGoogle(); }
-            let options = { method, headers: { 'Authorization': `Bearer ${googleAccessToken}`, 'Content-Type': 'application/json' } };
+            if (!googleAccessToken) { document.getElementById('btn-conectar-cal').style.display = 'inline-block'; throw new Error("Token caducado."); }
+            const options = { method, headers: { 'Authorization': `Bearer ${googleAccessToken}`, 'Content-Type': 'application/json' } };
             if (body) options.body = JSON.stringify(body);
-            let res = await fetch(url, options);
-            
+            const res = await fetch(url, options);
             if (res.status === 401 || res.status === 403) {
-                await conectarGoogle();
-                options.headers['Authorization'] = `Bearer ${googleAccessToken}`;
-                res = await fetch(url, options);
+                sessionStorage.removeItem('gCalToken'); googleAccessToken = null; document.getElementById('btn-conectar-cal').style.display = 'inline-block'; throw new Error("Token caducado. Reconecta.");
             }
             if (!res.ok && res.status !== 410 && res.status !== 404) throw new Error(`API Error: ${res.statusText}`);
             return method === 'DELETE' ? true : await res.json();
@@ -637,7 +627,21 @@
             return opciones;
         }
 
-        // === EVENTOS LOGIN/LOGOUT ===
+        // === AUTENTICACIÓN ===
+        async function conectarGoogle() {
+            try { 
+                const res = await signInWithPopup(auth, provider);
+                googleAccessToken = GoogleAuthProvider.credentialFromResult(res).accessToken;
+                localStorage.setItem('gCalToken', googleAccessToken);
+                localStorage.setItem('gCalTokenTime', Date.now());
+                document.getElementById('btn-conectar-cal').style.display = 'none';
+                return true;
+            } catch (err) { 
+                console.error(err);
+                alert("Se requiere acceso al calendario para esta acción. Por favor, acepta el permiso de Google."); 
+                throw err;
+            }
+        }
         document.getElementById('btn-login').addEventListener('click', conectarGoogle);
         document.getElementById('btn-conectar-cal').addEventListener('click', conectarGoogle);
 
@@ -650,6 +654,7 @@
                 document.getElementById('login-container').style.display = 'none';
                 document.getElementById('app-container').style.display = 'flex';
                 document.getElementById('user-info').textContent = user.email;
+                if (!googleAccessToken) document.getElementById('btn-conectar-cal').style.display = 'inline-block';
                 await cargarConfig();
                 cargarVista('Gestiones en Curso'); 
             } else {
@@ -849,7 +854,6 @@
             const contLista = document.getElementById('lista-generica');
             const contEstad = document.getElementById('estadisticas-container');
             
-            // ¡RESCATE DEL FORMULARIO!
             const formWrapper = document.getElementById('form-alumno-wrapper');
             if (formWrapper) {
                 formWrapper.style.display = 'none';
@@ -923,58 +927,7 @@
         // === EVENT DELEGATION ===
         document.addEventListener('click', async (e) => {
             const target = e.target;
-            
-            // Copiar / Pegar disponibilidad Alumnos
-            if (target.classList.contains('btn-copy-disp')) {
-                e.stopPropagation();
-                const d = target.getAttribute('data-dia');
-                clipboardDisponibilidad = {
-                    inicio: document.getElementById(`disp-${d}-inicio`).value,
-                    fin: document.getElementById(`disp-${d}-fin`).value,
-                    all: document.getElementById(`disp-${d}-all`).checked,
-                    none: document.getElementById(`disp-${d}-none`).checked
-                };
-                return;
-            }
 
-            if (target.classList.contains('btn-paste-disp')) {
-                e.stopPropagation();
-                if (!clipboardDisponibilidad) return alert("Primero copia una disponibilidad de otro día usando 📋.");
-                const d = target.getAttribute('data-dia');
-                document.getElementById(`disp-${d}-inicio`).value = clipboardDisponibilidad.inicio;
-                document.getElementById(`disp-${d}-fin`).value = clipboardDisponibilidad.fin;
-                document.getElementById(`disp-${d}-all`).checked = clipboardDisponibilidad.all;
-                document.getElementById(`disp-${d}-none`).checked = clipboardDisponibilidad.none;
-                updateDispStateForDay(d, false);
-                return;
-            }
-            
-            // Copiar / Pegar disponibilidad Profesores
-            if (target.classList.contains('btn-copy-disp-p')) {
-                e.stopPropagation();
-                const d = target.getAttribute('data-dia');
-                clipboardDisponibilidadProfe = {
-                    inicio: document.getElementById(`disp-p-${d}-inicio`).value,
-                    fin: document.getElementById(`disp-p-${d}-fin`).value,
-                    all: document.getElementById(`disp-p-${d}-all`).checked,
-                    none: document.getElementById(`disp-p-${d}-none`).checked
-                };
-                return;
-            }
-
-            if (target.classList.contains('btn-paste-disp-p')) {
-                e.stopPropagation();
-                if (!clipboardDisponibilidadProfe) return alert("Primero copia una disponibilidad usando 📋.");
-                const d = target.getAttribute('data-dia');
-                document.getElementById(`disp-p-${d}-inicio`).value = clipboardDisponibilidadProfe.inicio;
-                document.getElementById(`disp-p-${d}-fin`).value = clipboardDisponibilidadProfe.fin;
-                document.getElementById(`disp-p-${d}-all`).checked = clipboardDisponibilidadProfe.all;
-                document.getElementById(`disp-p-${d}-none`).checked = clipboardDisponibilidadProfe.none;
-                updateDispStateForDay(d, true);
-                return;
-            }
-
-            // Eliminar Alumno por completo
             if (target.classList.contains('btn-eliminar-alumno')) {
                 e.stopPropagation();
                 if(confirm("¿Eliminar este alumno por completo? Si tiene un turno en Calendar, también será borrado.")) {
@@ -992,40 +945,8 @@
                 return;
             }
 
-            // Historial Interacciones
-            if (target.id === 'btn-agregar-nota') {
-                const textarea = document.getElementById('nueva-nota-texto');
-                const texto = textarea.value.trim();
-                if(!texto) return;
-                const now = new Date();
-                const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
-                historialActual.push({ id: Date.now(), texto: texto, fecha: fechaStr });
-                textarea.value = '';
-                renderHistorial();
-                return;
-            }
-
-            if (target.classList.contains('btn-eliminar-nota')) {
-                const id = parseInt(target.getAttribute('data-id'));
-                historialActual = historialActual.filter(n => n.id !== id);
-                renderHistorial();
-                return;
-            }
-
-            if (target.classList.contains('btn-editar-nota')) {
-                const id = parseInt(target.getAttribute('data-id'));
-                const notaIndex = historialActual.findIndex(n => n.id === id);
-                if (notaIndex !== -1) {
-                    document.getElementById('nueva-nota-texto').value = historialActual[notaIndex].texto;
-                    historialActual.splice(notaIndex, 1);
-                    renderHistorial();
-                }
-                return;
-            }
-
-            // Acordeón Editar Alumno
             const headerAl = target.closest('.btn-editar-alumno');
-            if (headerAl && !target.classList.contains('btn-eliminar-alumno')) {
+            if (headerAl) {
                 const id = headerAl.getAttribute('data-id');
                 const accDiv = document.getElementById(`accordion-${id}`);
                 const wrap = document.getElementById('form-alumno-wrapper');
@@ -1043,6 +964,7 @@
             }
 
             if (target.classList.contains('btn-buscar-agenda')) {
+                if(!googleAccessToken) { document.getElementById('btn-conectar-cal').style.display='inline-block'; return alert("Requiere token. Conecta el calendario arriba."); }
                 alumnoIdActual = target.getAttribute('data-id');
                 const modal = document.getElementById('modal-agenda');
                 const resDiv = document.getElementById('resultados-agenda');
