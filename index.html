@@ -52,7 +52,6 @@
         
         #main { flex-grow: 1; padding: 20px 30px; overflow-y: auto; display:flex; flex-direction:column; width: calc(100% - 240px);}
         
-        /* Ocultar sidebar en móviles (simplificado) */
         @media (max-width: 768px) {
             #app-container { flex-direction: column; }
             #sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--border-color); padding-bottom:10px;}
@@ -70,21 +69,18 @@
         #vista-titulo { margin:0; font-size:1.6em; color:#212529; font-weight:700;}
         #btn-nuevo-alumno { padding:8px 16px; background:var(--primary); color:white; border:none; cursor:pointer; border-radius:6px; font-weight:600; font-size:0.95em;}
 
-        /* === TABLEROS Y TARJETAS (NUEVO DISEÑO FULL WIDTH) === */
+        /* === TABLEROS Y TARJETAS === */
         .board-container { display: flex; gap: 20px; align-items: flex-start; overflow-x: auto; flex-grow: 1; padding-bottom:10px; width:100%;}
         
-        /* Columnas con borde superior de color */
         .board-column { flex: 1; min-width: 300px; display: flex; flex-direction: column; gap: 15px; max-height: 100%; overflow-y:auto; background:#fdfdfd; padding:15px; border-radius:8px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.04);}
         .col-sin-agendar { border-top: 4px solid var(--c-sin-agendar); }
         .col-val-profe { border-top: 4px solid var(--c-val-profe); }
         .col-val-alumno { border-top: 4px solid var(--c-val-alumno); }
         .board-column h4 { margin: 0 0 10px 0; color: #495057; font-size:1.05em; font-weight:600;}
         
-        /* Tarjetas estilo UI (blancas, minimalistas) */
         .alumno-item { padding: 15px; border-radius: 8px; background: #fff; border: 1px solid var(--border-color); display:flex; flex-direction:column; gap:10px; transition:0.2s;}
         .alumno-item:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
         
-        /* Bordes para vistas de lista (Confirmadas/Suspendidas) */
         .item-confirmada { border-left: 4px solid var(--c-confirmada); }
         .item-suspendida { border-left: 4px solid var(--c-suspendida); }
 
@@ -118,7 +114,7 @@
         .opcion-horario { margin-bottom: 10px; padding: 12px; border: 1px solid #dee2e6; background: #fff; border-radius:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;}
         .opcion-horario span { font-weight:600; font-size:0.95em; color:#212529;}
         
-        .abm-container { margin-bottom: 20px; background:#fff; padding:20px; border-radius:8px; border: 1px solid var(--border-color);}
+        .abm-container { margin-bottom: 20px; background:#fff; padding:20px; border-radius:8px; border: 1px solid var(--border-color); width:100%; box-sizing:border-box;}
         .abm-item { display: flex; justify-content: space-between; padding: 15px; border: 1px solid #dee2e6; margin-bottom: 8px; background: #fff; align-items: center; cursor: pointer; border-radius:8px;}
         .abm-item:hover { border-color: #adb5bd; }
         
@@ -155,7 +151,7 @@
             <div class="nav-item" data-vista="Agendas Suspendidas">Agendas Suspendidas</div>
             <div class="nav-item" data-vista="Estadísticas">Estadísticas</div>
             
-            <h3>Administración</h3>
+            <h3 style="padding: 0 20px; font-size: 0.8em; text-transform: uppercase; color: #aaa; letter-spacing: 1px; margin: 15px 0 5px 0;">Administración</h3>
             <div class="nav-item" data-vista="ABM-Profesores">Profesores</div>
             <div class="nav-item" data-vista="ABM-Instrumentos">Instrumentos</div>
             <div class="nav-item" data-vista="ABM-Suscripciones">Suscripciones</div>
@@ -176,7 +172,6 @@
             
             <div id="contenedor-principal" style="display:flex; flex-grow:1; flex-direction:column; overflow:hidden;">
                 
-                <!-- Tablero Kanban -->
                 <div id="tablero-gestiones" class="board-container">
                     <div class="board-column col-sin-agendar">
                         <h4>Alumnos sin agendar</h4>
@@ -192,10 +187,8 @@
                     </div>
                 </div>
 
-                <!-- Lista Genérica -->
                 <div id="lista-generica" class="lista-generica" style="display:none; overflow-y:auto; padding-bottom:20px;"></div>
 
-                <!-- Estadísticas -->
                 <div id="estadisticas-container" style="display:none;">
                     <div class="chart-box" id="chart-box-gestiones">
                         <h4 style="text-align:center; margin-top:0; color:#495057;">Gestiones en Curso</h4>
@@ -246,9 +239,7 @@
     </div>
 
     <!-- Modales -->
-    <dialog id="modal-alta-alumno">
-        <!-- Wrapper se mueve aquí al crear -->
-    </dialog>
+    <dialog id="modal-alta-alumno"></dialog>
 
     <dialog id="modal-agenda">
         <h3 style="margin-top:0; color:#212529; font-size:1.2em;">Buscar Disponibilidad</h3>
@@ -409,6 +400,64 @@
         async function actualizarEventoCalendario(calendarId, eventId, titulo, descripcion) { return await fetchCalendarAPI(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, 'PATCH', { summary: titulo, description: descripcion }); }
         async function eliminarEventoCalendario(calendarId, eventId) { return await fetchCalendarAPI(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, 'DELETE'); }
 
+        /**
+         * Lógica de Overlap Preciso para Baterías y Aulas
+         */
+        function chequearDisponibilidadExacta(inicioTestMs, finTestMs, eventosAPI, cantAulas, cantBat, esBateria, cfgEmoji) {
+            let picosAulas = 0;
+            let picosBateria = 0;
+            let profesOcupados = new Set();
+            
+            // Creamos puntos de tiempo relevantes en el rango propuesto para buscar el "peor caso"
+            // Solo nos interesan los eventos que realmente cruzan con el bloque [inicioTestMs, finTestMs]
+            const eventosCruzados = eventosAPI.filter(ev => {
+                if (!ev.start || !ev.start.dateTime) return false;
+                const evIn = new Date(ev.start.dateTime).getTime();
+                const evFn = new Date(ev.end.dateTime).getTime();
+                return (inicioTestMs < evFn && finTestMs > evIn);
+            });
+            
+            if (eventosCruzados.length === 0) return { valido: true, profesOcupados: new Set() };
+            
+            // Recolectar todos los puntos de tiempo donde algo cambia (empieza o termina un evento)
+            const puntosDeTiempo = new Set([inicioTestMs, finTestMs]);
+            eventosCruzados.forEach(ev => {
+                const i = new Date(ev.start.dateTime).getTime();
+                const f = new Date(ev.end.dateTime).getTime();
+                if (i > inicioTestMs && i < finTestMs) puntosDeTiempo.add(i);
+                if (f > inicioTestMs && f < finTestMs) puntosDeTiempo.add(f);
+            });
+            
+            const arrayPuntos = Array.from(puntosDeTiempo).sort((a,b) => a-b);
+            
+            // Evaluamos la carga en cada sub-segmento de tiempo
+            for (let i = 0; i < arrayPuntos.length - 1; i++) {
+                const puntoMedioMs = arrayPuntos[i] + 1000; // Tomamos un segundo despues del inicio del segmento para testear estado activo
+                
+                let simultaneosAulas = 0;
+                let simultaneosBat = 0;
+                
+                eventosCruzados.forEach(ev => {
+                    const evIn = new Date(ev.start.dateTime).getTime();
+                    const evFn = new Date(ev.end.dateTime).getTime();
+                    
+                    if (puntoMedioMs >= evIn && puntoMedioMs < evFn) {
+                        simultaneosAulas++;
+                        profesOcupados.add(ev.profeId);
+                        if (ev.summary && ev.summary.toLowerCase().includes(cfgEmoji.toLowerCase())) {
+                            simultaneosBat++;
+                        }
+                    }
+                });
+                
+                if (simultaneosAulas > picosAulas) picosAulas = simultaneosAulas;
+                if (simultaneosBat > picosBateria) picosBateria = simultaneosBat;
+            }
+            
+            const valido = (picosAulas < cantAulas) && (esBateria ? picosBateria < cantBat : true);
+            return { valido, profesOcupados };
+        }
+
         function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, profes, dStart, dEnd, cfg) {
             const opciones = [], mapaDias = { 0:"D", 1:"L", 2:"M", 3:"X", 4:"J", 5:"V", 6:"S" };
             const durMs = 60*60*1000, cantAulas = parseInt(cfg.cantidad_aulas)||3, cantBat = parseInt(cfg.cantidad_baterias)||2;
@@ -429,20 +478,12 @@
 
                         while (hIniB.getTime() + durMs <= hFinR.getTime()) {
                             const inMs = hIniB.getTime(), finMs = inMs + durMs;
-                            let evSim = 0, batSim = 0, profOcupados = new Set();
+                            
+                            const evalOverlap = chequearDisponibilidadExacta(inMs, finMs, eventosAPI, cantAulas, cantBat, esBateria, cfg.identificador_bateria);
 
-                            eventosAPI.forEach(ev => {
-                                if (!ev.start || !ev.start.dateTime) return;
-                                const evI = new Date(ev.start.dateTime).getTime(), evF = new Date(ev.end.dateTime).getTime();
-                                if (inMs < evF && finMs > evI) {
-                                    evSim++; profOcupados.add(ev.profeId);
-                                    if (ev.summary && ev.summary.toLowerCase().includes(cfg.identificador_bateria.toLowerCase())) batSim++;
-                                }
-                            });
-
-                            if (evSim < cantAulas && (esBateria ? batSim < cantBat : true)) {
+                            if (evalOverlap.valido) {
                                 profes.forEach(profe => {
-                                    if (!profOcupados.has(profe.id)) {
+                                    if (!evalOverlap.profesOcupados.has(profe.id)) {
                                         opciones.push({
                                             fechaTextoAmi: formatearFechaAmi(hIniB.toISOString()), profeId: profe.id,
                                             profeNombre: profe.nombre, calId: profe.calId,
@@ -629,7 +670,6 @@
             
             if(target.classList.contains('select-estado')) return;
 
-            // Eliminar Alumno (desde cruz en tarjeta)
             if (target.classList.contains('btn-eliminar-alumno')) {
                 e.stopPropagation();
                 if(confirm("¿Eliminar este alumno por completo?")) {
@@ -640,7 +680,6 @@
                 return;
             }
 
-            // Editar Alumno (Acordeón)
             const headerAl = target.closest('.btn-editar-alumno');
             if (headerAl) {
                 const id = headerAl.getAttribute('data-id');
@@ -651,6 +690,7 @@
                 wrap.style.display = 'none';
                 document.querySelectorAll('[id^="accordion-"]').forEach(el => el.style.display = 'none');
                 
+                document.getElementById('alumno-id').value = id; 
                 await llenarFormularioAlumno(id);
                 accDiv.appendChild(wrap);
                 document.getElementById('form-titulo').textContent = 'Editar Alumno';
@@ -658,14 +698,12 @@
                 return;
             }
 
-            // Buscar Agenda (Modal nativo sin Flatpickr)
             if (target.classList.contains('btn-buscar-agenda')) {
                 if(!googleAccessToken) { document.getElementById('btn-conectar-cal').style.display='inline-block'; return alert("Requiere token. Conecta el calendario arriba."); }
                 alumnoIdActual = target.getAttribute('data-id');
                 const modal = document.getElementById('modal-agenda');
                 const resDiv = document.getElementById('resultados-agenda');
                 
-                // Set defaults html nativo
                 const hoy = new Date(); const d7 = new Date(); d7.setDate(d7.getDate()+7);
                 document.getElementById('agenda-start').value = hoy.toISOString().split('T')[0];
                 document.getElementById('agenda-end').value = d7.toISOString().split('T')[0];
@@ -736,7 +774,6 @@
             if (target.classList.contains('btn-recuperar-agenda')) { await updateDoc(doc(db, "alumnos", target.getAttribute('data-id')), { estado_agenda: "Pendiente procesar", motivo_suspension: null }); cargarVista(estadoActualVista); return; }
             if (target.classList.contains('btn-cerrar-modal')) { document.getElementById(target.getAttribute('data-modal')).close(); return; }
             
-            // Ejecutar Búsqueda Agenda
             if (target.id === 'btn-ejecutar-busqueda') {
                 const resDiv = document.getElementById('resultados-agenda'), dStrStart = document.getElementById('agenda-start').value, dStrEnd = document.getElementById('agenda-end').value, fProf = document.getElementById('agenda-profe-filtro').value;
                 if(!dStrStart || !dStrEnd) return alert("Fechas inválidas.");
@@ -747,12 +784,10 @@
                     const arrI = Array.isArray(al.instrumento) ? al.instrumento : [al.instrumento];
                     const esBat = arrI.some(i => i.toLowerCase().includes('bater'));
                     
-                    // Validar si puso un rango dentro de dias bloqueados por el alumno
                     const dMap = { 'D':0, 'L':1, 'M':2, 'X':3, 'J':4, 'V':5, 'S':6 };
                     const diasHab = []; for (const [l, arr] of Object.entries(al.disponibilidad)) { if (arr && arr.length > 0) diasHab.push(dMap[l]); }
                     
                     const dS = new Date(dStrStart+'T00:00:00'), dE = new Date(dStrEnd+'T23:59:59');
-                    // Checkeamos si todos los dias del rango solicitado son domingos o invalidos.
                     let algunValido = false;
                     for(let x = new Date(dS); x <= dE; x.setDate(x.getDate()+1)) { if(x.getDay()!==0 && diasHab.includes(x.getDay())) algunValido=true; }
                     if(!algunValido) return resDiv.innerHTML = '<p style="color:#dc3545;"><b>Aviso:</b> El rango elegido solo abarca días domingos o días que el alumno marcó como "No disponible". Cambia las fechas.</p>';
@@ -768,7 +803,7 @@
                     }
 
                     const opts = generarOpcionesAgenda(al.disponibilidad, allEv, esBat, profes, dS, dE, configApp);
-                    if(opts.length===0) resDiv.innerHTML='<p>No hay huecos.</p>';
+                    if(opts.length===0) resDiv.innerHTML='<p>No hay huecos libres que cumplan las condiciones.</p>';
                     else resDiv.innerHTML = opts.map(op => `
                         <div class="opcion-horario">
                             <span>${op.fechaTextoAmi} (${op.profeNombre})</span>
@@ -778,21 +813,28 @@
                 return;
             }
             
-            // Validar Profe
             if (target.classList.contains('btn-seleccionar-profe')) {
                 try {
                     const al = (await getDoc(doc(db, "alumnos", alumnoIdActual))).data();
                     const iS = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento;
                     const dP = al.descripcion ? al.descripcion.replace(/<[^>]*>?/gm, '').trim() : '';
+                    
                     const txt = reemplazarVariables(configApp.texto_profe, { fecha_hora: target.getAttribute('data-fechatxt'), nombre: al.nombre, edad: al.edad||'-', instrumento: iS, suscripcion: al.tipo_suscripcion, descripcion: dP });
                     await navigator.clipboard.writeText(txt);
-                    await updateDoc(doc(db, "alumnos", alumnoIdActual), { estado_agenda: "Pendiente validación por profe", reserva_profe_id: target.getAttribute('data-profeid'), reserva_profe_nombre: target.getAttribute('data-profe'), reserva_cal_id: target.getAttribute('data-calid'), reserva_fecha_texto: target.getAttribute('data-fechatxt'), reserva_inicio: target.getAttribute('data-start'), reserva_fin: target.getAttribute('data-end') });
-                    alert("Copiado. Estado avanzado."); document.getElementById('modal-agenda').close(); cargarVista(estadoActualVista);
+                    
+                    await updateDoc(doc(db, "alumnos", alumnoIdActual), {
+                        estado_agenda: "Pendiente validación por profe",
+                        reserva_profe_id: target.getAttribute('data-profeid'), reserva_profe_nombre: target.getAttribute('data-profe'),
+                        reserva_cal_id: target.getAttribute('data-calid'), reserva_fecha_texto: target.getAttribute('data-fechatxt'),
+                        reserva_inicio: target.getAttribute('data-start'), reserva_fin: target.getAttribute('data-end')
+                    });
+                    
+                    alert("Copiado al portapapeles. Estado avanzado.");
+                    document.getElementById('modal-agenda').close(); cargarVista(estadoActualVista);
                 } catch(e) { console.error(e); }
                 return;
             }
             
-            // Nuevo Alumno
             if (target.id === 'btn-nuevo-alumno') {
                 const wrap = document.getElementById('form-alumno-wrapper');
                 document.getElementById('modal-alta-alumno').appendChild(wrap);
@@ -882,20 +924,20 @@
         // --- ABMS Y CONFIG ---
         function renderConfig(cont) {
             cont.innerHTML = `
-                <div class="abm-container" style="max-width:800px;">
-                    <h3 style="margin-top:0; color:#333;">Límites y Reglas de Calendario</h3>
-                    <div style="display:flex; gap:15px; margin-bottom:20px; flex-wrap:wrap;">
-                        <div style="flex:1; min-width:150px;"><label style="display:block; font-weight:600;">Aulas totales:<br><input type="number" id="cfg-aulas" value="${configApp.cantidad_aulas}"></label></div>
-                        <div style="flex:1; min-width:150px;"><label style="display:block; font-weight:600;">Baterías totales:<br><input type="number" id="cfg-bats" value="${configApp.cantidad_baterias}"></label></div>
-                        <div style="flex:1; min-width:200px;"><label style="display:block; font-weight:600;">Tag Calendario (Batería):<br><input type="text" id="cfg-idbat" value="${configApp.identificador_bateria}"></label></div>
+                <div class="abm-container" style="max-width:800px; padding:30px;">
+                    <h3 style="margin-top:0; color:#212529; font-size:1.2em;">Límites y Reglas de Calendario</h3>
+                    <div style="display:flex; gap:15px; margin-bottom:25px; flex-wrap:wrap;">
+                        <div style="flex:1; min-width:150px;"><label style="display:block; font-weight:600; color:#495057;">Aulas totales:<br><input type="number" id="cfg-aulas" value="${configApp.cantidad_aulas}"></label></div>
+                        <div style="flex:1; min-width:150px;"><label style="display:block; font-weight:600; color:#495057;">Baterías totales:<br><input type="number" id="cfg-bats" value="${configApp.cantidad_baterias}"></label></div>
+                        <div style="flex:1; min-width:200px;"><label style="display:block; font-weight:600; color:#495057;">Tag Calendario (Batería):<br><input type="text" id="cfg-idbat" value="${configApp.identificador_bateria}"></label></div>
                     </div>
-                    <h3 style="margin-top:0; color:#333; border-top:1px solid #eee; padding-top:15px;">Mensajes y Textos</h3>
-                    <label style="display:block; margin-bottom:15px; font-weight:600;">Valor de Clase (Monto): <input type="text" id="cfg-valor" value="${configApp.valor_clase}"></label>
-                    <label style="display:block; margin-bottom:15px; font-weight:600;">Título Evento (Reserva): <input type="text" id="cfg-evt-res" value="${configApp.formato_evento_reserva}"></label>
-                    <label style="display:block; margin-bottom:15px; font-weight:600;">Título Evento (Confirmado): <input type="text" id="cfg-evt-conf" value="${configApp.formato_evento_confirmado}"></label>
-                    <label style="display:block; margin-bottom:15px; font-weight:600;">Texto Validación con Profe: <textarea id="cfg-txt-p" class="config-box">${configApp.texto_profe}</textarea></label>
-                    <label style="display:block; margin-bottom:15px; font-weight:600;">Texto Validación con Alumno: <textarea id="cfg-txt-a" class="config-box">${configApp.texto_alumno}</textarea></label>
-                    <button id="btn-guardar-cfg" class="btn-accion-main" style="padding:10px 20px; font-size:1em;">Guardar Configuración</button>
+                    <h3 style="margin-top:0; color:#212529; font-size:1.2em; border-top:1px solid #dee2e6; padding-top:20px;">Mensajes y Textos</h3>
+                    <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Valor de Clase (Monto): <input type="text" id="cfg-valor" value="${configApp.valor_clase}"></label>
+                    <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Título Evento (Reserva): <input type="text" id="cfg-evt-res" value="${configApp.formato_evento_reserva}"></label>
+                    <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Título Evento (Confirmado): <input type="text" id="cfg-evt-conf" value="${configApp.formato_evento_confirmado}"></label>
+                    <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Texto Validación con Profe: <textarea id="cfg-txt-p" class="config-box">${configApp.texto_profe}</textarea></label>
+                    <label style="display:block; margin-bottom:20px; font-weight:600; color:#495057;">Texto Validación con Alumno: <textarea id="cfg-txt-a" class="config-box">${configApp.texto_alumno}</textarea></label>
+                    <button id="btn-guardar-cfg" class="btn-accion-main" style="padding:10px 20px; font-size:1.05em; width:100%;">Guardar Configuración</button>
                 </div>
             `;
             document.getElementById('btn-guardar-cfg').addEventListener('click', async () => {
@@ -908,22 +950,22 @@
             tituloABMActual = titulo;
             try {
                 const qS = await getDocs(collection(db, coleccion));
-                let h = `<div class="abm-container" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                            <input type="text" id="input-nuevo-abm" placeholder="Nombre" style="width:auto; flex-grow:1; min-width:150px;">`;
+                let h = `<div class="abm-container" style="display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap; padding:25px;">
+                            <div style="flex-grow:1; min-width:180px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Nombre</label><input type="text" id="input-nuevo-abm" placeholder="Ej: Guitarra"></div>`;
                 if(coleccion === 'profesores') { 
-                    h += `<input type="email" id="input-correo-abm" placeholder="Email Calendario" style="width:auto; flex-grow:1; min-width:200px;">
-                          <input type="text" id="input-alias-abm" placeholder="Alias" style="width:auto; flex-grow:1; min-width:150px;">
-                          <label style="white-space:nowrap; cursor:pointer; font-weight:600;"><input type="checkbox" id="input-entrevista-abm" checked> Entrevistas</label>`; 
+                    h += `<div style="flex-grow:1; min-width:200px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Email Calendar</label><input type="email" id="input-correo-abm" placeholder="ejemplo@calendar..."></div>
+                          <div style="flex-grow:1; min-width:150px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Alias Transferencia</label><input type="text" id="input-alias-abm" placeholder="alias.mp"></div>
+                          <div style="padding-bottom:10px;"><label style="white-space:nowrap; cursor:pointer; font-weight:600; color:#212529;"><input type="checkbox" id="input-entrevista-abm" checked> Entrevistas</label></div>`; 
                 }
-                h += `<button id="btn-guardar-abm" class="btn-accion-main" style="margin-left:auto; height:38px; margin-top:5px;">+ Nuevo</button>
+                h += `<button id="btn-guardar-abm" class="btn-accion-main" style="height:40px; min-width:120px;">+ Agregar</button>
                       </div>`;
                 
                 qS.forEach(d => {
                     const dt = d.data();
                     let ex = coleccion==='profesores' ? ` <br><small style="color:#6c757d;">${dt.correo_calendario}</small> <span class="badge ${dt.entrevista?'badge-success':'badge-danger'}" style="margin-left:10px;">${dt.entrevista?'SÍ':'NO'} Entrevistas</span>` : '';
                     h += `<div class="abm-item" onclick="abrirEdicionABM('${d.id}', '${coleccion}', '${dt.nombre}', '${dt.correo_calendario||''}', '${dt.alias_transferencia||''}', ${!!dt.entrevista})">
-                            <span style="font-weight:600; color:#212529;">${dt.nombre}${ex}</span>
-                            <button class="btn-suspender" onclick="event.stopPropagation(); eliminarABM('${d.id}', '${coleccion}')" style="padding:4px 8px; border:none;">❌</button>
+                            <span style="font-weight:600; color:#212529; font-size:1.05em;">${dt.nombre}${ex}</span>
+                            <button class="btn-suspender" onclick="event.stopPropagation(); eliminarABM('${d.id}', '${coleccion}')" style="padding:6px 10px; border:none; font-size:1.2em;" title="Eliminar">❌</button>
                           </div>`;
                 });
                 cont.innerHTML = h;
