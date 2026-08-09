@@ -66,7 +66,6 @@
         #btn-carga-masiva { padding:8px 16px; background:#6c757d; color:white; border:none; cursor:pointer; border-radius:6px; font-weight:600; font-size:0.95em; transition:0.2s;}
         #btn-carga-masiva:hover { background:#5a6268; }
 
-        /* Buscador General */
         .search-container { margin-bottom: 20px; width: 100%; max-width: 400px; }
         #input-buscador-general { width: 100%; padding: 10px 15px; border-radius: 6px; border: 2px solid #2c3e50; font-size: 1em; box-sizing: border-box; outline:none; transition:0.2s;}
         #input-buscador-general:focus { border-color: var(--primary); }
@@ -106,7 +105,6 @@
         
         .lista-generica { width: 100%; display:flex; flex-direction:column; gap:15px; }
 
-        /* Dialogos y Componentes Generales */
         dialog { padding: 25px; border: none; border-radius: 10px; width: 95%; max-width: 750px; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
         dialog::backdrop { background: rgba(0,0,0,0.5); }
         input[type="text"], input[type="number"], input[type="email"], select, input[type="date"], input[type="time"] { padding: 8px 12px; border: 1px solid #ced4da; border-radius:6px; width:100%; box-sizing:border-box; margin-top:5px; font-family:inherit;}
@@ -178,6 +176,7 @@
                 </div>
             </div>
 
+            <!-- BUSCADOR GENERAL ALUMNOS -->
             <div class="search-container" id="search-container-general" style="display:none;">
                 <input type="text" id="input-buscador-general" placeholder="Buscar alumno por nombre...">
             </div>
@@ -329,7 +328,6 @@
         import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-        // === CONFIGURACIÓN FIREBASE ===
         const firebaseConfig = {
             apiKey: "AIzaSyCgAg2EwTJh4zbMdpkqG3VKTGfDeofblyg",
             authDomain: "priel-mdl-seguimientos.firebaseapp.com",
@@ -358,13 +356,11 @@
         let configApp = {};
         let chartGestionesInst = null;
         let chartGlobalInst = null;
-        let dataCacheABM = {}; 
         
         let clipboardDisponibilidad = null; 
         let clipboardDisponibilidadProfe = null; 
         let historialActual = []; 
 
-        // === INICIALIZACIÓN QUILL & DISPONIBILIDAD ===
         const quill = new Quill('#editor-container', { theme: 'snow', modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] } });
 
         const diasSemana = [
@@ -376,7 +372,6 @@
         const contDispProfe = document.getElementById('contenedor-disponibilidad-profe');
         
         diasSemana.forEach(dia => {
-            // Disp Alumnos
             contDisp.innerHTML += `
                 <div class="dia-disponibilidad">
                     <label>${dia.nombre}:</label>
@@ -388,7 +383,6 @@
                     <span id="estado-${dia.id}" class="estado-disp" style="width:80px; text-align:right;"></span>
                 </div>
             `;
-            // Disp Profes
             contDispProfe.innerHTML += `
                 <div class="dia-disponibilidad">
                     <label>${dia.nombre}:</label>
@@ -448,7 +442,6 @@
             });
         }
 
-        // === CONFIGURACIÓN DEFAULT ===
         const defaultCfg = {
             hora_apertura: '09:00', hora_cierre: '22:00',
             identificador_bateria: '[BAT]', valor_clase: '$10.000', cantidad_aulas: '3', cantidad_baterias: '2',
@@ -1144,13 +1137,12 @@
 
                     let template = target.classList.contains('btn-reenviar-profe') ? configApp.texto_profe : configApp.texto_conf_profe;
                     
-                    // Limpieza segura y reemplazo de bloque historial
                     template = template.replace(/\{historial\}/g, '{bloque_historial}'); 
                     if (!bloqueHistorial) {
-                        template = template.replace(/\n*\*.*HISTORIAL.*\*\n*\{bloque_historial\}/gi, '');
+                        template = template.replace(/\n*\*[^\n]*HISTORIAL[^\n]*\*\n*\{bloque_historial\}/gi, '');
                         template = template.replace('{bloque_historial}', ''); 
                     } else {
-                        template = template.replace(/\n*\*.*HISTORIAL.*\*\n*\{bloque_historial\}/gi, '{bloque_historial}');
+                        template = template.replace(/\n*\*[^\n]*HISTORIAL[^\n]*\*\n*\{bloque_historial\}/gi, '{bloque_historial}');
                         template = template.replace('{bloque_historial}', bloqueHistorial);
                     }
                     
@@ -1269,10 +1261,10 @@
                     let template = configApp.texto_profe;
                     template = template.replace(/\{historial\}/g, '{bloque_historial}'); 
                     if (!bloqueHistorial) {
-                        template = template.replace(/\n*\*.*HISTORIAL.*\*\n*\{bloque_historial\}/gi, '');
+                        template = template.replace(/\n*\*[^\n]*HISTORIAL[^\n]*\*\n*\{bloque_historial\}/gi, '');
                         template = template.replace('{bloque_historial}', ''); 
                     } else {
-                        template = template.replace(/\n*\*.*HISTORIAL.*\*\n*\{bloque_historial\}/gi, '{bloque_historial}');
+                        template = template.replace(/\n*\*[^\n]*HISTORIAL[^\n]*\*\n*\{bloque_historial\}/gi, '{bloque_historial}');
                         template = template.replace('{bloque_historial}', bloqueHistorial);
                     }
                     
@@ -1310,6 +1302,14 @@
                 document.getElementById('modal-alta-alumno').close(); 
                 return; 
             }
+        });
+
+        document.getElementById('btn-guardar-suspension').addEventListener('click', async () => {
+            const id = document.getElementById('susp-alumno-id').value, mtv = document.getElementById('susp-motivo').value;
+            if(!mtv) return alert("Seleccione motivo");
+            try { const al = (await getDoc(doc(db, "alumnos", id))).data(); if (al.id_evento_reserva) await eliminarEventoCalendario('productora.mandalahouse@gmail.com', al.id_evento_reserva); } catch(e){}
+            await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Agenda suspendida", motivo_suspension: mtv, reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null });
+            document.getElementById('modal-suspender').close(); cargarVista(estadoActualVista);
         });
 
         // --- MANEJO FORMULARIOS ALUMNOS ---
