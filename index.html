@@ -236,7 +236,6 @@
             <label style="display:block; margin-bottom:10px; font-weight:600; font-size:0.9em; color:#495057;">Celular (Para guardar): <input type="text" id="abm-edit-celular" placeholder="Ej: 5491143211234"></label>
             <label style="display:block; margin-bottom:10px; font-weight:600; font-size:0.9em; color:#495057;">Alias a transferir: <input type="text" id="abm-edit-alias"></label>
             <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:600; color:#212529; font-size:0.9em; margin-bottom:20px;"><input type="checkbox" id="abm-edit-entrevista" style="width:auto; margin:0;"> Habilitado para entrevistas</label>
-            
             <h4 style="margin:15px 0 10px 0; border-bottom:1px solid #e9ecef; padding-bottom:5px; color:#495057; font-size:0.95em;">Disponibilidad (Franjas de trabajo)</h4>
             <div id="contenedor-disponibilidad-profe"></div>
         </div>
@@ -246,6 +245,7 @@
         </div>
     </dialog>
 
+    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -487,12 +487,13 @@
             } else if (vista.startsWith('ABM') || vista === 'Configuración') {
                 contLista.style.display = 'flex'; contLista.innerHTML = '';
                 if(vista === 'Configuración') renderConfig(contLista);
-                else cargarABM(colMap[vista] || vista.split('-')[1].toLowerCase(), vista.split('-')[1], contLista);
+                else {
+                    const colMap = { 'ABM-Profesores': 'profesores', 'ABM-Instrumentos': 'instrumentos', 'ABM-Suscripciones': 'tipos_suscripcion' };
+                    cargarABM(colMap[vista] || vista.split('-')[1].toLowerCase(), vista.split('-')[1], contLista);
+                }
             }
         }
         
-        const colMap = { 'ABM-Profesores': 'profesores', 'ABM-Instrumentos': 'instrumentos', 'ABM-Suscripciones': 'tipos_suscripcion' };
-
         async function renderCharts() {
             try {
                 const qSnap = await getDocs(collection(db, "alumnos"));
