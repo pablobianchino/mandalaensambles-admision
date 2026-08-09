@@ -178,7 +178,6 @@
                 </div>
             </div>
 
-            <!-- BUSCADOR GENERAL ALUMNOS -->
             <div class="search-container" id="search-container-general" style="display:none;">
                 <input type="text" id="input-buscador-general" placeholder="Buscar alumno por nombre...">
             </div>
@@ -359,13 +358,11 @@
         let configApp = {};
         let chartGestionesInst = null;
         let chartGlobalInst = null;
-        let dataCacheABM = {}; 
         
         let clipboardDisponibilidad = null; 
         let clipboardDisponibilidadProfe = null; 
         let historialActual = []; 
 
-        // === INICIALIZACIÓN QUILL & DISPONIBILIDAD ===
         const quill = new Quill('#editor-container', { theme: 'snow', modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] } });
 
         const diasSemana = [
@@ -449,7 +446,6 @@
             });
         }
 
-        // === CONFIGURACIÓN DEFAULT ===
         const defaultCfg = {
             hora_apertura: '09:00', hora_cierre: '22:00',
             identificador_bateria: '[BAT]', valor_clase: '$10.000', cantidad_aulas: '3', cantidad_baterias: '2',
@@ -465,7 +461,6 @@
             configApp = docSnap.exists() ? { ...defaultCfg, ...docSnap.data() } : defaultCfg;
         }
 
-        // === FUNCIONES UTILITARIAS ===
         function reemplazarVariables(texto, datos) { let res = texto; for (const [key, value] of Object.entries(datos)) res = res.replaceAll(`{${key}}`, value || ''); return res; }
         function formatoLocalISO(date) { const tzo = -date.getTimezoneOffset(), dif = tzo >= 0 ? '+' : '-', pad = num => (num < 10 ? '0' : '') + num; return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + 'T' + pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds()) + dif + pad(Math.floor(Math.abs(tzo) / 60)) + ':' + pad(Math.abs(tzo) % 60); }
         
@@ -1163,12 +1158,9 @@
 
                     let template = target.classList.contains('btn-reenviar-profe') ? configApp.texto_profe : configApp.texto_conf_profe;
                     
-                    template = template.replace(/\{historial\}/g, '{bloque_historial}'); 
-                    if (!bloqueHistorial) {
-                        template = template.replace(/\n*\*[^\n]*HISTORIAL[^\n]*\*\n*\{bloque_historial\}/gi, '');
-                    } else {
-                        template = template.replace(/\n*\*[^\n]*HISTORIAL[^\n]*\*\n*\{bloque_historial\}/gi, '{bloque_historial}');
-                    }
+                    template = template.replace(/\n*\*HISTORIAL DE CONTACTO:\*\n\{historial\}/gi, '{bloque_historial}');
+                    template = template.replace(/\n*\*HISTORIAL:\*\n\{historial\}/gi, '{bloque_historial}');
+                    template = template.replace('{historial}', '{bloque_historial}'); 
                     
                     const txt = reemplazarVariables(template, { fecha_hora: al.reserva_fecha_texto, nombre: al.nombre, edad: al.edad||'-', instrumento: iS, suscripcion: al.tipo_suscripcion, descripcion: dP, bloque_historial: bloqueHistorial });
                     await navigator.clipboard.writeText(txt);
@@ -1287,12 +1279,9 @@
                     }
 
                     let template = configApp.texto_profe;
-                    template = template.replace(/\{historial\}/g, '{bloque_historial}'); 
-                    if (!bloqueHistorial) {
-                        template = template.replace(/\n*\*[^\n]*HISTORIAL[^\n]*\*\n*\{bloque_historial\}/gi, '');
-                    } else {
-                        template = template.replace(/\n*\*[^\n]*HISTORIAL[^\n]*\*\n*\{bloque_historial\}/gi, '{bloque_historial}');
-                    }
+                    template = template.replace(/\n*\*HISTORIAL DE CONTACTO:\*\n\{historial\}/gi, '{bloque_historial}');
+                    template = template.replace(/\n*\*HISTORIAL:\*\n\{historial\}/gi, '{bloque_historial}');
+                    template = template.replace('{historial}', '{bloque_historial}'); 
                     
                     const txt = reemplazarVariables(template, { fecha_hora: target.getAttribute('data-fechatxt'), nombre: al.nombre, edad: al.edad||'-', instrumento: iS, suscripcion: al.tipo_suscripcion, descripcion: dP, bloque_historial: bloqueHistorial });
                     await navigator.clipboard.writeText(txt);
@@ -1400,6 +1389,153 @@
                 document.getElementById('modal-alta-alumno').close(); 
                 cargarVista(estadoActualVista);
             } catch(e) { alert("Error al guardar."); }
+        });
+
+        // --- ABMS Y CONFIG ---
+        function renderConfig(cont) {
+            cont.innerHTML = `
+                <div class="abm-container" style="max-width:800px; padding:30px;">
+                    <h3 style="margin-top:0; color:#212529; font-size:1.2em;">Límites y Reglas de Calendario</h3>
+                    <div style="display:flex; gap:15px; margin-bottom:25px; flex-wrap:wrap;">
+                        <div style="flex:1; min-width:150px;"><label style="display:block; font-weight:600; color:#495057;">Hora de Apertura:<br><input type="time" id="cfg-apertura" value="${configApp.hora_apertura||'09:00'}"></label></div>
+                        <div style="flex:1; min-width:150px;"><label style="display:block; font-weight:600; color:#495057;">Hora de Cierre:<br><input type="time" id="cfg-cierre" value="${configApp.hora_cierre||'22:00'}"></label></div>
+                    </div>
+                    <div style="display:flex; gap:15px; margin-bottom:25px; flex-wrap:wrap;">
+                        <div style="flex:1; min-width:150px;"><label style="display:block; font-weight:600; color:#495057;">Aulas totales:<br><input type="number" id="cfg-aulas" value="${configApp.cantidad_aulas}"></label></div>
+                        <div style="flex:1; min-width:150px;"><label style="display:block; font-weight:600; color:#495057;">Baterías totales:<br><input type="number" id="cfg-bats" value="${configApp.cantidad_baterias}"></label></div>
+                        <div style="flex:1; min-width:200px;"><label style="display:block; font-weight:600; color:#495057;">Tag Calendario (Batería):<br><input type="text" id="cfg-idbat" value="${configApp.identificador_bateria}"></label></div>
+                    </div>
+                    <h3 style="margin-top:0; color:#212529; font-size:1.2em; border-top:1px solid #dee2e6; padding-top:20px;">Mensajes y Textos</h3>
+                    <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Valor de Clase (Monto): <input type="text" id="cfg-valor" value="${configApp.valor_clase}"></label>
+                    <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Título Evento (Reserva): <input type="text" id="cfg-evt-res" value="${configApp.formato_evento_reserva}"></label>
+                    <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Título Evento (Confirmado): <input type="text" id="cfg-evt-conf" value="${configApp.formato_evento_confirmado}"></label>
+                    <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Texto Validación con Profe: <textarea id="cfg-txt-p" class="config-box" style="height:150px;">${configApp.texto_profe}</textarea></label>
+                    <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Texto Validación con Alumno: <textarea id="cfg-txt-a" class="config-box" style="height:150px;">${configApp.texto_alumno}</textarea></label>
+                    <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Texto Confirmación Agenda para Profe: <textarea id="cfg-txt-conf-p" class="config-box" style="height:150px;">${configApp.texto_conf_profe}</textarea></label>
+                    <label style="display:block; margin-bottom:20px; font-weight:600; color:#495057;">Texto Confirmación Agenda para Alumno: <textarea id="cfg-txt-conf-a" class="config-box" style="height:200px;">${configApp.texto_conf_alumno}</textarea></label>
+                    <button id="btn-guardar-cfg" class="btn-accion-main" style="padding:10px 20px; font-size:1.05em; width:100%;">Guardar Configuración</button>
+                </div>
+            `;
+            document.getElementById('btn-guardar-cfg').addEventListener('click', async () => {
+                await setDoc(doc(db, "configuracion", "general"), { 
+                    hora_apertura: document.getElementById('cfg-apertura').value,
+                    hora_cierre: document.getElementById('cfg-cierre').value,
+                    cantidad_aulas: document.getElementById('cfg-aulas').value, 
+                    cantidad_baterias: document.getElementById('cfg-bats').value, 
+                    identificador_bateria: document.getElementById('cfg-idbat').value, 
+                    valor_clase: document.getElementById('cfg-valor').value, 
+                    formato_evento_reserva: document.getElementById('cfg-evt-res').value, 
+                    formato_evento_confirmado: document.getElementById('cfg-evt-conf').value, 
+                    texto_profe: document.getElementById('cfg-txt-p').value, 
+                    texto_alumno: document.getElementById('cfg-txt-a').value,
+                    texto_conf_profe: document.getElementById('cfg-txt-conf-p').value,
+                    texto_conf_alumno: document.getElementById('cfg-txt-conf-a').value
+                }, { merge: true });
+                await cargarConfig(); alert('Guardado.');
+            });
+        }
+
+        async function cargarABM(coleccion, titulo, cont) {
+            tituloABMActual = titulo;
+            try {
+                const qS = await getDocs(collection(db, coleccion));
+                let h = `<div class="abm-container" style="display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap; padding:25px;">
+                            <div style="flex-grow:1; min-width:180px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Nombre</label><input type="text" id="input-nuevo-abm" placeholder="Ej: Guitarra"></div>`;
+                if(coleccion === 'profesores') { 
+                    h += `<div style="flex-grow:1; min-width:200px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Email Calendar</label><input type="email" id="input-correo-abm" placeholder="ejemplo@calendar..."></div>
+                          <div style="flex-grow:1; min-width:150px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Celular (WhatsApp)</label><input type="text" id="input-celular-abm" placeholder="Ej: 54911..."></div>
+                          <div style="flex-grow:1; min-width:150px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Alias Transferencia</label><input type="text" id="input-alias-abm" placeholder="alias.mp"></div>
+                          <div style="padding-bottom:10px;"><label style="white-space:nowrap; cursor:pointer; font-weight:600; color:#212529;"><input type="checkbox" id="input-entrevista-abm" checked> Entrevistas</label></div>`; 
+                }
+                h += `<button id="btn-guardar-abm" class="btn-accion-main" style="height:40px; min-width:120px;">+ Agregar</button>
+                      </div>`;
+                
+                qS.forEach(d => {
+                    const dt = d.data();
+                    let ex = coleccion==='profesores' ? ` <br><small style="color:#6c757d;">${dt.correo_calendario}</small> <span class="badge ${dt.entrevista?'badge-success':'badge-danger'}" style="margin-left:10px;">${dt.entrevista?'SÍ':'NO'} Entrevistas</span>` : '';
+                    h += `<div class="abm-item" onclick="abrirEdicionABM('${d.id}', '${coleccion}', '${dt.nombre}', '${dt.correo_calendario||''}', '${dt.celular||''}', '${dt.alias_transferencia||''}', ${!!dt.entrevista})">
+                            <span style="font-weight:600; color:#212529; font-size:1.05em;">${dt.nombre}${ex}</span>
+                            <button class="btn-suspender" onclick="event.stopPropagation(); eliminarABM('${d.id}', '${coleccion}')" style="padding:6px 10px; border:none; font-size:1.2em;" title="Eliminar">❌</button>
+                          </div>`;
+                });
+                cont.innerHTML = h;
+
+                document.getElementById('btn-guardar-abm').addEventListener('click', async () => {
+                    const n = document.getElementById('input-nuevo-abm').value.trim(); if(!n) return;
+                    const dO = { nombre: n };
+                    if(coleccion==='profesores'){ 
+                        dO.correo_calendario=document.getElementById('input-correo-abm').value.trim(); 
+                        dO.celular=document.getElementById('input-celular-abm').value.trim(); 
+                        dO.alias_transferencia=document.getElementById('input-alias-abm').value.trim(); 
+                        dO.entrevista=document.getElementById('input-entrevista-abm').checked; 
+                        
+                        const hApe = configApp.hora_apertura || '09:00';
+                        const hCie = configApp.hora_cierre || '22:00';
+                        const dispAllDay = [ { inicio: hApe, fin: hCie } ];
+                        dO.disponibilidad = { 'L': dispAllDay, 'M': dispAllDay, 'X': dispAllDay, 'J': dispAllDay, 'V': dispAllDay, 'S': dispAllDay };
+                    }
+                    await addDoc(collection(db, coleccion), dO); cargarABM(coleccion, titulo, cont);
+                });
+            } catch(e) { console.error(e); }
+        }
+
+        window.abrirEdicionABM = async function(id, col, nom, cor, cel, ali, ent) {
+            document.getElementById('abm-edit-id').value = id; 
+            document.getElementById('abm-edit-coleccion').value = col; 
+            document.getElementById('abm-edit-nombre').value = nom;
+            
+            if(col==='profesores') { 
+                document.getElementById('div-abm-edit-profe').style.display='block'; 
+                document.getElementById('abm-edit-correo').value=cor; 
+                document.getElementById('abm-edit-celular').value=cel; 
+                document.getElementById('abm-edit-alias').value=ali; 
+                document.getElementById('abm-edit-entrevista').checked=ent; 
+                
+                try {
+                    const pr = (await getDoc(doc(db, col, id))).data();
+                    const hApe = configApp.hora_apertura || '09:00';
+                    const hCie = configApp.hora_cierre || '22:00';
+                    
+                    diasSemana.forEach(dia => {
+                        const dD = pr.disponibilidad ? pr.disponibilidad[dia.id] : [];
+                        const tI = document.getElementById(`disp-p-${dia.id}-inicio`), tF = document.getElementById(`disp-p-${dia.id}-fin`);
+                        const cA = document.getElementById(`disp-p-${dia.id}-all`), cN = document.getElementById(`disp-p-${dia.id}-none`);
+                        const sE = document.getElementById(`estado-p-${dia.id}`);
+                        tI.disabled=false; tF.disabled=false; cA.checked=false; cN.checked=false; sE.textContent="";
+                        
+                        if (!dD || dD.length===0) { cN.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Bloqueado"; sE.style.color="#dc3545"; }
+                        else if (dD[0].inicio===hApe && dD[0].fin===hCie) { cA.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Libre"; sE.style.color="#28a745"; }
+                        else { tI.value = dD[0].inicio; tF.value = dD[0].fin; }
+                    });
+                } catch(e) { console.error(e); }
+            }
+            else document.getElementById('div-abm-edit-profe').style.display='none';
+            document.getElementById('modal-abm-edit').showModal();
+        }
+        
+        window.eliminarABM = async function(id, col) { if(confirm("¿Eliminar?")) { await deleteDoc(doc(db, col, id)); document.querySelector(`[data-vista="ABM-${tituloABMActual}"]`).click(); } }
+        
+        document.getElementById('btn-guardar-abm-edit').addEventListener('click', async () => {
+            const id = document.getElementById('abm-edit-id').value, col = document.getElementById('abm-edit-coleccion').value, dO = { nombre: document.getElementById('abm-edit-nombre').value };
+            if(col==='profesores') { 
+                dO.correo_calendario=document.getElementById('abm-edit-correo').value; 
+                dO.celular=document.getElementById('abm-edit-celular').value; 
+                dO.alias_transferencia=document.getElementById('abm-edit-alias').value; 
+                dO.entrevista=document.getElementById('abm-edit-entrevista').checked; 
+                
+                const disp = {};
+                const hApe = configApp.hora_apertura || '09:00';
+                const hCie = configApp.hora_cierre || '22:00';
+                diasSemana.forEach(d => {
+                    const cA = document.getElementById(`disp-p-${d.id}-all`).checked, cN = document.getElementById(`disp-p-${d.id}-none`).checked;
+                    let i = document.getElementById(`disp-p-${d.id}-inicio`).value, f = document.getElementById(`disp-p-${d.id}-fin`).value;
+                    if(cN) disp[d.id] = [];
+                    else if(cA) disp[d.id] = [{inicio:hApe, fin:hCie}];
+                    else { if(i||f) disp[d.id] = [{inicio: i||hApe, fin: f||hCie}]; else disp[d.id] = []; }
+                });
+                dO.disponibilidad = disp;
+            }
+            await updateDoc(doc(db, col, id), dO); document.getElementById('modal-abm-edit').close(); document.querySelector(`[data-vista="ABM-${tituloABMActual}"]`).click();
         });
     </script>
 </body>
