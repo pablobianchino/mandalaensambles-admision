@@ -245,7 +245,6 @@
         </div>
     </dialog>
 
-    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -487,13 +486,12 @@
             } else if (vista.startsWith('ABM') || vista === 'Configuración') {
                 contLista.style.display = 'flex'; contLista.innerHTML = '';
                 if(vista === 'Configuración') renderConfig(contLista);
-                else {
-                    const colMap = { 'ABM-Profesores': 'profesores', 'ABM-Instrumentos': 'instrumentos', 'ABM-Suscripciones': 'tipos_suscripcion' };
-                    cargarABM(colMap[vista] || vista.split('-')[1].toLowerCase(), vista.split('-')[1], contLista);
-                }
+                else cargarABM(colMap[vista] || vista.split('-')[1].toLowerCase(), vista.split('-')[1], contLista);
             }
         }
         
+        const colMap = { 'ABM-Profesores': 'profesores', 'ABM-Instrumentos': 'instrumentos', 'ABM-Suscripciones': 'tipos_suscripcion' };
+
         async function renderCharts() {
             try {
                 const qSnap = await getDocs(collection(db, "alumnos"));
@@ -544,7 +542,23 @@
             
             if (target.classList.contains('btn-confirmada-profe')) {
                 const id = target.getAttribute('data-id');
-                try { const al = (await getDoc(doc(db, "alumnos", id))).data(); let aliasP = ''; if (al.reserva_profe_id) { const pDoc = await getDoc(doc(db, "profesores", al.reserva_profe_id)); if(pDoc.exists()) aliasP = pDoc.data().alias_transferencia||''; } const txt = reemplazarVariables(configApp.texto_alumno, { fecha_hora: al.reserva_fecha_texto, profe: al.reserva_profe_nombre, valor: configApp.valor_clase, alias_profe: aliasP }); await navigator.clipboard.writeText(txt); let evId = al.id_evento_reserva; if (!evId) { const instStr = Array.isArray(al.instrumento) ? al.instrumento.join('/') : al.instrumento; let tit = reemplazarVariables(configApp.formato_evento_reserva, { profe: al.reserva_profe_nombre, alumno: al.nombre, instrumento: instStr }); tit = getTituloConBateria(al, tit, configApp); evId = (await crearEventoCalendario('productora.mandalahouse@gmail.com', tit, al.reserva_inicio, al.reserva_fin)).id; } await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente validación por alumno", id_evento_reserva: evId }); alert("Texto copiado al portapapeles y estado avanzado."); cargarVista(estadoActualVista); } catch(e) { console.error(e); alert("Error API."); } return;
+                try { 
+                    const al = (await getDoc(doc(db, "alumnos", id))).data(); 
+                    let aliasP = ''; 
+                    if (al.reserva_profe_id) { 
+                        const pDoc = await getDoc(doc(db, "profesores", al.reserva_profe_id)); 
+                        if(pDoc.exists()) aliasP = pDoc.data().alias_transferencia||''; 
+                    } else if (al.reserva_profe_nombre) { 
+                        const pQ = await getDocs(query(collection(db, "profesores"), where("nombre", "==", al.reserva_profe_nombre))); 
+                        if(!pQ.empty) aliasP = pQ.docs[0].data().alias_transferencia||''; 
+                    }
+                    const txt = reemplazarVariables(configApp.texto_alumno, { fecha_hora: al.reserva_fecha_texto, profe: al.reserva_profe_nombre, valor: configApp.valor_clase, alias_profe: aliasP }); 
+                    await navigator.clipboard.writeText(txt); 
+                    let evId = al.id_evento_reserva; 
+                    if (!evId) { const instStr = Array.isArray(al.instrumento) ? al.instrumento.join('/') : al.instrumento; let tit = reemplazarVariables(configApp.formato_evento_reserva, { profe: al.reserva_profe_nombre, alumno: al.nombre, instrumento: instStr }); tit = getTituloConBateria(al, tit, configApp); evId = (await crearEventoCalendario('productora.mandalahouse@gmail.com', tit, al.reserva_inicio, al.reserva_fin)).id; } 
+                    await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente validación por alumno", id_evento_reserva: evId }); 
+                    alert("Texto copiado al portapapeles y estado avanzado."); cargarVista(estadoActualVista); 
+                } catch(e) { console.error(e); alert("Error API."); } return;
             }
 
             if (target.classList.contains('btn-confirmar-entrevista')) {
@@ -566,7 +580,14 @@
             if (target.classList.contains('btn-reenviar-alumno') || target.classList.contains('btn-enviar-conf-alumno')) {
                 try {
                     const id = target.getAttribute('data-id'), al = (await getDoc(doc(db, "alumnos", id))).data();
-                    let aliasP = ''; if (al.reserva_profe_id) { const pDoc = await getDoc(doc(db, "profesores", al.reserva_profe_id)); if(pDoc.exists()) aliasP = pDoc.data().alias_transferencia||''; }
+                    let aliasP = ''; 
+                    if (al.reserva_profe_id) { 
+                        const pDoc = await getDoc(doc(db, "profesores", al.reserva_profe_id)); 
+                        if(pDoc.exists()) aliasP = pDoc.data().alias_transferencia||''; 
+                    } else if (al.reserva_profe_nombre) { 
+                        const pQ = await getDocs(query(collection(db, "profesores"), where("nombre", "==", al.reserva_profe_nombre))); 
+                        if(!pQ.empty) aliasP = pQ.docs[0].data().alias_transferencia||''; 
+                    }
                     const template = target.classList.contains('btn-reenviar-alumno') ? configApp.texto_alumno : configApp.texto_conf_alumno;
                     const txt = reemplazarVariables(template, { fecha_hora: al.reserva_fecha_texto, profe: al.reserva_profe_nombre, valor: configApp.valor_clase, alias_profe: aliasP });
                     await navigator.clipboard.writeText(txt); alert("Texto para ALUMNO copiado al portapapeles.");
