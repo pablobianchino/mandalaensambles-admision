@@ -156,7 +156,19 @@ details.agenda-dia[open] summary { border-bottom-left-radius: 0; border-bottom-r
     box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-size: 0.95em; 
     opacity: 0; transition: opacity 0.3s ease; font-weight: 500;
 }
-
+/* Centrado absoluto del contenedor de Login */
+#login-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #f4f6f9;
+    z-index: 9999;
+}
 /* Tarjetas del Menú de Configuración */
 .config-card { display: flex; align-items: center; padding: 20px; background: #fff; border: 1px solid #dee2e6; border-radius: 10px; cursor: pointer; transition: 0.2s; margin-bottom: 15px; }
 .config-card:hover { border-color: var(--primary); box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
