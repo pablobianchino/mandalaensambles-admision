@@ -154,8 +154,12 @@
     <!-- Modales -->
     <dialog id="modal-alta-alumno"></dialog>
 
-    <dialog id="modal-agenda">
+   <dialog id="modal-agenda">
         <h3 style="margin-top:0; color:#212529; font-size:1.2em;">Buscar Disponibilidad</h3>
+        
+        <!-- Nuevo recuadro con info del alumno -->
+        <div id="info-alumno-agenda" style="margin-bottom:15px; padding:15px; background:#e9ecef; border-radius:8px; display:none; border:1px solid #ced4da;"></div>
+
         <div style="margin-bottom: 15px; padding: 15px; background: #f8f9fa; border:1px solid #ced4da; border-radius: 8px; display:flex; gap:15px; align-items:flex-start; flex-wrap:wrap;">
             <div style="margin-top:5px;">
                 <label style="display:block; font-size:0.85em; font-weight:600; margin-bottom:5px; color:#495057;">Desde:</label>
@@ -172,7 +176,7 @@
             <button id="btn-ejecutar-busqueda" style="background:var(--primary); color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:600; height:38px; margin-top:25px;">Buscar</button>
         </div>
         
-        <input type="text" id="input-buscador-popup" placeholder="Filtrar resultados (ej. Nacho, 18hs, viernes)..." style="margin-bottom: 15px; width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ced4da; box-sizing: border-box; display:none; outline:none;">
+        <input type="text" id="input-buscador-popup" placeholder="Filtrar resultados (ej. Nacho, 18hs)..." style="margin-bottom: 15px; width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ced4da; box-sizing: border-box; display:none; outline:none;">
         
         <div id="resultados-agenda" style="margin-bottom:15px; max-height:40vh; overflow-y:auto; padding-right:5px;"></div>
         <div style="text-align:right;">
