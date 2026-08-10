@@ -34,7 +34,18 @@ let chartGlobalInst = null;
 
 let clipboardDisponibilidad = null; 
 let clipboardDisponibilidadProfe = null; 
-let historialActual = []; 
+let historialActual = [];
+// === HACK: REEMPLAZAR ALERTAS POR TOASTS AUTOMÁTICAMENTE ===
+window.alert = function(msg) {
+    const container = document.getElementById('toast-container');
+    if (!container) return console.log(msg); 
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification';
+    toast.textContent = msg;
+    container.appendChild(toast);
+    setTimeout(() => toast.style.opacity = '1', 10);
+    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
+};
 
 // === INYECTAR MINI-MODAL PARA NOTA RÁPIDA AUTOMÁTICAMENTE ===
 if (!document.getElementById('modal-nota-rapida')) {
@@ -251,9 +262,7 @@ function chequearProfeDisponible(pr, hIniB, finMs, lDia) {
 
 function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, todosLosProfes, profesFiltradosIDs, dStart, dEnd, cfg) {
     const opciones = [], mapaDias = { 0:"D", 1:"L", 2:"M", 3:"X", 4:"J", 5:"V", 6:"S" };
-    // Vuelve a 60 minutos la duración del bloque en Calendar
-    const durMs = 60*60*1000; 
-    const slotPasoMs = 30*60*1000; 
+    const durMs = 60*60*1000; const slotPasoMs = 30*60*1000; 
     const cantAulas = parseInt(cfg.cantidad_aulas)||3; const cantBat = parseInt(cfg.cantidad_baterias)||2;
     const diffDays = Math.floor(Math.abs(dEnd - dStart) / (1000*60*60*24));
 
@@ -273,9 +282,19 @@ function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, todosLosProfes, pr
                         todosLosProfes.forEach(pr => {
                             if (profesFiltradosIDs.includes(pr.id) && !evalOverlap.profesOcupados.has(pr.id)) {
                                 if (chequearProfeDisponible(pr, hIniB, finMs, lDia)) {
+                                    // REVISAR SI ESTÁ PEGADO A OTRA CLASE
+                                    let pegado = false;
+                                    const profeEvents = eventosAPI.filter(e => e.profeId === pr.id);
+                                    profeEvents.forEach(ev => {
+                                        if(!ev.start || !ev.start.dateTime) return;
+                                        const evS = new Date(ev.start.dateTime).getTime();
+                                        const evE = new Date(ev.end.dateTime).getTime();
+                                        if (Math.abs(evE - inMs) <= 60000 || Math.abs(evS - finMs) <= 60000) pegado = true;
+                                    });
+
                                     opciones.push({
                                         fechaTextoAmi: formatearFechaAmi(hIniB.toISOString()), profeId: pr.id, profeNombre: pr.nombre, calId: pr.calId,
-                                        inicioData: formatoLocalISO(hIniB), finData: formatoLocalISO(new Date(finMs))
+                                        inicioData: formatoLocalISO(hIniB), finData: formatoLocalISO(new Date(finMs)), pegado: pegado
                                     });
                                 }
                             }
@@ -399,11 +418,38 @@ async function cargarVista(vista) {
         try { const estMap = { 'Agendas Confirmadas': 'Agenda confirmada', 'Agendas Suspendidas': 'Agenda suspendida' }; const qSnap = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", estMap[vista]))); if(!qSnap.empty) contLista.innerHTML = qSnap.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join(''); } catch(e) { console.error(e); }
     } else if (vista === 'Estadísticas') {
         contEstad.style.display = 'flex'; renderCharts();
-    } else if (vista.startsWith('ABM') || vista === 'Configuración') {
+    } } else if (vista === 'Configuración') {
+        contLista.style.display = 'flex'; contLista.innerHTML = ''; renderConfigHub(contLista);
+    } else if (vista === 'Ajustes Generales') {
+        contLista.style.display = 'flex'; contLista.innerHTML = ''; renderConfig(contLista);
+    } else if (vista.startsWith('ABM')) {
         contLista.style.display = 'flex'; contLista.innerHTML = '';
-        if(vista === 'Configuración') renderConfig(contLista);
-        else { const colMap = { 'ABM-Profesores': 'profesores', 'ABM-Instrumentos': 'instrumentos', 'ABM-Suscripciones': 'tipos_suscripcion' }; cargarABM(colMap[vista] || vista.split('-')[1].toLowerCase(), vista.split('-')[1], contLista); }
+        const colMap = { 'ABM-Profesores': 'profesores', 'ABM-Instrumentos': 'instrumentos', 'ABM-Suscripciones': 'tipos_suscripcion' }; 
+        cargarABM(colMap[vista] || vista.split('-')[1].toLowerCase(), vista.split('-')[1], contLista); 
     }
+}
+function renderConfigHub(cont) {
+    cont.innerHTML = `
+        <div style="max-width:800px; width:100%; padding:20px;">
+            <h2 style="margin-top:0; margin-bottom:25px; color:#212529;">Configuración</h2>
+            <div class="config-card" onclick="cargarVista('Ajustes Generales')">
+                <div class="icon">⚙️</div>
+                <div><div style="font-weight:600; font-size:1.05em; color:#212529;">Ajustes Generales</div><div style="color:#6c757d; font-size:0.9em; margin-top:3px;">Límites, calendarios y textos predefinidos.</div></div>
+            </div>
+            <div class="config-card" onclick="cargarVista('ABM-Profesores')">
+                <div class="icon">👥</div>
+                <div><div style="font-weight:600; font-size:1.05em; color:#212529;">Profesores</div><div style="color:#6c757d; font-size:0.9em; margin-top:3px;">Alta, edición de datos y disponibilidad horaria.</div></div>
+            </div>
+            <div class="config-card" onclick="cargarVista('ABM-Instrumentos')">
+                <div class="icon">🎸</div>
+                <div><div style="font-weight:600; font-size:1.05em; color:#212529;">Instrumentos</div><div style="color:#6c757d; font-size:0.9em; margin-top:3px;">Administración de instrumentos del estudio.</div></div>
+            </div>
+            <div class="config-card" onclick="cargarVista('ABM-Suscripciones')">
+                <div class="icon">🎫</div>
+                <div><div style="font-weight:600; font-size:1.05em; color:#212529;">Suscripciones</div><div style="color:#6c757d; font-size:0.9em; margin-top:3px;">Tipos de clases y formatos para los alumnos.</div></div>
+            </div>
+        </div>
+    `;
 }
 
 async function renderCharts() {
@@ -633,13 +679,15 @@ document.addEventListener('click', async (e) => {
                     grouped[dayKey].push({ ...op, timeStr });
                 });
 
-                let html = '';
+               let html = '';
                 for(let day in grouped) {
                     html += `<details class="agenda-dia"><summary>📅 ${day} <span style="font-weight:normal; color:#6c757d;">(${grouped[day].length} opciones)</span></summary><div class="agenda-dia-content">`;
                     grouped[day].forEach(op => {
+                        // Inyectar badge si la clase está pegada
+                        const badgePegado = op.pegado ? '<span style="background:#fff3cd; color:#856404; padding:2px 6px; border-radius:4px; font-size:0.85em; font-weight:bold; margin-left:8px;">⭐ Clase pegada</span>' : '';
                         html += `
                             <div class="opcion-horario">
-                                <span>🕒 ${op.timeStr} (${op.profeNombre})</span>
+                                <span>🕒 ${op.timeStr} (${op.profeNombre}) ${badgePegado}</span>
                                 <button class="btn-seleccionar-profe btn-accion-main" data-calid="${op.calId}" data-profe="${op.profeNombre}" data-profeid="${op.profeId}" data-start="${op.inicioData}" data-end="${op.finData}" data-fechatxt="${op.fechaTextoAmi}">Validar con Profe</button>
                             </div>`;
                     });
@@ -740,6 +788,7 @@ document.getElementById('form-alumno').addEventListener('submit', async (e) => {
 function renderConfig(cont) {
     cont.innerHTML = `
         <div class="abm-container" style="max-width:800px; padding:30px;">
+        <div style="margin-bottom:25px; font-size:0.9em; color:#6c757d;"><span style="cursor:pointer; color:var(--primary);" onclick="cargarVista('Configuración')">Configuración</span> &gt; <strong style="color:#212529;">Ajustes Generales</strong></div>
             <h3 style="margin-top:0; color:#212529; font-size:1.2em;">Límites y Reglas de Calendario</h3>
             <div style="display:flex; gap:15px; margin-bottom:25px; flex-wrap:wrap;">
                 <div style="flex:1; min-width:150px;"><label style="display:block; font-weight:600; color:#495057;">Hora de Apertura:<br><input type="time" id="cfg-apertura" value="${configApp.hora_apertura||'09:00'}"></label></div>
@@ -807,7 +856,7 @@ function renderConfig(cont) {
 function cargarABM(coleccion, titulo, cont) {
     window.tituloABMActual = titulo;
     getDocs(collection(db, coleccion)).then(qS => {
-        let h = `<div class="abm-container" style="display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap; padding:25px;"><div style="flex-grow:1; min-width:180px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Nombre</label><input type="text" id="input-nuevo-abm" placeholder="Ej: Guitarra"></div>`;
+        let h = `<div style="width:100%; margin-bottom:15px; font-size:0.9em; color:#6c757d;"><span style="cursor:pointer; color:var(--primary);" onclick="cargarVista('Configuración')">Configuración</span> &gt; <strong style="color:#212529;">${titulo}</strong></div><div class="abm-container" style="display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap; padding:25px;"><div style="flex-grow:1; min-width:180px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Nombre</label><input type="text" id="input-nuevo-abm" placeholder="Ej: Guitarra"></div>`;
         if(coleccion === 'profesores') { h += `<div style="flex-grow:1; min-width:200px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Email Calendar</label><input type="email" id="input-correo-abm" placeholder="ejemplo@calendar..."></div><div style="flex-grow:1; min-width:150px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Celular (Para guardar)</label><input type="text" id="input-celular-abm" placeholder="Ej: 54911..."></div><div style="flex-grow:1; min-width:150px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Alias Transferencia</label><input type="text" id="input-alias-abm" placeholder="alias.mp"></div><div style="padding-bottom:10px;"><label style="white-space:nowrap; cursor:pointer; font-weight:600; color:#212529;"><input type="checkbox" id="input-entrevista-abm" checked> Entrevistas</label></div>`; }
         h += `<button id="btn-guardar-abm" class="btn-accion-main" style="height:40px; min-width:120px;">+ Agregar</button></div>`;
         
