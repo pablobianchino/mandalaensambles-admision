@@ -36,6 +36,22 @@ let clipboardDisponibilidad = null;
 let clipboardDisponibilidadProfe = null; 
 let historialActual = []; 
 
+// === INYECTAR MINI-MODAL PARA NOTA RÁPIDA AUTOMÁTICAMENTE ===
+if (!document.getElementById('modal-nota-rapida')) {
+    const dlg = document.createElement('dialog');
+    dlg.id = 'modal-nota-rapida';
+    dlg.innerHTML = `
+        <h3 style="margin-top:0; color:#212529; font-size:1.2em;">Agregar Nota</h3>
+        <input type="hidden" id="nota-rapida-id">
+        <textarea id="nota-rapida-texto" rows="3" style="width:100%; border:1px solid #ced4da; border-radius:6px; padding:10px; box-sizing:border-box; margin-bottom:15px; font-family:inherit;" placeholder="Escribe el registro de contacto..."></textarea>
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <button type="button" class="btn-cerrar-modal" data-modal="modal-nota-rapida" style="padding:8px 16px; border:none; border-radius:6px; cursor:pointer; background:#e9ecef; font-weight:600; color:#495057;">Cancelar</button>
+            <button id="btn-guardar-nota-rapida" style="padding:8px 16px; background:var(--primary); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">Guardar</button>
+        </div>
+    `;
+    document.body.appendChild(dlg);
+}
+
 // === INICIALIZACIÓN QUILL & DISPONIBILIDAD ===
 const quill = new Quill('#editor-container', { theme: 'snow', modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] } });
 
@@ -127,12 +143,13 @@ const defaultCfg = {
     calendario_por_defecto: 'productora.mandalahouse@gmail.com',
     identificador_bateria: '🥁', emoji_guitarra: '🎸', emoji_cajon: '📦', emoji_canto: '🎤', emoji_piano: '🎹', emoji_bajo: '🎸',
     valor_clase: '$10.000', cantidad_aulas: '3', cantidad_baterias: '2',
+    texto_nombre_agendar: 'MDL {nombre} {edad} {año_actual} @{instrumento} @{suscripcion}',
     formato_evento_reserva: '❓📋 {emojiinstrumento} {alumno} {edad}', 
     formato_evento_confirmado: '✅📋 {emojiinstrumento} {alumno} {edad}',
-    texto_profe: "*⚠ PRE CHECK - ENTREVISTA*\n📅 *FECHA: {fecha_hora}*\n*👥 ALUMNO:*\n🔹 {nombre} ({edad})\n🔹 {instrumento} | {suscripcion}\n*INFO:*\n{descripcion}{bloque_historial}",
+    texto_profe: "*⚠ PRE CHECK - ENTREVISTA*\n📅 *FECHA: {fecha_hora}*\n*👥 ALUMNO:*\n🔹 {nombre} ({edad})\n🔹 {instrumento} | {suscripcion}\n*INFO:*\n{descripcion}\n\n*🕐 HISTORIAL DE CONTACTO:*\n{historial}",
     texto_alumno: "📅 *Agenda de clase*\n🧩 {fecha_hora} con Profe {profe}\n✅ Inscripción: forms.gle/xxx\n💸 Valor: {valor}\n🧩 Alias: {alias_profe}",
     texto_conf_alumno: "Genial Gracias!\nTe esperamos!\n\n🧩 Día y horario: {fecha_hora}\n🧩 Profe: {profe}\n📍 *Dirección:* Av. Cabildo 2970, Piso 1, Depto C.\n\n⚠️ *A tener en cuenta:*\n\n- *Puntualidad:* La reserva del espacio es por 45 minutos.\n\nEl profe te va a estar escribiendo el mismo día!",
-    texto_conf_profe: "*✅ ENTREVISTA CONFIRMADA*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Clase: {suscripcion}\n\n*📰 INFO PARA LA ENTREVISTA:*\n{descripcion}{bloque_historial}",
+    texto_conf_profe: "*✅ ENTREVISTA CONFIRMADA*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Clase: {suscripcion}\n\n*📰 INFO PARA LA ENTREVISTA:*\n{descripcion}\n\n*🕐 HISTORIAL DE CONTACTO:*\n{historial}",
     texto_cancela_alumno: "*❗ PRE CHECK - ENTREVISTA*\n*❌ RESERVA CANCELADA*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Clase: {suscripcion}\n\n*🕐 HISTORIAL DE CONTACTO:*\n{historial}"
 };
 
@@ -141,13 +158,11 @@ async function cargarConfig() {
     configApp = docSnap.exists() ? { ...defaultCfg, ...docSnap.data() } : defaultCfg;
 }
 
-// Función súper robusta: reemplaza variables y destruye las que no se encontraron
 function reemplazarVariables(texto, datos) { 
     let res = texto; 
     for (const [key, value] of Object.entries(datos)) {
         res = res.replaceAll(`{${key}}`, value || ''); 
     }
-    // Borrar cualquier sobrante {variable} que haya quedado en el texto
     res = res.replace(/\{[a-zA-Z0-9_]+\}/g, '');
     return res; 
 }
@@ -155,17 +170,13 @@ function reemplazarVariables(texto, datos) {
 function formatoLocalISO(date) { const tzo = -date.getTimezoneOffset(), dif = tzo >= 0 ? '+' : '-', pad = num => (num < 10 ? '0' : '') + num; return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + 'T' + pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds()) + dif + pad(Math.floor(Math.abs(tzo) / 60)) + ':' + pad(Math.abs(tzo) % 60); }
 function formatearFechaAmi(fechaIsoStr) { const d = new Date(fechaIsoStr), dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']; let min = d.getMinutes(); let minStr = min === 0 ? 'hs' : `:${min < 10 ? '0'+min : min}hs`; return `${dias[d.getDay()]} ${d.getDate()}/${d.getMonth()+1} ${d.getHours()}${minStr}`; }
 
-// Nuevo Generador de Títulos de Evento
 function construirTitulosEvento(al, tipo, cfg) {
     let template = tipo === 'reserva' ? cfg.formato_evento_reserva : cfg.formato_evento_confirmado;
-    
-    // Auto-corregir plantillas viejas que vienen de la base de datos
     if (template === '? {profe} Ent {alumno}') template = '❓📋 {emojiinstrumento} {alumno} {edad}';
     if (template === '📋🎸{instrumento} - {alumno} {edad}') template = '✅📋 {emojiinstrumento} {alumno} {edad}';
 
     let emojis = [];
     const insts = Array.isArray(al.instrumento) ? al.instrumento : [al.instrumento];
-    
     insts.forEach(i => {
         let instL = (i || '').toLowerCase();
         if (instL.includes('bater')) emojis.push(cfg.identificador_bateria || '🥁');
@@ -175,26 +186,17 @@ function construirTitulosEvento(al, tipo, cfg) {
         else if (instL.includes('piano') || instL.includes('teclado')) emojis.push(cfg.emoji_piano || '🎹');
         else if (instL.includes('bajo')) emojis.push(cfg.emoji_bajo || '🎸');
     });
-    
     let strEmojis = [...new Set(emojis.filter(e => e))].join(''); 
 
-    // Título para el calendario propio del profe (sin nombre del profe)
     let tituloProfe = reemplazarVariables(template, {
-        alumno: al.nombre,
-        edad: al.edad || '',
-        emojiinstrumento: strEmojis,
-        instrumento: insts.join(', ') // Por si usan la variable vieja
+        alumno: al.nombre, edad: al.edad || '', emojiinstrumento: strEmojis, instrumento: insts.join(', ')
     }).replace(/\s+/g, ' ').trim();
 
-    // Armamos el bloque de emojis + nombre del profe para el calendario por defecto
     let profeStr = al.reserva_profe_nombre ? ` (${al.reserva_profe_nombre})` : '';
     let strEmojisConProfe = strEmojis ? `${strEmojis}${profeStr}` : profeStr.trim();
 
     let tituloDefecto = reemplazarVariables(template, {
-        alumno: al.nombre,
-        edad: al.edad || '',
-        emojiinstrumento: strEmojisConProfe,
-        instrumento: insts.join(', ')
+        alumno: al.nombre, edad: al.edad || '', emojiinstrumento: strEmojisConProfe, instrumento: insts.join(', ')
     }).replace(/\s+/g, ' ').trim();
     
     return { tituloProfe, tituloDefecto };
@@ -242,7 +244,6 @@ async function crearEventoCalendario(calendarId, titulo, inicioStr, finStr) { re
 async function actualizarEventoCalendario(calendarId, eventId, titulo, descripcion) { return await fetchCalendarAPI(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, 'PATCH', { summary: titulo, description: descripcion }); }
 async function eliminarEventoCalendario(calendarId, eventId) { return await fetchCalendarAPI(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, 'DELETE'); }
 
-// --- LÓGICA DE FALLBACK DE CALENDARIOS ---
 async function getCalendarIdParaAlumno(al) {
     if (al.reserva_cal_id) return al.reserva_cal_id;
     if (al.reserva_profe_id) {
@@ -315,7 +316,6 @@ async function eliminarEventoSeguro(al) {
         } catch(e) { console.warn(`Falló al eliminar en ${cal}`, e); }
     }
 }
-// --- FIN LÓGICA DE FALLBACK ---
 
 function chequearDisponibilidadExacta(inicioTestMs, finTestMs, eventosAPI, cantAulas, cantBat, esBateria, cfgEmoji) {
     let picosAulas = 0; let picosBateria = 0; let profesOcupados = new Set();
@@ -390,115 +390,10 @@ function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, todosLosProfes, pr
     }
     return opciones;
 }
-// === EVENTOS GLOBALES Y VISTAS ===
-document.getElementById('btn-login').addEventListener('click', conectarGoogle);
-document.getElementById('btn-conectar-cal').addEventListener('click', conectarGoogle);
-
-document.getElementById('btn-logout').addEventListener('click', async () => { 
-    await signOut(auth); 
-    sessionStorage.removeItem('gCalToken'); 
-    localStorage.removeItem('gCalToken'); 
-    googleAccessToken = null; 
-    window.location.reload();
-});
-
-onAuthStateChanged(auth, async (user) => {
-    if (user) {
-        document.getElementById('login-container').style.display = 'none';
-        document.getElementById('app-container').style.display = 'flex';
-        document.getElementById('user-info').textContent = user.email;
-        if (!googleAccessToken) document.getElementById('btn-conectar-cal').style.display = 'inline-block';
-        await cargarConfig();
-        cargarVista('Resumen'); 
-    } else {
-        document.getElementById('login-container').style.display = 'flex';
-        document.getElementById('app-container').style.display = 'none';
-    }
-});
-
-document.querySelectorAll('#sidebar .nav-item').forEach(item => {
-    item.addEventListener('click', (e) => {
-        document.querySelectorAll('#sidebar .nav-item').forEach(el => el.classList.remove('active'));
-        e.target.classList.add('active');
-        cargarVista(e.target.getAttribute('data-vista'));
-    });
-});
-
-const inputBuscadorGeneral = document.getElementById('input-buscador-general');
-if(inputBuscadorGeneral) {
-    inputBuscadorGeneral.addEventListener('input', (e) => {
-        const query = e.target.value.toLowerCase();
-        document.querySelectorAll('.alumno-item').forEach(item => {
-            const elNombre = item.querySelector('.alumno-nombre-search');
-            if(elNombre) item.style.display = elNombre.textContent.toLowerCase().includes(query) ? 'flex' : 'none';
-        });
-    });
-}
-
-const inputBuscadorPopup = document.getElementById('input-buscador-popup');
-if(inputBuscadorPopup) {
-    inputBuscadorPopup.addEventListener('input', (e) => {
-        const query = e.target.value.toLowerCase();
-        document.querySelectorAll('.opcion-horario').forEach(item => {
-            const elTexto = item.querySelector('span');
-            if(elTexto) item.style.display = elTexto.textContent.toLowerCase().includes(query) ? 'flex' : 'none';
-        });
-    });
-}
-
-document.getElementById('btn-carga-masiva').addEventListener('click', () => {
-    if(confirm("¿Realizar carga masiva desde CSV?")) document.getElementById('input-csv').click();
-});
-
-document.getElementById('input-csv').addEventListener('change', (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    const btn = document.getElementById('btn-carga-masiva'); const originalText = btn.innerHTML;
-    btn.innerHTML = '⏳ Procesando...'; btn.disabled = true;
-
-    Papa.parse(file, {
-        header: true, skipEmptyLines: true,
-        complete: async function(results) {
-            const data = results.data; let successCount = 0; let errorCount = 0;
-            const hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00';
-            const dispGlobal = { 'L': [{inicio:hApe,fin:hCie}], 'M': [{inicio:hApe,fin:hCie}], 'X': [{inicio:hApe,fin:hCie}], 'J': [{inicio:hApe,fin:hCie}], 'V': [{inicio:hApe,fin:hCie}], 'S': [{inicio:hApe,fin:hCie}] };
-
-            for (const row of data) {
-                if (!row['Alumno'] && !row['Celu']) continue;
-                let instArr = row['Instrumento'] ? row['Instrumento'].split(',').map(s => s.trim()) : [];
-                let estadoOriginal = (row['Estado'] || '').trim().toUpperCase();
-                let estadoAgenda = "Pendiente procesar";
-                
-                if (estadoOriginal === 'SE OFRECE AGENDA') estadoAgenda = 'Pendiente validación por alumno';
-                else if (estadoOriginal === 'SUSPENDIDO') estadoAgenda = 'Agenda suspendida';
-                else if (estadoOriginal === 'CONFIRMADA' || estadoOriginal === 'CONFIRMADO') estadoAgenda = 'Agenda confirmada';
-
-                const alData = {
-                    nombre: row['Alumno'] || 'Sin Nombre', celular: row['Celu'] || '', edad: parseInt(row['Edad']) || '',
-                    instrumento: instArr, tipo_suscripcion: row['Clase'] || '', descripcion: row['Detalle'] ? row['Detalle'].replace(/\n/g, '<br>') : '',
-                    disponibilidad: dispGlobal, estado_agenda: estadoAgenda, historial: [] 
-                };
-
-                if (estadoAgenda === 'Pendiente validación por alumno' || estadoAgenda === 'Agenda confirmada') {
-                    alData.reserva_profe_nombre = row['¿Quién entrevista?'] || ''; 
-                    alData.reserva_fecha_texto = row['Fecha entrevista'] || '';
-                    const fIso = interpretarFechaCSV(alData.reserva_fecha_texto);
-                    if(fIso) { alData.reserva_inicio = fIso; alData.reserva_fin = formatoLocalISO(new Date(new Date(fIso).getTime() + 60*60*1000)); }
-                }
-                if (estadoAgenda === 'Agenda suspendida') alData.motivo_suspension = "Suspendido en base histórica";
-
-                try { await addDoc(collection(db, "alumnos"), alData); successCount++; } 
-                catch (err) { console.error("Error fila", row, err); errorCount++; }
-            }
-            btn.innerHTML = originalText; btn.disabled = false; e.target.value = ''; 
-            alert(`Carga masiva completada.\nRegistros subidos: ${successCount}\nErrores: ${errorCount}`);
-            cargarVista(estadoActualVista);
-        }
-    });
-});
-
+// === GENERADOR DE TARJETAS NUEVO (CON MENÚ DESPLEGABLE) ===
 function generarTarjetaAlumno(al, id, vista) {
     const instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento;
-    let tags = '', acciones = '', extraClass = '';
+    let tags = '', accionesHtml = '', extraClass = '';
 
     if (vista === 'Resumen') {
         if ((al.estado_agenda === 'Pendiente validación por profe' || al.estado_agenda === 'Pendiente validación por alumno') && al.reserva_inicio) {
@@ -512,38 +407,78 @@ function generarTarjetaAlumno(al, id, vista) {
 
     if (vista === 'Gestiones en Curso' || vista === 'Resumen') {
         if (al.reserva_fecha_texto) {
-            if (al.id_evento_reserva) tags += `<div class="badge badge-warning">🔒 Bloqueado: ${al.reserva_fecha_texto} (${al.reserva_profe_nombre})</div>`;
-            else tags += `<button class="btn-bloquear-agenda badge" data-id="${id}">⏳ Propuesto: ${al.reserva_fecha_texto} (${al.reserva_profe_nombre})</button>`;
+            if (al.id_evento_reserva) tags += `<div class="badge badge-warning" style="margin-bottom:8px;">🔒 Bloqueado: ${al.reserva_fecha_texto} (${al.reserva_profe_nombre})</div>`;
+            else tags += `<button class="btn-bloquear-agenda badge" style="margin-bottom:8px;" data-id="${id}">⏳ Propuesto: ${al.reserva_fecha_texto} (${al.reserva_profe_nombre})</button>`;
         }
+
+        accionesHtml += `<button class="dropdown-item btn-nombre-agendar" data-id="${id}">📋 Nombre para Agendar</button>`;
+
         if (al.estado_agenda === 'Pendiente procesar') { 
-            acciones += `<button class="btn-buscar-agenda btn-accion-main" data-id="${id}">🔍 Buscar Agenda</button><button class="btn-abrir-suspender btn-suspender" data-id="${id}">Suspender</button>`; 
+            accionesHtml += `<button class="dropdown-item btn-buscar-agenda" data-id="${id}">🔍 Buscar Agenda</button>`; 
+            accionesHtml += `<button class="dropdown-item btn-abrir-suspender" data-id="${id}">⏸️ Suspender</button>`; 
         } 
         else if (al.estado_agenda === 'Pendiente validación por profe') { 
-            acciones += `<button class="btn-confirmada-profe btn-violeta" data-id="${id}">Agenda confirmada por profesor</button>`;
-            acciones += `<button class="btn-buscar-agenda btn-accion-main" data-id="${id}">Re-Agendar</button>`;
-            acciones += `<button class="btn-reenviar-profe btn-verde-claro" data-id="${id}">Re-enviar validación</button><button class="btn-cancelar-reserva btn-suspender" data-id="${id}">Cancelar Validación</button><button class="btn-abrir-suspender btn-suspender" data-id="${id}">Suspender</button>`; 
+            accionesHtml += `<button class="dropdown-item btn-confirmada-profe" data-id="${id}">✅ Validar por Profe</button>`;
+            accionesHtml += `<button class="dropdown-item btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
+            accionesHtml += `<button class="dropdown-item btn-reenviar-profe" data-id="${id}">📤 Re-enviar a Profe</button>`;
+            accionesHtml += `<button class="dropdown-item btn-cancelar-reserva" data-id="${id}">❌ Cancelar Validación</button>`;
+            accionesHtml += `<button class="dropdown-item btn-abrir-suspender" data-id="${id}">⏸️ Suspender</button>`; 
         } 
         else if (al.estado_agenda === 'Pendiente validación por alumno') { 
-            acciones += `<button class="btn-confirmar-entrevista btn-accion-main" data-id="${id}">Confirmar Agenda</button><button class="btn-reenviar-alumno btn-verde-claro" data-id="${id}">Re-Enviar validación p/alumno</button><button class="btn-cancelar-reserva btn-suspender" data-id="${id}">Cancelar Agenda</button><button class="btn-abrir-suspender btn-suspender" data-id="${id}">Suspender</button>`; 
+            accionesHtml += `<button class="dropdown-item btn-confirmar-entrevista" data-id="${id}">✅ Confirmar Agenda</button>`;
+            accionesHtml += `<button class="dropdown-item btn-reenviar-alumno" data-id="${id}">📤 Re-Enviar a Alumno</button>`;
+            accionesHtml += `<button class="dropdown-item btn-cancelar-reserva" data-id="${id}">❌ Cancelar Agenda</button>`;
+            accionesHtml += `<button class="dropdown-item btn-abrir-suspender" data-id="${id}">⏸️ Suspender</button>`; 
         }
     } 
     
     if (vista === 'Agendas Confirmadas' || (vista === 'Resumen' && al.estado_agenda === 'Agenda confirmada')) {
-        if (vista !== 'Resumen') { extraClass = 'item-confirmada'; tags += `<div class="badge badge-success">✅ Confirmado: ${al.reserva_fecha_texto||'-'} (${al.reserva_profe_nombre||'-'})</div>`; } 
+        if (vista !== 'Resumen') { extraClass = 'item-confirmada'; tags += `<div class="badge badge-success" style="margin-bottom:8px;">✅ Confirmado: ${al.reserva_fecha_texto||'-'} (${al.reserva_profe_nombre||'-'})</div>`; } 
         else if (vista === 'Resumen' && !tags.includes('✅')) { tags += `<div class="badge badge-success" style="margin-bottom:8px;">✅ ${al.reserva_fecha_texto||'-'} (${al.reserva_profe_nombre||'-'})</div>`; }
-        acciones += `<button class="btn-enviar-conf-profe btn-verde-claro" data-id="${id}">Enviar confirmación Profe</button><button class="btn-enviar-conf-alumno btn-verde-claro" data-id="${id}">Enviar confirmación Alumno</button><button class="btn-cancelar-reserva btn-suspender" data-id="${id}">Deshacer Confirmación</button>`;
+        
+        accionesHtml += `<button class="dropdown-item btn-nombre-agendar" data-id="${id}">📋 Nombre para Agendar</button>`;
+        accionesHtml += `<button class="dropdown-item btn-enviar-conf-profe" data-id="${id}">📤 Enviar conf. a Profe</button>`;
+        accionesHtml += `<button class="dropdown-item btn-enviar-conf-alumno" data-id="${id}">📤 Enviar conf. a Alumno</button>`;
+        accionesHtml += `<button class="dropdown-item btn-cancelar-reserva" data-id="${id}">↩️ Deshacer Confirmación</button>`;
     } else if (vista === 'Agendas Suspendidas') {
-        extraClass = 'item-suspendida'; tags += `<div class="badge badge-danger">Motivo: ${al.motivo_suspension||'S/D'}</div>`;
-        acciones += `<button class="btn-recuperar-agenda btn-accion-main" data-id="${id}">Recuperar Agenda</button>`;
+        extraClass = 'item-suspendida'; tags += `<div class="badge badge-danger" style="margin-bottom:8px;">Motivo: ${al.motivo_suspension||'S/D'}</div>`;
+        accionesHtml += `<button class="dropdown-item btn-recuperar-agenda" data-id="${id}">♻️ Recuperar Agenda</button>`;
     }
 
-    return `<div class="alumno-item ${extraClass}" data-id="${id}"><div class="alumno-header btn-editar-alumno" data-id="${id}"><button class="btn-eliminar-alumno" title="Eliminar Alumno">❌</button><div style="width:90%;">${tags}<div class="alumno-nombre-search" style="font-size:1.1em; font-weight:700; color:#212529;">${al.nombre}</div><div style="color:#495057; font-size:0.9em; margin-top:2px;">${instStr} (${al.tipo_suscripcion})</div><div style="color:#868e96; font-size:0.8em; margin-top:5px;">Cel: ${al.celular} | Edad: ${al.edad||'-'}</div></div></div>${acciones ? `<div class="alumno-actions">${acciones}</div>` : ''}<div id="accordion-${id}" style="display:none; margin-top:10px;"></div></div>`;
+    let menuAcciones = '';
+    if (accionesHtml) {
+        menuAcciones = `
+        <div class="alumno-actions" style="position:relative; display:flex; justify-content:flex-end;">
+            <button class="btn-dropdown" data-dropdown="dd-${id}">⚡ Acciones ▾</button>
+            <div id="dd-${id}" class="dropdown-menu" style="display:none;">${accionesHtml}</div>
+        </div>`;
+    }
+
+    return `
+        <div class="alumno-item ${extraClass}" data-id="${id}">
+            <div class="alumno-header btn-editar-alumno" data-id="${id}" style="padding-right:45px;">
+                <button class="btn-nota-rapida" data-id="${id}" title="Agregar Nota" style="position:absolute; top:0; right:28px; background:transparent; border:none; color:#17a2b8; cursor:pointer; font-size:1.1em; padding:0; line-height:1;">📝</button>
+                <button class="btn-eliminar-alumno" title="Eliminar Alumno">❌</button>
+                <div style="width:100%;">
+                    ${tags}
+                    <div class="alumno-nombre-search" style="font-size:1.1em; font-weight:700; color:#212529;">${al.nombre}</div>
+                    <div style="color:#495057; font-size:0.9em; margin-top:2px;">${instStr} (${al.tipo_suscripcion})</div>
+                    <div style="color:#868e96; font-size:0.8em; margin-top:5px;">Cel: ${al.celular} | Edad: ${al.edad||'-'}</div>
+                </div>
+            </div>
+            ${menuAcciones}
+        </div>
+    `;
 }
 
 async function cargarVista(vista) {
     estadoActualVista = vista; document.getElementById('vista-titulo').textContent = vista;
     const btnNuevo = document.getElementById('btn-nuevo-alumno'), searchGen = document.getElementById('search-container-general'), btnCargaMasiva = document.getElementById('btn-carga-masiva'), contTablero = document.getElementById('tablero-gestiones'), contResumen = document.getElementById('tablero-resumen'), contLista = document.getElementById('lista-generica'), contEstad = document.getElementById('estadisticas-container');
-    const formWrapper = document.getElementById('form-alumno-wrapper'); if (formWrapper) { formWrapper.style.display = 'none'; document.body.appendChild(formWrapper); }
+    const formWrapper = document.getElementById('form-alumno-wrapper'); 
+    
+    // Asegurar que el form se envíe al modal correcto si es necesario
+    if (formWrapper) { formWrapper.style.display = 'none'; document.getElementById('modal-alta-alumno').appendChild(formWrapper); }
+    
     btnNuevo.style.display = 'none'; searchGen.style.display = 'none'; btnCargaMasiva.style.display = 'none'; contTablero.style.display = 'none'; if(contResumen) contResumen.style.display = 'none'; contLista.style.display = 'none'; contEstad.style.display = 'none'; document.getElementById('input-buscador-general').value = '';
 
     if (vista === 'Resumen') {
@@ -597,8 +532,24 @@ async function renderCharts() {
     } catch(e) { console.error(e); }
 }
 
+// === DELEGACIÓN DE EVENTOS GLOBALES ===
 document.addEventListener('click', async (e) => {
     const target = e.target;
+
+    // Manejo del Menú Desplegable
+    const allDropdowns = document.querySelectorAll('.dropdown-menu');
+    if (target.classList.contains('btn-dropdown')) {
+        e.stopPropagation();
+        const menuId = target.getAttribute('data-dropdown');
+        const menu = document.getElementById(menuId);
+        const isVisible = menu.style.display === 'flex';
+        allDropdowns.forEach(m => m.style.display = 'none');
+        if (!isVisible) menu.style.display = 'flex';
+        return;
+    } else {
+        allDropdowns.forEach(m => m.style.display = 'none');
+    }
+
     if (target.classList.contains('btn-copy-disp')) { e.stopPropagation(); const d = target.getAttribute('data-dia'); clipboardDisponibilidad = { inicio: document.getElementById(`disp-${d}-inicio`).value, fin: document.getElementById(`disp-${d}-fin`).value, all: document.getElementById(`disp-${d}-all`).checked, none: document.getElementById(`disp-${d}-none`).checked }; return; }
     if (target.classList.contains('btn-paste-disp')) { e.stopPropagation(); if (!clipboardDisponibilidad) return alert("Primero copia una disponibilidad."); const d = target.getAttribute('data-dia'); document.getElementById(`disp-${d}-inicio`).value = clipboardDisponibilidad.inicio; document.getElementById(`disp-${d}-fin`).value = clipboardDisponibilidad.fin; document.getElementById(`disp-${d}-all`).checked = clipboardDisponibilidad.all; document.getElementById(`disp-${d}-none`).checked = clipboardDisponibilidad.none; window.updateDispStateForDay(d, false); return; }
     if (target.classList.contains('btn-copy-disp-p')) { e.stopPropagation(); const d = target.getAttribute('data-dia'); clipboardDisponibilidadProfe = { inicio: document.getElementById(`disp-p-${d}-inicio`).value, fin: document.getElementById(`disp-p-${d}-fin`).value, all: document.getElementById(`disp-p-${d}-all`).checked, none: document.getElementById(`disp-p-${d}-none`).checked }; return; }
@@ -606,16 +557,47 @@ document.addEventListener('click', async (e) => {
 
     if (target.classList.contains('btn-eliminar-alumno')) { e.stopPropagation(); if(confirm("¿Eliminar este alumno por completo?")) { const id = target.closest('.alumno-item').getAttribute('data-id'); try { const al = (await getDoc(doc(db, "alumnos", id))).data(); if (al && al.id_evento_reserva) { await eliminarEventoSeguro(al); } } catch(err) {} await deleteDoc(doc(db, "alumnos", id)); cargarVista(estadoActualVista); } return; }
 
-    if (target.id === 'btn-agregar-nota') { const textarea = document.getElementById('nueva-nota-texto'); const texto = textarea.value.trim(); if(!texto) return; const now = new Date(); const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`; historialActual.push({ id: Date.now(), texto: texto, fecha: fechaStr }); textarea.value = ''; renderHistorial(); return; }
-    if (target.classList.contains('btn-eliminar-nota')) { const id = parseInt(target.getAttribute('data-id')); historialActual = historialActual.filter(n => n.id !== id); renderHistorial(); return; }
-    if (target.classList.contains('btn-editar-nota')) { const id = parseInt(target.getAttribute('data-id')); const notaIndex = historialActual.findIndex(n => n.id === id); if (notaIndex !== -1) { document.getElementById('nueva-nota-texto').value = historialActual[notaIndex].texto; historialActual.splice(notaIndex, 1); renderHistorial(); } return; }
+    // Botón de Nota Rápida
+    if (target.classList.contains('btn-nota-rapida')) {
+        e.stopPropagation();
+        document.getElementById('nota-rapida-id').value = target.getAttribute('data-id');
+        document.getElementById('nota-rapida-texto').value = '';
+        document.getElementById('modal-nota-rapida').showModal();
+        return;
+    }
 
+    // Edición mediante Popup
     const headerAl = target.closest('.btn-editar-alumno');
-    if (headerAl && !target.classList.contains('btn-eliminar-alumno')) {
-        const id = headerAl.getAttribute('data-id'), accDiv = document.getElementById(`accordion-${id}`), wrap = document.getElementById('form-alumno-wrapper');
-        if (accDiv.contains(wrap) && wrap.style.display === 'block') { wrap.style.display = 'none'; return; }
-        wrap.style.display = 'none'; document.querySelectorAll('[id^="accordion-"]').forEach(el => el.style.display = 'none');
-        document.getElementById('alumno-id').value = id; await llenarFormularioAlumno(id); accDiv.appendChild(wrap); document.getElementById('form-titulo').textContent = 'Editar Alumno'; wrap.style.display = 'block'; accDiv.style.display = 'block'; return;
+    if (headerAl && !target.classList.contains('btn-eliminar-alumno') && !target.classList.contains('btn-nota-rapida') && !target.classList.contains('btn-dropdown')) {
+        const id = headerAl.getAttribute('data-id');
+        const wrap = document.getElementById('form-alumno-wrapper');
+        document.getElementById('modal-alta-alumno').appendChild(wrap);
+        wrap.style.display = 'block';
+        document.getElementById('alumno-id').value = id; 
+        await llenarFormularioAlumno(id); 
+        document.getElementById('form-titulo').textContent = 'Editar Alumno'; 
+        document.getElementById('modal-alta-alumno').showModal(); 
+        return;
+    }
+
+    if (target.classList.contains('btn-nombre-agendar')) {
+        const id = target.getAttribute('data-id');
+        try {
+            const al = (await getDoc(doc(db, "alumnos", id))).data();
+            const iS = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento;
+            let template = configApp.texto_nombre_agendar || 'MDL {nombre} {edad} {año_actual} @{instrumento} @{suscripcion}';
+            const txt = reemplazarVariables(template, {
+                nombre: al.nombre,
+                edad: al.edad || '',
+                'año_actual': new Date().getFullYear().toString(),
+                'año actual': new Date().getFullYear().toString(),
+                instrumento: iS,
+                suscripcion: al.tipo_suscripcion || ''
+            }).replace(/\s+/g, ' ').trim();
+            await navigator.clipboard.writeText(txt);
+            alert("Nombre copiado:\n" + txt);
+        } catch(e) { console.error(e); }
+        return;
     }
 
     if (target.classList.contains('btn-buscar-agenda')) {
@@ -640,18 +622,40 @@ document.addEventListener('click', async (e) => {
         } return;
     }
     
+    // --- RUTINA MEJORADA: OBTENER TEXTO CON HISTORIAL ---
+    async function generarTextoConHistorial(idAlumno, plantillaKey) {
+        const al = (await getDoc(doc(db, "alumnos", idAlumno))).data();
+        let aliasP = ''; 
+        if (al.reserva_profe_id) { const pDoc = await getDoc(doc(db, "profesores", al.reserva_profe_id)); if(pDoc.exists()) aliasP = pDoc.data().alias_transferencia||''; } 
+        else if (al.reserva_profe_nombre) { const pQ = await getDocs(query(collection(db, "profesores"), where("nombre", "==", al.reserva_profe_nombre))); if(!pQ.empty) aliasP = pQ.docs[0].data().alias_transferencia||''; }
+        
+        let histText = al.historial && al.historial.length > 0 
+            ? [...al.historial].sort((a,b)=>a.id-b.id).map(h => `[${h.fecha}] ${h.texto}`).join('\n') 
+            : 'Sin registros previos.';
+            
+        let template = configApp[plantillaKey] || '';
+        template = template.replace(/\{historial\}/gi, histText).replace(/\{bloque_historial\}/gi, histText);
+        
+        const iS = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento;
+        const dP = al.descripcion ? al.descripcion.replace(/<[^>]*>?/gm, '').trim() : '';
+        
+        const txt = reemplazarVariables(template, { 
+            fecha_hora: al.reserva_fecha_texto, nombre: al.nombre, edad: al.edad||'-', 
+            instrumento: iS, suscripcion: al.tipo_suscripcion, descripcion: dP, 
+            profe: al.reserva_profe_nombre, valor: configApp.valor_clase, alias_profe: aliasP 
+        });
+        return { al, txt };
+    }
+
     if (target.classList.contains('btn-confirmada-profe')) {
         const id = target.getAttribute('data-id');
         try { 
-            const al = (await getDoc(doc(db, "alumnos", id))).data(); let aliasP = ''; 
-            if (al.reserva_profe_id) { const pDoc = await getDoc(doc(db, "profesores", al.reserva_profe_id)); if(pDoc.exists()) aliasP = pDoc.data().alias_transferencia||''; } 
-            else if (al.reserva_profe_nombre) { const pQ = await getDocs(query(collection(db, "profesores"), where("nombre", "==", al.reserva_profe_nombre))); if(!pQ.empty) aliasP = pQ.docs[0].data().alias_transferencia||''; }
-            const txt = reemplazarVariables(configApp.texto_alumno, { fecha_hora: al.reserva_fecha_texto, profe: al.reserva_profe_nombre, valor: configApp.valor_clase, alias_profe: aliasP }); 
-            await navigator.clipboard.writeText(txt); 
-            let evId = al.id_evento_reserva; let calReserva = al.calendario_evento_reserva;
+            const data = await generarTextoConHistorial(id, 'texto_alumno');
+            await navigator.clipboard.writeText(data.txt); 
+            let evId = data.al.id_evento_reserva; let calReserva = data.al.calendario_evento_reserva;
             if (!evId) { 
-                const titulos = construirTitulosEvento(al, 'reserva', configApp);
-                const evRes = await crearEventoSeguro(al, titulos, al.reserva_inicio, al.reserva_fin); 
+                const titulos = construirTitulosEvento(data.al, 'reserva', configApp);
+                const evRes = await crearEventoSeguro(data.al, titulos, data.al.reserva_inicio, data.al.reserva_fin); 
                 evId = evRes.id; calReserva = evRes.calendar;
             } 
             await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente validación por alumno", id_evento_reserva: evId, calendario_evento_reserva: calReserva }); alert("Texto copiado al portapapeles y estado avanzado."); cargarVista(estadoActualVista); 
@@ -660,68 +664,37 @@ document.addEventListener('click', async (e) => {
 
     if (target.classList.contains('btn-confirmar-entrevista')) {
         const id = target.getAttribute('data-id');
-        try { 
-            const al = (await getDoc(doc(db, "alumnos", id))).data(); 
-            const descP = al.descripcion ? al.descripcion.replace(/<[^>]*>?/gm, '').trim() : ''; 
-            const titulos = construirTitulosEvento(al, 'confirmado', configApp);
-            await actualizarEventoSeguro(al, titulos, descP); 
-            await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Agenda confirmada" }); 
-            alert("¡Agenda Confirmada!"); cargarVista(estadoActualVista); 
-        } catch(e) { console.error(e); alert("Error al actualizar."); } return;
+        try { const al = (await getDoc(doc(db, "alumnos", id))).data(); const descP = al.descripcion ? al.descripcion.replace(/<[^>]*>?/gm, '').trim() : ''; const titulos = construirTitulosEvento(al, 'confirmado', configApp); await actualizarEventoSeguro(al, titulos, descP); await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Agenda confirmada" }); alert("¡Agenda Confirmada!"); cargarVista(estadoActualVista); } catch(e) { console.error(e); alert("Error al actualizar."); } return;
     }
 
     if (target.classList.contains('btn-reenviar-profe') || target.classList.contains('btn-enviar-conf-profe')) {
         try {
-            const id = target.getAttribute('data-id'), al = (await getDoc(doc(db, "alumnos", id))).data(), iS = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento, dP = al.descripcion ? al.descripcion.replace(/<[^>]*>?/gm, '').trim() : '';
-            let bloqueHistorial = ''; if (al.historial && al.historial.length > 0) { const historyText = [...al.historial].sort((a,b)=>a.id-b.id).map(h => `[${h.fecha}] ${h.texto}`).join('\n'); bloqueHistorial = `\n\n*🕐 HISTORIAL DE CONTACTO:*\n${historyText}`; }
-            let template = target.classList.contains('btn-reenviar-profe') ? configApp.texto_profe : configApp.texto_conf_profe;
-            template = template.replace(/\{historial\}/g, '{bloque_historial}'); 
-            if (!bloqueHistorial) { template = template.replace(/\n*\*[^\n]*HISTORIAL[^\n]*\*\n*\{bloque_historial\}/gi, ''); template = template.replace('{bloque_historial}', ''); } 
-            else { template = template.replace(/\n*\*[^\n]*HISTORIAL[^\n]*\*\n*\{bloque_historial\}/gi, '{bloque_historial}'); template = template.replace('{bloque_historial}', bloqueHistorial); }
-            const txt = reemplazarVariables(template, { fecha_hora: al.reserva_fecha_texto, nombre: al.nombre, edad: al.edad||'-', instrumento: iS, suscripcion: al.tipo_suscripcion, descripcion: dP });
-            await navigator.clipboard.writeText(txt); alert("Texto para PROFESOR copiado al portapapeles.");
+            const id = target.getAttribute('data-id');
+            const key = target.classList.contains('btn-reenviar-profe') ? 'texto_profe' : 'texto_conf_profe';
+            const data = await generarTextoConHistorial(id, key);
+            await navigator.clipboard.writeText(data.txt); alert("Texto copiado al portapapeles.");
         } catch(e) { console.error(e); } return;
     }
 
     if (target.classList.contains('btn-reenviar-alumno') || target.classList.contains('btn-enviar-conf-alumno')) {
         try {
-            const id = target.getAttribute('data-id'), al = (await getDoc(doc(db, "alumnos", id))).data();
-            let aliasP = ''; if (al.reserva_profe_id) { const pDoc = await getDoc(doc(db, "profesores", al.reserva_profe_id)); if(pDoc.exists()) aliasP = pDoc.data().alias_transferencia||''; } else if (al.reserva_profe_nombre) { const pQ = await getDocs(query(collection(db, "profesores"), where("nombre", "==", al.reserva_profe_nombre))); if(!pQ.empty) aliasP = pQ.docs[0].data().alias_transferencia||''; }
-            const template = target.classList.contains('btn-reenviar-alumno') ? configApp.texto_alumno : configApp.texto_conf_alumno;
-            const txt = reemplazarVariables(template, { fecha_hora: al.reserva_fecha_texto, profe: al.reserva_profe_nombre, valor: configApp.valor_clase, alias_profe: aliasP });
-            await navigator.clipboard.writeText(txt); alert("Texto para ALUMNO copiado al portapapeles.");
+            const id = target.getAttribute('data-id');
+            const key = target.classList.contains('btn-reenviar-alumno') ? 'texto_alumno' : 'texto_conf_alumno';
+            const data = await generarTextoConHistorial(id, key);
+            await navigator.clipboard.writeText(data.txt); alert("Texto copiado al portapapeles.");
         } catch(e) { console.error(e); } return;
     }
 
     if (target.classList.contains('btn-cancelar-reserva')) {
-        if (confirm("¿Cancelar reserva en Calendar y volver a Sin Agendar?")) { 
+        if (confirm("¿Estás seguro de cancelar? Se eliminará la reserva en Calendar.")) { 
             const id = target.getAttribute('data-id'); 
             try { 
-                const al = (await getDoc(doc(db, "alumnos", id))).data(); 
-                
-                // --- NUEVO: CÓPIAR TEXTO CANCELACIÓN AL PORTAPAPELES ---
-                if (al.estado_agenda === 'Pendiente validación por alumno') {
-                    const iS = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento;
-                    let bloqueHistorial = ''; 
-                    if (al.historial && al.historial.length > 0) { 
-                        const historyText = [...al.historial].sort((a,b)=>a.id-b.id).map(h => `[${h.fecha}] ${h.texto}`).join('\n'); 
-                        bloqueHistorial = `\n\n*🕐 HISTORIAL DE CONTACTO:*\n${historyText}`; 
-                    }
-                    let template = configApp.texto_cancela_alumno || '';
-                    template = template.replace(/\{historial\}/g, '{bloque_historial}'); 
-                    if (!bloqueHistorial) { 
-                        template = template.replace(/\n*\*[^\n]*HISTORIAL[^\n]*\*\n*\{bloque_historial\}/gi, ''); 
-                        template = template.replace('{bloque_historial}', ''); 
-                    } else { 
-                        template = template.replace(/\n*\*[^\n]*HISTORIAL[^\n]*\*\n*\{bloque_historial\}/gi, '{bloque_historial}'); 
-                        template = template.replace('{bloque_historial}', bloqueHistorial); 
-                    }
-                    const txtCancela = reemplazarVariables(template, { fecha_hora: al.reserva_fecha_texto, nombre: al.nombre, edad: al.edad||'-', instrumento: iS, suscripcion: al.tipo_suscripcion });
-                    await navigator.clipboard.writeText(txtCancela);
-                    alert("Reserva cancelada. Texto de CANCELACIÓN copiado al portapapeles.");
+                const data = await generarTextoConHistorial(id, 'texto_cancela_alumno');
+                if (data.al.estado_agenda === 'Pendiente validación por alumno') {
+                    await navigator.clipboard.writeText(data.txt);
+                    alert("Reserva cancelada en Calendar. Texto de CANCELACIÓN copiado al portapapeles.");
                 }
-
-                if (al.id_evento_reserva) await eliminarEventoSeguro(al); 
+                if (data.al.id_evento_reserva) await eliminarEventoSeguro(data.al); 
                 await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente procesar", reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null }); 
                 cargarVista(estadoActualVista); 
             } catch(e) { console.error(e); alert("Error."); } 
@@ -759,20 +732,15 @@ document.addEventListener('click', async (e) => {
     
     if (target.classList.contains('btn-seleccionar-profe')) {
         try {
-            const al = (await getDoc(doc(db, "alumnos", alumnoIdActual))).data(), iS = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento, dP = al.descripcion ? al.descripcion.replace(/<[^>]*>?/gm, '').trim() : '';
-            let bloqueHistorial = ''; if (al.historial && al.historial.length > 0) { const historyText = [...al.historial].sort((a,b)=>a.id-b.id).map(h => `[${h.fecha}] ${h.texto}`).join('\n'); bloqueHistorial = `\n\n*🕐 HISTORIAL DE CONTACTO:*\n${historyText}`; }
-            let template = configApp.texto_profe;
-            if (!bloqueHistorial) { template = template.replace(/\n*\*[^\n]*HISTORIAL[^\n]*\*\n*\{bloque_historial\}/gi, ''); template = template.replace('{bloque_historial}', ''); } 
-            else { template = template.replace(/\n*\*[^\n]*HISTORIAL[^\n]*\*\n*\{bloque_historial\}/gi, '{bloque_historial}'); template = template.replace('{bloque_historial}', bloqueHistorial); }
-            const txt = reemplazarVariables(template, { fecha_hora: target.getAttribute('data-fechatxt'), nombre: al.nombre, edad: al.edad||'-', instrumento: iS, suscripcion: al.tipo_suscripcion, descripcion: dP });
-            await navigator.clipboard.writeText(txt);
+            const data = await generarTextoConHistorial(alumnoIdActual, 'texto_profe');
+            await navigator.clipboard.writeText(data.txt);
             
             const profeId = target.getAttribute('data-profeid');
             let updateData = { estado_agenda: "Pendiente validación por profe", reserva_profe_id: profeId, reserva_profe_nombre: target.getAttribute('data-profe'), reserva_cal_id: target.getAttribute('data-calid'), reserva_fecha_texto: target.getAttribute('data-fechatxt'), reserva_inicio: target.getAttribute('data-start'), reserva_fin: target.getAttribute('data-end') };
             
             // --- NUEVO: RE-AGENDAR (Eliminar evento viejo si existía) ---
-            if (al.id_evento_reserva) {
-                await eliminarEventoSeguro(al);
+            if (data.al.id_evento_reserva) {
+                await eliminarEventoSeguro(data.al);
                 updateData.id_evento_reserva = null;
                 updateData.calendario_evento_reserva = null;
             }
@@ -780,6 +748,24 @@ document.addEventListener('click', async (e) => {
             await updateDoc(doc(db, "alumnos", alumnoIdActual), updateData);
             alert("Copiado al portapapeles. Estado avanzado."); document.getElementById('modal-agenda').close(); cargarVista(estadoActualVista);
         } catch(e) { console.error(e); } return;
+    }
+
+    // Botón Guardar Nota Rápida
+    if (target.id === 'btn-guardar-nota-rapida') {
+        const id = document.getElementById('nota-rapida-id').value;
+        const texto = document.getElementById('nota-rapida-texto').value.trim();
+        if(!texto) return;
+        try {
+            const docRef = doc(db, "alumnos", id);
+            const al = (await getDoc(docRef)).data();
+            const now = new Date();
+            const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+            const hist = al.historial || [];
+            hist.push({ id: Date.now(), texto: texto, fecha: fechaStr });
+            await updateDoc(docRef, { historial: hist });
+            document.getElementById('modal-nota-rapida').close();
+            cargarVista(estadoActualVista);
+        } catch(err) { console.error(err); alert("Error al guardar."); }
     }
     
     if (target.id === 'btn-nuevo-alumno') {
@@ -839,6 +825,8 @@ function renderConfig(cont) {
             <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Valor de Clase (Monto): <input type="text" id="cfg-valor" value="${configApp.valor_clase}"></label>
             <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Título Evento (Reserva): <input type="text" id="cfg-evt-res" value="${configApp.formato_evento_reserva}"></label>
             <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Título Evento (Confirmado): <input type="text" id="cfg-evt-conf" value="${configApp.formato_evento_confirmado}"></label>
+            <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Nombre para Agendar (Portapapeles): <input type="text" id="cfg-nombre-agendar" value="${configApp.texto_nombre_agendar}"></label>
+            
             <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Texto Validación con Profe: <textarea id="cfg-txt-p" class="config-box" style="height:150px;">${configApp.texto_profe}</textarea></label>
             <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Texto Validación con Alumno: <textarea id="cfg-txt-a" class="config-box" style="height:150px;">${configApp.texto_alumno}</textarea></label>
             <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Texto Confirmación Agenda para Profe: <textarea id="cfg-txt-conf-p" class="config-box" style="height:150px;">${configApp.texto_conf_profe}</textarea></label>
@@ -863,6 +851,7 @@ function renderConfig(cont) {
             valor_clase: document.getElementById('cfg-valor').value, 
             formato_evento_reserva: document.getElementById('cfg-evt-res').value, 
             formato_evento_confirmado: document.getElementById('cfg-evt-conf').value, 
+            texto_nombre_agendar: document.getElementById('cfg-nombre-agendar').value, 
             texto_profe: document.getElementById('cfg-txt-p').value, 
             texto_alumno: document.getElementById('cfg-txt-a').value, 
             texto_conf_profe: document.getElementById('cfg-txt-conf-p').value, 
