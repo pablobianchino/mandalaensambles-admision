@@ -2,6 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
+// === CONFIGURACIÓN FIREBASE ===
 const firebaseConfig = {
     apiKey: "AIzaSyCgAg2EwTJh4zbMdpkqG3VKTGfDeofblyg",
     authDomain: "priel-mdl-seguimientos.firebaseapp.com",
@@ -10,7 +11,6 @@ const firebaseConfig = {
     messagingSenderId: "118730133451",
     appId: "1:118730133451:web:9e407e81a9b22ae9d0704e"
 };
-
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
@@ -31,10 +31,12 @@ window.tituloABMActual = '';
 let configApp = {};
 let chartGestionesInst = null;
 let chartGlobalInst = null;
+
 let clipboardDisponibilidad = null; 
 let clipboardDisponibilidadProfe = null; 
 let historialActual = []; 
 
+// === INICIALIZACIÓN QUILL & DISPONIBILIDAD ===
 const quill = new Quill('#editor-container', { theme: 'snow', modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] } });
 
 const diasSemana = [
@@ -46,17 +48,50 @@ const contDisp = document.getElementById('contenedor-disponibilidad');
 const contDispProfe = document.getElementById('contenedor-disponibilidad-profe');
 
 diasSemana.forEach(dia => {
-    contDisp.innerHTML += `<div class="dia-disponibilidad"><label>${dia.nombre}:</label><input type="time" id="disp-${dia.id}-inicio"> <span>a</span> <input type="time" id="disp-${dia.id}-fin"><label style="font-weight:normal; width:auto; margin-left:10px; cursor:pointer;"><input type="checkbox" id="disp-${dia.id}-all"> Todo el día</label><label style="font-weight:normal; width:auto; margin-left:10px; cursor:pointer;"><input type="checkbox" id="disp-${dia.id}-none"> No disp.</label><button type="button" class="btn-copy-disp" data-dia="${dia.id}" title="Copiar disponibilidad" style="background:none; border:none; cursor:pointer; font-size:1.1em; margin-left:auto;">📋</button><button type="button" class="btn-paste-disp" data-dia="${dia.id}" title="Pegar disponibilidad" style="background:none; border:none; cursor:pointer; font-size:1.1em;">📥</button><span id="estado-${dia.id}" class="estado-disp" style="width:80px; text-align:right;"></span></div>`;
-    contDispProfe.innerHTML += `<div class="dia-disponibilidad"><label>${dia.nombre}:</label><input type="time" id="disp-p-${dia.id}-inicio"> <span>a</span> <input type="time" id="disp-p-${dia.id}-fin"><label style="font-weight:normal; width:auto; margin-left:10px; cursor:pointer;"><input type="checkbox" id="disp-p-${dia.id}-all"> Todo el día</label><label style="font-weight:normal; width:auto; margin-left:10px; cursor:pointer;"><input type="checkbox" id="disp-p-${dia.id}-none"> No disp.</label><button type="button" class="btn-copy-disp-p" data-dia="${dia.id}" title="Copiar disponibilidad" style="background:none; border:none; cursor:pointer; font-size:1.1em; margin-left:auto;">📋</button><button type="button" class="btn-paste-disp-p" data-dia="${dia.id}" title="Pegar disponibilidad" style="background:none; border:none; cursor:pointer; font-size:1.1em;">📥</button><span id="estado-p-${dia.id}" class="estado-disp" style="width:80px; text-align:right;"></span></div>`;
+    // Disp Alumnos
+    contDisp.innerHTML += `
+        <div class="dia-disponibilidad">
+            <label>${dia.nombre}:</label>
+            <input type="time" id="disp-${dia.id}-inicio"> <span>a</span> <input type="time" id="disp-${dia.id}-fin">
+            <label style="font-weight:normal; width:auto; margin-left:10px; cursor:pointer;"><input type="checkbox" id="disp-${dia.id}-all"> Todo el día</label>
+            <label style="font-weight:normal; width:auto; margin-left:10px; cursor:pointer;"><input type="checkbox" id="disp-${dia.id}-none"> No disp.</label>
+            <button type="button" class="btn-copy-disp" data-dia="${dia.id}" title="Copiar disponibilidad" style="background:none; border:none; cursor:pointer; font-size:1.1em; margin-left:auto;">📋</button>
+            <button type="button" class="btn-paste-disp" data-dia="${dia.id}" title="Pegar disponibilidad" style="background:none; border:none; cursor:pointer; font-size:1.1em;">📥</button>
+            <span id="estado-${dia.id}" class="estado-disp" style="width:80px; text-align:right;"></span>
+        </div>
+    `;
+    // Disp Profes
+    contDispProfe.innerHTML += `
+        <div class="dia-disponibilidad">
+            <label>${dia.nombre}:</label>
+            <input type="time" id="disp-p-${dia.id}-inicio"> <span>a</span> <input type="time" id="disp-p-${dia.id}-fin">
+            <label style="font-weight:normal; width:auto; margin-left:10px; cursor:pointer;"><input type="checkbox" id="disp-p-${dia.id}-all"> Todo el día</label>
+            <label style="font-weight:normal; width:auto; margin-left:10px; cursor:pointer;"><input type="checkbox" id="disp-p-${dia.id}-none"> No disp.</label>
+            <button type="button" class="btn-copy-disp-p" data-dia="${dia.id}" title="Copiar disponibilidad" style="background:none; border:none; cursor:pointer; font-size:1.1em; margin-left:auto;">📋</button>
+            <button type="button" class="btn-paste-disp-p" data-dia="${dia.id}" title="Pegar disponibilidad" style="background:none; border:none; cursor:pointer; font-size:1.1em;">📥</button>
+            <span id="estado-p-${dia.id}" class="estado-disp" style="width:80px; text-align:right;"></span>
+        </div>
+    `;
 });
 
 window.updateDispStateForDay = function(dId, isProfe = false) {
-    const prefix = isProfe ? 'disp-p-' : 'disp-', estadoPrefix = isProfe ? 'estado-p-' : 'estado-';
-    const chkAll = document.getElementById(`${prefix}${dId}-all`), chkNone = document.getElementById(`${prefix}${dId}-none`);
-    const tIni = document.getElementById(`${prefix}${dId}-inicio`), tFin = document.getElementById(`${prefix}${dId}-fin`), spanE = document.getElementById(`${estadoPrefix}${dId}`);
-    if (chkAll.checked) { chkNone.checked = false; tIni.disabled = tFin.disabled = true; tIni.value = tFin.value = ''; spanE.textContent = "Libre"; spanE.style.color = "#28a745"; } 
-    else if (chkNone.checked) { chkAll.checked = false; tIni.disabled = tFin.disabled = true; tIni.value = tFin.value = ''; spanE.textContent = "Bloqueado"; spanE.style.color = "#dc3545"; } 
-    else { tIni.disabled = tFin.disabled = false; spanE.textContent = ""; }
+    const prefix = isProfe ? 'disp-p-' : 'disp-';
+    const estadoPrefix = isProfe ? 'estado-p-' : 'estado-';
+    const chkAll = document.getElementById(`${prefix}${dId}-all`);
+    const chkNone = document.getElementById(`${prefix}${dId}-none`);
+    const tIni = document.getElementById(`${prefix}${dId}-inicio`);
+    const tFin = document.getElementById(`${prefix}${dId}-fin`);
+    const spanE = document.getElementById(`${estadoPrefix}${dId}`);
+
+    if (chkAll.checked) {
+        chkNone.checked = false; tIni.disabled = tFin.disabled = true; tIni.value = tFin.value = '';
+        spanE.textContent = "Libre"; spanE.style.color = "#28a745";
+    } else if (chkNone.checked) {
+        chkAll.checked = false; tIni.disabled = tFin.disabled = true; tIni.value = tFin.value = '';
+        spanE.textContent = "Bloqueado"; spanE.style.color = "#dc3545";
+    } else { 
+        tIni.disabled = tFin.disabled = false; spanE.textContent = ""; 
+    }
 }
 
 diasSemana.forEach(dia => {
@@ -67,17 +102,32 @@ diasSemana.forEach(dia => {
 });
 
 function renderHistorial() {
-    const container = document.getElementById('lista-historial'); container.innerHTML = '';
-    if(historialActual.length === 0) { container.innerHTML = '<p style="color:#6c757d; font-size:0.9em; margin:0;">No hay registros en el historial.</p>'; return; }
+    const container = document.getElementById('lista-historial');
+    container.innerHTML = '';
+    if(historialActual.length === 0) {
+        container.innerHTML = '<p style="color:#6c757d; font-size:0.9em; margin:0;">No hay registros en el historial.</p>';
+        return;
+    }
     const sorted = [...historialActual].sort((a,b) => b.id - a.id);
     sorted.forEach(nota => {
         const textoLimpio = nota.texto.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
-        container.innerHTML += `<div style="background:#f8f9fa; border:1px solid #dee2e6; padding:12px; border-radius:6px; position:relative;"><div style="font-size:0.8em; color:#6c757d; margin-bottom:5px; font-weight:600;">🕒 ${nota.fecha}</div><div style="font-size:0.95em; color:#212529;">${textoLimpio}</div><div style="position:absolute; top:10px; right:10px; display:flex; gap:5px;"><button type="button" class="btn-editar-nota" data-id="${nota.id}" style="background:transparent; border:none; cursor:pointer; font-size:1.1em;" title="Editar">✏️</button><button type="button" class="btn-eliminar-nota" data-id="${nota.id}" style="background:transparent; border:none; cursor:pointer; font-size:1.1em;" title="Eliminar">❌</button></div></div>`;
+        container.innerHTML += `
+            <div style="background:#f8f9fa; border:1px solid #dee2e6; padding:12px; border-radius:6px; position:relative;">
+                <div style="font-size:0.8em; color:#6c757d; margin-bottom:5px; font-weight:600;">🕒 ${nota.fecha}</div>
+                <div style="font-size:0.95em; color:#212529;">${textoLimpio}</div>
+                <div style="position:absolute; top:10px; right:10px; display:flex; gap:5px;">
+                    <button type="button" class="btn-editar-nota" data-id="${nota.id}" style="background:transparent; border:none; cursor:pointer; font-size:1.1em;" title="Editar">✏️</button>
+                    <button type="button" class="btn-eliminar-nota" data-id="${nota.id}" style="background:transparent; border:none; cursor:pointer; font-size:1.1em;" title="Eliminar">❌</button>
+                </div>
+            </div>
+        `;
     });
 }
 
+// === CONFIGURACIÓN DEFAULT Y UTILIDADES ===
 const defaultCfg = {
-    hora_apertura: '09:00', hora_cierre: '22:00', identificador_bateria: '[BAT]', valor_clase: '$10.000', cantidad_aulas: '3', cantidad_baterias: '2',
+    hora_apertura: '09:00', hora_cierre: '22:00',
+    identificador_bateria: '[BAT]', valor_clase: '$10.000', cantidad_aulas: '3', cantidad_baterias: '2',
     formato_evento_reserva: '? {profe} Ent {alumno}', formato_evento_confirmado: '📋🎸{instrumento} - {alumno} {edad}',
     texto_profe: "*⚠ PRE CHECK - ENTREVISTA*\n📅 *FECHA: {fecha_hora}*\n*👥 ALUMNO:*\n🔹 {nombre} ({edad})\n🔹 {instrumento} | {suscripcion}\n*INFO:*\n{descripcion}{bloque_historial}",
     texto_alumno: "📅 *Agenda de clase*\n🧩 {fecha_hora} con Profe {profe}\n✅ Inscripción: forms.gle/xxx\n💸 Valor: {valor}\n🧩 Alias: {alias_profe}",
@@ -85,24 +135,53 @@ const defaultCfg = {
     texto_conf_profe: "*✅ ENTREVISTA CONFIRMADA*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Clase: {suscripcion}\n\n*📰 INFO PARA LA ENTREVISTA:*\n{descripcion}{bloque_historial}"
 };
 
-async function cargarConfig() { const docSnap = await getDoc(doc(db, "configuracion", "general")); configApp = docSnap.exists() ? { ...defaultCfg, ...docSnap.data() } : defaultCfg; }
+async function cargarConfig() {
+    const docSnap = await getDoc(doc(db, "configuracion", "general"));
+    configApp = docSnap.exists() ? { ...defaultCfg, ...docSnap.data() } : defaultCfg;
+}
 
 function reemplazarVariables(texto, datos) { let res = texto; for (const [key, value] of Object.entries(datos)) res = res.replaceAll(`{${key}}`, value || ''); return res; }
 function formatoLocalISO(date) { const tzo = -date.getTimezoneOffset(), dif = tzo >= 0 ? '+' : '-', pad = num => (num < 10 ? '0' : '') + num; return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + 'T' + pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds()) + dif + pad(Math.floor(Math.abs(tzo) / 60)) + ':' + pad(Math.abs(tzo) % 60); }
 function formatearFechaAmi(fechaIsoStr) { const d = new Date(fechaIsoStr), dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']; let min = d.getMinutes(); let minStr = min === 0 ? 'hs' : `:${min < 10 ? '0'+min : min}hs`; return `${dias[d.getDay()]} ${d.getDate()}/${d.getMonth()+1} ${d.getHours()}${minStr}`; }
-function getTituloConBateria(al, baseTitle, cfg) { const arrI = Array.isArray(al.instrumento) ? al.instrumento : [al.instrumento]; const esBat = arrI.some(i => i && i.toLowerCase().includes('bater')); if (esBat && cfg.identificador_bateria) return cfg.identificador_bateria + ' ' + baseTitle; return baseTitle; }
+function getTituloConBateria(al, baseTitle, cfg) { const arrI = Array.isArray(al.instrumento) ? al.instrumento : [al.instrumento]; const esBat = arrI.some(i => i && i.toLowerCase().includes('bater')); if (esBat && cfg.identificador_bateria) { return cfg.identificador_bateria + ' ' + baseTitle; } return baseTitle; }
+
+// Función traductora para fechas que provienen de CSV ("10/8 17.30hs" -> "ISO...")
+function interpretarFechaCSV(texto) {
+    if (!texto) return null;
+    const regex = /(\d{1,2})\/(\d{1,2})(?:[^\d]*?(\d{1,2})(?:[:\.](\d{2}))?(?:\s*hs)?)?/i;
+    const match = texto.match(regex);
+    if (match) {
+        const dia = parseInt(match[1]);
+        const mes = parseInt(match[2]) - 1; 
+        const hora = match[3] ? parseInt(match[3]) : 0;
+        const min = match[4] ? parseInt(match[4]) : 0;
+        if (dia > 31 || mes > 11 || hora > 23 || min > 59) return null;
+        return formatoLocalISO(new Date(new Date().getFullYear(), mes, dia, hora, min));
+    }
+    return null;
+}
 
 async function conectarGoogle() {
-    try { const res = await signInWithPopup(auth, provider); googleAccessToken = GoogleAuthProvider.credentialFromResult(res).accessToken; localStorage.setItem('gCalToken', googleAccessToken); localStorage.setItem('gCalTokenTime', Date.now()); document.getElementById('btn-conectar-cal').style.display = 'none'; return true; } 
-    catch (err) { console.error(err); alert("Se requiere acceso al calendario."); throw err; }
+    try { 
+        const res = await signInWithPopup(auth, provider);
+        googleAccessToken = GoogleAuthProvider.credentialFromResult(res).accessToken;
+        localStorage.setItem('gCalToken', googleAccessToken);
+        localStorage.setItem('gCalTokenTime', Date.now());
+        document.getElementById('btn-conectar-cal').style.display = 'none';
+        return true;
+    } catch (err) { console.error(err); alert("Se requiere acceso al calendario."); throw err; }
 }
 
 async function fetchCalendarAPI(url, method, body = null) {
-    if (!googleAccessToken) await conectarGoogle();
+    if (!googleAccessToken) { await conectarGoogle(); }
     let options = { method, headers: { 'Authorization': `Bearer ${googleAccessToken}`, 'Content-Type': 'application/json' } };
     if (body) options.body = JSON.stringify(body);
     let res = await fetch(url, options);
-    if (res.status === 401 || res.status === 403) { await conectarGoogle(); options.headers['Authorization'] = `Bearer ${googleAccessToken}`; res = await fetch(url, options); }
+    if (res.status === 401 || res.status === 403) {
+        await conectarGoogle();
+        options.headers['Authorization'] = `Bearer ${googleAccessToken}`;
+        res = await fetch(url, options);
+    }
     if (!res.ok && res.status !== 410 && res.status !== 404) throw new Error(`API Error: ${res.statusText}`);
     return method === 'DELETE' ? true : await res.json();
 }
@@ -113,18 +192,20 @@ async function actualizarEventoCalendario(calendarId, eventId, titulo, descripci
 async function eliminarEventoCalendario(calendarId, eventId) { return await fetchCalendarAPI(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, 'DELETE'); }
 
 function chequearDisponibilidadExacta(inicioTestMs, finTestMs, eventosAPI, cantAulas, cantBat, esBateria, cfgEmoji) {
-    let picosAulas = 0, picosBateria = 0, profesOcupados = new Set();
+    let picosAulas = 0; let picosBateria = 0; let profesOcupados = new Set();
     const eventosCruzados = eventosAPI.filter(ev => { if (!ev.start || !ev.start.dateTime) return false; return (inicioTestMs < new Date(ev.end.dateTime).getTime() && finTestMs > new Date(ev.start.dateTime).getTime()); });
     if (eventosCruzados.length === 0) return { valido: true, profesOcupados: new Set() };
     const puntosDeTiempo = new Set([inicioTestMs, finTestMs]);
-    eventosCruzados.forEach(ev => { const i = new Date(ev.start.dateTime).getTime(), f = new Date(ev.end.dateTime).getTime(); if (i > inicioTestMs && i < finTestMs) puntosDeTiempo.add(i); if (f > inicioTestMs && f < finTestMs) puntosDeTiempo.add(f); });
+    eventosCruzados.forEach(ev => { const i = new Date(ev.start.dateTime).getTime(); const f = new Date(ev.end.dateTime).getTime(); if (i > inicioTestMs && i < finTestMs) puntosDeTiempo.add(i); if (f > inicioTestMs && f < finTestMs) puntosDeTiempo.add(f); });
     const arrayPuntos = Array.from(puntosDeTiempo).sort((a,b) => a-b);
     for (let i = 0; i < arrayPuntos.length - 1; i++) {
-        const puntoMedioMs = arrayPuntos[i] + 1000; let simultaneosAulas = 0, simultaneosBat = 0;
+        const puntoMedioMs = arrayPuntos[i] + 1000; let simultaneosAulas = 0; let simultaneosBat = 0;
         eventosCruzados.forEach(ev => {
             if (puntoMedioMs >= new Date(ev.start.dateTime).getTime() && puntoMedioMs < new Date(ev.end.dateTime).getTime()) {
                 simultaneosAulas++; profesOcupados.add(ev.profeId);
-                if (ev.summary && ev.summary.toLowerCase().includes(cfgEmoji.toLowerCase())) simultaneosBat++;
+                if (ev.summary && ev.summary.toLowerCase().includes(cfgEmoji.toLowerCase())) {
+                    simultaneosBat++;
+                }
             }
         });
         if (simultaneosAulas > picosAulas) picosAulas = simultaneosAulas;
@@ -136,20 +217,22 @@ function chequearDisponibilidadExacta(inicioTestMs, finTestMs, eventosAPI, cantA
 function chequearProfeDisponible(pr, hIniB, finMs, lDia) {
     if (!pr.disponibilidad || !pr.disponibilidad[lDia] || pr.disponibilidad[lDia].length === 0) return false; 
     const slotStartMins = hIniB.getHours() * 60 + hIniB.getMinutes();
-    let endH = new Date(finMs).getHours(), endM = new Date(finMs).getMinutes(); if (endH === 0 && endM === 0) endH = 24;
+    let endH = new Date(finMs).getHours(); let endM = new Date(finMs).getMinutes();
+    if (endH === 0 && endM === 0) endH = 24;
     const slotEndMins = endH * 60 + endM; let disponible = false;
     pr.disponibilidad[lDia].forEach(rango => {
         const pStartMins = parseInt(rango.inicio.split(':')[0])*60 + parseInt(rango.inicio.split(':')[1]);
         const pEndMins = parseInt(rango.fin.split(':')[0])*60 + parseInt(rango.fin.split(':')[1]);
-        if (slotStartMins >= pStartMins && slotEndMins <= pEndMins) disponible = true;
+        if (slotStartMins >= pStartMins && slotEndMins <= pEndMins) { disponible = true; }
     });
     return disponible;
 }
 
 function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, todosLosProfes, profesFiltradosIDs, dStart, dEnd, cfg) {
     const opciones = [], mapaDias = { 0:"D", 1:"L", 2:"M", 3:"X", 4:"J", 5:"V", 6:"S" };
-    const durMs = 60*60*1000, slotPasoMs = 30*60*1000, cantAulas = parseInt(cfg.cantidad_aulas)||3, cantBat = parseInt(cfg.cantidad_baterias)||2;
+    const durMs = 60*60*1000; const slotPasoMs = 30*60*1000; const cantAulas = parseInt(cfg.cantidad_aulas)||3; const cantBat = parseInt(cfg.cantidad_baterias)||2;
     const diffDays = Math.floor(Math.abs(dEnd - dStart) / (1000*60*60*24));
+
     for (let i = 0; i <= diffDays; i++) {
         const fEval = new Date(dStart); fEval.setDate(fEval.getDate() + i); const lDia = mapaDias[fEval.getDay()];
         if (dispAl[lDia] && dispAl[lDia].length > 0) {
@@ -166,7 +249,10 @@ function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, todosLosProfes, pr
                         todosLosProfes.forEach(pr => {
                             if (profesFiltradosIDs.includes(pr.id) && !evalOverlap.profesOcupados.has(pr.id)) {
                                 if (chequearProfeDisponible(pr, hIniB, finMs, lDia)) {
-                                    opciones.push({ fechaTextoAmi: formatearFechaAmi(hIniB.toISOString()), profeId: pr.id, profeNombre: pr.nombre, calId: pr.calId, inicioData: formatoLocalISO(hIniB), finData: formatoLocalISO(new Date(finMs)) });
+                                    opciones.push({
+                                        fechaTextoAmi: formatearFechaAmi(hIniB.toISOString()), profeId: pr.id, profeNombre: pr.nombre, calId: pr.calId,
+                                        inicioData: formatoLocalISO(hIniB), finData: formatoLocalISO(new Date(finMs))
+                                    });
                                 }
                             }
                         });
@@ -178,9 +264,7 @@ function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, todosLosProfes, pr
     }
     return opciones;
 }
-
-// === EL BLOQUE RECUPERADO DE EVENTOS GLOBALES ===
-
+// === EVENTOS GLOBALES ===
 document.getElementById('btn-login').addEventListener('click', conectarGoogle);
 document.getElementById('btn-conectar-cal').addEventListener('click', conectarGoogle);
 
@@ -269,7 +353,14 @@ document.getElementById('input-csv').addEventListener('change', (e) => {
                 };
 
                 if (estadoAgenda === 'Pendiente validación por alumno' || estadoAgenda === 'Agenda confirmada') {
-                    alData.reserva_profe_nombre = row['¿Quién entrevista?'] || ''; alData.reserva_fecha_texto = row['Fecha entrevista'] || '';
+                    alData.reserva_profe_nombre = row['¿Quién entrevista?'] || ''; 
+                    alData.reserva_fecha_texto = row['Fecha entrevista'] || '';
+                    
+                    const fIso = interpretarFechaCSV(alData.reserva_fecha_texto);
+                    if(fIso) {
+                        alData.reserva_inicio = fIso;
+                        alData.reserva_fin = formatoLocalISO(new Date(new Date(fIso).getTime() + 60*60*1000));
+                    }
                 }
                 if (estadoAgenda === 'Agenda suspendida') alData.motivo_suspension = "Suspendido en base histórica";
 
@@ -283,7 +374,7 @@ document.getElementById('input-csv').addEventListener('change', (e) => {
     });
 });
 
-// === GENERADOR DE TARJETAS ===
+// === GENERADOR DE TARJETAS Y VISTAS ===
 function generarTarjetaAlumno(al, id, vista) {
     const instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento;
     let tags = '', acciones = '', extraClass = '';
@@ -319,6 +410,7 @@ function generarTarjetaAlumno(al, id, vista) {
 
     return `<div class="alumno-item ${extraClass}" data-id="${id}"><div class="alumno-header btn-editar-alumno" data-id="${id}"><button class="btn-eliminar-alumno" title="Eliminar Alumno">❌</button><div style="width:90%;">${tags}<div class="alumno-nombre-search" style="font-size:1.1em; font-weight:700; color:#212529;">${al.nombre}</div><div style="color:#495057; font-size:0.9em; margin-top:2px;">${instStr} (${al.tipo_suscripcion})</div><div style="color:#868e96; font-size:0.8em; margin-top:5px;">Cel: ${al.celular} | Edad: ${al.edad||'-'}</div></div></div>${acciones ? `<div class="alumno-actions">${acciones}</div>` : ''}<div id="accordion-${id}" style="display:none; margin-top:10px;"></div></div>`;
 }
+
 async function cargarVista(vista) {
     estadoActualVista = vista; document.getElementById('vista-titulo').textContent = vista;
     const btnNuevo = document.getElementById('btn-nuevo-alumno'), searchGen = document.getElementById('search-container-general'), btnCargaMasiva = document.getElementById('btn-carga-masiva'), contTablero = document.getElementById('tablero-gestiones'), contResumen = document.getElementById('tablero-resumen'), contLista = document.getElementById('lista-generica'), contEstad = document.getElementById('estadisticas-container');
@@ -334,8 +426,21 @@ async function cargarVista(vista) {
             const [rProfe, rAlumno, rConf] = await Promise.all([ getDocs(query(refAl, where("estado_agenda", "==", "Pendiente validación por profe"))), getDocs(query(refAl, where("estado_agenda", "==", "Pendiente validación por alumno"))), getDocs(query(refAl, where("estado_agenda", "==", "Agenda confirmada"))) ]);
             let pendientes = []; rProfe.forEach(d => pendientes.push({id: d.id, ...d.data()})); rAlumno.forEach(d => pendientes.push({id: d.id, ...d.data()}));
             let confirmadas = []; rConf.forEach(d => confirmadas.push({id: d.id, ...d.data()}));
+            
+            // Reparación en tiempo real para registros viejos cargados por CSV que no tienen ISO Date
+            const aplicarParcheFechas = (arr) => {
+                arr.forEach(a => {
+                    if (!a.reserva_inicio && a.reserva_fecha_texto) {
+                        a.reserva_inicio = interpretarFechaCSV(a.reserva_fecha_texto);
+                    }
+                });
+            };
+            aplicarParcheFechas(pendientes);
+            aplicarParcheFechas(confirmadas);
+
             pendientes = pendientes.filter(a => a.reserva_inicio); confirmadas = confirmadas.filter(a => a.reserva_inicio);
             pendientes.sort((a, b) => new Date(a.reserva_inicio) - new Date(b.reserva_inicio)); confirmadas.sort((a, b) => new Date(a.reserva_inicio) - new Date(b.reserva_inicio));
+            
             if(colPendientes) colPendientes.innerHTML = pendientes.length > 0 ? pendientes.map(a => generarTarjetaAlumno(a, a.id, vista)).join('') : '<p style="color:#6c757d;">No hay reservas pendientes.</p>';
             if(colConfirmadas) colConfirmadas.innerHTML = confirmadas.length > 0 ? confirmadas.map(a => generarTarjetaAlumno(a, a.id, vista)).join('') : '<p style="color:#6c757d;">No hay agendas confirmadas.</p>';
         } catch(e) { console.error(e); }
@@ -371,7 +476,6 @@ async function renderCharts() {
     } catch(e) { console.error(e); }
 }
 
-// === DELEGACIÓN DE EVENTOS GENERALES ===
 document.addEventListener('click', async (e) => {
     const target = e.target;
     if (target.classList.contains('btn-copy-disp')) { e.stopPropagation(); const d = target.getAttribute('data-dia'); clipboardDisponibilidad = { inicio: document.getElementById(`disp-${d}-inicio`).value, fin: document.getElementById(`disp-${d}-fin`).value, all: document.getElementById(`disp-${d}-all`).checked, none: document.getElementById(`disp-${d}-none`).checked }; return; }
@@ -379,7 +483,7 @@ document.addEventListener('click', async (e) => {
     if (target.classList.contains('btn-copy-disp-p')) { e.stopPropagation(); const d = target.getAttribute('data-dia'); clipboardDisponibilidadProfe = { inicio: document.getElementById(`disp-p-${d}-inicio`).value, fin: document.getElementById(`disp-p-${d}-fin`).value, all: document.getElementById(`disp-p-${d}-all`).checked, none: document.getElementById(`disp-p-${d}-none`).checked }; return; }
     if (target.classList.contains('btn-paste-disp-p')) { e.stopPropagation(); if (!clipboardDisponibilidadProfe) return alert("Primero copia una disponibilidad."); const d = target.getAttribute('data-dia'); document.getElementById(`disp-p-${d}-inicio`).value = clipboardDisponibilidadProfe.inicio; document.getElementById(`disp-p-${d}-fin`).value = clipboardDisponibilidadProfe.fin; document.getElementById(`disp-p-${d}-all`).checked = clipboardDisponibilidadProfe.all; document.getElementById(`disp-p-${d}-none`).checked = clipboardDisponibilidadProfe.none; window.updateDispStateForDay(d, true); return; }
 
-    if (target.classList.contains('btn-eliminar-alumno')) { e.stopPropagation(); if(confirm("¿Eliminar este alumno? Si tiene turno en Calendar será borrado.")) { const id = target.closest('.alumno-item').getAttribute('data-id'); try { const al = (await getDoc(doc(db, "alumnos", id))).data(); if (al && al.id_evento_reserva) { await eliminarEventoCalendario('productora.mandalahouse@gmail.com', al.id_evento_reserva); } } catch(err) { console.error(err); } await deleteDoc(doc(db, "alumnos", id)); cargarVista(estadoActualVista); } return; }
+    if (target.classList.contains('btn-eliminar-alumno')) { e.stopPropagation(); if(confirm("¿Eliminar este alumno? Si tiene turno en Calendar será borrado.")) { const id = target.closest('.alumno-item').getAttribute('data-id'); try { const al = (await getDoc(doc(db, "alumnos", id))).data(); if (al && al.id_evento_reserva) { await eliminarEventoCalendario('productora.mandalahouse@gmail.com', al.id_evento_reserva); } } catch(err) {} await deleteDoc(doc(db, "alumnos", id)); cargarVista(estadoActualVista); } return; }
 
     if (target.id === 'btn-agregar-nota') { const textarea = document.getElementById('nueva-nota-texto'); const texto = textarea.value.trim(); if(!texto) return; const now = new Date(); const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`; historialActual.push({ id: Date.now(), texto: texto, fecha: fechaStr }); textarea.value = ''; renderHistorial(); return; }
     if (target.classList.contains('btn-eliminar-nota')) { const id = parseInt(target.getAttribute('data-id')); historialActual = historialActual.filter(n => n.id !== id); renderHistorial(); return; }
@@ -394,7 +498,7 @@ document.addEventListener('click', async (e) => {
     }
 
     if (target.classList.contains('btn-buscar-agenda')) {
-        if(!googleAccessToken) { document.getElementById('btn-conectar-cal').style.display='inline-block'; return alert("Requiere token. Conecta el calendario arriba."); }
+        if(!googleAccessToken) { return alert("Requiere token. Conecta el calendario arriba."); }
         alumnoIdActual = target.getAttribute('data-id'); const modal = document.getElementById('modal-agenda'), resDiv = document.getElementById('resultados-agenda'), inputBuscadorPop = document.getElementById('input-buscador-popup');
         inputBuscadorPop.style.display = 'none'; inputBuscadorPop.value = ''; resDiv.innerHTML = '';
         const hoy = new Date(); const d7 = new Date(); d7.setDate(d7.getDate()+7);
@@ -471,7 +575,7 @@ document.addEventListener('click', async (e) => {
             for(let x = new Date(dS); x <= dE; x.setDate(x.getDate()+1)) { if(x.getDay()!==0 && diasHab.includes(x.getDay())) algunValido=true; }
             if(!algunValido) { inputBuscadorPop.style.display = 'none'; return resDiv.innerHTML = '<p style="color:#dc3545;">El rango solo abarca días domingos o "No disponible".</p>'; }
 
-            const pS = await getDocs(collection(db, "profesores")), todosLosProfes = [], profesFiltradosIDs = [];
+            const pS = await getDocs(collection(db, "profesores")), todosLosProfes = []; const profesFiltradosIDs = [];
             pS.forEach(p => { const d = p.data(); if(d.correo_calendario) { todosLosProfes.push({ id: p.id, nombre: d.nombre, calId: d.correo_calendario, disponibilidad: d.disponibilidad }); if (d.entrevista && (searchAll || fProfs.includes(p.id))) profesFiltradosIDs.push(p.id); } });
             if(profesFiltradosIDs.length === 0) { inputBuscadorPop.style.display = 'none'; return resDiv.innerHTML = '<p>No hay profes habilitados seleccionados.</p>';}
 
