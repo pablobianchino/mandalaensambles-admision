@@ -341,7 +341,7 @@ function generarTarjetaAlumno(al, id, vista) {
 
     let menuAcciones = '';
     if (accionesHtml) {
-        menuAcciones = `<div class="alumno-actions" style="position:relative; display:flex; justify-content:flex-end;"><button class="btn-dropdown" data-dropdown="dd-${id}">⚡ Acciones ▾</button><div id="dd-${id}" class="dropdown-menu" style="display:none;">${accionesHtml}</div></div>`;
+        menuAcciones = `<div class="alumno-actions" style="position:relative; display:flex; justify-content:flex-end;"><button class="btn-dropdown">⚡ Acciones ▾</button><div class="dropdown-menu">${accionesHtml}</div></div>`;
     }
 
     return `
@@ -479,11 +479,19 @@ document.getElementById('input-csv').addEventListener('change', (e) => {
 
 document.addEventListener('click', async (e) => {
     const target = e.target;
-    const allDropdowns = document.querySelectorAll('.dropdown-menu');
-    if (target.classList.contains('btn-dropdown')) {
-        e.stopPropagation(); const menuId = target.getAttribute('data-dropdown'); const menu = document.getElementById(menuId);
-        const isVisible = menu.style.display === 'flex'; allDropdowns.forEach(m => m.style.display = 'none'); if (!isVisible) menu.style.display = 'flex'; return;
-    } else { allDropdowns.forEach(m => m.style.display = 'none'); }
+    
+    // --- AUTOGUARDADO AL CLICKEAR AFUERA (BACKDROP) ---
+    if (target.tagName === 'DIALOG') {
+        const rect = target.getBoundingClientRect();
+        const inDialog = (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom);
+        if (!inDialog) {
+            if (target.id === 'modal-alta-alumno') document.querySelector('#form-alumno button[type="submit"]').click();
+            else if (target.id === 'modal-nota-rapida') document.getElementById('btn-guardar-nota-rapida').click();
+            else if (target.id === 'modal-abm-edit') document.getElementById('btn-guardar-abm-edit').click();
+            else target.close(); // Si es el de agenda o suspender, solo lo cierra sin accionar.
+            return;
+        }
+    }
 
     if (target.classList.contains('btn-copy-disp')) { e.stopPropagation(); const d = target.getAttribute('data-dia'); clipboardDisponibilidad = { inicio: document.getElementById(`disp-${d}-inicio`).value, fin: document.getElementById(`disp-${d}-fin`).value, all: document.getElementById(`disp-${d}-all`).checked, none: document.getElementById(`disp-${d}-none`).checked }; return; }
     if (target.classList.contains('btn-paste-disp')) { e.stopPropagation(); if (!clipboardDisponibilidad) return alert("Primero copia una disponibilidad."); const d = target.getAttribute('data-dia'); document.getElementById(`disp-${d}-inicio`).value = clipboardDisponibilidad.inicio; document.getElementById(`disp-${d}-fin`).value = clipboardDisponibilidad.fin; document.getElementById(`disp-${d}-all`).checked = clipboardDisponibilidad.all; document.getElementById(`disp-${d}-none`).checked = clipboardDisponibilidad.none; window.updateDispStateForDay(d, false); return; }
@@ -492,10 +500,12 @@ document.addEventListener('click', async (e) => {
 
     if (target.classList.contains('btn-eliminar-alumno')) { e.stopPropagation(); if(confirm("¿Eliminar este alumno por completo?")) { const id = target.closest('.alumno-item').getAttribute('data-id'); try { const al = (await getDoc(doc(db, "alumnos", id))).data(); if (al && al.id_evento_reserva) { await eliminarEventoSeguro(al); } } catch(err) {} await deleteDoc(doc(db, "alumnos", id)); cargarVista(estadoActualVista); } return; }
 
-    if (target.classList.contains('btn-nota-rapida')) { e.stopPropagation(); document.getElementById('nota-rapida-id').value = target.getAttribute('data-id'); document.getElementById('nota-rapida-texto').value = ''; document.getElementById('modal-nota-rapida').showModal(); return; }
+    if (target.classList.contains('btn-nota-rapida')) {
+        e.stopPropagation(); document.getElementById('nota-rapida-id').value = target.getAttribute('data-id'); document.getElementById('nota-rapida-texto').value = ''; document.getElementById('modal-nota-rapida').showModal(); return;
+    }
 
     const headerAl = target.closest('.btn-editar-alumno');
-    if (headerAl && !target.classList.contains('btn-eliminar-alumno') && !target.classList.contains('btn-nota-rapida') && !target.classList.contains('btn-dropdown')) {
+    if (headerAl && !target.classList.contains('btn-eliminar-alumno') && !target.classList.contains('btn-nota-rapida') && !target.closest('.alumno-actions')) {
         const id = headerAl.getAttribute('data-id'); const wrap = document.getElementById('form-alumno-wrapper'); document.getElementById('modal-alta-alumno').appendChild(wrap); wrap.style.display = 'block'; document.getElementById('alumno-id').value = id; await llenarFormularioAlumno(id); document.getElementById('form-titulo').textContent = 'Editar Alumno'; document.getElementById('modal-alta-alumno').showModal(); return;
     }
 
@@ -510,23 +520,40 @@ document.addEventListener('click', async (e) => {
 
     if (target.classList.contains('btn-buscar-agenda')) {
         if(!googleAccessToken) { return alert("Requiere token. Conecta el calendario arriba."); }
-        alumnoIdActual = target.getAttribute('data-id'); 
-        const modal = document.getElementById('modal-agenda'), resDiv = document.getElementById('resultados-agenda'), inputBuscadorPop = document.getElementById('input-buscador-popup'); 
+        alumnoIdActual = target.getAttribute('data-id'); const modal = document.getElementById('modal-agenda'), resDiv = document.getElementById('resultados-agenda'), inputBuscadorPop = document.getElementById('input-buscador-popup'); 
+        const infoDiv = document.getElementById('info-alumno-agenda');
         inputBuscadorPop.style.display = 'none'; inputBuscadorPop.value = ''; resDiv.innerHTML = '';
-        const hoy = new Date(); const d7 = new Date(); d7.setDate(d7.getDate()+7); 
-        document.getElementById('agenda-start').value = hoy.toISOString().split('T')[0]; document.getElementById('agenda-end').value = d7.toISOString().split('T')[0];
+        const hoy = new Date(); const d7 = new Date(); d7.setDate(d7.getDate()+7); document.getElementById('agenda-start').value = hoy.toISOString().split('T')[0]; document.getElementById('agenda-end').value = d7.toISOString().split('T')[0];
+        
         try { 
-            const selectProfe = document.getElementById('agenda-profe-filtro'); 
-            selectProfe.innerHTML = '<option value="">Todos los profesores habilitados</option>'; 
-            const pSnap = await getDocs(collection(db, "profesores")); 
-            pSnap.forEach(p => { if(p.data().entrevista) selectProfe.innerHTML += `<option value="${p.id}">${p.data().nombre}</option>`; }); 
-            resDiv.innerHTML = '<p>Selecciona el rango y haz clic en Buscar.</p>'; 
-            modal.showModal(); 
+            // CARGAR DATOS EN EL POPUP
+            const alData = (await getDoc(doc(db, "alumnos", alumnoIdActual))).data();
+            const instStr = Array.isArray(alData.instrumento) ? alData.instrumento.join(', ') : alData.instrumento;
+            let dispHTML = '<ul style="margin:5px 0 0 0; padding-left:20px; font-size:0.9em; color:#212529;">';
+            const diasMapStr = { 'L':'Lunes', 'M':'Martes', 'X':'Miércoles', 'J':'Jueves', 'V':'Viernes', 'S':'Sábado', 'D':'Domingo' };
+            for(let d in alData.disponibilidad) {
+                if(alData.disponibilidad[d] && alData.disponibilidad[d].length > 0) {
+                    dispHTML += `<li><strong>${diasMapStr[d]}:</strong> ${alData.disponibilidad[d].map(r => r.inicio+' a '+r.fin).join(', ')}</li>`;
+                }
+            }
+            dispHTML += '</ul>';
+            if(infoDiv) {
+                infoDiv.innerHTML = `<div style="font-size:1.1em; margin-bottom:5px;"><strong>👤 ${alData.nombre}</strong> (${alData.edad || '-'} años) | 🎸 ${instStr}</div><div style="border-top:1px solid #ced4da; padding-top:8px;"><strong>Disponibilidad cargada:</strong>${dispHTML}</div>`;
+                infoDiv.style.display = 'block';
+            }
+
+            const selectProfe = document.getElementById('agenda-profe-filtro'); selectProfe.innerHTML = '<option value="">Todos los profesores habilitados</option>'; const pSnap = await getDocs(collection(db, "profesores")); pSnap.forEach(p => { if(p.data().entrevista) selectProfe.innerHTML += `<option value="${p.id}">${p.data().nombre}</option>`; }); resDiv.innerHTML = '<p>Selecciona el rango y haz clic en Buscar.</p>'; modal.showModal(); 
         } catch(err) {} return;
     }
 
-    // === EL BLOQUE RECUPERADO DE EJECUTAR BÚSQUEDA ===
-    if (target.id === 'btn-ejecutar-busqueda') {
+    if (target.classList.contains('btn-bloquear-agenda')) {
+        if(confirm("¿Reservar preventivamente este horario?")) {
+            const id = target.getAttribute('data-id');
+            try { const al = (await getDoc(doc(db, "alumnos", id))).data(); const titulos = construirTitulosEvento(al, 'reserva', configApp); const evRes = await crearEventoSeguro(al, titulos, al.reserva_inicio, al.reserva_fin); await updateDoc(doc(db, "alumnos", id), { id_evento_reserva: evRes.id, calendario_evento_reserva: evRes.calendar }); cargarVista(estadoActualVista); } catch(e) { alert("Error API Calendar."); }
+        } return;
+    }
+
+    if (target.id === 'btn-ejecutar-busqueda' || target.closest('#btn-ejecutar-busqueda')) {
         const resDiv = document.getElementById('resultados-agenda');
         const dStrStart = document.getElementById('agenda-start').value;
         const dStrEnd = document.getElementById('agenda-end').value;
@@ -585,9 +612,7 @@ document.addEventListener('click', async (e) => {
                 try { 
                     const data = await getEventosCalendario(pr.calId, dS.toISOString(), dE.toISOString()); 
                     if(data.items) allEv = allEv.concat(data.items.map(ev => ({...ev, profeId: pr.id}))); 
-                } catch(e) {
-                    console.error("Error cargando eventos del profe: ", pr.nombre, e);
-                } 
+                } catch(e) {} 
             }
 
             const opts = generarOpcionesAgenda(al.disponibilidad, allEv, esBat, todosLosProfes, profesFiltradosIDs, dS, dE, configApp);
@@ -597,67 +622,50 @@ document.addEventListener('click', async (e) => {
                 resDiv.innerHTML='<p>No hay huecos libres que cumplan las condiciones.</p>';
             } else { 
                 inputBuscadorPop.style.display = 'block'; 
-                resDiv.innerHTML = opts.map(op => `
-                    <div class="opcion-horario">
-                        <span>${op.fechaTextoAmi} (${op.profeNombre})</span>
-                        <button class="btn-seleccionar-profe btn-accion-main" data-calid="${op.calId}" data-profe="${op.profeNombre}" data-profeid="${op.profeId}" data-start="${op.inicioData}" data-end="${op.finData}" data-fechatxt="${op.fechaTextoAmi}">Validar con Profe</button>
-                    </div>`).join(''); 
+                
+                // --- AGRUPAR POR DÍA (ACORDEÓN) ---
+                const grouped = {};
+                opts.forEach(op => {
+                    const parts = op.fechaTextoAmi.split(' '); // Ej: "miércoles 12/8 17:30hs"
+                    const dayKey = parts[0] + ' ' + parts[1];
+                    const timeStr = parts[2];
+                    if(!grouped[dayKey]) grouped[dayKey] = [];
+                    grouped[dayKey].push({ ...op, timeStr });
+                });
+
+                let html = '';
+                for(let day in grouped) {
+                    html += `<details class="agenda-dia"><summary>📅 ${day} <span style="font-weight:normal; color:#6c757d;">(${grouped[day].length} opciones)</span></summary><div class="agenda-dia-content">`;
+                    grouped[day].forEach(op => {
+                        html += `
+                            <div class="opcion-horario">
+                                <span>🕒 ${op.timeStr} (${op.profeNombre})</span>
+                                <button class="btn-seleccionar-profe btn-accion-main" data-calid="${op.calId}" data-profe="${op.profeNombre}" data-profeid="${op.profeId}" data-start="${op.inicioData}" data-end="${op.finData}" data-fechatxt="${op.fechaTextoAmi}">Validar con Profe</button>
+                            </div>`;
+                    });
+                    html += `</div></details>`;
+                }
+                resDiv.innerHTML = html; 
             }
-        } catch(e) { 
-            console.error(e); 
-            inputBuscadorPop.style.display = 'none'; 
-            resDiv.innerHTML='<p>Error en la búsqueda.</p>'; 
-        } 
+        } catch(e) { console.error(e); inputBuscadorPop.style.display = 'none'; resDiv.innerHTML='<p>Error en la búsqueda.</p>'; } 
         return;
     }
-
-    if (target.classList.contains('btn-bloquear-agenda')) {
-        if(confirm("¿Reservar preventivamente este horario?")) {
-            const id = target.getAttribute('data-id');
-            try { 
-                const al = (await getDoc(doc(db, "alumnos", id))).data();
-                const titulos = construirTitulosEvento(al, 'reserva', configApp); 
-                const evRes = await crearEventoSeguro(al, titulos, al.reserva_inicio, al.reserva_fin); 
-                await updateDoc(doc(db, "alumnos", id), { id_evento_reserva: evRes.id, calendario_evento_reserva: evRes.calendar }); 
-                cargarVista(estadoActualVista); 
-            } catch(e) { console.error(e); alert("Error API Calendar."); }
-        } return;
-    }
     
-    async function generarTextoConHistorial(idAlumno, plantillaKey) {
+    async function generarTextoConHistorial(idAlumno, plantillaKey, overrideFecha = null) {
         const al = (await getDoc(doc(db, "alumnos", idAlumno))).data(); let aliasP = ''; 
-        if (al.reserva_profe_id) { const pDoc = await getDoc(doc(db, "profesores", al.reserva_profe_id)); if(pDoc.exists()) aliasP = pDoc.data().alias_transferencia||''; } 
-        else if (al.reserva_profe_nombre) { const pQ = await getDocs(query(collection(db, "profesores"), where("nombre", "==", al.reserva_profe_nombre))); if(!pQ.empty) aliasP = pQ.docs[0].data().alias_transferencia||''; }
-        
-        let histText = al.historial && al.historial.length > 0 
-            ? [...al.historial].sort((a,b)=>a.id-b.id).map(h => `[${h.fecha}] ${h.texto}`).join('\n') 
-            : 'Sin registros previos.';
-            
-        let template = configApp[plantillaKey] || '';
-        template = template.replace(/\{historial\}/gi, histText).replace(/\{bloque_historial\}/gi, histText);
-        
-        const iS = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento;
-        const dP = al.descripcion ? al.descripcion.replace(/<[^>]*>?/gm, '').trim() : '';
-        
-        const txt = reemplazarVariables(template, { 
-            fecha_hora: al.reserva_fecha_texto, nombre: al.nombre, edad: al.edad||'-', 
-            instrumento: iS, suscripcion: al.tipo_suscripcion, descripcion: dP, 
-            profe: al.reserva_profe_nombre, valor: configApp.valor_clase, alias_profe: aliasP 
-        });
+        if (al.reserva_profe_id) { const pDoc = await getDoc(doc(db, "profesores", al.reserva_profe_id)); if(pDoc.exists()) aliasP = pDoc.data().alias_transferencia||''; } else if (al.reserva_profe_nombre) { const pQ = await getDocs(query(collection(db, "profesores"), where("nombre", "==", al.reserva_profe_nombre))); if(!pQ.empty) aliasP = pQ.docs[0].data().alias_transferencia||''; }
+        let histText = al.historial && al.historial.length > 0 ? [...al.historial].sort((a,b)=>a.id-b.id).map(h => `[${h.fecha}] ${h.texto}`).join('\n') : 'Sin registros previos.';
+        let template = configApp[plantillaKey] || ''; template = template.replace(/\{historial\}/gi, histText).replace(/\{bloque_historial\}/gi, histText);
+        const iS = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento; const dP = al.descripcion ? al.descripcion.replace(/<[^>]*>?/gm, '').trim() : '';
+        const txt = reemplazarVariables(template, { fecha_hora: overrideFecha || al.reserva_fecha_texto || '', nombre: al.nombre, edad: al.edad||'-', instrumento: iS, suscripcion: al.tipo_suscripcion, descripcion: dP, profe: al.reserva_profe_nombre, valor: configApp.valor_clase, alias_profe: aliasP });
         return { al, txt };
     }
 
     if (target.classList.contains('btn-confirmada-profe')) {
         const id = target.getAttribute('data-id');
         try { 
-            const data = await generarTextoConHistorial(id, 'texto_alumno');
-            await navigator.clipboard.writeText(data.txt); 
-            let evId = data.al.id_evento_reserva; let calReserva = data.al.calendario_evento_reserva;
-            if (!evId) { 
-                const titulos = construirTitulosEvento(data.al, 'reserva', configApp);
-                const evRes = await crearEventoSeguro(data.al, titulos, data.al.reserva_inicio, data.al.reserva_fin); 
-                evId = evRes.id; calReserva = evRes.calendar;
-            } 
+            const data = await generarTextoConHistorial(id, 'texto_alumno'); await navigator.clipboard.writeText(data.txt); let evId = data.al.id_evento_reserva; let calReserva = data.al.calendario_evento_reserva;
+            if (!evId) { const titulos = construirTitulosEvento(data.al, 'reserva', configApp); const evRes = await crearEventoSeguro(data.al, titulos, data.al.reserva_inicio, data.al.reserva_fin); evId = evRes.id; calReserva = evRes.calendar; } 
             await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente validación por alumno", id_evento_reserva: evId, calendario_evento_reserva: calReserva }); alert("Texto copiado al portapapeles y estado avanzado."); cargarVista(estadoActualVista); 
         } catch(e) { console.error(e); alert("Error API."); } return;
     }
@@ -693,7 +701,9 @@ document.addEventListener('click', async (e) => {
     
     if (target.classList.contains('btn-seleccionar-profe')) {
         try {
-            const data = await generarTextoConHistorial(alumnoIdActual, 'texto_profe'); await navigator.clipboard.writeText(data.txt);
+            const fechaTxt = target.getAttribute('data-fechatxt');
+            const data = await generarTextoConHistorial(alumnoIdActual, 'texto_profe', fechaTxt); 
+            await navigator.clipboard.writeText(data.txt);
             const profeId = target.getAttribute('data-profeid'); let updateData = { estado_agenda: "Pendiente validación por profe", reserva_profe_id: profeId, reserva_profe_nombre: target.getAttribute('data-profe'), reserva_cal_id: target.getAttribute('data-calid'), reserva_fecha_texto: target.getAttribute('data-fechatxt'), reserva_inicio: target.getAttribute('data-start'), reserva_fin: target.getAttribute('data-end') };
             if (data.al.id_evento_reserva) { await eliminarEventoSeguro(data.al); updateData.id_evento_reserva = null; updateData.calendario_evento_reserva = null; }
             await updateDoc(doc(db, "alumnos", alumnoIdActual), updateData); alert("Copiado al portapapeles. Estado avanzado."); document.getElementById('modal-agenda').close(); cargarVista(estadoActualVista);
