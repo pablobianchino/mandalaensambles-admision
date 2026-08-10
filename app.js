@@ -859,3 +859,34 @@ document.getElementById('btn-guardar-abm-edit').addEventListener('click', async 
     }
     await updateDoc(doc(db, col, id), dO); document.getElementById('modal-abm-edit').close(); document.querySelector(`[data-vista="ABM-${window.tituloABMActual}"]`).click();
 });
+// === MEJORA UI: MENÚ INTELIGENTE (DROP-UP) ===
+// Detecta si el menú choca con el borde inferior de la columna y lo invierte hacia arriba.
+document.addEventListener('mouseover', (e) => {
+    const actionsDiv = e.target.closest('.alumno-actions');
+    if (actionsDiv) {
+        const menu = actionsDiv.querySelector('.dropdown-menu');
+        if (menu) {
+            const actionRect = actionsDiv.getBoundingClientRect();
+            // Buscamos la columna actual, o usamos el body si estamos en vista de lista
+            const column = actionsDiv.closest('.board-column') || document.body;
+            const columnRect = column.getBoundingClientRect();
+            
+            // Calculamos los píxeles libres desde el botón hasta el fondo de la columna
+            const espacioAbajo = columnRect.bottom - actionRect.bottom;
+            
+            // Si hay menos de 220px (altura máxima aprox del menú), lo abrimos hacia arriba
+            if (espacioAbajo < 220) {
+                menu.style.top = 'auto';
+                menu.style.bottom = '100%';
+                menu.style.marginBottom = '5px';
+                menu.style.marginTop = '0';
+            } else {
+                // Comportamiento normal hacia abajo
+                menu.style.top = '100%';
+                menu.style.bottom = 'auto';
+                menu.style.marginTop = '5px';
+                menu.style.marginBottom = '0';
+            }
+        }
+    }
+});
