@@ -939,3 +939,5 @@ document.addEventListener('mouseover', (e) => {
         }
     }
 });
+    // Exponer función al entorno global para los botones HTML (onclick)
+window.cargarVista = cargarVista;
