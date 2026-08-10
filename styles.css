@@ -123,3 +123,11 @@ textarea.config-box { width: 100%; font-family: monospace; padding: 10px; margin
 .text-amarillo { color: #d39e00; }
 .text-verde { color: #28a745; }
 .text-vencido { color: #343a40; }
+
+/* Menú Desplegable de Acciones */
+.btn-dropdown { background: #f8f9fa; border: 1px solid #ced4da; padding: 6px 15px; border-radius: 6px; font-weight: 600; cursor: pointer; color: #212529; font-size: 0.9em; transition: 0.2s; }
+.btn-dropdown:hover { background: #e2e6ea; border-color: #adb5bd; }
+.dropdown-menu { position: absolute; right: 0; top: 100%; margin-top: 5px; background: #fff; border: 1px solid #dee2e6; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); z-index: 100; min-width: 220px; display: flex; flex-direction: column; overflow: hidden; }
+.dropdown-item { background: transparent; border: none; padding: 12px 15px; text-align: left; width: 100%; cursor: pointer; font-size: 0.9em; color: #333; font-weight: 500; border-bottom: 1px solid #f8f9fa; transition: 0.2s; }
+.dropdown-item:last-child { border-bottom: none; }
+.dropdown-item:hover { background: #f4f6f9; color: var(--primary); }
