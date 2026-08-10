@@ -121,7 +121,6 @@ function renderHistorial() {
         `;
     });
 }
-
 // === CONFIGURACIÓN DEFAULT Y UTILIDADES ===
 const defaultCfg = {
     hora_apertura: '09:00', hora_cierre: '22:00',
@@ -133,7 +132,8 @@ const defaultCfg = {
     texto_profe: "*⚠ PRE CHECK - ENTREVISTA*\n📅 *FECHA: {fecha_hora}*\n*👥 ALUMNO:*\n🔹 {nombre} ({edad})\n🔹 {instrumento} | {suscripcion}\n*INFO:*\n{descripcion}{bloque_historial}",
     texto_alumno: "📅 *Agenda de clase*\n🧩 {fecha_hora} con Profe {profe}\n✅ Inscripción: forms.gle/xxx\n💸 Valor: {valor}\n🧩 Alias: {alias_profe}",
     texto_conf_alumno: "Genial Gracias!\nTe esperamos!\n\n🧩 Día y horario: {fecha_hora}\n🧩 Profe: {profe}\n📍 *Dirección:* Av. Cabildo 2970, Piso 1, Depto C.\n\n⚠️ *A tener en cuenta:*\n\n- *Puntualidad:* La reserva del espacio es por 45 minutos.\n\nEl profe te va a estar escribiendo el mismo día!",
-    texto_conf_profe: "*✅ ENTREVISTA CONFIRMADA*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Clase: {suscripcion}\n\n*📰 INFO PARA LA ENTREVISTA:*\n{descripcion}{bloque_historial}"
+    texto_conf_profe: "*✅ ENTREVISTA CONFIRMADA*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Clase: {suscripcion}\n\n*📰 INFO PARA LA ENTREVISTA:*\n{descripcion}{bloque_historial}",
+    texto_cancela_alumno: "*❗ PRE CHECK - ENTREVISTA*\n*❌ RESERVA CANCELADA*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Clase: {suscripcion}\n\n*🕐 HISTORIAL DE CONTACTO:*\n{historial}"
 };
 
 async function cargarConfig() {
@@ -515,9 +515,17 @@ function generarTarjetaAlumno(al, id, vista) {
             if (al.id_evento_reserva) tags += `<div class="badge badge-warning">🔒 Bloqueado: ${al.reserva_fecha_texto} (${al.reserva_profe_nombre})</div>`;
             else tags += `<button class="btn-bloquear-agenda badge" data-id="${id}">⏳ Propuesto: ${al.reserva_fecha_texto} (${al.reserva_profe_nombre})</button>`;
         }
-        if (al.estado_agenda === 'Pendiente procesar') { acciones += `<button class="btn-buscar-agenda btn-accion-main" data-id="${id}">🔍 Buscar Agenda</button><button class="btn-abrir-suspender btn-suspender" data-id="${id}">Suspender</button>`; } 
-        else if (al.estado_agenda === 'Pendiente validación por profe') { acciones += `<button class="btn-confirmada-profe btn-violeta" data-id="${id}">Agenda confirmada por profesor</button><button class="btn-reenviar-profe btn-verde-claro" data-id="${id}">Re-enviar validación</button><button class="btn-cancelar-reserva btn-suspender" data-id="${id}">Cancelar Validación</button><button class="btn-abrir-suspender btn-suspender" data-id="${id}">Suspender</button>`; } 
-        else if (al.estado_agenda === 'Pendiente validación por alumno') { acciones += `<button class="btn-confirmar-entrevista btn-accion-main" data-id="${id}">Confirmar Agenda</button><button class="btn-reenviar-alumno btn-verde-claro" data-id="${id}">Re-Enviar validación p/alumno</button><button class="btn-cancelar-reserva btn-suspender" data-id="${id}">Cancelar Agenda</button><button class="btn-abrir-suspender btn-suspender" data-id="${id}">Suspender</button>`; }
+        if (al.estado_agenda === 'Pendiente procesar') { 
+            acciones += `<button class="btn-buscar-agenda btn-accion-main" data-id="${id}">🔍 Buscar Agenda</button><button class="btn-abrir-suspender btn-suspender" data-id="${id}">Suspender</button>`; 
+        } 
+        else if (al.estado_agenda === 'Pendiente validación por profe') { 
+            acciones += `<button class="btn-confirmada-profe btn-violeta" data-id="${id}">Agenda confirmada por profesor</button>`;
+            acciones += `<button class="btn-buscar-agenda btn-accion-main" data-id="${id}">Re-Agendar</button>`;
+            acciones += `<button class="btn-reenviar-profe btn-verde-claro" data-id="${id}">Re-enviar validación</button><button class="btn-cancelar-reserva btn-suspender" data-id="${id}">Cancelar Validación</button><button class="btn-abrir-suspender btn-suspender" data-id="${id}">Suspender</button>`; 
+        } 
+        else if (al.estado_agenda === 'Pendiente validación por alumno') { 
+            acciones += `<button class="btn-confirmar-entrevista btn-accion-main" data-id="${id}">Confirmar Agenda</button><button class="btn-reenviar-alumno btn-verde-claro" data-id="${id}">Re-Enviar validación p/alumno</button><button class="btn-cancelar-reserva btn-suspender" data-id="${id}">Cancelar Agenda</button><button class="btn-abrir-suspender btn-suspender" data-id="${id}">Suspender</button>`; 
+        }
     } 
     
     if (vista === 'Agendas Confirmadas' || (vista === 'Resumen' && al.estado_agenda === 'Agenda confirmada')) {
@@ -596,7 +604,7 @@ document.addEventListener('click', async (e) => {
     if (target.classList.contains('btn-copy-disp-p')) { e.stopPropagation(); const d = target.getAttribute('data-dia'); clipboardDisponibilidadProfe = { inicio: document.getElementById(`disp-p-${d}-inicio`).value, fin: document.getElementById(`disp-p-${d}-fin`).value, all: document.getElementById(`disp-p-${d}-all`).checked, none: document.getElementById(`disp-p-${d}-none`).checked }; return; }
     if (target.classList.contains('btn-paste-disp-p')) { e.stopPropagation(); if (!clipboardDisponibilidadProfe) return alert("Primero copia una disponibilidad."); const d = target.getAttribute('data-dia'); document.getElementById(`disp-p-${d}-inicio`).value = clipboardDisponibilidadProfe.inicio; document.getElementById(`disp-p-${d}-fin`).value = clipboardDisponibilidadProfe.fin; document.getElementById(`disp-p-${d}-all`).checked = clipboardDisponibilidadProfe.all; document.getElementById(`disp-p-${d}-none`).checked = clipboardDisponibilidadProfe.none; window.updateDispStateForDay(d, true); return; }
 
-    if (target.classList.contains('btn-eliminar-alumno')) { e.stopPropagation(); if(confirm("¿Eliminar este alumno por completo?")) { const id = target.closest('.alumno-item').getAttribute('data-id'); try { const al = (await getDoc(doc(db, "alumnos", id))).data(); if (al && al.id_evento_reserva) { await eliminarEventoSeguro(al); } } catch(err) { console.error(err); } await deleteDoc(doc(db, "alumnos", id)); cargarVista(estadoActualVista); } return; }
+    if (target.classList.contains('btn-eliminar-alumno')) { e.stopPropagation(); if(confirm("¿Eliminar este alumno por completo?")) { const id = target.closest('.alumno-item').getAttribute('data-id'); try { const al = (await getDoc(doc(db, "alumnos", id))).data(); if (al && al.id_evento_reserva) { await eliminarEventoSeguro(al); } } catch(err) {} await deleteDoc(doc(db, "alumnos", id)); cargarVista(estadoActualVista); } return; }
 
     if (target.id === 'btn-agregar-nota') { const textarea = document.getElementById('nueva-nota-texto'); const texto = textarea.value.trim(); if(!texto) return; const now = new Date(); const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`; historialActual.push({ id: Date.now(), texto: texto, fecha: fechaStr }); textarea.value = ''; renderHistorial(); return; }
     if (target.classList.contains('btn-eliminar-nota')) { const id = parseInt(target.getAttribute('data-id')); historialActual = historialActual.filter(n => n.id !== id); renderHistorial(); return; }
@@ -686,7 +694,38 @@ document.addEventListener('click', async (e) => {
     }
 
     if (target.classList.contains('btn-cancelar-reserva')) {
-        if (confirm("¿Cancelar reserva en Calendar y volver a Sin Agendar?")) { const id = target.getAttribute('data-id'); try { const al = (await getDoc(doc(db, "alumnos", id))).data(); if (al.id_evento_reserva) await eliminarEventoSeguro(al); await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente procesar", reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null }); cargarVista(estadoActualVista); } catch(e) { console.error(e); alert("Error."); } } return;
+        if (confirm("¿Cancelar reserva en Calendar y volver a Sin Agendar?")) { 
+            const id = target.getAttribute('data-id'); 
+            try { 
+                const al = (await getDoc(doc(db, "alumnos", id))).data(); 
+                
+                // --- NUEVO: CÓPIAR TEXTO CANCELACIÓN AL PORTAPAPELES ---
+                if (al.estado_agenda === 'Pendiente validación por alumno') {
+                    const iS = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento;
+                    let bloqueHistorial = ''; 
+                    if (al.historial && al.historial.length > 0) { 
+                        const historyText = [...al.historial].sort((a,b)=>a.id-b.id).map(h => `[${h.fecha}] ${h.texto}`).join('\n'); 
+                        bloqueHistorial = `\n\n*🕐 HISTORIAL DE CONTACTO:*\n${historyText}`; 
+                    }
+                    let template = configApp.texto_cancela_alumno || '';
+                    template = template.replace(/\{historial\}/g, '{bloque_historial}'); 
+                    if (!bloqueHistorial) { 
+                        template = template.replace(/\n*\*[^\n]*HISTORIAL[^\n]*\*\n*\{bloque_historial\}/gi, ''); 
+                        template = template.replace('{bloque_historial}', ''); 
+                    } else { 
+                        template = template.replace(/\n*\*[^\n]*HISTORIAL[^\n]*\*\n*\{bloque_historial\}/gi, '{bloque_historial}'); 
+                        template = template.replace('{bloque_historial}', bloqueHistorial); 
+                    }
+                    const txtCancela = reemplazarVariables(template, { fecha_hora: al.reserva_fecha_texto, nombre: al.nombre, edad: al.edad||'-', instrumento: iS, suscripcion: al.tipo_suscripcion });
+                    await navigator.clipboard.writeText(txtCancela);
+                    alert("Reserva cancelada. Texto de CANCELACIÓN copiado al portapapeles.");
+                }
+
+                if (al.id_evento_reserva) await eliminarEventoSeguro(al); 
+                await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente procesar", reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null }); 
+                cargarVista(estadoActualVista); 
+            } catch(e) { console.error(e); alert("Error."); } 
+        } return;
     }
 
     if (target.classList.contains('btn-abrir-suspender')) { document.getElementById('susp-alumno-id').value = target.getAttribute('data-id'); document.getElementById('susp-motivo').value = ""; document.getElementById('modal-suspender').showModal(); return; }
@@ -727,8 +766,18 @@ document.addEventListener('click', async (e) => {
             else { template = template.replace(/\n*\*[^\n]*HISTORIAL[^\n]*\*\n*\{bloque_historial\}/gi, '{bloque_historial}'); template = template.replace('{bloque_historial}', bloqueHistorial); }
             const txt = reemplazarVariables(template, { fecha_hora: target.getAttribute('data-fechatxt'), nombre: al.nombre, edad: al.edad||'-', instrumento: iS, suscripcion: al.tipo_suscripcion, descripcion: dP });
             await navigator.clipboard.writeText(txt);
+            
             const profeId = target.getAttribute('data-profeid');
-            await updateDoc(doc(db, "alumnos", alumnoIdActual), { estado_agenda: "Pendiente validación por profe", reserva_profe_id: profeId, reserva_profe_nombre: target.getAttribute('data-profe'), reserva_cal_id: target.getAttribute('data-calid'), reserva_fecha_texto: target.getAttribute('data-fechatxt'), reserva_inicio: target.getAttribute('data-start'), reserva_fin: target.getAttribute('data-end') });
+            let updateData = { estado_agenda: "Pendiente validación por profe", reserva_profe_id: profeId, reserva_profe_nombre: target.getAttribute('data-profe'), reserva_cal_id: target.getAttribute('data-calid'), reserva_fecha_texto: target.getAttribute('data-fechatxt'), reserva_inicio: target.getAttribute('data-start'), reserva_fin: target.getAttribute('data-end') };
+            
+            // --- NUEVO: RE-AGENDAR (Eliminar evento viejo si existía) ---
+            if (al.id_evento_reserva) {
+                await eliminarEventoSeguro(al);
+                updateData.id_evento_reserva = null;
+                updateData.calendario_evento_reserva = null;
+            }
+
+            await updateDoc(doc(db, "alumnos", alumnoIdActual), updateData);
             alert("Copiado al portapapeles. Estado avanzado."); document.getElementById('modal-agenda').close(); cargarVista(estadoActualVista);
         } catch(e) { console.error(e); } return;
     }
@@ -794,6 +843,7 @@ function renderConfig(cont) {
             <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Texto Validación con Alumno: <textarea id="cfg-txt-a" class="config-box" style="height:150px;">${configApp.texto_alumno}</textarea></label>
             <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Texto Confirmación Agenda para Profe: <textarea id="cfg-txt-conf-p" class="config-box" style="height:150px;">${configApp.texto_conf_profe}</textarea></label>
             <label style="display:block; margin-bottom:20px; font-weight:600; color:#495057;">Texto Confirmación Agenda para Alumno: <textarea id="cfg-txt-conf-a" class="config-box" style="height:200px;">${configApp.texto_conf_alumno}</textarea></label>
+            <label style="display:block; margin-bottom:20px; font-weight:600; color:#dc3545;">Texto Cancelación de Alumno: <textarea id="cfg-txt-cancela" class="config-box" style="height:200px;">${configApp.texto_cancela_alumno}</textarea></label>
             <button id="btn-guardar-cfg" class="btn-accion-main" style="padding:10px 20px; font-size:1.05em; width:100%;">Guardar Configuración</button>
         </div>
     `;
@@ -816,7 +866,8 @@ function renderConfig(cont) {
             texto_profe: document.getElementById('cfg-txt-p').value, 
             texto_alumno: document.getElementById('cfg-txt-a').value, 
             texto_conf_profe: document.getElementById('cfg-txt-conf-p').value, 
-            texto_conf_alumno: document.getElementById('cfg-txt-conf-a').value 
+            texto_conf_alumno: document.getElementById('cfg-txt-conf-a').value,
+            texto_cancela_alumno: document.getElementById('cfg-txt-cancela').value 
         }, { merge: true });
         await cargarConfig(); alert('Guardado.');
     });
