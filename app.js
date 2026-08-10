@@ -64,8 +64,28 @@ const contDisp = document.getElementById('contenedor-disponibilidad');
 const contDispProfe = document.getElementById('contenedor-disponibilidad-profe');
 
 diasSemana.forEach(dia => {
-    contDisp.innerHTML += `<div class="dia-disponibilidad"><label>${dia.nombre}:</label><input type="time" id="disp-${dia.id}-inicio"> <span>a</span> <input type="time" id="disp-${dia.id}-fin"><label style="font-weight:normal; width:auto; margin-left:10px; cursor:pointer;"><input type="checkbox" id="disp-${dia.id}-all"> Todo el día</label><label style="font-weight:normal; width:auto; margin-left:10px; cursor:pointer;"><input type="checkbox" id="disp-${dia.id}-none"> No disp.</label><button type="button" class="btn-copy-disp" data-dia="${dia.id}" title="Copiar disponibilidad" style="background:none; border:none; cursor:pointer; font-size:1.1em; margin-left:auto;">📋</button><button type="button" class="btn-paste-disp" data-dia="${dia.id}" title="Pegar disponibilidad" style="background:none; border:none; cursor:pointer; font-size:1.1em;">📥</button><span id="estado-${dia.id}" class="estado-disp" style="width:80px; text-align:right;"></span></div>`;
-    contDispProfe.innerHTML += `<div class="dia-disponibilidad"><label>${dia.nombre}:</label><input type="time" id="disp-p-${dia.id}-inicio"> <span>a</span> <input type="time" id="disp-p-${dia.id}-fin"><label style="font-weight:normal; width:auto; margin-left:10px; cursor:pointer;"><input type="checkbox" id="disp-p-${dia.id}-all"> Todo el día</label><label style="font-weight:normal; width:auto; margin-left:10px; cursor:pointer;"><input type="checkbox" id="disp-p-${dia.id}-none"> No disp.</label><button type="button" class="btn-copy-disp-p" data-dia="${dia.id}" title="Copiar disponibilidad" style="background:none; border:none; cursor:pointer; font-size:1.1em; margin-left:auto;">📋</button><button type="button" class="btn-paste-disp-p" data-dia="${dia.id}" title="Pegar disponibilidad" style="background:none; border:none; cursor:pointer; font-size:1.1em;">📥</button><span id="estado-p-${dia.id}" class="estado-disp" style="width:80px; text-align:right;"></span></div>`;
+    contDisp.innerHTML += `
+        <div class="dia-disponibilidad">
+            <label>${dia.nombre}:</label>
+            <input type="time" id="disp-${dia.id}-inicio"> <span>a</span> <input type="time" id="disp-${dia.id}-fin">
+            <label style="font-weight:normal; width:auto; margin-left:10px; cursor:pointer;"><input type="checkbox" id="disp-${dia.id}-all"> Todo el día</label>
+            <label style="font-weight:normal; width:auto; margin-left:10px; cursor:pointer;"><input type="checkbox" id="disp-${dia.id}-none"> No disp.</label>
+            <button type="button" class="btn-copy-disp" data-dia="${dia.id}" title="Copiar disponibilidad" style="background:none; border:none; cursor:pointer; font-size:1.1em; margin-left:auto;">📋</button>
+            <button type="button" class="btn-paste-disp" data-dia="${dia.id}" title="Pegar disponibilidad" style="background:none; border:none; cursor:pointer; font-size:1.1em;">📥</button>
+            <span id="estado-${dia.id}" class="estado-disp" style="width:80px; text-align:right;"></span>
+        </div>
+    `;
+    contDispProfe.innerHTML += `
+        <div class="dia-disponibilidad">
+            <label>${dia.nombre}:</label>
+            <input type="time" id="disp-p-${dia.id}-inicio"> <span>a</span> <input type="time" id="disp-p-${dia.id}-fin">
+            <label style="font-weight:normal; width:auto; margin-left:10px; cursor:pointer;"><input type="checkbox" id="disp-p-${dia.id}-all"> Todo el día</label>
+            <label style="font-weight:normal; width:auto; margin-left:10px; cursor:pointer;"><input type="checkbox" id="disp-p-${dia.id}-none"> No disp.</label>
+            <button type="button" class="btn-copy-disp-p" data-dia="${dia.id}" title="Copiar disponibilidad" style="background:none; border:none; cursor:pointer; font-size:1.1em; margin-left:auto;">📋</button>
+            <button type="button" class="btn-paste-disp-p" data-dia="${dia.id}" title="Pegar disponibilidad" style="background:none; border:none; cursor:pointer; font-size:1.1em;">📥</button>
+            <span id="estado-p-${dia.id}" class="estado-disp" style="width:80px; text-align:right;"></span>
+        </div>
+    `;
 });
 
 window.updateDispStateForDay = function(dId, isProfe = false) {
@@ -104,7 +124,7 @@ function renderHistorial() {
         container.innerHTML += `<div style="background:#f8f9fa; border:1px solid #dee2e6; padding:12px; border-radius:6px; position:relative;"><div style="font-size:0.8em; color:#6c757d; margin-bottom:5px; font-weight:600;">🕒 ${nota.fecha}</div><div style="font-size:0.95em; color:#212529;">${textoLimpio}</div><div style="position:absolute; top:10px; right:10px; display:flex; gap:5px;"><button type="button" class="btn-editar-nota" data-id="${nota.id}" style="background:transparent; border:none; cursor:pointer; font-size:1.1em;" title="Editar">✏️</button><button type="button" class="btn-eliminar-nota" data-id="${nota.id}" style="background:transparent; border:none; cursor:pointer; font-size:1.1em;" title="Eliminar">❌</button></div></div>`;
     });
 }
-// === CONFIGURACIÓN DEFAULT Y UTILIDADES ===
+// === CONFIGURACIÓN DEFAULT Y UTILIDADES DE CALENDARIO ===
 const defaultCfg = {
     hora_apertura: '09:00', hora_cierre: '22:00', calendario_por_defecto: 'productora.mandalahouse@gmail.com',
     identificador_bateria: '🥁', emoji_guitarra: '🎸', emoji_cajon: '📦', emoji_canto: '🎤', emoji_piano: '🎹', emoji_bajo: '🎸',
@@ -224,7 +244,9 @@ function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, todosLosProfes, pr
                     if (evalOverlap.valido) {
                         todosLosProfes.forEach(pr => {
                             if (profesFiltradosIDs.includes(pr.id) && !evalOverlap.profesOcupados.has(pr.id)) {
-                                if (chequearProfeDisponible(pr, hIniB, finMs, lDia)) { opciones.push({ fechaTextoAmi: formatearFechaAmi(hIniB.toISOString()), profeId: pr.id, profeNombre: pr.nombre, calId: pr.calId, inicioData: formatoLocalISO(hIniB), finData: formatoLocalISO(new Date(finMs)) }); }
+                                if (chequearProfeDisponible(pr, hIniB, finMs, lDia)) {
+                                    opciones.push({ fechaTextoAmi: formatearFechaAmi(hIniB.toISOString()), profeId: pr.id, profeNombre: pr.nombre, calId: pr.calId, inicioData: formatoLocalISO(hIniB), finData: formatoLocalISO(new Date(finMs)) });
+                                }
                             }
                         });
                     }
@@ -235,8 +257,135 @@ function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, todosLosProfes, pr
     }
     return opciones;
 }
+
+// === GENERADOR DE TARJETAS Y VISTAS ===
+function generarTarjetaAlumno(al, id, vista) {
+    const instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento;
+    let tags = '', accionesHtml = '', extraClass = '';
+
+    if (vista === 'Resumen') {
+        if ((al.estado_agenda === 'Pendiente validación por profe' || al.estado_agenda === 'Pendiente validación por alumno') && al.reserva_inicio) {
+            let diffHs = (new Date(al.reserva_inicio) - new Date()) / (1000 * 60 * 60);
+            if (diffHs < 0) { extraClass = 'urgencia-vencida'; tags += `<div class="badge-urgencia text-vencido">⚠️ Vencida (Pasó la fecha)</div>`; } 
+            else if (diffHs <= 48) { extraClass = 'urgencia-roja'; tags += `<div class="badge-urgencia text-rojo">🔴 Crítico: Faltan ${Math.floor(diffHs)}hs</div>`; } 
+            else if (diffHs <= 72) { extraClass = 'urgencia-amarilla'; tags += `<div class="badge-urgencia text-amarillo">🟡 Alerta: Faltan ${Math.floor(diffHs)}hs</div>`; } 
+            else { extraClass = 'urgencia-verde'; tags += `<div class="badge-urgencia text-verde">🟢 A tiempo: Faltan ${Math.floor(diffHs/24)} días</div>`; }
+        } else if (al.estado_agenda === 'Agenda confirmada') { extraClass = 'item-confirmada'; }
+    }
+
+    if (vista === 'Gestiones en Curso' || vista === 'Resumen') {
+        if (al.reserva_fecha_texto) {
+            if (al.id_evento_reserva) tags += `<div class="badge badge-warning" style="margin-bottom:8px;">🔒 Bloqueado: ${al.reserva_fecha_texto} (${al.reserva_profe_nombre})</div>`;
+            else tags += `<button class="btn-bloquear-agenda badge" style="margin-bottom:8px;" data-id="${id}">⏳ Propuesto: ${al.reserva_fecha_texto} (${al.reserva_profe_nombre})</button>`;
+        }
+        accionesHtml += `<button class="dropdown-item btn-nombre-agendar" data-id="${id}">📋 Nombre para Agendar</button>`;
+        if (al.estado_agenda === 'Pendiente procesar') { 
+            accionesHtml += `<button class="dropdown-item btn-buscar-agenda" data-id="${id}">🔍 Buscar Agenda</button>`; 
+            accionesHtml += `<button class="dropdown-item btn-abrir-suspender" data-id="${id}">⏸️ Suspender</button>`; 
+        } else if (al.estado_agenda === 'Pendiente validación por profe') { 
+            accionesHtml += `<button class="dropdown-item btn-confirmada-profe" data-id="${id}">✅ Validar por Profe</button>`;
+            accionesHtml += `<button class="dropdown-item btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
+            accionesHtml += `<button class="dropdown-item btn-reenviar-profe" data-id="${id}">📤 Re-enviar a Profe</button>`;
+            accionesHtml += `<button class="dropdown-item btn-cancelar-reserva" data-id="${id}">❌ Cancelar Validación</button>`;
+            accionesHtml += `<button class="dropdown-item btn-abrir-suspender" data-id="${id}">⏸️ Suspender</button>`; 
+        } else if (al.estado_agenda === 'Pendiente validación por alumno') { 
+            accionesHtml += `<button class="dropdown-item btn-confirmar-entrevista" data-id="${id}">✅ Confirmar Agenda</button>`;
+            accionesHtml += `<button class="dropdown-item btn-reenviar-alumno" data-id="${id}">📤 Re-Enviar a Alumno</button>`;
+            accionesHtml += `<button class="dropdown-item btn-cancelar-reserva" data-id="${id}">❌ Cancelar Agenda</button>`;
+            accionesHtml += `<button class="dropdown-item btn-abrir-suspender" data-id="${id}">⏸️ Suspender</button>`; 
+        }
+    } 
+    
+    if (vista === 'Agendas Confirmadas' || (vista === 'Resumen' && al.estado_agenda === 'Agenda confirmada')) {
+        if (vista !== 'Resumen') { extraClass = 'item-confirmada'; tags += `<div class="badge badge-success" style="margin-bottom:8px;">✅ Confirmado: ${al.reserva_fecha_texto||'-'} (${al.reserva_profe_nombre||'-'})</div>`; } 
+        else if (vista === 'Resumen' && !tags.includes('✅')) { tags += `<div class="badge badge-success" style="margin-bottom:8px;">✅ ${al.reserva_fecha_texto||'-'} (${al.reserva_profe_nombre||'-'})</div>`; }
+        accionesHtml += `<button class="dropdown-item btn-nombre-agendar" data-id="${id}">📋 Nombre para Agendar</button>`;
+        accionesHtml += `<button class="dropdown-item btn-enviar-conf-profe" data-id="${id}">📤 Enviar conf. a Profe</button>`;
+        accionesHtml += `<button class="dropdown-item btn-enviar-conf-alumno" data-id="${id}">📤 Enviar conf. a Alumno</button>`;
+        accionesHtml += `<button class="dropdown-item btn-cancelar-reserva" data-id="${id}">↩️ Deshacer Confirmación</button>`;
+    } else if (vista === 'Agendas Suspendidas') {
+        extraClass = 'item-suspendida'; tags += `<div class="badge badge-danger" style="margin-bottom:8px;">Motivo: ${al.motivo_suspension||'S/D'}</div>`;
+        accionesHtml += `<button class="dropdown-item btn-recuperar-agenda" data-id="${id}">♻️ Recuperar Agenda</button>`;
+    }
+
+    let menuAcciones = '';
+    if (accionesHtml) {
+        menuAcciones = `<div class="alumno-actions" style="position:relative; display:flex; justify-content:flex-end;"><button class="btn-dropdown" data-dropdown="dd-${id}">⚡ Acciones ▾</button><div id="dd-${id}" class="dropdown-menu" style="display:none;">${accionesHtml}</div></div>`;
+    }
+
+    return `
+        <div class="alumno-item ${extraClass}" data-id="${id}">
+            <div class="alumno-header btn-editar-alumno" data-id="${id}" style="padding-right:45px;">
+                <button class="btn-nota-rapida" data-id="${id}" title="Agregar Nota" style="position:absolute; top:0; right:28px; background:transparent; border:none; color:#17a2b8; cursor:pointer; font-size:1.1em; padding:0; line-height:1;">📝</button>
+                <button class="btn-eliminar-alumno" title="Eliminar Alumno" style="position:absolute; top:0; right:0; background:transparent; border:none; color:#dc3545; cursor:pointer; font-size:1.1em; padding:0; line-height:1;">❌</button>
+                <div style="width:100%;">
+                    ${tags}
+                    <div class="alumno-nombre-search" style="font-size:1.1em; font-weight:700; color:#212529;">${al.nombre}</div>
+                    <div style="color:#495057; font-size:0.9em; margin-top:2px;">${instStr} (${al.tipo_suscripcion})</div>
+                    <div style="color:#868e96; font-size:0.8em; margin-top:5px;">Cel: ${al.celular} | Edad: ${al.edad||'-'}</div>
+                </div>
+            </div>
+            ${menuAcciones}
+        </div>
+    `;
+}
+
+async function cargarVista(vista) {
+    estadoActualVista = vista; document.getElementById('vista-titulo').textContent = vista;
+    const btnNuevo = document.getElementById('btn-nuevo-alumno'), searchGen = document.getElementById('search-container-general'), btnCargaMasiva = document.getElementById('btn-carga-masiva'), contTablero = document.getElementById('tablero-gestiones'), contResumen = document.getElementById('tablero-resumen'), contLista = document.getElementById('lista-generica'), contEstad = document.getElementById('estadisticas-container');
+    const formWrapper = document.getElementById('form-alumno-wrapper'); 
+    if (formWrapper) { formWrapper.style.display = 'none'; document.getElementById('modal-alta-alumno').appendChild(formWrapper); }
+    btnNuevo.style.display = 'none'; searchGen.style.display = 'none'; btnCargaMasiva.style.display = 'none'; contTablero.style.display = 'none'; if(contResumen) contResumen.style.display = 'none'; contLista.style.display = 'none'; contEstad.style.display = 'none'; document.getElementById('input-buscador-general').value = '';
+
+    if (vista === 'Resumen') {
+        btnNuevo.style.display = 'block'; searchGen.style.display = 'block'; if(contResumen) contResumen.style.display = 'flex';
+        const colPendientes = document.getElementById('col-resumen-pendientes'), colConfirmadas = document.getElementById('col-resumen-confirmadas');
+        if(colPendientes) colPendientes.innerHTML = ''; if(colConfirmadas) colConfirmadas.innerHTML = '';
+        try {
+            const refAl = collection(db, "alumnos");
+            const [rProfe, rAlumno, rConf] = await Promise.all([ getDocs(query(refAl, where("estado_agenda", "==", "Pendiente validación por profe"))), getDocs(query(refAl, where("estado_agenda", "==", "Pendiente validación por alumno"))), getDocs(query(refAl, where("estado_agenda", "==", "Agenda confirmada"))) ]);
+            let pendientes = []; rProfe.forEach(d => pendientes.push({id: d.id, ...d.data()})); rAlumno.forEach(d => pendientes.push({id: d.id, ...d.data()}));
+            let confirmadas = []; rConf.forEach(d => confirmadas.push({id: d.id, ...d.data()}));
+            const aplicarParcheFechas = (arr) => { arr.forEach(a => { if (!a.reserva_inicio && a.reserva_fecha_texto) { a.reserva_inicio = interpretarFechaCSV(a.reserva_fecha_texto); } }); };
+            aplicarParcheFechas(pendientes); aplicarParcheFechas(confirmadas);
+            pendientes = pendientes.filter(a => a.reserva_inicio); confirmadas = confirmadas.filter(a => a.reserva_inicio);
+            pendientes.sort((a, b) => new Date(a.reserva_inicio) - new Date(b.reserva_inicio)); confirmadas.sort((a, b) => new Date(a.reserva_inicio) - new Date(b.reserva_inicio));
+            if(colPendientes) colPendientes.innerHTML = pendientes.length > 0 ? pendientes.map(a => generarTarjetaAlumno(a, a.id, vista)).join('') : '<p style="color:#6c757d;">No hay reservas pendientes.</p>';
+            if(colConfirmadas) colConfirmadas.innerHTML = confirmadas.length > 0 ? confirmadas.map(a => generarTarjetaAlumno(a, a.id, vista)).join('') : '<p style="color:#6c757d;">No hay agendas confirmadas.</p>';
+        } catch(e) { console.error(e); }
+    } else if (vista === 'Gestiones en Curso') {
+        btnNuevo.style.display = 'block'; btnCargaMasiva.style.display = 'block'; searchGen.style.display = 'block'; contTablero.style.display = 'flex';
+        document.getElementById('col-1-content').innerHTML = ''; document.getElementById('col-2-content').innerHTML = ''; document.getElementById('col-3-content').innerHTML = '';
+        try {
+            const refAl = collection(db, "alumnos");
+            const [r1, r2, r3] = await Promise.all([ getDocs(query(refAl, where("estado_agenda", "==", "Pendiente procesar"))), getDocs(query(refAl, where("estado_agenda", "==", "Pendiente validación por profe"))), getDocs(query(refAl, where("estado_agenda", "==", "Pendiente validación por alumno"))) ]);
+            if(!r1.empty) document.getElementById('col-1-content').innerHTML = r1.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
+            if(!r2.empty) document.getElementById('col-2-content').innerHTML = r2.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
+            if(!r3.empty) document.getElementById('col-3-content').innerHTML = r3.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
+        } catch(e) { console.error(e); }
+    } else if (vista === 'Agendas Confirmadas' || vista === 'Agendas Suspendidas') {
+        searchGen.style.display = 'block'; contLista.style.display = 'flex'; contLista.innerHTML = '';
+        try { const estMap = { 'Agendas Confirmadas': 'Agenda confirmada', 'Agendas Suspendidas': 'Agenda suspendida' }; const qSnap = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", estMap[vista]))); if(!qSnap.empty) contLista.innerHTML = qSnap.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join(''); } catch(e) { console.error(e); }
+    } else if (vista === 'Estadísticas') {
+        contEstad.style.display = 'flex'; renderCharts();
+    } else if (vista.startsWith('ABM') || vista === 'Configuración') {
+        contLista.style.display = 'flex'; contLista.innerHTML = '';
+        if(vista === 'Configuración') renderConfig(contLista);
+        else { const colMap = { 'ABM-Profesores': 'profesores', 'ABM-Instrumentos': 'instrumentos', 'ABM-Suscripciones': 'tipos_suscripcion' }; cargarABM(colMap[vista] || vista.split('-')[1].toLowerCase(), vista.split('-')[1], contLista); }
+    }
+}
+
+async function renderCharts() {
+    try {
+        const qSnap = await getDocs(collection(db, "alumnos")), counts = { 'Pendiente procesar':0, 'Pendiente validación por profe':0, 'Pendiente validación por alumno':0, 'Agenda confirmada':0, 'Agenda suspendida':0 };
+        qSnap.forEach(d => { if(counts[d.data().estado_agenda] !== undefined) counts[d.data().estado_agenda]++; });
+        if(chartGestionesInst) chartGestionesInst.destroy(); if(chartGlobalInst) chartGlobalInst.destroy();
+        chartGestionesInst = new Chart(document.getElementById('chartGestiones'), { type: 'doughnut', data: { labels: ['Sin Agendar', 'Validando Profe', 'Validando Alumno'], datasets: [{ data: [counts['Pendiente procesar'], counts['Pendiente validación por profe'], counts['Pendiente validación por alumno']], backgroundColor: ['#dc3545', '#6f42c1', '#ffc107'] }] } });
+        chartGlobalInst = new Chart(document.getElementById('chartGlobal'), { type: 'pie', data: { labels: ['En Curso (Total)', 'Confirmadas', 'Suspendidas'], datasets: [{ data: [counts['Pendiente procesar']+counts['Pendiente validación por profe']+counts['Pendiente validación por alumno'], counts['Agenda confirmada'], counts['Agenda suspendida']], backgroundColor: ['#17a2b8', '#28a745', '#6c757d'] }] } });
+    } catch(e) { console.error(e); }
+}
+
 // === EVENTOS GLOBALES ===
-// Vinculación directa del botón (corregido)
 const btnLogin = document.getElementById('btn-login');
 if (btnLogin) btnLogin.addEventListener('click', conectarGoogle);
 
@@ -249,25 +398,13 @@ document.getElementById('btn-logout').addEventListener('click', async () => {
 
 onAuthStateChanged(auth, async (user) => {
     if (user) {
-        document.getElementById('login-container').style.display = 'none';
-        document.getElementById('app-container').style.display = 'flex';
-        document.getElementById('user-info').textContent = user.email;
+        document.getElementById('login-container').style.display = 'none'; document.getElementById('app-container').style.display = 'flex'; document.getElementById('user-info').textContent = user.email;
         if (!googleAccessToken) document.getElementById('btn-conectar-cal').style.display = 'inline-block';
-        await cargarConfig();
-        cargarVista('Resumen'); 
-    } else {
-        document.getElementById('login-container').style.display = 'flex';
-        document.getElementById('app-container').style.display = 'none';
-    }
+        await cargarConfig(); cargarVista('Resumen'); 
+    } else { document.getElementById('login-container').style.display = 'flex'; document.getElementById('app-container').style.display = 'none'; }
 });
 
-document.querySelectorAll('#sidebar .nav-item').forEach(item => {
-    item.addEventListener('click', (e) => {
-        document.querySelectorAll('#sidebar .nav-item').forEach(el => el.classList.remove('active'));
-        e.target.classList.add('active');
-        cargarVista(e.target.getAttribute('data-vista'));
-    });
-});
+document.querySelectorAll('#sidebar .nav-item').forEach(item => { item.addEventListener('click', (e) => { document.querySelectorAll('#sidebar .nav-item').forEach(el => el.classList.remove('active')); e.target.classList.add('active'); cargarVista(e.target.getAttribute('data-vista')); }); });
 
 const inputBuscadorGeneral = document.getElementById('input-buscador-general');
 if(inputBuscadorGeneral) { inputBuscadorGeneral.addEventListener('input', (e) => { const query = e.target.value.toLowerCase(); document.querySelectorAll('.alumno-item').forEach(item => { const elNombre = item.querySelector('.alumno-nombre-search'); if(elNombre) item.style.display = elNombre.textContent.toLowerCase().includes(query) ? 'flex' : 'none'; }); }); }
@@ -279,9 +416,7 @@ document.getElementById('btn-carga-masiva').addEventListener('click', () => { if
 
 document.getElementById('input-csv').addEventListener('change', (e) => {
     const file = e.target.files[0]; if (!file) return;
-    const btn = document.getElementById('btn-carga-masiva'); const originalText = btn.innerHTML;
-    btn.innerHTML = '⏳ Procesando...'; btn.disabled = true;
-
+    const btn = document.getElementById('btn-carga-masiva'); const originalText = btn.innerHTML; btn.innerHTML = '⏳ Procesando...'; btn.disabled = true;
     Papa.parse(file, {
         header: true, skipEmptyLines: true,
         complete: async function(results) {
@@ -327,9 +462,7 @@ document.addEventListener('click', async (e) => {
 
     if (target.classList.contains('btn-eliminar-alumno')) { e.stopPropagation(); if(confirm("¿Eliminar este alumno por completo?")) { const id = target.closest('.alumno-item').getAttribute('data-id'); try { const al = (await getDoc(doc(db, "alumnos", id))).data(); if (al && al.id_evento_reserva) { await eliminarEventoSeguro(al); } } catch(err) {} await deleteDoc(doc(db, "alumnos", id)); cargarVista(estadoActualVista); } return; }
 
-    if (target.classList.contains('btn-nota-rapida')) {
-        e.stopPropagation(); document.getElementById('nota-rapida-id').value = target.getAttribute('data-id'); document.getElementById('nota-rapida-texto').value = ''; document.getElementById('modal-nota-rapida').showModal(); return;
-    }
+    if (target.classList.contains('btn-nota-rapida')) { e.stopPropagation(); document.getElementById('nota-rapida-id').value = target.getAttribute('data-id'); document.getElementById('nota-rapida-texto').value = ''; document.getElementById('modal-nota-rapida').showModal(); return; }
 
     const headerAl = target.closest('.btn-editar-alumno');
     if (headerAl && !target.classList.contains('btn-eliminar-alumno') && !target.classList.contains('btn-nota-rapida') && !target.classList.contains('btn-dropdown')) {
