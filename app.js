@@ -384,7 +384,6 @@ async function renderCharts() {
         chartGlobalInst = new Chart(document.getElementById('chartGlobal'), { type: 'pie', data: { labels: ['En Curso (Total)', 'Confirmadas', 'Suspendidas'], datasets: [{ data: [counts['Pendiente procesar']+counts['Pendiente validación por profe']+counts['Pendiente validación por alumno'], counts['Agenda confirmada'], counts['Agenda suspendida']], backgroundColor: ['#17a2b8', '#28a745', '#6c757d'] }] } });
     } catch(e) { console.error(e); }
 }
-
 // === EVENTOS GLOBALES ===
 const btnLogin = document.getElementById('btn-login');
 if (btnLogin) btnLogin.addEventListener('click', conectarGoogle);
@@ -480,33 +479,154 @@ document.addEventListener('click', async (e) => {
 
     if (target.classList.contains('btn-buscar-agenda')) {
         if(!googleAccessToken) { return alert("Requiere token. Conecta el calendario arriba."); }
-        alumnoIdActual = target.getAttribute('data-id'); const modal = document.getElementById('modal-agenda'), resDiv = document.getElementById('resultados-agenda'), inputBuscadorPop = document.getElementById('input-buscador-popup'); inputBuscadorPop.style.display = 'none'; inputBuscadorPop.value = ''; resDiv.innerHTML = '';
-        const hoy = new Date(); const d7 = new Date(); d7.setDate(d7.getDate()+7); document.getElementById('agenda-start').value = hoy.toISOString().split('T')[0]; document.getElementById('agenda-end').value = d7.toISOString().split('T')[0];
-        try { const selectProfe = document.getElementById('agenda-profe-filtro'); selectProfe.innerHTML = '<option value="">Todos los profesores habilitados</option>'; const pSnap = await getDocs(collection(db, "profesores")); pSnap.forEach(p => { if(p.data().entrevista) selectProfe.innerHTML += `<option value="${p.id}">${p.data().nombre}</option>`; }); resDiv.innerHTML = '<p>Selecciona el rango y haz clic en Buscar.</p>'; modal.showModal(); } catch(err) {} return;
+        alumnoIdActual = target.getAttribute('data-id'); 
+        const modal = document.getElementById('modal-agenda'), resDiv = document.getElementById('resultados-agenda'), inputBuscadorPop = document.getElementById('input-buscador-popup'); 
+        inputBuscadorPop.style.display = 'none'; inputBuscadorPop.value = ''; resDiv.innerHTML = '';
+        const hoy = new Date(); const d7 = new Date(); d7.setDate(d7.getDate()+7); 
+        document.getElementById('agenda-start').value = hoy.toISOString().split('T')[0]; document.getElementById('agenda-end').value = d7.toISOString().split('T')[0];
+        try { 
+            const selectProfe = document.getElementById('agenda-profe-filtro'); 
+            selectProfe.innerHTML = '<option value="">Todos los profesores habilitados</option>'; 
+            const pSnap = await getDocs(collection(db, "profesores")); 
+            pSnap.forEach(p => { if(p.data().entrevista) selectProfe.innerHTML += `<option value="${p.id}">${p.data().nombre}</option>`; }); 
+            resDiv.innerHTML = '<p>Selecciona el rango y haz clic en Buscar.</p>'; 
+            modal.showModal(); 
+        } catch(err) {} return;
+    }
+
+    // === EL BLOQUE RECUPERADO DE EJECUTAR BÚSQUEDA ===
+    if (target.id === 'btn-ejecutar-busqueda') {
+        const resDiv = document.getElementById('resultados-agenda');
+        const dStrStart = document.getElementById('agenda-start').value;
+        const dStrEnd = document.getElementById('agenda-end').value;
+        const inputBuscadorPop = document.getElementById('input-buscador-popup');
+        
+        if(!dStrStart || !dStrEnd) return alert("Fechas inválidas.");
+        
+        const selProfe = document.getElementById('agenda-profe-filtro');
+        const fProfs = Array.from(selProfe.selectedOptions).map(o => o.value);
+        const searchAll = fProfs.length === 0 || fProfs.includes("");
+        
+        resDiv.innerHTML = '<p>Buscando...</p>';
+        try {
+            const al = (await getDoc(doc(db, "alumnos", alumnoIdActual))).data();
+            const arrI = Array.isArray(al.instrumento) ? al.instrumento : [al.instrumento];
+            const esBat = arrI.some(i => i.toLowerCase().includes('bater'));
+            const dMap = { 'D':0, 'L':1, 'M':2, 'X':3, 'J':4, 'V':5, 'S':6 };
+            const diasHab = []; 
+            for (const [l, arr] of Object.entries(al.disponibilidad)) { 
+                if (arr && arr.length > 0) diasHab.push(dMap[l]); 
+            }
+            
+            const dS = new Date(dStrStart+'T00:00:00');
+            const dE = new Date(dStrEnd+'T23:59:59'); 
+            let algunValido = false;
+            for(let x = new Date(dS); x <= dE; x.setDate(x.getDate()+1)) { 
+                if(x.getDay()!==0 && diasHab.includes(x.getDay())) algunValido=true; 
+            }
+            
+            if(!algunValido) { 
+                inputBuscadorPop.style.display = 'none'; 
+                return resDiv.innerHTML = '<p style="color:#dc3545;">El rango solo abarca días domingos o "No disponible".</p>'; 
+            }
+
+            const pS = await getDocs(collection(db, "profesores"));
+            const todosLosProfes = [];
+            const profesFiltradosIDs = [];
+            
+            pS.forEach(p => { 
+                const d = p.data(); 
+                if(d.correo_calendario) { 
+                    todosLosProfes.push({ id: p.id, nombre: d.nombre, calId: d.correo_calendario, disponibilidad: d.disponibilidad }); 
+                    if (d.entrevista && (searchAll || fProfs.includes(p.id))) {
+                        profesFiltradosIDs.push(p.id); 
+                    }
+                } 
+            });
+            
+            if(profesFiltradosIDs.length === 0) { 
+                inputBuscadorPop.style.display = 'none'; 
+                return resDiv.innerHTML = '<p>No hay profes habilitados seleccionados.</p>';
+            }
+
+            let allEv = [];
+            for(const pr of todosLosProfes) { 
+                try { 
+                    const data = await getEventosCalendario(pr.calId, dS.toISOString(), dE.toISOString()); 
+                    if(data.items) allEv = allEv.concat(data.items.map(ev => ({...ev, profeId: pr.id}))); 
+                } catch(e) {
+                    console.error("Error cargando eventos del profe: ", pr.nombre, e);
+                } 
+            }
+
+            const opts = generarOpcionesAgenda(al.disponibilidad, allEv, esBat, todosLosProfes, profesFiltradosIDs, dS, dE, configApp);
+            
+            if(opts.length===0) { 
+                inputBuscadorPop.style.display = 'none'; 
+                resDiv.innerHTML='<p>No hay huecos libres que cumplan las condiciones.</p>';
+            } else { 
+                inputBuscadorPop.style.display = 'block'; 
+                resDiv.innerHTML = opts.map(op => `
+                    <div class="opcion-horario">
+                        <span>${op.fechaTextoAmi} (${op.profeNombre})</span>
+                        <button class="btn-seleccionar-profe btn-accion-main" data-calid="${op.calId}" data-profe="${op.profeNombre}" data-profeid="${op.profeId}" data-start="${op.inicioData}" data-end="${op.finData}" data-fechatxt="${op.fechaTextoAmi}">Validar con Profe</button>
+                    </div>`).join(''); 
+            }
+        } catch(e) { 
+            console.error(e); 
+            inputBuscadorPop.style.display = 'none'; 
+            resDiv.innerHTML='<p>Error en la búsqueda.</p>'; 
+        } 
+        return;
     }
 
     if (target.classList.contains('btn-bloquear-agenda')) {
         if(confirm("¿Reservar preventivamente este horario?")) {
             const id = target.getAttribute('data-id');
-            try { const al = (await getDoc(doc(db, "alumnos", id))).data(); const titulos = construirTitulosEvento(al, 'reserva', configApp); const evRes = await crearEventoSeguro(al, titulos, al.reserva_inicio, al.reserva_fin); await updateDoc(doc(db, "alumnos", id), { id_evento_reserva: evRes.id, calendario_evento_reserva: evRes.calendar }); cargarVista(estadoActualVista); } catch(e) { alert("Error API Calendar."); }
+            try { 
+                const al = (await getDoc(doc(db, "alumnos", id))).data();
+                const titulos = construirTitulosEvento(al, 'reserva', configApp); 
+                const evRes = await crearEventoSeguro(al, titulos, al.reserva_inicio, al.reserva_fin); 
+                await updateDoc(doc(db, "alumnos", id), { id_evento_reserva: evRes.id, calendario_evento_reserva: evRes.calendar }); 
+                cargarVista(estadoActualVista); 
+            } catch(e) { console.error(e); alert("Error API Calendar."); }
         } return;
     }
     
     async function generarTextoConHistorial(idAlumno, plantillaKey) {
         const al = (await getDoc(doc(db, "alumnos", idAlumno))).data(); let aliasP = ''; 
-        if (al.reserva_profe_id) { const pDoc = await getDoc(doc(db, "profesores", al.reserva_profe_id)); if(pDoc.exists()) aliasP = pDoc.data().alias_transferencia||''; } else if (al.reserva_profe_nombre) { const pQ = await getDocs(query(collection(db, "profesores"), where("nombre", "==", al.reserva_profe_nombre))); if(!pQ.empty) aliasP = pQ.docs[0].data().alias_transferencia||''; }
-        let histText = al.historial && al.historial.length > 0 ? [...al.historial].sort((a,b)=>a.id-b.id).map(h => `[${h.fecha}] ${h.texto}`).join('\n') : 'Sin registros previos.';
-        let template = configApp[plantillaKey] || ''; template = template.replace(/\{historial\}/gi, histText).replace(/\{bloque_historial\}/gi, histText);
-        const iS = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento; const dP = al.descripcion ? al.descripcion.replace(/<[^>]*>?/gm, '').trim() : '';
-        const txt = reemplazarVariables(template, { fecha_hora: al.reserva_fecha_texto, nombre: al.nombre, edad: al.edad||'-', instrumento: iS, suscripcion: al.tipo_suscripcion, descripcion: dP, profe: al.reserva_profe_nombre, valor: configApp.valor_clase, alias_profe: aliasP });
+        if (al.reserva_profe_id) { const pDoc = await getDoc(doc(db, "profesores", al.reserva_profe_id)); if(pDoc.exists()) aliasP = pDoc.data().alias_transferencia||''; } 
+        else if (al.reserva_profe_nombre) { const pQ = await getDocs(query(collection(db, "profesores"), where("nombre", "==", al.reserva_profe_nombre))); if(!pQ.empty) aliasP = pQ.docs[0].data().alias_transferencia||''; }
+        
+        let histText = al.historial && al.historial.length > 0 
+            ? [...al.historial].sort((a,b)=>a.id-b.id).map(h => `[${h.fecha}] ${h.texto}`).join('\n') 
+            : 'Sin registros previos.';
+            
+        let template = configApp[plantillaKey] || '';
+        template = template.replace(/\{historial\}/gi, histText).replace(/\{bloque_historial\}/gi, histText);
+        
+        const iS = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento;
+        const dP = al.descripcion ? al.descripcion.replace(/<[^>]*>?/gm, '').trim() : '';
+        
+        const txt = reemplazarVariables(template, { 
+            fecha_hora: al.reserva_fecha_texto, nombre: al.nombre, edad: al.edad||'-', 
+            instrumento: iS, suscripcion: al.tipo_suscripcion, descripcion: dP, 
+            profe: al.reserva_profe_nombre, valor: configApp.valor_clase, alias_profe: aliasP 
+        });
         return { al, txt };
     }
 
     if (target.classList.contains('btn-confirmada-profe')) {
         const id = target.getAttribute('data-id');
         try { 
-            const data = await generarTextoConHistorial(id, 'texto_alumno'); await navigator.clipboard.writeText(data.txt); let evId = data.al.id_evento_reserva; let calReserva = data.al.calendario_evento_reserva;
-            if (!evId) { const titulos = construirTitulosEvento(data.al, 'reserva', configApp); const evRes = await crearEventoSeguro(data.al, titulos, data.al.reserva_inicio, data.al.reserva_fin); evId = evRes.id; calReserva = evRes.calendar; } 
+            const data = await generarTextoConHistorial(id, 'texto_alumno');
+            await navigator.clipboard.writeText(data.txt); 
+            let evId = data.al.id_evento_reserva; let calReserva = data.al.calendario_evento_reserva;
+            if (!evId) { 
+                const titulos = construirTitulosEvento(data.al, 'reserva', configApp);
+                const evRes = await crearEventoSeguro(data.al, titulos, data.al.reserva_inicio, data.al.reserva_fin); 
+                evId = evRes.id; calReserva = evRes.calendar;
+            } 
             await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente validación por alumno", id_evento_reserva: evId, calendario_evento_reserva: calReserva }); alert("Texto copiado al portapapeles y estado avanzado."); cargarVista(estadoActualVista); 
         } catch(e) { console.error(e); alert("Error API."); } return;
     }
@@ -529,7 +649,7 @@ document.addEventListener('click', async (e) => {
             const id = target.getAttribute('data-id'); 
             try { 
                 const data = await generarTextoConHistorial(id, 'texto_cancela_alumno');
-                if (data.al.estado_agenda === 'Pendiente validación por alumno' || data.al.estado_agenda === 'Agenda confirmada') { await navigator.clipboard.writeText(data.txt); alert("Texto de CANCELACIÓN copiado al portapapeles."); }
+                if (data.al.estado_agenda === 'Pendiente validación por alumno' || data.al.estado_agenda === 'Agenda confirmada') { await navigator.clipboard.writeText(data.txt); alert("Reserva cancelada en Calendar. Texto de CANCELACIÓN copiado al portapapeles."); }
                 if (data.al.id_evento_reserva) await eliminarEventoSeguro(data.al); 
                 await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente procesar", reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null }); cargarVista(estadoActualVista); 
             } catch(e) {} 
@@ -562,16 +682,139 @@ document.getElementById('btn-guardar-suspension').addEventListener('click', asyn
 
 async function cargarSelectsAlumnos() { const sI = document.getElementById('instrumento'), sS = document.getElementById('tipo_suscripcion'); sI.innerHTML = ''; sS.innerHTML = '<option value="">Seleccione...</option>'; const iS = await getDocs(collection(db, "instrumentos")); iS.forEach(d => sI.innerHTML += `<option value="${d.data().nombre}">${d.data().nombre}</option>`); const sSp = await getDocs(collection(db, "tipos_suscripcion")); sSp.forEach(d => sS.innerHTML += `<option value="${d.data().nombre}">${d.data().nombre}</option>`); }
 
-async function llenarFormularioAlumno(id) { document.getElementById('alumno-id').value = id; const d = (await getDoc(doc(db, "alumnos", id))).data(); document.getElementById('nombre').value = d.nombre; document.getElementById('celular').value = d.celular; document.getElementById('edad').value = d.edad||''; await cargarSelectsAlumnos(); const sI = document.getElementById('instrumento'); Array.from(sI.options).forEach(o => o.selected = (d.instrumento||[]).includes(o.value)); document.getElementById('tipo_suscripcion').value = d.tipo_suscripcion; quill.root.innerHTML = d.descripcion||''; historialActual = d.historial || []; renderHistorial(); const hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00'; diasSemana.forEach(dia => { const dD = d.disponibilidad[dia.id], tI = document.getElementById(`disp-${dia.id}-inicio`), tF = document.getElementById(`disp-${dia.id}-fin`), cA = document.getElementById(`disp-${dia.id}-all`), cN = document.getElementById(`disp-${dia.id}-none`), sE = document.getElementById(`estado-${dia.id}`); tI.disabled=false; tF.disabled=false; cA.checked=false; cN.checked=false; sE.textContent=""; if (!dD || dD.length===0) { cN.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Bloqueado"; sE.style.color="#dc3545"; } else if (dD[0].inicio===hApe && dD[0].fin===hCie) { cA.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Libre"; sE.style.color="#28a745"; } else { tI.value = dD[0].inicio; tF.value = dD[0].fin; } }); }
+async function llenarFormularioAlumno(id) {
+    document.getElementById('alumno-id').value = id; const d = (await getDoc(doc(db, "alumnos", id))).data(); document.getElementById('nombre').value = d.nombre; document.getElementById('celular').value = d.celular; document.getElementById('edad').value = d.edad||''; await cargarSelectsAlumnos();
+    const sI = document.getElementById('instrumento'); Array.from(sI.options).forEach(o => o.selected = (d.instrumento||[]).includes(o.value)); document.getElementById('tipo_suscripcion').value = d.tipo_suscripcion; quill.root.innerHTML = d.descripcion||''; historialActual = d.historial || []; renderHistorial();
+    const hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00';
+    diasSemana.forEach(dia => { const dD = d.disponibilidad[dia.id], tI = document.getElementById(`disp-${dia.id}-inicio`), tF = document.getElementById(`disp-${dia.id}-fin`), cA = document.getElementById(`disp-${dia.id}-all`), cN = document.getElementById(`disp-${dia.id}-none`), sE = document.getElementById(`estado-${dia.id}`); tI.disabled=false; tF.disabled=false; cA.checked=false; cN.checked=false; sE.textContent=""; if (!dD || dD.length===0) { cN.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Bloqueado"; sE.style.color="#dc3545"; } else if (dD[0].inicio===hApe && dD[0].fin===hCie) { cA.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Libre"; sE.style.color="#28a745"; } else { tI.value = dD[0].inicio; tF.value = dD[0].fin; } });
+}
 
-document.getElementById('form-alumno').addEventListener('submit', async (e) => { e.preventDefault(); const disp = {}, hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00'; diasSemana.forEach(d => { const cA = document.getElementById(`disp-${d.id}-all`).checked, cN = document.getElementById(`disp-${d.id}-none`).checked; let i = document.getElementById(`disp-${d.id}-inicio`).value, f = document.getElementById(`disp-${d.id}-fin`).value; if(cN) disp[d.id] = []; else if(cA) disp[d.id] = [{inicio:hApe, fin:hCie}]; else { if(i||f) disp[d.id] = [{inicio: i||hApe, fin: f||hCie}]; else disp[d.id] = []; } }); const selInst = document.getElementById('instrumento'), instV = Array.from(selInst.selectedOptions).map(o=>o.value), data = { nombre: document.getElementById('nombre').value, celular: document.getElementById('celular').value, edad: Number(document.getElementById('edad').value), instrumento: instV, tipo_suscripcion: document.getElementById('tipo_suscripcion').value, descripcion: quill.root.innerHTML, disponibilidad: disp, historial: historialActual }; try { const id = document.getElementById('alumno-id').value; if (id) await updateDoc(doc(db, "alumnos", id), data); else { data.estado_agenda = "Pendiente procesar"; await addDoc(collection(db, "alumnos"), data); } const wrap = document.getElementById('form-alumno-wrapper'); wrap.style.display='none'; document.body.appendChild(wrap); document.getElementById('modal-alta-alumno').close(); cargarVista(estadoActualVista); } catch(e) { alert("Error al guardar."); } });
+document.getElementById('form-alumno').addEventListener('submit', async (e) => {
+    e.preventDefault(); const disp = {}, hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00';
+    diasSemana.forEach(d => { const cA = document.getElementById(`disp-${d.id}-all`).checked, cN = document.getElementById(`disp-${d.id}-none`).checked; let i = document.getElementById(`disp-${d.id}-inicio`).value, f = document.getElementById(`disp-${d.id}-fin`).value; if(cN) disp[d.id] = []; else if(cA) disp[d.id] = [{inicio:hApe, fin:hCie}]; else { if(i||f) disp[d.id] = [{inicio: i||hApe, fin: f||hCie}]; else disp[d.id] = []; } });
+    const selInst = document.getElementById('instrumento'), instV = Array.from(selInst.selectedOptions).map(o=>o.value), data = { nombre: document.getElementById('nombre').value, celular: document.getElementById('celular').value, edad: Number(document.getElementById('edad').value), instrumento: instV, tipo_suscripcion: document.getElementById('tipo_suscripcion').value, descripcion: quill.root.innerHTML, disponibilidad: disp, historial: historialActual };
+    try { const id = document.getElementById('alumno-id').value; if (id) await updateDoc(doc(db, "alumnos", id), data); else { data.estado_agenda = "Pendiente procesar"; await addDoc(collection(db, "alumnos"), data); } const wrap = document.getElementById('form-alumno-wrapper'); wrap.style.display='none'; document.body.appendChild(wrap); document.getElementById('modal-alta-alumno').close(); cargarVista(estadoActualVista); } catch(e) { alert("Error al guardar."); }
+});
 
-function renderConfig(cont) { cont.innerHTML = ` <div class="abm-container" style="max-width:800px; padding:30px;"> <h3 style="margin-top:0; color:#212529; font-size:1.2em;">Límites y Reglas de Calendario</h3> <div style="display:flex; gap:15px; margin-bottom:25px; flex-wrap:wrap;"> <div style="flex:1; min-width:150px;"><label style="display:block; font-weight:600; color:#495057;">Hora de Apertura:<br><input type="time" id="cfg-apertura" value="${configApp.hora_apertura||'09:00'}"></label></div> <div style="flex:1; min-width:150px;"><label style="display:block; font-weight:600; color:#495057;">Hora de Cierre:<br><input type="time" id="cfg-cierre" value="${configApp.hora_cierre||'22:00'}"></label></div> </div> <div style="display:flex; gap:15px; margin-bottom:25px; flex-wrap:wrap;"> <div style="flex:1; min-width:150px;"><label style="display:block; font-weight:600; color:#495057;">Aulas totales:<br><input type="number" id="cfg-aulas" value="${configApp.cantidad_aulas}"></label></div> <div style="flex:1; min-width:150px;"><label style="display:block; font-weight:600; color:#495057;">Baterías totales:<br><input type="number" id="cfg-bats" value="${configApp.cantidad_baterias}"></label></div> </div> <h3 style="margin-top:0; color:#212529; font-size:1.2em; border-top:1px solid #dee2e6; padding-top:20px;">Calendario y Emojis de Instrumentos</h3> <div style="display:flex; gap:15px; margin-bottom:15px; flex-wrap:wrap;"> <div style="flex:1; min-width:250px;"><label style="display:block; font-weight:600; color:#495057;">Calendario por Defecto (Fallback):<br><input type="email" id="cfg-cal-defecto" value="${configApp.calendario_por_defecto||''}"></label></div> </div> <div style="display:flex; gap:10px; margin-bottom:25px; flex-wrap:wrap;"> <div style="width:80px;"><label style="display:block; font-weight:600; color:#495057;">Batería:<br><input type="text" id="cfg-idbat" value="${configApp.identificador_bateria||''}"></label></div> <div style="width:80px;"><label style="display:block; font-weight:600; color:#495057;">Guitarra:<br><input type="text" id="cfg-em-gui" value="${configApp.emoji_guitarra||'🎸'}"></label></div> <div style="width:80px;"><label style="display:block; font-weight:600; color:#495057;">Cajón:<br><input type="text" id="cfg-em-caj" value="${configApp.emoji_cajon||'📦'}"></label></div> <div style="width:80px;"><label style="display:block; font-weight:600; color:#495057;">Canto:<br><input type="text" id="cfg-em-can" value="${configApp.emoji_canto||'🎤'}"></label></div> <div style="width:80px;"><label style="display:block; font-weight:600; color:#495057;">Piano:<br><input type="text" id="cfg-em-pia" value="${configApp.emoji_piano||'🎹'}"></label></div> <div style="width:80px;"><label style="display:block; font-weight:600; color:#495057;">Bajo:<br><input type="text" id="cfg-em-baj" value="${configApp.emoji_bajo||'🎸'}"></label></div> </div> <h3 style="margin-top:0; color:#212529; font-size:1.2em; border-top:1px solid #dee2e6; padding-top:20px;">Mensajes y Textos</h3> <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Valor de Clase (Monto): <input type="text" id="cfg-valor" value="${configApp.valor_clase}"></label> <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Título Evento (Reserva): <input type="text" id="cfg-evt-res" value="${configApp.formato_evento_reserva}"></label> <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Título Evento (Confirmado): <input type="text" id="cfg-evt-conf" value="${configApp.formato_evento_confirmado}"></label> <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Nombre para Agendar (Portapapeles): <input type="text" id="cfg-nombre-agendar" value="${configApp.texto_nombre_agendar}"></label> <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Texto Validación con Profe: <textarea id="cfg-txt-p" class="config-box" style="height:150px;">${configApp.texto_profe}</textarea></label> <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Texto Validación con Alumno: <textarea id="cfg-txt-a" class="config-box" style="height:150px;">${configApp.texto_alumno}</textarea></label> <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Texto Confirmación Agenda para Profe: <textarea id="cfg-txt-conf-p" class="config-box" style="height:150px;">${configApp.texto_conf_profe}</textarea></label> <label style="display:block; margin-bottom:20px; font-weight:600; color:#495057;">Texto Confirmación Agenda para Alumno: <textarea id="cfg-txt-conf-a" class="config-box" style="height:200px;">${configApp.texto_conf_alumno}</textarea></label> <label style="display:block; margin-bottom:20px; font-weight:600; color:#dc3545;">Texto Cancelación de Alumno: <textarea id="cfg-txt-cancela" class="config-box" style="height:200px;">${configApp.texto_cancela_alumno}</textarea></label> <button id="btn-guardar-cfg" class="btn-accion-main" style="padding:10px 20px; font-size:1.05em; width:100%;">Guardar Configuración</button> </div> `; document.getElementById('btn-guardar-cfg').addEventListener('click', async () => { await setDoc(doc(db, "configuracion", "general"), { hora_apertura: document.getElementById('cfg-apertura').value, hora_cierre: document.getElementById('cfg-cierre').value, cantidad_aulas: document.getElementById('cfg-aulas').value, cantidad_baterias: document.getElementById('cfg-bats').value, identificador_bateria: document.getElementById('cfg-idbat').value, emoji_guitarra: document.getElementById('cfg-em-gui').value, emoji_cajon: document.getElementById('cfg-em-caj').value, emoji_canto: document.getElementById('cfg-em-can').value, emoji_piano: document.getElementById('cfg-em-pia').value, emoji_bajo: document.getElementById('cfg-em-baj').value, calendario_por_defecto: document.getElementById('cfg-cal-defecto').value, valor_clase: document.getElementById('cfg-valor').value, formato_evento_reserva: document.getElementById('cfg-evt-res').value, formato_evento_confirmado: document.getElementById('cfg-evt-conf').value, texto_nombre_agendar: document.getElementById('cfg-nombre-agendar').value, texto_profe: document.getElementById('cfg-txt-p').value, texto_alumno: document.getElementById('cfg-txt-a').value, texto_conf_profe: document.getElementById('cfg-txt-conf-p').value, texto_conf_alumno: document.getElementById('cfg-txt-conf-a').value, texto_cancela_alumno: document.getElementById('cfg-txt-cancela').value }, { merge: true }); await cargarConfig(); alert('Guardado.'); }); }
+function renderConfig(cont) {
+    cont.innerHTML = `
+        <div class="abm-container" style="max-width:800px; padding:30px;">
+            <h3 style="margin-top:0; color:#212529; font-size:1.2em;">Límites y Reglas de Calendario</h3>
+            <div style="display:flex; gap:15px; margin-bottom:25px; flex-wrap:wrap;">
+                <div style="flex:1; min-width:150px;"><label style="display:block; font-weight:600; color:#495057;">Hora de Apertura:<br><input type="time" id="cfg-apertura" value="${configApp.hora_apertura||'09:00'}"></label></div>
+                <div style="flex:1; min-width:150px;"><label style="display:block; font-weight:600; color:#495057;">Hora de Cierre:<br><input type="time" id="cfg-cierre" value="${configApp.hora_cierre||'22:00'}"></label></div>
+            </div>
+            <div style="display:flex; gap:15px; margin-bottom:25px; flex-wrap:wrap;">
+                <div style="flex:1; min-width:150px;"><label style="display:block; font-weight:600; color:#495057;">Aulas totales:<br><input type="number" id="cfg-aulas" value="${configApp.cantidad_aulas}"></label></div>
+                <div style="flex:1; min-width:150px;"><label style="display:block; font-weight:600; color:#495057;">Baterías totales:<br><input type="number" id="cfg-bats" value="${configApp.cantidad_baterias}"></label></div>
+            </div>
+            
+            <h3 style="margin-top:0; color:#212529; font-size:1.2em; border-top:1px solid #dee2e6; padding-top:20px;">Calendario y Emojis de Instrumentos</h3>
+            <div style="display:flex; gap:15px; margin-bottom:15px; flex-wrap:wrap;">
+                <div style="flex:1; min-width:250px;"><label style="display:block; font-weight:600; color:#495057;">Calendario por Defecto (Fallback):<br><input type="email" id="cfg-cal-defecto" value="${configApp.calendario_por_defecto||''}"></label></div>
+            </div>
+            <div style="display:flex; gap:10px; margin-bottom:25px; flex-wrap:wrap;">
+                <div style="width:80px;"><label style="display:block; font-weight:600; color:#495057;">Batería:<br><input type="text" id="cfg-idbat" value="${configApp.identificador_bateria||''}"></label></div>
+                <div style="width:80px;"><label style="display:block; font-weight:600; color:#495057;">Guitarra:<br><input type="text" id="cfg-em-gui" value="${configApp.emoji_guitarra||'🎸'}"></label></div>
+                <div style="width:80px;"><label style="display:block; font-weight:600; color:#495057;">Cajón:<br><input type="text" id="cfg-em-caj" value="${configApp.emoji_cajon||'📦'}"></label></div>
+                <div style="width:80px;"><label style="display:block; font-weight:600; color:#495057;">Canto:<br><input type="text" id="cfg-em-can" value="${configApp.emoji_canto||'🎤'}"></label></div>
+                <div style="width:80px;"><label style="display:block; font-weight:600; color:#495057;">Piano:<br><input type="text" id="cfg-em-pia" value="${configApp.emoji_piano||'🎹'}"></label></div>
+                <div style="width:80px;"><label style="display:block; font-weight:600; color:#495057;">Bajo:<br><input type="text" id="cfg-em-baj" value="${configApp.emoji_bajo||'🎸'}"></label></div>
+            </div>
 
-function cargarABM(coleccion, titulo, cont) { window.tituloABMActual = titulo; getDocs(collection(db, coleccion)).then(qS => { let h = `<div class="abm-container" style="display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap; padding:25px;"><div style="flex-grow:1; min-width:180px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Nombre</label><input type="text" id="input-nuevo-abm" placeholder="Ej: Guitarra"></div>`; if(coleccion === 'profesores') { h += `<div style="flex-grow:1; min-width:200px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Email Calendar</label><input type="email" id="input-correo-abm" placeholder="ejemplo@calendar..."></div><div style="flex-grow:1; min-width:150px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Celular (Para guardar)</label><input type="text" id="input-celular-abm" placeholder="Ej: 54911..."></div><div style="flex-grow:1; min-width:150px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Alias Transferencia</label><input type="text" id="input-alias-abm" placeholder="alias.mp"></div><div style="padding-bottom:10px;"><label style="white-space:nowrap; cursor:pointer; font-weight:600; color:#212529;"><input type="checkbox" id="input-entrevista-abm" checked> Entrevistas</label></div>`; } h += `<button id="btn-guardar-abm" class="btn-accion-main" style="height:40px; min-width:120px;">+ Agregar</button></div>`; qS.forEach(d => { const dt = d.data(); let ex = coleccion==='profesores' ? ` <br><small style="color:#6c757d;">${dt.correo_calendario}</small> <span class="badge ${dt.entrevista?'badge-success':'badge-danger'}" style="margin-left:10px;">${dt.entrevista?'SÍ':'NO'} Entrevistas</span>` : ''; h += `<div class="abm-item" onclick="window.abrirEdicionABM('${d.id}', '${coleccion}', '${dt.nombre}', '${dt.correo_calendario||''}', '${dt.celular||''}', '${dt.alias_transferencia||''}', ${!!dt.entrevista})"><span style="font-weight:600; color:#212529; font-size:1.05em;">${dt.nombre}${ex}</span><button class="btn-suspender" onclick="event.stopPropagation(); window.eliminarABM('${d.id}', '${coleccion}')" style="padding:6px 10px; border:none; font-size:1.2em;" title="Eliminar">❌</button></div>`; }); cont.innerHTML = h; document.getElementById('btn-guardar-abm').addEventListener('click', async () => { const n = document.getElementById('input-nuevo-abm').value.trim(); if(!n) return; const dO = { nombre: n }; if(coleccion==='profesores'){ dO.correo_calendario=document.getElementById('input-correo-abm').value.trim(); dO.celular=document.getElementById('input-celular-abm').value.trim(); dO.alias_transferencia=document.getElementById('input-alias-abm').value.trim(); dO.entrevista=document.getElementById('input-entrevista-abm').checked; const hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00', dispAllDay = [ { inicio: hApe, fin: hCie } ]; dO.disponibilidad = { 'L': dispAllDay, 'M': dispAllDay, 'X': dispAllDay, 'J': dispAllDay, 'V': dispAllDay, 'S': dispAllDay }; } await addDoc(collection(db, coleccion), dO); cargarABM(coleccion, titulo, cont); }); }); }
+            <h3 style="margin-top:0; color:#212529; font-size:1.2em; border-top:1px solid #dee2e6; padding-top:20px;">Mensajes y Textos</h3>
+            <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Valor de Clase (Monto): <input type="text" id="cfg-valor" value="${configApp.valor_clase}"></label>
+            <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Título Evento (Reserva): <input type="text" id="cfg-evt-res" value="${configApp.formato_evento_reserva}"></label>
+            <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Título Evento (Confirmado): <input type="text" id="cfg-evt-conf" value="${configApp.formato_evento_confirmado}"></label>
+            <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Nombre para Agendar (Portapapeles): <input type="text" id="cfg-nombre-agendar" value="${configApp.texto_nombre_agendar}"></label>
+            
+            <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Texto Validación con Profe: <textarea id="cfg-txt-p" class="config-box" style="height:150px;">${configApp.texto_profe}</textarea></label>
+            <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Texto Validación con Alumno: <textarea id="cfg-txt-a" class="config-box" style="height:150px;">${configApp.texto_alumno}</textarea></label>
+            <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Texto Confirmación Agenda para Profe: <textarea id="cfg-txt-conf-p" class="config-box" style="height:150px;">${configApp.texto_conf_profe}</textarea></label>
+            <label style="display:block; margin-bottom:20px; font-weight:600; color:#495057;">Texto Confirmación Agenda para Alumno: <textarea id="cfg-txt-conf-a" class="config-box" style="height:200px;">${configApp.texto_conf_alumno}</textarea></label>
+            <label style="display:block; margin-bottom:20px; font-weight:600; color:#dc3545;">Texto Cancelación de Alumno: <textarea id="cfg-txt-cancela" class="config-box" style="height:200px;">${configApp.texto_cancela_alumno}</textarea></label>
+            <button id="btn-guardar-cfg" class="btn-accion-main" style="padding:10px 20px; font-size:1.05em; width:100%;">Guardar Configuración</button>
+        </div>
+    `;
+    document.getElementById('btn-guardar-cfg').addEventListener('click', async () => {
+        await setDoc(doc(db, "configuracion", "general"), { 
+            hora_apertura: document.getElementById('cfg-apertura').value, 
+            hora_cierre: document.getElementById('cfg-cierre').value, 
+            cantidad_aulas: document.getElementById('cfg-aulas').value, 
+            cantidad_baterias: document.getElementById('cfg-bats').value, 
+            identificador_bateria: document.getElementById('cfg-idbat').value, 
+            emoji_guitarra: document.getElementById('cfg-em-gui').value,
+            emoji_cajon: document.getElementById('cfg-em-caj').value,
+            emoji_canto: document.getElementById('cfg-em-can').value,
+            emoji_piano: document.getElementById('cfg-em-pia').value,
+            emoji_bajo: document.getElementById('cfg-em-baj').value,
+            calendario_por_defecto: document.getElementById('cfg-cal-defecto').value, 
+            valor_clase: document.getElementById('cfg-valor').value, 
+            formato_evento_reserva: document.getElementById('cfg-evt-res').value, 
+            formato_evento_confirmado: document.getElementById('cfg-evt-conf').value, 
+            texto_nombre_agendar: document.getElementById('cfg-nombre-agendar').value, 
+            texto_profe: document.getElementById('cfg-txt-p').value, 
+            texto_alumno: document.getElementById('cfg-txt-a').value, 
+            texto_conf_profe: document.getElementById('cfg-txt-conf-p').value, 
+            texto_conf_alumno: document.getElementById('cfg-txt-conf-a').value,
+            texto_cancela_alumno: document.getElementById('cfg-txt-cancela').value 
+        }, { merge: true });
+        await cargarConfig(); alert('Guardado.');
+    });
+}
 
-window.abrirEdicionABM = async function(id, col, nom, cor, cel, ali, ent) { document.getElementById('abm-edit-id').value = id; document.getElementById('abm-edit-coleccion').value = col; document.getElementById('abm-edit-nombre').value = nom; if(col==='profesores') { document.getElementById('div-abm-edit-profe').style.display='block'; document.getElementById('abm-edit-correo').value=cor; document.getElementById('abm-edit-celular').value=cel; document.getElementById('abm-edit-alias').value=ali; document.getElementById('abm-edit-entrevista').checked=ent; try { const pr = (await getDoc(doc(db, col, id))).data(); const hApe = configApp.hora_apertura || '09:00'; const hCie = configApp.hora_cierre || '22:00'; diasSemana.forEach(dia => { const dD = pr.disponibilidad ? pr.disponibilidad[dia.id] : []; const tI = document.getElementById(`disp-p-${dia.id}-inicio`), tF = document.getElementById(`disp-p-${dia.id}-fin`), cA = document.getElementById(`disp-p-${dia.id}-all`), cN = document.getElementById(`disp-p-${dia.id}-none`), sE = document.getElementById(`estado-p-${dia.id}`); tI.disabled=false; tF.disabled=false; cA.checked=false; cN.checked=false; sE.textContent=""; if (!dD || dD.length===0) { cN.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Bloqueado"; sE.style.color="#dc3545"; } else if (dD[0].inicio===hApe && dD[0].fin===hCie) { cA.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Libre"; sE.style.color="#28a745"; } else { tI.value = dD[0].inicio; tF.value = dD[0].fin; } }); } catch(e) {} } else document.getElementById('div-abm-edit-profe').style.display='none'; document.getElementById('modal-abm-edit').showModal(); }
+function cargarABM(coleccion, titulo, cont) {
+    window.tituloABMActual = titulo;
+    getDocs(collection(db, coleccion)).then(qS => {
+        let h = `<div class="abm-container" style="display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap; padding:25px;"><div style="flex-grow:1; min-width:180px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Nombre</label><input type="text" id="input-nuevo-abm" placeholder="Ej: Guitarra"></div>`;
+        if(coleccion === 'profesores') { h += `<div style="flex-grow:1; min-width:200px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Email Calendar</label><input type="email" id="input-correo-abm" placeholder="ejemplo@calendar..."></div><div style="flex-grow:1; min-width:150px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Celular (Para guardar)</label><input type="text" id="input-celular-abm" placeholder="Ej: 54911..."></div><div style="flex-grow:1; min-width:150px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Alias Transferencia</label><input type="text" id="input-alias-abm" placeholder="alias.mp"></div><div style="padding-bottom:10px;"><label style="white-space:nowrap; cursor:pointer; font-weight:600; color:#212529;"><input type="checkbox" id="input-entrevista-abm" checked> Entrevistas</label></div>`; }
+        h += `<button id="btn-guardar-abm" class="btn-accion-main" style="height:40px; min-width:120px;">+ Agregar</button></div>`;
+        
+        qS.forEach(d => {
+            const dt = d.data(); let ex = coleccion==='profesores' ? ` <br><small style="color:#6c757d;">${dt.correo_calendario}</small> <span class="badge ${dt.entrevista?'badge-success':'badge-danger'}" style="margin-left:10px;">${dt.entrevista?'SÍ':'NO'} Entrevistas</span>` : '';
+            h += `<div class="abm-item" onclick="window.abrirEdicionABM('${d.id}', '${coleccion}', '${dt.nombre}', '${dt.correo_calendario||''}', '${dt.celular||''}', '${dt.alias_transferencia||''}', ${!!dt.entrevista})"><span style="font-weight:600; color:#212529; font-size:1.05em;">${dt.nombre}${ex}</span><button class="btn-suspender" onclick="event.stopPropagation(); window.eliminarABM('${d.id}', '${coleccion}')" style="padding:6px 10px; border:none; font-size:1.2em;" title="Eliminar">❌</button></div>`;
+        });
+        cont.innerHTML = h;
+
+        document.getElementById('btn-guardar-abm').addEventListener('click', async () => {
+            const n = document.getElementById('input-nuevo-abm').value.trim(); if(!n) return;
+            const dO = { nombre: n };
+            if(coleccion==='profesores'){ 
+                dO.correo_calendario=document.getElementById('input-correo-abm').value.trim(); dO.celular=document.getElementById('input-celular-abm').value.trim(); dO.alias_transferencia=document.getElementById('input-alias-abm').value.trim(); dO.entrevista=document.getElementById('input-entrevista-abm').checked; 
+                const hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00', dispAllDay = [ { inicio: hApe, fin: hCie } ];
+                dO.disponibilidad = { 'L': dispAllDay, 'M': dispAllDay, 'X': dispAllDay, 'J': dispAllDay, 'V': dispAllDay, 'S': dispAllDay };
+            }
+            await addDoc(collection(db, coleccion), dO); cargarABM(coleccion, titulo, cont);
+        });
+    });
+}
+
+window.abrirEdicionABM = async function(id, col, nom, cor, cel, ali, ent) {
+    document.getElementById('abm-edit-id').value = id; document.getElementById('abm-edit-coleccion').value = col; document.getElementById('abm-edit-nombre').value = nom;
+    if(col==='profesores') { 
+        document.getElementById('div-abm-edit-profe').style.display='block'; document.getElementById('abm-edit-correo').value=cor; document.getElementById('abm-edit-celular').value=cel; document.getElementById('abm-edit-alias').value=ali; document.getElementById('abm-edit-entrevista').checked=ent; 
+        try {
+            const pr = (await getDoc(doc(db, col, id))).data(); const hApe = configApp.hora_apertura || '09:00'; const hCie = configApp.hora_cierre || '22:00';
+            diasSemana.forEach(dia => {
+                const dD = pr.disponibilidad ? pr.disponibilidad[dia.id] : []; const tI = document.getElementById(`disp-p-${dia.id}-inicio`), tF = document.getElementById(`disp-p-${dia.id}-fin`), cA = document.getElementById(`disp-p-${dia.id}-all`), cN = document.getElementById(`disp-p-${dia.id}-none`), sE = document.getElementById(`estado-p-${dia.id}`);
+                tI.disabled=false; tF.disabled=false; cA.checked=false; cN.checked=false; sE.textContent="";
+                if (!dD || dD.length===0) { cN.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Bloqueado"; sE.style.color="#dc3545"; }
+                else if (dD[0].inicio===hApe && dD[0].fin===hCie) { cA.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Libre"; sE.style.color="#28a745"; } else { tI.value = dD[0].inicio; tF.value = dD[0].fin; }
+            });
+        } catch(e) {}
+    } else document.getElementById('div-abm-edit-profe').style.display='none';
+    document.getElementById('modal-abm-edit').showModal();
+}
 
 window.eliminarABM = async function(id, col) { if(confirm("¿Eliminar?")) { await deleteDoc(doc(db, col, id)); document.querySelector(`[data-vista="ABM-${window.tituloABMActual}"]`).click(); } }
 
-document.getElementById('btn-guardar-abm-edit').addEventListener('click', async () => { const id = document.getElementById('abm-edit-id').value, col = document.getElementById('abm-edit-coleccion').value, dO = { nombre: document.getElementById('abm-edit-nombre').value }; if(col==='profesores') { dO.correo_calendario=document.getElementById('abm-edit-correo').value; dO.celular=document.getElementById('abm-edit-celular').value; dO.alias_transferencia=document.getElementById('abm-edit-alias').value; dO.entrevista=document.getElementById('abm-edit-entrevista').checked; const disp = {}; const hApe = configApp.hora_apertura || '09:00'; const hCie = configApp.hora_cierre || '22:00'; diasSemana.forEach(d => { const cA = document.getElementById(`disp-p-${d.id}-all`).checked, cN = document.getElementById(`disp-p-${d.id}-none`).checked; let i = document.getElementById(`disp-p-${d.id}-inicio`).value, f = document.getElementById(`disp-p-${d.id}-fin`).value; if(cN) disp[d.id] = []; else if(cA) disp[d.id] = [{inicio:hApe, fin:hCie}]; else { if(i||f) disp[d.id] = [{inicio: i||hApe, fin: f||hCie}]; else disp[d.id] = []; } }); dO.disponibilidad = disp; } await updateDoc(doc(db, col, id), dO); document.getElementById('modal-abm-edit').close(); document.querySelector(`[data-vista="ABM-${window.tituloABMActual}"]`).click(); });
+document.getElementById('btn-guardar-abm-edit').addEventListener('click', async () => {
+    const id = document.getElementById('abm-edit-id').value, col = document.getElementById('abm-edit-coleccion').value, dO = { nombre: document.getElementById('abm-edit-nombre').value };
+    if(col==='profesores') { 
+        dO.correo_calendario=document.getElementById('abm-edit-correo').value; dO.celular=document.getElementById('abm-edit-celular').value; dO.alias_transferencia=document.getElementById('abm-edit-alias').value; dO.entrevista=document.getElementById('abm-edit-entrevista').checked; 
+        const disp = {}; const hApe = configApp.hora_apertura || '09:00'; const hCie = configApp.hora_cierre || '22:00';
+        diasSemana.forEach(d => { const cA = document.getElementById(`disp-p-${d.id}-all`).checked, cN = document.getElementById(`disp-p-${d.id}-none`).checked; let i = document.getElementById(`disp-p-${d.id}-inicio`).value, f = document.getElementById(`disp-p-${d.id}-fin`).value; if(cN) disp[d.id] = []; else if(cA) disp[d.id] = [{inicio:hApe, fin:hCie}]; else { if(i||f) disp[d.id] = [{inicio: i||hApe, fin: f||hCie}]; else disp[d.id] = []; } });
+        dO.disponibilidad = disp;
+    }
+    await updateDoc(doc(db, col, id), dO); document.getElementById('modal-abm-edit').close(); document.querySelector(`[data-vista="ABM-${window.tituloABMActual}"]`).click();
+});
