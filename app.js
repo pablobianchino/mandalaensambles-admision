@@ -141,24 +141,39 @@ async function cargarConfig() {
     configApp = docSnap.exists() ? { ...defaultCfg, ...docSnap.data() } : defaultCfg;
 }
 
-function reemplazarVariables(texto, datos) { let res = texto; for (const [key, value] of Object.entries(datos)) res = res.replaceAll(`{${key}}`, value || ''); return res; }
+// Función súper robusta: reemplaza variables y destruye las que no se encontraron
+function reemplazarVariables(texto, datos) { 
+    let res = texto; 
+    for (const [key, value] of Object.entries(datos)) {
+        res = res.replaceAll(`{${key}}`, value || ''); 
+    }
+    // Borrar cualquier sobrante {variable} que haya quedado en el texto
+    res = res.replace(/\{[a-zA-Z0-9_]+\}/g, '');
+    return res; 
+}
+
 function formatoLocalISO(date) { const tzo = -date.getTimezoneOffset(), dif = tzo >= 0 ? '+' : '-', pad = num => (num < 10 ? '0' : '') + num; return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + 'T' + pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds()) + dif + pad(Math.floor(Math.abs(tzo) / 60)) + ':' + pad(Math.abs(tzo) % 60); }
 function formatearFechaAmi(fechaIsoStr) { const d = new Date(fechaIsoStr), dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']; let min = d.getMinutes(); let minStr = min === 0 ? 'hs' : `:${min < 10 ? '0'+min : min}hs`; return `${dias[d.getDay()]} ${d.getDate()}/${d.getMonth()+1} ${d.getHours()}${minStr}`; }
 
-// Nuevo Generador de Títulos de Evento (Maneja Emojis Dinámicos y Sufijo de Profe en el Calendario por Defecto)
+// Nuevo Generador de Títulos de Evento
 function construirTitulosEvento(al, tipo, cfg) {
     let template = tipo === 'reserva' ? cfg.formato_evento_reserva : cfg.formato_evento_confirmado;
+    
+    // Auto-corregir plantillas viejas que vienen de la base de datos
+    if (template === '? {profe} Ent {alumno}') template = '❓📋 {emojiinstrumento} {alumno} {edad}';
+    if (template === '📋🎸{instrumento} - {alumno} {edad}') template = '✅📋 {emojiinstrumento} {alumno} {edad}';
+
     let emojis = [];
     const insts = Array.isArray(al.instrumento) ? al.instrumento : [al.instrumento];
     
     insts.forEach(i => {
         let instL = (i || '').toLowerCase();
-        if (instL.includes('bater')) emojis.push(cfg.identificador_bateria || '');
-        else if (instL.includes('guitarra')) emojis.push(cfg.emoji_guitarra || '');
-        else if (instL.includes('cajón') || instL.includes('cajon')) emojis.push(cfg.emoji_cajon || '');
-        else if (instL.includes('canto')) emojis.push(cfg.emoji_canto || '');
-        else if (instL.includes('piano') || instL.includes('teclado')) emojis.push(cfg.emoji_piano || '');
-        else if (instL.includes('bajo')) emojis.push(cfg.emoji_bajo || '');
+        if (instL.includes('bater')) emojis.push(cfg.identificador_bateria || '🥁');
+        else if (instL.includes('guitarra')) emojis.push(cfg.emoji_guitarra || '🎸');
+        else if (instL.includes('cajón') || instL.includes('cajon')) emojis.push(cfg.emoji_cajon || '📦');
+        else if (instL.includes('canto') || instL.includes('voz')) emojis.push(cfg.emoji_canto || '🎤');
+        else if (instL.includes('piano') || instL.includes('teclado')) emojis.push(cfg.emoji_piano || '🎹');
+        else if (instL.includes('bajo')) emojis.push(cfg.emoji_bajo || '🎸');
     });
     
     let strEmojis = [...new Set(emojis.filter(e => e))].join(''); 
@@ -167,19 +182,19 @@ function construirTitulosEvento(al, tipo, cfg) {
     let tituloProfe = reemplazarVariables(template, {
         alumno: al.nombre,
         edad: al.edad || '',
-        emoji_instrumento: strEmojis,
-        emojiinstrumento: strEmojis
+        emojiinstrumento: strEmojis,
+        instrumento: insts.join(', ') // Por si usan la variable vieja
     }).replace(/\s+/g, ' ').trim();
 
     // Armamos el bloque de emojis + nombre del profe para el calendario por defecto
     let profeStr = al.reserva_profe_nombre ? ` (${al.reserva_profe_nombre})` : '';
-    let strEmojisConProfe = (strEmojis + profeStr).trim();
+    let strEmojisConProfe = strEmojis ? `${strEmojis}${profeStr}` : profeStr.trim();
 
     let tituloDefecto = reemplazarVariables(template, {
         alumno: al.nombre,
         edad: al.edad || '',
-        emoji_instrumento: strEmojisConProfe,
-        emojiinstrumento: strEmojisConProfe
+        emojiinstrumento: strEmojisConProfe,
+        instrumento: insts.join(', ')
     }).replace(/\s+/g, ' ').trim();
     
     return { tituloProfe, tituloDefecto };
@@ -314,7 +329,7 @@ function chequearDisponibilidadExacta(inicioTestMs, finTestMs, eventosAPI, cantA
         eventosCruzados.forEach(ev => {
             if (puntoMedioMs >= new Date(ev.start.dateTime).getTime() && puntoMedioMs < new Date(ev.end.dateTime).getTime()) {
                 simultaneosAulas++; profesOcupados.add(ev.profeId);
-                if (ev.summary && ev.summary.toLowerCase().includes(cfgEmoji.toLowerCase())) {
+                if (ev.summary && ev.summary.toLowerCase().includes((cfgEmoji||'').toLowerCase())) {
                     simultaneosBat++;
                 }
             }
