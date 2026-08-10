@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mandala Ensambles Seguimientos</title>
     
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     
@@ -32,17 +33,25 @@
                 <small>Seguimiento de nuevos alumnos</small>
             </div>
             
-            <div class="nav-item active" data-vista="Resumen">Resumen</div>
-            <div class="nav-item" data-vista="Gestiones en Curso">Gestiones en Curso</div>
-            <div class="nav-item" data-vista="Agendas Confirmadas">Agendas Confirmadas</div>
-            <div class="nav-item" data-vista="Agendas Suspendidas">Agendas Suspendidas</div>
-            <div class="nav-item" data-vista="Estadísticas">Estadísticas</div>
-            
-            <h3 style="padding: 0 20px; font-size: 0.8em; text-transform: uppercase; color: #aaa; letter-spacing: 1px; margin: 15px 0 5px 0;">Administración</h3>
-            <div class="nav-item" data-vista="ABM-Profesores">Profesores</div>
-            <div class="nav-item" data-vista="ABM-Instrumentos">Instrumentos</div>
-            <div class="nav-item" data-vista="ABM-Suscripciones">Suscripciones</div>
-            <div class="nav-item" data-vista="Configuración">Configuración</div>
+           <!-- Pega esto reemplazando los botones actuales de tu menú lateral -->
+<div class="nav-item active" data-vista="Resumen" style="cursor:pointer; padding:10px; border-bottom:1px solid #ddd;">
+    <span style="filter: grayscale(100%); margin-right:8px;">📋</span> Resumen
+</div>
+<div class="nav-item" data-vista="Gestiones en Curso" style="cursor:pointer; padding:10px; border-bottom:1px solid #ddd;">
+    <span style="filter: grayscale(100%); margin-right:8px;">⏳</span> Pendientes
+</div>
+<div class="nav-item" data-vista="Agendas Confirmadas" style="cursor:pointer; padding:10px; border-bottom:1px solid #ddd;">
+    <span style="filter: grayscale(100%); margin-right:8px;">✔️</span> Confirmadas
+</div>
+<div class="nav-item" data-vista="Agendas Suspendidas" style="cursor:pointer; padding:10px; border-bottom:1px solid #ddd;">
+    <span style="filter: grayscale(100%); margin-right:8px;">⏸️</span> Suspendidas
+</div>
+<div class="nav-item" data-vista="Estadísticas" style="cursor:pointer; padding:10px; border-bottom:1px solid #ddd;">
+    <span style="filter: grayscale(100%); margin-right:8px;">📊</span> Estadísticas
+</div>
+<div class="nav-item" data-vista="Configuración" style="cursor:pointer; padding:10px; border-bottom:1px solid #ddd;">
+    <span style="filter: grayscale(100%); margin-right:8px;">⚙️</span> Configuración
+</div>
         </nav>
         
         <main id="main">
@@ -222,5 +231,6 @@
     </dialog>
 
     <script type="module" src="app.js"></script>
+    <div id="toast-container" style="position:fixed; bottom:20px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
 </body>
 </html>
