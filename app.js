@@ -418,7 +418,7 @@ async function cargarVista(vista) {
         try { const estMap = { 'Agendas Confirmadas': 'Agenda confirmada', 'Agendas Suspendidas': 'Agenda suspendida' }; const qSnap = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", estMap[vista]))); if(!qSnap.empty) contLista.innerHTML = qSnap.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join(''); } catch(e) { console.error(e); }
     } else if (vista === 'Estadísticas') {
         contEstad.style.display = 'flex'; renderCharts();
-    } } else if (vista === 'Configuración') {
+    } else if (vista === 'Configuración') {
         contLista.style.display = 'flex'; contLista.innerHTML = ''; renderConfigHub(contLista);
     } else if (vista === 'Ajustes Generales') {
         contLista.style.display = 'flex'; contLista.innerHTML = ''; renderConfig(contLista);
