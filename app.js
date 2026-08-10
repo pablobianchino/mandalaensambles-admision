@@ -203,30 +203,58 @@ async function eliminarEventoSeguro(al) {
 
 function chequearDisponibilidadExacta(inicioTestMs, finTestMs, eventosAPI, cantAulas, cantBat, esBateria, cfgEmoji) {
     let picosAulas = 0; let picosBateria = 0; let profesOcupados = new Set();
-    const eventosCruzados = eventosAPI.filter(ev => { if (!ev.start || !ev.start.dateTime) return false; return (inicioTestMs < new Date(ev.end.dateTime).getTime() && finTestMs > new Date(ev.start.dateTime).getTime()); });
+    const eventosCruzados = eventosAPI.filter(ev => { 
+        if (!ev.start || !ev.start.dateTime) return false; 
+        // Añadimos 1 minuto (60000ms) de margen de tolerancia para eventos pegados (ej. 16 a 17 y 17 a 18)
+        const evS = new Date(ev.start.dateTime).getTime() + 60000;
+        const evE = new Date(ev.end.dateTime).getTime() - 60000;
+        return (inicioTestMs < evE && finTestMs > evS); 
+    });
     if (eventosCruzados.length === 0) return { valido: true, profesOcupados: new Set() };
     const puntosDeTiempo = new Set([inicioTestMs, finTestMs]);
-    eventosCruzados.forEach(ev => { const i = new Date(ev.start.dateTime).getTime(); const f = new Date(ev.end.dateTime).getTime(); if (i > inicioTestMs && i < finTestMs) puntosDeTiempo.add(i); if (f > inicioTestMs && f < finTestMs) puntosDeTiempo.add(f); });
+    eventosCruzados.forEach(ev => { 
+        const i = new Date(ev.start.dateTime).getTime(); 
+        const f = new Date(ev.end.dateTime).getTime(); 
+        if (i > inicioTestMs && i < finTestMs) puntosDeTiempo.add(i); 
+        if (f > inicioTestMs && f < finTestMs) puntosDeTiempo.add(f); 
+    });
     const arrayPuntos = Array.from(puntosDeTiempo).sort((a,b) => a-b);
     for (let i = 0; i < arrayPuntos.length - 1; i++) {
         const puntoMedioMs = arrayPuntos[i] + 1000; let simultaneosAulas = 0; let simultaneosBat = 0;
-        eventosCruzados.forEach(ev => { if (puntoMedioMs >= new Date(ev.start.dateTime).getTime() && puntoMedioMs < new Date(ev.end.dateTime).getTime()) { simultaneosAulas++; profesOcupados.add(ev.profeId); if (ev.summary && ev.summary.toLowerCase().includes((cfgEmoji||'').toLowerCase())) simultaneosBat++; } });
-        if (simultaneosAulas > picosAulas) picosAulas = simultaneosAulas; if (simultaneosBat > picosBateria) picosBateria = simultaneosBat;
+        eventosCruzados.forEach(ev => {
+            const evS = new Date(ev.start.dateTime).getTime();
+            const evE = new Date(ev.end.dateTime).getTime();
+            if (puntoMedioMs >= evS && puntoMedioMs < evE) {
+                simultaneosAulas++; profesOcupados.add(ev.profeId);
+                if (ev.summary && ev.summary.toLowerCase().includes((cfgEmoji||'').toLowerCase())) simultaneosBat++;
+            }
+        });
+        if (simultaneosAulas > picosAulas) picosAulas = simultaneosAulas;
+        if (simultaneosBat > picosBateria) picosBateria = simultaneosBat;
     }
     return { valido: (picosAulas < cantAulas) && (esBateria ? picosBateria < cantBat : true), profesOcupados };
 }
 
 function chequearProfeDisponible(pr, hIniB, finMs, lDia) {
     if (!pr.disponibilidad || !pr.disponibilidad[lDia] || pr.disponibilidad[lDia].length === 0) return false; 
-    const slotStartMins = hIniB.getHours() * 60 + hIniB.getMinutes(); let endH = new Date(finMs).getHours(); let endM = new Date(finMs).getMinutes(); if (endH === 0 && endM === 0) endH = 24;
+    const slotStartMins = hIniB.getHours() * 60 + hIniB.getMinutes(); 
+    let endH = new Date(finMs).getHours(); let endM = new Date(finMs).getMinutes(); 
+    if (endH === 0 && endM === 0) endH = 24;
     const slotEndMins = endH * 60 + endM; let disponible = false;
-    pr.disponibilidad[lDia].forEach(rango => { const pStartMins = parseInt(rango.inicio.split(':')[0])*60 + parseInt(rango.inicio.split(':')[1]); const pEndMins = parseInt(rango.fin.split(':')[0])*60 + parseInt(rango.fin.split(':')[1]); if (slotStartMins >= pStartMins && slotEndMins <= pEndMins) disponible = true; });
+    pr.disponibilidad[lDia].forEach(rango => {
+        const pStartMins = parseInt(rango.inicio.split(':')[0])*60 + parseInt(rango.inicio.split(':')[1]);
+        const pEndMins = parseInt(rango.fin.split(':')[0])*60 + parseInt(rango.fin.split(':')[1]);
+        if (slotStartMins >= pStartMins && slotEndMins <= pEndMins) { disponible = true; }
+    });
     return disponible;
 }
 
 function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, todosLosProfes, profesFiltradosIDs, dStart, dEnd, cfg) {
     const opciones = [], mapaDias = { 0:"D", 1:"L", 2:"M", 3:"X", 4:"J", 5:"V", 6:"S" };
-    const durMs = 60*60*1000; const slotPasoMs = 30*60*1000; const cantAulas = parseInt(cfg.cantidad_aulas)||3; const cantBat = parseInt(cfg.cantidad_baterias)||2;
+    // Vuelve a 60 minutos la duración del bloque en Calendar
+    const durMs = 60*60*1000; 
+    const slotPasoMs = 30*60*1000; 
+    const cantAulas = parseInt(cfg.cantidad_aulas)||3; const cantBat = parseInt(cfg.cantidad_baterias)||2;
     const diffDays = Math.floor(Math.abs(dEnd - dStart) / (1000*60*60*24));
 
     for (let i = 0; i <= diffDays; i++) {
@@ -245,7 +273,10 @@ function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, todosLosProfes, pr
                         todosLosProfes.forEach(pr => {
                             if (profesFiltradosIDs.includes(pr.id) && !evalOverlap.profesOcupados.has(pr.id)) {
                                 if (chequearProfeDisponible(pr, hIniB, finMs, lDia)) {
-                                    opciones.push({ fechaTextoAmi: formatearFechaAmi(hIniB.toISOString()), profeId: pr.id, profeNombre: pr.nombre, calId: pr.calId, inicioData: formatoLocalISO(hIniB), finData: formatoLocalISO(new Date(finMs)) });
+                                    opciones.push({
+                                        fechaTextoAmi: formatearFechaAmi(hIniB.toISOString()), profeId: pr.id, profeNombre: pr.nombre, calId: pr.calId,
+                                        inicioData: formatoLocalISO(hIniB), finData: formatoLocalISO(new Date(finMs))
+                                    });
                                 }
                             }
                         });
