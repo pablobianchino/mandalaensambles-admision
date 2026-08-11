@@ -364,16 +364,51 @@ function generarTarjetaAlumno(al, id, vista) {
 }
 
 async function cargarVista(vista) {
-    estadoActualVista = vista; document.getElementById('vista-titulo').textContent = vista;
-    const btnNuevo = document.getElementById('btn-nuevo-alumno'), searchGen = document.getElementById('search-container-general'), btnCargaMasiva = document.getElementById('btn-carga-masiva'), contTablero = document.getElementById('tablero-gestiones'), contResumen = document.getElementById('tablero-resumen'), contLista = document.getElementById('lista-generica'), contEstad = document.getElementById('estadisticas-container');
-    const formWrapper = document.getElementById('form-alumno-wrapper'); 
-    if (formWrapper) { formWrapper.style.display = 'none'; document.getElementById('modal-alta-alumno').appendChild(formWrapper); }
-    btnNuevo.style.display = 'none'; searchGen.style.display = 'none'; btnCargaMasiva.style.display = 'none'; contTablero.style.display = 'none'; if(contResumen) contResumen.style.display = 'none'; contLista.style.display = 'none'; contEstad.style.display = 'none'; document.getElementById('input-buscador-general').value = '';
+    estadoActualVista = vista; 
+    
+    // --- Lógica de Breadcrumbs y Título ---
+    const bcContainer = document.getElementById('breadcrumb-container');
+    const titleContainer = document.getElementById('vista-titulo');
+    
+    if (vista.includes('-')) {
+        const parts = vista.split('-');
+        const parent = parts[0].trim();
+        const current = parts.slice(1).join('-').trim();
+        bcContainer.innerHTML = `<span style="cursor:pointer; color:#007bff; text-decoration:none;" onclick="cargarVista('${parent}')">${parent}</span> &gt; <strong style="color:#212529;">${current}</strong>`;
+        titleContainer.textContent = current;
+    } else {
+        bcContainer.innerHTML = '';
+        titleContainer.textContent = vista;
+    }
 
+    // --- Control de Contenedores ---
+    const btnNuevo = document.getElementById('btn-nuevo-alumno'), searchGen = document.getElementById('search-container-general'), btnCargaMasiva = document.getElementById('btn-carga-masiva');
+    const contTableroAdm = document.getElementById('tablero-gestiones'), contTableroAltas = document.getElementById('tablero-altas'), contResumen = document.getElementById('tablero-resumen'), contLista = document.getElementById('lista-generica'), contEstad = document.getElementById('estadisticas-container');
+    const formWrapper = document.getElementById('form-alumno-wrapper'); 
+    
+    if (formWrapper) { formWrapper.style.display = 'none'; document.getElementById('modal-alta-alumno').appendChild(formWrapper); }
+    btnNuevo.style.display = 'none'; searchGen.style.display = 'none'; btnCargaMasiva.style.display = 'none'; 
+    contTableroAdm.style.display = 'none'; contTableroAltas.style.display = 'none'; contResumen.style.display = 'none'; contLista.style.display = 'none'; contEstad.style.display = 'none'; 
+    document.getElementById('input-buscador-general').value = '';
+
+    // --- Ruteo de Vistas ---
     if (vista === 'Resumen') {
-        btnNuevo.style.display = 'block'; searchGen.style.display = 'block'; if(contResumen) contResumen.style.display = 'flex';
-        const colPendientes = document.getElementById('col-resumen-pendientes'), colConfirmadas = document.getElementById('col-resumen-confirmadas');
-        if(colPendientes) colPendientes.innerHTML = ''; if(colConfirmadas) colConfirmadas.innerHTML = '';
+        btnNuevo.style.display = 'block'; searchGen.style.display = 'block'; contResumen.style.display = 'flex';
+        // TODO LÓGICA FIREBASE: La existente para Admisión + Nueva para Altas. Por ahora cargamos visuales de prueba en Altas.
+        document.getElementById('col-resumen-prealtas').innerHTML = `
+            <div class="alumno-item urgencia-roja">
+                <div class="badge-urgencia text-rojo">🔴 Crítico: Faltan 24hs</div>
+                <div class="alumno-nombre-search" style="font-weight:700;">María Becerra</div>
+                <div style="font-size:0.85em; color:#6c757d; margin-top:2px;">Inicio: 14/08/2026 18:00hs | Grupo: Ensamble Martes</div>
+            </div>`;
+        document.getElementById('col-resumen-altas-incompletas').innerHTML = `
+            <div class="alumno-item item-confirmada">
+                <div class="badge badge-success" style="margin-bottom:8px;">✅ Alta Efectiva</div>
+                <div class="alumno-nombre-search" style="font-weight:700;">Charly García</div>
+                <div class="progress-container"><div class="progress-bar" style="width:60%;"></div></div>
+                <div style="font-size:0.8em; color:#6c757d; margin-top:5px; text-align:right;">3/5 Checks Completados</div>
+            </div>`;
+        
         try {
             const refAl = collection(db, "alumnos");
             const [rProfe, rAlumno, rConf] = await Promise.all([ getDocs(query(refAl, where("estado_agenda", "==", "Pendiente validación por profe"))), getDocs(query(refAl, where("estado_agenda", "==", "Pendiente validación por alumno"))), getDocs(query(refAl, where("estado_agenda", "==", "Agenda confirmada"))) ]);
@@ -383,22 +418,67 @@ async function cargarVista(vista) {
             aplicarParcheFechas(pendientes); aplicarParcheFechas(confirmadas);
             pendientes = pendientes.filter(a => a.reserva_inicio); confirmadas = confirmadas.filter(a => a.reserva_inicio);
             pendientes.sort((a, b) => new Date(a.reserva_inicio) - new Date(b.reserva_inicio)); confirmadas.sort((a, b) => new Date(a.reserva_inicio) - new Date(b.reserva_inicio));
-            if(colPendientes) colPendientes.innerHTML = pendientes.length > 0 ? pendientes.map(a => generarTarjetaAlumno(a, a.id, vista)).join('') : '<p style="color:#6c757d;">No hay reservas pendientes.</p>';
-            if(colConfirmadas) colConfirmadas.innerHTML = confirmadas.length > 0 ? confirmadas.map(a => generarTarjetaAlumno(a, a.id, vista)).join('') : '<p style="color:#6c757d;">No hay agendas confirmadas.</p>';
+            document.getElementById('col-resumen-pendientes').innerHTML = pendientes.length > 0 ? pendientes.map(a => generarTarjetaAlumno(a, a.id, vista)).join('') : '<p style="color:#6c757d;">No hay reservas pendientes.</p>';
+            document.getElementById('col-resumen-confirmadas').innerHTML = confirmadas.length > 0 ? confirmadas.map(a => generarTarjetaAlumno(a, a.id, vista)).join('') : '<p style="color:#6c757d;">No hay agendas confirmadas.</p>';
         } catch(e) {}
-    } else if (vista === 'Gestiones en Curso') {
-        btnNuevo.style.display = 'block'; btnCargaMasiva.style.display = 'block'; searchGen.style.display = 'block'; contTablero.style.display = 'flex';
+
+    } else if (vista === 'Admisión - Pendientes') {
+        btnNuevo.style.display = 'block'; btnCargaMasiva.style.display = 'block'; searchGen.style.display = 'block'; contTableroAdm.style.display = 'flex';
         document.getElementById('col-1-content').innerHTML = ''; document.getElementById('col-2-content').innerHTML = ''; document.getElementById('col-3-content').innerHTML = '';
         try {
             const refAl = collection(db, "alumnos");
             const [r1, r2, r3] = await Promise.all([ getDocs(query(refAl, where("estado_agenda", "==", "Pendiente procesar"))), getDocs(query(refAl, where("estado_agenda", "==", "Pendiente validación por profe"))), getDocs(query(refAl, where("estado_agenda", "==", "Pendiente validación por alumno"))) ]);
-            if(!r1.empty) document.getElementById('col-1-content').innerHTML = r1.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
-            if(!r2.empty) document.getElementById('col-2-content').innerHTML = r2.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
-            if(!r3.empty) document.getElementById('col-3-content').innerHTML = r3.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
+            if(!r1.empty) document.getElementById('col-1-content').innerHTML = r1.docs.map(d => generarTarjetaAlumno(d.data(), d.id, 'Gestiones en Curso')).join('');
+            if(!r2.empty) document.getElementById('col-2-content').innerHTML = r2.docs.map(d => generarTarjetaAlumno(d.data(), d.id, 'Gestiones en Curso')).join('');
+            if(!r3.empty) document.getElementById('col-3-content').innerHTML = r3.docs.map(d => generarTarjetaAlumno(d.data(), d.id, 'Gestiones en Curso')).join('');
         } catch(e) {}
-    } else if (vista === 'Agendas Confirmadas' || vista === 'Agendas Suspendidas') {
+    } else if (vista === 'Admisión - Confirmadas' || vista === 'Admisión - Suspendidas') {
         searchGen.style.display = 'block'; contLista.style.display = 'flex'; contLista.innerHTML = '';
-        try { const estMap = { 'Agendas Confirmadas': 'Agenda confirmada', 'Agendas Suspendidas': 'Agenda suspendida' }; const qSnap = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", estMap[vista]))); if(!qSnap.empty) contLista.innerHTML = qSnap.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join(''); } catch(e) {}
+        try { const estMap = { 'Admisión - Confirmadas': 'Agenda confirmada', 'Admisión - Suspendidas': 'Agenda suspendida' }; const qSnap = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", estMap[vista]))); if(!qSnap.empty) contLista.innerHTML = qSnap.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista.split('-')[1].trim())).join(''); } catch(e) {}
+    
+    // --- NUEVAS VISTAS (MOCKS VISUALES) ---
+    } else if (vista === 'Lista de Espera') {
+        searchGen.style.display = 'block'; contLista.style.display = 'flex';
+        contLista.innerHTML = `
+            <div class="alumno-item" style="display:flex; justify-content:space-between; align-items:center;">
+                <div><div style="font-weight:700;">Gustavo Cerati</div><div style="font-size:0.85em; color:#6c757d;">Guitarra | Ingreso: 11/08/2026</div></div>
+                <button class="btn-accion-main" style="background:#28a745;">▶ Iniciar Alta</button>
+            </div>`;
+    } else if (vista === 'Altas - Gestiones') {
+        searchGen.style.display = 'block'; contTableroAltas.style.display = 'flex';
+        document.getElementById('col-alta-1-content').innerHTML = `
+            <div class="alumno-item">
+                <div style="font-weight:700;">Gustavo Cerati</div>
+                <div style="font-size:0.85em; color:#6c757d; margin-bottom:10px;">Guitarra</div>
+                <button class="btn-accion-main" style="width:100%;">⚙️ Iniciar Pre-Alta</button>
+            </div>`;
+        document.getElementById('col-alta-2-content').innerHTML = `
+            <div class="alumno-item urgencia-amarilla">
+                <div class="badge-urgencia text-amarillo">🟡 Alerta: Faltan 48hs</div>
+                <div style="font-weight:700;">Fito Páez</div>
+                <div style="font-size:0.85em; color:#6c757d; margin-bottom:5px;">Piano | Inicio: 13/08 19:00hs</div>
+                <div class="progress-container"><div class="progress-bar" style="width:40%;"></div></div>
+                <div style="margin-top:10px; border-top:1px solid #eee; padding-top:5px;">
+                    <label class="checklist-item"><input type="checkbox" checked> Alumno informado</label>
+                    <label class="checklist-item"><input type="checkbox" checked> Profe informado</label>
+                    <label class="checklist-item"><input type="checkbox"> Ingresado en BD</label>
+                    <label class="checklist-item"><input type="checkbox"> Contabilidad</label>
+                    <label class="checklist-item"><input type="checkbox"> Comunidad Ensambles</label>
+                </div>
+                <button class="btn-dropdown" style="width:100%; margin-top:10px;">⚡ Acciones ▾</button>
+            </div>`;
+    } else if (vista === 'Altas - Confirmadas') {
+        searchGen.style.display = 'block'; contLista.style.display = 'flex';
+        contLista.innerHTML = `
+            <div class="alumno-item item-confirmada" style="display:flex; justify-content:space-between; align-items:center;">
+                <div><div class="badge badge-ilegal" style="margin-bottom:5px;">🏴 ALTA ILEGAL</div><div style="font-weight:700;">Luis Alberto Spinetta</div></div>
+                <div style="color:#28a745; font-weight:bold;">✅ Completado</div>
+            </div>`;
+    } else if (vista === 'Altas - Suspendidas') {
+        searchGen.style.display = 'block'; contLista.style.display = 'flex';
+        contLista.innerHTML = `<p style="color:#6c757d;">No hay altas suspendidas.</p>`;
+
+    // --- VISTAS DE CONFIGURACIÓN ---
     } else if (vista === 'Estadísticas') {
         contEstad.style.display = 'flex'; renderCharts();
     } else if (vista === 'Configuración') {
