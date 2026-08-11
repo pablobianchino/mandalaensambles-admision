@@ -21,24 +21,20 @@ body {
     z-index: 9999;
 }
 
-#sidebar { width: 220px; background-color: #fff; border-right: 1px solid #e0e0e0; padding: 20px 15px; display: flex; flex-direction: column; flex-shrink: 0; }
+#sidebar { width: 220px; background-color: #fff; border-right: 1px solid #e0e0e0; padding: 20px 15px; display: flex; flex-direction: column; flex-shrink: 0; overflow-y:auto; }
 .nav-item { padding: 10px 15px; color: #495057; text-decoration: none; display: block; border-radius: 6px; margin-bottom: 5px; cursor: pointer; transition: background 0.2s; font-weight: 500; }
 .nav-item:hover { background-color: #f8f9fa; }
 .nav-item.active { background-color: #e9ecef; color: #212529; font-weight: 600; }
+.nav-group-header { padding: 15px 15px 5px 15px; font-size: 0.75em; text-transform: uppercase; color: #adb5bd; font-weight: 700; letter-spacing: 0.5px; }
+.sub-item { padding-left: 35px; font-size: 0.95em; }
 #main-content { flex-grow: 1; padding: 25px; overflow-y: auto; background-color: #f4f6f9; }
 
+.resumen-section-title { font-size: 1.2em; font-weight: 700; margin: 10px 0 15px 0; padding-bottom: 5px; border-bottom: 2px solid #dee2e6; color: #343a40; }
 .board-container { display: flex; gap: 20px; overflow-x: auto; padding-bottom: 15px; min-height: calc(100vh - 100px); }
 .board-column { background-color: #ebecf0; border-radius: 8px; min-width: 320px; max-width: 320px; display: flex; flex-direction: column; max-height: 100%; }
-.board-column-header { 
-    padding: 12px 15px; 
-    font-weight: 700; 
-    color: #212529; 
-    background-color: transparent; 
-    border-top-left-radius: 8px; 
-    border-top-right-radius: 8px; 
-    font-size: 1.05em; 
-    border-top: 4px solid transparent; 
-}
+
+/* Bordes finos superiores para las columnas */
+.board-column-header { padding: 12px 15px; font-weight: 700; color: #212529; background-color: transparent; border-top-left-radius: 8px; border-top-right-radius: 8px; font-size: 1.05em; border-top: 4px solid transparent; }
 .bg-pendientes { border-top-color: #17a2b8; }
 .bg-confirmadas { border-top-color: #28a745; }
 .bg-sin-agendar { border-top-color: #6c757d; }
@@ -46,21 +42,9 @@ body {
 .bg-validando-alumno { border-top-color: #ffc107; }
 .board-column-content { padding: 10px; overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; gap: 10px; }
 
-.alumno-item { 
-    background: white; 
-    border-radius: 6px; 
-    padding: 15px; 
-    box-shadow: 0 1px 3px rgba(0,0,0,0.12); 
-    position: relative; 
-    border-left: 5px solid transparent; 
-    transition: transform 0.1s; 
-    z-index: 1; /* Nivel base */
-}
-.alumno-item:hover { 
-    transform: translateY(-2px); 
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
-    z-index: 50; /* Eleva la tarjeta sobre las demás al pasar el mouse */
-}
+/* Tarjeta Alumno con Z-Index para Hover */
+.alumno-item { background: white; border-radius: 6px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); position: relative; border-left: 5px solid transparent; transition: transform 0.1s; z-index: 1; }
+.alumno-item:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 50; }
 .item-suspendida { border-left-color: #dc3545; opacity: 0.8; }
 .item-confirmada { border-left-color: #28a745; }
 .urgencia-vencida { border-left-color: #343a40; background-color: #f8f9fa; }
@@ -71,11 +55,18 @@ body {
 .badge-warning { background-color: #fff3cd; color: #856404; }
 .badge-success { background-color: #d4edda; color: #155724; }
 .badge-danger { background-color: #f8d7da; color: #721c24; }
+.badge-ilegal { background-color: #212529; color: white; border: 1px solid #000; }
 .badge-urgencia { font-size: 0.75em; font-weight: bold; margin-bottom: 8px; display: inline-block; }
 .text-vencido { color: #343a40; } .text-rojo { color: #dc3545; } .text-amarillo { color: #d39e00; } .text-verde { color: #28a745; }
 
+/* Barra de progreso y Checklist de Altas */
+.progress-container { width: 100%; background: #e9ecef; border-radius: 4px; height: 8px; margin-top: 8px; overflow: hidden; display: flex; }
+.progress-bar { height: 100%; background: #28a745; transition: width 0.3s; }
+.checklist-item { font-size: 0.85em; color: #495057; display: flex; align-items: center; gap: 5px; margin-top: 4px; }
+.checklist-item input { margin: 0; width: auto; cursor: pointer; }
+
 label { display: block; margin-bottom: 10px; font-weight: 500; color: #495057; font-size: 0.9em; }
-input[type="text"], input[type="number"], input[type="time"], input[type="date"], input[type="email"], select { width: 100%; padding: 8px 10px; border: 1px solid #ced4da; border-radius: 6px; box-sizing: border-box; font-family: inherit; margin-top: 3px; outline: none; }
+input[type="text"], input[type="number"], input[type="time"], input[type="date"], input[type="datetime-local"], input[type="email"], select { width: 100%; padding: 8px 10px; border: 1px solid #ced4da; border-radius: 6px; box-sizing: border-box; font-family: inherit; margin-top: 3px; outline: none; }
 input:focus, select:focus { border-color: #80bdff; box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25); }
 
 .btn-accion-main { background-color: #007bff; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: 600; font-family: inherit; transition: background 0.2s; }
@@ -93,7 +84,7 @@ dialog::backdrop { background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); }
 .btn-dropdown { background: #e9ecef; border: 1px solid #ced4da; border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 0.85em; font-weight: 600; color: #495057; margin-top: 10px; width: 100%; transition: background 0.2s; }
 .btn-dropdown:hover { background: #dee2e6; }
 
-/* Menú Desplegable (Hover) - PUENTE INVISIBLE */
+/* PUENTE INVISIBLE para Hover en Acciones */
 .dropdown-menu-wrapper { display: none; position: absolute; top: 100%; right: 0; padding-top: 10px; z-index: 1000; min-width: 220px; }
 .alumno-actions:hover .dropdown-menu-wrapper { display: block; }
 .dropdown-menu { background-color: white; border: 1px solid #ced4da; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; flex-direction: column; overflow: hidden; }
@@ -108,26 +99,8 @@ details.agenda-dia summary::-webkit-details-marker { display: none; }
 details.agenda-dia[open] summary { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: 1px solid #ced4da; }
 .agenda-dia-content { padding: 15px; display: flex; flex-direction: column; gap: 8px; background: #fafbfc; border-bottom-left-radius: 6px; border-bottom-right-radius: 6px; }
 
-/* Toasts (Notificaciones) */
-.toast-notification {
-    background: #333; color: #fff; padding: 12px 20px; border-radius: 6px; 
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-size: 0.95em; 
-    opacity: 0; transition: opacity 0.3s ease; font-weight: 500;
-}
-
-/* Tarjetas Configuración */
+/* Toasts y Tarjetas Configuración */
+.toast-notification { background: #333; color: #fff; padding: 12px 20px; border-radius: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-size: 0.95em; opacity: 0; transition: opacity 0.3s ease; font-weight: 500; }
 .config-card { display: flex; align-items: center; padding: 20px; background: #fff; border: 1px solid #dee2e6; border-radius: 10px; cursor: pointer; transition: 0.2s; margin-bottom: 15px; }
 .config-card:hover { border-color: #007bff; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
 .config-card .icon { font-size: 1.8em; margin-right: 20px; background: #f8f9fa; padding: 10px; border-radius: 8px; filter: grayscale(100%); }
-
-/* Estilos para el nuevo menú lateral y Títulos */
-.nav-group-header { padding: 15px 15px 5px 15px; font-size: 0.75em; text-transform: uppercase; color: #adb5bd; font-weight: 700; letter-spacing: 0.5px; }
-.sub-item { padding-left: 35px; font-size: 0.95em; }
-.resumen-section-title { font-size: 1.2em; font-weight: 700; margin: 10px 0 15px 0; padding-bottom: 5px; border-bottom: 2px solid #dee2e6; color: #343a40; }
-
-/* Elementos visuales de Altas */
-.badge-ilegal { background-color: #212529; color: white; border: 1px solid #000; }
-.progress-container { width: 100%; background: #e9ecef; border-radius: 4px; height: 8px; margin-top: 8px; overflow: hidden; display: flex; }
-.progress-bar { height: 100%; background: #28a745; transition: width 0.3s; }
-.checklist-item { font-size: 0.85em; color: #495057; display: flex; align-items: center; gap: 5px; margin-top: 4px; }
-.checklist-item input { margin: 0; width: auto; cursor: pointer; }
