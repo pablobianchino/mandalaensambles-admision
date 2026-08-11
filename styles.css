@@ -119,3 +119,15 @@ details.agenda-dia[open] summary { border-bottom-left-radius: 0; border-bottom-r
 .config-card { display: flex; align-items: center; padding: 20px; background: #fff; border: 1px solid #dee2e6; border-radius: 10px; cursor: pointer; transition: 0.2s; margin-bottom: 15px; }
 .config-card:hover { border-color: #007bff; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
 .config-card .icon { font-size: 1.8em; margin-right: 20px; background: #f8f9fa; padding: 10px; border-radius: 8px; filter: grayscale(100%); }
+
+/* Estilos para el nuevo menú lateral y Títulos */
+.nav-group-header { padding: 15px 15px 5px 15px; font-size: 0.75em; text-transform: uppercase; color: #adb5bd; font-weight: 700; letter-spacing: 0.5px; }
+.sub-item { padding-left: 35px; font-size: 0.95em; }
+.resumen-section-title { font-size: 1.2em; font-weight: 700; margin: 10px 0 15px 0; padding-bottom: 5px; border-bottom: 2px solid #dee2e6; color: #343a40; }
+
+/* Elementos visuales de Altas */
+.badge-ilegal { background-color: #212529; color: white; border: 1px solid #000; }
+.progress-container { width: 100%; background: #e9ecef; border-radius: 4px; height: 8px; margin-top: 8px; overflow: hidden; display: flex; }
+.progress-bar { height: 100%; background: #28a745; transition: width 0.3s; }
+.checklist-item { font-size: 0.85em; color: #495057; display: flex; align-items: center; gap: 5px; margin-top: 4px; }
+.checklist-item input { margin: 0; width: auto; cursor: pointer; }
