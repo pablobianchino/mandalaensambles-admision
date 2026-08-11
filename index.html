@@ -160,7 +160,7 @@
                 <label style="display:block; font-size:0.85em; font-weight:600; margin-bottom:5px; color:#495057;">Profesor(es):</label>
                 <select id="agenda-profe-filtro" multiple style="height:70px; margin-top:0;"></select>
             </div>
-           <button id="btn-ejecutar-busqueda" style="background:#007bff; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:600; height:38px; margin-top:25px;">Buscar</button> 
+            <button id="btn-ejecutar-busqueda" class="btn-accion-main" style="height:38px; margin-top:25px; padding: 0 25px;">Buscar</button>
         </div>
         <input type="text" id="input-buscador-popup" placeholder="Filtrar resultados..." style="margin-bottom: 15px; width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ced4da; box-sizing: border-box; display:none; outline:none;">
         <div id="resultados-agenda" style="margin-bottom:15px; max-height:40vh; overflow-y:auto; padding-right:5px;"></div>
@@ -234,7 +234,7 @@
     <dialog id="modal-abm-edit" style="width: 90%; max-width: 500px; border: none; border-radius: 8px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
         <h3 style="margin-top:0; color:#212529;">Editar Elemento</h3>
         <input type="hidden" id="abm-edit-id"><input type="hidden" id="abm-edit-coleccion">
-        <label>Nombre: <input type="text" id="abm-edit-nombre" required style="width:100%;"></label>
+        <label id="label-abm-edit-nombre">Nombre: <input type="text" id="abm-edit-nombre" required style="width:100%;"></label>
         <div id="div-abm-edit-profe" style="display:none; margin-top:10px;">
             <label>Email Calendar: <input type="email" id="abm-edit-correo" style="width:100%;"></label>
             <label>Celular: <input type="text" id="abm-edit-celular" style="width:100%;"></label>
