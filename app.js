@@ -715,17 +715,33 @@ document.addEventListener('click', async (e) => {
     if (target.classList.contains('btn-reenviar-alumno') || target.classList.contains('btn-enviar-conf-alumno')) { try { const id = target.getAttribute('data-id'); const key = target.classList.contains('btn-reenviar-alumno') ? 'texto_alumno' : 'texto_conf_alumno'; const data = await generarTextoConHistorial(id, key); await navigator.clipboard.writeText(data.txt); alert("Texto copiado al portapapeles."); } catch(e) {} return; }
 
     if (target.classList.contains('btn-cancelar-reserva')) {
-        if (confirm("¿Estás seguro de cancelar? Se eliminará la reserva en Calendar.")) { 
+        const motivo = prompt("¿Estás seguro de cancelar? Se eliminará la reserva en Calendar.\nPor favor, ingresa el motivo de la cancelación para el historial:");
+        if (motivo !== null) {
+            if (motivo.trim() === "") return alert("Operación abortada. Debes ingresar un motivo para cancelar.");
             const id = target.getAttribute('data-id'); 
             try { 
                 const data = await generarTextoConHistorial(id, 'texto_cancela_alumno');
-                if (data.al.estado_agenda === 'Pendiente validación por alumno' || data.al.estado_agenda === 'Agenda confirmada') { await navigator.clipboard.writeText(data.txt); alert("Texto de CANCELACIÓN copiado al portapapeles."); }
+                if (data.al.estado_agenda === 'Pendiente validación por alumno' || data.al.estado_agenda === 'Agenda confirmada') { 
+                    await navigator.clipboard.writeText(data.txt); 
+                    alert("Reserva cancelada en Calendar. Texto de CANCELACIÓN copiado al portapapeles."); 
+                }
                 if (data.al.id_evento_reserva) await eliminarEventoSeguro(data.al); 
-                await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente procesar", reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null }); cargarVista(estadoActualVista); 
-            } catch(e) {} 
-        } return;
-    }
+                
+                const now = new Date(); 
+                const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+                const hist = data.al.historial || [];
+                hist.push({ id: Date.now(), texto: `Reserva cancelada. Motivo: ${motivo.trim()}`, fecha: fechaStr });
 
+                await updateDoc(doc(db, "alumnos", id), { 
+                    estado_agenda: "Pendiente procesar", 
+                    reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null,
+                    historial: hist
+                }); 
+                cargarVista(estadoActualVista); 
+            } catch(e) {} 
+        } 
+        return;
+    }
     if (target.classList.contains('btn-abrir-suspender')) { document.getElementById('susp-alumno-id').value = target.getAttribute('data-id'); document.getElementById('susp-motivo').value = ""; document.getElementById('modal-suspender').showModal(); return; }
     if (target.classList.contains('btn-recuperar-agenda')) { await updateDoc(doc(db, "alumnos", target.getAttribute('data-id')), { estado_agenda: "Pendiente procesar", motivo_suspension: null }); cargarVista(estadoActualVista); return; }
     if (target.classList.contains('btn-cerrar-modal')) { document.getElementById(target.getAttribute('data-modal')).close(); return; }
@@ -750,7 +766,27 @@ document.addEventListener('mouseover', (e) => {
     }
 });
 
-document.getElementById('btn-guardar-suspension').addEventListener('click', async () => { const id = document.getElementById('susp-alumno-id').value, mtv = document.getElementById('susp-motivo').value; if(!mtv) return alert("Seleccione motivo"); try { const al = (await getDoc(doc(db, "alumnos", id))).data(); if (al.id_evento_reserva) await eliminarEventoSeguro(al); } catch(e){} await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Agenda suspendida", motivo_suspension: mtv, reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null }); document.getElementById('modal-suspender').close(); cargarVista(estadoActualVista); });
+document.getElementById('btn-guardar-suspension').addEventListener('click', async () => { 
+    const id = document.getElementById('susp-alumno-id').value, mtv = document.getElementById('susp-motivo').value; 
+    if(!mtv) return alert("Seleccione motivo"); 
+    try { 
+        const al = (await getDoc(doc(db, "alumnos", id))).data(); 
+        if (al.id_evento_reserva) await eliminarEventoSeguro(al); 
+        
+        const now = new Date(); 
+        const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+        const hist = al.historial || [];
+        hist.push({ id: Date.now(), texto: `Suspendido. Motivo: ${mtv}`, fecha: fechaStr });
+
+        await updateDoc(doc(db, "alumnos", id), { 
+            estado_agenda: "Agenda suspendida", motivo_suspension: mtv, 
+            reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null,
+            historial: hist
+        }); 
+        document.getElementById('modal-suspender').close(); 
+        cargarVista(estadoActualVista); 
+    } catch(e){} 
+});
 
 async function cargarSelectsAlumnos() { const sI = document.getElementById('instrumento'), sS = document.getElementById('tipo_suscripcion'); sI.innerHTML = ''; sS.innerHTML = '<option value="">Seleccione...</option>'; const iS = await getDocs(collection(db, "instrumentos")); iS.forEach(d => sI.innerHTML += `<option value="${d.data().nombre}">${d.data().nombre}</option>`); const sSp = await getDocs(collection(db, "tipos_suscripcion")); sSp.forEach(d => sS.innerHTML += `<option value="${d.data().nombre}">${d.data().nombre}</option>`); }
 
