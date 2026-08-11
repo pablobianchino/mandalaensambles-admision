@@ -3,170 +3,133 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mandala Ensambles Seguimientos</title>
-    
+    <title>Mandala Seguimientos</title>
+    <!-- Fuente Inter y Quill CSS -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
-    
-    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+    <!-- Chart.js y PapaParse -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 </head>
 <body>
+    <!-- CONTENEDOR LOGIN (Cubre toda la pantalla) -->
     <div id="login-container">
-        <button id="btn-login" class="btn-google">
-            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
-                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
-                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
-                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
-                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
-            </svg>
+        <button id="btn-login" class="btn-accion-main">
+            <span style="background:white; border-radius:50%; padding:4px; margin-right:10px;">
+                <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+            </span>
             Iniciar sesión
         </button>
     </div>
 
-    <div id="app-container">
+    <!-- CONTENEDOR PRINCIPAL -->
+    <div id="app-container" style="display: none; width: 100%;">
+        <!-- SIDEBAR -->
         <nav id="sidebar">
-            <div class="sidebar-brand">
-                <h2>Mandala Ensambles</h2>
-                <small>Seguimiento de nuevos alumnos</small>
-            </div>
+            <h2 style="font-size:1.2em; font-weight:700; margin-bottom:0; color:#212529;">Mandala Records</h2>
+            <p style="font-size:0.85em; color:#6c757d; margin-top:5px; margin-bottom:20px;">Estudio de grabación</p>
             
-           <!-- Pega esto reemplazando los botones actuales de tu menú lateral -->
-<div class="nav-item active" data-vista="Resumen" style="cursor:pointer; padding:10px; border-bottom:1px solid #ddd;">
-    <span style="filter: grayscale(100%); margin-right:8px;">📋</span> Resumen
-</div>
-<div class="nav-item" data-vista="Gestiones en Curso" style="cursor:pointer; padding:10px; border-bottom:1px solid #ddd;">
-    <span style="filter: grayscale(100%); margin-right:8px;">⏳</span> Pendientes
-</div>
-<div class="nav-item" data-vista="Agendas Confirmadas" style="cursor:pointer; padding:10px; border-bottom:1px solid #ddd;">
-    <span style="filter: grayscale(100%); margin-right:8px;">✔️</span> Confirmadas
-</div>
-<div class="nav-item" data-vista="Agendas Suspendidas" style="cursor:pointer; padding:10px; border-bottom:1px solid #ddd;">
-    <span style="filter: grayscale(100%); margin-right:8px;">⏸️</span> Suspendidas
-</div>
-<div class="nav-item" data-vista="Estadísticas" style="cursor:pointer; padding:10px; border-bottom:1px solid #ddd;">
-    <span style="filter: grayscale(100%); margin-right:8px;">📊</span> Estadísticas
-</div>
-<div class="nav-item" data-vista="Configuración" style="cursor:pointer; padding:10px; border-bottom:1px solid #ddd;">
-    <span style="filter: grayscale(100%); margin-right:8px;">⚙️</span> Configuración
-</div>
+            <ul class="nav flex-column" style="list-style:none; padding:0; margin:0;">
+                <li class="nav-item active" data-vista="Resumen"><span style="filter: grayscale(100%); margin-right:8px;">📋</span> Resumen</li>
+                <li class="nav-item" data-vista="Gestiones en Curso"><span style="filter: grayscale(100%); margin-right:8px;">⏳</span> Pendientes</li>
+                <li class="nav-item" data-vista="Agendas Confirmadas"><span style="filter: grayscale(100%); margin-right:8px;">✔️</span> Confirmadas</li>
+                <li class="nav-item" data-vista="Agendas Suspendidas"><span style="filter: grayscale(100%); margin-right:8px;">⏸️</span> Suspendidas</li>
+                <li class="nav-item" data-vista="Estadísticas"><span style="filter: grayscale(100%); margin-right:8px;">📊</span> Estadísticas</li>
+                <li class="nav-item" data-vista="Configuración"><span style="filter: grayscale(100%); margin-right:8px;">⚙️</span> Configuración</li>
+            </ul>
+
+            <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid #dee2e6; display:flex; flex-direction:column; gap:10px;">
+                <div id="user-info" style="font-size: 0.85em; color: #6c757d; word-break: break-all;"></div>
+                <button id="btn-conectar-cal" style="background:#28a745; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer; font-size:0.9em; display:none;">Conectar Google Calendar</button>
+                <button id="btn-logout" style="background:transparent; color:#dc3545; border:1px solid #dc3545; padding:8px; border-radius:4px; cursor:pointer; font-size:0.9em; font-weight:600;">Cerrar sesión</button>
+            </div>
         </nav>
-        
-        <main id="main">
-            <div id="header-auth">
-                <button id="btn-conectar-cal" title="Habilita la integración con tu agenda">⚠️ Conectar Calendar</button>
-                <div id="user-info" style="font-size:0.85em; color:#6c757d;"></div>
-                <button id="btn-logout">Salir</button>
-            </div>
-            
-            <div class="vista-header">
-                <h2 id="vista-titulo">Resumen</h2>
+
+        <!-- MAIN CONTENT -->
+        <main id="main-content">
+            <!-- HEADER BAR -->
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h1 id="vista-titulo" style="margin:0; font-size:1.5em; color:#212529;">Resumen</h1>
                 <div style="display:flex; gap:10px;">
+                    <div id="search-container-general" style="display:none; position:relative;">
+                        <input type="text" id="input-buscador-general" placeholder="Buscar por nombre..." style="padding:8px 12px; border:1px solid #ced4da; border-radius:6px; outline:none;">
+                    </div>
+                    <button id="btn-nuevo-alumno" class="btn-accion-main" style="display:none;">+ Nuevo Alumno</button>
+                    <button id="btn-carga-masiva" style="display:none; background:#6c757d; color:white; border:none; border-radius:6px; padding:0 15px; cursor:pointer; font-weight:600;">Subir CSV</button>
                     <input type="file" id="input-csv" accept=".csv" style="display:none;">
-                    <button id="btn-carga-masiva" class="btn-secundario" style="margin-right:10px;">⬆️ Carga Masiva (CSV)</button>
-                    <button id="btn-nuevo-alumno">+ Nuevo alumno</button>
                 </div>
             </div>
 
-            <div class="search-container" id="search-container-general" style="display:none;">
-                <input type="text" id="input-buscador-general" placeholder="Buscar alumno por nombre...">
+            <!-- VISTAS DINÁMICAS -->
+            <div id="tablero-resumen" class="board-container" style="display:none;">
+                <div class="board-column"><div class="board-column-header bg-pendientes">Pendientes (Profe/Alumno)</div><div class="board-column-content" id="col-resumen-pendientes"></div></div>
+                <div class="board-column"><div class="board-column-header bg-confirmadas">Agendas Confirmadas</div><div class="board-column-content" id="col-resumen-confirmadas"></div></div>
             </div>
-            
-            <div id="contenedor-principal" style="display:flex; flex-grow:1; flex-direction:column; overflow:hidden;">
-                
-                <div id="tablero-resumen" class="board-container">
-                    <div class="board-column">
-                        <h4>⏳ Reservas Pendientes</h4>
-                        <div id="col-resumen-pendientes"></div>
-                    </div>
-                    <div class="board-column">
-                        <h4>✅ Agendas Confirmadas</h4>
-                        <div id="col-resumen-confirmadas"></div>
-                    </div>
-                </div>
 
-                <div id="tablero-gestiones" class="board-container" style="display:none;">
-                    <div class="board-column col-sin-agendar">
-                        <h4>Alumnos sin agendar</h4>
-                        <div id="col-1-content"></div>
-                    </div>
-                    <div class="board-column col-val-profe">
-                        <h4>Pendiente validación Profe</h4>
-                        <div id="col-2-content"></div>
-                    </div>
-                    <div class="board-column col-val-alumno">
-                        <h4>Pendiente validación Alumno</h4>
-                        <div id="col-3-content"></div>
-                    </div>
-                </div>
+            <div id="tablero-gestiones" class="board-container" style="display:none;">
+                <div class="board-column"><div class="board-column-header bg-sin-agendar">Sin agendar</div><div class="board-column-content" id="col-1-content"></div></div>
+                <div class="board-column"><div class="board-column-header bg-validando-profe">Validando Profe</div><div class="board-column-content" id="col-2-content"></div></div>
+                <div class="board-column"><div class="board-column-header bg-validando-alumno">Validando Alumno</div><div class="board-column-content" id="col-3-content"></div></div>
+            </div>
 
-                <div id="lista-generica" class="lista-generica" style="display:none; overflow-y:auto; padding-bottom:20px;"></div>
+            <div id="lista-generica" style="display:none; flex-direction:column; gap:10px;"></div>
 
-                <div id="estadisticas-container" style="display:none;">
-                    <div class="chart-box" id="chart-box-gestiones">
-                        <h4 style="text-align:center; margin-top:0; color:#495057;">Gestiones en Curso</h4>
-                        <canvas id="chartGestiones"></canvas>
-                    </div>
-                    <div class="chart-box" id="chart-box-general">
-                        <h4 style="text-align:center; margin-top:0; color:#495057;">Estado Global</h4>
-                        <canvas id="chartGlobal"></canvas>
-                    </div>
-                </div>
+            <div id="estadisticas-container" style="display:none; gap:20px; flex-wrap:wrap;">
+                <div style="background:white; padding:20px; border-radius:8px; border:1px solid #dee2e6; flex:1; min-width:300px;"><canvas id="chartGestiones"></canvas></div>
+                <div style="background:white; padding:20px; border-radius:8px; border:1px solid #dee2e6; flex:1; min-width:300px;"><canvas id="chartGlobal"></canvas></div>
             </div>
         </main>
     </div>
 
-    <!-- Acordeón Formulario Edición/Alta -->
-    <div id="form-alumno-wrapper" style="display:none; background:#fff; padding:20px; border-radius:8px; border:1px solid #ced4da; margin-top:10px;">
-        <h3 id="form-titulo" style="margin-top:0; color:#212529; font-size:1.1em;">Datos del Alumno</h3>
-        <form id="form-alumno">
-            <input type="hidden" id="alumno-id">
-            <div style="display:flex; gap:15px; margin-bottom:10px; flex-wrap:wrap;">
-                <div style="flex:1; min-width:180px;"><label>Nombre: <input type="text" id="nombre" required></label></div>
-                <div style="flex:1; min-width:140px;"><label>Celular: <input type="text" id="celular" required></label></div>
-                <div style="width:70px;"><label>Edad: <input type="number" id="edad"></label></div>
+    <!-- MODAL ALTA/EDICIÓN ALUMNO -->
+    <dialog id="modal-alta-alumno" style="width: 90%; max-width: 900px; border: none; border-radius: 8px; padding: 0; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+        <div id="form-alumno-wrapper" style="padding: 25px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid #dee2e6; padding-bottom:15px;">
+                <h2 id="form-titulo" style="margin:0; font-size:1.3em;">Nuevo Alumno</h2>
+                <button type="button" id="btn-cerrar-alumno" style="background:transparent; border:none; cursor:pointer; font-size:1.5em; color:#6c757d;">&times;</button>
             </div>
             
-            <div style="display:flex; gap:15px; margin-bottom:15px; flex-wrap:wrap;">
-                <div style="flex:1; min-width:180px;">
-                    <label>Instrumento(s): <br>
-                        <select id="instrumento" multiple required style="height:70px;"></select>
-                    </label>
+            <form id="form-alumno">
+                <input type="hidden" id="alumno-id">
+                
+                <div style="display:flex; flex-wrap:wrap; gap:20px; margin-bottom:20px;">
+                    <div style="flex:1; min-width:250px;">
+                        <h3 style="font-size:1.1em; color:#495057; border-bottom:1px solid #e9ecef; padding-bottom:5px;">Datos Personales</h3>
+                        <label>Nombre Completo * <input type="text" id="nombre" required></label>
+                        <label>Celular * <input type="text" id="celular" required></label>
+                        <label>Edad <input type="number" id="edad"></label>
+                        <label>Instrumentos (Ctrl+Clic varios) * <select id="instrumento" multiple required style="height:80px;"></select></label>
+                        <label>Suscripción * <select id="tipo_suscripcion" required></select></label>
+                    </div>
+
+                    <div style="flex:1; min-width:250px;">
+                        <h3 style="font-size:1.1em; color:#495057; border-bottom:1px solid #e9ecef; padding-bottom:5px;">Disponibilidad Horaria</h3>
+                        <div id="contenedor-disponibilidad" style="display:flex; flex-direction:column; gap:8px;"></div>
+                    </div>
                 </div>
-                <div style="flex:1; min-width:180px;">
-                    <label>Suscripción: <select id="tipo_suscripcion" required></select></label>
+
+                <div style="margin-bottom:20px;">
+                    <h3 style="font-size:1.1em; color:#495057; border-bottom:1px solid #e9ecef; padding-bottom:5px;">Detalle / Info para Entrevista</h3>
+                    <div id="editor-container" style="height: 120px; background:white;"></div>
                 </div>
-            </div>
-            
-            <h4 style="margin:10px 0 5px 0; color:#495057; font-size:0.95em;">Descripción / Info</h4>
-            <div id="editor-container"></div>
-            
-            <h4 style="margin:25px 0 10px 0; border-bottom:1px solid #e9ecef; padding-bottom:5px; color:#495057; font-size:0.95em;">Disponibilidad Horaria</h4>
-            <div id="contenedor-disponibilidad"></div>
 
-            <h4 style="margin:25px 0 10px 0; border-bottom:1px solid #e9ecef; padding-bottom:5px; color:#495057; font-size:0.95em;">Historial de Contacto</h4>
-            <div style="display:flex; gap:10px; margin-bottom:15px; align-items:flex-start;">
-                <textarea id="nueva-nota-texto" rows="2" style="flex-grow:1; resize:vertical; padding:8px; border-radius:6px; border:1px solid #ced4da;" placeholder="Escribe un nuevo registro o nota..."></textarea>
-                <button type="button" id="btn-agregar-nota" class="btn-accion-flujo" style="height:40px; margin-top:0;">Agregar Nota</button>
-            </div>
-            <div id="lista-historial" style="display:flex; flex-direction:column; gap:10px; max-height:220px; overflow-y:auto; padding-right:5px; margin-bottom:15px;"></div>
-            
-            <div style="margin-top:20px; display:flex; gap:10px; justify-content:flex-end; border-top:1px solid #eee; padding-top:15px;">
-                <button type="button" id="btn-cerrar-alumno" style="padding:8px 16px; background:#e9ecef; color:#495057; border:none; cursor:pointer; border-radius:6px; font-weight:600;">Cancelar</button>
-                <button type="submit" style="padding:8px 16px; background:var(--primary); color:white; border:none; cursor:pointer; border-radius:6px; font-weight:600;">Guardar Datos</button>
-            </div>
-        </form>
-    </div>
+                <div style="margin-bottom:20px;">
+                    <h3 style="font-size:1.1em; color:#495057; border-bottom:1px solid #e9ecef; padding-bottom:5px;">Historial de Notas</h3>
+                    <div id="lista-historial" style="display:flex; flex-direction:column; gap:10px; max-height:200px; overflow-y:auto; padding-right:5px;"></div>
+                </div>
 
-    <!-- Modales -->
-    <dialog id="modal-alta-alumno"></dialog>
+                <div style="text-align: right; border-top:1px solid #dee2e6; padding-top:15px;">
+                    <button type="submit" class="btn-accion-main" style="padding: 10px 25px; font-size:1.1em;">Guardar Alumno</button>
+                </div>
+            </form>
+        </div>
+    </dialog>
 
-   <dialog id="modal-agenda">
+    <!-- MODAL BUSCAR AGENDA MÚLTIPLE -->
+    <dialog id="modal-agenda">
         <h3 style="margin-top:0; color:#212529; font-size:1.2em;">Buscar Disponibilidad</h3>
         
-        <!-- Nuevo recuadro con info del alumno -->
         <div id="info-alumno-agenda" style="margin-bottom:15px; padding:15px; background:#e9ecef; border-radius:8px; display:none; border:1px solid #ced4da;"></div>
 
         <div style="margin-bottom: 15px; padding: 15px; background: #f8f9fa; border:1px solid #ced4da; border-radius: 8px; display:flex; gap:15px; align-items:flex-start; flex-wrap:wrap;">
@@ -179,58 +142,77 @@
                 <input type="date" id="agenda-end" required style="height:38px; margin-top:0;">
             </div>
             <div style="flex-grow:1; min-width:180px; margin-top:5px;">
-                <label style="display:block; font-size:0.85em; font-weight:600; margin-bottom:5px; color:#495057;">Profesor(es) <span style="font-weight:normal; font-size:0.9em;">(Ctrl+Clic p/varios)</span>:</label>
+                <label style="display:block; font-size:0.85em; font-weight:600; margin-bottom:5px; color:#495057;">Profesor(es):</label>
                 <select id="agenda-profe-filtro" multiple style="height:70px; margin-top:0;"></select>
             </div>
             <button id="btn-ejecutar-busqueda" style="background:var(--primary); color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:600; height:38px; margin-top:25px;">Buscar</button>
         </div>
         
-        <input type="text" id="input-buscador-popup" placeholder="Filtrar resultados (ej. Nacho, 18hs)..." style="margin-bottom: 15px; width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ced4da; box-sizing: border-box; display:none; outline:none;">
+        <input type="text" id="input-buscador-popup" placeholder="Filtrar resultados..." style="margin-bottom: 15px; width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ced4da; box-sizing: border-box; display:none; outline:none;">
         
         <div id="resultados-agenda" style="margin-bottom:15px; max-height:40vh; overflow-y:auto; padding-right:5px;"></div>
-        <div style="text-align:right;">
+        
+        <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #ced4da; padding-top:15px;">
             <button type="button" class="btn-cerrar-modal" data-modal="modal-agenda" style="padding:8px 16px; border:none; border-radius:6px; cursor:pointer; background:#e9ecef; font-weight:600; color:#495057;">Cerrar</button>
+            <button id="btn-procesar-seleccion-agenda" class="btn-accion-main" style="display:none; padding:8px 20px;">Copiar Texto y Avanzar</button>
         </div>
     </dialog>
 
-    <dialog id="modal-suspender">
-        <h3 style="margin-top:0; color:#dc3545; font-size:1.2em;">Suspender Gestión</h3>
+    <!-- MODAL CONFIRMAR VALIDACIÓN PROFE -->
+    <dialog id="modal-validar-profe" style="width: 90%; max-width: 500px; border: none; border-radius: 8px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+        <h3 style="margin-top:0; color:#212529;">Confirmar Opción Elegida</h3>
+        <p style="color:#495057; font-size:0.95em;">Selecciona el horario que el profesor validó para reservar en Calendar:</p>
+        <div id="opciones-validadas-container" style="margin-bottom: 20px; background:#f8f9fa; padding:15px; border-radius:6px; border:1px solid #ced4da;"></div>
+        <input type="hidden" id="validar-profe-alumno-id">
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <button type="button" class="btn-cerrar-modal" data-modal="modal-validar-profe" style="padding:8px 16px; border:none; border-radius:6px; cursor:pointer; background:#e9ecef; font-weight:600; color:#495057;">Cancelar</button>
+            <button id="btn-confirmar-validacion-profe" class="btn-accion-main" style="padding:8px 16px;">Confirmar y Crear Evento</button>
+        </div>
+    </dialog>
+
+    <!-- MODAL SUSPENDER ALUMNO -->
+    <dialog id="modal-suspender" style="width: 90%; max-width: 400px; border: none; border-radius: 8px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+        <h3 style="margin-top:0; color:#212529;">Suspender Alumno</h3>
         <input type="hidden" id="susp-alumno-id">
-        <label style="display:block; margin-bottom:20px; color:#495057; font-weight:600;">Motivo:
-            <select id="susp-motivo" required style="margin-top:8px;">
-                <option value="">Seleccione motivo...</option>
+        <label>Motivo de suspensión: 
+            <select id="susp-motivo" required style="width:100%; padding:10px; border-radius:6px; border:1px solid #ced4da; margin-top:5px; margin-bottom:15px;">
+                <option value="">Seleccione...</option>
                 <option value="No responde">No responde</option>
-                <option value="Arrepentido">Arrepentido</option>
-                <option value="Sin disponibilidad">Sin disponibilidad</option>
+                <option value="No le sirve horarios">No le sirve horarios</option>
+                <option value="Problemas económicos">Problemas económicos</option>
+                <option value="Otro">Otro</option>
             </select>
         </label>
         <div style="display:flex; gap:10px; justify-content:flex-end;">
-            <button type="button" class="btn-cerrar-modal" data-modal="modal-suspender" style="padding:8px 16px; cursor:pointer; border:none; border-radius:6px; background:#e9ecef; font-weight:600; color:#495057;">Cancelar</button>
-            <button id="btn-guardar-suspension" style="padding:8px 16px; background:#dc3545; color:white; border:none; cursor:pointer; border-radius:6px; font-weight:bold;">Confirmar</button>
+            <button type="button" class="btn-cerrar-modal" data-modal="modal-suspender" style="padding:8px 16px; border:none; border-radius:6px; cursor:pointer; background:#e9ecef; font-weight:600; color:#495057;">Cancelar</button>
+            <button id="btn-guardar-suspension" style="padding:8px 16px; background:#dc3545; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">Suspender</button>
         </div>
     </dialog>
 
-    <dialog id="modal-abm-edit">
-        <h3 style="margin-top:0; font-size:1.2em; color:#212529;">Editar Registro</h3>
-        <input type="hidden" id="abm-edit-id">
-        <input type="hidden" id="abm-edit-coleccion">
-        <label style="display:block; margin-bottom:10px; font-weight:600; font-size:0.9em; color:#495057;">Nombre: <input type="text" id="abm-edit-nombre"></label>
-        <div id="div-abm-edit-profe" style="display:none; padding:15px; background:#f8f9fa; border:1px solid #ced4da; border-radius:6px; margin-bottom:15px;">
-            <label style="display:block; margin-bottom:10px; font-weight:600; font-size:0.9em; color:#495057;">Email Calendario: <input type="email" id="abm-edit-correo"></label>
-            <label style="display:block; margin-bottom:10px; font-weight:600; font-size:0.9em; color:#495057;">Celular (Para guardar): <input type="text" id="abm-edit-celular" placeholder="Ej: 5491143211234"></label>
-            <label style="display:block; margin-bottom:10px; font-weight:600; font-size:0.9em; color:#495057;">Alias a transferir: <input type="text" id="abm-edit-alias"></label>
-            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:600; color:#212529; font-size:0.9em; margin-bottom:20px;"><input type="checkbox" id="abm-edit-entrevista" style="width:auto; margin:0;"> Habilitado para entrevistas</label>
-            
-            <h4 style="margin:15px 0 10px 0; border-bottom:1px solid #e9ecef; padding-bottom:5px; color:#495057; font-size:0.95em;">Disponibilidad (Franjas de trabajo)</h4>
-            <div id="contenedor-disponibilidad-profe"></div>
+    <!-- MODAL ABM EDICIÓN -->
+    <dialog id="modal-abm-edit" style="width: 90%; max-width: 500px; border: none; border-radius: 8px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+        <h3 style="margin-top:0; color:#212529;">Editar Elemento</h3>
+        <input type="hidden" id="abm-edit-id"><input type="hidden" id="abm-edit-coleccion">
+        <label>Nombre: <input type="text" id="abm-edit-nombre" required style="width:100%;"></label>
+        <div id="div-abm-edit-profe" style="display:none; margin-top:10px;">
+            <label>Email Calendar: <input type="email" id="abm-edit-correo" style="width:100%;"></label>
+            <label>Celular: <input type="text" id="abm-edit-celular" style="width:100%;"></label>
+            <label>Alias Transferencia: <input type="text" id="abm-edit-alias" style="width:100%;"></label>
+            <label style="cursor:pointer; font-weight:600; margin-top:10px; display:block;"><input type="checkbox" id="abm-edit-entrevista"> Habilitar para entrevistas</label>
+            <div style="margin-top:15px; border-top:1px solid #dee2e6; padding-top:15px;">
+                <strong style="display:block; margin-bottom:10px; color:#495057;">Disponibilidad del Profesor:</strong>
+                <div id="contenedor-disponibilidad-profe" style="display:flex; flex-direction:column; gap:8px;"></div>
+            </div>
         </div>
-        <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
             <button type="button" class="btn-cerrar-modal" data-modal="modal-abm-edit" style="padding:8px 16px; border:none; border-radius:6px; cursor:pointer; background:#e9ecef; font-weight:600; color:#495057;">Cancelar</button>
-            <button id="btn-guardar-abm-edit" style="padding:8px 16px; background:var(--primary); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">Actualizar</button>
+            <button id="btn-guardar-abm-edit" class="btn-accion-main" style="padding:8px 16px;">Guardar Cambios</button>
         </div>
     </dialog>
 
-    <script type="module" src="app.js"></script>
     <div id="toast-container" style="position:fixed; bottom:20px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
+    
+    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+    <script type="module" src="app.js"></script>
 </body>
 </html>
