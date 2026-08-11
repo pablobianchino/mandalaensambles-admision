@@ -104,7 +104,7 @@ const defaultCfg = {
 
 async function cargarConfig() { const docSnap = await getDoc(doc(db, "configuracion", "general")); configApp = docSnap.exists() ? { ...defaultCfg, ...docSnap.data() } : defaultCfg; }
 
-function reemplazarVariables(texto, datos) { let res = texto; for (const [key, value] of Object.entries(datos)) { res = res.replaceAll(`{${key}}`, value || ''); } res = res.replace(/\{[a-zA-Z0-9_]+\}/g, ''); return res; }
+function reemplazarVariables(texto, datos) { let res = texto; for (const [key, value] of Object.entries(datos)) { res = res.replaceAll(`{${key}}`, value || ''); } res = res.replace(/\{[a-zA-Z0-9_ ]+\}/g, ''); return res; }
 function formatoLocalISO(date) { const tzo = -date.getTimezoneOffset(), dif = tzo >= 0 ? '+' : '-', pad = num => (num < 10 ? '0' : '') + num; return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + 'T' + pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds()) + dif + pad(Math.floor(Math.abs(tzo) / 60)) + ':' + pad(Math.abs(tzo) % 60); }
 function formatearFechaAmi(fechaIsoStr) { const d = new Date(fechaIsoStr), dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']; let min = d.getMinutes(), minStr = min === 0 ? 'hs' : `:${min < 10 ? '0'+min : min}hs`; return `${dias[d.getDay()]} ${d.getDate()}/${d.getMonth()+1} ${d.getHours()}${minStr}`; }
 
@@ -464,12 +464,22 @@ async function cargarVista(vista) {
     } else if (vista === 'Configuración') { contLista.style.display = 'flex'; contLista.innerHTML = ''; renderConfigHub(contLista);
     } else if (vista === 'Ajustes Generales') { contLista.style.display = 'flex'; contLista.innerHTML = ''; renderConfig(contLista);
     } else if (vista.startsWith('ABM')) {
-        contLista.style.display = 'flex'; contLista.innerHTML = ''; const colMap = { 'ABM-Profesores': 'profesores', 'ABM-Instrumentos': 'instrumentos', 'ABM-Suscripciones': 'tipos_suscripcion' }; cargarABM(colMap[vista] || vista.split('-')[1].toLowerCase(), vista.split('-')[1], contLista); 
+        contLista.style.display = 'flex'; contLista.innerHTML = ''; 
+        const colMap = { 'ABM-Profesores': 'profesores', 'ABM-Instrumentos': 'instrumentos', 'ABM-Suscripciones': 'tipos_suscripcion', 'ABM-Usuarios': 'usuarios_sistema' }; 
+        cargarABM(colMap[vista] || vista.split('-')[1].toLowerCase(), vista.split('-')[1], contLista); 
     }
 }
 
 function renderConfigHub(cont) {
-    cont.innerHTML = `<div style="max-width:800px; width:100%; padding:20px;"><h2 style="margin-top:0; margin-bottom:25px; color:#212529;">Configuración</h2><div class="config-card" onclick="cargarVista('Ajustes Generales')"><div class="icon">⚙️</div><div><div style="font-weight:600; font-size:1.05em; color:#212529;">Ajustes Generales</div><div style="color:#6c757d; font-size:0.9em; margin-top:3px;">Límites, calendarios y textos predefinidos.</div></div></div><div class="config-card" onclick="cargarVista('ABM-Profesores')"><div class="icon">👥</div><div><div style="font-weight:600; font-size:1.05em; color:#212529;">Profesores</div><div style="color:#6c757d; font-size:0.9em; margin-top:3px;">Alta, edición de datos y disponibilidad horaria.</div></div></div><div class="config-card" onclick="cargarVista('ABM-Instrumentos')"><div class="icon">🎸</div><div><div style="font-weight:600; font-size:1.05em; color:#212529;">Instrumentos</div><div style="color:#6c757d; font-size:0.9em; margin-top:3px;">Administración de instrumentos del estudio.</div></div></div><div class="config-card" onclick="cargarVista('ABM-Suscripciones')"><div class="icon">🎫</div><div><div style="font-weight:600; font-size:1.05em; color:#212529;">Suscripciones</div><div style="color:#6c757d; font-size:0.9em; margin-top:3px;">Tipos de clases y formatos para los alumnos.</div></div></div></div>`;
+    cont.innerHTML = `
+        <div style="max-width:800px; width:100%; padding:20px;">
+            <h2 style="margin-top:0; margin-bottom:25px; color:#212529;">Configuración</h2>
+            <div class="config-card" onclick="cargarVista('Ajustes Generales')"><div class="icon">⚙️</div><div><div style="font-weight:600; font-size:1.05em; color:#212529;">Ajustes Generales</div><div style="color:#6c757d; font-size:0.9em; margin-top:3px;">Límites, calendarios y textos predefinidos.</div></div></div>
+            <div class="config-card" onclick="cargarVista('ABM-Usuarios')"><div class="icon">🔐</div><div><div style="font-weight:600; font-size:1.05em; color:#212529;">Usuarios del Sistema</div><div style="color:#6c757d; font-size:0.9em; margin-top:3px;">Administrar accesos y cuentas habilitadas.</div></div></div>
+            <div class="config-card" onclick="cargarVista('ABM-Profesores')"><div class="icon">👥</div><div><div style="font-weight:600; font-size:1.05em; color:#212529;">Profesores</div><div style="color:#6c757d; font-size:0.9em; margin-top:3px;">Alta, edición de datos y disponibilidad horaria.</div></div></div>
+            <div class="config-card" onclick="cargarVista('ABM-Instrumentos')"><div class="icon">🎸</div><div><div style="font-weight:600; font-size:1.05em; color:#212529;">Instrumentos</div><div style="color:#6c757d; font-size:0.9em; margin-top:3px;">Administración de instrumentos del estudio.</div></div></div>
+            <div class="config-card" onclick="cargarVista('ABM-Suscripciones')"><div class="icon">🎫</div><div><div style="font-weight:600; font-size:1.05em; color:#212529;">Suscripciones</div><div style="color:#6c757d; font-size:0.9em; margin-top:3px;">Tipos de clases y formatos para los alumnos.</div></div></div>
+        </div>`;
 }
 
 async function renderCharts() {
@@ -486,7 +496,48 @@ const btnLogin = document.getElementById('btn-login'); if (btnLogin) btnLogin.ad
 const btnConectarCal = document.getElementById('btn-conectar-cal'); if (btnConectarCal) btnConectarCal.addEventListener('click', conectarGoogle);
 
 document.getElementById('btn-logout').addEventListener('click', async () => { await signOut(auth); sessionStorage.removeItem('gCalToken'); localStorage.removeItem('gCalToken'); googleAccessToken = null; window.location.reload(); });
-onAuthStateChanged(auth, async (user) => { if (user) { document.getElementById('login-container').style.display = 'none'; document.getElementById('app-container').style.display = 'flex'; document.getElementById('user-info').textContent = user.email; if (!googleAccessToken) document.getElementById('btn-conectar-cal').style.display = 'inline-block'; await cargarConfig(); cargarVista('Resumen'); } else { document.getElementById('login-container').style.display = 'flex'; document.getElementById('app-container').style.display = 'none'; } });
+
+onAuthStateChanged(auth, async (user) => { 
+    if (user) { 
+        // LÓGICA DE LISTA BLANCA (WHITELIST)
+        try {
+            const qSnap = await getDocs(collection(db, "usuarios_sistema"));
+            let autorizado = false;
+            
+            if (qSnap.empty) {
+                // Primer acceso: Si la base está vacía, el primero en loguearse se guarda como Admin
+                await addDoc(collection(db, "usuarios_sistema"), { email: user.email.toLowerCase(), rol: 'admin' });
+                autorizado = true;
+            } else {
+                qSnap.forEach(d => {
+                    if(d.data().email && d.data().email.toLowerCase() === user.email.toLowerCase()) autorizado = true;
+                });
+            }
+            
+            if (!autorizado) {
+                alert(`Acceso Denegado:\nTu cuenta de correo (${user.email}) no se encuentra autorizada en el sistema. Consulta con el administrador.`);
+                await signOut(auth);
+                document.getElementById('login-container').style.display = 'flex'; 
+                document.getElementById('app-container').style.display = 'none';
+                return; 
+            }
+        } catch(e) {
+            console.error(e);
+            return alert("Error al validar permisos de usuario.");
+        }
+
+        // FLUJO NORMAL SI ESTÁ AUTORIZADO
+        document.getElementById('login-container').style.display = 'none'; 
+        document.getElementById('app-container').style.display = 'flex'; 
+        document.getElementById('user-info').textContent = user.email; 
+        if (!googleAccessToken) document.getElementById('btn-conectar-cal').style.display = 'inline-block'; 
+        await cargarConfig(); 
+        cargarVista('Resumen'); 
+    } else { 
+        document.getElementById('login-container').style.display = 'flex'; 
+        document.getElementById('app-container').style.display = 'none'; 
+    } 
+});
 
 document.querySelectorAll('#sidebar .nav-item').forEach(item => { item.addEventListener('click', (e) => { document.querySelectorAll('#sidebar .nav-item').forEach(el => el.classList.remove('active')); e.target.closest('.nav-item').classList.add('active'); cargarVista(e.target.closest('.nav-item').getAttribute('data-vista')); }); });
 const inputBuscadorGeneral = document.getElementById('input-buscador-general'); if(inputBuscadorGeneral) { inputBuscadorGeneral.addEventListener('input', (e) => { const query = e.target.value.toLowerCase(); document.querySelectorAll('.alumno-item').forEach(item => { const elNombre = item.querySelector('.alumno-nombre-search'); if(elNombre) item.style.display = elNombre.textContent.toLowerCase().includes(query) ? 'flex' : 'none'; }); }); }
@@ -571,15 +622,23 @@ document.addEventListener('click', async (e) => {
         if(!al.fecha_prealta) updates.fecha_prealta = new Date().toISOString();
         if(!al.checklist_alta) updates.checklist_alta = [false, false, false, false, false];
         await updateDoc(doc(db, "alumnos", id), updates);
-        const dataText = await generarTextoConHistorial(id, 'texto_prealta'); await navigator.clipboard.writeText(dataText.txt);
-        document.getElementById('modal-iniciar-prealta').close(); alert("Pre-Alta Iniciada.\nTexto de aviso copiado al portapapeles."); cargarVista(estadoActualVista); return;
+        
+        const dataText = await generarTextoConHistorial(id, 'texto_prealta'); 
+        await navigator.clipboard.writeText(dataText.txt);
+        document.getElementById('modal-iniciar-prealta').close(); 
+        alert("Pre-Alta Iniciada.\nTexto de aviso copiado al portapapeles."); 
+        cargarVista(estadoActualVista); return;
     }
     if (target.classList.contains('btn-abrir-confirmar-alta')) { document.getElementById('conf-alta-alumno-id').value = target.getAttribute('data-id'); document.getElementById('modal-confirmar-alta').showModal(); return; }
     if (target.id === 'btn-guardar-confirmacion-alta') {
         const id = document.getElementById('conf-alta-alumno-id').value, est = document.querySelector('input[name="opt-tipo-alta"]:checked').value;
         await updateDoc(doc(db, "alumnos", id), { estado_agenda: est });
-        const dataText = await generarTextoConHistorial(id, 'texto_alta_confirmada'); await navigator.clipboard.writeText(dataText.txt);
-        document.getElementById('modal-confirmar-alta').close(); alert("Alta Confirmada.\nTexto de aviso copiado al portapapeles."); cargarVista(estadoActualVista); return;
+        
+        const dataText = await generarTextoConHistorial(id, 'texto_alta_confirmada'); 
+        await navigator.clipboard.writeText(dataText.txt);
+        document.getElementById('modal-confirmar-alta').close(); 
+        alert("Alta Confirmada.\nTexto de aviso copiado al portapapeles."); 
+        cargarVista(estadoActualVista); return;
     }
     
     if (target.classList.contains('btn-devolver-espera')) {
@@ -762,9 +821,52 @@ function renderConfig(cont) {
     document.getElementById('btn-guardar-cfg').addEventListener('click', async () => { await setDoc(doc(db, "configuracion", "general"), { hora_apertura: document.getElementById('cfg-apertura').value, hora_cierre: document.getElementById('cfg-cierre').value, cantidad_aulas: document.getElementById('cfg-aulas').value, cantidad_baterias: document.getElementById('cfg-bats').value, identificador_bateria: document.getElementById('cfg-idbat').value, emoji_guitarra: document.getElementById('cfg-em-gui').value, emoji_cajon: document.getElementById('cfg-em-caj').value, emoji_canto: document.getElementById('cfg-em-can').value, emoji_piano: document.getElementById('cfg-em-pia').value, emoji_bajo: document.getElementById('cfg-em-baj').value, calendario_por_defecto: document.getElementById('cfg-cal-defecto').value, valor_clase: document.getElementById('cfg-valor').value, formato_evento_reserva: document.getElementById('cfg-evt-res').value, formato_evento_confirmado: document.getElementById('cfg-evt-conf').value, texto_nombre_agendar: document.getElementById('cfg-nombre-agendar').value, texto_opciones_multiples: document.getElementById('cfg-txt-opt-mul').value, texto_profe: document.getElementById('cfg-txt-p').value, texto_alumno: document.getElementById('cfg-txt-a').value, texto_conf_profe: document.getElementById('cfg-txt-conf-p').value, texto_conf_alumno: document.getElementById('cfg-txt-conf-a').value, texto_cancela_alumno: document.getElementById('cfg-txt-cancela').value, texto_prealta: document.getElementById('cfg-txt-prealta').value, texto_alta_confirmada: document.getElementById('cfg-txt-alta-conf').value }, { merge: true }); await cargarConfig(); alert('Guardado.'); }); 
 }
 
-function cargarABM(coleccion, titulo, cont) { window.tituloABMActual = titulo; getDocs(collection(db, coleccion)).then(qS => { let h = `<div style="width:100%; margin-bottom:15px; font-size:0.9em; color:#6c757d;"><span style="cursor:pointer; color:#007bff;" onclick="cargarVista('Configuración')">Configuración</span> &gt; <strong style="color:#212529;">${titulo}</strong></div> <div class="abm-container" style="display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap; padding:25px; background:white; border-radius:8px; border:1px solid #dee2e6;"><div style="flex-grow:1; min-width:180px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Nombre</label><input type="text" id="input-nuevo-abm" placeholder="Ej: Guitarra"></div>`; if(coleccion === 'profesores') { h += `<div style="flex-grow:1; min-width:200px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Email Calendar</label><input type="email" id="input-correo-abm" placeholder="ejemplo@calendar..."></div><div style="flex-grow:1; min-width:150px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Celular (Para guardar)</label><input type="text" id="input-celular-abm" placeholder="Ej: 54911..."></div><div style="flex-grow:1; min-width:150px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Alias Transferencia</label><input type="text" id="input-alias-abm" placeholder="alias.mp"></div><div style="padding-bottom:10px;"><label style="white-space:nowrap; cursor:pointer; font-weight:600; color:#212529;"><input type="checkbox" id="input-entrevista-abm" checked> Entrevistas</label></div>`; } h += `<button id="btn-guardar-abm" class="btn-accion-main" style="height:40px; min-width:120px;">+ Agregar</button></div>`; qS.forEach(d => { const dt = d.data(); let ex = coleccion==='profesores' ? ` <br><small style="color:#6c757d;">${dt.correo_calendario}</small> <span class="badge ${dt.entrevista?'badge-success':'badge-danger'}" style="margin-left:10px;">${dt.entrevista?'SÍ':'NO'} Entrevistas</span>` : ''; h += `<div class="abm-item" onclick="window.abrirEdicionABM('${d.id}', '${coleccion}', '${dt.nombre}', '${dt.correo_calendario||''}', '${dt.celular||''}', '${dt.alias_transferencia||''}', ${!!dt.entrevista})"><span style="font-weight:600; color:#212529; font-size:1.05em;">${dt.nombre}${ex}</span><button class="btn-suspender" onclick="event.stopPropagation(); window.eliminarABM('${d.id}', '${coleccion}')" style="padding:6px 10px; border:none; font-size:1.2em; background:transparent;" title="Eliminar">❌</button></div>`; }); cont.innerHTML = h; document.getElementById('btn-guardar-abm').addEventListener('click', async () => { const n = document.getElementById('input-nuevo-abm').value.trim(); if(!n) return; const dO = { nombre: n }; if(coleccion==='profesores'){ dO.correo_calendario=document.getElementById('input-correo-abm').value.trim(); dO.celular=document.getElementById('input-celular-abm').value.trim(); dO.alias_transferencia=document.getElementById('input-alias-abm').value.trim(); dO.entrevista=document.getElementById('input-entrevista-abm').checked; const hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00', dispAllDay = [ { inicio: hApe, fin: hCie } ]; dO.disponibilidad = { 'L': dispAllDay, 'M': dispAllDay, 'X': dispAllDay, 'J': dispAllDay, 'V': dispAllDay, 'S': dispAllDay }; } await addDoc(collection(db, coleccion), dO); cargarABM(coleccion, titulo, cont); }); }); }
+function cargarABM(coleccion, titulo, cont) { 
+    window.tituloABMActual = titulo; 
+    getDocs(collection(db, coleccion)).then(qS => { 
+        let placeholderTxt = coleccion === 'usuarios_sistema' ? 'Ej: usuario@gmail.com' : 'Ej: Guitarra';
+        let labelTxt = coleccion === 'usuarios_sistema' ? 'Correo (Gmail)' : 'Nombre';
+        let h = `<div style="width:100%; margin-bottom:15px; font-size:0.9em; color:#6c757d;"><span style="cursor:pointer; color:#007bff;" onclick="cargarVista('Configuración')">Configuración</span> &gt; <strong style="color:#212529;">${titulo}</strong></div> <div class="abm-container" style="display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap; padding:25px; background:white; border-radius:8px; border:1px solid #dee2e6;"><div style="flex-grow:1; min-width:180px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">${labelTxt}</label><input type="text" id="input-nuevo-abm" placeholder="${placeholderTxt}"></div>`; 
+        if(coleccion === 'profesores') { h += `<div style="flex-grow:1; min-width:200px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Email Calendar</label><input type="email" id="input-correo-abm" placeholder="ejemplo@calendar..."></div><div style="flex-grow:1; min-width:150px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Celular (Para guardar)</label><input type="text" id="input-celular-abm" placeholder="Ej: 54911..."></div><div style="flex-grow:1; min-width:150px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Alias Transferencia</label><input type="text" id="input-alias-abm" placeholder="alias.mp"></div><div style="padding-bottom:10px;"><label style="white-space:nowrap; cursor:pointer; font-weight:600; color:#212529;"><input type="checkbox" id="input-entrevista-abm" checked> Entrevistas</label></div>`; } 
+        h += `<button id="btn-guardar-abm" class="btn-accion-main" style="height:40px; min-width:120px;">+ Agregar</button></div>`; 
+        qS.forEach(d => { 
+            const dt = d.data(); 
+            let displayNom = dt.nombre || dt.email;
+            let ex = coleccion==='profesores' ? ` <br><small style="color:#6c757d;">${dt.correo_calendario}</small> <span class="badge ${dt.entrevista?'badge-success':'badge-danger'}" style="margin-left:10px;">${dt.entrevista?'SÍ':'NO'} Entrevistas</span>` : ''; 
+            h += `<div class="abm-item" onclick="window.abrirEdicionABM('${d.id}', '${coleccion}', '${displayNom}', '${dt.correo_calendario||''}', '${dt.celular||''}', '${dt.alias_transferencia||''}', ${!!dt.entrevista})"><span style="font-weight:600; color:#212529; font-size:1.05em;">${displayNom}${ex}</span><button class="btn-suspender" onclick="event.stopPropagation(); window.eliminarABM('${d.id}', '${coleccion}')" style="padding:6px 10px; border:none; font-size:1.2em; background:transparent;" title="Eliminar">❌</button></div>`; 
+        }); 
+        cont.innerHTML = h; 
+        document.getElementById('btn-guardar-abm').addEventListener('click', async () => { 
+            const n = document.getElementById('input-nuevo-abm').value.trim(); 
+            if(!n) return; 
+            const dO = coleccion === 'usuarios_sistema' ? { email: n.toLowerCase() } : { nombre: n }; 
+            if(coleccion==='profesores'){ dO.correo_calendario=document.getElementById('input-correo-abm').value.trim(); dO.celular=document.getElementById('input-celular-abm').value.trim(); dO.alias_transferencia=document.getElementById('input-alias-abm').value.trim(); dO.entrevista=document.getElementById('input-entrevista-abm').checked; const hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00', dispAllDay = [ { inicio: hApe, fin: hCie } ]; dO.disponibilidad = { 'L': dispAllDay, 'M': dispAllDay, 'X': dispAllDay, 'J': dispAllDay, 'V': dispAllDay, 'S': dispAllDay }; } 
+            await addDoc(collection(db, coleccion), dO); 
+            cargarABM(coleccion, titulo, cont); 
+        }); 
+    }); 
+}
 
-window.abrirEdicionABM = async function(id, col, nom, cor, cel, ali, ent) { document.getElementById('abm-edit-id').value = id; document.getElementById('abm-edit-coleccion').value = col; document.getElementById('abm-edit-nombre').value = nom; if(col==='profesores') { document.getElementById('div-abm-edit-profe').style.display='block'; document.getElementById('abm-edit-correo').value=cor; document.getElementById('abm-edit-celular').value=cel; document.getElementById('abm-edit-alias').value=ali; document.getElementById('abm-edit-entrevista').checked=ent; try { const pr = (await getDoc(doc(db, col, id))).data(); const hApe = configApp.hora_apertura || '09:00'; const hCie = configApp.hora_cierre || '22:00'; diasSemana.forEach(dia => { const dD = pr.disponibilidad ? pr.disponibilidad[dia.id] : []; const tI = document.getElementById(`disp-p-${dia.id}-inicio`), tF = document.getElementById(`disp-p-${dia.id}-fin`), cA = document.getElementById(`disp-p-${dia.id}-all`), cN = document.getElementById(`disp-p-${dia.id}-none`), sE = document.getElementById(`estado-p-${dia.id}`); tI.disabled=false; tF.disabled=false; cA.checked=false; cN.checked=false; sE.textContent=""; if (!dD || dD.length===0) { cN.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Bloqueado"; sE.style.color="#dc3545"; } else if (dD[0].inicio===hApe && dD[0].fin===hCie) { cA.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Libre"; sE.style.color="#28a745"; } else { tI.value = dD[0].inicio; tF.value = dD[0].fin; } }); } catch(e) {} } else document.getElementById('div-abm-edit-profe').style.display='none'; document.getElementById('modal-abm-edit').showModal(); }
+window.abrirEdicionABM = async function(id, col, nom, cor, cel, ali, ent) { 
+    document.getElementById('abm-edit-id').value = id; 
+    document.getElementById('abm-edit-coleccion').value = col; 
+    document.getElementById('abm-edit-nombre').value = nom; 
+    document.getElementById('label-abm-edit-nombre').innerHTML = col === 'usuarios_sistema' ? `Correo (Gmail): <input type="text" id="abm-edit-nombre" required style="width:100%;">` : `Nombre: <input type="text" id="abm-edit-nombre" required style="width:100%;">`;
+    document.getElementById('abm-edit-nombre').value = nom;
+    
+    if(col==='profesores') { document.getElementById('div-abm-edit-profe').style.display='block'; document.getElementById('abm-edit-correo').value=cor; document.getElementById('abm-edit-celular').value=cel; document.getElementById('abm-edit-alias').value=ali; document.getElementById('abm-edit-entrevista').checked=ent; try { const pr = (await getDoc(doc(db, col, id))).data(); const hApe = configApp.hora_apertura || '09:00'; const hCie = configApp.hora_cierre || '22:00'; diasSemana.forEach(dia => { const dD = pr.disponibilidad ? pr.disponibilidad[dia.id] : []; const tI = document.getElementById(`disp-p-${dia.id}-inicio`), tF = document.getElementById(`disp-p-${dia.id}-fin`), cA = document.getElementById(`disp-p-${dia.id}-all`), cN = document.getElementById(`disp-p-${dia.id}-none`), sE = document.getElementById(`estado-p-${dia.id}`); tI.disabled=false; tF.disabled=false; cA.checked=false; cN.checked=false; sE.textContent=""; if (!dD || dD.length===0) { cN.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Bloqueado"; sE.style.color="#dc3545"; } else if (dD[0].inicio===hApe && dD[0].fin===hCie) { cA.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Libre"; sE.style.color="#28a745"; } else { tI.value = dD[0].inicio; tF.value = dD[0].fin; } }); } catch(e) {} } else document.getElementById('div-abm-edit-profe').style.display='none'; document.getElementById('modal-abm-edit').showModal(); 
+}
+
 window.eliminarABM = async function(id, col) { if(confirm("¿Eliminar?")) { await deleteDoc(doc(db, col, id)); document.querySelector(`[data-vista="ABM-${window.tituloABMActual}"]`).click(); } }
-document.getElementById('btn-guardar-abm-edit').addEventListener('click', async () => { const id = document.getElementById('abm-edit-id').value, col = document.getElementById('abm-edit-coleccion').value, dO = { nombre: document.getElementById('abm-edit-nombre').value }; if(col==='profesores') { dO.correo_calendario=document.getElementById('abm-edit-correo').value; dO.celular=document.getElementById('abm-edit-celular').value; dO.alias_transferencia=document.getElementById('abm-edit-alias').value; dO.entrevista=document.getElementById('abm-edit-entrevista').checked; const disp = {}; const hApe = configApp.hora_apertura || '09:00'; const hCie = configApp.hora_cierre || '22:00'; diasSemana.forEach(d => { const cA = document.getElementById(`disp-p-${d.id}-all`).checked, cN = document.getElementById(`disp-p-${d.id}-none`).checked; let i = document.getElementById(`disp-p-${d.id}-inicio`).value, f = document.getElementById(`disp-p-${d.id}-fin`).value; if(cN) disp[d.id] = []; else if(cA) disp[d.id] = [{inicio:hApe, fin:hCie}]; else { if(i||f) disp[d.id] = [{inicio: i||hApe, fin: f||hCie}]; else disp[d.id] = []; } }); dO.disponibilidad = disp; } await updateDoc(doc(db, col, id), dO); document.getElementById('modal-abm-edit').close(); document.querySelector(`[data-vista="ABM-${window.tituloABMActual}"]`).click(); });
+
+document.getElementById('btn-guardar-abm-edit').addEventListener('click', async () => { 
+    const id = document.getElementById('abm-edit-id').value, col = document.getElementById('abm-edit-coleccion').value;
+    const nombreInput = document.getElementById('abm-edit-nombre').value;
+    const dO = col === 'usuarios_sistema' ? { email: nombreInput.toLowerCase() } : { nombre: nombreInput };
+    if(col==='profesores') { dO.correo_calendario=document.getElementById('abm-edit-correo').value; dO.celular=document.getElementById('abm-edit-celular').value; dO.alias_transferencia=document.getElementById('abm-edit-alias').value; dO.entrevista=document.getElementById('abm-edit-entrevista').checked; const disp = {}; const hApe = configApp.hora_apertura || '09:00'; const hCie = configApp.hora_cierre || '22:00'; diasSemana.forEach(d => { const cA = document.getElementById(`disp-p-${d.id}-all`).checked, cN = document.getElementById(`disp-p-${d.id}-none`).checked; let i = document.getElementById(`disp-p-${d.id}-inicio`).value, f = document.getElementById(`disp-p-${d.id}-fin`).value; if(cN) disp[d.id] = []; else if(cA) disp[d.id] = [{inicio:hApe, fin:hCie}]; else { if(i||f) disp[d.id] = [{inicio: i||hApe, fin: f||hCie}]; else disp[d.id] = []; } }); dO.disponibilidad = disp; } 
+    await updateDoc(doc(db, col, id), dO); 
+    document.getElementById('modal-abm-edit').close(); 
+    document.querySelector(`[data-vista="ABM-${window.tituloABMActual}"]`).click(); 
+});
+
 window.cargarVista = cargarVista;
