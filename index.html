@@ -32,13 +32,22 @@
             
             <ul class="nav flex-column" style="list-style:none; padding:0; margin:0;">
                 <li class="nav-item active" data-vista="Resumen"><span style="filter: grayscale(100%); margin-right:8px;">📋</span> Resumen</li>
-                <li class="nav-item" data-vista="Gestiones en Curso"><span style="filter: grayscale(100%); margin-right:8px;">⏳</span> Pendientes</li>
-                <li class="nav-item" data-vista="Agendas Confirmadas"><span style="filter: grayscale(100%); margin-right:8px;">✔️</span> Confirmadas</li>
-                <li class="nav-item" data-vista="Agendas Suspendidas"><span style="filter: grayscale(100%); margin-right:8px;">⏸️</span> Suspendidas</li>
-                <li class="nav-item" data-vista="Estadísticas"><span style="filter: grayscale(100%); margin-right:8px;">📊</span> Estadísticas</li>
+                
+                <li class="nav-group-header">Admisión</li>
+                <li class="nav-item sub-item" data-vista="Admisión - Pendientes"><span style="filter: grayscale(100%); margin-right:8px;">⏳</span> Pendientes</li>
+                <li class="nav-item sub-item" data-vista="Admisión - Confirmadas"><span style="filter: grayscale(100%); margin-right:8px;">✔️</span> Confirmadas</li>
+                <li class="nav-item sub-item" data-vista="Admisión - Suspendidas"><span style="filter: grayscale(100%); margin-right:8px;">⏸️</span> Suspendidas</li>
+                
+                <li class="nav-item" data-vista="Lista de Espera" style="margin-top:10px;"><span style="filter: grayscale(100%); margin-right:8px;">🛋️</span> Lista de Espera</li>
+                
+                <li class="nav-group-header">Altas</li>
+                <li class="nav-item sub-item" data-vista="Altas - Gestiones"><span style="filter: grayscale(100%); margin-right:8px;">⏳</span> Gestiones</li>
+                <li class="nav-item sub-item" data-vista="Altas - Confirmadas"><span style="filter: grayscale(100%); margin-right:8px;">✔️</span> Confirmadas</li>
+                <li class="nav-item sub-item" data-vista="Altas - Suspendidas"><span style="filter: grayscale(100%); margin-right:8px;">⏸️</span> Suspendidas</li>
+
+                <li class="nav-item" data-vista="Estadísticas" style="margin-top:10px;"><span style="filter: grayscale(100%); margin-right:8px;">📊</span> Estadísticas</li>
                 <li class="nav-item" data-vista="Configuración"><span style="filter: grayscale(100%); margin-right:8px;">⚙️</span> Configuración</li>
             </ul>
-
             <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid #dee2e6; display:flex; flex-direction:column; gap:10px;">
                 <div id="user-info" style="font-size: 0.85em; color: #6c757d; word-break: break-all;"></div>
                 <button id="btn-conectar-cal" style="background:#28a745; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer; font-size:0.9em; display:none;">Conectar Google Calendar</button>
@@ -48,7 +57,8 @@
 
         <!-- MAIN CONTENT -->
         <main id="main-content">
-            <!-- HEADER BAR -->
+           <!-- BREADCRUMBS Y HEADER BAR -->
+            <div id="breadcrumb-container" style="margin-bottom:5px; font-size:0.9em; color:#6c757d; min-height:18px;"></div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                 <h1 id="vista-titulo" style="margin:0; font-size:1.5em; color:#212529;">Resumen</h1>
                 <div style="display:flex; gap:10px;">
@@ -62,15 +72,34 @@
             </div>
 
             <!-- VISTAS DINÁMICAS -->
-            <div id="tablero-resumen" class="board-container" style="display:none;">
-                <div class="board-column"><div class="board-column-header bg-pendientes">Pendientes (Profe/Alumno)</div><div class="board-column-content" id="col-resumen-pendientes"></div></div>
-                <div class="board-column"><div class="board-column-header bg-confirmadas">Agendas Confirmadas</div><div class="board-column-content" id="col-resumen-confirmadas"></div></div>
+            <div id="tablero-resumen" style="display:none; flex-direction:column; gap:20px;">
+                <div>
+                    <div class="resumen-section-title">Fase 1: Admisión</div>
+                    <div class="board-container" style="min-height:auto;">
+                        <div class="board-column"><div class="board-column-header bg-pendientes">Pendientes (Profe/Alumno)</div><div class="board-column-content" id="col-resumen-pendientes"></div></div>
+                        <div class="board-column"><div class="board-column-header bg-confirmadas">Agendas Confirmadas</div><div class="board-column-content" id="col-resumen-confirmadas"></div></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="resumen-section-title">Fase 2: Altas</div>
+                    <div class="board-container" style="min-height:auto;">
+                        <div class="board-column"><div class="board-column-header bg-validando-profe">Alertas Pre-Altas</div><div class="board-column-content" id="col-resumen-prealtas"></div></div>
+                        <div class="board-column"><div class="board-column-header bg-sin-agendar">Altas Confirmadas Incompletas</div><div class="board-column-content" id="col-resumen-altas-incompletas"></div></div>
+                    </div>
+                </div>
             </div>
 
+            <!-- TABLERO ADMISIÓN -->
             <div id="tablero-gestiones" class="board-container" style="display:none;">
                 <div class="board-column"><div class="board-column-header bg-sin-agendar">Sin agendar</div><div class="board-column-content" id="col-1-content"></div></div>
                 <div class="board-column"><div class="board-column-header bg-validando-profe">Validando Profe</div><div class="board-column-content" id="col-2-content"></div></div>
                 <div class="board-column"><div class="board-column-header bg-validando-alumno">Validando Alumno</div><div class="board-column-content" id="col-3-content"></div></div>
+            </div>
+
+            <!-- TABLERO ALTAS -->
+            <div id="tablero-altas" class="board-container" style="display:none;">
+                <div class="board-column"><div class="board-column-header bg-sin-agendar">Pre-Alta Pendiente</div><div class="board-column-content" id="col-alta-1-content"></div></div>
+                <div class="board-column"><div class="board-column-header bg-validando-alumno">Pre-Alta Iniciada</div><div class="board-column-content" id="col-alta-2-content"></div></div>
             </div>
 
             <div id="lista-generica" style="display:none; flex-direction:column; gap:10px;"></div>
@@ -79,8 +108,6 @@
                 <div style="background:white; padding:20px; border-radius:8px; border:1px solid #dee2e6; flex:1; min-width:300px;"><canvas id="chartGestiones"></canvas></div>
                 <div style="background:white; padding:20px; border-radius:8px; border:1px solid #dee2e6; flex:1; min-width:300px;"><canvas id="chartGlobal"></canvas></div>
             </div>
-        </main>
-    </div>
 
     <!-- MODAL ALTA/EDICIÓN ALUMNO -->
     <dialog id="modal-alta-alumno" style="width: 90%; max-width: 900px; border: none; border-radius: 8px; padding: 0; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
