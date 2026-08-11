@@ -253,7 +253,6 @@ function generarTarjetaAlumno(al, id, vista) {
     const instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento;
     let tags = '', accionesHtml = '', extraClass = '', contenidoExtra = '';
 
-    // CÁLCULO DE URGENCIA (Admisión vs Pre-Altas)
     let fechaCalculo = null;
     if ((al.estado_agenda === 'Pendiente validación por profe' || al.estado_agenda === 'Pendiente validación por alumno') && al.reserva_inicio) {
         fechaCalculo = new Date(al.reserva_inicio);
@@ -271,7 +270,6 @@ function generarTarjetaAlumno(al, id, vista) {
 
     if (al.estado_agenda === 'Agenda confirmada') extraClass = 'item-confirmada';
 
-    // RENDERIZADO POR ESTADO MÁS INTELIGENTE
     if (al.estado_agenda === 'Pendiente procesar') {
         accionesHtml += `<button class="dropdown-item btn-buscar-agenda" data-id="${id}">🔍 Buscar Agenda</button>`; 
         accionesHtml += `<button class="dropdown-item btn-abrir-suspender" data-id="${id}">⏸️ Suspender</button>`; 
@@ -313,11 +311,8 @@ function generarTarjetaAlumno(al, id, vista) {
     else if (al.estado_agenda === 'Pre-alta Iniciada') {
         let fAmi = al.fecha_inicio_clases ? formatearFechaAmi(al.fecha_inicio_clases) : '-';
         tags += `<div style="font-size:0.85em; color:#495057; margin-bottom:8px; font-weight:600;">Inicio: ${fAmi} | ${al.grupo_asignado||'-'}</div>`;
-        
         let checks = al.checklist_alta || [false, false, false, false, false];
-        let cantOk = checks.filter(Boolean).length;
-        let pct = (cantOk / 5) * 100;
-        
+        let cantOk = checks.filter(Boolean).length, pct = (cantOk / 5) * 100;
         contenidoExtra = `
             <div class="progress-container"><div class="progress-bar" style="width:${pct}%;"></div></div>
             <div style="margin-top:10px; border-top:1px solid #eee; padding-top:5px;">
@@ -327,8 +322,8 @@ function generarTarjetaAlumno(al, id, vista) {
                 <label class="checklist-item"><input type="checkbox" class="chk-alta-paso" data-id="${id}" data-idx="3" ${checks[3]?'checked':''}> Contabilidad</label>
                 <label class="checklist-item"><input type="checkbox" class="chk-alta-paso" data-id="${id}" data-idx="4" ${checks[4]?'checked':''}> Comunidad Ensambles</label>
             </div>`;
-            
         accionesHtml += `<button class="dropdown-item btn-abrir-confirmar-alta" data-id="${id}">✅ Confirmar Alta</button>`;
+        accionesHtml += `<button class="dropdown-item btn-reenviar-prealta" data-id="${id}">📤 Copiar texto Pre-Alta</button>`;
         accionesHtml += `<button class="dropdown-item btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${al.grupo_asignado||''}">✏️ Editar Pre-Alta</button>`;
         accionesHtml += `<button class="dropdown-item btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
         accionesHtml += `<button class="dropdown-item btn-suspender-alta" data-id="${id}">❌ Suspender Alta</button>`;
@@ -337,9 +332,7 @@ function generarTarjetaAlumno(al, id, vista) {
         extraClass = 'item-confirmada';
         if (al.estado_agenda === 'Alta Ilegal') tags += `<div class="badge badge-ilegal" style="margin-bottom:8px;">🏴 ALTA ILEGAL</div>`;
         else tags += `<div class="badge badge-success" style="margin-bottom:8px;">✅ Alta Efectiva</div>`;
-        
-        let checks = al.checklist_alta || [false, false, false, false, false];
-        let cantOk = checks.filter(Boolean).length;
+        let checks = al.checklist_alta || [false, false, false, false, false], cantOk = checks.filter(Boolean).length;
         if (cantOk < 5) {
             let pct = (cantOk / 5) * 100;
             contenidoExtra = `
@@ -352,9 +345,8 @@ function generarTarjetaAlumno(al, id, vista) {
                     <label class="checklist-item"><input type="checkbox" class="chk-alta-paso" data-id="${id}" data-idx="3" ${checks[3]?'checked':''}> Conta</label>
                     <label class="checklist-item"><input type="checkbox" class="chk-alta-paso" data-id="${id}" data-idx="4" ${checks[4]?'checked':''}> Comu</label>
                 </div>`;
-        } else {
-            contenidoExtra = `<div style="color:#28a745; font-weight:bold; margin-top:10px; text-align:right;">✅ Completado</div>`;
-        }
+        } else { contenidoExtra = `<div style="color:#28a745; font-weight:bold; margin-top:10px; text-align:right;">✅ Completado</div>`; }
+        accionesHtml += `<button class="dropdown-item btn-reenviar-alta" data-id="${id}">📤 Copiar texto Alta Conf.</button>`;
         accionesHtml += `<button class="dropdown-item btn-suspender-alta" data-id="${id}">❌ Suspender Alta</button>`;
     }
     else if (al.estado_agenda === 'Alta Suspendida') {
@@ -368,11 +360,7 @@ function generarTarjetaAlumno(al, id, vista) {
 
     let menuAcciones = '';
     if (accionesHtml) {
-        menuAcciones = `
-        <div class="alumno-actions" style="position:relative; display:flex; justify-content:flex-end;">
-            <button class="btn-dropdown">⚡ Acciones ▾</button>
-            <div class="dropdown-menu-wrapper"><div class="dropdown-menu">${accionesHtml}</div></div>
-        </div>`;
+        menuAcciones = `<div class="alumno-actions" style="position:relative; display:flex; justify-content:flex-end;"><button class="btn-dropdown">⚡ Acciones ▾</button><div class="dropdown-menu-wrapper"><div class="dropdown-menu">${accionesHtml}</div></div></div>`;
     }
 
     return `
@@ -458,7 +446,6 @@ async function cargarVista(vista) {
             const refAl = collection(db, "alumnos");
             const [r1, r2] = await Promise.all([ getDocs(query(refAl, where("estado_agenda", "==", "Pre-alta Pendiente"))), getDocs(query(refAl, where("estado_agenda", "==", "Pre-alta Iniciada"))) ]);
             document.getElementById('col-alta-1-content').innerHTML = r1.empty ? '' : r1.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join('');
-            
             let arrR2 = []; r2.forEach(d => arrR2.push({id:d.id, ...d.data()}));
             arrR2.sort((a,b) => new Date(a.fecha_inicio_clases) - new Date(b.fecha_inicio_clases));
             document.getElementById('col-alta-2-content').innerHTML = arrR2.length === 0 ? '' : arrR2.map(d => generarTarjetaAlumno(d, d.id, vista)).join('');
@@ -520,7 +507,6 @@ document.getElementById('input-csv').addEventListener('change', (e) => {
         } });
 });
 
-// Guardar Checklists dinámicamente
 document.addEventListener('change', async (e) => {
     if(e.target.classList.contains('chk-alta-paso')) {
         const id = e.target.getAttribute('data-id'), idx = parseInt(e.target.getAttribute('data-idx'));
@@ -530,20 +516,12 @@ document.addEventListener('change', async (e) => {
             checks[idx] = e.target.checked;
             await updateDoc(docRef, { checklist_alta: checks });
             const item = e.target.closest('.alumno-item');
-            if (item) {
-                const cantOk = checks.filter(Boolean).length;
-                const pBar = item.querySelector('.progress-bar');
-                if (pBar) pBar.style.width = ((cantOk / 5) * 100) + '%';
-            }
-        } catch(err) { console.error("Error guardando checklist", err); }
+            if (item) { const cantOk = checks.filter(Boolean).length, pBar = item.querySelector('.progress-bar'); if (pBar) pBar.style.width = ((cantOk / 5) * 100) + '%'; }
+        } catch(err) {}
     }
-    
     if(e.target.classList.contains('chk-agenda-opt')) {
         const checkedBoxes = document.querySelectorAll('.chk-agenda-opt:checked');
-        if (checkedBoxes.length > 0) {
-            const selectedProfeId = checkedBoxes[0].getAttribute('data-profeid');
-            document.querySelectorAll('.chk-agenda-opt').forEach(chk => { if (chk.getAttribute('data-profeid') !== selectedProfeId) chk.disabled = true; else chk.disabled = false; });
-        } else { document.querySelectorAll('.chk-agenda-opt').forEach(chk => chk.disabled = false); }
+        if (checkedBoxes.length > 0) { const selectedProfeId = checkedBoxes[0].getAttribute('data-profeid'); document.querySelectorAll('.chk-agenda-opt').forEach(chk => { if (chk.getAttribute('data-profeid') !== selectedProfeId) chk.disabled = true; else chk.disabled = false; }); } else { document.querySelectorAll('.chk-agenda-opt').forEach(chk => chk.disabled = false); }
     }
 });
 
@@ -576,70 +554,48 @@ document.addEventListener('click', async (e) => {
         try { const al = (await getDoc(doc(db, "alumnos", id))).data(); const iS = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento; let template = configApp.texto_nombre_agendar || 'MDL {nombre} {edad} {año_actual} @{instrumento} @{suscripcion}'; const txt = reemplazarVariables(template, { nombre: al.nombre, edad: al.edad || '', 'año_actual': new Date().getFullYear().toString(), 'año actual': new Date().getFullYear().toString(), instrumento: iS, suscripcion: al.tipo_suscripcion || '' }).replace(/\s+/g, ' ').trim(); await navigator.clipboard.writeText(txt); alert("Nombre copiado:\n" + txt); } catch(e) {} return;
     }
 
-    // ACCIONES NUEVAS - FLUJO DE ALTAS
-    if (target.classList.contains('btn-admision-finalizada')) {
-        const id = target.getAttribute('data-id'); await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Lista de espera" }); cargarVista(estadoActualVista); return;
-    }
-    if (target.classList.contains('btn-iniciar-alta')) {
-        const id = target.getAttribute('data-id'); await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pre-alta Pendiente" }); cargarVista(estadoActualVista); return;
-    }
+    if (target.classList.contains('btn-admision-finalizada')) { const id = target.getAttribute('data-id'); await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Lista de espera" }); cargarVista(estadoActualVista); return; }
+    if (target.classList.contains('btn-iniciar-alta')) { const id = target.getAttribute('data-id'); await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pre-alta Pendiente" }); cargarVista(estadoActualVista); return; }
     if (target.classList.contains('btn-abrir-prealta') || target.classList.contains('btn-editar-prealta')) {
-        const id = target.getAttribute('data-id');
-        document.getElementById('prealta-alumno-id').value = id;
-        document.getElementById('titulo-prealta').textContent = target.classList.contains('btn-editar-prealta') ? 'Editar Pre-Alta' : 'Iniciar Pre-Alta';
+        const id = target.getAttribute('data-id'); document.getElementById('prealta-alumno-id').value = id; document.getElementById('titulo-prealta').textContent = target.classList.contains('btn-editar-prealta') ? 'Editar Pre-Alta' : 'Iniciar Pre-Alta';
         const dIni = target.getAttribute('data-inicio'), dGrp = target.getAttribute('data-grupo');
-        document.getElementById('prealta-fecha-inicio').value = dIni ? dIni.substring(0,16) : '';
-        document.getElementById('prealta-grupo').value = dGrp || '';
+        document.getElementById('prealta-fecha-inicio').value = dIni ? dIni.substring(0,16) : ''; document.getElementById('prealta-grupo').value = dGrp || '';
         document.getElementById('modal-iniciar-prealta').showModal(); return;
     }
+    
     if (target.id === 'btn-guardar-prealta') {
         const id = document.getElementById('prealta-alumno-id').value, fIni = document.getElementById('prealta-fecha-inicio').value, grp = document.getElementById('prealta-grupo').value;
         if(!fIni || !grp) return alert("Completa todos los campos.");
-        const fIso = new Date(fIni).toISOString();
-        const updates = { estado_agenda: "Pre-alta Iniciada", fecha_inicio_clases: fIso, grupo_asignado: grp };
+        const fIso = new Date(fIni).toISOString(), updates = { estado_agenda: "Pre-alta Iniciada", fecha_inicio_clases: fIso, grupo_asignado: grp };
         const al = (await getDoc(doc(db, "alumnos", id))).data();
         if(!al.fecha_prealta) updates.fecha_prealta = new Date().toISOString();
         if(!al.checklist_alta) updates.checklist_alta = [false, false, false, false, false];
         await updateDoc(doc(db, "alumnos", id), updates);
-        document.getElementById('modal-iniciar-prealta').close(); cargarVista(estadoActualVista); return;
+        const dataText = await generarTextoConHistorial(id, 'texto_prealta'); await navigator.clipboard.writeText(dataText.txt);
+        document.getElementById('modal-iniciar-prealta').close(); alert("Pre-Alta Iniciada.\nTexto de aviso copiado al portapapeles."); cargarVista(estadoActualVista); return;
     }
-    if (target.classList.contains('btn-abrir-confirmar-alta')) {
-        document.getElementById('conf-alta-alumno-id').value = target.getAttribute('data-id');
-        document.getElementById('modal-confirmar-alta').showModal(); return;
-    }
+    if (target.classList.contains('btn-abrir-confirmar-alta')) { document.getElementById('conf-alta-alumno-id').value = target.getAttribute('data-id'); document.getElementById('modal-confirmar-alta').showModal(); return; }
     if (target.id === 'btn-guardar-confirmacion-alta') {
         const id = document.getElementById('conf-alta-alumno-id').value, est = document.querySelector('input[name="opt-tipo-alta"]:checked').value;
         await updateDoc(doc(db, "alumnos", id), { estado_agenda: est });
-        document.getElementById('modal-confirmar-alta').close(); cargarVista(estadoActualVista); return;
+        const dataText = await generarTextoConHistorial(id, 'texto_alta_confirmada'); await navigator.clipboard.writeText(dataText.txt);
+        document.getElementById('modal-confirmar-alta').close(); alert("Alta Confirmada.\nTexto de aviso copiado al portapapeles."); cargarVista(estadoActualVista); return;
     }
+    
     if (target.classList.contains('btn-devolver-espera')) {
         const motivo = prompt("¿Motivo para devolver a Lista de Espera?");
-        if (motivo !== null) {
-            if (motivo.trim() === "") return alert("Debes ingresar un motivo.");
-            const id = target.getAttribute('data-id');
-            const al = (await getDoc(doc(db, "alumnos", id))).data(), now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`, hist = al.historial || [];
-            hist.push({ id: Date.now(), texto: `Devuelto a espera. Motivo: ${motivo.trim()}`, fecha: fechaStr });
-            await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Lista de espera", fecha_inicio_clases: null, grupo_asignado: null, checklist_alta: null, historial: hist });
-            cargarVista(estadoActualVista);
-        } return;
+        if (motivo !== null) { if (motivo.trim() === "") return alert("Debes ingresar un motivo."); const id = target.getAttribute('data-id'); const al = (await getDoc(doc(db, "alumnos", id))).data(), now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`, hist = al.historial || []; hist.push({ id: Date.now(), texto: `Devuelto a espera. Motivo: ${motivo.trim()}`, fecha: fechaStr }); await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Lista de espera", fecha_inicio_clases: null, grupo_asignado: null, checklist_alta: null, historial: hist }); cargarVista(estadoActualVista); } return;
     }
     if (target.classList.contains('btn-suspender-alta')) {
         const motivo = prompt("¿Motivo de Suspensión de Alta?");
-        if (motivo !== null) {
-            if (motivo.trim() === "") return alert("Debes ingresar un motivo.");
-            const id = target.getAttribute('data-id');
-            const al = (await getDoc(doc(db, "alumnos", id))).data(), now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`, hist = al.historial || [];
-            hist.push({ id: Date.now(), texto: `Alta suspendida. Motivo: ${motivo.trim()}`, fecha: fechaStr });
-            await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Alta Suspendida", historial: hist });
-            cargarVista(estadoActualVista);
-        } return;
+        if (motivo !== null) { if (motivo.trim() === "") return alert("Debes ingresar un motivo."); const id = target.getAttribute('data-id'); const al = (await getDoc(doc(db, "alumnos", id))).data(), now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`, hist = al.historial || []; hist.push({ id: Date.now(), texto: `Alta suspendida. Motivo: ${motivo.trim()}`, fecha: fechaStr }); await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Alta Suspendida", historial: hist }); cargarVista(estadoActualVista); } return;
     }
 
     if (target.classList.contains('btn-buscar-agenda')) {
         if(!googleAccessToken) { return alert("Requiere token. Conecta el calendario arriba."); }
         alumnoIdActual = target.getAttribute('data-id'); const modal = document.getElementById('modal-agenda'), resDiv = document.getElementById('resultados-agenda'), inputBuscadorPop = document.getElementById('input-buscador-popup'), infoDiv = document.getElementById('info-alumno-agenda');
         inputBuscadorPop.style.display = 'none'; inputBuscadorPop.value = ''; resDiv.innerHTML = '';
-        const hoy = new Date(); const d7 = new Date(); d7.setDate(d7.getDate()+7); document.getElementById('agenda-start').value = hoy.toISOString().split('T')[0]; document.getElementById('agenda-end').value = d7.toISOString().split('T')[0];
+        const hoy = new Date(), d7 = new Date(); d7.setDate(d7.getDate()+7); document.getElementById('agenda-start').value = hoy.toISOString().split('T')[0]; document.getElementById('agenda-end').value = d7.toISOString().split('T')[0];
         document.getElementById('btn-procesar-seleccion-agenda').style.display = 'none';
         try { 
             const alData = (await getDoc(doc(db, "alumnos", alumnoIdActual))).data(); const instStr = Array.isArray(alData.instrumento) ? alData.instrumento.join(', ') : alData.instrumento; let dispHTML = '<ul style="margin:5px 0 0 0; padding-left:20px; font-size:0.9em; color:#212529;">';
@@ -710,7 +666,14 @@ document.addEventListener('click', async (e) => {
         let histText = al.historial && al.historial.length > 0 ? [...al.historial].sort((a,b)=>a.id-b.id).map(h => `[${h.fecha}] ${h.texto}`).join('\n') : 'Sin registros previos.';
         let template = configApp[plantillaKey] || ''; template = template.replace(/\{historial\}/gi, histText).replace(/\{bloque_historial\}/gi, histText);
         const iS = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento; const dP = al.descripcion ? al.descripcion.replace(/<[^>]*>?/gm, '').trim() : '';
-        const txt = reemplazarVariables(template, { fecha_hora: overrideFecha || al.reserva_fecha_texto || '', nombre: al.nombre, edad: al.edad||'-', instrumento: iS, suscripcion: al.tipo_suscripcion, descripcion: dP, profe: targetProfeNom, valor: configApp.valor_clase, alias_profe: aliasP });
+        const fAmiInicio = al.fecha_inicio_clases ? formatearFechaAmi(al.fecha_inicio_clases) : '';
+        
+        const txt = reemplazarVariables(template, { 
+            fecha_hora: overrideFecha || al.reserva_fecha_texto || '', 
+            nombre: al.nombre, edad: al.edad||'-', instrumento: iS, suscripcion: al.tipo_suscripcion || '', descripcion: dP, 
+            profe: targetProfeNom || '', valor: configApp.valor_clase || '', alias_profe: aliasP || '',
+            grupo: al.grupo_asignado || '', 'fecha inicio clases': fAmiInicio, 'fecha_inicio_clases': fAmiInicio
+        });
         return { al, txt };
     }
 
@@ -737,6 +700,8 @@ document.addEventListener('click', async (e) => {
     if (target.classList.contains('btn-confirmar-entrevista')) { const id = target.getAttribute('data-id'); try { const al = (await getDoc(doc(db, "alumnos", id))).data(); const descP = al.descripcion ? al.descripcion.replace(/<[^>]*>?/gm, '').trim() : ''; const titulos = construirTitulosEvento(al, 'confirmado', configApp); await actualizarEventoSeguro(al, titulos, descP); await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Agenda confirmada" }); alert("¡Agenda Confirmada!"); cargarVista(estadoActualVista); } catch(e) { alert("Error al actualizar."); } return; }
     if (target.classList.contains('btn-reenviar-profe') || target.classList.contains('btn-enviar-conf-profe')) { try { const id = target.getAttribute('data-id'); const key = target.classList.contains('btn-reenviar-profe') ? 'texto_profe' : 'texto_conf_profe'; const data = await generarTextoConHistorial(id, key); await navigator.clipboard.writeText(data.txt); alert("Texto copiado al portapapeles."); } catch(e) {} return; }
     if (target.classList.contains('btn-reenviar-alumno') || target.classList.contains('btn-enviar-conf-alumno')) { try { const id = target.getAttribute('data-id'); const key = target.classList.contains('btn-reenviar-alumno') ? 'texto_alumno' : 'texto_conf_alumno'; const data = await generarTextoConHistorial(id, key); await navigator.clipboard.writeText(data.txt); alert("Texto copiado al portapapeles."); } catch(e) {} return; }
+    if (target.classList.contains('btn-reenviar-prealta')) { try { const id = target.getAttribute('data-id'); const data = await generarTextoConHistorial(id, 'texto_prealta'); await navigator.clipboard.writeText(data.txt); alert("Texto copiado al portapapeles."); } catch(e) {} return; }
+    if (target.classList.contains('btn-reenviar-alta')) { try { const id = target.getAttribute('data-id'); const data = await generarTextoConHistorial(id, 'texto_alta_confirmada'); await navigator.clipboard.writeText(data.txt); alert("Texto copiado al portapapeles."); } catch(e) {} return; }
 
     if (target.classList.contains('btn-cancelar-reserva')) {
         const motivo = prompt("¿Estás seguro de cancelar? Se eliminará la reserva en Calendar.\nPor favor, ingresa el motivo de la cancelación para el historial:");
@@ -793,12 +758,8 @@ async function llenarFormularioAlumno(id) { document.getElementById('alumno-id')
 document.getElementById('form-alumno').addEventListener('submit', async (e) => { e.preventDefault(); const disp = {}, hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00'; diasSemana.forEach(d => { const cA = document.getElementById(`disp-${d.id}-all`).checked, cN = document.getElementById(`disp-${d.id}-none`).checked; let i = document.getElementById(`disp-${d.id}-inicio`).value, f = document.getElementById(`disp-${d.id}-fin`).value; if(cN) disp[d.id] = []; else if(cA) disp[d.id] = [{inicio:hApe, fin:hCie}]; else { if(i||f) disp[d.id] = [{inicio: i||hApe, fin: f||hCie}]; else disp[d.id] = []; } }); const selInst = document.getElementById('instrumento'), instV = Array.from(selInst.selectedOptions).map(o=>o.value), data = { nombre: document.getElementById('nombre').value, celular: document.getElementById('celular').value, edad: Number(document.getElementById('edad').value), instrumento: instV, tipo_suscripcion: document.getElementById('tipo_suscripcion').value, descripcion: quill.root.innerHTML, disponibilidad: disp, historial: historialActual }; try { const id = document.getElementById('alumno-id').value; if (id) await updateDoc(doc(db, "alumnos", id), data); else { data.estado_agenda = "Pendiente procesar"; await addDoc(collection(db, "alumnos"), data); } const wrap = document.getElementById('form-alumno-wrapper'); wrap.style.display='none'; document.body.appendChild(wrap); document.getElementById('modal-alta-alumno').close(); cargarVista(estadoActualVista); } catch(e) { alert("Error al guardar."); } });
 
 function renderConfig(cont) { 
-    cont.innerHTML = `<div style="margin-bottom:25px; font-size:0.9em; color:#6c757d;"><span style="cursor:pointer; color:#007bff;" onclick="cargarVista('Configuración')">Configuración</span> &gt; <strong style="color:#212529;">Ajustes Generales</strong></div><div class="abm-container" style="max-width:800px; padding:30px; background:white; border-radius:8px; border:1px solid #dee2e6;"> <h3 style="margin-top:0; color:#212529; font-size:1.2em;">Límites y Reglas de Calendario</h3> <div style="display:flex; gap:15px; margin-bottom:25px; flex-wrap:wrap;"> <div style="flex:1; min-width:150px;"><label style="display:block; font-weight:600; color:#495057;">Hora de Apertura:<br><input type="time" id="cfg-apertura" value="${configApp.hora_apertura||'09:00'}"></label></div> <div style="flex:1; min-width:150px;"><label style="display:block; font-weight:600; color:#495057;">Hora de Cierre:<br><input type="time" id="cfg-cierre" value="${configApp.hora_cierre||'22:00'}"></label></div> </div> <div style="display:flex; gap:15px; margin-bottom:25px; flex-wrap:wrap;"> <div style="flex:1; min-width:150px;"><label style="display:block; font-weight:600; color:#495057;">Aulas totales:<br><input type="number" id="cfg-aulas" value="${configApp.cantidad_aulas}"></label></div> <div style="flex:1; min-width:150px;"><label style="display:block; font-weight:600; color:#495057;">Baterías totales:<br><input type="number" id="cfg-bats" value="${configApp.cantidad_baterias}"></label></div> </div> <h3 style="margin-top:0; color:#212529; font-size:1.2em; border-top:1px solid #dee2e6; padding-top:20px;">Calendario y Emojis</h3> <div style="display:flex; gap:15px; margin-bottom:15px; flex-wrap:wrap;"> <div style="flex:1; min-width:250px;"><label style="display:block; font-weight:600; color:#495057;">Calendario Defecto:<br><input type="email" id="cfg-cal-defecto" value="${configApp.calendario_por_defecto||''}"></label></div> </div> <div style="display:flex; gap:10px; margin-bottom:25px; flex-wrap:wrap;"> <div style="width:80px;"><label style="display:block; font-weight:600; color:#495057;">Batería:<br><input type="text" id="cfg-idbat" value="${configApp.identificador_bateria||''}"></label></div> <div style="width:80px;"><label style="display:block; font-weight:600; color:#495057;">Guitarra:<br><input type="text" id="cfg-em-gui" value="${configApp.emoji_guitarra||'🎸'}"></label></div> <div style="width:80px;"><label style="display:block; font-weight:600; color:#495057;">Cajón:<br><input type="text" id="cfg-em-caj" value="${configApp.emoji_cajon||'📦'}"></label></div> <div style="width:80px;"><label style="display:block; font-weight:600; color:#495057;">Canto:<br><input type="text" id="cfg-em-can" value="${configApp.emoji_canto||'🎤'}"></label></div> <div style="width:80px;"><label style="display:block; font-weight:600; color:#495057;">Piano:<br><input type="text" id="cfg-em-pia" value="${configApp.emoji_piano||'🎹'}"></label></div> <div style="width:80px;"><label style="display:block; font-weight:600; color:#495057;">Bajo:<br><input type="text" id="cfg-em-baj" value="${configApp.emoji_bajo||'🎸'}"></label></div> </div> <h3 style="margin-top:0; color:#212529; font-size:1.2em; border-top:1px solid #dee2e6; padding-top:20px;">Mensajes y Textos</h3> <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Valor de Clase (Monto): <input type="text" id="cfg-valor" value="${configApp.valor_clase}"></label> <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Título Evento (Reserva): <input type="text" id="cfg-evt-res" value="${configApp.formato_evento_reserva}"></label> <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Título Evento (Confirmado): <input type="text" id="cfg-evt-conf" value="${configApp.formato_evento_confirmado}"></label> <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Nombre para Agendar (Portapapeles): <input type="text" id="cfg-nombre-agendar" value="${configApp.texto_nombre_agendar}"></label> <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Texto Opciones Múltiples (Validar con Profe): <textarea id="cfg-txt-opt-mul" class="config-box" style="height:200px;">${configApp.texto_opciones_multiples}</textarea></label> <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Texto 1 Sola Opción (Validar con Profe): <textarea id="cfg-txt-p" class="config-box" style="height:150px;">${configApp.texto_profe}</textarea></label> <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Texto Confirmación para Alumno (Validar con Alumno): <textarea id="cfg-txt-a" class="config-box" style="height:150px;">${configApp.texto_alumno}</textarea></label> <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Texto Agenda Confirmada para Profe: <textarea id="cfg-txt-conf-p" class="config-box" style="height:150px;">${configApp.texto_conf_profe}</textarea></label><label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Texto Agenda Confirmada para Alumno: <textarea id="cfg-txt-conf-a" class="config-box" style="height:150px;">${configApp.texto_conf_alumno}</textarea></label> 
-<label style="display:block; margin-bottom:15px; font-weight:600; color:#dc3545;">Texto Cancelación de Alumno: <textarea id="cfg-txt-cancela" class="config-box" style="height:100px;">${configApp.texto_cancela_alumno}</textarea></label> 
-<label style="display:block; margin-bottom:15px; font-weight:600; color:#6f42c1;">Texto Pre-Alta Iniciada: <textarea id="cfg-txt-prealta" class="config-box" style="height:150px;">${configApp.texto_prealta}</textarea></label> 
-<label style="display:block; margin-bottom:20px; font-weight:600; color:#28a745;">Texto Nueva Alta Confirmada: <textarea id="cfg-txt-alta-conf" class="config-box" style="height:150px;">${configApp.texto_alta_confirmada}</textarea></label> 
-<button id="btn-guardar-cfg" class="btn-accion-main" style="padding:10px 20px; font-size:1.05em; width:100%;">Guardar Configuración</button> </div>`; 
-    document.getElementById('btn-guardar-cfg').addEventListener('click', async () => { await setDoc(doc(db, "configuracion", "general"), { hora_apertura: document.getElementById('cfg-apertura').value, hora_cierre: document.getElementById('cfg-cierre').value, cantidad_aulas: document.getElementById('cfg-aulas').value, cantidad_baterias: document.getElementById('cfg-bats').value, identificador_bateria: document.getElementById('cfg-idbat').value, emoji_guitarra: document.getElementById('cfg-em-gui').value, emoji_cajon: document.getElementById('cfg-em-caj').value, emoji_canto: document.getElementById('cfg-em-can').value, emoji_piano: document.getElementById('cfg-em-pia').value, emoji_bajo: document.getElementById('cfg-em-baj').value, calendario_por_defecto: document.getElementById('cfg-cal-defecto').value, valor_clase: document.getElementById('cfg-valor').value, formato_evento_reserva: document.getElementById('cfg-evt-res').value, formato_evento_confirmado: document.getElementById('cfg-evt-conf').value, texto_nombre_agendar: document.getElementById('cfg-nombre-agendar').value, texto_opciones_multiples: document.getElementById('cfg-txt-opt-mul').value, texto_profe: document.getElementById('cfg-txt-p').value, texto_alumno: document.getElementById('cfg-txt-a').value, texto_conf_profe: document.getElementById('cfg-txt-conf-p').value, texto_conf_alumno: document.getElementById('cfg-txt-conf-a').value, texto_cancela_alumno: document.getElementById('cfg-txt-cancela').value, texto_prealta: document.getElementById('cfg-txt-prealta').value, texto_alta_confirmada: document.getElementById('cfg-txt-alta-conf').value }, { merge: true }); await cargarConfig(); alert('Guardado.'); });
+    cont.innerHTML = `<div style="margin-bottom:25px; font-size:0.9em; color:#6c757d;"><span style="cursor:pointer; color:#007bff;" onclick="cargarVista('Configuración')">Configuración</span> &gt; <strong style="color:#212529;">Ajustes Generales</strong></div><div class="abm-container" style="max-width:800px; padding:30px; background:white; border-radius:8px; border:1px solid #dee2e6;"> <h3 style="margin-top:0; color:#212529; font-size:1.2em;">Límites y Reglas de Calendario</h3> <div style="display:flex; gap:15px; margin-bottom:25px; flex-wrap:wrap;"> <div style="flex:1; min-width:150px;"><label style="display:block; font-weight:600; color:#495057;">Hora de Apertura:<br><input type="time" id="cfg-apertura" value="${configApp.hora_apertura||'09:00'}"></label></div> <div style="flex:1; min-width:150px;"><label style="display:block; font-weight:600; color:#495057;">Hora de Cierre:<br><input type="time" id="cfg-cierre" value="${configApp.hora_cierre||'22:00'}"></label></div> </div> <div style="display:flex; gap:15px; margin-bottom:25px; flex-wrap:wrap;"> <div style="flex:1; min-width:150px;"><label style="display:block; font-weight:600; color:#495057;">Aulas totales:<br><input type="number" id="cfg-aulas" value="${configApp.cantidad_aulas}"></label></div> <div style="flex:1; min-width:150px;"><label style="display:block; font-weight:600; color:#495057;">Baterías totales:<br><input type="number" id="cfg-bats" value="${configApp.cantidad_baterias}"></label></div> </div> <h3 style="margin-top:0; color:#212529; font-size:1.2em; border-top:1px solid #dee2e6; padding-top:20px;">Calendario y Emojis</h3> <div style="display:flex; gap:15px; margin-bottom:15px; flex-wrap:wrap;"> <div style="flex:1; min-width:250px;"><label style="display:block; font-weight:600; color:#495057;">Calendario Defecto:<br><input type="email" id="cfg-cal-defecto" value="${configApp.calendario_por_defecto||''}"></label></div> </div> <div style="display:flex; gap:10px; margin-bottom:25px; flex-wrap:wrap;"> <div style="width:80px;"><label style="display:block; font-weight:600; color:#495057;">Batería:<br><input type="text" id="cfg-idbat" value="${configApp.identificador_bateria||''}"></label></div> <div style="width:80px;"><label style="display:block; font-weight:600; color:#495057;">Guitarra:<br><input type="text" id="cfg-em-gui" value="${configApp.emoji_guitarra||'🎸'}"></label></div> <div style="width:80px;"><label style="display:block; font-weight:600; color:#495057;">Cajón:<br><input type="text" id="cfg-em-caj" value="${configApp.emoji_cajon||'📦'}"></label></div> <div style="width:80px;"><label style="display:block; font-weight:600; color:#495057;">Canto:<br><input type="text" id="cfg-em-can" value="${configApp.emoji_canto||'🎤'}"></label></div> <div style="width:80px;"><label style="display:block; font-weight:600; color:#495057;">Piano:<br><input type="text" id="cfg-em-pia" value="${configApp.emoji_piano||'🎹'}"></label></div> <div style="width:80px;"><label style="display:block; font-weight:600; color:#495057;">Bajo:<br><input type="text" id="cfg-em-baj" value="${configApp.emoji_bajo||'🎸'}"></label></div> </div> <h3 style="margin-top:0; color:#212529; font-size:1.2em; border-top:1px solid #dee2e6; padding-top:20px;">Mensajes y Textos</h3> <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Valor de Clase (Monto): <input type="text" id="cfg-valor" value="${configApp.valor_clase}"></label> <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Título Evento (Reserva): <input type="text" id="cfg-evt-res" value="${configApp.formato_evento_reserva}"></label> <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Título Evento (Confirmado): <input type="text" id="cfg-evt-conf" value="${configApp.formato_evento_confirmado}"></label> <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Nombre para Agendar (Portapapeles): <input type="text" id="cfg-nombre-agendar" value="${configApp.texto_nombre_agendar}"></label> <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Texto Opciones Múltiples (Validar con Profe): <textarea id="cfg-txt-opt-mul" class="config-box" style="height:200px;">${configApp.texto_opciones_multiples}</textarea></label> <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Texto 1 Sola Opción (Validar con Profe): <textarea id="cfg-txt-p" class="config-box" style="height:150px;">${configApp.texto_profe}</textarea></label> <label style="display:block; margin-bottom:15px; font-weight:600; color:#495057;">Texto Confirmación para Alumno (Validar con Alumno): <textarea id="cfg-txt-conf-a" class="config-box" style="height:150px;">${configApp.texto_conf_alumno}</textarea></label> <label style="display:block; margin-bottom:15px; font-weight:600; color:#dc3545;">Texto Cancelación de Alumno: <textarea id="cfg-txt-cancela" class="config-box" style="height:100px;">${configApp.texto_cancela_alumno}</textarea></label> <label style="display:block; margin-bottom:15px; font-weight:600; color:#6f42c1;">Texto Pre-Alta Iniciada: <textarea id="cfg-txt-prealta" class="config-box" style="height:150px;">${configApp.texto_prealta}</textarea></label> <label style="display:block; margin-bottom:20px; font-weight:600; color:#28a745;">Texto Nueva Alta Confirmada: <textarea id="cfg-txt-alta-conf" class="config-box" style="height:150px;">${configApp.texto_alta_confirmada}</textarea></label> <button id="btn-guardar-cfg" class="btn-accion-main" style="padding:10px 20px; font-size:1.05em; width:100%;">Guardar Configuración</button> </div>`; 
+    document.getElementById('btn-guardar-cfg').addEventListener('click', async () => { await setDoc(doc(db, "configuracion", "general"), { hora_apertura: document.getElementById('cfg-apertura').value, hora_cierre: document.getElementById('cfg-cierre').value, cantidad_aulas: document.getElementById('cfg-aulas').value, cantidad_baterias: document.getElementById('cfg-bats').value, identificador_bateria: document.getElementById('cfg-idbat').value, emoji_guitarra: document.getElementById('cfg-em-gui').value, emoji_cajon: document.getElementById('cfg-em-caj').value, emoji_canto: document.getElementById('cfg-em-can').value, emoji_piano: document.getElementById('cfg-em-pia').value, emoji_bajo: document.getElementById('cfg-em-baj').value, calendario_por_defecto: document.getElementById('cfg-cal-defecto').value, valor_clase: document.getElementById('cfg-valor').value, formato_evento_reserva: document.getElementById('cfg-evt-res').value, formato_evento_confirmado: document.getElementById('cfg-evt-conf').value, texto_nombre_agendar: document.getElementById('cfg-nombre-agendar').value, texto_opciones_multiples: document.getElementById('cfg-txt-opt-mul').value, texto_profe: document.getElementById('cfg-txt-p').value, texto_alumno: document.getElementById('cfg-txt-a').value, texto_conf_profe: document.getElementById('cfg-txt-conf-p').value, texto_conf_alumno: document.getElementById('cfg-txt-conf-a').value, texto_cancela_alumno: document.getElementById('cfg-txt-cancela').value, texto_prealta: document.getElementById('cfg-txt-prealta').value, texto_alta_confirmada: document.getElementById('cfg-txt-alta-conf').value }, { merge: true }); await cargarConfig(); alert('Guardado.'); }); 
 }
 
 function cargarABM(coleccion, titulo, cont) { window.tituloABMActual = titulo; getDocs(collection(db, coleccion)).then(qS => { let h = `<div style="width:100%; margin-bottom:15px; font-size:0.9em; color:#6c757d;"><span style="cursor:pointer; color:#007bff;" onclick="cargarVista('Configuración')">Configuración</span> &gt; <strong style="color:#212529;">${titulo}</strong></div> <div class="abm-container" style="display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap; padding:25px; background:white; border-radius:8px; border:1px solid #dee2e6;"><div style="flex-grow:1; min-width:180px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Nombre</label><input type="text" id="input-nuevo-abm" placeholder="Ej: Guitarra"></div>`; if(coleccion === 'profesores') { h += `<div style="flex-grow:1; min-width:200px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Email Calendar</label><input type="email" id="input-correo-abm" placeholder="ejemplo@calendar..."></div><div style="flex-grow:1; min-width:150px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Celular (Para guardar)</label><input type="text" id="input-celular-abm" placeholder="Ej: 54911..."></div><div style="flex-grow:1; min-width:150px;"><label style="font-weight:600; font-size:0.9em; color:#495057;">Alias Transferencia</label><input type="text" id="input-alias-abm" placeholder="alias.mp"></div><div style="padding-bottom:10px;"><label style="white-space:nowrap; cursor:pointer; font-weight:600; color:#212529;"><input type="checkbox" id="input-entrevista-abm" checked> Entrevistas</label></div>`; } h += `<button id="btn-guardar-abm" class="btn-accion-main" style="height:40px; min-width:120px;">+ Agregar</button></div>`; qS.forEach(d => { const dt = d.data(); let ex = coleccion==='profesores' ? ` <br><small style="color:#6c757d;">${dt.correo_calendario}</small> <span class="badge ${dt.entrevista?'badge-success':'badge-danger'}" style="margin-left:10px;">${dt.entrevista?'SÍ':'NO'} Entrevistas</span>` : ''; h += `<div class="abm-item" onclick="window.abrirEdicionABM('${d.id}', '${coleccion}', '${dt.nombre}', '${dt.correo_calendario||''}', '${dt.celular||''}', '${dt.alias_transferencia||''}', ${!!dt.entrevista})"><span style="font-weight:600; color:#212529; font-size:1.05em;">${dt.nombre}${ex}</span><button class="btn-suspender" onclick="event.stopPropagation(); window.eliminarABM('${d.id}', '${coleccion}')" style="padding:6px 10px; border:none; font-size:1.2em; background:transparent;" title="Eliminar">❌</button></div>`; }); cont.innerHTML = h; document.getElementById('btn-guardar-abm').addEventListener('click', async () => { const n = document.getElementById('input-nuevo-abm').value.trim(); if(!n) return; const dO = { nombre: n }; if(coleccion==='profesores'){ dO.correo_calendario=document.getElementById('input-correo-abm').value.trim(); dO.celular=document.getElementById('input-celular-abm').value.trim(); dO.alias_transferencia=document.getElementById('input-alias-abm').value.trim(); dO.entrevista=document.getElementById('input-entrevista-abm').checked; const hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00', dispAllDay = [ { inicio: hApe, fin: hCie } ]; dO.disponibilidad = { 'L': dispAllDay, 'M': dispAllDay, 'X': dispAllDay, 'J': dispAllDay, 'V': dispAllDay, 'S': dispAllDay }; } await addDoc(collection(db, coleccion), dO); cargarABM(coleccion, titulo, cont); }); }); }
