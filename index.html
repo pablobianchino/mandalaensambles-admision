@@ -11,7 +11,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 </head>
 <body>
-   <div id="login-container">
+    <div id="login-container">
         <div class="login-card">
             <h2 style="font-size:1.4em; font-weight:700; margin:0 0 25px 0; color:#212529;">Mandala Ensambles Seguimientos</h2>
             <button id="btn-login" class="btn-google-login">
@@ -139,7 +139,11 @@
                     <h3 style="font-size:1.1em; color:#495057; border-bottom:1px solid #e9ecef; padding-bottom:5px;">Historial de Notas</h3>
                     <div id="lista-historial" style="display:flex; flex-direction:column; gap:10px; max-height:200px; overflow-y:auto; padding-right:5px;"></div>
                 </div>
-                <div style="text-align: right; border-top:1px solid #dee2e6; padding-top:15px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #dee2e6; padding-top:15px;">
+                    <label id="container-ingreso-directo" style="margin:0; cursor:pointer; font-weight:600; color:#28a745; display:flex; align-items:center; gap:8px;">
+                        <input type="checkbox" id="chk-ingreso-directo" style="width:18px; height:18px; margin:0;">
+                        Ingreso directo a Lista de Espera (Omitir entrevista)
+                    </label>
                     <button type="submit" class="btn-accion-main" style="padding: 10px 25px; font-size:1.1em;">Guardar Alumno</button>
                 </div>
             </form>
