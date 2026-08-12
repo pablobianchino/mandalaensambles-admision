@@ -594,7 +594,31 @@ document.addEventListener('click', async (e) => {
 
     if (target.classList.contains('btn-eliminar-alumno')) { e.stopPropagation(); if(confirm("¿Eliminar este alumno por completo?")) { const id = target.closest('.alumno-item').getAttribute('data-id'); try { const al = (await getDoc(doc(db, "alumnos", id))).data(); if (al && al.id_evento_reserva) { await eliminarEventoSeguro(al); } } catch(err) {} await deleteDoc(doc(db, "alumnos", id)); cargarVista(estadoActualVista); } return; }
     if (target.classList.contains('btn-nota-rapida')) { e.stopPropagation(); document.getElementById('nota-rapida-id').value = target.getAttribute('data-id'); document.getElementById('nota-rapida-texto').value = ''; document.getElementById('modal-nota-rapida').showModal(); return; }
-
+if (target.id === 'btn-guardar-nota-rapida') {
+        const id = document.getElementById('nota-rapida-id').value;
+        const texto = document.getElementById('nota-rapida-texto').value;
+        
+        if (!texto.trim()) return alert("La nota no puede estar vacía.");
+        
+        try {
+            const alDoc = await getDoc(doc(db, "alumnos", id));
+            if (alDoc.exists()) {
+                const alData = alDoc.data();
+                const hist = alData.historial || [];
+                const now = new Date();
+                const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+                
+                hist.push({ id: Date.now(), texto: texto.trim(), fecha: fechaStr });
+                
+                await updateDoc(doc(db, "alumnos", id), { historial: hist });
+                document.getElementById('modal-nota-rapida').close();
+                cargarVista(estadoActualVista);
+            }
+        } catch(e) {
+            alert("Error al guardar la nota rápida.");
+        }
+        return;
+    }
     const headerAl = target.closest('.btn-editar-alumno');
     if (headerAl && !target.classList.contains('btn-eliminar-alumno') && !target.classList.contains('btn-nota-rapida') && !target.closest('.alumno-actions')) {
         const id = headerAl.getAttribute('data-id'); const wrap = document.getElementById('form-alumno-wrapper'); document.getElementById('modal-alta-alumno').appendChild(wrap); wrap.style.display = 'block'; document.getElementById('alumno-id').value = id; await llenarFormularioAlumno(id); document.getElementById('form-titulo').textContent = 'Editar Alumno'; document.getElementById('modal-alta-alumno').showModal(); return;
