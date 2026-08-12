@@ -17,12 +17,12 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    background-color: #ffffff; /* Fondo blanco */
+    background-color: #ffffff;
     z-index: 9999;
 }
 
 .login-card {
-    background-color: #f8f9fa; /* Fondo de tarjeta gris claro */
+    background-color: #f8f9fa;
     padding: 50px 60px;
     border-radius: 12px;
     display: flex;
