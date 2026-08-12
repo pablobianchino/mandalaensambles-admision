@@ -768,14 +768,32 @@ document.addEventListener('click', async (e) => {
             if (motivo.trim() === "") return alert("Operación abortada. Debes ingresar un motivo para cancelar.");
             const id = target.getAttribute('data-id'); 
             try { 
-                const data = await generarTextoConHistorial(id, 'texto_cancela_alumno');
-                if (data.al.estado_agenda === 'Pendiente validación por alumno' || data.al.estado_agenda === 'Agenda confirmada') { await navigator.clipboard.writeText(data.txt); alert("Reserva cancelada en Calendar. Texto de CANCELACIÓN copiado al portapapeles."); }
-                if (data.al.id_evento_reserva) await eliminarEventoSeguro(data.al); 
-                const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`, hist = data.al.historial || [];
+                // 1. Obtener datos y guardar la nueva nota en el historial PRIMERO
+                const alDoc = await getDoc(doc(db, "alumnos", id));
+                const alData = alDoc.data();
+                const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+                const hist = alData.historial || [];
                 hist.push({ id: Date.now(), texto: `Reserva cancelada. Motivo: ${motivo.trim()}`, fecha: fechaStr });
-                await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente procesar", reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null, historial: hist }); 
+                
+                await updateDoc(doc(db, "alumnos", id), { historial: hist });
+                
+                // 2. AHORA generamos el texto (que ya incluirá la nota que acabamos de guardar)
+                const data = await generarTextoConHistorial(id, 'texto_cancela_alumno');
+                if (data.al.estado_agenda === 'Pendiente validación por alumno' || data.al.estado_agenda === 'Agenda confirmada') { 
+                    await navigator.clipboard.writeText(data.txt); 
+                    alert("Reserva cancelada en Calendar. Texto de CANCELACIÓN copiado al portapapeles."); 
+                }
+                
+                // 3. Eliminar evento de calendar si existe
+                if (data.al.id_evento_reserva) await eliminarEventoSeguro(data.al); 
+                
+                // 4. Limpiar los datos de la reserva y reiniciar el estado a Pendiente procesar
+                await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente procesar", reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null }); 
+                
                 cargarVista(estadoActualVista); 
-            } catch(e) {} 
+            } catch(e) {
+                console.error("Error al cancelar reserva:", e);
+            } 
         } return;
     }
 
