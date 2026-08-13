@@ -270,6 +270,15 @@ function generarTarjetaAlumno(al, id, vista) {
 
     if (al.estado_agenda === 'Agenda confirmada') extraClass = 'item-confirmada';
 
+    // Lista de Checks para Altas
+    const chkLabels = [
+        "¿Se enviaron los mensajes de bienvenida al alumnos?",
+        "¿Se informó al profe de la nueva alta?",
+        "¿Se actualizó la base de datos con la nueva alta?",
+        "¿Se cargó el pago en el sistema de contabilidad?",
+        "¿Se agregó al alumno al grupo de la comunidad Mandala Ensambles?"
+    ];
+
     if (al.estado_agenda === 'Pendiente procesar') {
         accionesHtml += `<button class="dropdown-item btn-buscar-agenda" data-id="${id}">🔍 Buscar Agenda</button>`; 
         accionesHtml += `<button class="dropdown-item btn-abrir-suspender" data-id="${id}">⏸️ Suspender</button>`; 
@@ -319,15 +328,21 @@ function generarTarjetaAlumno(al, id, vista) {
         let fAmi = al.fecha_inicio_clases ? formatearFechaAmi(al.fecha_inicio_clases) : '-';
         tags += `<div style="font-size:0.85em; color:#495057; margin-bottom:8px; font-weight:600;">Inicio: ${fAmi} | ${al.grupo_asignado||'-'}</div>`;
         let checks = al.checklist_alta || [false, false, false, false, false];
-        let cantOk = checks.filter(Boolean).length, pct = (cantOk / 5) * 100;
+        let cantOk = checks.filter(Boolean).length;
+        let pct = (cantOk / 5) * 100;
+        let colorBarra = cantOk <= 1 ? '#dc3545' : (cantOk <= 3 ? '#ffc107' : '#28a745');
+        
+        let chkHtml = '';
+        chkLabels.forEach((label, idx) => {
+            chkHtml += `<label class="checklist-item" style="display:flex; align-items:flex-start; margin-bottom:6px;"><input type="checkbox" class="chk-alta-paso" data-id="${id}" data-idx="${idx}" ${checks[idx]?'checked':''} style="margin-top:2px; margin-right:8px;"> <span style="line-height:1.3;">${label}</span></label>`;
+        });
+
         contenidoExtra = `
-            <div class="progress-container"><div class="progress-bar" style="width:${pct}%;"></div></div>
-            <div style="margin-top:10px; border-top:1px solid #eee; padding-top:5px;">
-                <label class="checklist-item"><input type="checkbox" class="chk-alta-paso" data-id="${id}" data-idx="0" ${checks[0]?'checked':''}> Alumno informado</label>
-                <label class="checklist-item"><input type="checkbox" class="chk-alta-paso" data-id="${id}" data-idx="1" ${checks[1]?'checked':''}> Profe informado</label>
-                <label class="checklist-item"><input type="checkbox" class="chk-alta-paso" data-id="${id}" data-idx="2" ${checks[2]?'checked':''}> Ingresado en BD</label>
-                <label class="checklist-item"><input type="checkbox" class="chk-alta-paso" data-id="${id}" data-idx="3" ${checks[3]?'checked':''}> Contabilidad</label>
-                <label class="checklist-item"><input type="checkbox" class="chk-alta-paso" data-id="${id}" data-idx="4" ${checks[4]?'checked':''}> Comunidad Ensambles</label>
+            <div class="progress-container"><div class="progress-bar" style="width:${pct}%; background-color:${colorBarra};"></div></div>
+            <div class="txt-checks-count" style="font-size:0.8em; color:#6c757d; margin-top:5px; text-align:right;">${cantOk}/5 Checks</div>
+            <div style="margin-top:10px; border-top:1px solid #eee; padding-top:10px;">
+                <strong style="display:block; font-size:0.85em; color:#212529; margin-bottom:8px;">Chequeo para completar alta:</strong>
+                ${chkHtml}
             </div>`;
         accionesHtml += `<button class="dropdown-item btn-abrir-confirmar-alta" data-id="${id}">✅ Confirmar Alta</button>`;
         accionesHtml += `<button class="dropdown-item btn-reenviar-prealta" data-id="${id}">📤 Copiar texto Pre-Alta</button>`;
@@ -339,18 +354,21 @@ function generarTarjetaAlumno(al, id, vista) {
         extraClass = 'item-confirmada';
         if (al.estado_agenda === 'Alta Ilegal') tags += `<div class="badge badge-ilegal" style="margin-bottom:8px;">🏴 ALTA ILEGAL</div>`;
         else tags += `<div class="badge badge-success" style="margin-bottom:8px;">✅ Alta Efectiva</div>`;
-        let checks = al.checklist_alta || [false, false, false, false, false], cantOk = checks.filter(Boolean).length;
+        let checks = al.checklist_alta || [false, false, false, false, false];
+        let cantOk = checks.filter(Boolean).length;
         if (cantOk < 5) {
             let pct = (cantOk / 5) * 100;
+            let colorBarra = cantOk <= 1 ? '#dc3545' : (cantOk <= 3 ? '#ffc107' : '#28a745');
+            let chkHtml = '';
+            chkLabels.forEach((label, idx) => {
+                chkHtml += `<label class="checklist-item" style="display:flex; align-items:flex-start; margin-bottom:6px;"><input type="checkbox" class="chk-alta-paso" data-id="${id}" data-idx="${idx}" ${checks[idx]?'checked':''} style="margin-top:2px; margin-right:8px;"> <span style="line-height:1.3;">${label}</span></label>`;
+            });
             contenidoExtra = `
-                <div class="progress-container"><div class="progress-bar" style="width:${pct}%;"></div></div>
-                <div style="font-size:0.8em; color:#6c757d; margin-top:5px; text-align:right;">${cantOk}/5 Checks</div>
-                <div style="margin-top:10px; border-top:1px solid #eee; padding-top:5px;">
-                    <label class="checklist-item"><input type="checkbox" class="chk-alta-paso" data-id="${id}" data-idx="0" ${checks[0]?'checked':''}> Alumno</label>
-                    <label class="checklist-item"><input type="checkbox" class="chk-alta-paso" data-id="${id}" data-idx="1" ${checks[1]?'checked':''}> Profe</label>
-                    <label class="checklist-item"><input type="checkbox" class="chk-alta-paso" data-id="${id}" data-idx="2" ${checks[2]?'checked':''}> BD</label>
-                    <label class="checklist-item"><input type="checkbox" class="chk-alta-paso" data-id="${id}" data-idx="3" ${checks[3]?'checked':''}> Conta</label>
-                    <label class="checklist-item"><input type="checkbox" class="chk-alta-paso" data-id="${id}" data-idx="4" ${checks[4]?'checked':''}> Comu</label>
+                <div class="progress-container"><div class="progress-bar" style="width:${pct}%; background-color:${colorBarra};"></div></div>
+                <div class="txt-checks-count" style="font-size:0.8em; color:#6c757d; margin-top:5px; text-align:right;">${cantOk}/5 Checks</div>
+                <div style="margin-top:10px; border-top:1px solid #eee; padding-top:10px;">
+                    <strong style="display:block; font-size:0.85em; color:#212529; margin-bottom:8px;">Chequeo para completar alta:</strong>
+                    ${chkHtml}
                 </div>`;
         } else { contenidoExtra = `<div style="color:#28a745; font-weight:bold; margin-top:10px; text-align:right;">✅ Completado</div>`; }
         accionesHtml += `<button class="dropdown-item btn-reenviar-alta" data-id="${id}">📤 Copiar texto Alta Conf.</button>`;
@@ -566,12 +584,32 @@ document.addEventListener('change', async (e) => {
     if(e.target.classList.contains('chk-alta-paso')) {
         const id = e.target.getAttribute('data-id'), idx = parseInt(e.target.getAttribute('data-idx'));
         try {
-            const docRef = doc(db, "alumnos", id), al = (await getDoc(docRef)).data();
+            const docRef = doc(db, "alumnos", id), alDoc = await getDoc(docRef), al = alDoc.data();
             let checks = al.checklist_alta || [false, false, false, false, false];
             checks[idx] = e.target.checked;
             await updateDoc(docRef, { checklist_alta: checks });
+            
+            // Refresco dinámico visual sin recargar
             const item = e.target.closest('.alumno-item');
-            if (item) { const cantOk = checks.filter(Boolean).length, pBar = item.querySelector('.progress-bar'); if (pBar) pBar.style.width = ((cantOk / 5) * 100) + '%'; }
+            if (item) { 
+                const cantOk = checks.filter(Boolean).length;
+                const pct = (cantOk / 5) * 100;
+                const color = cantOk <= 1 ? '#dc3545' : (cantOk <= 3 ? '#ffc107' : '#28a745');
+                
+                const pBar = item.querySelector('.progress-bar'); 
+                if (pBar) {
+                    pBar.style.width = pct + '%';
+                    pBar.style.backgroundColor = color;
+                }
+                
+                const tCount = item.querySelector('.txt-checks-count');
+                if(tCount) tCount.textContent = cantOk + '/5 Checks';
+                
+                // Auto-desaparecer si está completo y en la vista Resumen
+                if (cantOk === 5 && estadoActualVista === 'Resumen' && (al.estado_agenda === 'Alta Efectiva' || al.estado_agenda === 'Alta Ilegal')) {
+                    setTimeout(() => { cargarVista(estadoActualVista); }, 1000);
+                }
+            }
         } catch(err) {}
     }
     if(e.target.classList.contains('chk-agenda-opt')) {
@@ -598,6 +636,32 @@ document.addEventListener('click', async (e) => {
 
     if (target.classList.contains('btn-eliminar-alumno')) { e.stopPropagation(); if(confirm("¿Eliminar este alumno por completo?")) { const id = target.closest('.alumno-item').getAttribute('data-id'); try { const al = (await getDoc(doc(db, "alumnos", id))).data(); if (al && al.id_evento_reserva) { await eliminarEventoSeguro(al); } } catch(err) {} await deleteDoc(doc(db, "alumnos", id)); cargarVista(estadoActualVista); } return; }
     if (target.classList.contains('btn-nota-rapida')) { e.stopPropagation(); document.getElementById('nota-rapida-id').value = target.getAttribute('data-id'); document.getElementById('nota-rapida-texto').value = ''; document.getElementById('modal-nota-rapida').showModal(); return; }
+
+    if (target.classList.contains('btn-editar-nota') || target.closest('.btn-editar-nota')) {
+        e.stopPropagation();
+        const btn = target.classList.contains('btn-editar-nota') ? target : target.closest('.btn-editar-nota');
+        const idNota = parseInt(btn.getAttribute('data-id'));
+        const nota = historialActual.find(n => n.id === idNota);
+        if (nota) {
+            const nuevoTexto = prompt("Editar nota:", nota.texto.replace(/<br>/g, "\n"));
+            if (nuevoTexto !== null && nuevoTexto.trim() !== "") {
+                nota.texto = nuevoTexto.trim();
+                renderHistorial();
+            }
+        }
+        return;
+    }
+    
+    if (target.classList.contains('btn-eliminar-nota') || target.closest('.btn-eliminar-nota')) {
+        e.stopPropagation();
+        const btn = target.classList.contains('btn-eliminar-nota') ? target : target.closest('.btn-eliminar-nota');
+        if(confirm("¿Eliminar esta nota?")) {
+            const idNota = parseInt(btn.getAttribute('data-id'));
+            historialActual = historialActual.filter(n => n.id !== idNota);
+            renderHistorial();
+        }
+        return;
+    }
 
     if (target.id === 'btn-guardar-nota-rapida') {
         const id = document.getElementById('nota-rapida-id').value;
