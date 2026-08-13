@@ -3,7 +3,7 @@ import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
 // === ATENCIÓN: PEGA LA URL DEL SCRIPT AQUÍ ABAJO ===
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxRhHNcIKczT9kK1DUFyEsKaio2XKRHEr8mAFduFhCmiIV-275WKnsJUWzGax94Bwg/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 // ====================================================
 
 const firebaseConfig = {
