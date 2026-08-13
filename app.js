@@ -2,6 +2,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
+// === ATENCIÓN: PEGA LA URL DEL SCRIPT AQUÍ ABAJO ===
+const SCRIPT_URL = "PEGAR_AQUI_LA_URL_DEL_SCRIPT";
+// ====================================================
+
 const firebaseConfig = {
     apiKey: "AIzaSyCgAg2EwTJh4zbMdpkqG3VKTGfDeofblyg",
     authDomain: "priel-mdl-seguimientos.firebaseapp.com",
@@ -14,7 +18,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
-provider.addScope('https://www.googleapis.com/auth/calendar.events');
+// SCOPE ELIMINADO PARA PERMITIR LOGIN LIMPIO
 
 window.alert = function(msg) {
     const container = document.getElementById('toast-container');
@@ -26,14 +30,6 @@ window.alert = function(msg) {
     setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
 };
 
-function getSavedToken() {
-    const token = localStorage.getItem('gCalToken');
-    const time = localStorage.getItem('gCalTokenTime');
-    if (token && time && (Date.now() - parseInt(time) < 55 * 60 * 1000)) return token;
-    return null;
-}
-
-let googleAccessToken = getSavedToken(); 
 let alumnoIdActual = null;
 let estadoActualVista = 'Resumen';
 window.tituloABMActual = '';
@@ -145,12 +141,45 @@ function interpretarFechaCSV(texto) {
     if (match) { const dia = parseInt(match[1]), mes = parseInt(match[2]) - 1, hora = match[3] ? parseInt(match[3]) : 0, min = match[4] ? parseInt(match[4]) : 0; if (dia > 31 || mes > 11 || hora > 23 || min > 59) return null; return formatoLocalISO(new Date(new Date().getFullYear(), mes, dia, hora, min)); } return null;
 }
 
-async function conectarGoogle() { try { const res = await signInWithPopup(auth, provider); googleAccessToken = GoogleAuthProvider.credentialFromResult(res).accessToken; localStorage.setItem('gCalToken', googleAccessToken); localStorage.setItem('gCalTokenTime', Date.now()); document.getElementById('btn-conectar-cal').style.display = 'none'; return true; } catch (err) { console.error(err); alert("Se requiere acceso al calendario."); throw err; } }
-async function fetchCalendarAPI(url, method, body = null) { if (!googleAccessToken) { await conectarGoogle(); } let options = { method, headers: { 'Authorization': `Bearer ${googleAccessToken}`, 'Content-Type': 'application/json' } }; if (body) options.body = JSON.stringify(body); let res = await fetch(url, options); if (res.status === 401 || res.status === 403) { await conectarGoogle(); options.headers['Authorization'] = `Bearer ${googleAccessToken}`; res = await fetch(url, options); } if (!res.ok && res.status !== 410 && res.status !== 404) throw new Error(`API Error: ${res.statusText}`); return method === 'DELETE' ? true : await res.json(); }
-async function getEventosCalendario(calendarId, timeMin, timeMax) { return await fetchCalendarAPI(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true`, 'GET'); }
-async function crearEventoCalendario(calendarId, titulo, inicioStr, finStr) { return await fetchCalendarAPI(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`, 'POST', { summary: titulo, start: { dateTime: inicioStr }, end: { dateTime: finStr } }); }
-async function actualizarEventoCalendario(calendarId, eventId, titulo, descripcion) { return await fetchCalendarAPI(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, 'PATCH', { summary: titulo, description: descripcion }); }
-async function eliminarEventoCalendario(calendarId, eventId) { return await fetchCalendarAPI(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, 'DELETE'); }
+// ==========================================
+// NUEVO PUENTE CON GOOGLE APPS SCRIPT
+// ==========================================
+async function fetchCalendarAPI(action, payload) {
+    if (SCRIPT_URL === "PEGAR_AQUI_LA_URL_DEL_SCRIPT") {
+        alert("Falta configurar la URL del Script de Google en app.js");
+        throw new Error("Script URL no configurada");
+    }
+    payload.action = action;
+    payload.apiKey = "mandala-seg-2026";
+    
+    const res = await fetch(SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        headers: {
+            'Content-Type': 'text/plain;charset=utf-8',
+        }
+    });
+    
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    return action === 'getEvents' ? data : (action === 'createEvent' ? {id: data.id} : true);
+}
+
+async function getEventosCalendario(calendarId, timeMin, timeMax) {
+    return await fetchCalendarAPI('getEvents', { calendarId, timeMin, timeMax });
+}
+
+async function crearEventoCalendario(calendarId, titulo, inicioStr, finStr) {
+    return await fetchCalendarAPI('createEvent', { calendarId, summary: titulo, start: { dateTime: inicioStr }, end: { dateTime: finStr } });
+}
+
+async function actualizarEventoCalendario(calendarId, eventId, titulo, descripcion) {
+    return await fetchCalendarAPI('updateEvent', { calendarId, eventId, summary: titulo, description });
+}
+
+async function eliminarEventoCalendario(calendarId, eventId) {
+    return await fetchCalendarAPI('deleteEvent', { calendarId, eventId });
+}
 
 async function getCalendarIdParaAlumno(al) {
     if (al.reserva_cal_id) return al.reserva_cal_id;
@@ -635,9 +664,9 @@ async function renderCharts() {
 }
 
 const btnLogin = document.getElementById('btn-login'); if (btnLogin) btnLogin.addEventListener('click', conectarGoogle);
-const btnConectarCal = document.getElementById('btn-conectar-cal'); if (btnConectarCal) btnConectarCal.addEventListener('click', conectarGoogle);
 
-document.getElementById('btn-logout').addEventListener('click', async () => { await signOut(auth); sessionStorage.removeItem('gCalToken'); localStorage.removeItem('gCalToken'); googleAccessToken = null; window.location.reload(); });
+// LOGOUT ACTUALIZADO: Solo cierra sesión, no borra tokens (ya no los usamos acá)
+document.getElementById('btn-logout').addEventListener('click', async () => { await signOut(auth); window.location.reload(); });
 
 onAuthStateChanged(auth, async (user) => { 
     if (user) { 
@@ -669,7 +698,7 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById('login-container').style.display = 'none'; 
         document.getElementById('app-container').style.display = 'flex'; 
         document.getElementById('user-info').textContent = user.email; 
-        if (!googleAccessToken) document.getElementById('btn-conectar-cal').style.display = 'inline-block'; 
+        
         await cargarConfig(); 
         cargarVista('Resumen'); 
     } else { 
@@ -854,7 +883,6 @@ document.addEventListener('click', async (e) => {
     }
 
     if (target.classList.contains('btn-buscar-agenda')) {
-        if(!googleAccessToken) { return alert("Requiere token. Conecta el calendario arriba."); }
         alumnoIdActual = target.getAttribute('data-id'); const modal = document.getElementById('modal-agenda'), resDiv = document.getElementById('resultados-agenda'), inputBuscadorPop = document.getElementById('input-buscador-popup'), infoDiv = document.getElementById('info-alumno-agenda');
         inputBuscadorPop.style.display = 'none'; inputBuscadorPop.value = ''; resDiv.innerHTML = '';
         const hoy = new Date(), d7 = new Date(); d7.setDate(d7.getDate()+7); document.getElementById('agenda-start').value = hoy.toISOString().split('T')[0]; document.getElementById('agenda-end').value = d7.toISOString().split('T')[0];
