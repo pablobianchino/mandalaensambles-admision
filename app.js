@@ -266,7 +266,7 @@ function generarTarjetaAlumno(al, id, vista) {
     let tags = '', accionesHtml = '', extraClass = '', contenidoExtra = '';
 
     let fechaCalculo = null;
-    if ((al.estado_agenda === 'Pendiente validación por profe' || al.estado_agenda === 'Pendiente validación por alumno') && al.reserva_inicio) {
+    if ((al.estado_agenda === 'Pendiente validación por profe' || al.estado_agenda === 'Pendiente validación por alumno' || al.estado_agenda === 'Agenda confirmada') && al.reserva_inicio) {
         fechaCalculo = new Date(al.reserva_inicio);
     } else if (al.estado_agenda === 'Pre-alta Iniciada' && al.fecha_inicio_clases) {
         fechaCalculo = new Date(al.fecha_inicio_clases);
@@ -480,7 +480,7 @@ async function cargarVista(vista) {
     } else { bcContainer.innerHTML = ''; titleContainer.textContent = vista; }
 
     const btnNuevo = document.getElementById('btn-nuevo-alumno'), searchGen = document.getElementById('search-container-general'), btnCargaMasiva = document.getElementById('btn-carga-masiva');
-    const vResumen = document.getElementById('vista-resumen'), vAdm = document.getElementById('vista-admision-pendientes'), vAltas = document.getElementById('vista-altas-gestiones');
+    const vResumen = document.getElementById('vista-resumen'), vAdm = document.getElementById('vista-admision-pendientes'), vAltas = document.getElementById('vista-altas-pendientes');
     const contLista = document.getElementById('lista-generica'), contEstad = document.getElementById('estadisticas-container');
     const formWrapper = document.getElementById('form-alumno-wrapper'); 
     
@@ -494,12 +494,26 @@ async function cargarVista(vista) {
             const refAl = collection(db, "alumnos"), qSnap = await getDocs(refAl);
             let allData = []; qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
             
+            // TRADUCTOR DE FECHAS CSV (Para que Urgencias pueda leer agendas subidas manualmente)
+            allData.forEach(a => {
+                if (!a.reserva_inicio && a.reserva_fecha_texto) {
+                    const fIso = interpretarFechaCSV(a.reserva_fecha_texto);
+                    if (fIso) a.reserva_inicio = fIso;
+                }
+            });
+            
             // 1. Urgencias
             let urgencies = [];
             allData.forEach(al => {
                 let dateToEval = null;
-                if ((al.estado_agenda === 'Pendiente validación por profe' || al.estado_agenda === 'Pendiente validación por alumno') && al.reserva_inicio) dateToEval = new Date(al.reserva_inicio);
-                else if (al.estado_agenda === 'Pre-alta Iniciada' && al.fecha_inicio_clases) dateToEval = new Date(al.fecha_inicio_clases);
+                if ((al.estado_agenda === 'Pendiente validación por profe' || al.estado_agenda === 'Pendiente validación por alumno' || al.estado_agenda === 'Agenda confirmada') && al.reserva_inicio) {
+                    dateToEval = new Date(al.reserva_inicio);
+                    if(isNaN(dateToEval.getTime())) dateToEval = null;
+                }
+                else if (al.estado_agenda === 'Pre-alta Iniciada' && al.fecha_inicio_clases) {
+                    dateToEval = new Date(al.fecha_inicio_clases);
+                    if(isNaN(dateToEval.getTime())) dateToEval = null;
+                }
                 
                 if (dateToEval) {
                     let diffHs = (dateToEval - new Date()) / (1000 * 60 * 60);
@@ -534,7 +548,7 @@ async function cargarVista(vista) {
     } else if (vista === 'Lista de Espera') {
         searchGen.style.display = 'block'; contLista.style.display = 'flex'; contLista.innerHTML = '<div class="cards-grid" id="lista-grilla-esp"></div>';
         try { const qSnap = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", "Lista de espera"))); if(!qSnap.empty) document.getElementById('lista-grilla-esp').innerHTML = qSnap.docs.map(d => generarTarjetaAlumno(d.data(), d.id, vista)).join(''); else document.getElementById('lista-grilla-esp').innerHTML = '<p style="color:#6c757d;">No hay alumnos en lista de espera.</p>'; } catch(e) {}
-    } else if (vista === 'Altas - Gestiones') {
+    } else if (vista === 'Altas - Pendientes') {
         searchGen.style.display = 'block'; vAltas.style.display = 'flex';
         try {
             const refAl = collection(db, "alumnos"), qSnap = await getDocs(refAl);
