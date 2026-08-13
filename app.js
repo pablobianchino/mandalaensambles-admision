@@ -3,7 +3,7 @@ import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
 // === ATENCIÓN: PEGA LA URL DEL SCRIPT AQUÍ ABAJO ===
-const SCRIPT_URL = "PEGAR_AQUI_LA_URL_DEL_SCRIPT";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxRhHNcIKczT9kK1DUFyEsKaio2XKRHEr8mAFduFhCmiIV-275WKnsJUWzGax94Bwg/exec";
 // ====================================================
 
 const firebaseConfig = {
@@ -19,6 +19,16 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 // SCOPE ELIMINADO PARA PERMITIR LOGIN LIMPIO
+
+// FUNCIÓN DE LOGIN BÁSICO (Restaurada y Limpia)
+async function conectarGoogle() { 
+    try { 
+        await signInWithPopup(auth, provider); 
+    } catch (err) { 
+        console.error(err); 
+        alert("Error al intentar iniciar sesión."); 
+    } 
+}
 
 window.alert = function(msg) {
     const container = document.getElementById('toast-container');
