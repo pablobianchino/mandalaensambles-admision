@@ -59,20 +59,50 @@ body {
 #main-content { flex-grow: 1; padding: 25px; overflow-y: auto; background-color: #f4f6f9; }
 
 .resumen-section-title { font-size: 1.2em; font-weight: 700; margin: 10px 0 15px 0; padding-bottom: 5px; border-bottom: 2px solid #dee2e6; color: #343a40; }
-.board-container { display: flex; gap: 20px; overflow-x: auto; padding-bottom: 15px; min-height: calc(100vh - 100px); }
-.board-column { background-color: #ebecf0; border-radius: 8px; min-width: 320px; max-width: 320px; display: flex; flex-direction: column; max-height: 100%; }
 
-/* Bordes finos superiores para las columnas */
-.board-column-header { padding: 12px 15px; font-weight: 700; color: #212529; background-color: transparent; border-top-left-radius: 8px; border-top-right-radius: 8px; font-size: 1.05em; border-top: 4px solid transparent; }
-.bg-pendientes { border-top-color: #17a2b8; }
-.bg-confirmadas { border-top-color: #28a745; }
-.bg-sin-agendar { border-top-color: #6c757d; }
-.bg-validando-profe { border-top-color: #6f42c1; }
-.bg-validando-alumno { border-top-color: #ffc107; }
-.board-column-content { padding: 10px; overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; gap: 10px; }
+/* Grid para tarjetas (Reemplaza las columnas Kanban) */
+.cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 15px; align-items: start; }
+
+/* Acordeones para vista Resumen */
+.resumen-accordion { background: white; border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
+.resumen-accordion summary { padding: 15px 20px; background: #f8f9fa; font-size: 1.1em; font-weight: 700; color: #212529; cursor: pointer; list-style: none; outline: none; border-bottom: 1px solid transparent; transition: 0.2s; }
+.resumen-accordion summary::-webkit-details-marker { display: none; }
+.resumen-accordion[open] summary { border-bottom-color: #dee2e6; }
+.accordion-content { padding: 20px; background: #ffffff; }
+
+/* LINEA DE TIEMPO (Timeline) */
+.timeline-wrapper { display: flex; align-items: flex-start; justify-content: space-between; position: relative; padding: 20px 0 30px 0; margin-bottom: 20px; overflow-x: auto; }
+.timeline-line { position: absolute; top: 40px; left: 10%; width: 80%; height: 4px; background: #dee2e6; z-index: 0; }
+.timeline-node { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; cursor: pointer; flex: 1; min-width: 120px; }
+.timeline-circle { width: 45px; height: 45px; border-radius: 50%; background: white; border: 4px solid #ced4da; display: flex; align-items: center; justify-content: center; font-size: 1.2em; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); color: #6c757d; }
+.timeline-node.active .timeline-circle { transform: scale(1.2); box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+.timeline-label { margin-top: 12px; font-weight: 600; font-size: 0.85em; color: #495057; text-align: center; }
+.timeline-count { position: absolute; top: -15px; background: #343a40; color: white; border-radius: 12px; padding: 2px 8px; font-size: 0.75em; font-weight: bold; transition: 0.3s; }
+
+/* Colores Dinámicos Timeline Nodos */
+.node-sin-agendar .timeline-circle { border-color: #adb5bd; }
+.node-sin-agendar.active .timeline-circle { background: #6c757d; color: white; border-color: #6c757d; }
+.node-sin-agendar.active .timeline-count { background: #6c757d; }
+
+.node-val-profe .timeline-circle { border-color: #b19cd9; }
+.node-val-profe.active .timeline-circle { background: #6f42c1; color: white; border-color: #6f42c1; }
+.node-val-profe.active .timeline-count { background: #6f42c1; }
+
+.node-val-alum .timeline-circle { border-color: #ffe8a1; }
+.node-val-alum.active .timeline-circle { background: #ffc107; color: #343a40; border-color: #ffc107; }
+.node-val-alum.active .timeline-count { background: #ffc107; color: #343a40; }
+
+.node-prealta-pdte .timeline-circle { border-color: #90d7e3; }
+.node-prealta-pdte.active .timeline-circle { background: #17a2b8; color: white; border-color: #17a2b8; }
+.node-prealta-pdte.active .timeline-count { background: #17a2b8; }
+
+.node-prealta-inic .timeline-circle { border-color: #a3d9b0; }
+.node-prealta-inic.active .timeline-circle { background: #28a745; color: white; border-color: #28a745; }
+.node-prealta-inic.active .timeline-count { background: #28a745; }
+
 
 /* Tarjeta Alumno con Z-Index para Hover */
-.alumno-item { background: white; border-radius: 6px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); position: relative; border-left: 5px solid transparent; transition: transform 0.1s; z-index: 1; }
+.alumno-item { background: white; border-radius: 6px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); position: relative; border-left: 5px solid transparent; transition: transform 0.1s; z-index: 1; border: 1px solid #e9ecef; }
 .alumno-item:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 50; }
 .item-suspendida { border-left-color: #dc3545; opacity: 0.8; }
 .item-confirmada { border-left-color: #28a745; }
@@ -121,13 +151,6 @@ dialog::backdrop { background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); }
 .dropdown-item:last-child { border-bottom: none; }
 .dropdown-item:hover { background-color: #f8f9fa; color: #007bff; font-weight: 500; }
 
-/* Acordeón de días */
-details.agenda-dia { margin-bottom: 8px; border: 1px solid #ced4da; border-radius: 6px; background: #fff; transition: 0.2s; }
-details.agenda-dia summary { padding: 10px 15px; font-weight: 600; cursor: pointer; background: #f8f9fa; border-radius: 6px; outline: none; list-style: none; }
-details.agenda-dia summary::-webkit-details-marker { display: none; }
-details.agenda-dia[open] summary { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: 1px solid #ced4da; }
-.agenda-dia-content { padding: 15px; display: flex; flex-direction: column; gap: 8px; background: #fafbfc; border-bottom-left-radius: 6px; border-bottom-right-radius: 6px; }
-
 /* Toasts y Tarjetas Configuración */
 .toast-notification { background: #333; color: #fff; padding: 12px 20px; border-radius: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-size: 0.95em; opacity: 0; transition: opacity 0.3s ease; font-weight: 500; }
 .config-card { display: flex; align-items: center; padding: 20px; background: #fff; border: 1px solid #dee2e6; border-radius: 10px; cursor: pointer; transition: 0.2s; margin-bottom: 15px; }
@@ -147,8 +170,4 @@ textarea, .config-box {
     resize: vertical;
     outline: none;
 }
-
-textarea:focus, .config-box:focus {
-    border-color: #80bdff;
-    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
-}
+textarea:focus, .config-box:focus { border-color: #80bdff; box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25); }
