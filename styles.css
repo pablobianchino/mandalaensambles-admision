@@ -92,6 +92,10 @@ body {
 .node-val-alum.active .timeline-circle { background: #ffc107; color: #343a40; border-color: #ffc107; }
 .node-val-alum.active .timeline-count { background: #ffc107; color: #343a40; }
 
+.node-adm-conf .timeline-circle { border-color: #a3d9b0; }
+.node-adm-conf.active .timeline-circle { background: #28a745; color: white; border-color: #28a745; }
+.node-adm-conf.active .timeline-count { background: #28a745; }
+
 .node-prealta-pdte .timeline-circle { border-color: #90d7e3; }
 .node-prealta-pdte.active .timeline-circle { background: #17a2b8; color: white; border-color: #17a2b8; }
 .node-prealta-pdte.active .timeline-count { background: #17a2b8; }
@@ -99,6 +103,10 @@ body {
 .node-prealta-inic .timeline-circle { border-color: #a3d9b0; }
 .node-prealta-inic.active .timeline-circle { background: #28a745; color: white; border-color: #28a745; }
 .node-prealta-inic.active .timeline-count { background: #28a745; }
+
+.node-prealta-inc .timeline-circle { border-color: #f5c6cb; }
+.node-prealta-inc.active .timeline-circle { background: #dc3545; color: white; border-color: #dc3545; }
+.node-prealta-inc.active .timeline-count { background: #dc3545; }
 
 
 /* Tarjeta Alumno con Z-Index para Hover */
