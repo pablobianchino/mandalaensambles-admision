@@ -39,7 +39,7 @@
                 <li class="nav-item" data-vista="Lista de Espera" style="margin-top:10px;"><span style="filter: grayscale(100%); margin-right:8px;">🛋️</span> Lista de Espera</li>
                 
                 <li class="nav-group-header">Altas</li>
-                <li class="nav-item sub-item" data-vista="Altas - Gestiones"><span style="filter: grayscale(100%); margin-right:8px;">⏳</span> Gestiones</li>
+                <li class="nav-item sub-item" data-vista="Altas - Pendientes"><span style="filter: grayscale(100%); margin-right:8px;">⏳</span> Pendientes</li>
                 <li class="nav-item sub-item" data-vista="Altas - Confirmadas"><span style="filter: grayscale(100%); margin-right:8px;">✔️</span> Confirmadas</li>
                 <li class="nav-item sub-item" data-vista="Altas - Suspendidas"><span style="filter: grayscale(100%); margin-right:8px;">⏸️</span> Suspendidas</li>
 
@@ -74,7 +74,7 @@
                 <div id="resumen-urgencias" class="cards-grid"></div>
                 
                 <details class="resumen-accordion" open>
-                    <summary>Fase 1: Admisión (Línea de Tiempo)</summary>
+                    <summary>Fase 1: Admisión</summary>
                     <div class="accordion-content">
                         <div id="timeline-resumen-adm"></div>
                         <div id="cards-resumen-adm" class="cards-grid"></div>
@@ -82,7 +82,7 @@
                 </details>
 
                 <details class="resumen-accordion" open>
-                    <summary>Fase 2: Altas (Línea de Tiempo)</summary>
+                    <summary>Fase 2: Altas</summary>
                     <div class="accordion-content">
                         <div id="timeline-resumen-altas"></div>
                         <div id="cards-resumen-altas" class="cards-grid"></div>
@@ -96,8 +96,8 @@
                 <div id="cards-adm" class="cards-grid"></div>
             </div>
 
-            <!-- VISTA ALTAS GESTIONES -->
-            <div id="vista-altas-gestiones" style="display:none; flex-direction:column;">
+            <!-- VISTA ALTAS PENDIENTES -->
+            <div id="vista-altas-pendientes" style="display:none; flex-direction:column;">
                 <div id="timeline-altas"></div>
                 <div id="cards-altas" class="cards-grid"></div>
             </div>
