@@ -90,7 +90,7 @@ body {
 
 /* Barra de progreso y Checklist de Altas */
 .progress-container { width: 100%; background: #e9ecef; border-radius: 4px; height: 8px; margin-top: 8px; overflow: hidden; display: flex; }
-.progress-bar { height: 100%; background: #28a745; transition: width 0.3s; }
+.progress-bar { height: 100%; transition: width 0.3s ease, background-color 0.3s ease; }
 .checklist-item { font-size: 0.85em; color: #495057; display: flex; align-items: center; gap: 5px; margin-top: 4px; }
 .checklist-item input { margin: 0; width: auto; cursor: pointer; }
 
