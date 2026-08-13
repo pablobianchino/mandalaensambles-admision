@@ -68,43 +68,42 @@
                 </div>
             </div>
 
-            <!-- TABLERO RESUMEN -->
-            <div id="tablero-resumen" style="display:none; flex-direction:column; gap:20px;">
-                <div>
-                    <div class="resumen-section-title">Fase 1: Admisión</div>
-                    <div class="board-container" style="min-height:auto;">
-                        <div class="board-column"><div class="board-column-header bg-pendientes">Pendientes (Profe/Alumno)</div><div class="board-column-content" id="col-resumen-pendientes"></div></div>
-                        <div class="board-column"><div class="board-column-header bg-confirmadas">Agendas Confirmadas</div><div class="board-column-content" id="col-resumen-confirmadas"></div></div>
+            <!-- VISTA RESUMEN (Acordeones y Prioridades) -->
+            <div id="vista-resumen" style="display:none; flex-direction:column; gap:20px;">
+                <div class="resumen-section-title" style="color:#dc3545; border-bottom-color:#dc3545;">🚨 Prioridades / Próximos a Vencer</div>
+                <div id="resumen-urgencias" class="cards-grid"></div>
+                
+                <details class="resumen-accordion" open>
+                    <summary>Fase 1: Admisión (Línea de Tiempo)</summary>
+                    <div class="accordion-content">
+                        <div id="timeline-resumen-adm"></div>
+                        <div id="cards-resumen-adm" class="cards-grid"></div>
                     </div>
-                </div>
-                <div>
-                    <div class="resumen-section-title">Fase 2: Altas</div>
-                    <div class="board-container" style="min-height:auto;">
-                        <div class="board-column"><div class="board-column-header bg-validando-profe">Alertas Pre-Altas</div><div class="board-column-content" id="col-resumen-prealtas"></div></div>
-                        <div class="board-column"><div class="board-column-header bg-sin-agendar">Altas Confirmadas Incompletas</div><div class="board-column-content" id="col-resumen-altas-incompletas"></div></div>
+                </details>
+
+                <details class="resumen-accordion" open>
+                    <summary>Fase 2: Altas (Línea de Tiempo)</summary>
+                    <div class="accordion-content">
+                        <div id="timeline-resumen-altas"></div>
+                        <div id="cards-resumen-altas" class="cards-grid"></div>
                     </div>
-                </div>
+                </details>
             </div>
 
-            <!-- TABLERO ADMISIÓN -->
-            <div id="tablero-gestiones" class="board-container" style="display:none;">
-                <div class="board-column"><div class="board-column-header bg-sin-agendar">Sin agendar</div><div class="board-column-content" id="col-1-content"></div></div>
-                <div class="board-column"><div class="board-column-header bg-validando-profe">Validando Profe</div><div class="board-column-content" id="col-2-content"></div></div>
-                <div class="board-column"><div class="board-column-header bg-validando-alumno">Validando Alumno</div><div class="board-column-content" id="col-3-content"></div></div>
+            <!-- VISTA ADMISIÓN PENDIENTES -->
+            <div id="vista-admision-pendientes" style="display:none; flex-direction:column;">
+                <div id="timeline-adm"></div>
+                <div id="cards-adm" class="cards-grid"></div>
             </div>
 
-            <!-- TABLERO ALTAS -->
-            <div id="tablero-altas" class="board-container" style="display:none;">
-                <div class="board-column"><div class="board-column-header bg-sin-agendar">Pre-Alta Pendiente</div><div class="board-column-content" id="col-alta-1-content"></div></div>
-                <div class="board-column"><div class="board-column-header bg-validando-alumno">Pre-Alta Iniciada</div><div class="board-column-content" id="col-alta-2-content"></div></div>
+            <!-- VISTA ALTAS GESTIONES -->
+            <div id="vista-altas-gestiones" style="display:none; flex-direction:column;">
+                <div id="timeline-altas"></div>
+                <div id="cards-altas" class="cards-grid"></div>
             </div>
 
             <div id="lista-generica" style="display:none; flex-direction:column; gap:10px;"></div>
-
-            <div id="estadisticas-container" style="display:none; gap:20px; flex-wrap:wrap;">
-                <div style="background:white; padding:20px; border-radius:8px; border:1px solid #dee2e6; flex:1; min-width:300px;"><canvas id="chartGestiones"></canvas></div>
-                <div style="background:white; padding:20px; border-radius:8px; border:1px solid #dee2e6; flex:1; min-width:300px;"><canvas id="chartGlobal"></canvas></div>
-            </div>
+            <div id="estadisticas-container" style="display:none; flex-direction:column; gap:20px;"></div>
         </main>
     </div>
 
@@ -125,6 +124,16 @@
                         <label>Edad <input type="number" id="edad"></label>
                         <label>Instrumentos (Ctrl+Clic varios) * <select id="instrumento" multiple required style="height:80px;"></select></label>
                         <label>Suscripción * <select id="tipo_suscripcion" required></select></label>
+                        
+                        <!-- NUEVO BLOQUE LECTURA ALTA -->
+                        <div id="bloque-info-alta" style="display:none; margin-top:20px;">
+                            <h3 style="font-size:1.1em; color:#495057; border-bottom:1px solid #e9ecef; padding-bottom:5px;">Información de Alta</h3>
+                            <div style="background:#f0f8ff; border:1px solid #cce5ff; border-radius:6px; padding:15px; color:#004085; font-size:0.95em; line-height:1.5;">
+                                <strong>👨‍🏫 Profesor:</strong> <span id="info-alta-profe">-</span><br>
+                                <strong>👥 Grupo:</strong> <span id="info-alta-grupo">-</span><br>
+                                <strong>📅 Inicio:</strong> <span id="info-alta-inicio">-</span>
+                            </div>
+                        </div>
                     </div>
                     <div style="flex:1; min-width:250px;">
                         <h3 style="font-size:1.1em; color:#495057; border-bottom:1px solid #e9ecef; padding-bottom:5px;">Disponibilidad Horaria</h3>
