@@ -2,13 +2,13 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-// === ATENCIÓN: PEGA LA URL DEL SCRIPT AQUÍ ABAJO ===
+// === URL DEL SCRIPT DE GOOGLE CONFIGURADA ===
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwEU3sbxufZxnHQxfFvluIHmxzz6uTc2klJlL_LQecrTFZDtoLr-ukx6iSd8s99AUg/exec";
-// ====================================================
+// ============================================
 
 const firebaseConfig = {
     apiKey: "AIzaSyCgAg2EwTJh4zbMdpkqG3VKTGfDeofblyg",
-    authDomain: "mandala-seguimientos.vercel.app",
+    authDomain: "priel-mdl-seguimientos.firebaseapp.com",
     projectId: "priel-mdl-seguimientos",
     storageBucket: "priel-mdl-seguimientos.firebasestorage.app",
     messagingSenderId: "118730133451",
@@ -132,9 +132,6 @@ function interpretarFechaCSV(texto) {
     if (match) { const dia = parseInt(match[1]), mes = parseInt(match[2]) - 1, hora = match[3] ? parseInt(match[3]) : 0, min = match[4] ? parseInt(match[4]) : 0; if (dia > 31 || mes > 11 || hora > 23 || min > 59) return null; return formatoLocalISO(new Date(new Date().getFullYear(), mes, dia, hora, min)); } return null;
 }
 
-// ==========================================
-// PUENTE DE INTEGRACIÓN ESTRICTA CON CALENDAR
-// ==========================================
 async function fetchCalendarAPI(action, payload) {
     if (SCRIPT_URL === "PEGAR_AQUI_LA_URL_DEL_SCRIPT") {
         throw new Error("No se ha configurado la URL del script. Contacte a soporte.");
@@ -155,7 +152,7 @@ async function fetchCalendarAPI(action, payload) {
 
     const data = await res.json();
     if (data.error) {
-        throw new Error(data.error); // Lanza el error exacto reportado por el script
+        throw new Error(data.error); 
     }
     return action === 'getEvents' ? data : (action === 'createEvent' ? {id: data.id} : true);
 }
@@ -172,7 +169,6 @@ async function getCalendarIdParaAlumno(al) {
     return null;
 }
 
-// FUNCIONES SEGURAS DE CALENDAR (Lanzan errores estrictos)
 async function crearEventoSeguro(al, titulos, inicio, fin) {
     let fallbackCalId = configApp.calendario_por_defecto, primaryCalId = await getCalendarIdParaAlumno(al);
     let errorDetalle = "";
@@ -544,7 +540,6 @@ async function cargarVista(vista) {
             const refAl = collection(db, "alumnos"), qSnap = await getDocs(refAl);
             let allData = []; qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
             
-            // TRADUCTOR DE FECHAS CSV (Para que Urgencias pueda leer agendas subidas manualmente)
             allData.forEach(a => {
                 if (!a.reserva_inicio && a.reserva_fecha_texto) {
                     const fIso = interpretarFechaCSV(a.reserva_fecha_texto);
@@ -552,7 +547,6 @@ async function cargarVista(vista) {
                 }
             });
             
-            // 1. Urgencias
             let urgencies = [];
             allData.forEach(al => {
                 let dateToEval = null;
@@ -578,10 +572,7 @@ async function cargarVista(vista) {
             const cUrg = document.getElementById('resumen-urgencias');
             cUrg.innerHTML = urgencies.length > 0 ? urgencies.map(a => generarTarjetaAlumno(a, a.id, vista)).join('') : '<p style="color:#28a745; grid-column:1/-1;">¡Excelente! No hay gestiones críticas a la vista.</p>';
 
-            // 2. Timeline Admisión
             renderTimeline('timeline-resumen-adm', 'cards-resumen-adm', configNodosAdm, allData, nodoAdmActivo, 'adm');
-            
-            // 3. Timeline Altas
             renderTimeline('timeline-resumen-altas', 'cards-resumen-altas', configNodosAltas, allData, nodoAltasActivo, 'altas');
 
         } catch(e) {}
@@ -877,9 +868,7 @@ document.addEventListener('click', async (e) => {
         alert("Pre-Alta Iniciada.\nTexto de aviso copiado al portapapeles."); 
         cargarVista(estadoActualVista); return;
     }
-    
     if (target.classList.contains('btn-abrir-confirmar-alta')) { document.getElementById('conf-alta-alumno-id').value = target.getAttribute('data-id'); document.getElementById('modal-confirmar-alta').showModal(); return; }
-    
     if (target.id === 'btn-guardar-confirmacion-alta') {
         const id = document.getElementById('conf-alta-alumno-id').value, est = document.querySelector('input[name="opt-tipo-alta"]:checked').value;
         await updateDoc(doc(db, "alumnos", id), { estado_agenda: est });
@@ -895,7 +884,6 @@ document.addEventListener('click', async (e) => {
         const motivo = prompt("¿Motivo para devolver a Lista de Espera?");
         if (motivo !== null) { if (motivo.trim() === "") return alert("Debes ingresar un motivo."); const id = target.getAttribute('data-id'); const al = (await getDoc(doc(db, "alumnos", id))).data(), now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`, hist = al.historial || []; hist.push({ id: Date.now(), texto: `Devuelto a espera. Motivo: ${motivo.trim()}`, fecha: fechaStr }); await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Lista de espera", fecha_inicio_clases: null, grupo_asignado: null, checklist_alta: null, historial: hist }); cargarVista(estadoActualVista); } return;
     }
-    
     if (target.classList.contains('btn-suspender-alta')) {
         const motivo = prompt("¿Motivo de Suspensión de Alta?");
         if (motivo !== null) { if (motivo.trim() === "") return alert("Debes ingresar un motivo."); const id = target.getAttribute('data-id'); const al = (await getDoc(doc(db, "alumnos", id))).data(), now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`, hist = al.historial || []; hist.push({ id: Date.now(), texto: `Alta suspendida. Motivo: ${motivo.trim()}`, fecha: fechaStr }); await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Alta Suspendida", historial: hist }); cargarVista(estadoActualVista); } return;
