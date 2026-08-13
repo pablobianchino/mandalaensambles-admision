@@ -43,17 +43,21 @@ let clipboardDisponibilidad = null;
 let clipboardDisponibilidadProfe = null; 
 let historialActual = []; 
 
-// VARIABLES GLOBALES DE TIMELINE
+// VARIABLES GLOBALES DE TIMELINE CON FILTROS AVANZADOS
 let nodoAdmActivo = 'Pendiente procesar';
 let nodoAltasActivo = 'Pre-alta Pendiente';
 const configNodosAdm = [
     { id: 'Pendiente procesar', label: 'Sin Agendar', icon: '⏳', color: 'node-sin-agendar' },
     { id: 'Pendiente validación por profe', label: 'Validando Profe', icon: '👨‍🏫', color: 'node-val-profe' },
-    { id: 'Pendiente validación por alumno', label: 'Validando Alum', icon: '🧑‍🎓', color: 'node-val-alum' }
+    { id: 'Pendiente validación por alumno', label: 'Validando Alum', icon: '🧑‍🎓', color: 'node-val-alum' },
+    { id: 'Agenda confirmada', label: 'Confirmada', icon: '✅', color: 'node-adm-conf' }
 ];
 const configNodosAltas = [
     { id: 'Pre-alta Pendiente', label: 'Pendiente', icon: '📝', color: 'node-prealta-pdte' },
-    { id: 'Pre-alta Iniciada', label: 'Iniciada', icon: '🚀', color: 'node-prealta-inic' }
+    { id: 'Pre-alta Iniciada', label: 'Iniciada', icon: '🚀', color: 'node-prealta-inic' },
+    { id: 'Altas Incompletas', label: 'Incompleta', icon: '⚠️', color: 'node-prealta-inc',
+      filterFn: (d) => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (!d.checklist_alta || d.checklist_alta.includes(false))
+    }
 ];
 
 if (!document.getElementById('modal-nota-rapida')) {
@@ -436,7 +440,7 @@ function renderTimeline(containerId, cardsContainerId, configNodos, datos, nodoA
     const cont = document.getElementById(containerId);
     let html = '<div class="timeline-wrapper"><div class="timeline-line"></div>';
     configNodos.forEach(n => {
-        const count = datos.filter(d => d.estado_agenda === n.id).length;
+        const count = datos.filter(d => n.filterFn ? n.filterFn(d) : d.estado_agenda === n.id).length;
         const act = (n.id === nodoActivo) ? 'active' : '';
         html += `
             <div class="timeline-node ${n.color} ${act}" data-id="${n.id}">
@@ -454,15 +458,15 @@ function renderTimeline(containerId, cardsContainerId, configNodos, datos, nodoA
             if (setterNodo === 'adm') nodoAdmActivo = newId;
             if (setterNodo === 'altas') nodoAltasActivo = newId;
             renderTimeline(containerId, cardsContainerId, configNodos, datos, newId, setterNodo);
-            renderTarjetasGrid(cardsContainerId, datos, newId);
         });
     });
-    renderTarjetasGrid(cardsContainerId, datos, nodoActivo);
+    renderTarjetasGrid(cardsContainerId, datos, nodoActivo, configNodos);
 }
 
-function renderTarjetasGrid(containerId, datos, estadoObj) {
+function renderTarjetasGrid(containerId, datos, estadoId, configNodos) {
     const cont = document.getElementById(containerId);
-    const filtrados = datos.filter(d => d.estado_agenda === estadoObj);
+    const nodo = configNodos.find(n => n.id === estadoId);
+    const filtrados = datos.filter(d => nodo && nodo.filterFn ? nodo.filterFn(d) : d.estado_agenda === estadoId);
     if(filtrados.length === 0) {
         cont.innerHTML = '<p style="color:#6c757d; grid-column: 1 / -1; text-align:center; margin-top:20px;">No hay gestiones en este estado.</p>';
     } else {
@@ -717,7 +721,7 @@ document.addEventListener('change', async (e) => {
                 const tCount = item.querySelector('.txt-checks-count');
                 if(tCount) tCount.textContent = cantOk + '/5 Checks';
                 
-                if (cantOk === 5 && estadoActualVista === 'Resumen' && (al.estado_agenda === 'Alta Efectiva' || al.estado_agenda === 'Alta Ilegal')) {
+                if (cantOk === 5 && (estadoActualVista === 'Resumen' || estadoActualVista === 'Altas - Pendientes') && (al.estado_agenda === 'Alta Efectiva' || al.estado_agenda === 'Alta Ilegal')) {
                     setTimeout(() => { cargarVista(estadoActualVista); }, 1000);
                 }
             }
