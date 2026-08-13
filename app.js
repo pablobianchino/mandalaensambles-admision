@@ -3,12 +3,12 @@ import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
 // === ATENCIÓN: PEGA LA URL DEL SCRIPT AQUÍ ABAJO ===
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwEU3sbxufZxnHQxfFvluIHmxzz6uTc2klJlL_LQecrTFZDtoLr-ukx6iSd8s99AUg/exec";
 // ====================================================
 
 const firebaseConfig = {
     apiKey: "AIzaSyCgAg2EwTJh4zbMdpkqG3VKTGfDeofblyg",
-    authDomain: "priel-mdl-seguimientos.firebaseapp.com",
+    authDomain: "mandala-seguimientos.vercel.app",
     projectId: "priel-mdl-seguimientos",
     storageBucket: "priel-mdl-seguimientos.firebasestorage.app",
     messagingSenderId: "118730133451",
@@ -18,14 +18,12 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
-// SCOPE ELIMINADO PARA PERMITIR LOGIN LIMPIO
 
-// FUNCIÓN DE LOGIN BÁSICO (Restaurada y Limpia)
 async function conectarGoogle() { 
     try { 
         await signInWithPopup(auth, provider); 
     } catch (err) { 
-        console.error(err); 
+        console.error("Error en login:", err); 
         alert("Error al intentar iniciar sesión."); 
     } 
 }
@@ -37,7 +35,7 @@ window.alert = function(msg) {
     toast.className = 'toast-notification'; toast.textContent = msg;
     container.appendChild(toast);
     setTimeout(() => toast.style.opacity = '1', 10);
-    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
+    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 5000);
 };
 
 let alumnoIdActual = null;
@@ -49,7 +47,6 @@ let clipboardDisponibilidad = null;
 let clipboardDisponibilidadProfe = null; 
 let historialActual = []; 
 
-// VARIABLES GLOBALES DE TIMELINE CON FILTROS AVANZADOS
 let nodoAdmActivo = 'Pendiente procesar';
 let nodoAltasActivo = 'Pre-alta Pendiente';
 const configNodosAdm = [
@@ -73,7 +70,6 @@ if (!document.getElementById('modal-nota-rapida')) {
 }
 
 const quill = new Quill('#editor-container', { theme: 'snow', modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] } });
-
 const diasSemana = [{ id:'L',nombre:'Lunes'}, {id:'M',nombre:'Martes'}, {id:'X',nombre:'Miércoles'}, {id:'J',nombre:'Jueves'}, {id:'V',nombre:'Viernes'}, {id:'S',nombre:'Sábado'}];
 const contDisp = document.getElementById('contenedor-disponibilidad'), contDispProfe = document.getElementById('contenedor-disponibilidad-profe');
 
@@ -108,22 +104,7 @@ function renderHistorial() {
     });
 }
 
-const defaultCfg = {
-    hora_apertura: '09:00', hora_cierre: '22:00', calendario_por_defecto: 'productora.mandalahouse@gmail.com',
-    identificador_bateria: '🥁', emoji_guitarra: '🎸', emoji_cajon: '📦', emoji_canto: '🎤', emoji_piano: '🎹', emoji_bajo: '🎸',
-    valor_clase: '$10.000', cantidad_aulas: '3', cantidad_baterias: '2',
-    texto_nombre_agendar: 'MDL {nombre} {edad} {año_actual} @{instrumento} @{suscripcion}',
-    formato_evento_reserva: '❓📋 {emojiinstrumento} {alumno} {edad}', formato_evento_confirmado: '✅📋 {emojiinstrumento} {alumno} {edad}',
-    texto_profe: "*⚠ PRE CHECK - ENTREVISTA*\n📅 *FECHA: {fecha_hora}*\n*👥 ALUMNO:*\n🔹 {nombre} ({edad})\n🔹 {instrumento} | {suscripcion}\n*INFO:*\n{descripcion}\n\n*🕐 HISTORIAL DE CONTACTO:*\n{historial}",
-    texto_opciones_multiples: "*⚠ PRE CHECK - ENTREVISTA*\n*🎈 CONFIRMAR ASISTENCIA*\n\n📅 OPCIONES DE FECHA:\n{opciones}\n\n*Por favor confirmar asistencia y agendar en tu calendario. En cuanto reciba el OK y pago del alumno, te aviso con la confirmación definitiva.*\n\n*📰 INFO PARA LA ENTREVISTA:*\n{descripcion}\n\n*🕐 HISTORIAL DE CONTACTO:*\n{historial}",
-    texto_alumno: "📅 *Agenda de clase*\n🧩 {fecha_hora} con Profe {profe}\n✅ Inscripción: forms.gle/xxx\n💸 Valor: {valor}\n🧩 Alias: {alias_profe}",
-    texto_conf_alumno: "Genial Gracias!\nTe esperamos!\n\n🧩 Día y horario: {fecha_hora}\n🧩 Profe: {profe}\n📍 *Dirección:* Av. Cabildo 2970\n\nEl profe te va a estar escribiendo el mismo día!",
-    texto_conf_profe: "*✅ ENTREVISTA CONFIRMADA*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Clase: {suscripcion}\n\n*📰 INFO PARA LA ENTREVISTA:*\n{descripcion}\n\n*🕐 HISTORIAL DE CONTACTO:*\n{historial}",
-    texto_cancela_alumno: "*❗ PRE CHECK - ENTREVISTA*\n*❌ RESERVA CANCELADA*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Clase: {suscripcion}\n\n*🕐 HISTORIAL DE CONTACTO:*\n{historial}",
-    texto_prealta: "*⚠ PRE ALTA INICIADA*\n\n*👥 DATOS DE LA SUSCRIPCIÓN:*\n🔹 Suscripción: {suscripcion}\n🔹 Nombre de alumno: {nombre}\n🔹 Instrumento: {instrumento}\n🔹 Grupo: {grupo}\n🔹 Profesor: {profe}\n🔹 Inicio de clases: {fecha inicio clases}",
-    texto_alta_confirmada: "*✅ NUEVA ALTA CONFIRMADA*\n\n*👥 DATOS DE LA SUSCRIPCIÓN:*\n🔹 Suscripción: {suscripcion}\n🔹 Nombre de alumno: {nombre}\n🔹 Instrumento: {instrumento}\n🔹 Grupo: {grupo}\n🔹 Profesor: {profe}\n🔹 Inicio de clases: {fecha inicio clases}"
-};
-
+const defaultCfg = { hora_apertura: '09:00', hora_cierre: '22:00', calendario_por_defecto: 'productora.mandalahouse@gmail.com', identificador_bateria: '🥁', emoji_guitarra: '🎸', emoji_cajon: '📦', emoji_canto: '🎤', emoji_piano: '🎹', emoji_bajo: '🎸', valor_clase: '$10.000', cantidad_aulas: '3', cantidad_baterias: '2', texto_nombre_agendar: 'MDL {nombre} {edad} {año_actual} @{instrumento} @{suscripcion}', formato_evento_reserva: '❓📋 {emojiinstrumento} {alumno} {edad}', formato_evento_confirmado: '✅📋 {emojiinstrumento} {alumno} {edad}', texto_profe: "*⚠ PRE CHECK - ENTREVISTA*\n📅 *FECHA: {fecha_hora}*\n*👥 ALUMNO:*\n🔹 {nombre} ({edad})\n🔹 {instrumento} | {suscripcion}\n*INFO:*\n{descripcion}\n\n*🕐 HISTORIAL DE CONTACTO:*\n{historial}", texto_opciones_multiples: "*⚠ PRE CHECK - ENTREVISTA*\n*🎈 CONFIRMAR ASISTENCIA*\n\n📅 OPCIONES DE FECHA:\n{opciones}\n\n*Por favor confirmar asistencia y agendar en tu calendario. En cuanto reciba el OK y pago del alumno, te aviso con la confirmación definitiva.*\n\n*📰 INFO PARA LA ENTREVISTA:*\n{descripcion}\n\n*🕐 HISTORIAL DE CONTACTO:*\n{historial}", texto_alumno: "📅 *Agenda de clase*\n🧩 {fecha_hora} con Profe {profe}\n✅ Inscripción: forms.gle/xxx\n💸 Valor: {valor}\n🧩 Alias: {alias_profe}", texto_conf_alumno: "Genial Gracias!\nTe esperamos!\n\n🧩 Día y horario: {fecha_hora}\n🧩 Profe: {profe}\n📍 *Dirección:* Av. Cabildo 2970\n\nEl profe te va a estar escribiendo el mismo día!", texto_conf_profe: "*✅ ENTREVISTA CONFIRMADA*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Clase: {suscripcion}\n\n*📰 INFO PARA LA ENTREVISTA:*\n{descripcion}\n\n*🕐 HISTORIAL DE CONTACTO:*\n{historial}", texto_cancela_alumno: "*❗ PRE CHECK - ENTREVISTA*\n*❌ RESERVA CANCELADA*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Clase: {suscripcion}\n\n*🕐 HISTORIAL DE CONTACTO:*\n{historial}", texto_prealta: "*⚠ PRE ALTA INICIADA*\n\n*👥 DATOS DE LA SUSCRIPCIÓN:*\n🔹 Suscripción: {suscripcion}\n🔹 Nombre de alumno: {nombre}\n🔹 Instrumento: {instrumento}\n🔹 Grupo: {grupo}\n🔹 Profesor: {profe}\n🔹 Inicio de clases: {fecha inicio clases}", texto_alta_confirmada: "*✅ NUEVA ALTA CONFIRMADA*\n\n*👥 DATOS DE LA SUSCRIPCIÓN:*\n🔹 Suscripción: {suscripcion}\n🔹 Nombre de alumno: {nombre}\n🔹 Instrumento: {instrumento}\n🔹 Grupo: {grupo}\n🔹 Profesor: {profe}\n🔹 Inicio de clases: {fecha inicio clases}" };
 async function cargarConfig() { const docSnap = await getDoc(doc(db, "configuracion", "general")); configApp = docSnap.exists() ? { ...defaultCfg, ...docSnap.data() } : defaultCfg; }
 
 function reemplazarVariables(texto, datos) { let res = texto; for (const [key, value] of Object.entries(datos)) { res = res.replaceAll(`{${key}}`, value || ''); } res = res.replace(/\{[a-zA-Z0-9_ ]+\}/g, ''); return res; }
@@ -152,44 +133,37 @@ function interpretarFechaCSV(texto) {
 }
 
 // ==========================================
-// NUEVO PUENTE CON GOOGLE APPS SCRIPT
+// PUENTE DE INTEGRACIÓN ESTRICTA CON CALENDAR
 // ==========================================
 async function fetchCalendarAPI(action, payload) {
     if (SCRIPT_URL === "PEGAR_AQUI_LA_URL_DEL_SCRIPT") {
-        alert("Falta configurar la URL del Script de Google en app.js");
-        throw new Error("Script URL no configurada");
+        throw new Error("No se ha configurado la URL del script. Contacte a soporte.");
     }
     payload.action = action;
     payload.apiKey = "mandala-seg-2026";
     
-    const res = await fetch(SCRIPT_URL, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-        headers: {
-            'Content-Type': 'text/plain;charset=utf-8',
-        }
-    });
-    
+    let res;
+    try {
+        res = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+        });
+    } catch (networkError) {
+        throw new Error("Falla de red al conectar con Google Apps Script. Revise su conexión.");
+    }
+
     const data = await res.json();
-    if (data.error) throw new Error(data.error);
+    if (data.error) {
+        throw new Error(data.error); // Lanza el error exacto reportado por el script
+    }
     return action === 'getEvents' ? data : (action === 'createEvent' ? {id: data.id} : true);
 }
 
-async function getEventosCalendario(calendarId, timeMin, timeMax) {
-    return await fetchCalendarAPI('getEvents', { calendarId, timeMin, timeMax });
-}
-
-async function crearEventoCalendario(calendarId, titulo, inicioStr, finStr) {
-    return await fetchCalendarAPI('createEvent', { calendarId, summary: titulo, start: { dateTime: inicioStr }, end: { dateTime: finStr } });
-}
-
-async function actualizarEventoCalendario(calendarId, eventId, titulo, descripcion) {
-    return await fetchCalendarAPI('updateEvent', { calendarId, eventId, summary: titulo, description });
-}
-
-async function eliminarEventoCalendario(calendarId, eventId) {
-    return await fetchCalendarAPI('deleteEvent', { calendarId, eventId });
-}
+async function getEventosCalendario(calendarId, timeMin, timeMax) { return await fetchCalendarAPI('getEvents', { calendarId, timeMin, timeMax }); }
+async function crearEventoCalendario(calendarId, titulo, inicioStr, finStr) { return await fetchCalendarAPI('createEvent', { calendarId, summary: titulo, start: { dateTime: inicioStr }, end: { dateTime: finStr } }); }
+async function actualizarEventoCalendario(calendarId, eventId, titulo, descripcion) { return await fetchCalendarAPI('updateEvent', { calendarId, eventId, summary: titulo, description }); }
+async function eliminarEventoCalendario(calendarId, eventId) { return await fetchCalendarAPI('deleteEvent', { calendarId, eventId }); }
 
 async function getCalendarIdParaAlumno(al) {
     if (al.reserva_cal_id) return al.reserva_cal_id;
@@ -198,25 +172,58 @@ async function getCalendarIdParaAlumno(al) {
     return null;
 }
 
+// FUNCIONES SEGURAS DE CALENDAR (Lanzan errores estrictos)
 async function crearEventoSeguro(al, titulos, inicio, fin) {
     let fallbackCalId = configApp.calendario_por_defecto, primaryCalId = await getCalendarIdParaAlumno(al);
-    if (primaryCalId) { try { let tituloUsar = (primaryCalId === fallbackCalId) ? titulos.tituloDefecto : titulos.tituloProfe; let ev = await crearEventoCalendario(primaryCalId, tituloUsar, inicio, fin); return { id: ev.id, calendar: primaryCalId }; } catch(e) {} }
-    if (fallbackCalId && fallbackCalId !== primaryCalId) { try { let ev = await crearEventoCalendario(fallbackCalId, titulos.tituloDefecto, inicio, fin); return { id: ev.id, calendar: fallbackCalId }; } catch(e) { throw e; } }
-    throw new Error("No se pudo crear evento.");
+    let errorDetalle = "";
+
+    if (primaryCalId) {
+        try { 
+            let tituloUsar = (primaryCalId === fallbackCalId) ? titulos.tituloDefecto : titulos.tituloProfe; 
+            let ev = await crearEventoCalendario(primaryCalId, tituloUsar, inicio, fin); 
+            return { id: ev.id, calendar: primaryCalId }; 
+        } catch(e) { errorDetalle += `Fallo primario (${primaryCalId}): ${e.message}. `; } 
+    }
+    
+    if (fallbackCalId && fallbackCalId !== primaryCalId) { 
+        try { 
+            let ev = await crearEventoCalendario(fallbackCalId, titulos.tituloDefecto, inicio, fin); 
+            return { id: ev.id, calendar: fallbackCalId }; 
+        } catch(e) { errorDetalle += `Fallo fallback (${fallbackCalId}): ${e.message}.`; } 
+    }
+
+    throw new Error("No se pudo crear el evento en el calendario.\n" + errorDetalle);
 }
 
 async function actualizarEventoSeguro(al, titulos, desc) {
+    if (!al.id_evento_reserva) throw new Error("El alumno no tiene un evento en calendario para actualizar.");
     let calGrabado = al.calendario_evento_reserva, primaryCalId = await getCalendarIdParaAlumno(al), fallbackCalId = configApp.calendario_por_defecto, candidatos = [];
     if (calGrabado) candidatos.push(calGrabado); if (primaryCalId && !candidatos.includes(primaryCalId)) candidatos.push(primaryCalId); if (fallbackCalId && !candidatos.includes(fallbackCalId)) candidatos.push(fallbackCalId);
-    for (let cal of candidatos) { try { let tituloUsar = (cal === fallbackCalId) ? titulos.tituloDefecto : titulos.tituloProfe; await actualizarEventoCalendario(cal, al.id_evento_reserva, tituloUsar, desc); return cal; } catch(e) { } }
-    throw new Error("No se pudo actualizar evento.");
+    
+    let lastError = "";
+    for (let cal of candidatos) { 
+        try { 
+            let tituloUsar = (cal === fallbackCalId) ? titulos.tituloDefecto : titulos.tituloProfe; 
+            await actualizarEventoCalendario(cal, al.id_evento_reserva, tituloUsar, desc); 
+            return cal; 
+        } catch(e) { lastError = e.message; } 
+    }
+    throw new Error("Google Calendar rechazó la actualización.\nDetalle: " + lastError);
 }
 
 async function eliminarEventoSeguro(al) {
     if (!al.id_evento_reserva) return;
     let calGrabado = al.calendario_evento_reserva, primaryCalId = await getCalendarIdParaAlumno(al), fallbackCalId = configApp.calendario_por_defecto, candidatos = [];
     if (calGrabado) candidatos.push(calGrabado); if (primaryCalId && !candidatos.includes(primaryCalId)) candidatos.push(primaryCalId); if (fallbackCalId && !candidatos.includes(fallbackCalId)) candidatos.push(fallbackCalId);
-    for (let cal of candidatos) { try { await eliminarEventoCalendario(cal, al.id_evento_reserva); return; } catch(e) { } }
+    
+    let lastError = "";
+    for (let cal of candidatos) { 
+        try { 
+            await eliminarEventoCalendario(cal, al.id_evento_reserva); 
+            return; 
+        } catch(e) { lastError = e.message; } 
+    }
+    throw new Error("Google Calendar rechazó la cancelación.\nDetalle: " + lastError);
 }
 
 function chequearDisponibilidadExacta(inicioTestMs, finTestMs, eventosAPI, cantAulas, cantBat, esBateria, cfgEmoji) {
@@ -675,7 +682,6 @@ async function renderCharts() {
 
 const btnLogin = document.getElementById('btn-login'); if (btnLogin) btnLogin.addEventListener('click', conectarGoogle);
 
-// LOGOUT ACTUALIZADO: Solo cierra sesión, no borra tokens (ya no los usamos acá)
 document.getElementById('btn-logout').addEventListener('click', async () => { await signOut(auth); window.location.reload(); });
 
 onAuthStateChanged(auth, async (user) => { 
@@ -871,7 +877,9 @@ document.addEventListener('click', async (e) => {
         alert("Pre-Alta Iniciada.\nTexto de aviso copiado al portapapeles."); 
         cargarVista(estadoActualVista); return;
     }
+    
     if (target.classList.contains('btn-abrir-confirmar-alta')) { document.getElementById('conf-alta-alumno-id').value = target.getAttribute('data-id'); document.getElementById('modal-confirmar-alta').showModal(); return; }
+    
     if (target.id === 'btn-guardar-confirmacion-alta') {
         const id = document.getElementById('conf-alta-alumno-id').value, est = document.querySelector('input[name="opt-tipo-alta"]:checked').value;
         await updateDoc(doc(db, "alumnos", id), { estado_agenda: est });
@@ -887,6 +895,7 @@ document.addEventListener('click', async (e) => {
         const motivo = prompt("¿Motivo para devolver a Lista de Espera?");
         if (motivo !== null) { if (motivo.trim() === "") return alert("Debes ingresar un motivo."); const id = target.getAttribute('data-id'); const al = (await getDoc(doc(db, "alumnos", id))).data(), now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`, hist = al.historial || []; hist.push({ id: Date.now(), texto: `Devuelto a espera. Motivo: ${motivo.trim()}`, fecha: fechaStr }); await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Lista de espera", fecha_inicio_clases: null, grupo_asignado: null, checklist_alta: null, historial: hist }); cargarVista(estadoActualVista); } return;
     }
+    
     if (target.classList.contains('btn-suspender-alta')) {
         const motivo = prompt("¿Motivo de Suspensión de Alta?");
         if (motivo !== null) { if (motivo.trim() === "") return alert("Debes ingresar un motivo."); const id = target.getAttribute('data-id'); const al = (await getDoc(doc(db, "alumnos", id))).data(), now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`, hist = al.historial || []; hist.push({ id: Date.now(), texto: `Alta suspendida. Motivo: ${motivo.trim()}`, fecha: fechaStr }); await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Alta Suspendida", historial: hist }); cargarVista(estadoActualVista); } return;
@@ -909,7 +918,15 @@ document.addEventListener('click', async (e) => {
     if (target.classList.contains('btn-bloquear-agenda')) {
         if(confirm("¿Reservar preventivamente este horario?")) {
             const id = target.getAttribute('data-id');
-            try { const al = (await getDoc(doc(db, "alumnos", id))).data(); const titulos = construirTitulosEvento(al, 'reserva', configApp); const evRes = await crearEventoSeguro(al, titulos, al.reserva_inicio, al.reserva_fin); await updateDoc(doc(db, "alumnos", id), { id_evento_reserva: evRes.id, calendario_evento_reserva: evRes.calendar }); cargarVista(estadoActualVista); } catch(e) { alert("Error API Calendar."); }
+            try { 
+                const al = (await getDoc(doc(db, "alumnos", id))).data(); 
+                const titulos = construirTitulosEvento(al, 'reserva', configApp); 
+                const evRes = await crearEventoSeguro(al, titulos, al.reserva_inicio, al.reserva_fin); 
+                await updateDoc(doc(db, "alumnos", id), { id_evento_reserva: evRes.id, calendario_evento_reserva: evRes.calendar }); 
+                cargarVista(estadoActualVista); 
+            } catch(e) { 
+                alert("❌ Operación cancelada.\n\n" + e.message); 
+            }
         } return;
     }
 
@@ -927,7 +944,7 @@ document.addEventListener('click', async (e) => {
             const pS = await getDocs(collection(db, "profesores")), todosLosProfes = [], profesFiltradosIDs = [];
             pS.forEach(p => { const d = p.data(); if(d.correo_calendario) { todosLosProfes.push({ id: p.id, nombre: d.nombre, calId: d.correo_calendario, disponibilidad: d.disponibilidad }); if (d.entrevista && (searchAll || fProfs.includes(p.id))) { profesFiltradosIDs.push(p.id); } } });
             if(profesFiltradosIDs.length === 0) { inputBuscadorPop.style.display = 'none'; return resDiv.innerHTML = '<p>No hay profes habilitados seleccionados.</p>'; }
-            let allEv = []; for(const pr of todosLosProfes) { try { const data = await getEventosCalendario(pr.calId, dS.toISOString(), dE.toISOString()); if(data.items) allEv = allEv.concat(data.items.map(ev => ({...ev, profeId: pr.id}))); } catch(e) {} }
+            let allEv = []; for(const pr of todosLosProfes) { try { const data = await getEventosCalendario(pr.calId, dS.toISOString(), dE.toISOString()); if(data.items) allEv = allEv.concat(data.items.map(ev => ({...ev, profeId: pr.id}))); } catch(e) { console.error(e); } }
             const opts = generarOpcionesAgenda(al.disponibilidad, allEv, esBat, todosLosProfes, profesFiltradosIDs, dS, dE, configApp);
             if(opts.length===0) { inputBuscadorPop.style.display = 'none'; resDiv.innerHTML='<p>No hay huecos libres que cumplan las condiciones.</p>'; } else { 
                 inputBuscadorPop.style.display = 'block'; document.getElementById('btn-procesar-seleccion-agenda').style.display = 'inline-block';
@@ -941,7 +958,7 @@ document.addEventListener('click', async (e) => {
                 }
                 resDiv.innerHTML = html; 
             }
-        } catch(e) { inputBuscadorPop.style.display = 'none'; resDiv.innerHTML='<p>Error en la búsqueda.</p>'; } return;
+        } catch(e) { console.error("Error al buscar:", e); inputBuscadorPop.style.display = 'none'; resDiv.innerHTML='<p>Error en la búsqueda.</p>'; } return;
     }
     
     if (target.id === 'btn-procesar-seleccion-agenda') {
@@ -960,11 +977,22 @@ document.addEventListener('click', async (e) => {
             finalTxt = data.txt; 
         }
         
-        await navigator.clipboard.writeText(finalTxt);
-        let updateData = { estado_agenda: "Pendiente validación por profe", reserva_profe_id: pId, reserva_profe_nombre: pNom, reserva_cal_id: cId, opciones_propuestas: opciones, reserva_fecha_texto: opciones.length === 1 ? opciones[0].fechaTexto : 'Varias opciones' };
-        if (al.id_evento_reserva) { await eliminarEventoSeguro(al); updateData.id_evento_reserva = null; updateData.calendario_evento_reserva = null; }
-        await updateDoc(doc(db, "alumnos", alumnoIdActual), updateData);
-        alert("Texto copiado al portapapeles. Estado avanzado a Validación."); document.getElementById('modal-agenda').close(); cargarVista(estadoActualVista); return;
+        try {
+            let updateData = { estado_agenda: "Pendiente validación por profe", reserva_profe_id: pId, reserva_profe_nombre: pNom, reserva_cal_id: cId, opciones_propuestas: opciones, reserva_fecha_texto: opciones.length === 1 ? opciones[0].fechaTexto : 'Varias opciones' };
+            if (al.id_evento_reserva) { 
+                await eliminarEventoSeguro(al); 
+                updateData.id_evento_reserva = null; 
+                updateData.calendario_evento_reserva = null; 
+            }
+            await updateDoc(doc(db, "alumnos", alumnoIdActual), updateData);
+            await navigator.clipboard.writeText(finalTxt);
+            alert("Texto copiado al portapapeles. Estado avanzado a Validación."); 
+            document.getElementById('modal-agenda').close(); 
+            cargarVista(estadoActualVista);
+        } catch(e) {
+            alert("❌ Operación cancelada.\n\n" + e.message);
+        }
+        return;
     }
 
     async function generarTextoConHistorial(idAlumno, plantillaKey, overrideFecha = null, overrideProfeId = null, overrideProfeNombre = null, overrideOpciones = null) {
@@ -1004,14 +1032,43 @@ document.addEventListener('click', async (e) => {
         try {
             target.innerHTML = "Creando evento..."; target.disabled = true;
             al.reserva_profe_id = op.profeId; al.reserva_profe_nombre = op.profeNombre; al.reserva_cal_id = op.calId; al.reserva_fecha_texto = op.fechaTexto; al.reserva_inicio = op.inicio; al.reserva_fin = op.fin;
-            const titulos = construirTitulosEvento(al, 'reserva', configApp); const evRes = await crearEventoSeguro(al, titulos, op.inicio, op.fin);
+            
+            const titulos = construirTitulosEvento(al, 'reserva', configApp); 
+            const evRes = await crearEventoSeguro(al, titulos, op.inicio, op.fin);
+            
             await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente validación por alumno", id_evento_reserva: evRes.id, calendario_evento_reserva: evRes.calendar, reserva_profe_id: op.profeId, reserva_profe_nombre: op.profeNombre, reserva_cal_id: op.calId, reserva_fecha_texto: op.fechaTexto, reserva_inicio: op.inicio, reserva_fin: op.fin, opciones_propuestas: null });
-            const dataText = await generarTextoConHistorial(id, 'texto_alumno'); await navigator.clipboard.writeText(dataText.txt);
-            alert("Reserva en Calendar creada exitosamente.\n\nTexto de confirmación copiado."); document.getElementById('modal-validar-profe').close(); target.innerHTML = "Confirmar y Crear Evento"; target.disabled = false; cargarVista(estadoActualVista);
-        } catch(e) { target.innerHTML = "Confirmar y Crear Evento"; target.disabled = false; alert("Error al crear el evento."); } return;
+            
+            const dataText = await generarTextoConHistorial(id, 'texto_alumno'); 
+            await navigator.clipboard.writeText(dataText.txt);
+            
+            alert("Reserva en Calendar creada exitosamente.\n\nTexto de confirmación copiado."); 
+            document.getElementById('modal-validar-profe').close(); 
+            target.innerHTML = "Confirmar y Crear Evento"; target.disabled = false; 
+            cargarVista(estadoActualVista);
+        } catch(e) { 
+            target.innerHTML = "Confirmar y Crear Evento"; target.disabled = false; 
+            alert("❌ Operación cancelada.\n\n" + e.message); 
+        } 
+        return;
     }
 
-    if (target.classList.contains('btn-confirmar-entrevista')) { const id = target.getAttribute('data-id'); try { const al = (await getDoc(doc(db, "alumnos", id))).data(); const descP = al.descripcion ? al.descripcion.replace(/<[^>]*>?/gm, '').trim() : ''; const titulos = construirTitulosEvento(al, 'confirmado', configApp); await actualizarEventoSeguro(al, titulos, descP); await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Agenda confirmada" }); alert("¡Agenda Confirmada!"); cargarVista(estadoActualVista); } catch(e) { alert("Error al actualizar."); } return; }
+    if (target.classList.contains('btn-confirmar-entrevista')) { 
+        const id = target.getAttribute('data-id'); 
+        try { 
+            const al = (await getDoc(doc(db, "alumnos", id))).data(); 
+            const descP = al.descripcion ? al.descripcion.replace(/<[^>]*>?/gm, '').trim() : ''; 
+            const titulos = construirTitulosEvento(al, 'confirmado', configApp); 
+            
+            await actualizarEventoSeguro(al, titulos, descP); 
+            
+            await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Agenda confirmada" }); 
+            alert("¡Agenda Confirmada!"); 
+            cargarVista(estadoActualVista); 
+        } catch(e) { 
+            alert("❌ Operación cancelada.\n\n" + e.message); 
+        } 
+        return; 
+    }
     
     if (target.classList.contains('btn-reenviar-profe') || target.classList.contains('btn-enviar-conf-profe')) { 
         try { 
@@ -1040,21 +1097,24 @@ document.addEventListener('click', async (e) => {
             try { 
                 const alDoc = await getDoc(doc(db, "alumnos", id));
                 const alData = alDoc.data();
+                
+                if (alData.id_evento_reserva) await eliminarEventoSeguro(alData); 
+                
                 const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
                 const hist = alData.historial || [];
                 hist.push({ id: Date.now(), texto: `Reserva cancelada. Motivo: ${motivo.trim()}`, fecha: fechaStr });
-                await updateDoc(doc(db, "alumnos", id), { historial: hist });
                 
                 const data = await generarTextoConHistorial(id, 'texto_cancela_alumno');
                 if (data.al.estado_agenda === 'Pendiente validación por alumno' || data.al.estado_agenda === 'Agenda confirmada') { 
                     await navigator.clipboard.writeText(data.txt); 
                     alert("Reserva cancelada en Calendar. Texto de CANCELACIÓN copiado al portapapeles."); 
                 }
-                
-                if (data.al.id_evento_reserva) await eliminarEventoSeguro(data.al); 
-                await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente procesar", reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null, opciones_propuestas: null }); 
+                 
+                await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente procesar", reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null, opciones_propuestas: null, historial: hist }); 
                 cargarVista(estadoActualVista); 
-            } catch(e) { console.error("Error al cancelar reserva:", e); } 
+            } catch(e) { 
+                alert("❌ Operación cancelada.\n\n" + e.message); 
+            } 
         } return;
     }
 
@@ -1081,12 +1141,16 @@ document.addEventListener('mouseover', (e) => {
 document.getElementById('btn-guardar-suspension').addEventListener('click', async () => { 
     const id = document.getElementById('susp-alumno-id').value, mtv = document.getElementById('susp-motivo').value; if(!mtv) return alert("Seleccione motivo"); 
     try { 
-        const al = (await getDoc(doc(db, "alumnos", id))).data(); if (al.id_evento_reserva) await eliminarEventoSeguro(al); 
+        const al = (await getDoc(doc(db, "alumnos", id))).data(); 
+        if (al.id_evento_reserva) await eliminarEventoSeguro(al); 
+        
         const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`, hist = al.historial || [];
         hist.push({ id: Date.now(), texto: `Suspendido. Motivo: ${mtv}`, fecha: fechaStr });
         await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Agenda suspendida", motivo_suspension: mtv, reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null, historial: hist }); 
         document.getElementById('modal-suspender').close(); cargarVista(estadoActualVista); 
-    } catch(e){} 
+    } catch(e){
+        alert("❌ Operación cancelada.\n\n" + e.message);
+    } 
 });
 
 async function cargarSelectsAlumnos() { const sI = document.getElementById('instrumento'), sS = document.getElementById('tipo_suscripcion'); sI.innerHTML = ''; sS.innerHTML = '<option value="">Seleccione...</option>'; const iS = await getDocs(collection(db, "instrumentos")); iS.forEach(d => sI.innerHTML += `<option value="${d.data().nombre}">${d.data().nombre}</option>`); const sSp = await getDocs(collection(db, "tipos_suscripcion")); sSp.forEach(d => sS.innerHTML += `<option value="${d.data().nombre}">${d.data().nombre}</option>`); }
