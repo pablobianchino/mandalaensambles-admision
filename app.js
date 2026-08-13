@@ -2,13 +2,13 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-// === URL DEL SCRIPT DE GOOGLE CONFIGURADA ===
+// === ATENCIÓN: PEGA LA URL DEL SCRIPT AQUÍ ABAJO ===
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwEU3sbxufZxnHQxfFvluIHmxzz6uTc2klJlL_LQecrTFZDtoLr-ukx6iSd8s99AUg/exec";
-// ============================================
+// ====================================================
 
 const firebaseConfig = {
     apiKey: "AIzaSyCgAg2EwTJh4zbMdpkqG3VKTGfDeofblyg",
-    authDomain: "priel-mdl-seguimientos.firebaseapp.com",
+    authDomain: "mandala-seguimientos.vercel.app",
     projectId: "priel-mdl-seguimientos",
     storageBucket: "priel-mdl-seguimientos.firebasestorage.app",
     messagingSenderId: "118730133451",
@@ -132,6 +132,9 @@ function interpretarFechaCSV(texto) {
     if (match) { const dia = parseInt(match[1]), mes = parseInt(match[2]) - 1, hora = match[3] ? parseInt(match[3]) : 0, min = match[4] ? parseInt(match[4]) : 0; if (dia > 31 || mes > 11 || hora > 23 || min > 59) return null; return formatoLocalISO(new Date(new Date().getFullYear(), mes, dia, hora, min)); } return null;
 }
 
+// ==========================================
+// PUENTE DE INTEGRACIÓN ESTRICTA CON CALENDAR
+// ==========================================
 async function fetchCalendarAPI(action, payload) {
     if (SCRIPT_URL === "PEGAR_AQUI_LA_URL_DEL_SCRIPT") {
         throw new Error("No se ha configurado la URL del script. Contacte a soporte.");
@@ -159,7 +162,12 @@ async function fetchCalendarAPI(action, payload) {
 
 async function getEventosCalendario(calendarId, timeMin, timeMax) { return await fetchCalendarAPI('getEvents', { calendarId, timeMin, timeMax }); }
 async function crearEventoCalendario(calendarId, titulo, inicioStr, finStr) { return await fetchCalendarAPI('createEvent', { calendarId, summary: titulo, start: { dateTime: inicioStr }, end: { dateTime: finStr } }); }
-async function actualizarEventoCalendario(calendarId, eventId, titulo, descripcion) { return await fetchCalendarAPI('updateEvent', { calendarId, eventId, summary: titulo, description }); }
+
+// FIX: Aquí estaba el error de la variable 'description'
+async function actualizarEventoCalendario(calendarId, eventId, titulo, descripcion) { 
+    return await fetchCalendarAPI('updateEvent', { calendarId, eventId, summary: titulo, description: descripcion }); 
+}
+
 async function eliminarEventoCalendario(calendarId, eventId) { return await fetchCalendarAPI('deleteEvent', { calendarId, eventId }); }
 
 async function getCalendarIdParaAlumno(al) {
@@ -169,6 +177,7 @@ async function getCalendarIdParaAlumno(al) {
     return null;
 }
 
+// FUNCIONES SEGURAS DE CALENDAR
 async function crearEventoSeguro(al, titulos, inicio, fin) {
     let fallbackCalId = configApp.calendario_por_defecto, primaryCalId = await getCalendarIdParaAlumno(al);
     let errorDetalle = "";
