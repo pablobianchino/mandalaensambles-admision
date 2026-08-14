@@ -148,10 +148,18 @@
             <div id="lista-generica" class="lista-filas" style="display:none; flex-direction:column; gap:8px;"></div>
             
             <!-- VISTA RESUMEN (Parte 2: Flujo de Admisión al fondo) -->
-            <div id="vista-resumen-timeline" style="display:none; flex-direction:column; gap:10px; margin-top:30px; border-top:2px solid #ece6dc; padding-top:20px;">
-                <div class="resumen-section-title" style="color:#1f5491; border-bottom-color:#1f5491; margin:0;">📈 Flujo de Admisión</div>
-                <div id="timeline-resumen-adm" style="margin-top:10px;"></div>
-                <div id="timeline-resumen-altas"></div>
+           <div id="vista-resumen-timeline" style="display:none; flex-direction:column; gap:10px; margin-top:30px; border-top:2px solid var(--border-color); padding-top:20px;">
+                <div class="resumen-section-title" style="color:#1f5491; border-bottom-color:#1f5491; margin:0;">📈 Flujo Unificado</div>
+                
+                <!-- Contenedor de la línea de tiempo de 9 nodos -->
+                <div id="timeline-unificado" style="margin-top:10px;"></div>
+                
+                <!-- Bandeja Inteligente (Smart Tray) oculta por defecto -->
+                <div id="timeline-tray-container" class="timeline-tray-container">
+                    <div class="timeline-tray" id="timeline-tray-content">
+                        <!-- Aquí adentro JS inyectará los alumnos como píldoras -->
+                    </div>
+                </div>
             </div>
 
             <!-- VISTA ESTADÍSTICAS -->
@@ -167,7 +175,11 @@
     <dialog id="modal-alta-alumno" class="modern-modal" style="width: 95%; max-width: 800px; max-height: 95vh; overflow-y: auto;">
         <div id="form-alumno-wrapper" style="padding: 24px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                <h2 id="form-titulo" style="margin:0; font-size:1.4em; font-weight:700; color:#1c1f22;">Nuevo Alumno</h2>
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <h2 id="form-titulo" style="margin:0; font-size:1.4em; font-weight:700; color:#1c1f22;">Nuevo Alumno</h2>
+                    <!-- Badge de Estado que se inyectará desde JS -->
+                    <span id="modal-status-badge" class="status-badge bg-gray" style="display:none;">Estado</span>
+                </div>
                 <button type="button" id="btn-cerrar-alumno" style="background:transparent; border:none; cursor:pointer; font-size:1.5em; color:#9a9388;">&times;</button>
             </div>
             
