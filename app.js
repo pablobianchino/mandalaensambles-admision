@@ -132,7 +132,7 @@ let alumnoIdActual = null;
 let estadoActualVista = 'Resumen';
 window.tituloABMActual = '';
 let configApp = {};
-let chartAdmGestionesInst = null, chartAdmGlobalInst = null, chartAltasGlobalInst = null;
+let chartFlowInst = null, chartEntrevistasInst = null, chartAltasInst = null;
 let clipboardDisponibilidad = null, clipboardDisponibilidadProfe = null; 
 let historialActual = []; 
 
@@ -329,13 +329,12 @@ function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, todosLosProfes, pr
     return opciones;
 }
 
-// LOGICA DE ESTADO, TIEMPO Y COLORES
+// LÓGICA DE ESTADO, TIEMPO Y COLORES REFORZADA (0/24/48)
 function getEstadoYBadge(al) {
     let colorIndicador = 'ind-gray', colorBadge = 'bg-gray', claseTexto = 'text-gray', txtTiempo = '', txtEstado = al.estado_agenda, fechaCalculo = null;
     
     if (al.estado_agenda === 'Altas Incompletas') txtEstado = 'Alta Incompleta';
 
-    // Determinar contra qué fecha calcular la urgencia
     if ((al.estado_agenda === 'Pendiente validación por profe' || al.estado_agenda === 'Pendiente validación por alumno' || al.estado_agenda === 'Agenda confirmada') && al.reserva_inicio) { 
         fechaCalculo = new Date(al.reserva_inicio); 
     } else if (al.estado_agenda === 'Pre-alta Iniciada' && al.fecha_inicio_clases) { 
@@ -360,7 +359,6 @@ function getEstadoYBadge(al) {
         }
     }
 
-    // Asignar Badges Visuales
     if (al.estado_agenda === 'Pendiente procesar') colorBadge = 'bg-gray';
     else if (al.estado_agenda.includes('Validando')) colorBadge = 'bg-blue';
     else if (al.estado_agenda === 'Agenda confirmada') colorBadge = 'bg-teal';
@@ -414,7 +412,6 @@ function generarBotonesAccion(al, id) {
 
 function generarFilaAlumno(al, id, vista) {
     const info = getEstadoYBadge(al);
-
     let instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento;
     let suscStr = al.tipo_suscripcion || ''; let nivelStr = al.nivel || 'S/N'; let cel = al.celular || ''; let edad = al.edad ? al.edad + 'a' : '-';
 
@@ -491,11 +488,9 @@ function renderTimelineUnificado(containerId, configNodos, datos) {
             let newId = el.getAttribute('data-id');
             let index = parseInt(el.getAttribute('data-index'));
             
-            // Re-render visual de activo
             cont.querySelectorAll('.timeline-node').forEach(n => n.classList.remove('active'));
             el.classList.add('active');
 
-            // Abrir y armar el Smart Tray
             const trayContainer = document.getElementById('timeline-tray-container');
             const trayContent = document.getElementById('timeline-tray-content');
             if (trayContainer && trayContent) {
@@ -504,7 +499,6 @@ function renderTimelineUnificado(containerId, configNodos, datos) {
                     return nConf.filterFn ? nConf.filterFn(d) : d.estado_agenda === newId;
                 });
 
-                // Calcular posición del triángulo apuntador
                 let totalNodes = configNodos.length;
                 let percentage = (index / (totalNodes - 1)) * 100;
                 if (percentage < 5) percentage = 5;
@@ -514,7 +508,17 @@ function renderTimelineUnificado(containerId, configNodos, datos) {
                 if (nodeData.length === 0) {
                     trayContent.innerHTML = `<span style="color:var(--text-muted); font-size:13px; font-weight:500;">No hay alumnos en esta etapa.</span>`;
                 } else {
-                    trayContent.innerHTML = nodeData.map(al => `<div class="tray-chip" onclick="window.abrirEditarDesdeTray('${al.id}')">👤 ${al.nombre}</div>`).join('');
+                    // Injecting Action Dropdown within the tray chips
+                    trayContent.innerHTML = nodeData.map(al => `
+                        <div class="tray-chip" style="position:relative; padding-right:30px;">
+                            <span class="tray-chip-name" onclick="window.abrirEditarDesdeTray('${al.id}')">👤 ${al.nombre}</span>
+                            <div class="alumno-actions" style="position:absolute; right:4px; top:50%; transform:translateY(-50%);">
+                                <button type="button" class="btn-row-action" style="padding:2px 4px; font-size:1em;">⋮</button>
+                                <div class="dropdown-menu-wrapper" style="bottom:100%; top:auto; right:0; padding-bottom:8px; padding-top:0;">
+                                    <div class="dropdown-menu">${generarBotonesAccion(al, al.id)}</div>
+                                </div>
+                            </div>
+                        </div>`).join('');
                 }
                 trayContainer.style.display = 'block';
             }
@@ -522,7 +526,6 @@ function renderTimelineUnificado(containerId, configNodos, datos) {
     });
 }
 
-// Función global para abrir modal desde los Chips del Tray
 window.abrirEditarDesdeTray = function(id) {
     const wrap = document.getElementById('form-alumno-wrapper'); 
     document.getElementById('modal-alta-alumno').appendChild(wrap); 
@@ -582,7 +585,6 @@ async function cargarVista(vista) {
     if (vista === 'Resumen') {
         document.getElementById('search-container-general').style.display = 'block'; vResumen.style.display = 'flex'; if(vResumenTime) vResumenTime.style.display = 'flex'; cv.style.display = 'none';
         
-        // Ocultar la bandeja al entrar por defecto
         const trayContainer = document.getElementById('timeline-tray-container');
         if (trayContainer) trayContainer.style.display = 'none';
 
@@ -598,14 +600,12 @@ async function cargarVista(vista) {
                 } 
                 if (dateToEval && !isNaN(dateToEval.getTime())) { 
                     let diffHs = (dateToEval - new Date()) / (1000 * 60 * 60); 
-                    // Solo sumar a prioridades los rojos (<=24) y amarillos (<=48) y los vencidos (<0)
                     if (diffHs <= 48) urgencies.push(al); 
                 } 
             });
             urgencies.sort((a,b) => { let dA = (a.estado_agenda==='Pre-alta Iniciada') ? new Date(a.fecha_inicio_clases) : new Date(a.reserva_inicio); let dB = (b.estado_agenda==='Pre-alta Iniciada') ? new Date(b.fecha_inicio_clases) : new Date(b.reserva_inicio); return dA - dB; });
             document.getElementById('resumen-urgencias').innerHTML = urgencies.length > 0 ? urgencies.map(a => generarFilaAlumno(a, a.id, vista)).join('') : '<div style="color:var(--text-muted); padding:10px; font-weight:500;">No hay gestiones críticas a la vista.</div>';
             
-            // Dibujar el nuevo flujo unificado
             renderTimelineUnificado('timeline-unificado', configNodosFlujo, allData);
             
         } catch(e) {}
@@ -635,7 +635,13 @@ async function cargarVista(vista) {
             else if(vista === 'Altas - Suspendidas') estQuery = 'Alta Suspendida';
             
             const qSnap = await getDocs(collection(db, "alumnos")); let allData = [];
-            qSnap.forEach(d => { let ok = false; if(estQuery==='Alta Efectiva') ok=(d.data().estado_agenda==='Alta Efectiva'||d.data().estado_agenda==='Alta Ilegal'); else ok=(d.data().estado_agenda===estQuery); if(ok) allData.push({id: d.id, ...d.data()}); });
+            qSnap.forEach(d => { 
+                let ok = false; 
+                if(estQuery==='Alta Efectiva') {
+                    ok = (d.data().estado_agenda === 'Alta Efectiva' || d.data().estado_agenda === 'Alta Ilegal') && d.data().checklist_alta && d.data().checklist_alta.filter(Boolean).length === 5;
+                } else ok=(d.data().estado_agenda===estQuery); 
+                if(ok) allData.push({id: d.id, ...d.data()}); 
+            });
             renderListaFilas('lista-generica', allData, 'all', null);
         } catch(e) {}
     } else if (vista === 'Match - Pendientes' || vista === 'Match - Confirmados') {
@@ -657,29 +663,50 @@ function renderConfigHub(cont) {
         </div>`;
 }
 
+// NUEVOS GRÁFICOS ACTUALIZADOS (Flow, Entrevistas, Altas)
 async function renderCharts() {
     const cont = document.getElementById('estadisticas-container');
     cont.innerHTML = `
-        <h2 style="margin:0; font-size:1.3em; color:var(--text-main);">Estadísticas</h2>
+        <div style="display:flex; gap:20px; flex-wrap:wrap; margin-bottom:20px;">
+            <div style="background:white; padding:20px; border-radius:12px; border:1px solid var(--border-color); flex:1; min-width:100%;"><canvas id="chartFlow" style="max-height: 250px;"></canvas></div>
+        </div>
         <div style="display:flex; gap:20px; flex-wrap:wrap;">
-            <div style="background:white; padding:20px; border-radius:12px; border:1px solid var(--border-color); flex:1; min-width:300px;"><canvas id="chartAdmGestiones"></canvas></div>
-            <div style="background:white; padding:20px; border-radius:12px; border:1px solid var(--border-color); flex:1; min-width:300px;"><canvas id="chartAdmGlobal"></canvas></div>
+            <div style="background:white; padding:20px; border-radius:12px; border:1px solid var(--border-color); flex:1; min-width:300px;"><canvas id="chartEntrevistas"></canvas></div>
+            <div style="background:white; padding:20px; border-radius:12px; border:1px solid var(--border-color); flex:1; min-width:300px;"><canvas id="chartAltas"></canvas></div>
         </div>
     `;
     try {
         const qSnap = await getDocs(collection(db, "alumnos"));
-        let counts = { 'Pendiente procesar':0, 'Pendiente validación por profe':0, 'Pendiente validación por alumno':0 };
-        let cAdm = { en_curso:0, confirmadas:0, suspendidas:0 };
-        qSnap.forEach(doc => {
-            let st = doc.data().estado_agenda;
-            if(counts[st] !== undefined) counts[st]++;
-            if(['Pendiente procesar', 'Pendiente validación por profe', 'Pendiente validación por alumno'].includes(st)) cAdm.en_curso++;
-            if(st === 'Agenda confirmada') cAdm.confirmadas++;
-            if(st === 'Agenda suspendida') cAdm.suspendidas++;
+        let allData = []; qSnap.forEach(d => allData.push(d.data()));
+        
+        let flowLabels = configNodosFlujo.map(n => n.label);
+        let flowData = configNodosFlujo.map(n => allData.filter(d => n.filterFn ? n.filterFn(d) : d.estado_agenda === n.id).length);
+        
+        let entConf = allData.filter(d => d.estado_agenda === 'Agenda confirmada').length;
+        let entSusp = allData.filter(d => d.estado_agenda === 'Agenda suspendida').length;
+        
+        let altFin = allData.filter(d => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5)).length;
+        let altSusp = allData.filter(d => d.estado_agenda === 'Alta Suspendida').length;
+
+        if(chartFlowInst) chartFlowInst.destroy(); if(chartEntrevistasInst) chartEntrevistasInst.destroy(); if(chartAltasInst) chartAltasInst.destroy();
+        
+        chartFlowInst = new Chart(document.getElementById('chartFlow'), { 
+            type: 'bar', 
+            data: { labels: flowLabels, datasets: [{ label: 'Alumnos', data: flowData, backgroundColor: '#007b8f', borderRadius: 6 }] },
+            options: { plugins: { title: { display: true, text: 'Flow de Admisión', font: { size: 16 } }, legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
         });
-        if(chartAdmGestionesInst) chartAdmGestionesInst.destroy(); if(chartAdmGlobalInst) chartAdmGlobalInst.destroy();
-        chartAdmGestionesInst = new Chart(document.getElementById('chartAdmGestiones'), { type: 'doughnut', data: { labels: ['Sin Agendar', 'Validando Profe', 'Validando Alumno'], datasets: [{ data: [counts['Pendiente procesar'], counts['Pendiente validación por profe'], counts['Pendiente validación por alumno']], backgroundColor: ['#b3aa9a', '#1f5491', '#e5a93d'] }] } });
-        chartAdmGlobalInst = new Chart(document.getElementById('chartAdmGlobal'), { type: 'pie', data: { labels: ['En Curso', 'Confirmadas', 'Suspendidas'], datasets: [{ data: [cAdm.en_curso, cAdm.confirmadas, cAdm.suspendidas], backgroundColor: ['#007b8f', '#c2563b', '#b3aa9a'] }] } });
+        
+        chartEntrevistasInst = new Chart(document.getElementById('chartEntrevistas'), { 
+            type: 'doughnut', 
+            data: { labels: ['Confirmadas', 'Suspendidas'], datasets: [{ data: [entConf, entSusp], backgroundColor: ['#007b8f', '#c2563b'] }] },
+            options: { plugins: { title: { display: true, text: 'Entrevistas', font: { size: 16 } } } }
+        });
+        
+        chartAltasInst = new Chart(document.getElementById('chartAltas'), { 
+            type: 'doughnut', 
+            data: { labels: ['Finalizadas', 'Suspendidas'], datasets: [{ data: [altFin, altSusp], backgroundColor: ['#007b8f', '#c2563b'] }] },
+            options: { plugins: { title: { display: true, text: 'Altas', font: { size: 16 } } } }
+        });
     } catch(e) {}
 }
 
@@ -764,6 +791,7 @@ document.addEventListener('click', async (e) => {
     if (target.id === 'btn-nuevo-alumno') { 
         const wrap = document.getElementById('form-alumno-wrapper'); document.getElementById('modal-alta-alumno').appendChild(wrap); wrap.style.display = 'block'; document.getElementById('form-titulo').textContent = 'Nuevo Alumno'; document.getElementById('modal-status-badge').style.display = 'none'; document.getElementById('alumno-id').value = ''; document.getElementById('form-alumno').reset(); quill.setContents([]); historialActual = []; renderHistorial(); diasSemana.forEach(d => { document.getElementById(`disp-${d.id}-all`).checked=false; document.getElementById(`disp-${d.id}-none`).checked=false; document.getElementById(`estado-${d.id}`).textContent=""; }); document.getElementById('chk-ingreso-directo').checked = false; 
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); const tabBtns = document.querySelectorAll('.tab-btn'); if(tabBtns.length > 0) { tabBtns[0].classList.add('active'); } document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none'); if(document.getElementById('tab-datos')) document.getElementById('tab-datos').style.display = 'block';
+        const accionesCont = document.getElementById('modal-acciones-container'); if(accionesCont) accionesCont.style.display = 'none';
         await cargarSelectsAlumnos(); document.getElementById('modal-alta-alumno').showModal(); return; 
     }
     if (target.id === 'btn-cerrar-alumno') { const wrap = document.getElementById('form-alumno-wrapper'); wrap.style.display = 'none'; document.body.appendChild(wrap); document.getElementById('modal-alta-alumno').close(); return; }
@@ -780,10 +808,20 @@ async function cargarSelectsAlumnos() {
 async function llenarFormularioAlumno(id) { 
     document.getElementById('alumno-id').value = id; const d = (await getDoc(doc(db, "alumnos", id))).data(); document.getElementById('nombre').value = d.nombre; document.getElementById('celular').value = d.celular; document.getElementById('edad').value = d.edad||''; document.getElementById('nivel').value = d.nivel||''; await cargarSelectsAlumnos(); const sI = document.getElementById('instrumento'); Array.from(sI.options).forEach(o => o.selected = (d.instrumento||[]).includes(o.value)); syncSelectToChips('instrumento', 'chips-instrumentos'); document.getElementById('tipo_suscripcion').value = d.tipo_suscripcion; quill.root.innerHTML = d.descripcion||''; historialActual = d.historial || []; renderHistorial(); 
     
-    // Inyectar el badge de estado en el modal
     const info = getEstadoYBadge(d);
     const badgeEl = document.getElementById('modal-status-badge');
     if (badgeEl) { badgeEl.className = `status-badge ${info.colorBadge}`; badgeEl.textContent = info.txtEstado; badgeEl.style.display = 'inline-flex'; }
+
+    const accionesCont = document.getElementById('modal-acciones-container');
+    if (accionesCont) {
+        accionesCont.style.display = 'block';
+        accionesCont.innerHTML = `
+            <button type="button" class="btn-row-action" style="background:var(--hover-bg); border:1px solid var(--border-color); padding:6px 12px;">Acciones ⋮</button>
+            <div class="dropdown-menu-wrapper" style="top:100%; right:0;">
+                <div class="dropdown-menu">${generarBotonesAccion(d, id)}</div>
+            </div>
+        `;
+    }
 
     const hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00'; diasSemana.forEach(dia => { const dD = d.disponibilidad[dia.id], tI = document.getElementById(`disp-${dia.id}-inicio`), tF = document.getElementById(`disp-${dia.id}-fin`), cA = document.getElementById(`disp-${dia.id}-all`), cN = document.getElementById(`disp-${dia.id}-none`), sE = document.getElementById(`estado-${dia.id}`); tI.disabled=false; tF.disabled=false; cA.checked=false; cN.checked=false; sE.textContent=""; if (!dD || dD.length===0) { cN.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Bloqueado"; sE.style.color="var(--accent-red)"; } else if (dD[0].inicio===hApe && dD[0].fin===hCie) { cA.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Libre"; sE.style.color="var(--accent-teal)"; } else { tI.value = dD[0].inicio; tF.value = dD[0].fin; } }); 
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); const tabBtns = document.querySelectorAll('.tab-btn'); if(tabBtns.length > 0) { tabBtns[0].classList.add('active'); } document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none'); if(document.getElementById('tab-datos')) document.getElementById('tab-datos').style.display = 'block';
