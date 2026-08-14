@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Mandala Seguimientos</title>
     
+    <!-- FIX: Etiqueta para evitar el error 404 del Favicon -->
+    <link rel="icon" href="logo.png" type="image/png">
+    
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#fbfaf8">
     <link rel="apple-touch-icon" href="icon-192.png">
@@ -22,9 +25,7 @@
     <!-- PANTALLA DE LOGIN -->
     <div id="login-container">
         <div class="login-card">
-            <!-- Logo de Mandala Ensambles -->
             <img src="logo.png" alt="Mandala Ensambles" style="width: 70px; height: 70px; object-fit: contain; margin-bottom: 15px;">
-            
             <h2 style="font-size:1.5em; font-weight:800; margin:0 0 4px 0; color:#1f5491; letter-spacing:-0.02em;">Mandala Ensambles</h2>
             <div style="font-size:0.9em; color:#9a9388; font-weight:500; margin-bottom: 25px;">Admisión de Alumnos</div>
             
@@ -57,14 +58,14 @@
             <button id="btn-nuevo-alumno" class="btn-nuevo-sidebar">＋ Nuevo alumno</button>
 
             <ul class="nav flex-column" style="list-style:none; padding:0; margin:15px 0 0 0; flex-grow:1;">
-                <li class="nav-item" data-vista="Resumen"><span class="nav-icon">◷</span>Resumen</li>
+                <li class="nav-item" data-vista="Resumen"><span class="nav-icon">◷</span> Resumen</li>
                 
                 <li class="nav-divider"></li>
                 
                 <details class="nav-accordion">
                     <summary class="nav-item"><span class="nav-icon">📥</span> Inbox</summary>
                     <div class="nav-submenu">
-                        <li class="nav-item sub-item" data-vista="Inobx - Pendientes">Pendientes</li>
+                        <li class="nav-item sub-item" data-vista="Inbox - Pendientes">Pendientes</li>
                         <li class="nav-item sub-item" data-vista="Inbox - Confirmadas">Confirmadas</li>
                         <li class="nav-item sub-item" data-vista="Inbox - Suspendidas">Suspendidas</li>
                     </div>
@@ -134,20 +135,25 @@
                 </div>
             </div>
 
-            <!-- VISTA RESUMEN -->
-            <!-- VISTA RESUMEN -->
-<div id="vista-resumen" style="display:none; flex-direction:column; gap:20px;">
-    <div class="resumen-section-title" style="color:#c2563b; border-bottom-color:#c2563b;">🚨 Prioridades / Próximos a Vencer</div>
-    <div id="resumen-urgencias" class="lista-filas"></div>
-    
-    <div class="resumen-section-title" style="color:#1f5491; border-bottom-color:#1f5491; margin-top:20px;">📈 Flujo de Admisión</div>
-    <div id="timeline-resumen-adm"></div>
-    <div id="timeline-resumen-altas" style="margin-top:10px;"></div>
-</div>
+            <!-- VISTA RESUMEN (Parte 1: Prioridades) -->
+            <div id="vista-resumen" style="display:none; flex-direction:column; gap:20px; margin-bottom:10px;">
+                <div class="resumen-section-title" style="color:#c2563b; border-bottom-color:#c2563b;">🚨 Prioridades / Próximos a Vencer</div>
+                <div id="resumen-urgencias" class="lista-filas"></div>
+            </div>
+
+            <!-- TIMELINE PARA VISTAS INDIVIDUALES (Inbox Pendientes, Altas Pendientes) -->
+            <div id="timeline-vista" style="display:none;"></div>
 
             <!-- CONTENEDOR PRINCIPAL DE FILAS (Listas Dinámicas) -->
             <div id="lista-generica" class="lista-filas" style="display:none; flex-direction:column; gap:8px;"></div>
             
+            <!-- VISTA RESUMEN (Parte 2: Flujo de Admisión al fondo) -->
+            <div id="vista-resumen-timeline" style="display:none; flex-direction:column; gap:10px; margin-top:30px; border-top:2px solid #ece6dc; padding-top:20px;">
+                <div class="resumen-section-title" style="color:#1f5491; border-bottom-color:#1f5491; margin:0;">📈 Flujo de Admisión</div>
+                <div id="timeline-resumen-adm" style="margin-top:10px;"></div>
+                <div id="timeline-resumen-altas"></div>
+            </div>
+
             <!-- VISTA ESTADÍSTICAS -->
             <div id="estadisticas-container" style="display:none; flex-direction:column; gap:20px;"></div>
         </main>
