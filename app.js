@@ -418,7 +418,7 @@ function generarFilaAlumno(al, id, vista) {
             } else { 
                 let ini = p.inicio.replace(':00', '');
                 let fin = p.fin.replace(':00', '');
-                txt = `${ini}-${fin}`; 
+                txt = `${ini} a ${fin}`; 
             } 
         }
         dispHtml += `<div class="disp-box ${tiene ? 'active' : ''}"><div class="disp-day">${d.id}</div><div class="disp-time">${txt}</div></div>`;
