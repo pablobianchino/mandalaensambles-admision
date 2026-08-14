@@ -11,12 +11,13 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt
 
 const firebaseConfig = {
     apiKey: "AIzaSyCgAg2EwTJh4zbMdpkqG3VKTGfDeofblyg",
-    authDomain: "mandala-seguimientos.vercel.app",
+    authDomain: "priel-mdl-seguimientos.firebaseapp.com", // <-- ESTA ES LA LÍNEA QUE DEBES CORREGIR
     projectId: "priel-mdl-seguimientos",
     storageBucket: "priel-mdl-seguimientos.firebasestorage.app",
     messagingSenderId: "118730133451",
     appId: "1:118730133451:web:9e407e81a9b22ae9d0704e"
 };
+
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
