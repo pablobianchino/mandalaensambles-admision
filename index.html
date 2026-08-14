@@ -334,11 +334,18 @@
         <label id="label-abm-edit-nombre">Nombre: <input type="text" id="abm-edit-nombre" class="modern-input" required></label>
         
         <!-- Contenedor dinámico si es Profesor (incluye los Skills) -->
+      <!-- Contenedor dinámico si es Profesor (incluye los Skills) -->
         <div id="div-abm-edit-profe" style="display:none; margin-top:10px;">
             <label>Email Calendar: <input type="email" id="abm-edit-correo" class="modern-input"></label>
             <label>Celular: <input type="text" id="abm-edit-celular" class="modern-input"></label>
             <label>Alias Transferencia: <input type="text" id="abm-edit-alias" class="modern-input"></label>
-            <label style="cursor:pointer; font-weight:600; margin-top:10px; display:flex; align-items:center; gap:8px; text-transform:none;"><input type="checkbox" id="abm-edit-entrevista" style="width:18px; height:18px;"> Habilitar para entrevistas</label>
+            
+            <!-- NUEVA CAJA DE APTITUDES -->
+            <div style="display:flex; flex-wrap:wrap; gap:15px; margin-top:15px; padding:15px; background:var(--hover-bg); border-radius:8px; border:1px solid var(--border-color);">
+                <label style="cursor:pointer; font-weight:600; display:flex; align-items:center; gap:8px; text-transform:none; margin:0;"><input type="checkbox" id="abm-edit-entrevista" style="width:18px; height:18px; accent-color:var(--accent-teal);"> Apto para entrevistas</label>
+                <label style="cursor:pointer; font-weight:600; display:flex; align-items:center; gap:8px; text-transform:none; margin:0;"><input type="checkbox" id="abm-edit-grupales" style="width:18px; height:18px; accent-color:var(--accent-teal);"> Apto para clases grupales</label>
+                <label style="cursor:pointer; font-weight:600; display:flex; align-items:center; gap:8px; text-transform:none; margin:0;"><input type="checkbox" id="abm-edit-ensambles" style="width:18px; height:18px; accent-color:var(--accent-teal);"> Apto para ensambles</label>
+            </div>
             
             <div style="margin-top:15px; padding-top:10px;">
                 <label style="margin-bottom:8px;">Skills (Instrumentos que enseña)</label>
