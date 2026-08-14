@@ -228,24 +228,168 @@ body {
 }
 
 /* =======================================================================
-   LÍNEA DE TIEMPO (TIMELINE MODERNO)
+   LÍNEA DE TIEMPO UNIFICADA Y BANDEJA SMART TRAY
    ======================================================================= */
-.timeline-wrapper { display: flex; align-items: flex-start; justify-content: space-between; position: relative; padding: 20px 0 30px 0; overflow-x: auto; margin-bottom:10px; }
-.timeline-line { position: absolute; top: 40px; left: 10%; width: 80%; height: 3px; background: var(--border-color); z-index: 0; }
-.timeline-node { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; cursor: pointer; flex: 1; min-width: 100px; }
-.timeline-circle { width: 45px; height: 45px; border-radius: 50%; background: var(--bg-main); border: 3px solid var(--border-color); display: flex; align-items: center; justify-content: center; font-size: 1.2em; transition: 0.3s ease; color: var(--text-muted); }
-.timeline-node.active .timeline-circle { transform: scale(1.15); box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-color: var(--accent-teal); background: white; }
-.timeline-label { margin-top: 12px; font-weight: 700; font-size: 12.5px; color: var(--text-muted); text-align: center; font-family: inherit; }
+.timeline-wrapper { 
+    display: flex; 
+    align-items: flex-start; 
+    justify-content: space-between; 
+    position: relative; 
+    padding: 20px 10px 30px 10px; 
+    overflow-x: auto; 
+    margin-bottom: 0px; 
+    gap: 10px; 
+}
+.timeline-line { 
+    position: absolute; 
+    top: 40px; 
+    left: 5%; 
+    width: 90%; 
+    height: 3px; 
+    background: var(--border-color); 
+    z-index: 0; 
+}
+.timeline-node { 
+    position: relative; 
+    z-index: 1; 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    cursor: pointer; 
+    flex: 1; 
+    min-width: 85px; /* Evita que se aplasten si hay 9 nodos */
+}
+.timeline-circle { 
+    width: 45px; 
+    height: 45px; 
+    border-radius: 50%; 
+    background: var(--bg-main); 
+    border: 3px solid var(--border-color); 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    font-size: 1.2em; 
+    transition: 0.3s ease; 
+    color: var(--text-muted); 
+}
+.timeline-node.active .timeline-circle { 
+    transform: scale(1.15); 
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+    border-color: var(--accent-teal); 
+    background: white; 
+}
+.timeline-label { 
+    margin-top: 12px; 
+    font-weight: 700; 
+    font-size: 11px; 
+    color: var(--text-muted); 
+    text-align: center; 
+    font-family: inherit; 
+    line-height: 1.2;
+}
 .timeline-node.active .timeline-label { color: var(--text-main); }
-.timeline-count { position: absolute; top: -10px; background: var(--text-main); color: white; border-radius: 12px; padding: 2px 8px; font-size: 11px; font-weight: 800; font-family: 'Geist Mono', monospace; transition: 0.3s; }
+.timeline-count { 
+    position: absolute; 
+    top: -10px; 
+    background: var(--text-main); 
+    color: white; 
+    border-radius: 12px; 
+    padding: 2px 8px; 
+    font-size: 11px; 
+    font-weight: 800; 
+    font-family: 'Geist Mono', monospace; 
+    transition: 0.3s; 
+}
 
-.node-sin-agendar.active .timeline-circle { border-color: var(--text-muted); } .node-sin-agendar.active .timeline-count { background: var(--text-muted); }
-.node-val-profe.active .timeline-circle { border-color: #6f42c1; } .node-val-profe.active .timeline-count { background: #6f42c1; }
-.node-val-alum.active .timeline-circle { border-color: #e5a93d; } .node-val-alum.active .timeline-count { background: #e5a93d; color: #fff; }
-.node-adm-conf.active .timeline-circle { border-color: var(--accent-teal); } .node-adm-conf.active .timeline-count { background: var(--accent-teal); }
-.node-prealta-pdte.active .timeline-circle { border-color: var(--accent-blue); } .node-prealta-pdte.active .timeline-count { background: var(--accent-blue); }
-.node-prealta-inic.active .timeline-circle { border-color: var(--accent-teal); } .node-prealta-inic.active .timeline-count { background: var(--accent-teal); }
-.node-prealta-inc.active .timeline-circle { border-color: var(--accent-red); } .node-prealta-inc.active .timeline-count { background: var(--accent-red); }
+/* Clases de colores dinámicos para los Nodos */
+.node-red.active .timeline-circle { border-color: var(--accent-red); } .node-red.active .timeline-count { background: var(--accent-red); }
+.node-teal.active .timeline-circle { border-color: var(--accent-teal); } .node-teal.active .timeline-count { background: var(--accent-teal); }
+.node-blue.active .timeline-circle { border-color: var(--accent-blue); } .node-blue.active .timeline-count { background: var(--accent-blue); }
+.node-yellow.active .timeline-circle { border-color: #e5a93d; } .node-yellow.active .timeline-count { background: #e5a93d; color:#fff;}
+.node-gray.active .timeline-circle { border-color: var(--text-muted); } .node-gray.active .timeline-count { background: var(--text-muted); }
+
+/* BANDEJA CONECTADA (SMART TRAY) */
+.timeline-tray-container {
+    display: none; /* JS la mostrará al hacer clic */
+    padding: 0 15px;
+    margin-bottom: 20px;
+    transition: 0.3s ease;
+}
+.timeline-tray {
+    background: var(--item-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 15px;
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+}
+/* Triángulo que apunta al nodo seleccionado */
+.timeline-tray::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: var(--tray-arrow-pos, 50%); /* JS calculará el % exacto */
+    transform: translateX(-50%) rotate(45deg);
+    width: 14px;
+    height: 14px;
+    background: var(--item-bg);
+    border-top: 1px solid var(--border-color);
+    border-left: 1px solid var(--border-color);
+    transition: left 0.3s ease;
+}
+/* Chips de alumnos adentro de la bandeja */
+.tray-chip {
+    padding: 6px 12px;
+    background: var(--hover-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-main);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: 0.2s;
+}
+.tray-chip:hover {
+    background: white;
+    border-color: var(--accent-teal);
+    box-shadow: 0 2px 6px rgba(0, 123, 143, 0.15);
+}
+
+/* =======================================================================
+   BADGES DE ESTADO Y TEXTOS DE PRIORIDAD
+   ======================================================================= */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+/* Colores de fondo semitransparentes para las etiquetas */
+.bg-red { background: rgba(194, 86, 59, 0.1); color: var(--accent-red); }
+.bg-teal { background: rgba(0, 123, 143, 0.1); color: var(--accent-teal); }
+.bg-yellow { background: rgba(229, 169, 61, 0.15); color: #c28c2e; }
+.bg-blue { background: rgba(31, 84, 145, 0.1); color: var(--accent-blue); }
+.bg-gray { background: rgba(138, 144, 151, 0.1); color: var(--text-muted); }
+
+/* Textos de cuenta regresiva (Faltan 14hs, Vencido) */
+.priority-text {
+    font-size: 11.5px;
+    font-weight: 700;
+}
+.text-red { color: var(--accent-red); }
+.text-yellow { color: #d99a29; } /* Amarillo más oscuro para que sea legible en texto */
+.text-teal { color: var(--accent-teal); }
+.text-gray { color: var(--text-muted); text-decoration: line-through; }
 
 /* =======================================================================
    FORMULARIOS Y MODALES (UI MODERNA)
