@@ -26,7 +26,53 @@ body {
     overflow: hidden;
     -webkit-font-smoothing: antialiased;
 }
+/* =======================================================================
+   LOGIN
+   ======================================================================= */
+#login-container { 
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100vw; 
+    height: 100vh; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    background-color: #ffffff; /* Fondo blanco de pantalla completa */
+    z-index: 9999; 
+}
 
+.login-card { 
+    background-color: #f4f6f9; /* Recuadro gris */
+    padding: 40px 50px; 
+    border-radius: 16px; 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    text-align: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.04); 
+    border: 1px solid var(--border-color);
+}
+
+.btn-google-login { 
+    background-color: #ffffff; 
+    color: #3c4043; 
+    border: 1px solid #dadce0; 
+    padding: 10px 24px; 
+    border-radius: 8px; 
+    cursor: pointer; 
+    font-weight: 600; 
+    font-family: inherit; 
+    font-size: 14px; 
+    display: flex; 
+    align-items: center; 
+    transition: background-color 0.2s, box-shadow 0.2s; 
+}
+
+.btn-google-login:hover { 
+    background-color: #f8f9fa; 
+    box-shadow: 0 1px 3px rgba(60,64,67,0.1); 
+}
 /* SCROLLBAR MODERNO */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: #d9d2c5; border-radius: 6px; }
