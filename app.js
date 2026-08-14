@@ -3,7 +3,7 @@ import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
 // === VERSIONADO DE LA APLICACIÓN ===
-const APP_VERSION = "v1.1";
+const APP_VERSION = "v1.2";
 
 // === ATENCIÓN: URL DEL SCRIPT DE GOOGLE ===
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
@@ -11,13 +11,12 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt
 
 const firebaseConfig = {
     apiKey: "AIzaSyCgAg2EwTJh4zbMdpkqG3VKTGfDeofblyg",
-    authDomain: "priel-mdl-seguimientos.firebaseapp.com", // <-- ESTA ES LA LÍNEA QUE DEBES CORREGIR
+    authDomain: "priel-mdl-seguimientos.firebaseapp.com",
     projectId: "priel-mdl-seguimientos",
     storageBucket: "priel-mdl-seguimientos.firebasestorage.app",
     messagingSenderId: "118730133451",
     appId: "1:118730133451:web:9e407e81a9b22ae9d0704e"
 };
-
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
@@ -41,11 +40,11 @@ function setBotonCargando(btn, cargando) {
     }
 }
 
-// CONVERTIR SELECTS A CHIPS (UX Móvil - Evita Ctrl+Clic)
+// CONVERTIR SELECTS A CHIPS (UX Móvil)
 function syncSelectToChips(selectId, containerId) {
     const select = document.getElementById(selectId);
     if (!select) return;
-    select.style.display = 'none'; // Oculta el select nativo
+    select.style.display = 'none'; 
     let container = document.getElementById(containerId);
     if (!container) {
         container = document.createElement('div');
@@ -87,7 +86,7 @@ function syncSelectToChips(selectId, containerId) {
         chip.addEventListener('click', () => {
             opt.selected = !opt.selected;
             updateChipStyle();
-            select.dispatchEvent(new Event('change')); // Avisa al sistema del cambio
+            select.dispatchEvent(new Event('change'));
         });
         container.appendChild(chip);
     });
@@ -805,7 +804,20 @@ onAuthStateChanged(auth, async (user) => {
     } 
 });
 
-document.querySelectorAll('#sidebar .nav-item').forEach(item => { item.addEventListener('click', (e) => { document.querySelectorAll('#sidebar .nav-item').forEach(el => el.classList.remove('active')); e.target.closest('.nav-item').classList.add('active'); cargarVista(e.target.closest('.nav-item').getAttribute('data-vista')); document.getElementById('sidebar').classList.remove('active'); }); });
+// EVENTO DE NAVEGACIÓN CORREGIDO (Oculta el menú lateral y el velo oscuro)
+document.querySelectorAll('#sidebar .nav-item').forEach(item => { 
+    item.addEventListener('click', (e) => { 
+        document.querySelectorAll('#sidebar .nav-item').forEach(el => el.classList.remove('active')); 
+        e.target.closest('.nav-item').classList.add('active'); 
+        cargarVista(e.target.closest('.nav-item').getAttribute('data-vista')); 
+        
+        document.getElementById('sidebar').classList.remove('active'); 
+        
+        const overlay = document.getElementById('mobile-overlay');
+        if (overlay) overlay.style.display = 'none';
+    }); 
+});
+
 const inputBuscadorGeneral = document.getElementById('input-buscador-general'); if(inputBuscadorGeneral) { inputBuscadorGeneral.addEventListener('input', (e) => { const query = e.target.value.toLowerCase(); document.querySelectorAll('.alumno-item').forEach(item => { const elNombre = item.querySelector('.alumno-nombre-search'); if(elNombre) item.style.display = elNombre.textContent.toLowerCase().includes(query) ? 'flex' : 'none'; }); }); }
 const inputBuscadorPopup = document.getElementById('input-buscador-popup'); if(inputBuscadorPopup) { inputBuscadorPopup.addEventListener('input', (e) => { const query = e.target.value.toLowerCase(); document.querySelectorAll('.opcion-horario').forEach(item => { const elTexto = item.querySelector('span'); if(elTexto) item.style.display = elTexto.textContent.toLowerCase().includes(query) ? 'flex' : 'none'; }); }); }
 
@@ -997,7 +1009,7 @@ document.addEventListener('click', async (e) => {
             for(let d in alData.disponibilidad) { if(alData.disponibilidad[d] && alData.disponibilidad[d].length > 0) { dispHTML += `<li><strong>${diasMapStr[d]}:</strong> ${alData.disponibilidad[d].map(r => r.inicio+' a '+r.fin).join(', ')}</li>`; } } dispHTML += '</ul>';
             if(infoDiv) { infoDiv.innerHTML = `<div style="font-size:1.1em; margin-bottom:5px;"><strong>👤 ${alData.nombre}</strong> (${alData.edad || '-'} años) | 🎸 ${instStr}</div><div style="border-top:1px solid #ced4da; padding-top:8px;"><strong>Disponibilidad cargada:</strong>${dispHTML}</div>`; infoDiv.style.display = 'block'; }
             const selectProfe = document.getElementById('agenda-profe-filtro'); selectProfe.innerHTML = '<option value="">Todos los profesores habilitados</option>'; const pSnap = await getDocs(collection(db, "profesores")); pSnap.forEach(p => { if(p.data().entrevista) selectProfe.innerHTML += `<option value="${p.id}">${p.data().nombre}</option>`; }); resDiv.innerHTML = '<p>Selecciona el rango y haz clic en Buscar.</p>'; modal.showModal(); 
-            setTimeout(() => { syncSelectToChips('agenda-profe-filtro', 'chips-profesores'); }, 100); // Convierte a chips
+            setTimeout(() => { syncSelectToChips('agenda-profe-filtro', 'chips-profesores'); }, 100);
         } catch(err) {} return;
     }
 
@@ -1294,7 +1306,7 @@ async function llenarFormularioAlumno(id) {
     document.getElementById('edad').value = d.edad||''; 
     await cargarSelectsAlumnos(); 
     const sI = document.getElementById('instrumento'); Array.from(sI.options).forEach(o => o.selected = (d.instrumento||[]).includes(o.value)); 
-    syncSelectToChips('instrumento', 'chips-instrumentos'); // Refresca chips
+    syncSelectToChips('instrumento', 'chips-instrumentos'); 
     document.getElementById('tipo_suscripcion').value = d.tipo_suscripcion; 
     quill.root.innerHTML = d.descripcion||''; 
     historialActual = d.historial || []; renderHistorial(); 
@@ -1412,6 +1424,20 @@ document.getElementById('btn-guardar-abm-edit').addEventListener('click', async 
     document.getElementById('modal-abm-edit').close(); 
     document.querySelector(`[data-vista="ABM-${window.tituloABMActual}"]`).click(); 
     setBotonCargando(e.target, false);
+});
+
+// EVENTO DE NAVEGACIÓN (Oculta el menú lateral y el velo oscuro)
+document.querySelectorAll('#sidebar .nav-item').forEach(item => { 
+    item.addEventListener('click', (e) => { 
+        document.querySelectorAll('#sidebar .nav-item').forEach(el => el.classList.remove('active')); 
+        e.target.closest('.nav-item').classList.add('active'); 
+        cargarVista(e.target.closest('.nav-item').getAttribute('data-vista')); 
+        
+        document.getElementById('sidebar').classList.remove('active'); 
+        
+        const overlay = document.getElementById('mobile-overlay');
+        if (overlay) overlay.style.display = 'none';
+    }); 
 });
 
 window.cargarVista = cargarVista;
