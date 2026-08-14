@@ -816,8 +816,8 @@ async function llenarFormularioAlumno(id) {
     if (accionesCont) {
         accionesCont.style.display = 'block';
         accionesCont.innerHTML = `
-            <button type="button" class="btn-row-action" style="background:var(--hover-bg); border:1px solid var(--border-color); padding:6px 12px;">Acciones ⋮</button>
-            <div class="dropdown-menu-wrapper" style="top:100%; right:0;">
+            <button type="button" style="background:var(--accent-teal); color:white; border:none; padding:8px 14px; border-radius:8px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">Acciones ⋮</button>
+            <div class="dropdown-menu-wrapper" style="top:100%; left:0;">
                 <div class="dropdown-menu">${generarBotonesAccion(d, id)}</div>
             </div>
         `;
@@ -860,6 +860,16 @@ window.eliminarABM = async function(id, col) { if(confirm("¿Eliminar?")) { awai
 
 document.getElementById('btn-guardar-abm-edit').addEventListener('click', async (e) => { setBotonCargando(e.target, true); const id = document.getElementById('abm-edit-id').value, col = document.getElementById('abm-edit-coleccion').value, nombreInput = document.getElementById('abm-edit-nombre').value; const dO = col === 'usuarios_sistema' ? { email: nombreInput.toLowerCase() } : { nombre: nombreInput }; if(col==='profesores') { dO.correo_calendario=document.getElementById('abm-edit-correo').value; dO.celular=document.getElementById('abm-edit-celular').value; dO.alias_transferencia=document.getElementById('abm-edit-alias').value; dO.entrevista=document.getElementById('abm-edit-entrevista').checked; const disp = {}; const hApe = configApp.hora_apertura || '09:00'; const hCie = configApp.hora_cierre || '22:00'; diasSemana.forEach(d => { const cA = document.getElementById(`disp-p-${d.id}-all`).checked, cN = document.getElementById(`disp-p-${d.id}-none`).checked; let i = document.getElementById(`disp-p-${d.id}-inicio`).value, f = document.getElementById(`disp-p-${d.id}-fin`).value; if(cN) disp[d.id] = []; else if(cA) disp[d.id] = [{inicio:hApe, fin:hCie}]; else { if(i||f) disp[d.id] = [{inicio: i||hApe, fin: f||hCie}]; else disp[d.id] = []; } }); dO.disponibilidad = disp; } await updateDoc(doc(db, col, id), dO); document.getElementById('modal-abm-edit').close(); document.querySelector(`[data-vista="ABM-${window.tituloABMActual}"]`).click(); setBotonCargando(e.target, false); });
 
-document.querySelectorAll('#sidebar .nav-item').forEach(item => { item.addEventListener('click', (e) => { if(e.target.closest('summary')) return; document.querySelectorAll('#sidebar .nav-item').forEach(el => el.classList.remove('active')); e.target.closest('.nav-item').classList.add('active'); cargarVista(e.target.closest('.nav-item').getAttribute('data-vista')); document.getElementById('sidebar').classList.remove('active'); const overlay = document.getElementById('mobile-overlay'); if (overlay) overlay.style.display = 'none'; }); });
-
+document.querySelectorAll('#sidebar .nav-item, #sidebar .nav-item-small').forEach(item => { 
+    item.addEventListener('click', (e) => { 
+        if(e.target.closest('summary')) return; 
+        document.querySelectorAll('#sidebar .nav-item, #sidebar .nav-item-small').forEach(el => el.classList.remove('active')); 
+        const tgt = e.target.closest('.nav-item') || e.target.closest('.nav-item-small');
+        tgt.classList.add('active'); 
+        cargarVista(tgt.getAttribute('data-vista')); 
+        document.getElementById('sidebar').classList.remove('active'); 
+        const overlay = document.getElementById('mobile-overlay'); 
+        if (overlay) overlay.style.display = 'none'; 
+    }); 
+});
 window.cargarVista = cargarVista;
