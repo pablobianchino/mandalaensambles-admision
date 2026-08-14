@@ -136,20 +136,17 @@ let chartAdmGestionesInst = null, chartAdmGlobalInst = null, chartAltasGlobalIns
 let clipboardDisponibilidad = null, clipboardDisponibilidadProfe = null; 
 let historialActual = []; 
 
-let nodoAdmActivo = 'Pendiente procesar';
-let nodoAltasActivo = 'Pre-alta Pendiente';
-const configNodosAdm = [
-    { id: 'Pendiente procesar', label: 'Sin Agendar', icon: '⏳', color: 'node-sin-agendar' },
-    { id: 'Pendiente validación por profe', label: 'Validando Profe', icon: '👨‍🏫', color: 'node-val-profe' },
-    { id: 'Pendiente validación por alumno', label: 'Validando Alum', icon: '🧑‍🎓', color: 'node-val-alum' },
-    { id: 'Agenda confirmada', label: 'Confirmada', icon: '✅', color: 'node-adm-conf' }
-];
-const configNodosAltas = [
-    { id: 'Pre-alta Pendiente', label: 'Pendiente', icon: '📝', color: 'node-prealta-pdte' },
-    { id: 'Pre-alta Iniciada', label: 'Iniciada', icon: '🚀', color: 'node-prealta-inic' },
-    { id: 'Altas Incompletas', label: 'Incompleta', icon: '⚠️', color: 'node-prealta-inc',
-      filterFn: (d) => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (!d.checklist_alta || d.checklist_alta.includes(false))
-    }
+// FLUJO DE ADMISIÓN UNIFICADO (9 NODOS)
+const configNodosFlujo = [
+    { id: 'Pendiente procesar', label: 'Sin Agendar', icon: '⏳', color: 'node-gray' },
+    { id: 'Pendiente validación por profe', label: 'Val. Profe', icon: '👨‍🏫', color: 'node-blue' },
+    { id: 'Pendiente validación por alumno', label: 'Val. Alumno', icon: '🧑‍🎓', color: 'node-yellow' },
+    { id: 'Agenda confirmada', label: 'Confirmada', icon: '✅', color: 'node-teal' },
+    { id: 'Lista de espera', label: 'Espera', icon: '🛋️', color: 'node-gray' },
+    { id: 'Pre-alta Pendiente', label: 'Altas Pdtes', icon: '📝', color: 'node-blue' },
+    { id: 'Pre-alta Iniciada', label: 'En Curso', icon: '🚀', color: 'node-yellow' },
+    { id: 'Altas Incompletas', label: 'Incompletas', icon: '⚠️', color: 'node-red', filterFn: (d) => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5) },
+    { id: 'Altas Finalizadas', label: 'Finalizadas', icon: '🏆', color: 'node-teal', filterFn: (d) => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5) }
 ];
 
 if (!document.getElementById('modal-nota-rapida')) {
@@ -229,11 +226,6 @@ function construirTitulosEvento(al, tipo, cfg) {
     let strEmojisConProfe = strEmojis ? `${strEmojis}${profeStr}` : profeStr.trim();
     let tituloDefecto = reemplazarVariables(template, { alumno: al.nombre, edad: al.edad || '', emojiinstrumento: strEmojisConProfe, instrumento: insts.join(', ') }).replace(/\s+/g, ' ').trim();
     return { tituloProfe, tituloDefecto };
-}
-
-function interpretarFechaCSV(texto) {
-    if (!texto) return null; const regex = /(\d{1,2})\/(\d{1,2})(?:[^\d]*?(\d{1,2})(?:[:\.](\d{2}))?(?:\s*hs)?)?/i; const match = texto.match(regex);
-    if (match) { const dia = parseInt(match[1]), mes = parseInt(match[2]) - 1, hora = match[3] ? parseInt(match[3]) : 0, min = match[4] ? parseInt(match[4]) : 0; if (dia > 31 || mes > 11 || hora > 23 || min > 59) return null; return formatoLocalISO(new Date(new Date().getFullYear(), mes, dia, hora, min)); } return null;
 }
 
 async function fetchCalendarAPI(action, payload) {
@@ -337,6 +329,54 @@ function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, todosLosProfes, pr
     return opciones;
 }
 
+// LOGICA DE ESTADO, TIEMPO Y COLORES
+function getEstadoYBadge(al) {
+    let colorIndicador = 'ind-gray', colorBadge = 'bg-gray', claseTexto = 'text-gray', txtTiempo = '', txtEstado = al.estado_agenda, fechaCalculo = null;
+    
+    if (al.estado_agenda === 'Altas Incompletas') txtEstado = 'Alta Incompleta';
+
+    // Determinar contra qué fecha calcular la urgencia
+    if ((al.estado_agenda === 'Pendiente validación por profe' || al.estado_agenda === 'Pendiente validación por alumno' || al.estado_agenda === 'Agenda confirmada') && al.reserva_inicio) { 
+        fechaCalculo = new Date(al.reserva_inicio); 
+    } else if (al.estado_agenda === 'Pre-alta Iniciada' && al.fecha_inicio_clases) { 
+        fechaCalculo = new Date(al.fecha_inicio_clases); 
+    }
+
+    if (fechaCalculo) {
+        let diffHs = (fechaCalculo - new Date()) / (1000 * 60 * 60);
+        if (diffHs < 0) { 
+            colorIndicador = 'ind-gray'; claseTexto = 'text-gray'; 
+            let horas = Math.abs(Math.round(diffHs));
+            txtTiempo = horas > 24 ? `Vencida hace ${Math.round(horas/24)} d` : `Vencida hace ${horas} hs`;
+        } else if (diffHs <= 24) { 
+            colorIndicador = 'ind-red'; claseTexto = 'text-red'; 
+            txtTiempo = `Faltan ${Math.round(diffHs)} hs`;
+        } else if (diffHs <= 48) { 
+            colorIndicador = 'ind-yellow'; claseTexto = 'text-yellow'; 
+            txtTiempo = `Faltan ${Math.round(diffHs)} hs`;
+        } else { 
+            colorIndicador = 'ind-teal'; claseTexto = 'text-teal'; 
+            txtTiempo = `Faltan ${Math.round(diffHs/24)} d`;
+        }
+    }
+
+    // Asignar Badges Visuales
+    if (al.estado_agenda === 'Pendiente procesar') colorBadge = 'bg-gray';
+    else if (al.estado_agenda.includes('Validando')) colorBadge = 'bg-blue';
+    else if (al.estado_agenda === 'Agenda confirmada') colorBadge = 'bg-teal';
+    else if (al.estado_agenda === 'Lista de espera') colorBadge = 'bg-gray';
+    else if (al.estado_agenda === 'Pre-alta Pendiente') colorBadge = 'bg-blue';
+    else if (al.estado_agenda === 'Pre-alta Iniciada') colorBadge = 'bg-yellow';
+    else if (al.estado_agenda === 'Alta Efectiva' || al.estado_agenda === 'Alta Ilegal') {
+        let checks = al.checklist_alta || [];
+        if (checks.filter(Boolean).length === 5) { colorBadge = 'bg-teal'; txtEstado = 'Alta Finalizada'; colorIndicador = 'ind-teal'; }
+        else { colorBadge = 'bg-red'; txtEstado = 'Alta Incompleta'; colorIndicador = 'ind-red'; }
+    }
+    else if (al.estado_agenda.includes('suspendida') || al.estado_agenda === 'Alta Suspendida') { colorBadge = 'bg-red'; colorIndicador = 'ind-red'; }
+
+    return { colorIndicador, colorBadge, claseTexto, txtTiempo, txtEstado };
+}
+
 function generarBotonesAccion(al, id) {
     let accionesHtml = '';
 
@@ -352,9 +392,6 @@ function generarBotonesAccion(al, id) {
     }
     else if (al.estado_agenda === 'Agenda suspendida') {
         accionesHtml += `<button type="button" class="dropdown-item btn-recuperar-agenda" data-id="${id}">♻️ Recuperar Agenda</button>`;
-    }
-    else if (al.estado_agenda === 'Lista de espera') {
-        // En etapa 4 cambiaremos esto para agrupar
     }
     else if (al.estado_agenda === 'Pre-alta Pendiente') {
         accionesHtml += `<button type="button" class="dropdown-item btn-abrir-prealta" data-id="${id}">⚙️ Iniciar Pre-Alta</button>`;
@@ -376,18 +413,7 @@ function generarBotonesAccion(al, id) {
 }
 
 function generarFilaAlumno(al, id, vista) {
-    let colorIndicador = 'ind-gray', txtEstado = al.estado_agenda, fechaCalculo = null;
-    if ((al.estado_agenda === 'Pendiente validación por profe' || al.estado_agenda === 'Pendiente validación por alumno' || al.estado_agenda === 'Agenda confirmada') && al.reserva_inicio) { fechaCalculo = new Date(al.reserva_inicio); } 
-    else if (al.estado_agenda === 'Pre-alta Iniciada' && al.fecha_inicio_clases) { fechaCalculo = new Date(al.fecha_inicio_clases); }
-    if (fechaCalculo) {
-        let diffHs = (fechaCalculo - new Date()) / (1000 * 60 * 60);
-        if (diffHs < 0) { colorIndicador = 'ind-gray'; txtEstado = 'Vencida'; } 
-        else if (diffHs <= 48) { colorIndicador = 'ind-red'; txtEstado = 'Crítico'; } 
-        else if (diffHs <= 72) { colorIndicador = 'ind-yellow'; txtEstado = 'Alerta'; } 
-        else { colorIndicador = 'ind-teal'; txtEstado = 'A tiempo'; }
-    }
-    if (al.estado_agenda === 'Agenda confirmada' || al.estado_agenda.includes('Alta Efectiva')) colorIndicador = 'ind-teal';
-    if (al.estado_agenda === 'Alta Ilegal' || al.estado_agenda.includes('suspendida') || al.estado_agenda === 'Alta Suspendida') colorIndicador = 'ind-red';
+    const info = getEstadoYBadge(al);
 
     let instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento;
     let suscStr = al.tipo_suscripcion || ''; let nivelStr = al.nivel || 'S/N'; let cel = al.celular || ''; let edad = al.edad ? al.edad + 'a' : '-';
@@ -426,16 +452,19 @@ function generarFilaAlumno(al, id, vista) {
     return `
         <div class="row-item" data-id="${id}">
             <div style="display:flex; width:100%; gap:15px; align-items:center;">
-                <div class="row-indicator ${colorIndicador}"></div>
+                <div class="row-indicator ${info.colorIndicador}"></div>
                 <div class="row-main-info btn-editar-alumno" data-id="${id}">
-                    <div class="row-name alumno-nombre-search">${al.nombre}</div>
+                    <div class="row-name alumno-nombre-search" style="display:flex; align-items:center; gap:8px;">
+                        ${al.nombre}
+                        <span class="status-badge ${info.colorBadge}">${info.txtEstado}</span>
+                    </div>
                     <div class="row-sub"><span>${cel}</span> • <span>${edad}</span> • <strong style="color:var(--accent-teal);">${instStr}</strong> • <span>${suscStr}</span> • <span>${nivelStr}</span></div>
                 </div>
                 ${dispHtml}
                 <div class="row-meta">
                     <div>Entrevistador: <strong style="color:var(--text-main);">${al.reserva_profe_nombre || '-'}</strong></div>
                     <div>Fecha: <strong style="color:var(--text-main);">${al.reserva_fecha_texto || '-'}</strong></div>
-                    <div style="font-size:10px; margin-top:2px;">${txtEstado}</div>
+                    <div class="priority-text ${info.claseTexto}" style="margin-top:2px;">${info.txtTiempo}</div>
                 </div>
                 ${menuAcciones}
             </div>
@@ -444,34 +473,73 @@ function generarFilaAlumno(al, id, vista) {
     `;
 }
 
-function renderTimeline(containerId, configNodos, datos, nodoActivo, setterNodo) {
+function renderTimelineUnificado(containerId, configNodos, datos) {
     const cont = document.getElementById(containerId);
-    let html = '<div class="timeline-wrapper"><div class="timeline-line"></div>';
-    configNodos.forEach(n => {
-        const count = datos.filter(d => n.filterFn ? n.filterFn(d) : d.estado_agenda === n.id).length;
-        const act = (n.id === nodoActivo) ? 'active' : '';
-        html += `<div class="timeline-node ${n.color} ${act}" data-id="${n.id}"><div class="timeline-count">${count}</div><div class="timeline-circle">${n.icon}</div><div class="timeline-label">${n.label}</div></div>`;
+    if(!cont) return;
+    
+    let html = '<div class="timeline-wrapper" style="position:relative;"><div class="timeline-line"></div>';
+    configNodos.forEach((n, index) => {
+        const nodeData = datos.filter(d => n.filterFn ? n.filterFn(d) : d.estado_agenda === n.id);
+        const count = nodeData.length;
+        html += `<div class="timeline-node ${n.color}" data-id="${n.id}" data-index="${index}"><div class="timeline-count">${count}</div><div class="timeline-circle">${n.icon}</div><div class="timeline-label">${n.label}</div></div>`;
     });
     html += '</div>';
     cont.innerHTML = html;
+
     cont.querySelectorAll('.timeline-node').forEach(el => {
         el.addEventListener('click', () => {
             let newId = el.getAttribute('data-id');
-            if (setterNodo === 'adm') nodoAdmActivo = newId; if (setterNodo === 'altas') nodoAltasActivo = newId;
-            renderTimeline(containerId, configNodos, datos, newId, setterNodo);
-            renderListaFilas('lista-generica', datos, newId, configNodos);
+            let index = parseInt(el.getAttribute('data-index'));
+            
+            // Re-render visual de activo
+            cont.querySelectorAll('.timeline-node').forEach(n => n.classList.remove('active'));
+            el.classList.add('active');
+
+            // Abrir y armar el Smart Tray
+            const trayContainer = document.getElementById('timeline-tray-container');
+            const trayContent = document.getElementById('timeline-tray-content');
+            if (trayContainer && trayContent) {
+                const nodeData = datos.filter(d => {
+                    const nConf = configNodos.find(cn => cn.id === newId);
+                    return nConf.filterFn ? nConf.filterFn(d) : d.estado_agenda === newId;
+                });
+
+                // Calcular posición del triángulo apuntador
+                let totalNodes = configNodos.length;
+                let percentage = (index / (totalNodes - 1)) * 100;
+                if (percentage < 5) percentage = 5;
+                if (percentage > 95) percentage = 95;
+                trayContent.style.setProperty('--tray-arrow-pos', `${percentage}%`);
+                
+                if (nodeData.length === 0) {
+                    trayContent.innerHTML = `<span style="color:var(--text-muted); font-size:13px; font-weight:500;">No hay alumnos en esta etapa.</span>`;
+                } else {
+                    trayContent.innerHTML = nodeData.map(al => `<div class="tray-chip" onclick="window.abrirEditarDesdeTray('${al.id}')">👤 ${al.nombre}</div>`).join('');
+                }
+                trayContainer.style.display = 'block';
+            }
         });
+    });
+}
+
+// Función global para abrir modal desde los Chips del Tray
+window.abrirEditarDesdeTray = function(id) {
+    const wrap = document.getElementById('form-alumno-wrapper'); 
+    document.getElementById('modal-alta-alumno').appendChild(wrap); 
+    wrap.style.display = 'block'; 
+    llenarFormularioAlumno(id).then(() => {
+        document.getElementById('form-titulo').textContent = 'Editar Alumno'; 
+        document.getElementById('container-ingreso-directo').style.display = 'none'; 
+        document.getElementById('modal-alta-alumno').showModal();
     });
 }
 
 function renderListaFilas(containerId, datos, estadoId, configNodos) {
     const cont = document.getElementById(containerId);
-    const nodo = configNodos ? configNodos.find(n => n.id === estadoId) : null;
     let filtrados = datos;
-    if(estadoId && estadoId !== 'all') { filtrados = filtrados.filter(d => nodo && nodo.filterFn ? nodo.filterFn(d) : d.estado_agenda === estadoId); }
 
-    const query = (document.getElementById('input-buscador-general').value || '').toLowerCase();
-    if (query) { filtrados = filtrados.filter(al => al.nombre.toLowerCase().includes(query)); }
+    const queryStr = (document.getElementById('input-buscador-general').value || '').toLowerCase();
+    if (queryStr) { filtrados = filtrados.filter(al => al.nombre.toLowerCase().includes(queryStr)); }
 
     if (filtroChipActual !== 'Todos') {
         filtrados = filtrados.filter(al => { const insts = Array.isArray(al.instrumento) ? al.instrumento : [al.instrumento]; return insts.includes(filtroChipActual); });
@@ -513,14 +581,33 @@ async function cargarVista(vista) {
     if (vista.includes('-') || vista === 'Lista de Espera') { cv.style.display = 'flex'; renderFiltrosChips(); document.getElementById('search-container-general').style.display = 'block'; }
     if (vista === 'Resumen') {
         document.getElementById('search-container-general').style.display = 'block'; vResumen.style.display = 'flex'; if(vResumenTime) vResumenTime.style.display = 'flex'; cv.style.display = 'none';
+        
+        // Ocultar la bandeja al entrar por defecto
+        const trayContainer = document.getElementById('timeline-tray-container');
+        if (trayContainer) trayContainer.style.display = 'none';
+
         try {
             const qSnap = await getDocs(collection(db, "alumnos")); let allData = []; qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
-            let urgencies = []; allData.forEach(al => { let dateToEval = null; if ((al.estado_agenda === 'Pendiente validación por profe' || al.estado_agenda === 'Pendiente validación por alumno' || al.estado_agenda === 'Agenda confirmada') && al.reserva_inicio) { dateToEval = new Date(al.reserva_inicio); } else if (al.estado_agenda === 'Pre-alta Iniciada' && al.fecha_inicio_clases) { dateToEval = new Date(al.fecha_inicio_clases); } if (dateToEval && !isNaN(dateToEval.getTime())) { let diffHs = (dateToEval - new Date()) / (1000 * 60 * 60); if (diffHs <= 72) urgencies.push(al); } });
+            let urgencies = []; 
+            allData.forEach(al => { 
+                let dateToEval = null; 
+                if ((al.estado_agenda === 'Pendiente validación por profe' || al.estado_agenda === 'Pendiente validación por alumno' || al.estado_agenda === 'Agenda confirmada') && al.reserva_inicio) { 
+                    dateToEval = new Date(al.reserva_inicio); 
+                } else if (al.estado_agenda === 'Pre-alta Iniciada' && al.fecha_inicio_clases) { 
+                    dateToEval = new Date(al.fecha_inicio_clases); 
+                } 
+                if (dateToEval && !isNaN(dateToEval.getTime())) { 
+                    let diffHs = (dateToEval - new Date()) / (1000 * 60 * 60); 
+                    // Solo sumar a prioridades los rojos (<=24) y amarillos (<=48) y los vencidos (<0)
+                    if (diffHs <= 48) urgencies.push(al); 
+                } 
+            });
             urgencies.sort((a,b) => { let dA = (a.estado_agenda==='Pre-alta Iniciada') ? new Date(a.fecha_inicio_clases) : new Date(a.reserva_inicio); let dB = (b.estado_agenda==='Pre-alta Iniciada') ? new Date(b.fecha_inicio_clases) : new Date(b.reserva_inicio); return dA - dB; });
             document.getElementById('resumen-urgencias').innerHTML = urgencies.length > 0 ? urgencies.map(a => generarFilaAlumno(a, a.id, vista)).join('') : '<div style="color:var(--text-muted); padding:10px; font-weight:500;">No hay gestiones críticas a la vista.</div>';
-            renderTimeline('timeline-resumen-adm', configNodosAdm, allData, nodoAdmActivo, 'adm');
-            renderTimeline('timeline-resumen-altas', configNodosAltas, allData, nodoAltasActivo, 'altas');
-            contLista.style.display = 'flex'; renderListaFilas('lista-generica', allData, nodoAdmActivo, configNodosAdm);
+            
+            // Dibujar el nuevo flujo unificado
+            renderTimelineUnificado('timeline-unificado', configNodosFlujo, allData);
+            
         } catch(e) {}
     } else if (vista === 'Inbox - Pendientes' || vista === 'Altas - Pendientes') {
         const isAdm = vista === 'Inbox - Pendientes';
@@ -532,7 +619,7 @@ async function cargarVista(vista) {
             if (isAdm) {
                 dataFiltrada = allData.filter(d => ['Pendiente procesar', 'Pendiente validación por profe', 'Pendiente validación por alumno'].includes(d.estado_agenda));
             } else {
-                dataFiltrada = allData.filter(d => ['Pre-alta Pendiente', 'Pre-alta Iniciada'].includes(d.estado_agenda) || ((d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (!d.checklist_alta || d.checklist_alta.includes(false))));
+                dataFiltrada = allData.filter(d => ['Pre-alta Pendiente', 'Pre-alta Iniciada'].includes(d.estado_agenda) || ((d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5)));
             }
             
             renderListaFilas('lista-generica', dataFiltrada, 'all', null);
@@ -675,7 +762,7 @@ document.addEventListener('click', async (e) => {
     if (target.classList.contains('btn-cerrar-modal')) { document.getElementById(target.getAttribute('data-modal')).close(); return; }
     
     if (target.id === 'btn-nuevo-alumno') { 
-        const wrap = document.getElementById('form-alumno-wrapper'); document.getElementById('modal-alta-alumno').appendChild(wrap); wrap.style.display = 'block'; document.getElementById('form-titulo').textContent = 'Nuevo Alumno'; document.getElementById('alumno-id').value = ''; document.getElementById('form-alumno').reset(); quill.setContents([]); historialActual = []; renderHistorial(); diasSemana.forEach(d => { document.getElementById(`disp-${d.id}-all`).checked=false; document.getElementById(`disp-${d.id}-none`).checked=false; document.getElementById(`estado-${d.id}`).textContent=""; }); document.getElementById('chk-ingreso-directo').checked = false; 
+        const wrap = document.getElementById('form-alumno-wrapper'); document.getElementById('modal-alta-alumno').appendChild(wrap); wrap.style.display = 'block'; document.getElementById('form-titulo').textContent = 'Nuevo Alumno'; document.getElementById('modal-status-badge').style.display = 'none'; document.getElementById('alumno-id').value = ''; document.getElementById('form-alumno').reset(); quill.setContents([]); historialActual = []; renderHistorial(); diasSemana.forEach(d => { document.getElementById(`disp-${d.id}-all`).checked=false; document.getElementById(`disp-${d.id}-none`).checked=false; document.getElementById(`estado-${d.id}`).textContent=""; }); document.getElementById('chk-ingreso-directo').checked = false; 
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); const tabBtns = document.querySelectorAll('.tab-btn'); if(tabBtns.length > 0) { tabBtns[0].classList.add('active'); } document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none'); if(document.getElementById('tab-datos')) document.getElementById('tab-datos').style.display = 'block';
         await cargarSelectsAlumnos(); document.getElementById('modal-alta-alumno').showModal(); return; 
     }
@@ -692,6 +779,12 @@ async function cargarSelectsAlumnos() {
 
 async function llenarFormularioAlumno(id) { 
     document.getElementById('alumno-id').value = id; const d = (await getDoc(doc(db, "alumnos", id))).data(); document.getElementById('nombre').value = d.nombre; document.getElementById('celular').value = d.celular; document.getElementById('edad').value = d.edad||''; document.getElementById('nivel').value = d.nivel||''; await cargarSelectsAlumnos(); const sI = document.getElementById('instrumento'); Array.from(sI.options).forEach(o => o.selected = (d.instrumento||[]).includes(o.value)); syncSelectToChips('instrumento', 'chips-instrumentos'); document.getElementById('tipo_suscripcion').value = d.tipo_suscripcion; quill.root.innerHTML = d.descripcion||''; historialActual = d.historial || []; renderHistorial(); 
+    
+    // Inyectar el badge de estado en el modal
+    const info = getEstadoYBadge(d);
+    const badgeEl = document.getElementById('modal-status-badge');
+    if (badgeEl) { badgeEl.className = `status-badge ${info.colorBadge}`; badgeEl.textContent = info.txtEstado; badgeEl.style.display = 'inline-flex'; }
+
     const hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00'; diasSemana.forEach(dia => { const dD = d.disponibilidad[dia.id], tI = document.getElementById(`disp-${dia.id}-inicio`), tF = document.getElementById(`disp-${dia.id}-fin`), cA = document.getElementById(`disp-${dia.id}-all`), cN = document.getElementById(`disp-${dia.id}-none`), sE = document.getElementById(`estado-${dia.id}`); tI.disabled=false; tF.disabled=false; cA.checked=false; cN.checked=false; sE.textContent=""; if (!dD || dD.length===0) { cN.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Bloqueado"; sE.style.color="var(--accent-red)"; } else if (dD[0].inicio===hApe && dD[0].fin===hCie) { cA.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Libre"; sE.style.color="var(--accent-teal)"; } else { tI.value = dD[0].inicio; tF.value = dD[0].fin; } }); 
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); const tabBtns = document.querySelectorAll('.tab-btn'); if(tabBtns.length > 0) { tabBtns[0].classList.add('active'); } document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none'); if(document.getElementById('tab-datos')) document.getElementById('tab-datos').style.display = 'block';
 }
