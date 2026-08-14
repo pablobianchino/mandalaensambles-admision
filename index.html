@@ -178,15 +178,16 @@
                 <button type="button" id="btn-cerrar-alumno" style="background:transparent; border:none; cursor:pointer; font-size:1.5em; color:#9a9388;">&times;</button>
             </div>
             
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border-color); margin-bottom: 20px; position:relative;">
-                <div class="tabs-container" style="display:flex; gap:15px; border-bottom:none; margin-bottom:0; overflow-x:auto; flex-grow:1;">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border-color); margin-bottom: 20px; padding-bottom: 5px;">
+                <div class="tabs-container" style="display:flex; gap:15px; border-bottom:none; margin-bottom:0; overflow-x:auto; align-items:center;">
                     <button type="button" class="tab-btn active" data-target="tab-datos">📝 Datos</button>
                     <button type="button" class="tab-btn" data-target="tab-disp">🕒 Horarios</button>
                     <button type="button" class="tab-btn" data-target="tab-historial">📚 Historial</button>
-                </div>
-                <!-- Botón de acciones dentro del modal -->
-                <div class="alumno-actions" id="modal-acciones-container" style="display:none; padding-bottom:5px; flex-shrink:0;">
-                    <!-- Se inyecta por JS -->
+                    
+                    <!-- Botón de acciones movido aquí, al lado de los tabs -->
+                    <div class="alumno-actions" id="modal-acciones-container" style="display:none; position:relative; margin-left:10px;">
+                        <!-- Se inyecta por JS -->
+                    </div>
                 </div>
             </div>
 
