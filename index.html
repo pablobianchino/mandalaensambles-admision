@@ -178,16 +178,15 @@
                 <button type="button" id="btn-cerrar-alumno" style="background:transparent; border:none; cursor:pointer; font-size:1.5em; color:#9a9388;">&times;</button>
             </div>
             
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border-color); margin-bottom: 20px; padding-bottom: 5px;">
-                <div class="tabs-container" style="display:flex; gap:15px; border-bottom:none; margin-bottom:0; overflow-x:auto; align-items:center;">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border-color); margin-bottom: 20px; padding-bottom: 5px; position:relative;">
+                <div class="tabs-container" style="display:flex; gap:15px; border-bottom:none; margin-bottom:0; overflow-x:auto; flex-grow:1;">
                     <button type="button" class="tab-btn active" data-target="tab-datos">📝 Datos</button>
                     <button type="button" class="tab-btn" data-target="tab-disp">🕒 Horarios</button>
                     <button type="button" class="tab-btn" data-target="tab-historial">📚 Historial</button>
-                    
-                    <!-- Botón de acciones movido aquí, al lado de los tabs -->
-                    <div class="alumno-actions" id="modal-acciones-container" style="display:none; position:relative; margin-left:10px;">
-                        <!-- Se inyecta por JS -->
-                    </div>
+                </div>
+                <!-- Botón de acciones movido aquí, al lado de los tabs y sin overflow -->
+                <div class="alumno-actions" id="modal-acciones-container" style="display:none; position:relative; margin-left:10px; z-index:1000;">
+                    <!-- Se inyecta por JS -->
                 </div>
             </div>
 
@@ -333,16 +332,26 @@
         <h3 style="margin:0 0 15px 0; color:var(--text-main);">Editar Elemento</h3>
         <input type="hidden" id="abm-edit-id"><input type="hidden" id="abm-edit-coleccion">
         <label id="label-abm-edit-nombre">Nombre: <input type="text" id="abm-edit-nombre" class="modern-input" required></label>
+        
+        <!-- Contenedor dinámico si es Profesor (incluye los Skills) -->
         <div id="div-abm-edit-profe" style="display:none; margin-top:10px;">
             <label>Email Calendar: <input type="email" id="abm-edit-correo" class="modern-input"></label>
             <label>Celular: <input type="text" id="abm-edit-celular" class="modern-input"></label>
             <label>Alias Transferencia: <input type="text" id="abm-edit-alias" class="modern-input"></label>
             <label style="cursor:pointer; font-weight:600; margin-top:10px; display:flex; align-items:center; gap:8px; text-transform:none;"><input type="checkbox" id="abm-edit-entrevista" style="width:18px; height:18px;"> Habilitar para entrevistas</label>
+            
+            <div style="margin-top:15px; padding-top:10px;">
+                <label style="margin-bottom:8px;">Skills (Instrumentos que enseña)</label>
+                <select id="abm-edit-skills" multiple style="display:none;"></select>
+                <div id="chips-abm-edit-skills"></div>
+            </div>
+
             <div style="margin-top:15px; border-top:1px solid var(--border-color); padding-top:15px;">
                 <strong style="display:block; margin-bottom:10px; color:var(--text-muted);">Disponibilidad del Profesor:</strong>
                 <div id="contenedor-disponibilidad-profe" style="display:flex; flex-direction:column; gap:8px;"></div>
             </div>
         </div>
+
         <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
             <button type="button" class="btn-cerrar-modal" data-modal="modal-abm-edit" style="padding:10px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted);">Cancelar</button>
             <button id="btn-guardar-abm-edit" class="btn-primary">Guardar Cambios</button>
