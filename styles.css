@@ -223,4 +223,55 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
     .filter-chip { flex-shrink: 0; }
 
     dialog.modern-modal { width: 100% !important; max-width: 100% !important; height: 100vh; max-height: 100vh; border-radius: 0; }
+
+   /* =======================================================================
+   MENÚ DESPLEGABLE DE ACCIONES (NUEVO DISEÑO)
+   ======================================================================= */
+.dropdown-menu-wrapper { 
+    display: none; 
+    position: absolute; 
+    top: 100%; 
+    right: 0; 
+    padding-top: 8px; 
+    z-index: 1000; 
+    min-width: 220px; 
+}
+
+.alumno-actions:hover .dropdown-menu-wrapper { 
+    display: block; 
+}
+
+.dropdown-menu { 
+    background-color: var(--bg-sidebar); 
+    border: 1px solid var(--border-color); 
+    border-radius: 12px; 
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08); 
+    display: flex; 
+    flex-direction: column; 
+    padding: 8px; 
+    gap: 8px; 
+}
+
+.dropdown-item { 
+    background: var(--accent-teal); 
+    color: #ffffff; 
+    border: none; 
+    padding: 10px 14px; 
+    border-radius: 8px; 
+    cursor: pointer; 
+    font-family: inherit; /* Hereda Hanken Grotesk */
+    font-size: 13px; 
+    font-weight: 700; 
+    text-align: center; 
+    transition: 0.2s ease; 
+}
+
+.dropdown-item:hover { 
+    filter: brightness(0.92); 
+    transform: translateY(-1px); 
+}
+
+/* Ajuste sutil para que los horarios entren bien en la caja */
+.disp-box { min-width: 42px; padding: 0 4px; }
+.disp-time { font-size: 8.5px; text-align: center; letter-spacing: -0.02em; }
 }
