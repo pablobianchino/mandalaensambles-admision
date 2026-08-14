@@ -329,7 +329,7 @@ function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, todosLosProfes, pr
     return opciones;
 }
 
-// LÓGICA DE ESTADO, TIEMPO Y COLORES REFORZADA (0/24/48)
+// LÓGICA DE ESTADO, TIEMPO Y COLORES REFORZADA
 function getEstadoYBadge(al) {
     let colorIndicador = 'ind-gray', colorBadge = 'bg-gray', claseTexto = 'text-gray', txtTiempo = '', txtEstado = al.estado_agenda, fechaCalculo = null;
     
@@ -508,7 +508,6 @@ function renderTimelineUnificado(containerId, configNodos, datos) {
                 if (nodeData.length === 0) {
                     trayContent.innerHTML = `<span style="color:var(--text-muted); font-size:13px; font-weight:500;">No hay alumnos en esta etapa.</span>`;
                 } else {
-                    // Injecting Action Dropdown within the tray chips
                     trayContent.innerHTML = nodeData.map(al => `
                         <div class="tray-chip" style="position:relative; padding-right:30px;">
                             <span class="tray-chip-name" onclick="window.abrirEditarDesdeTray('${al.id}')">👤 ${al.nombre}</span>
@@ -663,7 +662,6 @@ function renderConfigHub(cont) {
         </div>`;
 }
 
-// NUEVOS GRÁFICOS ACTUALIZADOS (Flow, Entrevistas, Altas)
 async function renderCharts() {
     const cont = document.getElementById('estadisticas-container');
     cont.innerHTML = `
@@ -817,7 +815,7 @@ async function llenarFormularioAlumno(id) {
         accionesCont.style.display = 'block';
         accionesCont.innerHTML = `
             <button type="button" style="background:var(--accent-teal); color:white; border:none; padding:8px 14px; border-radius:8px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">Acciones ⋮</button>
-            <div class="dropdown-menu-wrapper" style="top:100%; left:0;">
+            <div class="dropdown-menu-wrapper" style="top:100%; right:0;">
                 <div class="dropdown-menu">${generarBotonesAccion(d, id)}</div>
             </div>
         `;
@@ -834,31 +832,122 @@ document.getElementById('form-alumno').addEventListener('submit', async (e) => {
     try { const id = document.getElementById('alumno-id').value; if (id) { await updateDoc(doc(db, "alumnos", id), data); } else { const esDirecto = document.getElementById('chk-ingreso-directo').checked; if (esDirecto) { data.estado_agenda = "Lista de espera"; const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`; data.historial.push({ id: Date.now(), texto: "Ingreso directo a Lista de Espera.", fecha: fechaStr }); } else { data.estado_agenda = "Pendiente procesar"; } await addDoc(collection(db, "alumnos"), data); } const wrap = document.getElementById('form-alumno-wrapper'); wrap.style.display='none'; document.body.appendChild(wrap); document.getElementById('modal-alta-alumno').close(); cargarVista(estadoActualVista); } catch(err) { alert("Error al guardar."); } setBotonCargando(btnSubmit, false);
 });
 
-function renderConfig(cont) { 
-    cont.innerHTML = `<div style="margin-bottom:25px; font-size:0.9em; color:var(--text-muted);"><span style="cursor:pointer; color:var(--accent-teal);" onclick="cargarVista('Configuración')">Configuración</span> &gt; <strong style="color:var(--text-main);">Ajustes Generales</strong></div><div style="max-width:800px; padding:30px; background:white; border-radius:12px; border:1px solid var(--border-color);"> <h3 style="margin-top:0; color:var(--text-main); font-size:1.2em;">Límites de Calendario</h3> <div style="display:flex; gap:15px; margin-bottom:25px; flex-wrap:wrap;"> <div style="flex:1; min-width:150px;"><label>Hora Apertura:<input type="time" id="cfg-apertura" class="modern-input" value="${configApp.hora_apertura||'09:00'}"></label></div> <div style="flex:1; min-width:150px;"><label>Hora Cierre:<input type="time" id="cfg-cierre" class="modern-input" value="${configApp.hora_cierre||'22:00'}"></label></div> </div> <div style="display:flex; gap:15px; margin-bottom:25px; flex-wrap:wrap;"> <div style="flex:1; min-width:150px;"><label>Aulas totales:<input type="number" id="cfg-aulas" class="modern-input" value="${configApp.cantidad_aulas}"></label></div> <div style="flex:1; min-width:150px;"><label>Baterías totales:<input type="number" id="cfg-bats" class="modern-input" value="${configApp.cantidad_baterias}"></label></div> </div> <h3 style="margin-top:0; color:var(--text-main); border-top:1px solid var(--border-color); padding-top:20px;">Calendario y Emojis</h3> <label style="margin-bottom:15px;">Calendario Defecto:<input type="email" id="cfg-cal-defecto" class="modern-input" value="${configApp.calendario_por_defecto||''}"></label> <div style="display:flex; gap:10px; margin-bottom:25px; flex-wrap:wrap;"> <div style="width:80px;"><label>Batería:<input type="text" id="cfg-idbat" class="modern-input" value="${configApp.identificador_bateria||''}"></label></div> <div style="width:80px;"><label>Guitarra:<input type="text" id="cfg-em-gui" class="modern-input" value="${configApp.emoji_guitarra||'🎸'}"></label></div> <div style="width:80px;"><label>Cajón:<input type="text" id="cfg-em-caj" class="modern-input" value="${configApp.emoji_cajon||'📦'}"></label></div> <div style="width:80px;"><label>Canto:<input type="text" id="cfg-em-can" class="modern-input" value="${configApp.emoji_canto||'🎤'}"></label></div> <div style="width:80px;"><label>Piano:<input type="text" id="cfg-em-pia" class="modern-input" value="${configApp.emoji_piano||'🎹'}"></label></div> <div style="width:80px;"><label>Bajo:<input type="text" id="cfg-em-baj" class="modern-input" value="${configApp.emoji_bajo||'🎸'}"></label></div> </div> <h3 style="margin-top:0; color:var(--text-main); border-top:1px solid var(--border-color); padding-top:20px;">Mensajes y Textos</h3> <label style="margin-bottom:15px;">Valor de Clase (Monto): <input type="text" id="cfg-valor" class="modern-input" value="${configApp.valor_clase}"></label> <label style="margin-bottom:15px;">Título Evento (Reserva): <input type="text" id="cfg-evt-res" class="modern-input" value="${configApp.formato_evento_reserva}"></label> <label style="margin-bottom:15px;">Título Evento (Confirmado): <input type="text" id="cfg-evt-conf" class="modern-input" value="${configApp.formato_evento_confirmado}"></label> <label style="margin-bottom:15px;">Nombre para Agendar (WS): <input type="text" id="cfg-nombre-agendar" class="modern-input" value="${configApp.texto_nombre_agendar}"></label> <label style="margin-bottom:15px;">Texto Opciones Múltiples: <textarea id="cfg-txt-opt-mul" class="modern-input" style="height:200px;">${configApp.texto_opciones_multiples}</textarea></label> <label style="margin-bottom:15px;">Texto 1 Sola Opción: <textarea id="cfg-txt-p" class="modern-input" style="height:150px;">${configApp.texto_profe}</textarea></label> <label style="margin-bottom:15px;">Texto Confirmación Alumno: <textarea id="cfg-txt-conf-a" class="modern-input" style="height:150px;">${configApp.texto_conf_alumno}</textarea></label> <label style="margin-bottom:15px;">Texto Cancelación: <textarea id="cfg-txt-cancela" class="modern-input" style="height:100px;">${configApp.texto_cancela_alumno}</textarea></label> <label style="margin-bottom:15px;">Texto Pre-Alta: <textarea id="cfg-txt-prealta" class="modern-input" style="height:150px;">${configApp.texto_prealta}</textarea></label> <label style="margin-bottom:20px;">Texto Nueva Alta: <textarea id="cfg-txt-alta-conf" class="modern-input" style="height:150px;">${configApp.texto_alta_confirmada}</textarea></label> <button id="btn-guardar-cfg" class="btn-primary" style="width:100%;">Guardar Configuración</button> </div>`; 
-    document.getElementById('btn-guardar-cfg').addEventListener('click', async (e) => { setBotonCargando(e.target, true); await setDoc(doc(db, "configuracion", "general"), { hora_apertura: document.getElementById('cfg-apertura').value, hora_cierre: document.getElementById('cfg-cierre').value, cantidad_aulas: document.getElementById('cfg-aulas').value, cantidad_baterias: document.getElementById('cfg-bats').value, identificador_bateria: document.getElementById('cfg-idbat').value, emoji_guitarra: document.getElementById('cfg-em-gui').value, emoji_cajon: document.getElementById('cfg-em-caj').value, emoji_canto: document.getElementById('cfg-em-can').value, emoji_piano: document.getElementById('cfg-em-pia').value, emoji_bajo: document.getElementById('cfg-em-baj').value, calendario_por_defecto: document.getElementById('cfg-cal-defecto').value, valor_clase: document.getElementById('cfg-valor').value, formato_evento_reserva: document.getElementById('cfg-evt-res').value, formato_evento_confirmado: document.getElementById('cfg-evt-conf').value, texto_nombre_agendar: document.getElementById('cfg-nombre-agendar').value, texto_opciones_multiples: document.getElementById('cfg-txt-opt-mul').value, texto_profe: document.getElementById('cfg-txt-p').value, texto_alumno: document.getElementById('cfg-txt-a').value, texto_conf_profe: document.getElementById('cfg-txt-conf-p').value, texto_conf_alumno: document.getElementById('cfg-txt-conf-a').value, texto_cancela_alumno: document.getElementById('cfg-txt-cancela').value, texto_prealta: document.getElementById('cfg-txt-prealta').value, texto_alta_confirmada: document.getElementById('cfg-txt-alta-conf').value }, { merge: true }); await cargarConfig(); setBotonCargando(e.target, false); alert('Guardado.'); }); 
-}
-
-function cargarABM(coleccion, titulo, cont) { 
+async function cargarABM(coleccion, titulo, cont) { 
     window.tituloABMActual = titulo; 
-    getDocs(collection(db, coleccion)).then(qS => { 
-        let h = `<div style="margin-bottom:25px; font-size:0.9em; color:var(--text-muted);"><span style="cursor:pointer; color:var(--accent-teal);" onclick="cargarVista('Configuración')">Configuración</span> &gt; <strong style="color:var(--text-main);">${titulo}</strong></div> <div style="display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap; padding:25px; background:white; border-radius:12px; border:1px solid var(--border-color); margin-bottom:20px;"><div style="flex-grow:1; min-width:180px;"><label>${coleccion === 'usuarios_sistema' ? 'Correo' : 'Nombre'}</label><input type="text" id="input-nuevo-abm" class="modern-input"></div>`; 
-        if(coleccion === 'profesores') { h += `<div style="flex-grow:1; min-width:200px;"><label>Email Calendar</label><input type="email" id="input-correo-abm" class="modern-input"></div><div style="flex-grow:1; min-width:150px;"><label>Celular</label><input type="text" id="input-celular-abm" class="modern-input"></div><div style="flex-grow:1; min-width:150px;"><label>Alias</label><input type="text" id="input-alias-abm" class="modern-input"></div><div style="padding-bottom:10px;"><label style="display:flex; align-items:center; gap:6px; cursor:pointer; text-transform:none;"><input type="checkbox" id="input-entrevista-abm" checked style="width:18px;height:18px;"> Entrevistas</label></div>`; } 
-        h += `<button id="btn-guardar-abm" class="btn-primary" style="height:42px;">+ Agregar</button></div>`; 
-        qS.forEach(d => { const dt = d.data(); let displayNom = dt.nombre || dt.email; let ex = coleccion==='profesores' ? ` <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">${dt.correo_calendario}</div>` : ''; h += `<div class="row-item" onclick="window.abrirEdicionABM('${d.id}', '${coleccion}', '${displayNom}', '${dt.correo_calendario||''}', '${dt.celular||''}', '${dt.alias_transferencia||''}', ${!!dt.entrevista})"><div><strong style="color:var(--text-main); font-size:15px;">${displayNom}</strong>${ex}</div><button class="btn-row-action" onclick="event.stopPropagation(); window.eliminarABM('${d.id}', '${coleccion}')">❌</button></div>`; }); 
-        cont.innerHTML = h; 
-        document.getElementById('btn-guardar-abm').addEventListener('click', async () => { const n = document.getElementById('input-nuevo-abm').value.trim(); if(!n) return; const dO = coleccion === 'usuarios_sistema' ? { email: n.toLowerCase() } : { nombre: n }; if(coleccion==='profesores'){ dO.correo_calendario=document.getElementById('input-correo-abm').value.trim(); dO.celular=document.getElementById('input-celular-abm').value.trim(); dO.alias_transferencia=document.getElementById('input-alias-abm').value.trim(); dO.entrevista=document.getElementById('input-entrevista-abm').checked; const hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00', dispAllDay = [ { inicio: hApe, fin: hCie } ]; dO.disponibilidad = { 'L': dispAllDay, 'M': dispAllDay, 'X': dispAllDay, 'J': dispAllDay, 'V': dispAllDay, 'S': dispAllDay }; } await addDoc(collection(db, coleccion), dO); cargarABM(coleccion, titulo, cont); }); 
+    const qS = await getDocs(collection(db, coleccion));
+    let h = `<div style="margin-bottom:25px; font-size:0.9em; color:var(--text-muted);"><span style="cursor:pointer; color:var(--accent-teal);" onclick="cargarVista('Configuración')">Configuración</span> &gt; <strong style="color:var(--text-main);">${titulo}</strong></div> <div style="display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap; padding:25px; background:white; border-radius:12px; border:1px solid var(--border-color); margin-bottom:20px;"><div style="flex-grow:1; min-width:180px;"><label>${coleccion === 'usuarios_sistema' ? 'Correo' : 'Nombre'}</label><input type="text" id="input-nuevo-abm" class="modern-input"></div>`; 
+    
+    let selectInstHtml = '';
+    if(coleccion === 'profesores') { 
+        const iS = await getDocs(collection(db, "instrumentos"));
+        let opts = '';
+        iS.forEach(d => opts += `<option value="${d.data().nombre}">${d.data().nombre}</option>`);
+        selectInstHtml = `<div style="flex-grow:1; min-width:100%; margin-top:10px;"><label style="margin-bottom:8px;">Skills (Instrumentos que enseña)</label><select id="input-skills-abm" multiple style="display:none;">${opts}</select><div id="chips-skills-abm"></div></div>`;
+        
+        h += `<div style="flex-grow:1; min-width:200px;"><label>Email Calendar</label><input type="email" id="input-correo-abm" class="modern-input"></div><div style="flex-grow:1; min-width:150px;"><label>Celular</label><input type="text" id="input-celular-abm" class="modern-input"></div><div style="flex-grow:1; min-width:150px;"><label>Alias</label><input type="text" id="input-alias-abm" class="modern-input"></div><div style="padding-bottom:10px;"><label style="display:flex; align-items:center; gap:6px; cursor:pointer; text-transform:none;"><input type="checkbox" id="input-entrevista-abm" checked style="width:18px;height:18px;"> Entrevistas</label></div>${selectInstHtml}`; 
+    } 
+    h += `<button id="btn-guardar-abm" class="btn-primary" style="height:42px;">+ Agregar</button></div>`; 
+    
+    qS.forEach(d => { 
+        const dt = d.data(); 
+        let displayNom = dt.nombre || dt.email; 
+        let ex = coleccion==='profesores' ? ` <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">${dt.correo_calendario}</div><div style="font-size:11px; color:var(--accent-teal); font-weight:600; margin-top:2px;">${(dt.skills || []).join(' • ')}</div>` : ''; 
+        h += `<div class="row-item" onclick="window.abrirEdicionABM('${d.id}', '${coleccion}', '${displayNom}', '${dt.correo_calendario||''}', '${dt.celular||''}', '${dt.alias_transferencia||''}', ${!!dt.entrevista})"><div><strong style="color:var(--text-main); font-size:15px;">${displayNom}</strong>${ex}</div><button class="btn-row-action" onclick="event.stopPropagation(); window.eliminarABM('${d.id}', '${coleccion}')">❌</button></div>`; 
+    }); 
+    cont.innerHTML = h; 
+
+    if(coleccion === 'profesores') {
+        setTimeout(() => { syncSelectToChips('input-skills-abm', 'chips-skills-abm'); }, 100);
+    }
+
+    document.getElementById('btn-guardar-abm').addEventListener('click', async () => { 
+        const n = document.getElementById('input-nuevo-abm').value.trim(); 
+        if(!n) return; 
+        const dO = coleccion === 'usuarios_sistema' ? { email: n.toLowerCase() } : { nombre: n }; 
+        if(coleccion==='profesores'){ 
+            dO.correo_calendario=document.getElementById('input-correo-abm').value.trim(); 
+            dO.celular=document.getElementById('input-celular-abm').value.trim(); 
+            dO.alias_transferencia=document.getElementById('input-alias-abm').value.trim(); 
+            dO.entrevista=document.getElementById('input-entrevista-abm').checked; 
+            
+            const selSkills = document.getElementById('input-skills-abm');
+            dO.skills = Array.from(selSkills.selectedOptions).map(o=>o.value);
+
+            const hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00', dispAllDay = [ { inicio: hApe, fin: hCie } ]; 
+            dO.disponibilidad = { 'L': dispAllDay, 'M': dispAllDay, 'X': dispAllDay, 'J': dispAllDay, 'V': dispAllDay, 'S': dispAllDay }; 
+        } 
+        await addDoc(collection(db, coleccion), dO); 
+        cargarABM(coleccion, titulo, cont); 
     }); 
 }
 
 window.abrirEdicionABM = async function(id, col, nom, cor, cel, ali, ent) { 
-    document.getElementById('abm-edit-id').value = id; document.getElementById('abm-edit-coleccion').value = col; document.getElementById('label-abm-edit-nombre').innerHTML = col === 'usuarios_sistema' ? `Correo: <input type="text" id="abm-edit-nombre" class="modern-input" required>` : `Nombre: <input type="text" id="abm-edit-nombre" class="modern-input" required>`; document.getElementById('abm-edit-nombre').value = nom;
-    if(col==='profesores') { document.getElementById('div-abm-edit-profe').style.display='block'; document.getElementById('abm-edit-correo').value=cor; document.getElementById('abm-edit-celular').value=cel; document.getElementById('abm-edit-alias').value=ali; document.getElementById('abm-edit-entrevista').checked=ent; try { const pr = (await getDoc(doc(db, col, id))).data(); const hApe = configApp.hora_apertura || '09:00'; const hCie = configApp.hora_cierre || '22:00'; diasSemana.forEach(dia => { const dD = pr.disponibilidad ? pr.disponibilidad[dia.id] : []; const tI = document.getElementById(`disp-p-${dia.id}-inicio`), tF = document.getElementById(`disp-p-${dia.id}-fin`), cA = document.getElementById(`disp-p-${dia.id}-all`), cN = document.getElementById(`disp-p-${dia.id}-none`), sE = document.getElementById(`estado-p-${dia.id}`); tI.disabled=false; tF.disabled=false; cA.checked=false; cN.checked=false; sE.textContent=""; if (!dD || dD.length===0) { cN.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Bloqueado"; sE.style.color="var(--accent-red)"; } else if (dD[0].inicio===hApe && dD[0].fin===hCie) { cA.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Libre"; sE.style.color="var(--accent-teal)"; } else { tI.value = dD[0].inicio; tF.value = dD[0].fin; } }); } catch(e) {} } else document.getElementById('div-abm-edit-profe').style.display='none'; document.getElementById('modal-abm-edit').showModal(); 
+    document.getElementById('abm-edit-id').value = id; 
+    document.getElementById('abm-edit-coleccion').value = col; 
+    document.getElementById('label-abm-edit-nombre').innerHTML = col === 'usuarios_sistema' ? `Correo: <input type="text" id="abm-edit-nombre" class="modern-input" required>` : `Nombre: <input type="text" id="abm-edit-nombre" class="modern-input" required>`; 
+    document.getElementById('abm-edit-nombre').value = nom;
+    
+    if(col==='profesores') { 
+        document.getElementById('div-abm-edit-profe').style.display='block'; 
+        document.getElementById('abm-edit-correo').value=cor; 
+        document.getElementById('abm-edit-celular').value=cel; 
+        document.getElementById('abm-edit-alias').value=ali; 
+        document.getElementById('abm-edit-entrevista').checked=ent; 
+        
+        const iS = await getDocs(collection(db, "instrumentos"));
+        const selSkills = document.getElementById('abm-edit-skills');
+        selSkills.innerHTML = '';
+        iS.forEach(d => selSkills.innerHTML += `<option value="${d.data().nombre}">${d.data().nombre}</option>`);
+
+        try { 
+            const pr = (await getDoc(doc(db, col, id))).data(); 
+            Array.from(selSkills.options).forEach(o => o.selected = (pr.skills||[]).includes(o.value));
+            syncSelectToChips('abm-edit-skills', 'chips-abm-edit-skills');
+
+            const hApe = configApp.hora_apertura || '09:00'; const hCie = configApp.hora_cierre || '22:00'; 
+            diasSemana.forEach(dia => { 
+                const dD = pr.disponibilidad ? pr.disponibilidad[dia.id] : []; 
+                const tI = document.getElementById(`disp-p-${dia.id}-inicio`), tF = document.getElementById(`disp-p-${dia.id}-fin`), cA = document.getElementById(`disp-p-${dia.id}-all`), cN = document.getElementById(`disp-p-${dia.id}-none`), sE = document.getElementById(`estado-p-${dia.id}`); 
+                tI.disabled=false; tF.disabled=false; cA.checked=false; cN.checked=false; sE.textContent=""; 
+                if (!dD || dD.length===0) { cN.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Bloqueado"; sE.style.color="var(--accent-red)"; } 
+                else if (dD[0].inicio===hApe && dD[0].fin===hCie) { cA.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Libre"; sE.style.color="var(--accent-teal)"; } 
+                else { tI.value = dD[0].inicio; tF.value = dD[0].fin; } 
+            }); 
+        } catch(e) {} 
+    } else {
+        document.getElementById('div-abm-edit-profe').style.display='none'; 
+    }
+    document.getElementById('modal-abm-edit').showModal(); 
 }
 
 window.eliminarABM = async function(id, col) { if(confirm("¿Eliminar?")) { await deleteDoc(doc(db, col, id)); document.querySelector(`[data-vista="ABM-${window.tituloABMActual}"]`).click(); } }
 
-document.getElementById('btn-guardar-abm-edit').addEventListener('click', async (e) => { setBotonCargando(e.target, true); const id = document.getElementById('abm-edit-id').value, col = document.getElementById('abm-edit-coleccion').value, nombreInput = document.getElementById('abm-edit-nombre').value; const dO = col === 'usuarios_sistema' ? { email: nombreInput.toLowerCase() } : { nombre: nombreInput }; if(col==='profesores') { dO.correo_calendario=document.getElementById('abm-edit-correo').value; dO.celular=document.getElementById('abm-edit-celular').value; dO.alias_transferencia=document.getElementById('abm-edit-alias').value; dO.entrevista=document.getElementById('abm-edit-entrevista').checked; const disp = {}; const hApe = configApp.hora_apertura || '09:00'; const hCie = configApp.hora_cierre || '22:00'; diasSemana.forEach(d => { const cA = document.getElementById(`disp-p-${d.id}-all`).checked, cN = document.getElementById(`disp-p-${d.id}-none`).checked; let i = document.getElementById(`disp-p-${d.id}-inicio`).value, f = document.getElementById(`disp-p-${d.id}-fin`).value; if(cN) disp[d.id] = []; else if(cA) disp[d.id] = [{inicio:hApe, fin:hCie}]; else { if(i||f) disp[d.id] = [{inicio: i||hApe, fin: f||hCie}]; else disp[d.id] = []; } }); dO.disponibilidad = disp; } await updateDoc(doc(db, col, id), dO); document.getElementById('modal-abm-edit').close(); document.querySelector(`[data-vista="ABM-${window.tituloABMActual}"]`).click(); setBotonCargando(e.target, false); });
+document.getElementById('btn-guardar-abm-edit').addEventListener('click', async (e) => { 
+    setBotonCargando(e.target, true); 
+    const id = document.getElementById('abm-edit-id').value, col = document.getElementById('abm-edit-coleccion').value, nombreInput = document.getElementById('abm-edit-nombre').value; 
+    const dO = col === 'usuarios_sistema' ? { email: nombreInput.toLowerCase() } : { nombre: nombreInput }; 
+    if(col==='profesores') { 
+        dO.correo_calendario=document.getElementById('abm-edit-correo').value; 
+        dO.celular=document.getElementById('abm-edit-celular').value; 
+        dO.alias_transferencia=document.getElementById('abm-edit-alias').value; 
+        dO.entrevista=document.getElementById('abm-edit-entrevista').checked; 
+        
+        const selSkills = document.getElementById('abm-edit-skills');
+        dO.skills = Array.from(selSkills.selectedOptions).map(o=>o.value);
+
+        const disp = {}; const hApe = configApp.hora_apertura || '09:00'; const hCie = configApp.hora_cierre || '22:00'; 
+        diasSemana.forEach(d => { 
+            const cA = document.getElementById(`disp-p-${d.id}-all`).checked, cN = document.getElementById(`disp-p-${d.id}-none`).checked; 
+            let i = document.getElementById(`disp-p-${d.id}-inicio`).value, f = document.getElementById(`disp-p-${d.id}-fin`).value; 
+            if(cN) disp[d.id] = []; else if(cA) disp[d.id] = [{inicio:hApe, fin:hCie}]; else { if(i||f) disp[d.id] = [{inicio: i||hApe, fin: f||hCie}]; else disp[d.id] = []; } 
+        }); 
+        dO.disponibilidad = disp; 
+    } 
+    await updateDoc(doc(db, col, id), dO); 
+    document.getElementById('modal-abm-edit').close(); 
+    document.querySelector(`[data-vista="ABM-${window.tituloABMActual}"]`).click(); 
+    setBotonCargando(e.target, false); 
+});
 
 document.querySelectorAll('#sidebar .nav-item, #sidebar .nav-item-small').forEach(item => { 
     item.addEventListener('click', (e) => { 
@@ -872,4 +961,5 @@ document.querySelectorAll('#sidebar .nav-item, #sidebar .nav-item-small').forEac
         if (overlay) overlay.style.display = 'none'; 
     }); 
 });
+
 window.cargarVista = cargarVista;
