@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-const APP_VERSION = "v2.5";
+const APP_VERSION = "v2.6";
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 const firebaseConfig = {
@@ -924,20 +924,26 @@ window.abrirEdicionABM = async function(id, col, nom, cor, cel, ali, ent) {
     document.getElementById('modal-abm-edit').showModal(); 
 }
 
-window.eliminarABM = async function(id, col) { if(confirm("¿Eliminar?")) { await deleteDoc(doc(db, col, id)); document.querySelector(`[data-vista="ABM-${window.tituloABMActual}"]`).click(); } }
+window.eliminarABM = async function(id, col) { 
+    if(confirm("¿Eliminar?")) { 
+        await deleteDoc(doc(db, col, id)); 
+        cargarVista('ABM-' + window.tituloABMActual); 
+    } 
+}
 
 document.getElementById('btn-guardar-abm-edit').addEventListener('click', async (e) => { 
     setBotonCargando(e.target, true); 
     const id = document.getElementById('abm-edit-id').value, col = document.getElementById('abm-edit-coleccion').value, nombreInput = document.getElementById('abm-edit-nombre').value; 
     const dO = col === 'usuarios_sistema' ? { email: nombreInput.toLowerCase() } : { nombre: nombreInput }; 
-    if(col==='profesores') { 
-        dO.correo_calendario=document.getElementById('abm-edit-correo').value; 
-        dO.celular=document.getElementById('abm-edit-celular').value; 
-        dO.alias_transferencia=document.getElementById('abm-edit-alias').value; 
-        dO.entrevista=document.getElementById('abm-edit-entrevista').checked; 
+    
+    if(col === 'profesores') { 
+        dO.correo_calendario = document.getElementById('abm-edit-correo').value; 
+        dO.celular = document.getElementById('abm-edit-celular').value; 
+        dO.alias_transferencia = document.getElementById('abm-edit-alias').value; 
+        dO.entrevista = document.getElementById('abm-edit-entrevista').checked; 
         
         const selSkills = document.getElementById('abm-edit-skills');
-        dO.skills = Array.from(selSkills.selectedOptions).map(o=>o.value);
+        dO.skills = Array.from(selSkills.selectedOptions).map(o => o.value);
 
         const disp = {}; const hApe = configApp.hora_apertura || '09:00'; const hCie = configApp.hora_cierre || '22:00'; 
         diasSemana.forEach(d => { 
@@ -947,9 +953,15 @@ document.getElementById('btn-guardar-abm-edit').addEventListener('click', async 
         }); 
         dO.disponibilidad = disp; 
     } 
-    await updateDoc(doc(db, col, id), dO); 
-    document.getElementById('modal-abm-edit').close(); 
-    document.querySelector(`[data-vista="ABM-${window.tituloABMActual}"]`).click(); 
+    
+    try {
+        await updateDoc(doc(db, col, id), dO); 
+        document.getElementById('modal-abm-edit').close(); 
+        cargarVista('ABM-' + window.tituloABMActual); 
+    } catch(err) {
+        alert("Error al guardar: " + err.message);
+    }
+    
     setBotonCargando(e.target, false); 
 });
 
