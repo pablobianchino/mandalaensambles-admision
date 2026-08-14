@@ -1,7 +1,7 @@
 /* =======================================================================
    VARIABLES Y ESTILOS BASE (NUEVO DISEÑO)
    ======================================================================= */
-   :root {
+:root {
     --bg-main: #fbfaf8;
     --bg-sidebar: #ffffff;
     --border-color: #ece6dc;
@@ -26,6 +26,12 @@ body {
     overflow: hidden;
     -webkit-font-smoothing: antialiased;
 }
+
+/* SCROLLBAR MODERNO */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: #d9d2c5; border-radius: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+
 /* =======================================================================
    LOGIN
    ======================================================================= */
@@ -38,12 +44,12 @@ body {
     display: flex; 
     justify-content: center; 
     align-items: center; 
-    background-color: #ffffff; /* Fondo blanco de pantalla completa */
+    background-color: #ffffff; 
     z-index: 9999; 
 }
 
 .login-card { 
-    background-color: #f4f6f9; /* Recuadro gris */
+    background-color: #f4f6f9; 
     padding: 40px 50px; 
     border-radius: 16px; 
     display: flex; 
@@ -73,10 +79,6 @@ body {
     background-color: #f8f9fa; 
     box-shadow: 0 1px 3px rgba(60,64,67,0.1); 
 }
-/* SCROLLBAR MODERNO */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-thumb { background: #d9d2c5; border-radius: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
 
 /* =======================================================================
    SIDEBAR Y MENÚ
@@ -140,6 +142,8 @@ body {
     position: relative; 
 }
 
+.resumen-section-title { font-size: 1.2em; font-weight: 700; margin: 10px 0 15px 0; padding-bottom: 5px; border-bottom: 2px solid var(--border-color); }
+
 /* Chips de Filtros */
 .filter-chip { padding: 6px 14px; border: 1px solid var(--border-color); border-radius: 20px; font-size: 13px; font-weight:600; color: var(--text-muted); background: white; cursor: pointer; transition: 0.2s; font-family: inherit; }
 .filter-chip:hover { border-color: #d9d2c5; color: var(--text-main); }
@@ -170,10 +174,10 @@ body {
 
 /* Grilla de Disponibilidad */
 .row-disp-grid { display: flex; gap: 4px; align-items:center; }
-.disp-box { width: 34px; height: 38px; border-radius: 6px; background: #f3efe7; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: var(--text-light); transition: 0.2s; }
+.disp-box { width: auto; min-width: 48px; padding: 4px; height: auto; min-height: 42px; border-radius: 6px; background: #f3efe7; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 700; color: var(--text-light); transition: 0.2s; }
 .disp-box.active { background: #e4f2f4; color: var(--accent-teal); }
 .disp-day { font-size: 10px; font-family: 'Hanken Grotesk'; margin-bottom:1px; }
-.disp-time { font-family: 'Geist Mono', monospace; font-size: 9px; font-weight:500; }
+.disp-time { font-family: 'Geist Mono', monospace; font-size: 9px; font-weight:500; text-align: center; letter-spacing: -0.02em; line-height: 1.2; }
 
 .row-meta { display:flex; flex-direction:column; align-items:flex-end; gap:3px; min-width:120px; font-size:12px; color:var(--text-muted); }
 .row-meta strong { color: var(--text-main); font-weight:600; }
@@ -181,6 +185,74 @@ body {
 /* Menú de acciones en fila */
 .btn-row-action { background: none; border: none; font-size: 1.2em; color: var(--text-light); cursor: pointer; padding: 4px 8px; border-radius: 6px; transition: 0.2s; }
 .btn-row-action:hover { background: var(--hover-bg); color: var(--text-main); }
+
+/* =======================================================================
+   MENÚ DESPLEGABLE DE ACCIONES (CORRECCIÓN ESTRICTA)
+   ======================================================================= */
+.alumno-actions { position: relative; }
+.dropdown-menu-wrapper { 
+    display: none !important; 
+    position: absolute; 
+    top: 100%; 
+    right: 0; 
+    padding-top: 8px; 
+    z-index: 1000; 
+    min-width: 200px; 
+}
+.alumno-actions:hover .dropdown-menu-wrapper { 
+    display: block !important; 
+}
+.dropdown-menu { 
+    background-color: var(--bg-sidebar); 
+    border: 1px solid var(--border-color); 
+    border-radius: 12px; 
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12); 
+    display: flex; 
+    flex-direction: column; 
+    padding: 10px; 
+    gap: 6px; 
+}
+.dropdown-item { 
+    background: var(--accent-teal); 
+    color: #ffffff; 
+    border: none; 
+    padding: 10px 14px; 
+    border-radius: 8px; 
+    cursor: pointer; 
+    font-family: inherit; 
+    font-size: 13px; 
+    font-weight: 700; 
+    text-align: center; 
+    transition: 0.2s ease;
+    width: 100%;
+    display: block;
+    box-sizing: border-box;
+}
+.dropdown-item:hover { 
+    filter: brightness(0.92); 
+    transform: translateY(-2px); 
+}
+
+/* =======================================================================
+   LÍNEA DE TIEMPO (TIMELINE MODERNO)
+   ======================================================================= */
+.timeline-wrapper { display: flex; align-items: flex-start; justify-content: space-between; position: relative; padding: 20px 0 30px 0; overflow-x: auto; margin-bottom:10px; }
+.timeline-line { position: absolute; top: 40px; left: 10%; width: 80%; height: 3px; background: var(--border-color); z-index: 0; }
+.timeline-node { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; cursor: pointer; flex: 1; min-width: 100px; }
+.timeline-circle { width: 45px; height: 45px; border-radius: 50%; background: var(--bg-main); border: 3px solid var(--border-color); display: flex; align-items: center; justify-content: center; font-size: 1.2em; transition: 0.3s ease; color: var(--text-muted); }
+.timeline-node.active .timeline-circle { transform: scale(1.15); box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-color: var(--accent-teal); background: white; }
+.timeline-label { margin-top: 12px; font-weight: 700; font-size: 12.5px; color: var(--text-muted); text-align: center; font-family: inherit; }
+.timeline-node.active .timeline-label { color: var(--text-main); }
+.timeline-count { position: absolute; top: -10px; background: var(--text-main); color: white; border-radius: 12px; padding: 2px 8px; font-size: 11px; font-weight: 800; font-family: 'Geist Mono', monospace; transition: 0.3s; }
+
+/* Colores de estados adaptados */
+.node-sin-agendar.active .timeline-circle { border-color: var(--text-muted); } .node-sin-agendar.active .timeline-count { background: var(--text-muted); }
+.node-val-profe.active .timeline-circle { border-color: #6f42c1; } .node-val-profe.active .timeline-count { background: #6f42c1; }
+.node-val-alum.active .timeline-circle { border-color: #e5a93d; } .node-val-alum.active .timeline-count { background: #e5a93d; color: #fff; }
+.node-adm-conf.active .timeline-circle { border-color: var(--accent-teal); } .node-adm-conf.active .timeline-count { background: var(--accent-teal); }
+.node-prealta-pdte.active .timeline-circle { border-color: var(--accent-blue); } .node-prealta-pdte.active .timeline-count { background: var(--accent-blue); }
+.node-prealta-inic.active .timeline-circle { border-color: var(--accent-teal); } .node-prealta-inic.active .timeline-count { background: var(--accent-teal); }
+.node-prealta-inc.active .timeline-circle { border-color: var(--accent-red); } .node-prealta-inc.active .timeline-count { background: var(--accent-red); }
 
 /* =======================================================================
    FORMULARIOS Y MODALES (UI MODERNA)
@@ -213,7 +285,7 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
     
     /* Adaptación de Filas a Móvil */
     .row-item { flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px; }
-    .row-disp-grid { width: 100%; justify-content: space-between; margin-top: 5px; }
+    .row-disp-grid { width: 100%; justify-content: space-between; margin-top: 5px; overflow-x:auto; }
     .disp-box { flex: 1; }
     .row-meta { width: 100%; flex-direction: row; justify-content: space-between; border-top: 1px solid var(--border-color); padding-top: 10px; margin-top: 5px; }
     
@@ -223,55 +295,4 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
     .filter-chip { flex-shrink: 0; }
 
     dialog.modern-modal { width: 100% !important; max-width: 100% !important; height: 100vh; max-height: 100vh; border-radius: 0; }
-
-   /* =======================================================================
-   MENÚ DESPLEGABLE DE ACCIONES (NUEVO DISEÑO)
-   ======================================================================= */
-.dropdown-menu-wrapper { 
-    display: none; 
-    position: absolute; 
-    top: 100%; 
-    right: 0; 
-    padding-top: 8px; 
-    z-index: 1000; 
-    min-width: 220px; 
-}
-
-.alumno-actions:hover .dropdown-menu-wrapper { 
-    display: block; 
-}
-
-.dropdown-menu { 
-    background-color: var(--bg-sidebar); 
-    border: 1px solid var(--border-color); 
-    border-radius: 12px; 
-    box-shadow: 0 8px 24px rgba(0,0,0,0.08); 
-    display: flex; 
-    flex-direction: column; 
-    padding: 8px; 
-    gap: 8px; 
-}
-
-.dropdown-item { 
-    background: var(--accent-teal); 
-    color: #ffffff; 
-    border: none; 
-    padding: 10px 14px; 
-    border-radius: 8px; 
-    cursor: pointer; 
-    font-family: inherit; /* Hereda Hanken Grotesk */
-    font-size: 13px; 
-    font-weight: 700; 
-    text-align: center; 
-    transition: 0.2s ease; 
-}
-
-.dropdown-item:hover { 
-    filter: brightness(0.92); 
-    transform: translateY(-1px); 
-}
-
-/* Ajuste sutil para que los horarios entren bien en la caja */
-.disp-box { min-width: 42px; padding: 0 4px; }
-.disp-time { font-size: 8.5px; text-align: center; letter-spacing: -0.02em; }
 }
