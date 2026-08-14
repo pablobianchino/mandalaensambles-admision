@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-const APP_VERSION = "v2.7.1";
+const APP_VERSION = "v2.9";
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 const firebaseConfig = {
@@ -50,20 +50,19 @@ function renderFiltrosChips() {
 function setBotonCargando(btn, cargando) {
     if (!btn) return;
     if (cargando) {
-        // Validación estricta para evitar que un doble clic pise el texto original
         if (!btn.dataset.textoOriginal || btn.dataset.textoOriginal === '⏳ Procesando...') {
             btn.dataset.textoOriginal = btn.innerHTML;
         }
         btn.innerHTML = '⏳ Procesando...';
         btn.disabled = true;
         btn.style.opacity = '0.7';
-        btn.style.pointerEvents = 'none'; // Bloquea clics adicionales a la fuerza
+        btn.style.pointerEvents = 'none';
         btn.style.cursor = 'wait';
     } else {
         btn.innerHTML = btn.dataset.textoOriginal && btn.dataset.textoOriginal !== '⏳ Procesando...' ? btn.dataset.textoOriginal : 'Guardar';
         btn.disabled = false;
         btn.style.opacity = '1';
-        btn.style.pointerEvents = 'auto'; // Restaura el evento de clic
+        btn.style.pointerEvents = 'auto';
         btn.style.cursor = 'pointer';
     }
 }
@@ -134,7 +133,7 @@ window.alert = function(msg) {
 };
 
 let alumnoIdActual = null;
-let estadoActualVista = 'Resumen';
+let estadoActualVista = 'Dashboard';
 window.tituloABMActual = '';
 let configApp = {};
 let chartFlowInst = null, chartEntrevistasInst = null, chartAltasInst = null;
@@ -413,7 +412,6 @@ function generarBotonesAccion(al, id) {
     if (al.estado_agenda !== 'Pre-alta Pendiente' && al.estado_agenda !== 'Lista de espera' && al.estado_agenda !== 'Alta Suspendida' && al.estado_agenda !== 'Alta Efectiva' && al.estado_agenda !== 'Alta Ilegal') {
         accionesHtml = `<button type="button" class="dropdown-item btn-nombre-agendar" data-id="${id}">📋 Generar nombre agenda WS</button>` + accionesHtml;
     }
-    
     return accionesHtml;
 }
 
@@ -515,16 +513,32 @@ function renderTimelineUnificado(containerId, configNodos, datos) {
                 if (nodeData.length === 0) {
                     trayContent.innerHTML = `<span style="color:var(--text-muted); font-size:13px; font-weight:500;">No hay alumnos en esta etapa.</span>`;
                 } else {
-                    trayContent.innerHTML = nodeData.map(al => `
-                        <div class="tray-chip" style="position:relative; padding-right:30px;">
-                            <span class="tray-chip-name" onclick="window.abrirEditarDesdeTray('${al.id}')">👤 ${al.nombre}</span>
-                            <div class="alumno-actions" style="position:absolute; right:4px; top:50%; transform:translateY(-50%);">
-                                <button type="button" class="btn-row-action" style="padding:2px 4px; font-size:1em;">⋮</button>
-                                <div class="dropdown-menu-wrapper" style="bottom:100%; top:auto; right:0; padding-bottom:8px; padding-top:0;">
-                                    <div class="dropdown-menu">${generarBotonesAccion(al, al.id)}</div>
+                    trayContent.innerHTML = nodeData.map(al => {
+                        let details = [];
+                        if(al.edad) details.push(`${al.edad}a`);
+                        let instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento;
+                        if(instStr) details.push(`<strong style="color:var(--accent-teal)">${instStr}</strong>`);
+                        if(al.reserva_profe_nombre) details.push(`Profe: ${al.reserva_profe_nombre}`);
+                        if(al.grupo_asignado) details.push(`Grupo: ${al.grupo_asignado}`);
+                        if(al.reserva_fecha_texto) details.push(`Entrevista: ${al.reserva_fecha_texto}`);
+                        if(al.fecha_inicio_clases) { const f = new Date(al.fecha_inicio_clases); details.push(`Alta: ${f.getDate()}/${f.getMonth()+1}`); }
+                        
+                        let detailsHtml = details.length > 0 ? `<div style="font-size:11px; color:var(--text-muted); line-height:1.4; display:flex; flex-wrap:wrap; gap:4px; row-gap:2px;"><span>${details.join('</span><span style="opacity:0.5">•</span><span>')}</span></div>` : '';
+                        
+                        return `
+                        <div class="tray-chip">
+                            <div class="tray-chip-header">
+                                <span class="tray-chip-name" style="font-size:13.5px; font-weight:700; color:var(--text-main);" onclick="window.abrirEditarDesdeTray('${al.id}')">👤 ${al.nombre}</span>
+                                <div class="alumno-actions" style="position:relative;">
+                                    <button type="button" class="btn-row-action" style="padding:2px 4px; font-size:1.1em; color:var(--text-light);">⋮</button>
+                                    <div class="dropdown-menu-wrapper" style="bottom:100%; top:auto; right:0; padding-bottom:8px; padding-top:0;">
+                                        <div class="dropdown-menu">${generarBotonesAccion(al, al.id)}</div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>`).join('');
+                            ${detailsHtml}
+                        </div>`;
+                    }).join('');
                 }
                 trayContainer.style.display = 'block';
             }
@@ -588,7 +602,7 @@ async function cargarVista(vista) {
     vResumen.style.display = 'none'; if(vResumenTime) vResumenTime.style.display = 'none'; contLista.style.display = 'none'; contEstad.style.display = 'none'; cv.style.display = 'none';
 
     if (vista.includes('-') || vista === 'Lista de Espera') { cv.style.display = 'flex'; renderFiltrosChips(); document.getElementById('search-container-general').style.display = 'block'; }
-    if (vista === 'Resumen') {
+    if (vista === 'Dashboard') {
         document.getElementById('search-container-general').style.display = 'block'; vResumen.style.display = 'flex'; if(vResumenTime) vResumenTime.style.display = 'flex'; cv.style.display = 'none';
         
         const trayContainer = document.getElementById('timeline-tray-container');
@@ -735,7 +749,7 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById('login-container').style.display = 'none'; document.getElementById('app-container').style.display = 'flex'; 
         const userInfoBox = document.getElementById('user-info'); userInfoBox.textContent = user.email; 
         if (userInfoBox && !document.getElementById('version-tag')) { userInfoBox.insertAdjacentHTML('afterend', `<div id="version-tag" style="font-size:0.85em; color:var(--accent-teal); margin-top:5px; font-weight:700; padding:0 10px;">${APP_VERSION}</div>`); }
-        await cargarConfig(); cargarVista('Resumen'); 
+        await cargarConfig(); cargarVista('Dashboard'); 
     } else { 
         document.getElementById('login-container').style.display = 'flex'; document.getElementById('app-container').style.display = 'none'; 
     } 
@@ -750,7 +764,7 @@ document.addEventListener('change', async (e) => {
             const docRef = doc(db, "alumnos", id), alDoc = await getDoc(docRef), al = alDoc.data();
             let checks = al.checklist_alta || [false, false, false, false, false]; checks[idx] = e.target.checked;
             await updateDoc(docRef, { checklist_alta: checks });
-            if (checks.filter(Boolean).length === 5 && (estadoActualVista === 'Resumen' || estadoActualVista === 'Altas - Pendientes') && (al.estado_agenda === 'Alta Efectiva' || al.estado_agenda === 'Alta Ilegal')) { setTimeout(() => { cargarVista(estadoActualVista); }, 1000); }
+            if (checks.filter(Boolean).length === 5 && (estadoActualVista === 'Dashboard' || estadoActualVista === 'Altas - Pendientes') && (al.estado_agenda === 'Alta Efectiva' || al.estado_agenda === 'Alta Ilegal')) { setTimeout(() => { cargarVista(estadoActualVista); }, 1000); }
         } catch(err) {}
     }
 });
@@ -827,7 +841,7 @@ async function llenarFormularioAlumno(id) {
         accionesCont.style.display = 'block';
         accionesCont.innerHTML = `
             <button type="button" style="background:var(--accent-teal); color:white; border:none; padding:8px 14px; border-radius:8px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">Acciones ⋮</button>
-            <div class="dropdown-menu-wrapper" style="top:100%; right:0;">
+            <div class="dropdown-menu-wrapper" style="top:100%; left:0;">
                 <div class="dropdown-menu">${generarBotonesAccion(d, id)}</div>
             </div>
         `;
@@ -883,7 +897,7 @@ async function cargarABM(coleccion, titulo, cont) {
         setTimeout(() => { syncSelectToChips('input-skills-abm', 'chips-skills-abm'); }, 100);
     }
 
-    document.getElementById('btn-guardar-abm').addEventListener('click', async (e) => { 
+    document.getElementById('btn-guardar-abm').addEventListener('click', async () => { 
         const n = document.getElementById('input-nuevo-abm').value.trim(); 
         if(!n) return; 
         const dO = coleccion === 'usuarios_sistema' ? { email: n.toLowerCase() } : { nombre: n }; 
