@@ -2,12 +2,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-// === VERSIONADO DE LA APLICACIÓN ===
 const APP_VERSION = "v2.0";
-
-// === ATENCIÓN: URL DEL SCRIPT DE GOOGLE ===
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
-// ====================================================
 
 const firebaseConfig = {
     apiKey: "AIzaSyCgAg2EwTJh4zbMdpkqG3VKTGfDeofblyg",
@@ -23,7 +19,6 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
-// ESTADO DE FILTROS Y AGRUPADORES
 let agrupadorActual = 'ninguno';
 let filtroChipActual = 'Todos';
 
@@ -52,7 +47,6 @@ function renderFiltrosChips() {
     });
 }
 
-// BLOQUEO ANTI-DOBLE-CLIC (UX Móvil)
 function setBotonCargando(btn, cargando) {
     if (!btn) return;
     if (cargando) {
@@ -69,7 +63,6 @@ function setBotonCargando(btn, cargando) {
     }
 }
 
-// CONVERTIR SELECTS A CHIPS (UX Móvil)
 function syncSelectToChips(selectId, containerId) {
     const select = document.getElementById(selectId);
     if (!select) return;
@@ -121,14 +114,8 @@ function syncSelectToChips(selectId, containerId) {
     });
 }
 
-// LOGIN
 async function conectarGoogle() { 
-    try { 
-        await signInWithPopup(auth, provider); 
-    } catch (err) { 
-        console.error("Error en login:", err); 
-        alert("Error al intentar iniciar sesión."); 
-    } 
+    try { await signInWithPopup(auth, provider); } catch (err) { alert("Error al intentar iniciar sesión."); } 
 }
 
 window.alert = function(msg) {
@@ -146,8 +133,7 @@ let estadoActualVista = 'Resumen';
 window.tituloABMActual = '';
 let configApp = {};
 let chartAdmGestionesInst = null, chartAdmGlobalInst = null, chartAltasGlobalInst = null;
-let clipboardDisponibilidad = null; 
-let clipboardDisponibilidadProfe = null; 
+let clipboardDisponibilidad = null, clipboardDisponibilidadProfe = null; 
 let historialActual = []; 
 
 let nodoAdmActivo = 'Pendiente procesar';
@@ -177,9 +163,9 @@ const diasSemana = [{ id:'L',nombre:'Lunes'}, {id:'M',nombre:'Martes'}, {id:'X',
 const contDisp = document.getElementById('contenedor-disponibilidad'), contDispProfe = document.getElementById('contenedor-disponibilidad-profe');
 
 diasSemana.forEach(dia => {
-    contDisp.innerHTML += `<div class="dia-disponibilidad"><label style="margin:0;">${dia.nombre}:</label><input type="time" id="disp-${dia.id}-inicio" class="modern-input" style="width:auto; padding:6px 10px;"> <span>a</span> <input type="time" id="disp-${dia.id}-fin" class="modern-input" style="width:auto; padding:6px 10px;"><label style="font-weight:normal; width:auto; margin-left:10px; cursor:pointer; text-transform:none;"><input type="checkbox" id="disp-${dia.id}-all"> Todo el día</label><label style="font-weight:normal; width:auto; margin-left:10px; cursor:pointer; text-transform:none;"><input type="checkbox" id="disp-${dia.id}-none"> No disp.</label><button type="button" class="btn-copy-disp" data-dia="${dia.id}" style="background:none; border:none; cursor:pointer; font-size:1.1em; margin-left:auto;">📋</button><button type="button" class="btn-paste-disp" data-dia="${dia.id}" style="background:none; border:none; cursor:pointer; font-size:1.1em;">📥</button><span id="estado-${dia.id}" class="estado-disp" style="width:80px; text-align:right;"></span></div>`;
+    contDisp.innerHTML += `<div class="dia-disponibilidad" style="display:flex; align-items:center; gap:8px; margin-bottom:8px;"><label style="margin:0;">${dia.nombre}:</label><input type="time" id="disp-${dia.id}-inicio" class="modern-input" style="width:auto; padding:6px 10px;"> <span>a</span> <input type="time" id="disp-${dia.id}-fin" class="modern-input" style="width:auto; padding:6px 10px;"><label style="font-weight:normal; width:auto; margin-left:10px; cursor:pointer; text-transform:none;"><input type="checkbox" id="disp-${dia.id}-all"> Todo el día</label><label style="font-weight:normal; width:auto; margin-left:10px; cursor:pointer; text-transform:none;"><input type="checkbox" id="disp-${dia.id}-none"> No disp.</label><button type="button" class="btn-copy-disp" data-dia="${dia.id}" style="background:none; border:none; cursor:pointer; font-size:1.1em; margin-left:auto;">📋</button><button type="button" class="btn-paste-disp" data-dia="${dia.id}" style="background:none; border:none; cursor:pointer; font-size:1.1em;">📥</button><span id="estado-${dia.id}" class="estado-disp" style="width:80px; text-align:right;"></span></div>`;
     if(contDispProfe) {
-        contDispProfe.innerHTML += `<div class="dia-disponibilidad"><label style="margin:0;">${dia.nombre}:</label><input type="time" id="disp-p-${dia.id}-inicio" class="modern-input" style="width:auto; padding:6px 10px;"> <span>a</span> <input type="time" id="disp-p-${dia.id}-fin" class="modern-input" style="width:auto; padding:6px 10px;"><label style="font-weight:normal; width:auto; margin-left:10px; cursor:pointer; text-transform:none;"><input type="checkbox" id="disp-p-${dia.id}-all"> Todo el día</label><label style="font-weight:normal; width:auto; margin-left:10px; cursor:pointer; text-transform:none;"><input type="checkbox" id="disp-p-${dia.id}-none"> No disp.</label><button type="button" class="btn-copy-disp-p" data-dia="${dia.id}" style="background:none; border:none; cursor:pointer; font-size:1.1em; margin-left:auto;">📋</button><button type="button" class="btn-paste-disp-p" data-dia="${dia.id}" style="background:none; border:none; cursor:pointer; font-size:1.1em;">📥</button><span id="estado-p-${dia.id}" class="estado-disp" style="width:80px; text-align:right;"></span></div>`;
+        contDispProfe.innerHTML += `<div class="dia-disponibilidad" style="display:flex; align-items:center; gap:8px; margin-bottom:8px;"><label style="margin:0;">${dia.nombre}:</label><input type="time" id="disp-p-${dia.id}-inicio" class="modern-input" style="width:auto; padding:6px 10px;"> <span>a</span> <input type="time" id="disp-p-${dia.id}-fin" class="modern-input" style="width:auto; padding:6px 10px;"><label style="font-weight:normal; width:auto; margin-left:10px; cursor:pointer; text-transform:none;"><input type="checkbox" id="disp-p-${dia.id}-all"> Todo el día</label><label style="font-weight:normal; width:auto; margin-left:10px; cursor:pointer; text-transform:none;"><input type="checkbox" id="disp-p-${dia.id}-none"> No disp.</label><button type="button" class="btn-copy-disp-p" data-dia="${dia.id}" style="background:none; border:none; cursor:pointer; font-size:1.1em; margin-left:auto;">📋</button><button type="button" class="btn-paste-disp-p" data-dia="${dia.id}" style="background:none; border:none; cursor:pointer; font-size:1.1em;">📥</button><span id="estado-p-${dia.id}" class="estado-disp" style="width:80px; text-align:right;"></span></div>`;
     }
 });
 
@@ -200,7 +186,6 @@ diasSemana.forEach(dia => {
     document.getElementById(`disp-p-${dia.id}-none`)?.addEventListener('change', () => window.updateDispStateForDay(dia.id, true));
 });
 
-// NAVEGACIÓN PESTAÑAS
 document.addEventListener('click', (e) => {
     if(e.target.classList.contains('tab-btn')) {
         e.preventDefault();
@@ -370,7 +355,7 @@ function generarBotonesAccion(al, id) {
         accionesHtml += `<button type="button" class="dropdown-item btn-recuperar-agenda" data-id="${id}">♻️ Recuperar Agenda</button>`;
     }
     else if (al.estado_agenda === 'Lista de espera') {
-        // En etapa 4 cambiaremos esto para agrupar, por ahora mantenemos el flujo directo
+        // En etapa 4 cambiaremos esto para agrupar
     }
     else if (al.estado_agenda === 'Pre-alta Pendiente') {
         accionesHtml += `<button type="button" class="dropdown-item btn-abrir-prealta" data-id="${id}">⚙️ Iniciar Pre-Alta</button>`;
@@ -408,7 +393,7 @@ function generarFilaAlumno(al, id, vista) {
     let instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento;
     let suscStr = al.tipo_suscripcion || ''; let nivelStr = al.nivel || 'S/N'; let cel = al.celular || ''; let edad = al.edad ? al.edad + 'a' : '-';
 
-   let dispHtml = '<div class="row-disp-grid">';
+    let dispHtml = '<div class="row-disp-grid">';
     diasSemana.forEach(d => {
         let tiene = al.disponibilidad && al.disponibilidad[d.id] && al.disponibilidad[d.id].length > 0, txt = '-';
         if (tiene) { 
@@ -437,7 +422,7 @@ function generarFilaAlumno(al, id, vista) {
     }
 
     let accionesHtml = generarBotonesAccion(al, id), menuAcciones = '';
-    if (accionesHtml) menuAcciones = `<div class="alumno-actions" style="position:relative;"><button type="button" class="btn-row-action">⋮</button><div class="dropdown-menu-wrapper" style="right:0;"><div class="dropdown-menu">${accionesHtml}</div></div></div>`;
+    if (accionesHtml) menuAcciones = `<div class="alumno-actions"><button type="button" class="btn-row-action">⋮</button><div class="dropdown-menu-wrapper"><div class="dropdown-menu">${accionesHtml}</div></div></div>`;
 
     return `
         <div class="row-item" data-id="${id}">
@@ -518,16 +503,17 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
 
 async function cargarVista(vista) {
     estadoActualVista = vista; document.getElementById('vista-titulo').textContent = vista.includes('-') ? vista.split('-')[1].trim() : vista;
-    const vResumen = document.getElementById('vista-resumen'), contLista = document.getElementById('lista-generica'), contEstad = document.getElementById('estadisticas-container');
-    const formWrapper = document.getElementById('form-alumno-wrapper'), cv = document.getElementById('controles-vista');
+    
+    const vResumen = document.getElementById('vista-resumen'), vResumenTime = document.getElementById('vista-resumen-timeline'), contLista = document.getElementById('lista-generica'), contEstad = document.getElementById('estadisticas-container');
+    const formWrapper = document.getElementById('form-alumno-wrapper'), cv = document.getElementById('controles-vista'), timelineVista = document.getElementById('timeline-vista');
     if (formWrapper) { formWrapper.style.display = 'none'; document.getElementById('modal-alta-alumno').appendChild(formWrapper); }
     
     document.getElementById('btn-carga-masiva').style.display = 'none'; document.getElementById('search-container-general').style.display = 'none';
-    vResumen.style.display = 'none'; contLista.style.display = 'none'; contEstad.style.display = 'none'; cv.style.display = 'none';
+    vResumen.style.display = 'none'; if(vResumenTime) vResumenTime.style.display = 'none'; contLista.style.display = 'none'; contEstad.style.display = 'none'; cv.style.display = 'none'; if(timelineVista) timelineVista.style.display = 'none';
 
     if (vista.includes('-') || vista === 'Lista de Espera') { cv.style.display = 'flex'; renderFiltrosChips(); document.getElementById('search-container-general').style.display = 'block'; }
     if (vista === 'Resumen') {
-        document.getElementById('search-container-general').style.display = 'block'; vResumen.style.display = 'flex'; cv.style.display = 'none';
+        document.getElementById('search-container-general').style.display = 'block'; vResumen.style.display = 'flex'; if(vResumenTime) vResumenTime.style.display = 'flex'; cv.style.display = 'none';
         try {
             const qSnap = await getDocs(collection(db, "alumnos")); let allData = []; qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
             let urgencies = []; allData.forEach(al => { let dateToEval = null; if ((al.estado_agenda === 'Pendiente validación por profe' || al.estado_agenda === 'Pendiente validación por alumno' || al.estado_agenda === 'Agenda confirmada') && al.reserva_inicio) { dateToEval = new Date(al.reserva_inicio); } else if (al.estado_agenda === 'Pre-alta Iniciada' && al.fecha_inicio_clases) { dateToEval = new Date(al.fecha_inicio_clases); } if (dateToEval && !isNaN(dateToEval.getTime())) { let diffHs = (dateToEval - new Date()) / (1000 * 60 * 60); if (diffHs <= 72) urgencies.push(al); } });
@@ -537,22 +523,24 @@ async function cargarVista(vista) {
             renderTimeline('timeline-resumen-altas', configNodosAltas, allData, nodoAltasActivo, 'altas');
             contLista.style.display = 'flex'; renderListaFilas('lista-generica', allData, nodoAdmActivo, configNodosAdm);
         } catch(e) {}
-    } else if (vista === 'Admisión - Pendientes' || vista === 'Altas - Pendientes') {
-        const isAdm = vista === 'Admisión - Pendientes';
+    } else if (vista === 'Inbox - Pendientes' || vista === 'Altas - Pendientes') {
+        const isAdm = vista === 'Inbox - Pendientes';
         document.getElementById('btn-carga-masiva').style.display = isAdm ? 'block' : 'none'; contLista.style.display = 'flex';
+        if(timelineVista) timelineVista.style.display = 'block';
         try {
             const qSnap = await getDocs(collection(db, "alumnos")); let allData = []; qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
             let nodos = isAdm ? configNodosAdm : configNodosAltas; let stId = isAdm ? nodoAdmActivo : nodoAltasActivo;
+            renderTimeline('timeline-vista', nodos, allData, stId, isAdm ? 'adm' : 'altas');
             renderListaFilas('lista-generica', allData, stId, nodos);
         } catch(e) {}
-    } else if (vista === 'Admisión - Confirmadas' || vista === 'Admisión - Suspendidas' || vista === 'Altas - Confirmadas' || vista === 'Altas - Suspendidas' || vista === 'Lista de Espera') {
+    } else if (vista === 'Inbox - Confirmadas' || vista === 'Inbox - Suspendidas' || vista === 'Altas - Confirmadas' || vista === 'Altas - Suspendidas' || vista === 'Lista de Espera') {
         contLista.style.display = 'flex';
         try { 
             let estQuery = vista;
-            if(vista === 'Admisión - Confirmadas') estQuery = 'Agenda confirmada';
-            else if(vista === 'Admisión - Suspendidas') estQuery = 'Agenda suspendida';
+            if(vista === 'Inbox - Confirmadas') estQuery = 'Agenda confirmada';
+            else if(vista === 'Inbox - Suspendidas') estQuery = 'Agenda suspendida';
             else if(vista === 'Lista de Espera') estQuery = 'Lista de espera';
-            else if(vista === 'Altas - Confirmadas') estQuery = 'Alta Efectiva'; // simplificado
+            else if(vista === 'Altas - Confirmadas') estQuery = 'Alta Efectiva';
             else if(vista === 'Altas - Suspendidas') estQuery = 'Alta Suspendida';
             
             const qSnap = await getDocs(collection(db, "alumnos")); let allData = [];
@@ -678,7 +666,7 @@ document.addEventListener('click', async (e) => {
     if (target.classList.contains('btn-cancelar-reserva')) { const motivo = prompt("¿Estás seguro de cancelar? Se eliminará en Calendar.\nIngresa motivo para historial:"); if (motivo !== null) { if (motivo.trim() === "") return alert("Debes ingresar motivo."); const id = target.getAttribute('data-id'); try { const alDoc = await getDoc(doc(db, "alumnos", id)); const alData = alDoc.data(); if (alData.id_evento_reserva) await eliminarEventoSeguro(alData); const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`; const hist = alData.historial || []; hist.push({ id: Date.now(), texto: `Reserva cancelada. Motivo: ${motivo.trim()}`, fecha: fechaStr }); const data = await generarTextoConHistorial(id, 'texto_cancela_alumno'); if (data.al.estado_agenda === 'Pendiente validación por alumno' || data.al.estado_agenda === 'Agenda confirmada') { await navigator.clipboard.writeText(data.txt); alert("Cancelada. Texto CANCELACIÓN copiado."); } await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente procesar", reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null, opciones_propuestas: null, historial: hist }); cargarVista(estadoActualVista); } catch(e) { alert("❌ Error:\n\n" + e.message); } } return; }
 
     if (target.classList.contains('btn-abrir-suspender')) { document.getElementById('susp-alumno-id').value = target.getAttribute('data-id'); document.getElementById('susp-motivo').value = ""; document.getElementById('modal-suspender').showModal(); return; }
-    if (target.id === 'btn-guardar-suspension') { const id = document.getElementById('susp-alumno-id').value, mtv = document.getElementById('susp-motivo').value; if(!mtv) return alert("Seleccione motivo"); setBotonCargando(target, true); try { const al = (await getDoc(doc(db, "alumnos", id))).data(); if (al.id_evento_reserva) await eliminarEventoSeguro(al); const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`, hist = al.historial || []; hist.push({ id: Date.now(), texto: `Suspendido. Motivo: ${mtv}`, fecha: fechaStr }); await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Agenda suspendida", motivo_suspension: mtv, reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null, historial: hist }); document.getElementById('modal-suspender').close(); cargarVista(estadoActualVista); } catch(err){ alert("❌ Error:\n\n" + err.message); } setBotonCargando(target, false); return;}
+    if (target.id === 'btn-guardar-suspension') { const id = document.getElementById('susp-alumno-id').value, mtv = document.getElementById('susp-motivo').value; if(!mtv) return alert("Seleccione motivo"); setBotonCargando(target, true); try { const al = (await getDoc(doc(db, "alumnos", id))).data(); if (al.id_evento_reserva) await eliminarEventoSeguro(al); const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`; const hist = alData.historial || []; hist.push({ id: Date.now(), texto: `Suspendido. Motivo: ${mtv}`, fecha: fechaStr }); await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Agenda suspendida", motivo_suspension: mtv, reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null, historial: hist }); document.getElementById('modal-suspender').close(); cargarVista(estadoActualVista); } catch(err){ alert("❌ Error:\n\n" + err.message); } setBotonCargando(target, false); return;}
     if (target.classList.contains('btn-recuperar-agenda')) { await updateDoc(doc(db, "alumnos", target.getAttribute('data-id')), { estado_agenda: "Pendiente procesar", motivo_suspension: null }); cargarVista(estadoActualVista); return; }
     if (target.classList.contains('btn-cerrar-modal')) { document.getElementById(target.getAttribute('data-modal')).close(); return; }
     
