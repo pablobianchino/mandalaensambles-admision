@@ -4,8 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Mandala Seguimientos</title>
+    
+    <!-- ETIQUETAS PWA -->
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#343a40">
+    <meta name="theme-color" content="#ffffff">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
@@ -15,7 +19,7 @@
 <body>
     <div id="login-container">
         <div class="login-card">
-            <h2 style="font-size:1.4em; font-weight:700; margin:0 0 25px 0; color:#212529; text-align:center;">Mandala Ensambles<br>Seguimientos</h2>
+            <h2 style="font-size:1.4em; font-weight:700; margin:0 0 25px 0; color:#212529; text-align:center;">Mandala Ensambles Seguimientos</h2>
             <button id="btn-login" class="btn-google-login">
                 <span style="display:flex; align-items:center; margin-right:12px;">
                     <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
@@ -25,18 +29,16 @@
         </div>
     </div>
 
-    <!-- Menú Superior para Celulares -->
-    <div id="mobile-topbar" style="display:none;">
-        <h2 style="margin:0; font-size:1.1em; color:#fff;">Mandala Seguimientos</h2>
-        <button id="btn-mobile-menu" style="background:none; border:none; color:#fff; font-size:1.5em; cursor:pointer;">☰</button>
-    </div>
-
-    <div id="sidebar-overlay" style="display:none;"></div>
+    <!-- CORTINA MÓVIL (Fondo oscuro al abrir menú) -->
+    <div id="mobile-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:900;"></div>
 
     <div id="app-container" style="display: none; width: 100%;">
         <nav id="sidebar">
-            <h2 class="sidebar-desktop-title" style="font-size:1.2em; font-weight:700; margin-bottom:0; color:#212529;">Mandala Ensambles</h2>
-            <p class="sidebar-desktop-title" style="font-size:0.85em; color:#6c757d; margin-top:5px; margin-bottom:20px;">Seguimiento de nuevos alumnos</p>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h2 style="font-size:1.2em; font-weight:700; margin-bottom:0; color:#212529;">Mandala Ensambles</h2>
+                <button id="btn-cerrar-menu-mobile" style="display:none; background:none; border:none; font-size:1.5em; cursor:pointer;">&times;</button>
+            </div>
+            <p style="font-size:0.85em; color:#6c757d; margin-top:5px; margin-bottom:20px;">Seguimiento de nuevos alumnos</p>
             
             <ul class="nav flex-column" style="list-style:none; padding:0; margin:0;">
                 <li class="nav-item active" data-vista="Resumen"><span style="filter: grayscale(100%); margin-right:8px;">📋</span> Resumen</li>
@@ -59,21 +61,24 @@
 
             <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid #dee2e6; display:flex; flex-direction:column; gap:10px;">
                 <div id="user-info" style="font-size: 0.85em; color: #6c757d; word-break: break-all;"></div>
-                <div id="version-display" style="font-size: 0.75em; color: #adb5bd; font-weight:bold;"></div>
                 <button id="btn-logout" style="background:transparent; color:#dc3545; border:1px solid #dc3545; padding:8px; border-radius:4px; cursor:pointer; font-size:0.9em; font-weight:600;">Cerrar sesión</button>
             </div>
         </nav>
 
         <main id="main-content">
             <div id="breadcrumb-container" style="margin-bottom:5px; font-size:0.9em; color:#6c757d; min-height:18px;"></div>
-            <div class="action-bar-top" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
-                <h1 id="vista-titulo" style="margin:0; font-size:1.5em; color:#212529;">Resumen</h1>
-                <div class="top-actions-wrapper" style="display:flex; gap:10px; flex-wrap:wrap;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <!-- BOTÓN MENÚ HAMBURGUESA -->
+                    <button id="btn-mobile-menu" style="display:none; background:none; border:none; font-size:1.5em; cursor:pointer; padding:0;">☰</button>
+                    <h1 id="vista-titulo" style="margin:0; font-size:1.5em; color:#212529;">Resumen</h1>
+                </div>
+                <div style="display:flex; gap:10px; width:auto; flex-wrap:wrap;">
                     <div id="search-container-general" style="display:none; position:relative; flex-grow:1;">
-                        <input type="text" id="input-buscador-general" placeholder="Buscar alumno..." style="padding:8px 12px; border:1px solid #ced4da; border-radius:6px; outline:none; width:100%;">
+                        <input type="text" id="input-buscador-general" placeholder="Buscar por nombre..." style="padding:8px 12px; border:1px solid #ced4da; border-radius:6px; outline:none; width:100%; box-sizing:border-box;">
                     </div>
-                    <button id="btn-nuevo-alumno" class="btn-accion-main" style="display:none; white-space:nowrap;">+ Nuevo</button>
-                    <button id="btn-carga-masiva" style="display:none; background:#6c757d; color:white; border:none; border-radius:6px; padding:8px 15px; cursor:pointer; font-weight:600;">CSV</button>
+                    <button id="btn-nuevo-alumno" class="btn-accion-main" style="display:none;">+ Nuevo Alumno</button>
+                    <button id="btn-carga-masiva" style="display:none; background:#6c757d; color:white; border:none; border-radius:6px; padding:0 15px; cursor:pointer; font-weight:600;">Subir CSV</button>
                     <input type="file" id="input-csv" accept=".csv" style="display:none;">
                 </div>
             </div>
@@ -117,33 +122,35 @@
         </main>
     </div>
 
-    <!-- MODAL ALTA/EDICIÓN ALUMNO (AHORA CON PESTAÑAS) -->
-    <dialog id="modal-alta-alumno" class="modal-responsive">
-        <div id="form-alumno-wrapper" class="modal-content-wrapper">
-            <div class="modal-header">
+    <!-- MODAL ALTA/EDICIÓN ALUMNO CON PESTAÑAS (Móvil UX) -->
+    <dialog id="modal-alta-alumno" style="width: 95%; max-width: 800px; max-height: 95vh; overflow-y: auto; border: none; border-radius: 8px; padding: 0; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+        <div id="form-alumno-wrapper" style="padding: 20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #dee2e6; padding-bottom:10px;">
                 <h2 id="form-titulo" style="margin:0; font-size:1.3em;">Nuevo Alumno</h2>
-                <button type="button" id="btn-cerrar-alumno" class="btn-close-modal">&times;</button>
+                <button type="button" id="btn-cerrar-alumno" style="background:transparent; border:none; cursor:pointer; font-size:1.5em; color:#6c757d;">&times;</button>
             </div>
             
-            <div class="tabs-header">
-                <button type="button" class="tab-btn active" data-target="tab-datos">Datos</button>
-                <button type="button" class="tab-btn" data-target="tab-disp">Disponibilidad</button>
-                <button type="button" class="tab-btn" data-target="tab-historial">Historial</button>
+            <!-- CONTROLES DE PESTAÑAS (TABS) -->
+            <div style="display:flex; gap:10px; border-bottom:1px solid #dee2e6; margin-bottom:20px; overflow-x:auto;">
+                <button type="button" class="tab-btn active" data-target="tab-datos" style="padding:8px 12px; background:none; border:none; border-bottom:2px solid #007bff; color:#007bff; font-weight:600; cursor:pointer; white-space:nowrap;">📝 Datos</button>
+                <button type="button" class="tab-btn" data-target="tab-disp" style="padding:8px 12px; background:none; border:none; color:#6c757d; font-weight:600; cursor:pointer; white-space:nowrap;">🕒 Disponibilidad</button>
+                <button type="button" class="tab-btn" data-target="tab-historial" style="padding:8px 12px; background:none; border:none; color:#6c757d; font-weight:600; cursor:pointer; white-space:nowrap;">📚 Historial</button>
             </div>
 
-            <form id="form-alumno" class="modal-body-scroll">
+            <form id="form-alumno" style="display:flex; flex-direction:column; gap:15px;">
                 <input type="hidden" id="alumno-id">
                 
-                <!-- PESTAÑA 1: DATOS -->
-                <div id="tab-datos" class="tab-content active">
+                <!-- PESTAÑA 1: DATOS PERSONALES -->
+                <div id="tab-datos" class="tab-content" style="display:block;">
                     <label>Nombre Completo * <input type="text" id="nombre" required></label>
                     <label>Celular * <input type="text" id="celular" required></label>
                     <label>Edad <input type="number" id="edad"></label>
-                    
-                    <label style="margin-top:15px; margin-bottom:5px;">Instrumentos *</label>
-                    <div id="contenedor-instrumentos" class="chips-container" style="margin-bottom:15px;"></div>
-                    
                     <label>Suscripción * <select id="tipo_suscripcion" required></select></label>
+                    
+                    <label>Instrumentos * 
+                        <!-- El select nativo está oculto para usar Chips -->
+                        <select id="instrumento" multiple required style="display:none;"></select>
+                    </label>
                     
                     <div id="bloque-info-alta" style="display:none; margin-top:20px;">
                         <h3 style="font-size:1.1em; color:#495057; border-bottom:1px solid #e9ecef; padding-bottom:5px;">Información de Alta</h3>
@@ -157,179 +164,174 @@
 
                 <!-- PESTAÑA 2: DISPONIBILIDAD -->
                 <div id="tab-disp" class="tab-content" style="display:none;">
-                    <div id="contenedor-disponibilidad" style="display:flex; flex-direction:column; gap:8px;"></div>
+                    <h3 style="font-size:1em; color:#495057; margin-top:0;">Configurar Horarios</h3>
+                    <div id="contenedor-disponibilidad" style="display:flex; flex-direction:column; gap:10px;"></div>
                 </div>
 
-                <!-- PESTAÑA 3: HISTORIAL & NOTAS -->
+                <!-- PESTAÑA 3: HISTORIAL -->
                 <div id="tab-historial" class="tab-content" style="display:none;">
-                    <h3 style="font-size:1.1em; color:#495057; border-bottom:1px solid #e9ecef; padding-bottom:5px; margin-top:0;">Detalle / Entrevista</h3>
+                    <h3 style="font-size:1em; color:#495057; margin-top:0;">Detalle / Info para Entrevista</h3>
                     <div id="editor-container" style="height: 120px; background:white; margin-bottom:20px;"></div>
                     
-                    <h3 style="font-size:1.1em; color:#495057; border-bottom:1px solid #e9ecef; padding-bottom:5px;">Registro Histórico</h3>
+                    <h3 style="font-size:1em; color:#495057;">Historial de Notas</h3>
                     <div id="lista-historial" style="display:flex; flex-direction:column; gap:10px; max-height:200px; overflow-y:auto; padding-right:5px;"></div>
                 </div>
 
-                <!-- STICKY FOOTER -->
-                <div class="modal-sticky-footer">
-                    <label id="container-ingreso-directo" style="margin:0; cursor:pointer; font-weight:600; color:#28a745; display:flex; align-items:center; gap:8px; font-size:0.85em;">
+                <!-- BOTTOM FIXED ACTION BAR -->
+                <div style="display:flex; flex-direction:column; gap:15px; border-top:1px solid #dee2e6; padding-top:15px; margin-top:10px; position:sticky; bottom:0; background:white; padding-bottom:10px;">
+                    <label id="container-ingreso-directo" style="margin:0; cursor:pointer; font-weight:600; color:#28a745; display:flex; align-items:center; gap:8px;">
                         <input type="checkbox" id="chk-ingreso-directo" style="width:18px; height:18px; margin:0;">
-                        Omitir Entrevista (Ir a Espera)
+                        Ingreso directo a Lista de Espera (Omitir entrevista)
                     </label>
-                    <button type="submit" id="btn-submit-alumno" class="btn-accion-main" style="padding: 10px 25px; font-size:1em; width:auto; flex-shrink:0;">Guardar</button>
+                    <button type="submit" class="btn-accion-main" style="padding: 12px 25px; font-size:1.1em; width:100%;">Guardar Alumno</button>
                 </div>
             </form>
         </div>
     </dialog>
 
     <!-- MODAL BUSCAR AGENDA MÚLTIPLE -->
-    <dialog id="modal-agenda" class="modal-responsive">
-        <div class="modal-content-wrapper">
-            <div class="modal-header">
-                <h3 style="margin:0; color:#212529; font-size:1.2em;">Buscar Disponibilidad</h3>
-                <button type="button" class="btn-close-modal btn-cerrar-modal" data-modal="modal-agenda">&times;</button>
-            </div>
-            <div class="modal-body-scroll">
-                <div id="info-alumno-agenda" style="margin-bottom:15px; padding:15px; background:#e9ecef; border-radius:8px; display:none; border:1px solid #ced4da;"></div>
-                <div style="margin-bottom: 15px; padding: 15px; background: #f8f9fa; border:1px solid #ced4da; border-radius: 8px; display:flex; gap:15px; align-items:flex-start; flex-wrap:wrap;">
-                    <div style="flex:1; min-width:120px;">
-                        <label style="display:block; font-size:0.85em; font-weight:600; margin-bottom:5px; color:#495057;">Desde:</label>
-                        <input type="date" id="agenda-start" required style="height:38px;">
-                    </div>
-                    <div style="flex:1; min-width:120px;">
-                        <label style="display:block; font-size:0.85em; font-weight:600; margin-bottom:5px; color:#495057;">Hasta:</label>
-                        <input type="date" id="agenda-end" required style="height:38px;">
-                    </div>
-                    <div style="width:100%; margin-top:10px;">
-                        <label style="display:block; font-size:0.85em; font-weight:600; margin-bottom:5px; color:#495057;">Filtrar Profesor(es):</label>
-                        <div id="contenedor-filtro-profes" class="chips-container" style="max-height:100px; overflow-y:auto; border:1px solid #ced4da; padding:10px; border-radius:6px; background:white;"></div>
-                    </div>
-                    <button id="btn-ejecutar-busqueda" class="btn-accion-main" style="height:38px; margin-top:5px; width:100%;">Buscar</button>
+    <dialog id="modal-agenda" style="width: 95%; max-width: 600px;">
+        <h3 style="margin-top:0; color:#212529; font-size:1.2em;">Buscar Disponibilidad</h3>
+        <div id="info-alumno-agenda" style="margin-bottom:15px; padding:15px; background:#e9ecef; border-radius:8px; display:none; border:1px solid #ced4da;"></div>
+        <div style="margin-bottom: 15px; padding: 15px; background: #f8f9fa; border:1px solid #ced4da; border-radius: 8px; display:flex; flex-direction:column; gap:15px;">
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1;">
+                    <label style="display:block; font-size:0.85em; font-weight:600; margin-bottom:5px;">Desde:</label>
+                    <input type="date" id="agenda-start" required style="height:38px; margin-top:0;">
                 </div>
-                <input type="text" id="input-buscador-popup" placeholder="Filtrar resultados..." style="margin-bottom: 15px; width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ced4da; box-sizing: border-box; display:none; outline:none;">
-                <div id="resultados-agenda" style="margin-bottom:15px;"></div>
+                <div style="flex:1;">
+                    <label style="display:block; font-size:0.85em; font-weight:600; margin-bottom:5px;">Hasta:</label>
+                    <input type="date" id="agenda-end" required style="height:38px; margin-top:0;">
+                </div>
             </div>
-            <div class="modal-sticky-footer">
-                <button type="button" class="btn-cerrar-modal" data-modal="modal-agenda" style="padding:8px 16px; border:none; border-radius:6px; cursor:pointer; background:#e9ecef; font-weight:600; color:#495057;">Cancelar</button>
-                <button id="btn-procesar-seleccion-agenda" class="btn-accion-main" style="display:none; padding:8px 20px;">Copiar Texto y Avanzar</button>
+            <div>
+                <label style="display:block; font-size:0.85em; font-weight:600; margin-bottom:5px;">Profesor(es):</label>
+                <!-- Select nativo oculto, convertido en chips -->
+                <select id="agenda-profe-filtro" multiple style="display:none;"></select>
             </div>
+            <button id="btn-ejecutar-busqueda" class="btn-accion-main" style="height:42px; font-size:1em;">Buscar Huecos</button>
+        </div>
+        <input type="text" id="input-buscador-popup" placeholder="Filtrar resultados..." style="margin-bottom: 15px; width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ced4da; box-sizing: border-box; display:none; outline:none;">
+        <div id="resultados-agenda" style="margin-bottom:15px; max-height:40vh; overflow-y:auto; padding-right:5px;"></div>
+        <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #ced4da; padding-top:15px; gap:10px;">
+            <button type="button" class="btn-cerrar-modal" data-modal="modal-agenda" style="padding:10px 16px; border:none; border-radius:6px; cursor:pointer; background:#e9ecef; font-weight:600; color:#495057; flex:1;">Cerrar</button>
+            <button id="btn-procesar-seleccion-agenda" class="btn-accion-main" style="display:none; padding:10px 20px; flex:2;">Copiar Texto y Avanzar</button>
         </div>
     </dialog>
 
     <!-- MODAL CONFIRMAR VALIDACIÓN PROFE -->
-    <dialog id="modal-validar-profe" class="modal-responsive-small">
-        <div class="modal-content-wrapper">
-            <div class="modal-header">
-                <h3 style="margin:0; color:#212529;">Confirmar Opción Elegida</h3>
-            </div>
-            <div class="modal-body-scroll">
-                <p style="color:#495057; font-size:0.95em;">Selecciona el horario que el profesor validó para reservar en Calendar:</p>
-                <div id="opciones-validadas-container" style="margin-bottom: 20px; background:#f8f9fa; padding:15px; border-radius:6px; border:1px solid #ced4da;"></div>
-                <input type="hidden" id="validar-profe-alumno-id">
-            </div>
-            <div class="modal-sticky-footer">
-                <button type="button" class="btn-cerrar-modal" data-modal="modal-validar-profe" style="padding:8px 16px; border:none; border-radius:6px; cursor:pointer; background:#e9ecef; font-weight:600; color:#495057;">Cancelar</button>
-                <button id="btn-confirmar-validacion-profe" class="btn-accion-main" style="padding:8px 16px;">Crear Evento</button>
-            </div>
+    <dialog id="modal-validar-profe" style="width: 90%; max-width: 500px; border: none; border-radius: 8px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+        <h3 style="margin-top:0; color:#212529;">Confirmar Opción Elegida</h3>
+        <p style="color:#495057; font-size:0.95em;">Selecciona el horario que el profesor validó para reservar en Calendar:</p>
+        <div id="opciones-validadas-container" style="margin-bottom: 20px; background:#f8f9fa; padding:15px; border-radius:6px; border:1px solid #ced4da;"></div>
+        <input type="hidden" id="validar-profe-alumno-id">
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <button type="button" class="btn-cerrar-modal" data-modal="modal-validar-profe" style="padding:10px 16px; border:none; border-radius:6px; cursor:pointer; background:#e9ecef; font-weight:600; color:#495057;">Cancelar</button>
+            <button id="btn-confirmar-validacion-profe" class="btn-accion-main" style="padding:10px 16px;">Confirmar y Crear Evento</button>
         </div>
     </dialog>
 
     <!-- MODAL INICIAR / EDITAR PRE-ALTA -->
-    <dialog id="modal-iniciar-prealta" class="modal-responsive-small">
-        <div class="modal-content-wrapper">
-            <div class="modal-header">
-                <h3 id="titulo-prealta" style="margin:0; color:#212529;">Iniciar Pre-Alta</h3>
-            </div>
-            <div class="modal-body-scroll">
-                <input type="hidden" id="prealta-alumno-id">
-                <label>Fecha y Hora de Inicio de Clases:
-                    <input type="datetime-local" id="prealta-fecha-inicio" required>
-                </label>
-                <label>Grupo:
-                    <input type="text" id="prealta-grupo" placeholder="Ej: Ensamble Martes" required>
-                </label>
-            </div>
-            <div class="modal-sticky-footer">
-                <button type="button" class="btn-cerrar-modal" data-modal="modal-iniciar-prealta" style="padding:8px 16px; border:none; border-radius:6px; cursor:pointer; background:#e9ecef; font-weight:600; color:#495057;">Cancelar</button>
-                <button id="btn-guardar-prealta" class="btn-accion-main" style="padding:8px 16px;">Avanzar</button>
-            </div>
+    <dialog id="modal-iniciar-prealta" style="width: 90%; max-width: 400px; border: none; border-radius: 8px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+        <h3 id="titulo-prealta" style="margin-top:0; color:#212529;">Iniciar Pre-Alta</h3>
+        <input type="hidden" id="prealta-alumno-id">
+        <label>Fecha y Hora de Inicio de Clases:
+            <input type="datetime-local" id="prealta-fecha-inicio" required>
+        </label>
+        <label>Grupo:
+            <input type="text" id="prealta-grupo" placeholder="Ej: Ensamble Martes" required>
+        </label>
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
+            <button type="button" class="btn-cerrar-modal" data-modal="modal-iniciar-prealta" style="padding:10px 16px; border:none; border-radius:6px; cursor:pointer; background:#e9ecef; font-weight:600; color:#495057;">Cancelar</button>
+            <button id="btn-guardar-prealta" class="btn-accion-main" style="padding:10px 16px;">Guardar y Avanzar</button>
         </div>
     </dialog>
 
     <!-- MODAL CONFIRMAR ALTA EFECTIVA/ILEGAL -->
-    <dialog id="modal-confirmar-alta" class="modal-responsive-small">
-        <div class="modal-content-wrapper">
-            <div class="modal-header">
-                <h3 style="margin:0; color:#212529;">Confirmar Alta</h3>
-            </div>
-            <div class="modal-body-scroll">
-                <input type="hidden" id="conf-alta-alumno-id">
-                <p style="color:#495057; font-size:0.95em;">Selecciona el estado final de esta Alta:</p>
-                <label style="display:block; margin-bottom:10px; cursor:pointer; padding:10px; background:#e2e3e5; border-radius:6px;"><input type="radio" name="opt-tipo-alta" value="Alta Efectiva" checked> ✅ Alta Efectiva (Todo en orden)</label>
-                <label style="display:block; margin-bottom:20px; cursor:pointer; padding:10px; background:#f8d7da; border-radius:6px;"><input type="radio" name="opt-tipo-alta" value="Alta Ilegal"> 🏴 Alta Ilegal (Comenzó sin pago formal)</label>
-            </div>
-            <div class="modal-sticky-footer">
-                <button type="button" class="btn-cerrar-modal" data-modal="modal-confirmar-alta" style="padding:8px 16px; border:none; border-radius:6px; cursor:pointer; background:#e9ecef; font-weight:600; color:#495057;">Cancelar</button>
-                <button id="btn-guardar-confirmacion-alta" class="btn-accion-main" style="padding:8px 16px;">Finalizar Alta</button>
-            </div>
+    <dialog id="modal-confirmar-alta" style="width: 90%; max-width: 400px; border: none; border-radius: 8px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+        <h3 style="margin-top:0; color:#212529;">Confirmar Alta</h3>
+        <input type="hidden" id="conf-alta-alumno-id">
+        <p style="color:#495057; font-size:0.95em;">Selecciona el estado final de esta Alta:</p>
+        <label style="display:block; margin-bottom:10px; cursor:pointer;"><input type="radio" name="opt-tipo-alta" value="Alta Efectiva" checked> ✅ Alta Efectiva (Todo en orden)</label>
+        <label style="display:block; margin-bottom:20px; cursor:pointer;"><input type="radio" name="opt-tipo-alta" value="Alta Ilegal"> 🏴 Alta Ilegal (Comenzó sin pago formal)</label>
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <button type="button" class="btn-cerrar-modal" data-modal="modal-confirmar-alta" style="padding:10px 16px; border:none; border-radius:6px; cursor:pointer; background:#e9ecef; font-weight:600; color:#495057;">Cancelar</button>
+            <button id="btn-guardar-confirmacion-alta" class="btn-accion-main" style="padding:10px 16px;">Finalizar Alta</button>
         </div>
     </dialog>
 
     <!-- MODAL SUSPENDER ALUMNO -->
-    <dialog id="modal-suspender" class="modal-responsive-small">
-        <div class="modal-content-wrapper">
-            <div class="modal-header">
-                <h3 style="margin:0; color:#212529;">Suspender Alumno</h3>
-            </div>
-            <div class="modal-body-scroll">
-                <input type="hidden" id="susp-alumno-id">
-                <label>Motivo de suspensión: 
-                    <select id="susp-motivo" required style="width:100%; padding:10px; border-radius:6px; border:1px solid #ced4da; margin-top:5px; margin-bottom:15px;">
-                        <option value="">Seleccione...</option>
-                        <option value="No responde">No responde</option>
-                        <option value="No le sirve horarios">No le sirve horarios</option>
-                        <option value="Problemas económicos">Problemas económicos</option>
-                        <option value="Otro">Otro</option>
-                    </select>
-                </label>
-            </div>
-            <div class="modal-sticky-footer">
-                <button type="button" class="btn-cerrar-modal" data-modal="modal-suspender" style="padding:8px 16px; border:none; border-radius:6px; cursor:pointer; background:#e9ecef; font-weight:600; color:#495057;">Cancelar</button>
-                <button id="btn-guardar-suspension" style="padding:8px 16px; background:#dc3545; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">Suspender</button>
-            </div>
+    <dialog id="modal-suspender" style="width: 90%; max-width: 400px; border: none; border-radius: 8px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+        <h3 style="margin-top:0; color:#212529;">Suspender Alumno</h3>
+        <input type="hidden" id="susp-alumno-id">
+        <label>Motivo de suspensión: 
+            <select id="susp-motivo" required style="width:100%; padding:12px; border-radius:6px; border:1px solid #ced4da; margin-top:5px; margin-bottom:15px; font-size:1em;">
+                <option value="">Seleccione...</option>
+                <option value="No responde">No responde</option>
+                <option value="No le sirve horarios">No le sirve horarios</option>
+                <option value="Problemas económicos">Problemas económicos</option>
+                <option value="Otro">Otro</option>
+            </select>
+        </label>
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <button type="button" class="btn-cerrar-modal" data-modal="modal-suspender" style="padding:10px 16px; border:none; border-radius:6px; cursor:pointer; background:#e9ecef; font-weight:600; color:#495057;">Cancelar</button>
+            <button id="btn-guardar-suspension" style="padding:10px 16px; background:#dc3545; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">Suspender</button>
         </div>
     </dialog>
 
     <!-- MODAL ABM EDICIÓN -->
-    <dialog id="modal-abm-edit" class="modal-responsive">
-        <div class="modal-content-wrapper">
-            <div class="modal-header">
-                <h3 style="margin:0; color:#212529;">Editar Elemento</h3>
-                <button type="button" class="btn-close-modal btn-cerrar-modal" data-modal="modal-abm-edit">&times;</button>
+    <dialog id="modal-abm-edit" style="width: 90%; max-width: 500px; border: none; border-radius: 8px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+        <h3 style="margin-top:0; color:#212529;">Editar Elemento</h3>
+        <input type="hidden" id="abm-edit-id"><input type="hidden" id="abm-edit-coleccion">
+        <label id="label-abm-edit-nombre">Nombre: <input type="text" id="abm-edit-nombre" required style="width:100%;"></label>
+        <div id="div-abm-edit-profe" style="display:none; margin-top:10px;">
+            <label>Email Calendar: <input type="email" id="abm-edit-correo" style="width:100%;"></label>
+            <label>Celular: <input type="text" id="abm-edit-celular" style="width:100%;"></label>
+            <label>Alias Transferencia: <input type="text" id="abm-edit-alias" style="width:100%;"></label>
+            <label style="cursor:pointer; font-weight:600; margin-top:10px; display:block;"><input type="checkbox" id="abm-edit-entrevista" style="width:18px; height:18px;"> Habilitar para entrevistas</label>
+            <div style="margin-top:15px; border-top:1px solid #dee2e6; padding-top:15px;">
+                <strong style="display:block; margin-bottom:10px; color:#495057;">Disponibilidad del Profesor:</strong>
+                <div id="contenedor-disponibilidad-profe" style="display:flex; flex-direction:column; gap:8px;"></div>
             </div>
-            <div class="modal-body-scroll">
-                <input type="hidden" id="abm-edit-id"><input type="hidden" id="abm-edit-coleccion">
-                <label id="label-abm-edit-nombre">Nombre: <input type="text" id="abm-edit-nombre" required style="width:100%;"></label>
-                <div id="div-abm-edit-profe" style="display:none; margin-top:10px;">
-                    <label>Email Calendar: <input type="email" id="abm-edit-correo" style="width:100%;"></label>
-                    <label>Celular: <input type="text" id="abm-edit-celular" style="width:100%;"></label>
-                    <label>Alias Transferencia: <input type="text" id="abm-edit-alias" style="width:100%;"></label>
-                    <label style="cursor:pointer; font-weight:600; margin-top:10px; display:block;"><input type="checkbox" id="abm-edit-entrevista"> Habilitar para entrevistas</label>
-                    <div style="margin-top:15px; border-top:1px solid #dee2e6; padding-top:15px;">
-                        <strong style="display:block; margin-bottom:10px; color:#495057;">Disponibilidad del Profesor:</strong>
-                        <div id="contenedor-disponibilidad-profe" style="display:flex; flex-direction:column; gap:8px;"></div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-sticky-footer">
-                <button type="button" class="btn-cerrar-modal" data-modal="modal-abm-edit" style="padding:8px 16px; border:none; border-radius:6px; cursor:pointer; background:#e9ecef; font-weight:600; color:#495057;">Cancelar</button>
-                <button id="btn-guardar-abm-edit" class="btn-accion-main" style="padding:8px 16px;">Guardar</button>
-            </div>
+        </div>
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
+            <button type="button" class="btn-cerrar-modal" data-modal="modal-abm-edit" style="padding:10px 16px; border:none; border-radius:6px; cursor:pointer; background:#e9ecef; font-weight:600; color:#495057;">Cancelar</button>
+            <button id="btn-guardar-abm-edit" class="btn-accion-main" style="padding:10px 16px;">Guardar Cambios</button>
         </div>
     </dialog>
 
-    <div id="toast-container" style="position:fixed; bottom:20px; right:20px; z-index:99999; display:flex; flex-direction:column; gap:10px;"></div>
+    <div id="toast-container" style="position:fixed; bottom:20px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
     <script type="module" src="app.js"></script>
+
+    <!-- SCRIPT REGISTRO PWA Y MENÚ MÓVIL -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').then(reg => {
+                    console.log('PWA Service Worker Registrado');
+                }).catch(err => {
+                    console.log('Error PWA: ', err);
+                });
+            });
+        }
+
+        // Lógica del botón hamburguesa
+        document.getElementById('btn-mobile-menu').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.add('active');
+            document.getElementById('mobile-overlay').style.display = 'block';
+        });
+
+        document.getElementById('btn-cerrar-menu-mobile').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.remove('active');
+            document.getElementById('mobile-overlay').style.display = 'none';
+        });
+
+        document.getElementById('mobile-overlay').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.remove('active');
+            document.getElementById('mobile-overlay').style.display = 'none';
+        });
+    </script>
 </body>
 </html>
