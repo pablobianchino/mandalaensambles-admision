@@ -1,14 +1,15 @@
-const CACHE_NAME = 'mandala-seg-v1';
+const CACHE_NAME = "mandala-app-v1.1";
 
 self.addEventListener('install', (event) => {
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-    event.waitUntil(clients.claim());
+    return self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
-    // Permite el funcionamiento normal de la red sin bloquear consultas a Firebase/Calendar
-    event.respondWith(fetch(event.request));
+    event.respondWith(fetch(event.request).catch(() => {
+        return caches.match(event.request);
+    }));
 });
