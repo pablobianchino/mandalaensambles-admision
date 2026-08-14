@@ -27,7 +27,6 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
-/* SCROLLBAR MODERNO */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: #d9d2c5; border-radius: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -117,7 +116,6 @@ body {
 .nav-icon { font-size: 1.1em; opacity: 0.7; }
 .nav-divider { height: 1px; background: var(--border-color); margin: 10px 6px; }
 
-/* Acordeones Sidebar */
 .nav-accordion summary { list-style: none; outline: none; }
 .nav-accordion summary::-webkit-details-marker { display: none; }
 .nav-submenu { margin-left: 15px; border-left: 1px solid var(--border-color); padding-left: 8px; margin-top: 4px; margin-bottom:8px; }
@@ -144,24 +142,21 @@ body {
 
 .resumen-section-title { font-size: 1.2em; font-weight: 700; margin: 10px 0 15px 0; padding-bottom: 5px; border-bottom: 2px solid var(--border-color); }
 
-/* Chips de Filtros */
 .filter-chip { padding: 6px 14px; border: 1px solid var(--border-color); border-radius: 20px; font-size: 13px; font-weight:600; color: var(--text-muted); background: white; cursor: pointer; transition: 0.2s; font-family: inherit; }
 .filter-chip:hover { border-color: #d9d2c5; color: var(--text-main); }
 .filter-chip.active { background: var(--accent-teal); color: white; border-color: var(--accent-teal); }
 
-/* Encabezados de Grupos */
 .group-header { font-size: 15px; font-weight: 800; color: var(--text-main); margin: 24px 0 10px 0; display: flex; align-items: center; gap: 8px; letter-spacing: -0.01em; }
 .group-count { background: #e9e5de; color: var(--text-muted); font-size: 11px; padding: 2px 6px; border-radius: 10px; font-family: 'Geist Mono', monospace; font-weight:500; }
 
 /* =======================================================================
-   NUEVAS FILAS DE DATOS (REEMPLAZAN A LAS TARJETAS)
+   FILAS DE DATOS
    ======================================================================= */
 .lista-filas { display:flex; flex-direction:column; gap:6px; }
 
 .row-item { background: var(--item-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 15px; cursor: pointer; transition: 0.2s box-shadow, 0.2s border-color; position:relative; }
 .row-item:hover { border-color: #d9d2c5; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
 
-/* Indicadores de Estado en la fila */
 .row-indicator { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .ind-red { background: var(--accent-red); }
 .ind-teal { background: var(--accent-teal); }
@@ -174,7 +169,7 @@ body {
 
 /* Grilla de Disponibilidad */
 .row-disp-grid { display: flex; gap: 4px; align-items:center; }
-.disp-box { width: auto; min-width: 48px; padding: 4px; height: auto; min-height: 42px; border-radius: 6px; background: #f3efe7; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 700; color: var(--text-light); transition: 0.2s; }
+.disp-box { min-width: 48px; padding: 4px; height: auto; min-height: 42px; border-radius: 6px; background: #f3efe7; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 700; color: var(--text-light); transition: 0.2s; }
 .disp-box.active { background: #e4f2f4; color: var(--accent-teal); }
 .disp-day { font-size: 10px; font-family: 'Hanken Grotesk'; margin-bottom:1px; }
 .disp-time { font-family: 'Geist Mono', monospace; font-size: 9px; font-weight:500; text-align: center; letter-spacing: -0.02em; line-height: 1.2; }
@@ -182,12 +177,11 @@ body {
 .row-meta { display:flex; flex-direction:column; align-items:flex-end; gap:3px; min-width:120px; font-size:12px; color:var(--text-muted); }
 .row-meta strong { color: var(--text-main); font-weight:600; }
 
-/* Menú de acciones en fila */
 .btn-row-action { background: none; border: none; font-size: 1.2em; color: var(--text-light); cursor: pointer; padding: 4px 8px; border-radius: 6px; transition: 0.2s; }
 .btn-row-action:hover { background: var(--hover-bg); color: var(--text-main); }
 
 /* =======================================================================
-   MENÚ DESPLEGABLE DE ACCIONES (CORRECCIÓN ESTRICTA)
+   MENÚ DESPLEGABLE DE ACCIONES
    ======================================================================= */
 .alumno-actions { position: relative; }
 .dropdown-menu-wrapper { 
@@ -245,7 +239,6 @@ body {
 .timeline-node.active .timeline-label { color: var(--text-main); }
 .timeline-count { position: absolute; top: -10px; background: var(--text-main); color: white; border-radius: 12px; padding: 2px 8px; font-size: 11px; font-weight: 800; font-family: 'Geist Mono', monospace; transition: 0.3s; }
 
-/* Colores de estados adaptados */
 .node-sin-agendar.active .timeline-circle { border-color: var(--text-muted); } .node-sin-agendar.active .timeline-count { background: var(--text-muted); }
 .node-val-profe.active .timeline-circle { border-color: #6f42c1; } .node-val-profe.active .timeline-count { background: #6f42c1; }
 .node-val-alum.active .timeline-circle { border-color: #e5a93d; } .node-val-alum.active .timeline-count { background: #e5a93d; color: #fff; }
@@ -265,13 +258,11 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
 .btn-primary { background: var(--accent-teal); color: white; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 700; font-family: inherit; cursor: pointer; transition: 0.2s; font-size: 14px; }
 .btn-primary:hover { filter: brightness(0.95); }
 
-/* Pestañas (Tabs) */
 .tabs-container { display: flex; gap: 15px; border-bottom: 1px solid var(--border-color); margin-bottom: 20px; overflow-x: auto; }
 .tab-btn { padding: 10px 4px; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-muted); font-weight: 600; font-family: inherit; font-size: 14px; cursor: pointer; white-space: nowrap; transition: 0.2s; }
 .tab-btn:hover { color: var(--text-main); }
 .tab-btn.active { color: var(--accent-teal); border-bottom-color: var(--accent-teal); }
 
-/* Toasts */
 .toast-notification { background: var(--text-main); color: #fff; padding: 12px 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); font-size: 13px; font-weight: 500; opacity: 0; transition: 0.3s ease; }
 
 /* =======================================================================
@@ -283,13 +274,11 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
     #btn-mobile-menu, #btn-cerrar-menu-mobile { display: block !important; }
     #main-content { padding: 15px; padding-bottom: 80px; }
     
-    /* Adaptación de Filas a Móvil */
     .row-item { flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px; }
     .row-disp-grid { width: 100%; justify-content: space-between; margin-top: 5px; overflow-x:auto; }
     .disp-box { flex: 1; }
     .row-meta { width: 100%; flex-direction: row; justify-content: space-between; border-top: 1px solid var(--border-color); padding-top: 10px; margin-top: 5px; }
     
-    /* Ocultar agrupadores complejos en móvil si molestan */
     #controles-vista { flex-direction: column; align-items: flex-start; }
     #filtros-chips { width: 100%; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 5px; }
     .filter-chip { flex-shrink: 0; }
