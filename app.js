@@ -408,10 +408,19 @@ function generarFilaAlumno(al, id, vista) {
     let instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento;
     let suscStr = al.tipo_suscripcion || ''; let nivelStr = al.nivel || 'S/N'; let cel = al.celular || ''; let edad = al.edad ? al.edad + 'a' : '-';
 
-    let dispHtml = '<div class="row-disp-grid">';
+   let dispHtml = '<div class="row-disp-grid">';
     diasSemana.forEach(d => {
         let tiene = al.disponibilidad && al.disponibilidad[d.id] && al.disponibilidad[d.id].length > 0, txt = '-';
-        if (tiene) { let p = al.disponibilidad[d.id][0]; if(p.inicio === configApp.hora_apertura && p.fin === configApp.hora_cierre) txt = 'ALL'; else txt = p.inicio.split(':')[0] + '+'; }
+        if (tiene) { 
+            let p = al.disponibilidad[d.id][0]; 
+            if(p.inicio === configApp.hora_apertura && p.fin === configApp.hora_cierre) { 
+                txt = 'Libre'; 
+            } else { 
+                let ini = p.inicio.replace(':00', '');
+                let fin = p.fin.replace(':00', '');
+                txt = `${ini}-${fin}`; 
+            } 
+        }
         dispHtml += `<div class="disp-box ${tiene ? 'active' : ''}"><div class="disp-day">${d.id}</div><div class="disp-time">${txt}</div></div>`;
     });
     dispHtml += '</div>';
