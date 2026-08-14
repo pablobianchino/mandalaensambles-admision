@@ -167,7 +167,6 @@ body {
 .row-name { font-size: 14.5px; font-weight: 700; color: var(--text-main); }
 .row-sub { font-size: 12.5px; color: var(--text-muted); display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
 
-/* Grilla de Disponibilidad */
 .row-disp-grid { display: flex; gap: 4px; align-items:center; }
 .disp-box { min-width: 48px; padding: 4px; height: auto; min-height: 42px; border-radius: 6px; background: #f3efe7; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 700; color: var(--text-light); transition: 0.2s; }
 .disp-box.active { background: #e4f2f4; color: var(--accent-teal); }
@@ -257,7 +256,7 @@ body {
     align-items: center; 
     cursor: pointer; 
     flex: 1; 
-    min-width: 85px; /* Evita que se aplasten si hay 9 nodos */
+    min-width: 85px; 
 }
 .timeline-circle { 
     width: 45px; 
@@ -301,7 +300,6 @@ body {
     transition: 0.3s; 
 }
 
-/* Clases de colores dinámicos para los Nodos */
 .node-red.active .timeline-circle { border-color: var(--accent-red); } .node-red.active .timeline-count { background: var(--accent-red); }
 .node-teal.active .timeline-circle { border-color: var(--accent-teal); } .node-teal.active .timeline-count { background: var(--accent-teal); }
 .node-blue.active .timeline-circle { border-color: var(--accent-blue); } .node-blue.active .timeline-count { background: var(--accent-blue); }
@@ -310,7 +308,7 @@ body {
 
 /* BANDEJA CONECTADA (SMART TRAY) */
 .timeline-tray-container {
-    display: none; /* JS la mostrará al hacer clic */
+    display: none; 
     padding: 0 15px;
     margin-bottom: 20px;
     transition: 0.3s ease;
@@ -326,12 +324,11 @@ body {
     gap: 10px;
     box-shadow: 0 4px 15px rgba(0,0,0,0.03);
 }
-/* Triángulo que apunta al nodo seleccionado */
 .timeline-tray::before {
     content: '';
     position: absolute;
     top: -8px;
-    left: var(--tray-arrow-pos, 50%); /* JS calculará el % exacto */
+    left: var(--tray-arrow-pos, 50%); 
     transform: translateX(-50%) rotate(45deg);
     width: 14px;
     height: 14px;
@@ -340,21 +337,20 @@ body {
     border-left: 1px solid var(--border-color);
     transition: left 0.3s ease;
 }
-/* Chips de alumnos adentro de la bandeja */
 .tray-chip {
-    padding: 6px 12px;
+    padding: 6px 6px 6px 12px;
     background: var(--hover-bg);
     border: 1px solid var(--border-color);
     border-radius: 20px;
     font-size: 13px;
     font-weight: 600;
     color: var(--text-main);
-    cursor: pointer;
     display: flex;
     align-items: center;
     gap: 6px;
     transition: 0.2s;
 }
+.tray-chip-name { cursor: pointer; flex-grow: 1; }
 .tray-chip:hover {
     background: white;
     border-color: var(--accent-teal);
@@ -374,20 +370,15 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.03em;
 }
-/* Colores de fondo semitransparentes para las etiquetas */
 .bg-red { background: rgba(194, 86, 59, 0.1); color: var(--accent-red); }
 .bg-teal { background: rgba(0, 123, 143, 0.1); color: var(--accent-teal); }
 .bg-yellow { background: rgba(229, 169, 61, 0.15); color: #c28c2e; }
 .bg-blue { background: rgba(31, 84, 145, 0.1); color: var(--accent-blue); }
 .bg-gray { background: rgba(138, 144, 151, 0.1); color: var(--text-muted); }
 
-/* Textos de cuenta regresiva (Faltan 14hs, Vencido) */
-.priority-text {
-    font-size: 11.5px;
-    font-weight: 700;
-}
+.priority-text { font-size: 11.5px; font-weight: 700; }
 .text-red { color: var(--accent-red); }
-.text-yellow { color: #d99a29; } /* Amarillo más oscuro para que sea legible en texto */
+.text-yellow { color: #d99a29; } 
 .text-teal { color: var(--accent-teal); }
 .text-gray { color: var(--text-muted); text-decoration: line-through; }
 
@@ -402,7 +393,7 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
 .btn-primary { background: var(--accent-teal); color: white; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 700; font-family: inherit; cursor: pointer; transition: 0.2s; font-size: 14px; }
 .btn-primary:hover { filter: brightness(0.95); }
 
-.tabs-container { display: flex; gap: 15px; border-bottom: 1px solid var(--border-color); margin-bottom: 20px; overflow-x: auto; }
+.tabs-container { display: flex; gap: 15px; overflow-x: auto; flex-grow: 1; }
 .tab-btn { padding: 10px 4px; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-muted); font-weight: 600; font-family: inherit; font-size: 14px; cursor: pointer; white-space: nowrap; transition: 0.2s; }
 .tab-btn:hover { color: var(--text-main); }
 .tab-btn.active { color: var(--accent-teal); border-bottom-color: var(--accent-teal); }
