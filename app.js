@@ -339,7 +339,6 @@ function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, todosLosProfes, pr
 
 function generarBotonesAccion(al, id) {
     let accionesHtml = '';
-    const chkLabels = [ "¿Se enviaron los mensajes de bienvenida al alumnos?", "¿Se informó al profe de la nueva alta?", "¿Se actualizó la base de datos con la nueva alta?", "¿Se cargó el pago en el sistema de contabilidad?", "¿Se agregó al alumno al grupo de la comunidad Mandala Ensambles?" ];
 
     if (al.estado_agenda === 'Pendiente procesar') { accionesHtml += `<button type="button" class="dropdown-item btn-buscar-agenda" data-id="${id}">🔍 Buscar Agenda</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-abrir-suspender" data-id="${id}">⏸️ Suspender</button>`; } 
     else if (al.estado_agenda === 'Pendiente validación por profe') {
@@ -505,11 +504,11 @@ async function cargarVista(vista) {
     estadoActualVista = vista; document.getElementById('vista-titulo').textContent = vista.includes('-') ? vista.split('-')[1].trim() : vista;
     
     const vResumen = document.getElementById('vista-resumen'), vResumenTime = document.getElementById('vista-resumen-timeline'), contLista = document.getElementById('lista-generica'), contEstad = document.getElementById('estadisticas-container');
-    const formWrapper = document.getElementById('form-alumno-wrapper'), cv = document.getElementById('controles-vista'), timelineVista = document.getElementById('timeline-vista');
+    const formWrapper = document.getElementById('form-alumno-wrapper'), cv = document.getElementById('controles-vista');
     if (formWrapper) { formWrapper.style.display = 'none'; document.getElementById('modal-alta-alumno').appendChild(formWrapper); }
     
     document.getElementById('btn-carga-masiva').style.display = 'none'; document.getElementById('search-container-general').style.display = 'none';
-    vResumen.style.display = 'none'; if(vResumenTime) vResumenTime.style.display = 'none'; contLista.style.display = 'none'; contEstad.style.display = 'none'; cv.style.display = 'none'; if(timelineVista) timelineVista.style.display = 'none';
+    vResumen.style.display = 'none'; if(vResumenTime) vResumenTime.style.display = 'none'; contLista.style.display = 'none'; contEstad.style.display = 'none'; cv.style.display = 'none';
 
     if (vista.includes('-') || vista === 'Lista de Espera') { cv.style.display = 'flex'; renderFiltrosChips(); document.getElementById('search-container-general').style.display = 'block'; }
     if (vista === 'Resumen') {
@@ -526,12 +525,17 @@ async function cargarVista(vista) {
     } else if (vista === 'Inbox - Pendientes' || vista === 'Altas - Pendientes') {
         const isAdm = vista === 'Inbox - Pendientes';
         document.getElementById('btn-carga-masiva').style.display = isAdm ? 'block' : 'none'; contLista.style.display = 'flex';
-        if(timelineVista) timelineVista.style.display = 'block';
         try {
             const qSnap = await getDocs(collection(db, "alumnos")); let allData = []; qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
-            let nodos = isAdm ? configNodosAdm : configNodosAltas; let stId = isAdm ? nodoAdmActivo : nodoAltasActivo;
-            renderTimeline('timeline-vista', nodos, allData, stId, isAdm ? 'adm' : 'altas');
-            renderListaFilas('lista-generica', allData, stId, nodos);
+            
+            let dataFiltrada = [];
+            if (isAdm) {
+                dataFiltrada = allData.filter(d => ['Pendiente procesar', 'Pendiente validación por profe', 'Pendiente validación por alumno'].includes(d.estado_agenda));
+            } else {
+                dataFiltrada = allData.filter(d => ['Pre-alta Pendiente', 'Pre-alta Iniciada'].includes(d.estado_agenda) || ((d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (!d.checklist_alta || d.checklist_alta.includes(false))));
+            }
+            
+            renderListaFilas('lista-generica', dataFiltrada, 'all', null);
         } catch(e) {}
     } else if (vista === 'Inbox - Confirmadas' || vista === 'Inbox - Suspendidas' || vista === 'Altas - Confirmadas' || vista === 'Altas - Suspendidas' || vista === 'Lista de Espera') {
         contLista.style.display = 'flex';
@@ -666,7 +670,7 @@ document.addEventListener('click', async (e) => {
     if (target.classList.contains('btn-cancelar-reserva')) { const motivo = prompt("¿Estás seguro de cancelar? Se eliminará en Calendar.\nIngresa motivo para historial:"); if (motivo !== null) { if (motivo.trim() === "") return alert("Debes ingresar motivo."); const id = target.getAttribute('data-id'); try { const alDoc = await getDoc(doc(db, "alumnos", id)); const alData = alDoc.data(); if (alData.id_evento_reserva) await eliminarEventoSeguro(alData); const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`; const hist = alData.historial || []; hist.push({ id: Date.now(), texto: `Reserva cancelada. Motivo: ${motivo.trim()}`, fecha: fechaStr }); const data = await generarTextoConHistorial(id, 'texto_cancela_alumno'); if (data.al.estado_agenda === 'Pendiente validación por alumno' || data.al.estado_agenda === 'Agenda confirmada') { await navigator.clipboard.writeText(data.txt); alert("Cancelada. Texto CANCELACIÓN copiado."); } await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente procesar", reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null, opciones_propuestas: null, historial: hist }); cargarVista(estadoActualVista); } catch(e) { alert("❌ Error:\n\n" + e.message); } } return; }
 
     if (target.classList.contains('btn-abrir-suspender')) { document.getElementById('susp-alumno-id').value = target.getAttribute('data-id'); document.getElementById('susp-motivo').value = ""; document.getElementById('modal-suspender').showModal(); return; }
-    if (target.id === 'btn-guardar-suspension') { const id = document.getElementById('susp-alumno-id').value, mtv = document.getElementById('susp-motivo').value; if(!mtv) return alert("Seleccione motivo"); setBotonCargando(target, true); try { const al = (await getDoc(doc(db, "alumnos", id))).data(); if (al.id_evento_reserva) await eliminarEventoSeguro(al); const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`; const hist = alData.historial || []; hist.push({ id: Date.now(), texto: `Suspendido. Motivo: ${mtv}`, fecha: fechaStr }); await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Agenda suspendida", motivo_suspension: mtv, reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null, historial: hist }); document.getElementById('modal-suspender').close(); cargarVista(estadoActualVista); } catch(err){ alert("❌ Error:\n\n" + err.message); } setBotonCargando(target, false); return;}
+    if (target.id === 'btn-guardar-suspension') { const id = document.getElementById('susp-alumno-id').value, mtv = document.getElementById('susp-motivo').value; if(!mtv) return alert("Seleccione motivo"); setBotonCargando(target, true); try { const al = (await getDoc(doc(db, "alumnos", id))).data(); if (al.id_evento_reserva) await eliminarEventoSeguro(al); const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`, hist = al.historial || []; hist.push({ id: Date.now(), texto: `Suspendido. Motivo: ${mtv}`, fecha: fechaStr }); await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Agenda suspendida", motivo_suspension: mtv, reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null, historial: hist }); document.getElementById('modal-suspender').close(); cargarVista(estadoActualVista); } catch(err){ alert("❌ Error:\n\n" + err.message); } setBotonCargando(target, false); return;}
     if (target.classList.contains('btn-recuperar-agenda')) { await updateDoc(doc(db, "alumnos", target.getAttribute('data-id')), { estado_agenda: "Pendiente procesar", motivo_suspension: null }); cargarVista(estadoActualVista); return; }
     if (target.classList.contains('btn-cerrar-modal')) { document.getElementById(target.getAttribute('data-modal')).close(); return; }
     
