@@ -158,10 +158,6 @@ body {
 .row-item:hover { border-color: #d9d2c5; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
 
 .row-indicator { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.ind-red { background: var(--accent-red); }
-.ind-teal { background: var(--accent-teal); }
-.ind-yellow { background: #e5a93d; }
-.ind-gray { background: #b3aa9a; }
 
 .row-main-info { flex-grow: 1; min-width: 200px; display:flex; flex-direction:column; gap:2px; }
 .row-name { font-size: 14.5px; font-weight: 700; color: var(--text-main); }
@@ -337,18 +333,26 @@ body {
     border-left: 1px solid var(--border-color);
     transition: left 0.3s ease;
 }
+
+/* Chips de bandeja multilínea */
 .tray-chip {
-    padding: 6px 6px 6px 12px;
+    padding: 10px 14px;
     background: var(--hover-bg);
     border: 1px solid var(--border-color);
-    border-radius: 20px;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-main);
+    border-radius: 12px;
     display: flex;
-    align-items: center;
+    flex-direction: column;
     gap: 6px;
     transition: 0.2s;
+    min-width: 240px;
+    max-width: 320px;
+    flex-grow: 1;
+}
+.tray-chip-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
 }
 .tray-chip-name { cursor: pointer; flex-grow: 1; }
 .tray-chip:hover {
