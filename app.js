@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-const APP_VERSION = "v2.6";
+const APP_VERSION = "v2.7";
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 const firebaseConfig = {
@@ -848,15 +848,26 @@ async function cargarABM(coleccion, titulo, cont) {
         iS.forEach(d => opts += `<option value="${d.data().nombre}">${d.data().nombre}</option>`);
         selectInstHtml = `<div style="flex-grow:1; min-width:100%; margin-top:10px;"><label style="margin-bottom:8px;">Skills (Instrumentos que enseña)</label><select id="input-skills-abm" multiple style="display:none;">${opts}</select><div id="chips-skills-abm"></div></div>`;
         
-        h += `<div style="flex-grow:1; min-width:200px;"><label>Email Calendar</label><input type="email" id="input-correo-abm" class="modern-input"></div><div style="flex-grow:1; min-width:150px;"><label>Celular</label><input type="text" id="input-celular-abm" class="modern-input"></div><div style="flex-grow:1; min-width:150px;"><label>Alias</label><input type="text" id="input-alias-abm" class="modern-input"></div><div style="padding-bottom:10px;"><label style="display:flex; align-items:center; gap:6px; cursor:pointer; text-transform:none;"><input type="checkbox" id="input-entrevista-abm" checked style="width:18px;height:18px;"> Entrevistas</label></div>${selectInstHtml}`; 
+        h += `<div style="flex-grow:1; min-width:200px;"><label>Email Calendar</label><input type="email" id="input-correo-abm" class="modern-input"></div><div style="flex-grow:1; min-width:150px;"><label>Celular</label><input type="text" id="input-celular-abm" class="modern-input"></div><div style="flex-grow:1; min-width:150px;"><label>Alias</label><input type="text" id="input-alias-abm" class="modern-input"></div>
+        <div style="flex-grow:1; min-width:100%; display:flex; flex-wrap:wrap; gap:15px; margin-top:10px; padding:15px; background:var(--hover-bg); border-radius:8px; border:1px solid var(--border-color);">
+            <label style="display:flex; align-items:center; gap:6px; cursor:pointer; text-transform:none; margin:0; font-weight:600;"><input type="checkbox" id="input-entrevista-abm" checked style="width:18px;height:18px; accent-color:var(--accent-teal);"> Apto para entrevistas</label>
+            <label style="display:flex; align-items:center; gap:6px; cursor:pointer; text-transform:none; margin:0; font-weight:600;"><input type="checkbox" id="input-grupales-abm" style="width:18px;height:18px; accent-color:var(--accent-teal);"> Apto para clases grupales</label>
+            <label style="display:flex; align-items:center; gap:6px; cursor:pointer; text-transform:none; margin:0; font-weight:600;"><input type="checkbox" id="input-ensambles-abm" style="width:18px;height:18px; accent-color:var(--accent-teal);"> Apto para ensambles</label>
+        </div>${selectInstHtml}`; 
     } 
     h += `<button id="btn-guardar-abm" class="btn-primary" style="height:42px;">+ Agregar</button></div>`; 
     
     qS.forEach(d => { 
         const dt = d.data(); 
         let displayNom = dt.nombre || dt.email; 
-        let ex = coleccion==='profesores' ? ` <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">${dt.correo_calendario}</div><div style="font-size:11px; color:var(--accent-teal); font-weight:600; margin-top:2px;">${(dt.skills || []).join(' • ')}</div>` : ''; 
-        h += `<div class="row-item" onclick="window.abrirEdicionABM('${d.id}', '${coleccion}', '${displayNom}', '${dt.correo_calendario||''}', '${dt.celular||''}', '${dt.alias_transferencia||''}', ${!!dt.entrevista})"><div><strong style="color:var(--text-main); font-size:15px;">${displayNom}</strong>${ex}</div><button class="btn-row-action" onclick="event.stopPropagation(); window.eliminarABM('${d.id}', '${coleccion}')">❌</button></div>`; 
+        
+        let tags = [];
+        if(dt.entrevista) tags.push('Entrevistas');
+        if(dt.grupales) tags.push('Grupales');
+        if(dt.ensambles) tags.push('Ensambles');
+
+        let ex = coleccion==='profesores' ? ` <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">${dt.correo_calendario}</div><div style="font-size:11px; color:var(--accent-teal); font-weight:600; margin-top:2px;">${(dt.skills || []).join(' • ')}</div><div style="font-size:10px; color:var(--accent-blue); font-weight:600; margin-top:2px;">${tags.join(' | ')}</div>` : ''; 
+        h += `<div class="row-item" onclick="window.abrirEdicionABM('${d.id}', '${coleccion}', '${displayNom}', '${dt.correo_calendario||''}', '${dt.celular||''}', '${dt.alias_transferencia||''}')"><div><strong style="color:var(--text-main); font-size:15px;">${displayNom}</strong>${ex}</div><button class="btn-row-action" onclick="event.stopPropagation(); window.eliminarABM('${d.id}', '${coleccion}')">❌</button></div>`; 
     }); 
     cont.innerHTML = h; 
 
@@ -873,6 +884,8 @@ async function cargarABM(coleccion, titulo, cont) {
             dO.celular=document.getElementById('input-celular-abm').value.trim(); 
             dO.alias_transferencia=document.getElementById('input-alias-abm').value.trim(); 
             dO.entrevista=document.getElementById('input-entrevista-abm').checked; 
+            dO.grupales=document.getElementById('input-grupales-abm').checked; 
+            dO.ensambles=document.getElementById('input-ensambles-abm').checked; 
             
             const selSkills = document.getElementById('input-skills-abm');
             dO.skills = Array.from(selSkills.selectedOptions).map(o=>o.value);
@@ -885,7 +898,7 @@ async function cargarABM(coleccion, titulo, cont) {
     }); 
 }
 
-window.abrirEdicionABM = async function(id, col, nom, cor, cel, ali, ent) { 
+window.abrirEdicionABM = async function(id, col, nom, cor, cel, ali) { 
     document.getElementById('abm-edit-id').value = id; 
     document.getElementById('abm-edit-coleccion').value = col; 
     document.getElementById('label-abm-edit-nombre').innerHTML = col === 'usuarios_sistema' ? `Correo: <input type="text" id="abm-edit-nombre" class="modern-input" required>` : `Nombre: <input type="text" id="abm-edit-nombre" class="modern-input" required>`; 
@@ -896,7 +909,10 @@ window.abrirEdicionABM = async function(id, col, nom, cor, cel, ali, ent) {
         document.getElementById('abm-edit-correo').value=cor; 
         document.getElementById('abm-edit-celular').value=cel; 
         document.getElementById('abm-edit-alias').value=ali; 
-        document.getElementById('abm-edit-entrevista').checked=ent; 
+        
+        document.getElementById('abm-edit-entrevista').checked = false;
+        document.getElementById('abm-edit-grupales').checked = false;
+        document.getElementById('abm-edit-ensambles').checked = false;
         
         const iS = await getDocs(collection(db, "instrumentos"));
         const selSkills = document.getElementById('abm-edit-skills');
@@ -905,6 +921,10 @@ window.abrirEdicionABM = async function(id, col, nom, cor, cel, ali, ent) {
 
         try { 
             const pr = (await getDoc(doc(db, col, id))).data(); 
+            document.getElementById('abm-edit-entrevista').checked = !!pr.entrevista;
+            document.getElementById('abm-edit-grupales').checked = !!pr.grupales;
+            document.getElementById('abm-edit-ensambles').checked = !!pr.ensambles;
+
             Array.from(selSkills.options).forEach(o => o.selected = (pr.skills||[]).includes(o.value));
             syncSelectToChips('abm-edit-skills', 'chips-abm-edit-skills');
 
@@ -930,6 +950,55 @@ window.eliminarABM = async function(id, col) {
         cargarVista('ABM-' + window.tituloABMActual); 
     } 
 }
+
+document.getElementById('btn-guardar-abm-edit').addEventListener('click', async (e) => { 
+    setBotonCargando(e.target, true); 
+    const id = document.getElementById('abm-edit-id').value, col = document.getElementById('abm-edit-coleccion').value, nombreInput = document.getElementById('abm-edit-nombre').value; 
+    const dO = col === 'usuarios_sistema' ? { email: nombreInput.toLowerCase() } : { nombre: nombreInput }; 
+    
+    if(col === 'profesores') { 
+        dO.correo_calendario = document.getElementById('abm-edit-correo').value; 
+        dO.celular = document.getElementById('abm-edit-celular').value; 
+        dO.alias_transferencia = document.getElementById('abm-edit-alias').value; 
+        dO.entrevista = document.getElementById('abm-edit-entrevista').checked; 
+        dO.grupales = document.getElementById('abm-edit-grupales').checked; 
+        dO.ensambles = document.getElementById('abm-edit-ensambles').checked; 
+        
+        const selSkills = document.getElementById('abm-edit-skills');
+        dO.skills = Array.from(selSkills.selectedOptions).map(o => o.value);
+
+        const disp = {}; const hApe = configApp.hora_apertura || '09:00'; const hCie = configApp.hora_cierre || '22:00'; 
+        diasSemana.forEach(d => { 
+            const cA = document.getElementById(`disp-p-${d.id}-all`).checked, cN = document.getElementById(`disp-p-${d.id}-none`).checked; 
+            let i = document.getElementById(`disp-p-${d.id}-inicio`).value, f = document.getElementById(`disp-p-${d.id}-fin`).value; 
+            if(cN) disp[d.id] = []; else if(cA) disp[d.id] = [{inicio:hApe, fin:hCie}]; else { if(i||f) disp[d.id] = [{inicio: i||hApe, fin: f||hCie}]; else disp[d.id] = []; } 
+        }); 
+        dO.disponibilidad = disp; 
+    } 
+    
+    try {
+        await updateDoc(doc(db, col, id), dO); 
+        document.getElementById('modal-abm-edit').close(); 
+        cargarVista('ABM-' + window.tituloABMActual); 
+    } catch(err) {
+        alert("Error al guardar: " + err.message);
+    }
+    
+    setBotonCargando(e.target, false); 
+});
+
+document.querySelectorAll('#sidebar .nav-item, #sidebar .nav-item-small').forEach(item => { 
+    item.addEventListener('click', (e) => { 
+        if(e.target.closest('summary')) return; 
+        document.querySelectorAll('#sidebar .nav-item, #sidebar .nav-item-small').forEach(el => el.classList.remove('active')); 
+        const tgt = e.target.closest('.nav-item') || e.target.closest('.nav-item-small');
+        tgt.classList.add('active'); 
+        cargarVista(tgt.getAttribute('data-vista')); 
+        document.getElementById('sidebar').classList.remove('active'); 
+        const overlay = document.getElementById('mobile-overlay'); 
+        if (overlay) overlay.style.display = 'none'; 
+    }); 
+});
 
 document.getElementById('btn-guardar-abm-edit').addEventListener('click', async (e) => { 
     setBotonCargando(e.target, true); 
