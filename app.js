@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-const APP_VERSION = "v2.7";
+const APP_VERSION = "v2.7.1";
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 const firebaseConfig = {
@@ -50,15 +50,20 @@ function renderFiltrosChips() {
 function setBotonCargando(btn, cargando) {
     if (!btn) return;
     if (cargando) {
-        btn.dataset.textoOriginal = btn.innerHTML;
+        // Validación estricta para evitar que un doble clic pise el texto original
+        if (!btn.dataset.textoOriginal || btn.dataset.textoOriginal === '⏳ Procesando...') {
+            btn.dataset.textoOriginal = btn.innerHTML;
+        }
         btn.innerHTML = '⏳ Procesando...';
         btn.disabled = true;
         btn.style.opacity = '0.7';
+        btn.style.pointerEvents = 'none'; // Bloquea clics adicionales a la fuerza
         btn.style.cursor = 'wait';
     } else {
-        btn.innerHTML = btn.dataset.textoOriginal || 'Guardar';
+        btn.innerHTML = btn.dataset.textoOriginal && btn.dataset.textoOriginal !== '⏳ Procesando...' ? btn.dataset.textoOriginal : 'Guardar';
         btn.disabled = false;
         btn.style.opacity = '1';
+        btn.style.pointerEvents = 'auto'; // Restaura el evento de clic
         btn.style.cursor = 'pointer';
     }
 }
@@ -136,7 +141,6 @@ let chartFlowInst = null, chartEntrevistasInst = null, chartAltasInst = null;
 let clipboardDisponibilidad = null, clipboardDisponibilidadProfe = null; 
 let historialActual = []; 
 
-// FLUJO DE ADMISIÓN UNIFICADO (9 NODOS)
 const configNodosFlujo = [
     { id: 'Pendiente procesar', label: 'Sin Agendar', icon: '⏳', color: 'node-gray' },
     { id: 'Pendiente validación por profe', label: 'Val. Profe', icon: '👨‍🏫', color: 'node-blue' },
@@ -329,7 +333,6 @@ function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, todosLosProfes, pr
     return opciones;
 }
 
-// LÓGICA DE ESTADO, TIEMPO Y COLORES REFORZADA
 function getEstadoYBadge(al) {
     let colorIndicador = 'ind-gray', colorBadge = 'bg-gray', claseTexto = 'text-gray', txtTiempo = '', txtEstado = al.estado_agenda, fechaCalculo = null;
     
@@ -661,11 +664,12 @@ function renderConfigHub(cont) {
             <div style="background:var(--item-bg); border:1px solid var(--border-color); border-radius:12px; padding:20px; display:flex; align-items:center; gap:15px; margin-bottom:10px; cursor:pointer;" onclick="cargarVista('ABM-Suscripciones')"><span style="font-size:1.5em; opacity:0.7;">🎫</span><div><strong style="color:var(--text-main);">Suscripciones</strong></div></div>
         </div>`;
 }
-// === CÓDIGO FALTANTE A PEGAR AQUÍ ===
+
 function renderConfig(cont) { 
     cont.innerHTML = `<div style="margin-bottom:25px; font-size:0.9em; color:var(--text-muted);"><span style="cursor:pointer; color:var(--accent-teal);" onclick="cargarVista('Configuración')">Configuración</span> &gt; <strong style="color:var(--text-main);">Ajustes Generales</strong></div><div style="max-width:800px; padding:30px; background:white; border-radius:12px; border:1px solid var(--border-color);"> <h3 style="margin-top:0; color:var(--text-main); font-size:1.2em;">Límites de Calendario</h3> <div style="display:flex; gap:15px; margin-bottom:25px; flex-wrap:wrap;"> <div style="flex:1; min-width:150px;"><label>Hora Apertura:<input type="time" id="cfg-apertura" class="modern-input" value="${configApp.hora_apertura||'09:00'}"></label></div> <div style="flex:1; min-width:150px;"><label>Hora Cierre:<input type="time" id="cfg-cierre" class="modern-input" value="${configApp.hora_cierre||'22:00'}"></label></div> </div> <div style="display:flex; gap:15px; margin-bottom:25px; flex-wrap:wrap;"> <div style="flex:1; min-width:150px;"><label>Aulas totales:<input type="number" id="cfg-aulas" class="modern-input" value="${configApp.cantidad_aulas}"></label></div> <div style="flex:1; min-width:150px;"><label>Baterías totales:<input type="number" id="cfg-bats" class="modern-input" value="${configApp.cantidad_baterias}"></label></div> </div> <h3 style="margin-top:0; color:var(--text-main); border-top:1px solid var(--border-color); padding-top:20px;">Calendario y Emojis</h3> <label style="margin-bottom:15px;">Calendario Defecto:<input type="email" id="cfg-cal-defecto" class="modern-input" value="${configApp.calendario_por_defecto||''}"></label> <div style="display:flex; gap:10px; margin-bottom:25px; flex-wrap:wrap;"> <div style="width:80px;"><label>Batería:<input type="text" id="cfg-idbat" class="modern-input" value="${configApp.identificador_bateria||''}"></label></div> <div style="width:80px;"><label>Guitarra:<input type="text" id="cfg-em-gui" class="modern-input" value="${configApp.emoji_guitarra||'🎸'}"></label></div> <div style="width:80px;"><label>Cajón:<input type="text" id="cfg-em-caj" class="modern-input" value="${configApp.emoji_cajon||'📦'}"></label></div> <div style="width:80px;"><label>Canto:<input type="text" id="cfg-em-can" class="modern-input" value="${configApp.emoji_canto||'🎤'}"></label></div> <div style="width:80px;"><label>Piano:<input type="text" id="cfg-em-pia" class="modern-input" value="${configApp.emoji_piano||'🎹'}"></label></div> <div style="width:80px;"><label>Bajo:<input type="text" id="cfg-em-baj" class="modern-input" value="${configApp.emoji_bajo||'🎸'}"></label></div> </div> <h3 style="margin-top:0; color:var(--text-main); border-top:1px solid var(--border-color); padding-top:20px;">Mensajes y Textos</h3> <label style="margin-bottom:15px;">Valor de Clase (Monto): <input type="text" id="cfg-valor" class="modern-input" value="${configApp.valor_clase}"></label> <label style="margin-bottom:15px;">Título Evento (Reserva): <input type="text" id="cfg-evt-res" class="modern-input" value="${configApp.formato_evento_reserva}"></label> <label style="margin-bottom:15px;">Título Evento (Confirmado): <input type="text" id="cfg-evt-conf" class="modern-input" value="${configApp.formato_evento_confirmado}"></label> <label style="margin-bottom:15px;">Nombre para Agendar (WS): <input type="text" id="cfg-nombre-agendar" class="modern-input" value="${configApp.texto_nombre_agendar}"></label> <label style="margin-bottom:15px;">Texto Opciones Múltiples: <textarea id="cfg-txt-opt-mul" class="modern-input" style="height:200px;">${configApp.texto_opciones_multiples}</textarea></label> <label style="margin-bottom:15px;">Texto 1 Sola Opción: <textarea id="cfg-txt-p" class="modern-input" style="height:150px;">${configApp.texto_profe}</textarea></label> <label style="margin-bottom:15px;">Texto Confirmación Alumno: <textarea id="cfg-txt-conf-a" class="modern-input" style="height:150px;">${configApp.texto_conf_alumno}</textarea></label> <label style="margin-bottom:15px;">Texto Cancelación: <textarea id="cfg-txt-cancela" class="modern-input" style="height:100px;">${configApp.texto_cancela_alumno}</textarea></label> <label style="margin-bottom:15px;">Texto Pre-Alta: <textarea id="cfg-txt-prealta" class="modern-input" style="height:150px;">${configApp.texto_prealta}</textarea></label> <label style="margin-bottom:20px;">Texto Nueva Alta: <textarea id="cfg-txt-alta-conf" class="modern-input" style="height:150px;">${configApp.texto_alta_confirmada}</textarea></label> <button id="btn-guardar-cfg" class="btn-primary" style="width:100%;">Guardar Configuración</button> </div>`; 
     document.getElementById('btn-guardar-cfg').addEventListener('click', async (e) => { setBotonCargando(e.target, true); await setDoc(doc(db, "configuracion", "general"), { hora_apertura: document.getElementById('cfg-apertura').value, hora_cierre: document.getElementById('cfg-cierre').value, cantidad_aulas: document.getElementById('cfg-aulas').value, cantidad_baterias: document.getElementById('cfg-bats').value, identificador_bateria: document.getElementById('cfg-idbat').value, emoji_guitarra: document.getElementById('cfg-em-gui').value, emoji_cajon: document.getElementById('cfg-em-caj').value, emoji_canto: document.getElementById('cfg-em-can').value, emoji_piano: document.getElementById('cfg-em-pia').value, emoji_bajo: document.getElementById('cfg-em-baj').value, calendario_por_defecto: document.getElementById('cfg-cal-defecto').value, valor_clase: document.getElementById('cfg-valor').value, formato_evento_reserva: document.getElementById('cfg-evt-res').value, formato_evento_confirmado: document.getElementById('cfg-evt-conf').value, texto_nombre_agendar: document.getElementById('cfg-nombre-agendar').value, texto_opciones_multiples: document.getElementById('cfg-txt-opt-mul').value, texto_profe: document.getElementById('cfg-txt-p').value, texto_alumno: document.getElementById('cfg-txt-a').value, texto_conf_profe: document.getElementById('cfg-txt-conf-p').value, texto_conf_alumno: document.getElementById('cfg-txt-conf-a').value, texto_cancela_alumno: document.getElementById('cfg-txt-cancela').value, texto_prealta: document.getElementById('cfg-txt-prealta').value, texto_alta_confirmada: document.getElementById('cfg-txt-alta-conf').value }, { merge: true }); await cargarConfig(); setBotonCargando(e.target, false); alert('Guardado.'); }); 
 }
+
 async function renderCharts() {
     const cont = document.getElementById('estadisticas-container');
     cont.innerHTML = `
@@ -875,7 +879,7 @@ async function cargarABM(coleccion, titulo, cont) {
         setTimeout(() => { syncSelectToChips('input-skills-abm', 'chips-skills-abm'); }, 100);
     }
 
-    document.getElementById('btn-guardar-abm').addEventListener('click', async () => { 
+    document.getElementById('btn-guardar-abm').addEventListener('click', async (e) => { 
         const n = document.getElementById('input-nuevo-abm').value.trim(); 
         if(!n) return; 
         const dO = coleccion === 'usuarios_sistema' ? { email: n.toLowerCase() } : { nombre: n }; 
@@ -952,8 +956,12 @@ window.eliminarABM = async function(id, col) {
 }
 
 document.getElementById('btn-guardar-abm-edit').addEventListener('click', async (e) => { 
-    setBotonCargando(e.target, true); 
-    const id = document.getElementById('abm-edit-id').value, col = document.getElementById('abm-edit-coleccion').value, nombreInput = document.getElementById('abm-edit-nombre').value; 
+    const btnTarget = e.currentTarget;
+    setBotonCargando(btnTarget, true); 
+    
+    const id = document.getElementById('abm-edit-id').value;
+    const col = document.getElementById('abm-edit-coleccion').value;
+    const nombreInput = document.getElementById('abm-edit-nombre').value; 
     const dO = col === 'usuarios_sistema' ? { email: nombreInput.toLowerCase() } : { nombre: nombreInput }; 
     
     if(col === 'profesores') { 
@@ -979,59 +987,12 @@ document.getElementById('btn-guardar-abm-edit').addEventListener('click', async 
     try {
         await updateDoc(doc(db, col, id), dO); 
         document.getElementById('modal-abm-edit').close(); 
-        cargarVista('ABM-' + window.tituloABMActual); 
+        await cargarVista('ABM-' + window.tituloABMActual); 
     } catch(err) {
         alert("Error al guardar: " + err.message);
     }
     
-    setBotonCargando(e.target, false); 
-});
-
-document.querySelectorAll('#sidebar .nav-item, #sidebar .nav-item-small').forEach(item => { 
-    item.addEventListener('click', (e) => { 
-        if(e.target.closest('summary')) return; 
-        document.querySelectorAll('#sidebar .nav-item, #sidebar .nav-item-small').forEach(el => el.classList.remove('active')); 
-        const tgt = e.target.closest('.nav-item') || e.target.closest('.nav-item-small');
-        tgt.classList.add('active'); 
-        cargarVista(tgt.getAttribute('data-vista')); 
-        document.getElementById('sidebar').classList.remove('active'); 
-        const overlay = document.getElementById('mobile-overlay'); 
-        if (overlay) overlay.style.display = 'none'; 
-    }); 
-});
-
-document.getElementById('btn-guardar-abm-edit').addEventListener('click', async (e) => { 
-    setBotonCargando(e.target, true); 
-    const id = document.getElementById('abm-edit-id').value, col = document.getElementById('abm-edit-coleccion').value, nombreInput = document.getElementById('abm-edit-nombre').value; 
-    const dO = col === 'usuarios_sistema' ? { email: nombreInput.toLowerCase() } : { nombre: nombreInput }; 
-    
-    if(col === 'profesores') { 
-        dO.correo_calendario = document.getElementById('abm-edit-correo').value; 
-        dO.celular = document.getElementById('abm-edit-celular').value; 
-        dO.alias_transferencia = document.getElementById('abm-edit-alias').value; 
-        dO.entrevista = document.getElementById('abm-edit-entrevista').checked; 
-        
-        const selSkills = document.getElementById('abm-edit-skills');
-        dO.skills = Array.from(selSkills.selectedOptions).map(o => o.value);
-
-        const disp = {}; const hApe = configApp.hora_apertura || '09:00'; const hCie = configApp.hora_cierre || '22:00'; 
-        diasSemana.forEach(d => { 
-            const cA = document.getElementById(`disp-p-${d.id}-all`).checked, cN = document.getElementById(`disp-p-${d.id}-none`).checked; 
-            let i = document.getElementById(`disp-p-${d.id}-inicio`).value, f = document.getElementById(`disp-p-${d.id}-fin`).value; 
-            if(cN) disp[d.id] = []; else if(cA) disp[d.id] = [{inicio:hApe, fin:hCie}]; else { if(i||f) disp[d.id] = [{inicio: i||hApe, fin: f||hCie}]; else disp[d.id] = []; } 
-        }); 
-        dO.disponibilidad = disp; 
-    } 
-    
-    try {
-        await updateDoc(doc(db, col, id), dO); 
-        document.getElementById('modal-abm-edit').close(); 
-        cargarVista('ABM-' + window.tituloABMActual); 
-    } catch(err) {
-        alert("Error al guardar: " + err.message);
-    }
-    
-    setBotonCargando(e.target, false); 
+    setBotonCargando(btnTarget, false); 
 });
 
 document.querySelectorAll('#sidebar .nav-item, #sidebar .nav-item-small').forEach(item => { 
