@@ -394,6 +394,9 @@ function generarBotonesAccion(al, id) {
     else if (al.estado_agenda === 'Agenda suspendida') {
         accionesHtml += `<button type="button" class="dropdown-item btn-recuperar-agenda" data-id="${id}">♻️ Recuperar Agenda</button>`;
     }
+    else if (al.estado_agenda === 'Lista de espera') {
+        accionesHtml += `<button type="button" class="dropdown-item btn-abrir-prealta" data-id="${id}">⚙️ Iniciar Pre-Alta</button>`;
+    }
     else if (al.estado_agenda === 'Pre-alta Pendiente') {
         accionesHtml += `<button type="button" class="dropdown-item btn-abrir-prealta" data-id="${id}">⚙️ Iniciar Pre-Alta</button>`;
     }
@@ -410,6 +413,7 @@ function generarBotonesAccion(al, id) {
     if (al.estado_agenda !== 'Pre-alta Pendiente' && al.estado_agenda !== 'Lista de espera' && al.estado_agenda !== 'Alta Suspendida' && al.estado_agenda !== 'Alta Efectiva' && al.estado_agenda !== 'Alta Ilegal') {
         accionesHtml = `<button type="button" class="dropdown-item btn-nombre-agendar" data-id="${id}">📋 Generar nombre agenda WS</button>` + accionesHtml;
     }
+    
     return accionesHtml;
 }
 
