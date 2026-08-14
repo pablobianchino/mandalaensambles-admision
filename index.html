@@ -19,7 +19,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 </head>
 <body>
-   <div id="login-container">
+    <!-- PANTALLA DE LOGIN -->
+    <div id="login-container">
         <div class="login-card">
             <!-- Logo de Mandala Ensambles -->
             <img src="logo.png" alt="Mandala Ensambles" style="width: 70px; height: 70px; object-fit: contain; margin-bottom: 15px;">
@@ -36,14 +37,19 @@
         </div>
     </div>
 
+    <!-- VELO OSCURO PARA MENÚ MÓVIL -->
     <div id="mobile-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:900;"></div>
 
     <div id="app-container" style="display: none; width: 100%;">
+        <!-- MENÚ LATERAL -->
         <aside id="sidebar">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
-                <div>
-                    <h2 style="font-size:1.1em; font-weight:800; margin:0; color:#1f5491; letter-spacing:-0.02em;">Mandala Ensambles</h2>
-                    <div style="font-size:0.8em; color:#9a9388;">Ingresos 2026</div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <img src="logo.png" alt="Logo" style="width:36px; height:36px; object-fit:contain;">
+                    <div>
+                        <h2 style="font-size:1.1em; font-weight:800; margin:0; color:#1f5491; letter-spacing:-0.02em;">Mandala Ensambles</h2>
+                        <div style="font-size:0.8em; color:#9a9388;">Ingresos 2026</div>
+                    </div>
                 </div>
                 <button id="btn-cerrar-menu-mobile" style="display:none; background:none; border:none; font-size:1.5em; cursor:pointer; color:#1c1f22;">&times;</button>
             </div>
@@ -94,6 +100,7 @@
             </div>
         </aside>
 
+        <!-- CONTENIDO PRINCIPAL -->
         <main id="main-content">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
                 <div style="display:flex; align-items:center; gap:10px;">
@@ -110,7 +117,7 @@
                 </div>
             </div>
 
-            <!-- BARRA DE FILTROS Y AGRUPADORES (Se oculta en vistas que no sean listas) -->
+            <!-- BARRA DE FILTROS Y AGRUPADORES -->
             <div id="controles-vista" style="display:none; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:15px; border-bottom:1px solid #ece6dc; padding-bottom:15px;">
                 <div id="filtros-chips" style="display:flex; gap:8px; flex-wrap:wrap;">
                     <!-- Se inyectan por JS -->
@@ -127,6 +134,7 @@
                 </div>
             </div>
 
+            <!-- VISTA RESUMEN -->
             <div id="vista-resumen" style="display:none; flex-direction:column; gap:20px;">
                 <div class="resumen-section-title" style="color:#c2563b; border-bottom-color:#c2563b;">🚨 Prioridades / Próximos a Vencer</div>
                 <div id="resumen-urgencias" class="lista-filas"></div>
@@ -134,15 +142,20 @@
                 <div id="timeline-resumen-altas"></div>
             </div>
 
-            <!-- CONTENEDOR PRINCIPAL DE FILAS -->
+            <!-- CONTENEDOR PRINCIPAL DE FILAS (Listas Dinámicas) -->
             <div id="lista-generica" class="lista-filas" style="display:none; flex-direction:column; gap:8px;"></div>
             
+            <!-- VISTA ESTADÍSTICAS -->
             <div id="estadisticas-container" style="display:none; flex-direction:column; gap:20px;"></div>
         </main>
     </div>
 
-    <!-- MODAL ALTA/EDICIÓN ALUMNO CON PESTAÑAS Y CAMPO NIVEL -->
-    <dialog id="modal-alta-alumno" class="modern-modal">
+    <!-- ============================================== -->
+    <!-- MODALES DE LA APLICACIÓN -->
+    <!-- ============================================== -->
+
+    <!-- MODAL ALTA/EDICIÓN ALUMNO CON PESTAÑAS -->
+    <dialog id="modal-alta-alumno" class="modern-modal" style="width: 95%; max-width: 800px; max-height: 95vh; overflow-y: auto;">
         <div id="form-alumno-wrapper" style="padding: 24px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                 <h2 id="form-titulo" style="margin:0; font-size:1.4em; font-weight:700; color:#1c1f22;">Nuevo Alumno</h2>
@@ -191,22 +204,17 @@
                     <div id="lista-historial" style="display:flex; flex-direction:column; gap:10px; max-height:200px; overflow-y:auto;"></div>
                 </div>
 
-                <div class="modal-footer">
-                    <label id="container-ingreso-directo" style="margin:0; cursor:pointer; font-weight:600; color:#1f5491; display:flex; align-items:center; gap:8px; font-size:0.9em;">
-                        <input type="checkbox" id="chk-ingreso-directo" style="width:18px; height:18px; margin:0; accent-color:#007b8f;">
+                <div style="display:flex; flex-direction:column; gap:15px; border-top:1px solid var(--border-color); padding-top:15px; margin-top:10px;">
+                    <label id="container-ingreso-directo" style="margin:0; cursor:pointer; font-weight:600; color:#1f5491; display:flex; align-items:center; gap:8px; font-size:0.9em; text-transform:none;">
+                        <input type="checkbox" id="chk-ingreso-directo" style="width:18px; height:18px; margin:0; accent-color:var(--accent-teal);">
                         Ingreso a Lista de Espera directo
                     </label>
-                    <button type="submit" class="btn-primary" style="width:100%; margin-top:10px;">Guardar Alumno</button>
+                    <button type="submit" class="btn-primary" style="width:100%;">Guardar Alumno</button>
                 </div>
             </form>
         </div>
     </dialog>
 
-    <div id="toast-container" style="position:fixed; bottom:20px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
-    
-    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <!-- El app.js se inyectará en el próximo paso -->
-</body>
     <!-- MODAL BUSCAR AGENDA MÚLTIPLE -->
     <dialog id="modal-agenda" class="modern-modal" style="width: 95%; max-width: 600px; padding:24px;">
         <h3 style="margin:0 0 15px 0; color:var(--text-main); font-size:1.4em;">Buscar Disponibilidad</h3>
@@ -306,7 +314,7 @@
             <label>Email Calendar: <input type="email" id="abm-edit-correo" class="modern-input"></label>
             <label>Celular: <input type="text" id="abm-edit-celular" class="modern-input"></label>
             <label>Alias Transferencia: <input type="text" id="abm-edit-alias" class="modern-input"></label>
-            <label style="cursor:pointer; font-weight:600; margin-top:10px; display:flex; align-items:center; gap:8px;"><input type="checkbox" id="abm-edit-entrevista" style="width:18px; height:18px;"> Habilitar para entrevistas</label>
+            <label style="cursor:pointer; font-weight:600; margin-top:10px; display:flex; align-items:center; gap:8px; text-transform:none;"><input type="checkbox" id="abm-edit-entrevista" style="width:18px; height:18px;"> Habilitar para entrevistas</label>
             <div style="margin-top:15px; border-top:1px solid var(--border-color); padding-top:15px;">
                 <strong style="display:block; margin-bottom:10px; color:var(--text-muted);">Disponibilidad del Profesor:</strong>
                 <div id="contenedor-disponibilidad-profe" style="display:flex; flex-direction:column; gap:8px;"></div>
@@ -317,4 +325,27 @@
             <button id="btn-guardar-abm-edit" class="btn-primary">Guardar Cambios</button>
         </div>
     </dialog>
+
+    <!-- ============================================== -->
+    <!-- SCRIPTS Y MOTOR DE LA APLICACIÓN -->
+    <!-- ============================================== -->
+    
+    <div id="toast-container" style="position:fixed; bottom:20px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
+    
+    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+    <script type="module" src="app.js"></script>
+
+    <!-- SCRIPT REGISTRO PWA Y MENÚ MÓVIL -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').then(reg => {
+                    console.log('PWA Service Worker Registrado');
+                }).catch(err => {
+                    console.log('Error PWA: ', err);
+                });
+            });
+        }
+    </script>
+</body>
 </html>
