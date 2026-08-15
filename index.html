@@ -101,7 +101,7 @@
 
         <!-- CONTENIDO PRINCIPAL -->
         <main id="main-content">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+            <div id="header-acciones-vista" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
                 <div style="display:flex; align-items:center; gap:10px;">
                     <button id="btn-mobile-menu" style="display:none; background:none; border:none; font-size:1.5em; cursor:pointer; padding:0; color:#1c1f22;">☰</button>
                     <h1 id="vista-titulo" style="margin:0; font-size:1.6em; color:#1c1f22; font-weight:700; letter-spacing:-0.02em;">Dashboard</h1>
@@ -148,6 +148,7 @@
                 
                 <div id="timeline-unificado" style="margin-top:10px; width: 100%; overflow-x: auto;"></div>
                 
+                <!-- El Tray ahora será movido vía JS en Mobile -->
                 <div id="timeline-tray-container" class="timeline-tray-container">
                     <div class="timeline-tray" id="timeline-tray-content">
                         <!-- Aquí adentro JS inyectará los alumnos como mini tarjetas -->
@@ -158,6 +159,30 @@
             <!-- VISTA ESTADÍSTICAS -->
             <div id="estadisticas-container" style="display:none; flex-direction:column; gap:20px;"></div>
         </main>
+        
+        <!-- BARRA DE NAVEGACIÓN INFERIOR (Solo visible en Móviles) -->
+        <nav id="bottom-nav" class="bottom-nav">
+            <div class="bottom-nav-item active" data-vista="Dashboard">
+                <span class="bottom-nav-icon">◷</span>
+                <span>Inicio</span>
+            </div>
+            <div class="bottom-nav-item" data-vista="Inbox - Pendientes">
+                <span class="bottom-nav-icon">📥</span>
+                <span>Inbox</span>
+            </div>
+            <div class="bottom-nav-item" data-vista="Altas - Pendientes">
+                <span class="bottom-nav-icon">🚀</span>
+                <span>Altas</span>
+            </div>
+            <div class="bottom-nav-item" data-vista="Estadísticas">
+                <span class="bottom-nav-icon">📊</span>
+                <span>Métricas</span>
+            </div>
+            <div class="bottom-nav-item" id="btn-bottom-menu">
+                <span class="bottom-nav-icon">☰</span>
+                <span>Menú</span>
+            </div>
+        </nav>
     </div>
 
     <!-- ============================================== -->
