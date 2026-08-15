@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mandala Seguimientos</title>
+    <title>Mandala Admisión</title>
     
     <link rel="icon" href="logo.png" type="image/png">
     <link rel="manifest" href="manifest.json">
@@ -50,7 +50,7 @@
                         <div style="font-size:0.9em; color:#9a9388; font-weight:700;">Admisión de Alumnos</div>
                     </div>
                 </div>
-                <button id="btn-cerrar-menu-mobile" style="display:none; background:none; border:none; font-size:1.5em; cursor:pointer; color:#1c1f22;">&times;</button>
+                <button id="btn-cerrar-menu-mobile" style="background:none; border:none; font-size:1.5em; cursor:pointer; color:#1c1f22;">&times;</button>
             </div>
             
             <button id="btn-nuevo-alumno" class="btn-nuevo-sidebar">＋ Nuevo alumno</button>
@@ -146,7 +146,7 @@
             <div id="vista-resumen-timeline" style="display:none; flex-direction:column; gap:10px; margin-top:30px; border-top:2px solid var(--border-color); padding-top:20px;">
                 <div class="resumen-section-title" style="color:#1f5491; border-bottom-color:#1f5491; margin:0;">🌊 Flow</div>
                 
-                <div id="timeline-unificado" style="margin-top:10px;"></div>
+                <div id="timeline-unificado" style="margin-top:10px; width: 100%; overflow-x: auto;"></div>
                 
                 <div id="timeline-tray-container" class="timeline-tray-container">
                     <div class="timeline-tray" id="timeline-tray-content">
@@ -180,8 +180,9 @@
                     <button type="button" class="tab-btn active" data-target="tab-datos">📝 Datos</button>
                     <button type="button" class="tab-btn" data-target="tab-disp">🕒 Horarios</button>
                     <button type="button" class="tab-btn" data-target="tab-historial">📚 Historial</button>
+                    <button type="button" class="tab-btn" data-target="tab-informe">📝 Informe</button>
                     
-                    <div class="alumno-actions" id="modal-acciones-container" style="display:none; position:relative; margin-left:10px;">
+                    <div class="alumno-actions" id="modal-acciones-container" style="display:none; position:relative; margin-left:10px; z-index:1000;">
                         <!-- Se inyecta por JS -->
                     </div>
                 </div>
@@ -223,6 +224,14 @@
                     <div id="lista-historial" style="display:flex; flex-direction:column; gap:10px; max-height:200px; overflow-y:auto;"></div>
                 </div>
 
+                <div id="tab-informe" class="tab-content" style="display:none;">
+                    <div id="aviso-informe-bloqueado" style="display:none; background:var(--hover-bg); color:var(--accent-red); padding:10px; border-radius:8px; margin-bottom:15px; font-weight:600; font-size:13px;">
+                        ⚠️ El informe de admisión solo se puede completar una vez que la entrevista esté confirmada.
+                    </div>
+                    <label>Informe Post-Entrevista / Nivelación</label>
+                    <div id="informe-editor-container" style="height: 200px; background:white; border-radius:8px; margin-bottom:20px;"></div>
+                </div>
+
                 <div style="display:flex; flex-direction:column; gap:15px; border-top:1px solid var(--border-color); padding-top:15px; margin-top:10px;">
                     <label id="container-ingreso-directo" style="margin:0; cursor:pointer; font-weight:600; color:#1f5491; display:flex; align-items:center; gap:8px; font-size:0.9em; text-transform:none;">
                         <input type="checkbox" id="chk-ingreso-directo" style="width:18px; height:18px; margin:0; accent-color:var(--accent-teal);">
@@ -231,6 +240,18 @@
                     <button type="submit" class="btn-primary" style="width:100%;">Guardar Alumno</button>
                 </div>
             </form>
+        </div>
+    </dialog>
+
+    <!-- MODAL NUEVO: CARGAR INFORME AL FINALIZAR ADMISIÓN -->
+    <dialog id="modal-informe-admision" class="modern-modal" style="width: 90%; max-width: 500px; padding: 24px;">
+        <h3 style="margin:0 0 10px 0; color:var(--text-main);">Finalizar Admisión</h3>
+        <p style="color:var(--text-muted); font-size:0.95em; margin-bottom:15px;">Ingresá un resumen o informe de nivelación antes de pasar al alumno a la Lista de Espera.</p>
+        <input type="hidden" id="informe-final-alumno-id">
+        <div id="informe-popup-editor-container" style="height: 180px; background:white; border-radius:8px; margin-bottom:20px;"></div>
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <button type="button" class="btn-cerrar-modal" data-modal="modal-informe-admision" style="padding:10px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted);">Cancelar</button>
+            <button id="btn-guardar-informe-final" class="btn-primary">Guardar y Enviar a Espera</button>
         </div>
     </dialog>
 
