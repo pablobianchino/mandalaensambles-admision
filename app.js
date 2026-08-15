@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-const APP_VERSION = "v2.9";
+const APP_VERSION = "v3.0";
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 const firebaseConfig = {
@@ -158,7 +158,11 @@ if (!document.getElementById('modal-nota-rapida')) {
     document.body.appendChild(dlg);
 }
 
+// INICIALIZACIÓN DE LOS TRES EDITORES QUILL
 const quill = new Quill('#editor-container', { theme: 'snow', modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] } });
+const quillInforme = new Quill('#informe-editor-container', { theme: 'snow', modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] } });
+const quillPopup = new Quill('#informe-popup-editor-container', { theme: 'snow', modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] } });
+
 const diasSemana = [{ id:'L',nombre:'Lunes'}, {id:'M',nombre:'Martes'}, {id:'X',nombre:'Miércoles'}, {id:'J',nombre:'Jueves'}, {id:'V',nombre:'Viernes'}, {id:'S',nombre:'Sábado'}];
 const contDisp = document.getElementById('contenedor-disponibilidad'), contDispProfe = document.getElementById('contenedor-disponibilidad-profe');
 
@@ -750,6 +754,17 @@ onAuthStateChanged(auth, async (user) => {
         const userInfoBox = document.getElementById('user-info'); userInfoBox.textContent = user.email; 
         if (userInfoBox && !document.getElementById('version-tag')) { userInfoBox.insertAdjacentHTML('afterend', `<div id="version-tag" style="font-size:0.85em; color:var(--accent-teal); margin-top:5px; font-weight:700; padding:0 10px;">${APP_VERSION}</div>`); }
         await cargarConfig(); cargarVista('Dashboard'); 
+        
+        // Habilitar controles del menú móvil
+        const btnMobileMenu = document.getElementById('btn-mobile-menu');
+        const btnCerrarMenuMobile = document.getElementById('btn-cerrar-menu-mobile');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('mobile-overlay');
+
+        if(btnMobileMenu) btnMobileMenu.addEventListener('click', () => { sidebar.classList.add('active'); overlay.style.display = 'block'; });
+        if(btnCerrarMenuMobile) btnCerrarMenuMobile.addEventListener('click', () => { sidebar.classList.remove('active'); overlay.style.display = 'none'; });
+        if(overlay) overlay.addEventListener('click', () => { sidebar.classList.remove('active'); overlay.style.display = 'none'; });
+
     } else { 
         document.getElementById('login-container').style.display = 'flex'; document.getElementById('app-container').style.display = 'none'; 
     } 
@@ -786,7 +801,40 @@ document.addEventListener('click', async (e) => {
     if (rowInfo) { const id = rowInfo.getAttribute('data-id'); const wrap = document.getElementById('form-alumno-wrapper'); document.getElementById('modal-alta-alumno').appendChild(wrap); wrap.style.display = 'block'; document.getElementById('alumno-id').value = id; await llenarFormularioAlumno(id); document.getElementById('form-titulo').textContent = 'Editar Alumno'; document.getElementById('container-ingreso-directo').style.display = 'none'; document.getElementById('modal-alta-alumno').showModal(); return; }
 
     if (target.classList.contains('btn-nombre-agendar')) { const id = target.getAttribute('data-id'); try { const al = (await getDoc(doc(db, "alumnos", id))).data(); const iS = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento; let template = configApp.texto_nombre_agendar || 'MDL {nombre} {edad} {año_actual} @{instrumento} @{suscripcion}'; const txt = reemplazarVariables(template, { nombre: al.nombre, edad: al.edad || '', 'año_actual': new Date().getFullYear().toString(), instrumento: iS, suscripcion: al.tipo_suscripcion || '' }).replace(/\s+/g, ' ').trim(); await navigator.clipboard.writeText(txt); alert("Nombre copiado:\n" + txt); } catch(e) {} return; }
-    if (target.classList.contains('btn-admision-finalizada')) { const id = target.getAttribute('data-id'); await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Lista de espera" }); cargarVista(estadoActualVista); return; }
+    
+    // CAMBIO FINALIZAR ADMISIÓN: Abre modal de Informe
+    if (target.classList.contains('btn-admision-finalizada')) { 
+        const id = target.getAttribute('data-id'); 
+        document.getElementById('informe-final-alumno-id').value = id;
+        try {
+            const al = (await getDoc(doc(db, "alumnos", id))).data();
+            quillPopup.root.innerHTML = al.informe_admision || '';
+            document.getElementById('modal-informe-admision').showModal();
+        } catch(e) {}
+        return; 
+    }
+    
+    // GUARDAR INFORME FINAL Y ENVIAR A LISTA DE ESPERA
+    if (target.id === 'btn-guardar-informe-final') {
+        const btn = target;
+        setBotonCargando(btn, true);
+        const id = document.getElementById('informe-final-alumno-id').value;
+        const informeTexto = quillPopup.root.innerHTML;
+        try {
+            await updateDoc(doc(db, "alumnos", id), { 
+                estado_agenda: "Lista de espera",
+                informe_admision: informeTexto
+            });
+            document.getElementById('modal-informe-admision').close();
+            alert("Admisión Finalizada. Alumno en Lista de Espera.");
+            cargarVista(estadoActualVista);
+        } catch(err) {
+            alert("Error al guardar: " + err.message);
+        }
+        setBotonCargando(btn, false);
+        return;
+    }
+
     if (target.classList.contains('btn-abrir-prealta')) { const id = target.getAttribute('data-id'); document.getElementById('prealta-alumno-id').value = id; document.getElementById('titulo-prealta').textContent = 'Iniciar Pre-Alta'; document.getElementById('prealta-fecha-inicio').value = ''; document.getElementById('prealta-grupo').value = ''; document.getElementById('modal-iniciar-prealta').showModal(); return; }
     if (target.id === 'btn-guardar-prealta') { const id = document.getElementById('prealta-alumno-id').value, fIni = document.getElementById('prealta-fecha-inicio').value, grp = document.getElementById('prealta-grupo').value; if(!fIni || !grp) return alert("Completa todos los campos."); setBotonCargando(target, true); const fIso = new Date(fIni).toISOString(), updates = { estado_agenda: "Pre-alta Iniciada", fecha_inicio_clases: fIso, grupo_asignado: grp }; const al = (await getDoc(doc(db, "alumnos", id))).data(); if(!al.fecha_prealta) updates.fecha_prealta = new Date().toISOString(); if(!al.checklist_alta) updates.checklist_alta = [false, false, false, false, false]; await updateDoc(doc(db, "alumnos", id), updates); const dataText = await generarTextoConHistorial(id, 'texto_prealta'); await navigator.clipboard.writeText(dataText.txt); document.getElementById('modal-iniciar-prealta').close(); alert("Pre-Alta Iniciada.\nTexto copiado."); setBotonCargando(target, false); cargarVista(estadoActualVista); return; }
     if (target.classList.contains('btn-abrir-confirmar-alta')) { document.getElementById('conf-alta-alumno-id').value = target.getAttribute('data-id'); document.getElementById('modal-confirmar-alta').showModal(); return; }
@@ -813,7 +861,7 @@ document.addEventListener('click', async (e) => {
     if (target.classList.contains('btn-cerrar-modal')) { document.getElementById(target.getAttribute('data-modal')).close(); return; }
     
     if (target.id === 'btn-nuevo-alumno') { 
-        const wrap = document.getElementById('form-alumno-wrapper'); document.getElementById('modal-alta-alumno').appendChild(wrap); wrap.style.display = 'block'; document.getElementById('form-titulo').textContent = 'Nuevo Alumno'; document.getElementById('modal-status-badge').style.display = 'none'; document.getElementById('alumno-id').value = ''; document.getElementById('form-alumno').reset(); quill.setContents([]); historialActual = []; renderHistorial(); diasSemana.forEach(d => { document.getElementById(`disp-${d.id}-all`).checked=false; document.getElementById(`disp-${d.id}-none`).checked=false; document.getElementById(`estado-${d.id}`).textContent=""; }); document.getElementById('chk-ingreso-directo').checked = false; 
+        const wrap = document.getElementById('form-alumno-wrapper'); document.getElementById('modal-alta-alumno').appendChild(wrap); wrap.style.display = 'block'; document.getElementById('form-titulo').textContent = 'Nuevo Alumno'; document.getElementById('modal-status-badge').style.display = 'none'; document.getElementById('alumno-id').value = ''; document.getElementById('form-alumno').reset(); quill.setContents([]); quillInforme.setContents([]); quillInforme.enable(false); document.getElementById('aviso-informe-bloqueado').style.display = 'block'; historialActual = []; renderHistorial(); diasSemana.forEach(d => { document.getElementById(`disp-${d.id}-all`).checked=false; document.getElementById(`disp-${d.id}-none`).checked=false; document.getElementById(`estado-${d.id}`).textContent=""; }); document.getElementById('chk-ingreso-directo').checked = false; 
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); const tabBtns = document.querySelectorAll('.tab-btn'); if(tabBtns.length > 0) { tabBtns[0].classList.add('active'); } document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none'); if(document.getElementById('tab-datos')) document.getElementById('tab-datos').style.display = 'block';
         const accionesCont = document.getElementById('modal-acciones-container'); if(accionesCont) accionesCont.style.display = 'none';
         await cargarSelectsAlumnos(); document.getElementById('modal-alta-alumno').showModal(); return; 
@@ -831,6 +879,17 @@ async function cargarSelectsAlumnos() {
 
 async function llenarFormularioAlumno(id) { 
     document.getElementById('alumno-id').value = id; const d = (await getDoc(doc(db, "alumnos", id))).data(); document.getElementById('nombre').value = d.nombre; document.getElementById('celular').value = d.celular; document.getElementById('edad').value = d.edad||''; document.getElementById('nivel').value = d.nivel||''; await cargarSelectsAlumnos(); const sI = document.getElementById('instrumento'); Array.from(sI.options).forEach(o => o.selected = (d.instrumento||[]).includes(o.value)); syncSelectToChips('instrumento', 'chips-instrumentos'); document.getElementById('tipo_suscripcion').value = d.tipo_suscripcion; quill.root.innerHTML = d.descripcion||''; historialActual = d.historial || []; renderHistorial(); 
+    
+    // Configuración del nuevo Informe
+    quillInforme.root.innerHTML = d.informe_admision || '';
+    const estadosBloqueados = ['Pendiente procesar', 'Pendiente validación por profe', 'Pendiente validación por alumno'];
+    if (estadosBloqueados.includes(d.estado_agenda)) {
+        document.getElementById('aviso-informe-bloqueado').style.display = 'block';
+        quillInforme.enable(false);
+    } else {
+        document.getElementById('aviso-informe-bloqueado').style.display = 'none';
+        quillInforme.enable(true);
+    }
     
     const info = getEstadoYBadge(d);
     const badgeEl = document.getElementById('modal-status-badge');
@@ -854,7 +913,7 @@ async function llenarFormularioAlumno(id) {
 document.getElementById('form-alumno').addEventListener('submit', async (e) => { 
     e.preventDefault(); const btnSubmit = e.target.querySelector('button[type="submit"]'); setBotonCargando(btnSubmit, true);
     const disp = {}, hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00'; diasSemana.forEach(d => { const cA = document.getElementById(`disp-${d.id}-all`).checked, cN = document.getElementById(`disp-${d.id}-none`).checked; let i = document.getElementById(`disp-${d.id}-inicio`).value, f = document.getElementById(`disp-${d.id}-fin`).value; if(cN) disp[d.id] = []; else if(cA) disp[d.id] = [{inicio:hApe, fin:hCie}]; else { if(i||f) disp[d.id] = [{inicio: i||hApe, fin: f||hCie}]; else disp[d.id] = []; } }); 
-    const selInst = document.getElementById('instrumento'), instV = Array.from(selInst.selectedOptions).map(o=>o.value), data = { nombre: document.getElementById('nombre').value, celular: document.getElementById('celular').value, edad: Number(document.getElementById('edad').value), nivel: document.getElementById('nivel').value, instrumento: instV, tipo_suscripcion: document.getElementById('tipo_suscripcion').value, descripcion: quill.root.innerHTML, disponibilidad: disp, historial: historialActual }; 
+    const selInst = document.getElementById('instrumento'), instV = Array.from(selInst.selectedOptions).map(o=>o.value), data = { nombre: document.getElementById('nombre').value, celular: document.getElementById('celular').value, edad: Number(document.getElementById('edad').value), nivel: document.getElementById('nivel').value, instrumento: instV, tipo_suscripcion: document.getElementById('tipo_suscripcion').value, descripcion: quill.root.innerHTML, informe_admision: quillInforme.root.innerHTML, disponibilidad: disp, historial: historialActual }; 
     try { const id = document.getElementById('alumno-id').value; if (id) { await updateDoc(doc(db, "alumnos", id), data); } else { const esDirecto = document.getElementById('chk-ingreso-directo').checked; if (esDirecto) { data.estado_agenda = "Lista de espera"; const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`; data.historial.push({ id: Date.now(), texto: "Ingreso directo a Lista de Espera.", fecha: fechaStr }); } else { data.estado_agenda = "Pendiente procesar"; } await addDoc(collection(db, "alumnos"), data); } const wrap = document.getElementById('form-alumno-wrapper'); wrap.style.display='none'; document.body.appendChild(wrap); document.getElementById('modal-alta-alumno').close(); cargarVista(estadoActualVista); } catch(err) { alert("Error al guardar."); } setBotonCargando(btnSubmit, false);
 });
 
