@@ -15,6 +15,7 @@
     --item-bg: #ffffff;
 }
 
+/* Base Responsive */
 body {
     font-family: 'Hanken Grotesk', sans-serif;
     font-size: 14px;
@@ -23,8 +24,13 @@ body {
     margin: 0;
     display: flex;
     height: 100vh;
+    width: 100vw;
     overflow: hidden;
     -webkit-font-smoothing: antialiased;
+}
+
+* {
+    box-sizing: border-box;
 }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -57,6 +63,7 @@ body {
     text-align: center;
     box-shadow: 0 4px 20px rgba(0,0,0,0.04); 
     border: 1px solid var(--border-color);
+    max-width: 90%;
 }
 
 .btn-google-login { 
@@ -136,8 +143,10 @@ body {
     flex-grow: 1; 
     padding: 24px 32px; 
     overflow-y: auto; 
+    overflow-x: hidden;
     background-color: var(--bg-main); 
     position: relative; 
+    width: 100%;
 }
 
 .resumen-section-title { font-size: 1.2em; font-weight: 700; margin: 10px 0 15px 0; padding-bottom: 5px; border-bottom: 2px solid var(--border-color); }
@@ -152,9 +161,9 @@ body {
 /* =======================================================================
    FILAS DE DATOS
    ======================================================================= */
-.lista-filas { display:flex; flex-direction:column; gap:6px; }
+.lista-filas { display:flex; flex-direction:column; gap:6px; max-width: 100%; }
 
-.row-item { background: var(--item-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 15px; cursor: pointer; transition: 0.2s box-shadow, 0.2s border-color; position:relative; }
+.row-item { background: var(--item-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 15px; cursor: pointer; transition: 0.2s box-shadow, 0.2s border-color; position:relative; width:100%; }
 .row-item:hover { border-color: #d9d2c5; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
 
 .row-indicator { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
@@ -234,6 +243,7 @@ body {
     overflow-x: auto; 
     margin-bottom: 0px; 
     gap: 10px; 
+    min-width: 100%;
 }
 .timeline-line { 
     position: absolute; 
@@ -308,6 +318,7 @@ body {
     padding: 0 15px;
     margin-bottom: 20px;
     transition: 0.3s ease;
+    width: 100%;
 }
 .timeline-tray {
     background: var(--item-bg);
@@ -345,7 +356,6 @@ body {
     gap: 6px;
     transition: 0.2s;
     min-width: 240px;
-    max-width: 320px;
     flex-grow: 1;
 }
 .tray-chip-header {
@@ -389,7 +399,7 @@ body {
 /* =======================================================================
    FORMULARIOS Y MODALES (UI MODERNA)
    ======================================================================= */
-.modern-modal { background: var(--bg-main); }
+.modern-modal { background: var(--bg-main); width: 95%; max-width: 800px; }
 .modern-input { background: var(--hover-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px 14px; font-family: inherit; font-size: 14px; color: var(--text-main); outline: none; transition: 0.2s; width: 100%; box-sizing: border-box; }
 .modern-input:focus { border-color: var(--accent-teal); background: #ffffff; box-shadow: 0 0 0 3px rgba(0,123,143,0.1); }
 label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; display:block; margin-bottom:6px; }
@@ -410,13 +420,13 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
 @media (max-width: 850px) {
     #sidebar { position: fixed; top: 0; left: -280px; height: 100vh; z-index: 1000; box-shadow: 2px 0 15px rgba(0,0,0,0.05); }
     #sidebar.active { left: 0; }
-    #btn-mobile-menu, #btn-cerrar-menu-mobile { display: block !important; }
-    #main-content { padding: 15px; padding-bottom: 80px; }
+    #btn-mobile-menu { display: block !important; }
+    #main-content { padding: 15px; padding-bottom: 80px; width: 100vw; }
     
     .row-item { flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px; }
     .row-disp-grid { width: 100%; justify-content: space-between; margin-top: 5px; overflow-x:auto; }
     .disp-box { flex: 1; }
-    .row-meta { width: 100%; flex-direction: row; justify-content: space-between; border-top: 1px solid var(--border-color); padding-top: 10px; margin-top: 5px; }
+    .row-meta { width: 100%; flex-direction: row; justify-content: space-between; border-top: 1px solid var(--border-color); padding-top: 10px; margin-top: 5px; align-items:flex-start; }
     
     #controles-vista { flex-direction: column; align-items: flex-start; }
     #filtros-chips { width: 100%; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 5px; }
