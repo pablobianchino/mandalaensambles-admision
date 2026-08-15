@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-const APP_VERSION = "v3.0";
+const APP_VERSION = "v3.1";
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 const firebaseConfig = {
@@ -544,6 +544,14 @@ function renderTimelineUnificado(containerId, configNodos, datos) {
                         </div>`;
                     }).join('');
                 }
+                
+                if (window.innerWidth <= 850) {
+                    const wrapper = cont.querySelector('.timeline-wrapper');
+                    wrapper.insertBefore(trayContainer, el.nextSibling);
+                    trayContent.style.setProperty('--tray-arrow-pos', `20px`);
+                } else {
+                    cont.appendChild(trayContainer);
+                }
                 trayContainer.style.display = 'block';
             }
         });
@@ -596,7 +604,17 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
 }
 
 async function cargarVista(vista) {
-    estadoActualVista = vista; document.getElementById('vista-titulo').textContent = vista.includes('-') ? vista.split('-')[1].trim() : vista;
+    estadoActualVista = vista; 
+    
+    let tituloMostrado = vista.includes('-') ? vista.split('-')[1].trim() : vista;
+    document.getElementById('vista-titulo').textContent = tituloMostrado;
+    
+    document.querySelectorAll('.bottom-nav-item').forEach(el => el.classList.remove('active'));
+    let bottomVista = vista;
+    if (vista.startsWith('Inbox')) bottomVista = 'Inbox - Pendientes';
+    if (vista.startsWith('Altas')) bottomVista = 'Altas - Pendientes';
+    const bottomMatch = document.querySelector(`.bottom-nav-item[data-vista="${bottomVista}"]`);
+    if(bottomMatch) bottomMatch.classList.add('active');
     
     const vResumen = document.getElementById('vista-resumen'), vResumenTime = document.getElementById('vista-resumen-timeline'), contLista = document.getElementById('lista-generica'), contEstad = document.getElementById('estadisticas-container');
     const formWrapper = document.getElementById('form-alumno-wrapper'), cv = document.getElementById('controles-vista');
@@ -755,7 +773,6 @@ onAuthStateChanged(auth, async (user) => {
         if (userInfoBox && !document.getElementById('version-tag')) { userInfoBox.insertAdjacentHTML('afterend', `<div id="version-tag" style="font-size:0.85em; color:var(--accent-teal); margin-top:5px; font-weight:700; padding:0 10px;">${APP_VERSION}</div>`); }
         await cargarConfig(); cargarVista('Dashboard'); 
         
-        // Habilitar controles del menú móvil
         const btnMobileMenu = document.getElementById('btn-mobile-menu');
         const btnCerrarMenuMobile = document.getElementById('btn-cerrar-menu-mobile');
         const sidebar = document.getElementById('sidebar');
@@ -793,6 +810,20 @@ document.addEventListener('click', async (e) => {
         }
     }
     
+    // Bottom Nav Router
+    const bottomItem = target.closest('.bottom-nav-item');
+    if (bottomItem) {
+        if (bottomItem.id === 'btn-bottom-menu') {
+            document.getElementById('sidebar').classList.add('active');
+            document.getElementById('mobile-overlay').style.display = 'block';
+            return;
+        }
+        document.querySelectorAll('.bottom-nav-item').forEach(el => el.classList.remove('active'));
+        bottomItem.classList.add('active');
+        cargarVista(bottomItem.getAttribute('data-vista'));
+        return;
+    }
+
     if (target.classList.contains('btn-eliminar-alumno')) { e.stopPropagation(); if(confirm("¿Eliminar este alumno por completo?")) { const id = target.closest('.row-item').getAttribute('data-id'); try { const al = (await getDoc(doc(db, "alumnos", id))).data(); if (al && al.id_evento_reserva) { await eliminarEventoSeguro(al); } } catch(err) {} await deleteDoc(doc(db, "alumnos", id)); cargarVista(estadoActualVista); } return; }
     if (target.classList.contains('btn-nota-rapida')) { e.stopPropagation(); document.getElementById('nota-rapida-id').value = target.getAttribute('data-id'); document.getElementById('nota-rapida-texto').value = ''; document.getElementById('modal-nota-rapida').showModal(); return; }
     if (target.id === 'btn-guardar-nota-rapida') { const id = document.getElementById('nota-rapida-id').value, texto = document.getElementById('nota-rapida-texto').value; if (!texto.trim()) return alert("La nota no puede estar vacía."); setBotonCargando(target, true); try { const alDoc = await getDoc(doc(db, "alumnos", id)); if (alDoc.exists()) { const alData = alDoc.data(), hist = alData.historial || []; const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`; hist.push({ id: Date.now(), texto: texto.trim(), fecha: fechaStr }); await updateDoc(doc(db, "alumnos", id), { historial: hist }); document.getElementById('modal-nota-rapida').close(); cargarVista(estadoActualVista); } } catch(e) {} setBotonCargando(target, false); return; }
@@ -802,7 +833,6 @@ document.addEventListener('click', async (e) => {
 
     if (target.classList.contains('btn-nombre-agendar')) { const id = target.getAttribute('data-id'); try { const al = (await getDoc(doc(db, "alumnos", id))).data(); const iS = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento; let template = configApp.texto_nombre_agendar || 'MDL {nombre} {edad} {año_actual} @{instrumento} @{suscripcion}'; const txt = reemplazarVariables(template, { nombre: al.nombre, edad: al.edad || '', 'año_actual': new Date().getFullYear().toString(), instrumento: iS, suscripcion: al.tipo_suscripcion || '' }).replace(/\s+/g, ' ').trim(); await navigator.clipboard.writeText(txt); alert("Nombre copiado:\n" + txt); } catch(e) {} return; }
     
-    // CAMBIO FINALIZAR ADMISIÓN: Abre modal de Informe
     if (target.classList.contains('btn-admision-finalizada')) { 
         const id = target.getAttribute('data-id'); 
         document.getElementById('informe-final-alumno-id').value = id;
@@ -814,7 +844,6 @@ document.addEventListener('click', async (e) => {
         return; 
     }
     
-    // GUARDAR INFORME FINAL Y ENVIAR A LISTA DE ESPERA
     if (target.id === 'btn-guardar-informe-final') {
         const btn = target;
         setBotonCargando(btn, true);
@@ -880,7 +909,6 @@ async function cargarSelectsAlumnos() {
 async function llenarFormularioAlumno(id) { 
     document.getElementById('alumno-id').value = id; const d = (await getDoc(doc(db, "alumnos", id))).data(); document.getElementById('nombre').value = d.nombre; document.getElementById('celular').value = d.celular; document.getElementById('edad').value = d.edad||''; document.getElementById('nivel').value = d.nivel||''; await cargarSelectsAlumnos(); const sI = document.getElementById('instrumento'); Array.from(sI.options).forEach(o => o.selected = (d.instrumento||[]).includes(o.value)); syncSelectToChips('instrumento', 'chips-instrumentos'); document.getElementById('tipo_suscripcion').value = d.tipo_suscripcion; quill.root.innerHTML = d.descripcion||''; historialActual = d.historial || []; renderHistorial(); 
     
-    // Configuración del nuevo Informe
     quillInforme.root.innerHTML = d.informe_admision || '';
     const estadosBloqueados = ['Pendiente procesar', 'Pendiente validación por profe', 'Pendiente validación por alumno'];
     if (estadosBloqueados.includes(d.estado_agenda)) {
