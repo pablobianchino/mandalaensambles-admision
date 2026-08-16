@@ -29,9 +29,7 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
-* {
-    box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: #d9d2c5; border-radius: 6px; }
@@ -120,7 +118,7 @@ body {
 .nav-item { padding: 10px 12px; color: var(--text-main); text-decoration: none; display: flex; align-items:center; gap:8px; border-radius: 10px; margin-bottom: 2px; cursor: pointer; transition: background 0.2s; font-weight: 600; font-size:13.5px; }
 .nav-item:hover { background-color: var(--hover-bg); }
 .nav-item.active { background-color: #f3efe7; color: var(--text-main); }
-.nav-icon { font-size: 1.1em; opacity: 0.7; }
+.nav-icon { font-size: 1.2em; opacity: 0.7; filter: grayscale(100%); transition: 0.2s; }
 .nav-divider { height: 1px; background: var(--border-color); margin: 10px 6px; }
 
 .nav-accordion summary { list-style: none; outline: none; }
@@ -173,10 +171,7 @@ body {
 }
 .row-item:hover { border-color: #d9d2c5; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
 
-/* Fila especial para ABM (mantener de lado a lado) */
 .abm-row { flex-direction: row !important; align-items: center !important; justify-content: space-between !important; gap: 15px !important; }
-
-/* Envoltorios de la fila principal */
 .row-content-wrapper { display: flex; width: 100%; gap: 15px; align-items: center; justify-content: space-between; }
 .row-header { display: flex; align-items: center; gap: 15px; flex-grow: 1; min-width: 200px; }
 .row-actions-container { flex-shrink: 0; }
@@ -247,7 +242,7 @@ body {
 }
 
 /* =======================================================================
-   LÍNEA DE TIEMPO UNIFICADA Y BANDEJA SMART TRAY
+   LÍNEA DE TIEMPO UNIFICADA (FLOW 3 COLORES)
    ======================================================================= */
 .timeline-wrapper { 
     display: flex; 
@@ -264,9 +259,12 @@ body {
     top: 40px; 
     left: 5%; 
     width: 90%; 
-    height: 3px; 
-    background: var(--border-color); 
+    height: 4px; 
     z-index: 0; 
+    background: linear-gradient(to right, 
+        var(--accent-blue) 0%, var(--accent-blue) 43%, 
+        #e5a93d 43%, #e5a93d 56%, 
+        var(--accent-teal) 56%, var(--accent-teal) 100%);
 }
 .timeline-node { 
     position: relative; 
@@ -276,7 +274,7 @@ body {
     align-items: center; 
     cursor: pointer; 
     flex: 1; 
-    min-width: 85px; 
+    min-width: 120px; 
 }
 .timeline-circle { 
     width: 45px; 
@@ -291,12 +289,20 @@ body {
     transition: 0.3s ease; 
     color: var(--text-muted); 
 }
-.timeline-node.active .timeline-circle { 
-    transform: scale(1.15); 
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
-    border-color: var(--accent-teal); 
-    background: white; 
-}
+
+/* 3 COLORES FLOW */
+.node-stage1 .timeline-circle { border-color: var(--accent-blue); color: var(--accent-blue); } 
+.node-stage1 .timeline-count { background: var(--accent-blue); color: white; }
+.node-stage1.active .timeline-circle { background: var(--accent-blue); color: white; border-width: 4px; box-shadow: 0 4px 12px rgba(31, 84, 145, 0.2); transform: scale(1.15); }
+
+.node-stage2 .timeline-circle { border-color: #e5a93d; color: #e5a93d; } 
+.node-stage2 .timeline-count { background: #e5a93d; color: white; }
+.node-stage2.active .timeline-circle { background: #e5a93d; color: white; border-width: 4px; box-shadow: 0 4px 12px rgba(229, 169, 61, 0.2); transform: scale(1.15); }
+
+.node-stage3 .timeline-circle { border-color: var(--accent-teal); color: var(--accent-teal); } 
+.node-stage3 .timeline-count { background: var(--accent-teal); color: white; }
+.node-stage3.active .timeline-circle { background: var(--accent-teal); color: white; border-width: 4px; box-shadow: 0 4px 12px rgba(0, 123, 143, 0.2); transform: scale(1.15); }
+
 .timeline-label { 
     margin-top: 12px; 
     font-weight: 700; 
@@ -305,13 +311,12 @@ body {
     text-align: center; 
     font-family: inherit; 
     line-height: 1.2;
+    white-space: normal;
 }
 .timeline-node.active .timeline-label { color: var(--text-main); }
 .timeline-count { 
     position: absolute; 
     top: -10px; 
-    background: var(--text-main); 
-    color: white; 
     border-radius: 12px; 
     padding: 2px 8px; 
     font-size: 11px; 
@@ -319,12 +324,6 @@ body {
     font-family: 'Geist Mono', monospace; 
     transition: 0.3s; 
 }
-
-.node-red.active .timeline-circle { border-color: var(--accent-red); } .node-red.active .timeline-count { background: var(--accent-red); }
-.node-teal.active .timeline-circle { border-color: var(--accent-teal); } .node-teal.active .timeline-count { background: var(--accent-teal); }
-.node-blue.active .timeline-circle { border-color: var(--accent-blue); } .node-blue.active .timeline-count { background: var(--accent-blue); }
-.node-yellow.active .timeline-circle { border-color: #e5a93d; } .node-yellow.active .timeline-count { background: #e5a93d; color:#fff;}
-.node-gray.active .timeline-circle { border-color: var(--text-muted); } .node-gray.active .timeline-count { background: var(--text-muted); }
 
 /* BANDEJA CONECTADA (SMART TRAY) */
 .timeline-tray-container {
@@ -359,7 +358,6 @@ body {
     transition: left 0.3s ease;
 }
 
-/* Chips de bandeja multilínea */
 .tray-chip {
     padding: 10px 14px;
     background: var(--hover-bg);
@@ -461,7 +459,8 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
         -webkit-tap-highlight-color: transparent;
     }
     .bottom-nav-item.active { color: var(--accent-teal); }
-    .bottom-nav-icon { font-size: 20px; }
+    .bottom-nav-icon { font-size: 20px; opacity: 0.7; filter: grayscale(100%); transition: 0.2s; }
+    .bottom-nav-item.active .bottom-nav-icon { opacity: 1; }
 
     /* Hide Desktop Sidebar elements but keep sidebar for menu */
     #sidebar { position: fixed; top: 0; left: -280px; height: 100vh; z-index: 2001; box-shadow: 2px 0 15px rgba(0,0,0,0.05); }
@@ -475,7 +474,6 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
     .row-item { padding: 14px; gap: 0; }
     .row-content-wrapper { flex-direction: column; align-items: flex-start; gap: 12px; position: relative; }
     
-    /* Aseguramos que el nombre no desborde y el botón quede a la derecha */
     .row-header { width: 100%; align-items: flex-start; padding-right: 30px; box-sizing: border-box; }
     .row-actions-container { position: absolute; top: 0; right: 0; }
     .row-main-info { width: 100%; min-width: 0; word-break: break-word; }
@@ -484,19 +482,16 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
     .row-disp-grid { 
         width: 100%; 
         justify-content: flex-start; 
-        flex-wrap: nowrap !important; /* Fuerza una sola línea */
-        overflow-x: auto; /* Permite deslizar */
-        -webkit-overflow-scrolling: touch; /* Inercia táctil nativa en iOS/Android */
-        scrollbar-width: none; /* Oculta barra en Firefox */
+        flex-wrap: nowrap !important; 
+        overflow-x: auto; 
+        -webkit-overflow-scrolling: touch; 
+        scrollbar-width: none; 
         gap: 8px;
-        padding-bottom: 4px; /* Da aire */
+        padding-bottom: 4px; 
     }
-    .row-disp-grid::-webkit-scrollbar { display: none; } /* Oculta barra en Webkit (Chrome/Safari) */
-    
-    /* Evitamos que los cuadritos se encojan */
+    .row-disp-grid::-webkit-scrollbar { display: none; } 
     .disp-box { flex: 0 0 auto; min-width: 55px; } 
 
-    /* Metadatos van al fondo */
     .row-meta { align-items: flex-start; text-align: left; margin-top: 4px; width: 100%; padding-top: 10px; border-top: 1px dashed var(--border-color); }
     
     /* Timeline Vertical (Flow) */
@@ -510,10 +505,14 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
         overflow-y: visible;
     }
     .timeline-line {
-        width: 3px;
+        width: 4px;
         height: calc(100% - 60px);
-        left: 32px; 
+        left: 30px; 
         top: 30px;
+        background: linear-gradient(to bottom, 
+            var(--accent-blue) 0%, var(--accent-blue) 44%, 
+            #e5a93d 44%, #e5a93d 56%, 
+            var(--accent-teal) 56%, var(--accent-teal) 100%);
     }
     .timeline-node {
         flex-direction: row;
