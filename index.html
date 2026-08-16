@@ -89,8 +89,7 @@
                 </details>
 
                 <li class="nav-divider"></li>
-                <!-- Modificado a Métricas -->
-                <li class="nav-item" data-vista="Métricas"><span class="nav-icon">📊</span> Métricas</li>
+                <li class="nav-item" data-vista="Estadísticas"><span class="nav-icon">📊</span> Métricas</li>
             </ul>
 
             <div style="margin-top: auto; padding-top: 15px; border-top: 1px solid #ece6dc; display:flex; flex-direction:column; gap:8px;">
@@ -149,18 +148,15 @@
                 
                 <div id="timeline-unificado" style="margin-top:10px; width: 100%; overflow-x: auto;"></div>
                 
-                <!-- El Tray ahora será movido vía JS en Mobile -->
                 <div id="timeline-tray-container" class="timeline-tray-container">
                     <div class="timeline-tray" id="timeline-tray-content">
                         <!-- Aquí adentro JS inyectará los alumnos como mini tarjetas -->
                     </div>
                 </div>
-
-                <!-- NUEVO: Gráfico del Flow en Dashboard -->
-                <div id="dashboard-chart-container" style="display:flex; gap:20px; flex-wrap:wrap; margin-top:20px; width:100%;">
-                    <div style="background:white; padding:20px; border-radius:12px; border:1px solid var(--border-color); flex:1; min-width:100%;">
-                        <canvas id="chartFlowDashboard" style="max-height: 250px;"></canvas>
-                    </div>
+                
+                <!-- GRAFICO FLOW EN DASHBOARD -->
+                <div id="dashboard-flow-chart-container" style="display:none; margin-top: 15px; padding: 15px; background: white; border-radius: 12px; border: 1px solid var(--border-color);">
+                    <canvas id="chartFlowDashboard" style="max-height: 220px;"></canvas>
                 </div>
             </div>
 
@@ -182,7 +178,7 @@
                 <span class="bottom-nav-icon">🚀</span>
                 <span>Altas</span>
             </div>
-            <div class="bottom-nav-item" data-vista="Métricas">
+            <div class="bottom-nav-item" data-vista="Estadísticas">
                 <span class="bottom-nav-icon">📊</span>
                 <span>Métricas</span>
             </div>
