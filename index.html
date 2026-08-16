@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mandala Admisión</title>
+    <title>Mandala Seguimientos</title>
     
     <link rel="icon" href="logo.png" type="image/png">
     <link rel="manifest" href="manifest.json">
@@ -89,7 +89,7 @@
                 </details>
 
                 <li class="nav-divider"></li>
-                <li class="nav-item" data-vista="Estadísticas"><span class="nav-icon">📊</span> Estadísticas</li>
+                <li class="nav-item" data-vista="Métricas"><span class="nav-icon">📊</span> Métricas</li>
             </ul>
 
             <div style="margin-top: auto; padding-top: 15px; border-top: 1px solid #ece6dc; display:flex; flex-direction:column; gap:8px;">
@@ -148,15 +148,21 @@
                 
                 <div id="timeline-unificado" style="margin-top:10px; width: 100%; overflow-x: auto;"></div>
                 
-                <!-- El Tray ahora será movido vía JS en Mobile -->
+                <!-- Bandeja Oculta -->
                 <div id="timeline-tray-container" class="timeline-tray-container">
-                    <div class="timeline-tray" id="timeline-tray-content">
-                        <!-- Aquí adentro JS inyectará los alumnos como mini tarjetas -->
+                    <div class="timeline-tray" id="timeline-tray-content"></div>
+                </div>
+
+                <!-- Gráfico de Flow en Dashboard -->
+                <div class="resumen-section-title" style="color:#1c1f22; border-bottom-color:#1c1f22; margin-top:40px;">📊 Distribución del Flujo</div>
+                <div style="background:white; padding:20px; border-radius:12px; border:1px solid var(--border-color); width:100%; overflow-x:auto;">
+                    <div style="min-width: 600px;">
+                        <canvas id="chartFlowDashboard" style="max-height: 250px;"></canvas>
                     </div>
                 </div>
             </div>
 
-            <!-- VISTA ESTADÍSTICAS -->
+            <!-- VISTA MÉTRICAS / ESTADÍSTICAS -->
             <div id="estadisticas-container" style="display:none; flex-direction:column; gap:20px;"></div>
         </main>
         
@@ -174,7 +180,7 @@
                 <span class="bottom-nav-icon">🚀</span>
                 <span>Altas</span>
             </div>
-            <div class="bottom-nav-item" data-vista="Estadísticas">
+            <div class="bottom-nav-item" data-vista="Métricas">
                 <span class="bottom-nav-icon">📊</span>
                 <span>Métricas</span>
             </div>
