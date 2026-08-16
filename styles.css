@@ -15,6 +15,7 @@
     --item-bg: #ffffff;
 }
 
+/* Base Responsive */
 body {
     font-family: 'Hanken Grotesk', sans-serif;
     font-size: 14px;
@@ -28,7 +29,9 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
-* { box-sizing: border-box; }
+* {
+    box-sizing: border-box;
+}
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: #d9d2c5; border-radius: 6px; }
@@ -159,17 +162,29 @@ body {
 .group-count { background: #e9e5de; color: var(--text-muted); font-size: 11px; padding: 2px 6px; border-radius: 10px; font-family: 'Geist Mono', monospace; font-weight:500; }
 
 /* =======================================================================
-   FILAS DE DATOS
+   FILAS DE DATOS (REDISEÑO PARA RESPONSIVE EN CASCADA)
    ======================================================================= */
 .lista-filas { display:flex; flex-direction:column; gap:6px; max-width: 100%; }
 
-.row-item { background: var(--item-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 15px; cursor: pointer; transition: 0.2s box-shadow, 0.2s border-color; position:relative; width:100%; }
+.row-item { 
+    background: var(--item-bg); border: 1px solid var(--border-color); border-radius: 12px; 
+    padding: 12px 16px; display: flex; flex-direction: column; align-items: stretch; 
+    gap: 0; cursor: pointer; transition: 0.2s box-shadow, 0.2s border-color; position:relative; width:100%; box-sizing: border-box;
+}
 .row-item:hover { border-color: #d9d2c5; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+
+/* Fila especial para ABM (mantener de lado a lado) */
+.abm-row { flex-direction: row !important; align-items: center !important; justify-content: space-between !important; gap: 15px !important; }
+
+/* Envoltorios de la fila principal */
+.row-content-wrapper { display: flex; width: 100%; gap: 15px; align-items: center; justify-content: space-between; }
+.row-header { display: flex; align-items: center; gap: 15px; flex-grow: 1; min-width: 200px; }
+.row-actions-container { flex-shrink: 0; }
 
 .row-indicator { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 
-.row-main-info { flex-grow: 1; min-width: 200px; display:flex; flex-direction:column; gap:2px; }
-.row-name { font-size: 14.5px; font-weight: 700; color: var(--text-main); }
+.row-main-info { display:flex; flex-direction:column; gap:2px; }
+.row-name { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 14.5px; font-weight: 700; color: var(--text-main); }
 .row-sub { font-size: 12.5px; color: var(--text-muted); display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
 
 .row-disp-grid { display: flex; gap: 4px; align-items:center; }
@@ -414,7 +429,7 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
 .toast-notification { background: var(--text-main); color: #fff; padding: 12px 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); font-size: 13px; font-weight: 500; opacity: 0; transition: 0.3s ease; }
 
 /* =======================================================================
-   DISEÑO RESPONSIVO (MÓVILES)
+   DISEÑO RESPONSIVO (MÓVILES Y SWIPEABLE CONTAINER)
    ======================================================================= */
 @media (max-width: 850px) {
     /* Bottom Nav Appears */
@@ -456,12 +471,33 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
     #btn-mobile-menu { display: none !important; }
     #main-content { padding: 15px; padding-bottom: 90px !important; width: 100vw; overflow-x: hidden; }
     
-    /* AutoWrap and Box Sizing */
-    .row-item { width: 100%; max-width: 100%; box-sizing: border-box; flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px; }
+    /* Configuración de Cascada de Bloques en Móvil */
+    .row-item { padding: 14px; gap: 0; }
+    .row-content-wrapper { flex-direction: column; align-items: flex-start; gap: 12px; position: relative; }
+    
+    /* Aseguramos que el nombre no desborde y el botón quede a la derecha */
+    .row-header { width: 100%; align-items: flex-start; padding-right: 30px; box-sizing: border-box; }
+    .row-actions-container { position: absolute; top: 0; right: 0; }
     .row-main-info { width: 100%; min-width: 0; word-break: break-word; }
-    .row-disp-grid { width: 100%; justify-content: flex-start; flex-wrap: wrap; gap: 6px; }
-    .disp-box { flex: 1 1 calc(33% - 6px); min-width: auto; padding: 6px 2px; }
-    .row-meta { align-items: flex-start; text-align: left; margin-top: 10px; width: 100%; padding-top: 10px; border-top: 1px dashed var(--border-color); }
+    
+    /* Contenedor NATIVO SWIPEABLE (Invisible Scrollbar) para la Grilla de días */
+    .row-disp-grid { 
+        width: 100%; 
+        justify-content: flex-start; 
+        flex-wrap: nowrap !important; /* Fuerza una sola línea */
+        overflow-x: auto; /* Permite deslizar */
+        -webkit-overflow-scrolling: touch; /* Inercia táctil nativa en iOS/Android */
+        scrollbar-width: none; /* Oculta barra en Firefox */
+        gap: 8px;
+        padding-bottom: 4px; /* Da aire */
+    }
+    .row-disp-grid::-webkit-scrollbar { display: none; } /* Oculta barra en Webkit (Chrome/Safari) */
+    
+    /* Evitamos que los cuadritos se encojan */
+    .disp-box { flex: 0 0 auto; min-width: 55px; } 
+
+    /* Metadatos van al fondo */
+    .row-meta { align-items: flex-start; text-align: left; margin-top: 4px; width: 100%; padding-top: 10px; border-top: 1px dashed var(--border-color); }
     
     /* Timeline Vertical (Flow) */
     .timeline-wrapper {
