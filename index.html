@@ -89,6 +89,7 @@
                 </details>
 
                 <li class="nav-divider"></li>
+                <!-- Modificado a Métricas -->
                 <li class="nav-item" data-vista="Métricas"><span class="nav-icon">📊</span> Métricas</li>
             </ul>
 
@@ -148,21 +149,22 @@
                 
                 <div id="timeline-unificado" style="margin-top:10px; width: 100%; overflow-x: auto;"></div>
                 
-                <!-- Bandeja Oculta -->
+                <!-- El Tray ahora será movido vía JS en Mobile -->
                 <div id="timeline-tray-container" class="timeline-tray-container">
-                    <div class="timeline-tray" id="timeline-tray-content"></div>
+                    <div class="timeline-tray" id="timeline-tray-content">
+                        <!-- Aquí adentro JS inyectará los alumnos como mini tarjetas -->
+                    </div>
                 </div>
 
-                <!-- Gráfico de Flow en Dashboard -->
-                <div class="resumen-section-title" style="color:#1c1f22; border-bottom-color:#1c1f22; margin-top:40px;">📊 Distribución del Flujo</div>
-                <div style="background:white; padding:20px; border-radius:12px; border:1px solid var(--border-color); width:100%; overflow-x:auto;">
-                    <div style="min-width: 600px;">
+                <!-- NUEVO: Gráfico del Flow en Dashboard -->
+                <div id="dashboard-chart-container" style="display:flex; gap:20px; flex-wrap:wrap; margin-top:20px; width:100%;">
+                    <div style="background:white; padding:20px; border-radius:12px; border:1px solid var(--border-color); flex:1; min-width:100%;">
                         <canvas id="chartFlowDashboard" style="max-height: 250px;"></canvas>
                     </div>
                 </div>
             </div>
 
-            <!-- VISTA MÉTRICAS / ESTADÍSTICAS -->
+            <!-- VISTA ESTADÍSTICAS -->
             <div id="estadisticas-container" style="display:none; flex-direction:column; gap:20px;"></div>
         </main>
         
