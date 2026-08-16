@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-const APP_VERSION = "v3.1";
+const APP_VERSION = "v3.2";
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 const firebaseConfig = {
@@ -158,7 +158,6 @@ if (!document.getElementById('modal-nota-rapida')) {
     document.body.appendChild(dlg);
 }
 
-// INICIALIZACIÓN DE LOS TRES EDITORES QUILL
 const quill = new Quill('#editor-container', { theme: 'snow', modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] } });
 const quillInforme = new Quill('#informe-editor-container', { theme: 'snow', modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] } });
 const quillPopup = new Quill('#informe-popup-editor-container', { theme: 'snow', modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] } });
@@ -453,18 +452,20 @@ function generarFilaAlumno(al, id, vista) {
     }
 
     let accionesHtml = generarBotonesAccion(al, id), menuAcciones = '';
-    if (accionesHtml) menuAcciones = `<div class="alumno-actions"><button type="button" class="btn-row-action">⋮</button><div class="dropdown-menu-wrapper"><div class="dropdown-menu">${accionesHtml}</div></div></div>`;
+    if (accionesHtml) menuAcciones = `<button type="button" class="btn-row-action">⋮</button><div class="dropdown-menu-wrapper"><div class="dropdown-menu">${accionesHtml}</div></div>`;
 
     return `
         <div class="row-item" data-id="${id}">
-            <div style="display:flex; width:100%; gap:15px; align-items:center;">
-                <div class="row-indicator ${info.colorIndicador}"></div>
-                <div class="row-main-info btn-editar-alumno" data-id="${id}">
-                    <div class="row-name alumno-nombre-search" style="display:flex; align-items:center; gap:8px;">
-                        ${al.nombre}
-                        <span class="status-badge ${info.colorBadge}">${info.txtEstado}</span>
+            <div class="row-content-wrapper">
+                <div class="row-header">
+                    <div class="row-indicator ${info.colorIndicador}"></div>
+                    <div class="row-main-info btn-editar-alumno" data-id="${id}">
+                        <div class="row-name alumno-nombre-search">
+                            <span>${al.nombre}</span>
+                            <span class="status-badge ${info.colorBadge}">${info.txtEstado}</span>
+                        </div>
+                        <div class="row-sub"><span>${cel}</span> • <span>${edad}</span> • <strong style="color:var(--accent-teal);">${instStr}</strong> • <span>${suscStr}</span> • <span>${nivelStr}</span></div>
                     </div>
-                    <div class="row-sub"><span>${cel}</span> • <span>${edad}</span> • <strong style="color:var(--accent-teal);">${instStr}</strong> • <span>${suscStr}</span> • <span>${nivelStr}</span></div>
                 </div>
                 ${dispHtml}
                 <div class="row-meta">
@@ -472,7 +473,9 @@ function generarFilaAlumno(al, id, vista) {
                     <div>Fecha: <strong style="color:var(--text-main);">${al.reserva_fecha_texto || '-'}</strong></div>
                     <div class="priority-text ${info.claseTexto}" style="margin-top:2px;">${info.txtTiempo}</div>
                 </div>
-                ${menuAcciones}
+                <div class="row-actions-container alumno-actions">
+                    ${menuAcciones}
+                </div>
             </div>
             ${contenidoExtra}
         </div>
@@ -976,7 +979,7 @@ async function cargarABM(coleccion, titulo, cont) {
         if(dt.ensambles) tags.push('Ensambles');
 
         let ex = coleccion==='profesores' ? ` <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">${dt.correo_calendario}</div><div style="font-size:11px; color:var(--accent-teal); font-weight:600; margin-top:2px;">${(dt.skills || []).join(' • ')}</div><div style="font-size:10px; color:var(--accent-blue); font-weight:600; margin-top:2px;">${tags.join(' | ')}</div>` : ''; 
-        h += `<div class="row-item" onclick="window.abrirEdicionABM('${d.id}', '${coleccion}', '${displayNom}', '${dt.correo_calendario||''}', '${dt.celular||''}', '${dt.alias_transferencia||''}')"><div><strong style="color:var(--text-main); font-size:15px;">${displayNom}</strong>${ex}</div><button class="btn-row-action" onclick="event.stopPropagation(); window.eliminarABM('${d.id}', '${coleccion}')">❌</button></div>`; 
+        h += `<div class="row-item abm-row" onclick="window.abrirEdicionABM('${d.id}', '${coleccion}', '${displayNom}', '${dt.correo_calendario||''}', '${dt.celular||''}', '${dt.alias_transferencia||''}')"><div><strong style="color:var(--text-main); font-size:15px;">${displayNom}</strong>${ex}</div><button class="btn-row-action" onclick="event.stopPropagation(); window.eliminarABM('${d.id}', '${coleccion}')">❌</button></div>`; 
     }); 
     cont.innerHTML = h; 
 
