@@ -29,7 +29,9 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
-* { box-sizing: border-box; }
+* {
+    box-sizing: border-box;
+}
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: #d9d2c5; border-radius: 6px; }
@@ -118,7 +120,8 @@ body {
 .nav-item { padding: 10px 12px; color: var(--text-main); text-decoration: none; display: flex; align-items:center; gap:8px; border-radius: 10px; margin-bottom: 2px; cursor: pointer; transition: background 0.2s; font-weight: 600; font-size:13.5px; }
 .nav-item:hover { background-color: var(--hover-bg); }
 .nav-item.active { background-color: #f3efe7; color: var(--text-main); }
-.nav-icon { font-size: 1.2em; opacity: 0.7; filter: grayscale(100%); transition: 0.2s; }
+/* Emojis grises apagados */
+.nav-icon { font-size: 1.1em; filter: grayscale(100%); opacity: 0.7; }
 .nav-divider { height: 1px; background: var(--border-color); margin: 10px 6px; }
 
 .nav-accordion summary { list-style: none; outline: none; }
@@ -136,6 +139,9 @@ body {
 
 /* BOTTOM NAV (Mobile Only) */
 .bottom-nav { display: none; }
+/* Emojis grises apagados en celular */
+.bottom-nav-icon { font-size: 20px; filter: grayscale(100%); opacity: 0.7; transition: 0.2s; }
+.bottom-nav-item.active .bottom-nav-icon { filter: grayscale(0%); opacity: 1; }
 
 /* =======================================================================
    MAIN CONTENT Y FILTROS
@@ -175,9 +181,7 @@ body {
 .row-content-wrapper { display: flex; width: 100%; gap: 15px; align-items: center; justify-content: space-between; }
 .row-header { display: flex; align-items: center; gap: 15px; flex-grow: 1; min-width: 200px; }
 .row-actions-container { flex-shrink: 0; }
-
 .row-indicator { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-
 .row-main-info { display:flex; flex-direction:column; gap:2px; }
 .row-name { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 14.5px; font-weight: 700; color: var(--text-main); }
 .row-sub { font-size: 12.5px; color: var(--text-muted); display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
@@ -190,7 +194,6 @@ body {
 
 .row-meta { display:flex; flex-direction:column; align-items:flex-end; gap:3px; min-width:120px; font-size:12px; color:var(--text-muted); }
 .row-meta strong { color: var(--text-main); font-weight:600; }
-
 .btn-row-action { background: none; border: none; font-size: 1.2em; color: var(--text-light); cursor: pointer; padding: 4px 8px; border-radius: 6px; transition: 0.2s; }
 .btn-row-action:hover { background: var(--hover-bg); color: var(--text-main); }
 
@@ -236,13 +239,10 @@ body {
     display: block;
     box-sizing: border-box;
 }
-.dropdown-item:hover { 
-    filter: brightness(0.92); 
-    transform: translateY(-2px); 
-}
+.dropdown-item:hover { filter: brightness(0.92); transform: translateY(-2px); }
 
 /* =======================================================================
-   LÍNEA DE TIEMPO UNIFICADA (FLOW 3 COLORES)
+   LÍNEA DE TIEMPO UNIFICADA (NUEVOS 3 COLORES)
    ======================================================================= */
 .timeline-wrapper { 
     display: flex; 
@@ -254,17 +254,15 @@ body {
     gap: 10px; 
     min-width: 100%;
 }
+/* Gradiente para unir las 3 Fases: Entrevista (Azul) -> Espera (Amarillo) -> Alta (Teal) */
 .timeline-line { 
     position: absolute; 
     top: 40px; 
     left: 5%; 
     width: 90%; 
-    height: 4px; 
+    height: 3px; 
+    background: linear-gradient(to right, var(--accent-blue) 0%, var(--accent-blue) 43.75%, #e5a93d 43.75%, #e5a93d 56.25%, var(--accent-teal) 56.25%, var(--accent-teal) 100%);
     z-index: 0; 
-    background: linear-gradient(to right, 
-        var(--accent-blue) 0%, var(--accent-blue) 43%, 
-        #e5a93d 43%, #e5a93d 56%, 
-        var(--accent-teal) 56%, var(--accent-teal) 100%);
 }
 .timeline-node { 
     position: relative; 
@@ -274,7 +272,7 @@ body {
     align-items: center; 
     cursor: pointer; 
     flex: 1; 
-    min-width: 120px; 
+    min-width: 85px; 
 }
 .timeline-circle { 
     width: 45px; 
@@ -289,20 +287,11 @@ body {
     transition: 0.3s ease; 
     color: var(--text-muted); 
 }
-
-/* 3 COLORES FLOW */
-.node-stage1 .timeline-circle { border-color: var(--accent-blue); color: var(--accent-blue); } 
-.node-stage1 .timeline-count { background: var(--accent-blue); color: white; }
-.node-stage1.active .timeline-circle { background: var(--accent-blue); color: white; border-width: 4px; box-shadow: 0 4px 12px rgba(31, 84, 145, 0.2); transform: scale(1.15); }
-
-.node-stage2 .timeline-circle { border-color: #e5a93d; color: #e5a93d; } 
-.node-stage2 .timeline-count { background: #e5a93d; color: white; }
-.node-stage2.active .timeline-circle { background: #e5a93d; color: white; border-width: 4px; box-shadow: 0 4px 12px rgba(229, 169, 61, 0.2); transform: scale(1.15); }
-
-.node-stage3 .timeline-circle { border-color: var(--accent-teal); color: var(--accent-teal); } 
-.node-stage3 .timeline-count { background: var(--accent-teal); color: white; }
-.node-stage3.active .timeline-circle { background: var(--accent-teal); color: white; border-width: 4px; box-shadow: 0 4px 12px rgba(0, 123, 143, 0.2); transform: scale(1.15); }
-
+.timeline-node.active .timeline-circle { 
+    transform: scale(1.15); 
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+    background: white; 
+}
 .timeline-label { 
     margin-top: 12px; 
     font-weight: 700; 
@@ -311,12 +300,15 @@ body {
     text-align: center; 
     font-family: inherit; 
     line-height: 1.2;
+    max-width: 100px;
     white-space: normal;
 }
 .timeline-node.active .timeline-label { color: var(--text-main); }
 .timeline-count { 
     position: absolute; 
     top: -10px; 
+    background: var(--text-main); 
+    color: white; 
     border-radius: 12px; 
     padding: 2px 8px; 
     font-size: 11px; 
@@ -324,6 +316,11 @@ body {
     font-family: 'Geist Mono', monospace; 
     transition: 0.3s; 
 }
+
+/* Colores de cada Fase */
+.node-blue.active .timeline-circle { border-color: var(--accent-blue); } .node-blue.active .timeline-count { background: var(--accent-blue); }
+.node-yellow.active .timeline-circle { border-color: #e5a93d; } .node-yellow.active .timeline-count { background: #e5a93d; color:#fff;}
+.node-teal.active .timeline-circle { border-color: var(--accent-teal); } .node-teal.active .timeline-count { background: var(--accent-teal); }
 
 /* BANDEJA CONECTADA (SMART TRAY) */
 .timeline-tray-container {
@@ -358,6 +355,7 @@ body {
     transition: left 0.3s ease;
 }
 
+/* Chips de bandeja multilínea */
 .tray-chip {
     padding: 10px 14px;
     background: var(--hover-bg);
@@ -430,7 +428,6 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
    DISEÑO RESPONSIVO (MÓVILES Y SWIPEABLE CONTAINER)
    ======================================================================= */
 @media (max-width: 850px) {
-    /* Bottom Nav Appears */
     .bottom-nav {
         display: flex;
         position: fixed;
@@ -459,10 +456,8 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
         -webkit-tap-highlight-color: transparent;
     }
     .bottom-nav-item.active { color: var(--accent-teal); }
-    .bottom-nav-icon { font-size: 20px; opacity: 0.7; filter: grayscale(100%); transition: 0.2s; }
-    .bottom-nav-item.active .bottom-nav-icon { opacity: 1; }
+    .bottom-nav-icon { font-size: 20px; }
 
-    /* Hide Desktop Sidebar elements but keep sidebar for menu */
     #sidebar { position: fixed; top: 0; left: -280px; height: 100vh; z-index: 2001; box-shadow: 2px 0 15px rgba(0,0,0,0.05); }
     #sidebar.active { left: 0; }
     #mobile-overlay { z-index: 2000; }
@@ -470,19 +465,16 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
     #btn-mobile-menu { display: none !important; }
     #main-content { padding: 15px; padding-bottom: 90px !important; width: 100vw; overflow-x: hidden; }
     
-    /* Configuración de Cascada de Bloques en Móvil */
     .row-item { padding: 14px; gap: 0; }
     .row-content-wrapper { flex-direction: column; align-items: flex-start; gap: 12px; position: relative; }
-    
     .row-header { width: 100%; align-items: flex-start; padding-right: 30px; box-sizing: border-box; }
     .row-actions-container { position: absolute; top: 0; right: 0; }
     .row-main-info { width: 100%; min-width: 0; word-break: break-word; }
     
-    /* Contenedor NATIVO SWIPEABLE (Invisible Scrollbar) para la Grilla de días */
     .row-disp-grid { 
         width: 100%; 
         justify-content: flex-start; 
-        flex-wrap: nowrap !important; 
+        flex-wrap: nowrap !important;
         overflow-x: auto; 
         -webkit-overflow-scrolling: touch; 
         scrollbar-width: none; 
@@ -491,10 +483,9 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
     }
     .row-disp-grid::-webkit-scrollbar { display: none; } 
     .disp-box { flex: 0 0 auto; min-width: 55px; } 
-
     .row-meta { align-items: flex-start; text-align: left; margin-top: 4px; width: 100%; padding-top: 10px; border-top: 1px dashed var(--border-color); }
     
-    /* Timeline Vertical (Flow) */
+    /* Timeline Vertical (Móvil) */
     .timeline-wrapper {
         flex-direction: column;
         align-items: flex-start;
@@ -505,14 +496,11 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
         overflow-y: visible;
     }
     .timeline-line {
-        width: 4px;
+        width: 3px;
         height: calc(100% - 60px);
-        left: 30px; 
+        left: 32px; 
         top: 30px;
-        background: linear-gradient(to bottom, 
-            var(--accent-blue) 0%, var(--accent-blue) 44%, 
-            #e5a93d 44%, #e5a93d 56%, 
-            var(--accent-teal) 56%, var(--accent-teal) 100%);
+        background: linear-gradient(to bottom, var(--accent-blue) 0%, var(--accent-blue) 43.75%, #e5a93d 43.75%, #e5a93d 56.25%, var(--accent-teal) 56.25%, var(--accent-teal) 100%);
     }
     .timeline-node {
         flex-direction: row;
@@ -526,6 +514,7 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
         margin-left: 15px;
         font-size: 13px;
         text-align: left;
+        max-width: 100%;
     }
     .timeline-count { top: auto; bottom: -5px; right: -5px; left: auto; }
     
