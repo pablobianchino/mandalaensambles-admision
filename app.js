@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-const APP_VERSION = "v3.5";
+const APP_VERSION = "v3.5.1";
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 const firebaseConfig = {
@@ -21,9 +21,9 @@ const provider = new GoogleAuthProvider();
 
 let agrupadorActual = 'ninguno';
 let filtroChipActual = 'Todos';
-let filtroAlarmaActual = 'Todos'; // Para filtro rápido
-let vistaModo = 'lista'; // 'lista' o 'kanban'
-let selectedBulkIds = []; // IDs para acciones masivas
+let filtroAlarmaActual = 'Todos'; 
+let vistaModo = 'lista'; 
+let selectedBulkIds = []; 
 
 const selAgrupador = document.getElementById('select-agrupador');
 if(selAgrupador) {
@@ -33,7 +33,6 @@ if(selAgrupador) {
     });
 }
 
-// Filtros de Alarma (Debajo de búsqueda)
 document.querySelectorAll('.filter-alarm').forEach(btn => {
     btn.addEventListener('click', (e) => {
         document.querySelectorAll('.filter-alarm').forEach(b => b.classList.remove('active'));
@@ -43,7 +42,6 @@ document.querySelectorAll('.filter-alarm').forEach(btn => {
     });
 });
 
-// Toggle Kanban / Lista
 const btnToggleView = document.getElementById('btn-toggle-view');
 if(btnToggleView) {
     btnToggleView.addEventListener('click', () => {
@@ -160,6 +158,7 @@ let estadoActualVista = 'Dashboard';
 window.tituloABMActual = '';
 let configApp = {};
 let chartFlowInst = null, chartEntrevistasInst = null, chartAltasInst = null, chartFlowDashboardInst = null;
+let clipboardDisponibilidad = null, clipboardDisponibilidadProfe = null; 
 let historialActual = []; 
 
 const configNodosFlujo = [
@@ -291,7 +290,7 @@ async function actualizarEventoSeguro(al, titulos, desc) {
 async function eliminarEventoSeguro(al) {
     if (!al.id_evento_reserva) return;
     let calGrabado = al.calendario_evento_reserva, primaryCalId = await getCalendarIdParaAlumno(al), fallbackCalId = configApp.calendario_por_defecto, candidatos = [];
-    if (calGrabado) candidatos.push(calGrabado); if (primaryCalId && !candidatos.includes(primaryCalId)) candidatos.push(primaryCalId); if (fallbackCalId && !candidatos.includes(fallbackCalId)) candidatos.push(fallbackCalId);
+    if (calGrabado) primaryCalId && !candidatos.includes(primaryCalId)) candidatos.push(primaryCalId); if (fallbackCalId && !candidatos.includes(fallbackCalId)) candidatos.push(fallbackCalId);
     let lastError = "";
     for (let cal of candidatos) { try { await eliminarEventoCalendario(cal, al.id_evento_reserva); return; } catch(e) { lastError = e.message; } }
     throw new Error("Google Calendar rechazó la cancelación.\nDetalle: " + lastError);
@@ -441,7 +440,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
 
     if (isKanban) {
         return `
-        <div class="kanban-card btn-editar-alumno" draggable="true" ondragstart="dragKanban(event, '${id}')" data-id="${id}">
+        <div class="kanban-card btn-editar-alumno" draggable="true" ondragstart="window.dragKanban(event, '${id}')" data-id="${id}">
             <div class="kanban-card-title">
                 <span style="display:flex; align-items:center; gap:6px;"><div class="row-indicator ${info.colorIndicador}"></div>${al.nombre}</span>
                 <span style="font-size:16px;" class="btn-row-action" onclick="event.stopPropagation(); window.abrirOpcionesKanban('${id}', this)">⋮</span>
@@ -471,7 +470,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
     });
     dispHtml += '</div>';
 
-    let menuAcciones = `<div class="alumno-actions"><button type="button" class="btn-row-action">⋮</button><div class="dropdown-menu-wrapper"><div class="dropdown-menu">${generarBotonesAccion(al, id)}</div></div></div>`;
+    let menuAcciones = `<div class="alumno-actions row-actions-container"><button type="button" class="btn-row-action">⋮</button><div class="dropdown-menu-wrapper"><div class="dropdown-menu">${generarBotonesAccion(al, id)}</div></div></div>`;
 
     return `
         <div class="swipe-wrapper" data-id="${id}">
@@ -485,7 +484,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                         <input type="checkbox" class="bulk-chk" data-id="${id}" onclick="event.stopPropagation(); window.toggleBulkSelection('${id}', this.checked)">
                         <div class="row-indicator ${info.colorIndicador}"></div>
                         <div class="row-main-info btn-editar-alumno" data-id="${id}">
-                            <div class="row-name alumno-nombre-search">
+                            <div class="row-name">
                                 <span>${al.nombre}</span>
                                 <span class="status-badge ${info.colorBadge}">${info.txtEstado}</span>
                             </div>
@@ -497,16 +496,13 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                         <div>Profe: <strong style="color:var(--text-main);">${al.reserva_profe_nombre || '-'}</strong></div>
                         <div class="priority-text ${info.claseTexto}" style="margin-top:2px;">${info.txtTiempo}</div>
                     </div>
-                    <div class="row-actions-container alumno-actions">
-                        ${menuAcciones}
-                    </div>
+                    ${menuAcciones}
                 </div>
             </div>
         </div>
     `;
 }
 
-// ==================== KANBAN DRAG & DROP LOGIC ====================
 window.dragKanban = function(ev, id) { ev.dataTransfer.setData("text", id); }
 window.allowDropKanban = function(ev) { ev.preventDefault(); }
 window.dropKanban = async function(ev, newState) {
@@ -521,7 +517,7 @@ window.dropKanban = async function(ev, newState) {
 window.abrirOpcionesKanban = function(id, btnElement) {
     const menu = document.getElementById(`menu-kanban-${id}`);
     const isVisible = menu.style.display === 'block';
-    document.querySelectorAll('[id^="menu-kanban-"]').forEach(m => m.style.display = 'none'); // Cierra otros
+    document.querySelectorAll('[id^="menu-kanban-"]').forEach(m => m.style.display = 'none'); 
     if (!isVisible) menu.style.display = 'block';
 }
 
@@ -558,7 +554,6 @@ function renderKanban(containerId, datos, vista) {
     cont.innerHTML = html;
 }
 
-// ==================== ACCIONES MASIVAS ====================
 window.toggleBulkSelection = function(id, isChecked) {
     if (isChecked && !selectedBulkIds.includes(id)) selectedBulkIds.push(id);
     else if (!isChecked) selectedBulkIds = selectedBulkIds.filter(i => i !== id);
@@ -600,7 +595,6 @@ document.getElementById('btn-bulk-suspender').addEventListener('click', async ()
     cargarVista(estadoActualVista);
 });
 
-// ==================== RENDERIZADO PRINCIPAL ====================
 function renderTimelineUnificado(containerId, configNodos, datos) {
     const cont = document.getElementById(containerId);
     if(!cont) return;
@@ -661,7 +655,7 @@ function renderTimelineUnificado(containerId, configNodos, datos) {
                         return `
                         <div class="tray-chip">
                             <div class="tray-chip-header">
-                                <span class="tray-chip-name" style="font-size:13.5px; font-weight:700; color:var(--text-main);" onclick="window.abrirEditarDesdeTray('${al.id}')">👤 ${al.nombre}</span>
+                                <span class="tray-chip-name btn-editar-alumno" style="font-size:13.5px; font-weight:700; color:var(--text-main);" data-id="${al.id}">👤 ${al.nombre}</span>
                                 <div class="alumno-actions" style="position:relative;">
                                     <button type="button" class="btn-row-action" style="padding:2px 4px; font-size:1.1em; color:var(--text-light);">⋮</button>
                                     <div class="dropdown-menu-wrapper" style="bottom:100%; top:auto; right:0; padding-bottom:8px; padding-top:0;">
@@ -699,13 +693,12 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
         filtrados = filtrados.filter(al => { const insts = Array.isArray(al.instrumento) ? al.instrumento : [al.instrumento]; return insts.includes(filtroChipActual); });
     }
 
-    // Filtro de Alarma rápido
     if (filtroAlarmaActual !== 'Todos') {
         filtrados = filtrados.filter(al => {
             const info = getEstadoYBadge(al);
             if (filtroAlarmaActual === 'Vencidos') return info.colorIndicador === 'ind-gray' && info.txtTiempo.includes('Vencida');
             if (filtroAlarmaActual === 'Criticos') return info.colorIndicador === 'ind-red' || info.colorIndicador === 'ind-yellow';
-            if (filtroAlarmaActual === 'AlDia') return info.colorIndicador === 'ind-teal' || info.colorIndicador === 'ind-gray' && !info.txtTiempo.includes('Vencida');
+            if (filtroAlarmaActual === 'AlDia') return info.colorIndicador === 'ind-teal' || (info.colorIndicador === 'ind-gray' && !info.txtTiempo.includes('Vencida'));
             return true;
         });
     }
@@ -744,7 +737,6 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
         }
         cont.innerHTML = html;
         
-        // Mantener checks seleccionados visualmente si hay recarga
         selectedBulkIds.forEach(id => {
             const chk = document.querySelector(`.bulk-chk[data-id="${id}"]`);
             if (chk) chk.checked = true;
@@ -776,12 +768,14 @@ async function cargarVista(vista) {
         cv.style.display = 'flex'; 
         renderFiltrosChips(); 
         document.getElementById('search-container-general').style.display = 'block'; 
-        document.getElementById('alarm-filters').style.display = 'flex';
+        
         if (vista === 'Inbox - Pendientes' || vista === 'Altas - Pendientes') document.getElementById('btn-toggle-view').style.display = 'flex';
+        if (vista === 'Inbox - Confirmadas' || vista === 'Altas - Confirmadas') document.getElementById('alarm-filters').style.display = 'flex';
     }
     
     if (vista === 'Dashboard') {
         document.getElementById('search-container-general').style.display = 'block'; vResumen.style.display = 'flex'; if(vResumenTime) vResumenTime.style.display = 'flex'; cv.style.display = 'none';
+        document.getElementById('alarm-filters').style.display = 'flex';
         
         const trayContainer = document.getElementById('timeline-tray-container');
         if (trayContainer) trayContainer.style.display = 'none';
@@ -801,6 +795,17 @@ async function cargarVista(vista) {
                     if (diffHs <= 48) urgencies.push(al); 
                 } 
             });
+            
+            if (filtroAlarmaActual !== 'Todos') {
+                urgencies = urgencies.filter(al => {
+                    const info = getEstadoYBadge(al);
+                    if (filtroAlarmaActual === 'Vencidos') return info.colorIndicador === 'ind-gray' && info.txtTiempo.includes('Vencida');
+                    if (filtroAlarmaActual === 'Criticos') return info.colorIndicador === 'ind-red' || info.colorIndicador === 'ind-yellow';
+                    if (filtroAlarmaActual === 'AlDia') return info.colorIndicador === 'ind-teal' || (info.colorIndicador === 'ind-gray' && !info.txtTiempo.includes('Vencida'));
+                    return true;
+                });
+            }
+
             urgencies.sort((a,b) => { let dA = (a.estado_agenda==='Pre-alta Iniciada') ? new Date(a.fecha_inicio_clases) : new Date(a.reserva_inicio); let dB = (b.estado_agenda==='Pre-alta Iniciada') ? new Date(b.fecha_inicio_clases) : new Date(b.reserva_inicio); return dA - dB; });
             document.getElementById('resumen-urgencias').innerHTML = urgencies.length > 0 ? urgencies.map(a => generarFilaAlumno(a, a.id, vista)).join('') : '<div style="color:var(--text-muted); padding:10px; font-weight:500;">No hay gestiones críticas a la vista.</div>';
             
@@ -821,7 +826,7 @@ async function cargarVista(vista) {
         } catch(e) {}
     } else if (vista === 'Inbox - Pendientes' || vista === 'Altas - Pendientes') {
         const isAdm = vista === 'Inbox - Pendientes';
-        document.getElementById('btn-carga-masiva').style.display = isAdm ? 'block' : 'none';
+        document.getElementById('btn-carga-masiva').style.display = isAdm ? 'block' : 'none'; 
         try {
             const qSnap = await getDocs(collection(db, "alumnos")); let allData = []; qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
             
@@ -877,99 +882,7 @@ function renderConfig(cont) {
     document.getElementById('btn-guardar-cfg').addEventListener('click', async (e) => { setBotonCargando(e.target, true); await setDoc(doc(db, "configuracion", "general"), { hora_apertura: document.getElementById('cfg-apertura').value, hora_cierre: document.getElementById('cfg-cierre').value, cantidad_aulas: document.getElementById('cfg-aulas').value, cantidad_baterias: document.getElementById('cfg-bats').value, identificador_bateria: document.getElementById('cfg-idbat').value, emoji_guitarra: document.getElementById('cfg-em-gui').value, emoji_cajon: document.getElementById('cfg-em-caj').value, emoji_canto: document.getElementById('cfg-em-can').value, emoji_piano: document.getElementById('cfg-em-pia').value, emoji_bajo: document.getElementById('cfg-em-baj').value, calendario_por_defecto: document.getElementById('cfg-cal-defecto').value, valor_clase: document.getElementById('cfg-valor').value, formato_evento_reserva: document.getElementById('cfg-evt-res').value, formato_evento_confirmado: document.getElementById('cfg-evt-conf').value, texto_nombre_agendar: document.getElementById('cfg-nombre-agendar').value, texto_opciones_multiples: document.getElementById('cfg-txt-opt-mul').value, texto_profe: document.getElementById('cfg-txt-p').value, texto_alumno: document.getElementById('cfg-txt-a').value, texto_conf_profe: document.getElementById('cfg-txt-conf-p').value, texto_conf_alumno: document.getElementById('cfg-txt-conf-a').value, texto_cancela_alumno: document.getElementById('cfg-txt-cancela').value, texto_prealta: document.getElementById('cfg-txt-prealta').value, texto_alta_confirmada: document.getElementById('cfg-txt-alta-conf').value }, { merge: true }); await cargarConfig(); setBotonCargando(e.target, false); alert('Guardado.'); }); 
 }
 
-async function renderCharts() {
-    const cont = document.getElementById('estadisticas-container');
-    cont.innerHTML = `
-        <div style="display:flex; gap:20px; flex-wrap:wrap; margin-bottom:20px;">
-            <div style="background:white; padding:20px; border-radius:12px; border:1px solid var(--border-color); flex:1; min-width:100%;"><canvas id="chartFlow" style="max-height: 250px;"></canvas></div>
-        </div>
-        <div style="display:flex; gap:20px; flex-wrap:wrap;">
-            <div style="background:white; padding:20px; border-radius:12px; border:1px solid var(--border-color); flex:1; min-width:300px;"><canvas id="chartEntrevistas"></canvas></div>
-            <div style="background:white; padding:20px; border-radius:12px; border:1px solid var(--border-color); flex:1; min-width:300px;"><canvas id="chartAltas"></canvas></div>
-        </div>
-    `;
-    try {
-        const qSnap = await getDocs(collection(db, "alumnos"));
-        let allData = []; qSnap.forEach(d => allData.push(d.data()));
-        
-        let flowLabels = configNodosFlujo.map(n => n.label);
-        let flowData = configNodosFlujo.map(n => allData.filter(d => n.filterFn ? n.filterFn(d) : d.estado_agenda === n.id).length);
-        let phaseColors = configNodosFlujo.map(n => n.color === 'phase-1' ? '#1f5491' : (n.color === 'phase-2' ? '#e5a93d' : '#007b8f'));
-
-        let entConf = allData.filter(d => d.estado_agenda === 'Agenda confirmada').length;
-        let entSusp = allData.filter(d => d.estado_agenda === 'Agenda suspendida').length;
-        
-        let altFin = allData.filter(d => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5)).length;
-        let altSusp = allData.filter(d => d.estado_agenda === 'Alta Suspendida').length;
-
-        if(chartFlowInst) chartFlowInst.destroy(); if(chartEntrevistasInst) chartEntrevistasInst.destroy(); if(chartAltasInst) chartAltasInst.destroy();
-        
-        chartFlowInst = new Chart(document.getElementById('chartFlow'), { 
-            type: 'bar', 
-            data: { labels: flowLabels, datasets: [{ label: 'Alumnos', data: flowData, backgroundColor: phaseColors, borderRadius: 6 }] },
-            options: { plugins: { title: { display: true, text: 'Flow de Admisión', font: { size: 16 } }, legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
-        });
-        
-        chartEntrevistasInst = new Chart(document.getElementById('chartEntrevistas'), { 
-            type: 'doughnut', 
-            data: { labels: ['Confirmadas', 'Suspendidas'], datasets: [{ data: [entConf, entSusp], backgroundColor: ['#007b8f', '#c2563b'] }] },
-            options: { plugins: { title: { display: true, text: 'Entrevistas', font: { size: 16 } } } }
-        });
-        
-        chartAltasInst = new Chart(document.getElementById('chartAltas'), { 
-            type: 'doughnut', 
-            data: { labels: ['Finalizadas', 'Suspendidas'], datasets: [{ data: [altFin, altSusp], backgroundColor: ['#007b8f', '#c2563b'] }] },
-            options: { plugins: { title: { display: true, text: 'Altas', font: { size: 16 } } } }
-        });
-    } catch(e) {}
-}
-
-const btnLogin = document.getElementById('btn-login'); if (btnLogin) btnLogin.addEventListener('click', conectarGoogle);
-document.getElementById('btn-logout').addEventListener('click', async () => { await signOut(auth); window.location.reload(); });
-
-onAuthStateChanged(auth, async (user) => { 
-    if (user) { 
-        try {
-            const qSnap = await getDocs(collection(db, "usuarios_sistema")); let autorizado = false;
-            if (qSnap.empty) { await addDoc(collection(db, "usuarios_sistema"), { email: user.email.toLowerCase(), rol: 'admin' }); autorizado = true; } 
-            else { qSnap.forEach(d => { if(d.data().email && d.data().email.toLowerCase() === user.email.toLowerCase()) autorizado = true; }); }
-            if (!autorizado) { alert(`Acceso Denegado:\nTu cuenta (${user.email}) no está autorizada.`); await signOut(auth); document.getElementById('login-container').style.display = 'flex'; document.getElementById('app-container').style.display = 'none'; return; }
-        } catch(e) { return alert("Error al validar permisos."); }
-
-        document.getElementById('login-container').style.display = 'none'; document.getElementById('app-container').style.display = 'flex'; 
-        const userInfoBox = document.getElementById('user-info'); userInfoBox.textContent = user.email; 
-        if (userInfoBox && !document.getElementById('version-tag')) { userInfoBox.insertAdjacentHTML('afterend', `<div id="version-tag" style="font-size:0.85em; color:var(--accent-teal); margin-top:5px; font-weight:700; padding:0 10px;">${APP_VERSION}</div>`); }
-        await cargarConfig(); cargarVista('Dashboard'); 
-        
-        const btnMobileMenu = document.getElementById('btn-mobile-menu');
-        const btnCerrarMenuMobile = document.getElementById('btn-cerrar-menu-mobile');
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.getElementById('mobile-overlay');
-
-        if(btnMobileMenu) btnMobileMenu.addEventListener('click', () => { sidebar.classList.add('active'); overlay.style.display = 'block'; });
-        if(btnCerrarMenuMobile) btnCerrarMenuMobile.addEventListener('click', () => { sidebar.classList.remove('active'); overlay.style.display = 'none'; });
-        if(overlay) overlay.addEventListener('click', () => { sidebar.classList.remove('active'); overlay.style.display = 'none'; });
-
-    } else { 
-        document.getElementById('login-container').style.display = 'flex'; document.getElementById('app-container').style.display = 'none'; 
-    } 
-});
-
-const inputBuscadorGeneral = document.getElementById('input-buscador-general'); if(inputBuscadorGeneral) { inputBuscadorGeneral.addEventListener('input', () => { cargarVista(estadoActualVista); }); }
-
-document.addEventListener('change', async (e) => {
-    if(e.target.classList.contains('chk-alta-paso')) {
-        const id = e.target.getAttribute('data-id'), idx = parseInt(e.target.getAttribute('data-idx'));
-        try {
-            const docRef = doc(db, "alumnos", id), alDoc = await getDoc(docRef), al = alDoc.data();
-            let checks = al.checklist_alta || [false, false, false, false, false]; checks[idx] = e.target.checked;
-            await updateDoc(docRef, { checklist_alta: checks });
-            if (checks.filter(Boolean).length === 5 && (estadoActualVista === 'Dashboard' || estadoActualVista === 'Altas - Pendientes') && (al.estado_agenda === 'Alta Efectiva' || al.estado_agenda === 'Alta Ilegal')) { setTimeout(() => { cargarVista(estadoActualVista); }, 1000); }
-        } catch(err) {}
-    }
-});
-
-// ==================== LÓGICA DE GESTOS SWIPE (MÓVILES) ====================
+// LÓGICA DE GESTOS SWIPE (MÓVILES)
 let touchStartX = 0; let touchStartY = 0; let swipeEl = null;
 
 document.addEventListener('touchstart', e => {
@@ -997,15 +910,21 @@ document.addEventListener('touchend', e => {
     swipeEl = null;
 });
 
-// Cierra el swipe si haces click en otro lado
 document.addEventListener('click', (e) => {
     if(!e.target.closest('.swipe-wrapper') && window.innerWidth <= 850) {
         document.querySelectorAll('.swipe-content').forEach(el => el.style.transform = 'translateX(0)');
     }
 });
 
+// LISTENER GLOBAL CLICKS
 document.addEventListener('click', async (e) => {
     const target = e.target;
+    
+    // Auto-cierre del Bottom Sheet Modal al tocar una acción adentro
+    if(target.closest('#mobile-actions-container') && target.tagName === 'BUTTON' && !target.classList.contains('btn-cerrar-modal')) {
+        document.getElementById('modal-mobile-actions').close();
+    }
+    
     if (target.tagName === 'DIALOG') { const rect = target.getBoundingClientRect(), inDialog = (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom);
         if (!inDialog) {
             if (target.id === 'modal-alta-alumno') document.querySelector('#form-alumno button[type="submit"]').click();
@@ -1028,18 +947,25 @@ document.addEventListener('click', async (e) => {
 
     if (target.classList.contains('btn-eliminar-alumno')) { e.stopPropagation(); if(confirm("¿Eliminar este alumno por completo?")) { const id = target.closest('.row-item').getAttribute('data-id'); try { const al = (await getDoc(doc(db, "alumnos", id))).data(); if (al && al.id_evento_reserva) { await eliminarEventoSeguro(al); } } catch(err) {} await deleteDoc(doc(db, "alumnos", id)); cargarVista(estadoActualVista); } return; }
     
+    // Captura clic en los 3 puntos (Solo móvil, en Bandeja Flow)
+    if (target.classList.contains('btn-row-action') && window.innerWidth <= 850) {
+        e.stopPropagation();
+        const wrapper = target.nextElementSibling; 
+        if (wrapper && wrapper.classList.contains('dropdown-menu-wrapper')) {
+            document.getElementById('mobile-actions-container').innerHTML = wrapper.querySelector('.dropdown-menu').innerHTML;
+            document.getElementById('modal-mobile-actions').showModal();
+        }
+        return;
+    }
+    
     // Gesto de Swipe -> Acciones
     if (target.classList.contains('btn-row-actions-swipe')) {
         e.stopPropagation();
-        const id = target.getAttribute('data-id');
         const swipeContent = target.closest('.swipe-wrapper').querySelector('.swipe-content');
         swipeContent.style.transform = 'translateX(0)';
-        // Simular click en los 3 puntitos
-        const btnOptions = swipeContent.querySelector('.btn-row-action');
-        if(btnOptions) {
-            const menu = swipeContent.querySelector('.dropdown-menu-wrapper');
-            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-        }
+        const menuHTML = target.closest('.swipe-wrapper').querySelector('.dropdown-menu').innerHTML;
+        document.getElementById('mobile-actions-container').innerHTML = menuHTML;
+        document.getElementById('modal-mobile-actions').showModal();
         return;
     }
 
