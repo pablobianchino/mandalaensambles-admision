@@ -213,6 +213,16 @@
     <!-- MODALES DE LA APLICACIÓN -->
     <!-- ============================================== -->
 
+    <!-- PANEL FLOTANTE DE ACCIONES (MOBILE SWIPE) -->
+    <dialog id="modal-mobile-actions" class="modern-modal auto-height-modal">
+        <div style="padding:24px;">
+            <div class="modal-drag-pill"></div>
+            <h3 style="margin:0 0 15px 0; color:var(--text-main); font-size:1.2em;">Acciones del Alumno</h3>
+            <div id="mobile-actions-container" style="display:flex; flex-direction:column; gap:10px;"></div>
+            <button type="button" class="btn-cerrar-modal" data-modal="modal-mobile-actions" style="margin-top:15px; width:100%; padding:12px; border:1px solid var(--border-color); border-radius:10px; background:#fff; font-weight:700; color:var(--text-muted); cursor:pointer;">Cancelar</button>
+        </div>
+    </dialog>
+
     <!-- MODAL ALTA/EDICIÓN ALUMNO CON PESTAÑAS -->
     <dialog id="modal-alta-alumno" class="modern-modal">
         <div id="form-alumno-wrapper" style="padding: 24px;">
@@ -294,8 +304,7 @@
     </dialog>
 
     <!-- MODALES EXTRAS (Nota, Admisión, Agenda, Validar, Prealta, Alta, Suspender, ABM) -->
-    <!-- Todos incluyen la clase base modern-modal y el div de pill para mobile -->
-    <dialog id="modal-nota-rapida" class="modern-modal" style="width: 90%; max-width: 400px;">
+    <dialog id="modal-nota-rapida" class="modern-modal auto-height-modal">
         <div style="padding:24px;">
             <div class="modal-drag-pill"></div>
             <h3 style="margin:0 0 15px 0; color:var(--text-main);">Agregar Nota</h3>
@@ -344,7 +353,7 @@
         </div>
     </dialog>
 
-    <dialog id="modal-validar-profe" class="modern-modal" style="width: 90%; max-width: 500px;">
+    <dialog id="modal-validar-profe" class="modern-modal auto-height-modal">
         <div style="padding:24px;">
             <div class="modal-drag-pill"></div>
             <h3 style="margin:0 0 10px 0; color:var(--text-main);">Confirmar Opción Elegida</h3>
@@ -358,7 +367,7 @@
         </div>
     </dialog>
 
-    <dialog id="modal-iniciar-prealta" class="modern-modal" style="width: 90%; max-width: 400px;">
+    <dialog id="modal-iniciar-prealta" class="modern-modal auto-height-modal">
         <div style="padding:24px;">
             <div class="modal-drag-pill"></div>
             <h3 id="titulo-prealta" style="margin:0 0 15px 0; color:var(--text-main);">Iniciar Pre-Alta</h3>
@@ -372,7 +381,7 @@
         </div>
     </dialog>
 
-    <dialog id="modal-confirmar-alta" class="modern-modal" style="width: 90%; max-width: 400px;">
+    <dialog id="modal-confirmar-alta" class="modern-modal auto-height-modal">
         <div style="padding:24px;">
             <div class="modal-drag-pill"></div>
             <h3 style="margin:0 0 10px 0; color:var(--text-main);">Confirmar Alta</h3>
@@ -387,7 +396,7 @@
         </div>
     </dialog>
 
-    <dialog id="modal-suspender" class="modern-modal" style="width: 90%; max-width: 400px;">
+    <dialog id="modal-suspender" class="modern-modal auto-height-modal">
         <div style="padding:24px;">
             <div class="modal-drag-pill"></div>
             <h3 style="margin:0 0 15px 0; color:var(--text-main);">Suspender Alumno</h3>
