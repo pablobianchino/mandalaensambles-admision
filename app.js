@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-const APP_VERSION = "v3.5.1";
+const APP_VERSION = "v3.5.2";
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 const firebaseConfig = {
@@ -158,7 +158,6 @@ let estadoActualVista = 'Dashboard';
 window.tituloABMActual = '';
 let configApp = {};
 let chartFlowInst = null, chartEntrevistasInst = null, chartAltasInst = null, chartFlowDashboardInst = null;
-let clipboardDisponibilidad = null, clipboardDisponibilidadProfe = null; 
 let historialActual = []; 
 
 const configNodosFlujo = [
@@ -172,6 +171,12 @@ const configNodosFlujo = [
     { id: 'Altas Incompletas', label: 'Altas Confirmadas Incompletas', icon: '⚠️', color: 'phase-3', filterFn: (d) => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5) },
     { id: 'Altas Finalizadas', label: 'Altas Finalizadas', icon: '🏆', color: 'phase-3', filterFn: (d) => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5) }
 ];
+
+if (!document.getElementById('modal-nota-rapida')) {
+    const dlg = document.createElement('dialog'); dlg.id = 'modal-nota-rapida'; dlg.className = 'modern-modal'; dlg.style.width = '90%'; dlg.style.maxWidth = '400px'; dlg.style.padding = '24px';
+    dlg.innerHTML = `<h3 style="margin:0 0 15px 0; color:var(--text-main);">Agregar Nota</h3><input type="hidden" id="nota-rapida-id"><textarea id="nota-rapida-texto" rows="3" class="modern-input" placeholder="Escribe el registro de contacto..."></textarea><div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;"><button type="button" class="btn-cerrar-modal" data-modal="modal-nota-rapida" style="padding:10px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted);">Cancelar</button><button id="btn-guardar-nota-rapida" class="btn-primary">Guardar</button></div>`;
+    document.body.appendChild(dlg);
+}
 
 const quill = new Quill('#editor-container', { theme: 'snow', modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] } });
 const quillInforme = new Quill('#informe-editor-container', { theme: 'snow', modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] } });
@@ -287,10 +292,11 @@ async function actualizarEventoSeguro(al, titulos, desc) {
     throw new Error("Google Calendar rechazó la actualización.\nDetalle: " + lastError);
 }
 
+// ARREGLO 3.5.2: Corrección de sintaxis en eliminarEventoSeguro que rompía la ejecución.
 async function eliminarEventoSeguro(al) {
     if (!al.id_evento_reserva) return;
     let calGrabado = al.calendario_evento_reserva, primaryCalId = await getCalendarIdParaAlumno(al), fallbackCalId = configApp.calendario_por_defecto, candidatos = [];
-    if (calGrabado) primaryCalId && !candidatos.includes(primaryCalId)) candidatos.push(primaryCalId); if (fallbackCalId && !candidatos.includes(fallbackCalId)) candidatos.push(fallbackCalId);
+    if (calGrabado) candidatos.push(calGrabado); if (primaryCalId && !candidatos.includes(primaryCalId)) candidatos.push(primaryCalId); if (fallbackCalId && !candidatos.includes(fallbackCalId)) candidatos.push(fallbackCalId);
     let lastError = "";
     for (let cal of candidatos) { try { await eliminarEventoCalendario(cal, al.id_evento_reserva); return; } catch(e) { lastError = e.message; } }
     throw new Error("Google Calendar rechazó la cancelación.\nDetalle: " + lastError);
@@ -882,7 +888,99 @@ function renderConfig(cont) {
     document.getElementById('btn-guardar-cfg').addEventListener('click', async (e) => { setBotonCargando(e.target, true); await setDoc(doc(db, "configuracion", "general"), { hora_apertura: document.getElementById('cfg-apertura').value, hora_cierre: document.getElementById('cfg-cierre').value, cantidad_aulas: document.getElementById('cfg-aulas').value, cantidad_baterias: document.getElementById('cfg-bats').value, identificador_bateria: document.getElementById('cfg-idbat').value, emoji_guitarra: document.getElementById('cfg-em-gui').value, emoji_cajon: document.getElementById('cfg-em-caj').value, emoji_canto: document.getElementById('cfg-em-can').value, emoji_piano: document.getElementById('cfg-em-pia').value, emoji_bajo: document.getElementById('cfg-em-baj').value, calendario_por_defecto: document.getElementById('cfg-cal-defecto').value, valor_clase: document.getElementById('cfg-valor').value, formato_evento_reserva: document.getElementById('cfg-evt-res').value, formato_evento_confirmado: document.getElementById('cfg-evt-conf').value, texto_nombre_agendar: document.getElementById('cfg-nombre-agendar').value, texto_opciones_multiples: document.getElementById('cfg-txt-opt-mul').value, texto_profe: document.getElementById('cfg-txt-p').value, texto_alumno: document.getElementById('cfg-txt-a').value, texto_conf_profe: document.getElementById('cfg-txt-conf-p').value, texto_conf_alumno: document.getElementById('cfg-txt-conf-a').value, texto_cancela_alumno: document.getElementById('cfg-txt-cancela').value, texto_prealta: document.getElementById('cfg-txt-prealta').value, texto_alta_confirmada: document.getElementById('cfg-txt-alta-conf').value }, { merge: true }); await cargarConfig(); setBotonCargando(e.target, false); alert('Guardado.'); }); 
 }
 
-// LÓGICA DE GESTOS SWIPE (MÓVILES)
+async function renderCharts() {
+    const cont = document.getElementById('estadisticas-container');
+    cont.innerHTML = `
+        <div style="display:flex; gap:20px; flex-wrap:wrap; margin-bottom:20px;">
+            <div style="background:white; padding:20px; border-radius:12px; border:1px solid var(--border-color); flex:1; min-width:100%;"><canvas id="chartFlow" style="max-height: 250px;"></canvas></div>
+        </div>
+        <div style="display:flex; gap:20px; flex-wrap:wrap;">
+            <div style="background:white; padding:20px; border-radius:12px; border:1px solid var(--border-color); flex:1; min-width:300px;"><canvas id="chartEntrevistas"></canvas></div>
+            <div style="background:white; padding:20px; border-radius:12px; border:1px solid var(--border-color); flex:1; min-width:300px;"><canvas id="chartAltas"></canvas></div>
+        </div>
+    `;
+    try {
+        const qSnap = await getDocs(collection(db, "alumnos"));
+        let allData = []; qSnap.forEach(d => allData.push(d.data()));
+        
+        let flowLabels = configNodosFlujo.map(n => n.label);
+        let flowData = configNodosFlujo.map(n => allData.filter(d => n.filterFn ? n.filterFn(d) : d.estado_agenda === n.id).length);
+        let phaseColors = configNodosFlujo.map(n => n.color === 'phase-1' ? '#1f5491' : (n.color === 'phase-2' ? '#e5a93d' : '#007b8f'));
+
+        let entConf = allData.filter(d => d.estado_agenda === 'Agenda confirmada').length;
+        let entSusp = allData.filter(d => d.estado_agenda === 'Agenda suspendida').length;
+        
+        let altFin = allData.filter(d => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5)).length;
+        let altSusp = allData.filter(d => d.estado_agenda === 'Alta Suspendida').length;
+
+        if(chartFlowInst) chartFlowInst.destroy(); if(chartEntrevistasInst) chartEntrevistasInst.destroy(); if(chartAltasInst) chartAltasInst.destroy();
+        
+        chartFlowInst = new Chart(document.getElementById('chartFlow'), { 
+            type: 'bar', 
+            data: { labels: flowLabels, datasets: [{ label: 'Alumnos', data: flowData, backgroundColor: phaseColors, borderRadius: 6 }] },
+            options: { plugins: { title: { display: true, text: 'Flow de Admisión', font: { size: 16 } }, legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+        });
+        
+        chartEntrevistasInst = new Chart(document.getElementById('chartEntrevistas'), { 
+            type: 'doughnut', 
+            data: { labels: ['Confirmadas', 'Suspendidas'], datasets: [{ data: [entConf, entSusp], backgroundColor: ['#007b8f', '#c2563b'] }] },
+            options: { plugins: { title: { display: true, text: 'Entrevistas', font: { size: 16 } } } }
+        });
+        
+        chartAltasInst = new Chart(document.getElementById('chartAltas'), { 
+            type: 'doughnut', 
+            data: { labels: ['Finalizadas', 'Suspendidas'], datasets: [{ data: [altFin, altSusp], backgroundColor: ['#007b8f', '#c2563b'] }] },
+            options: { plugins: { title: { display: true, text: 'Altas', font: { size: 16 } } } }
+        });
+    } catch(e) {}
+}
+
+const btnLogin = document.getElementById('btn-login'); if (btnLogin) btnLogin.addEventListener('click', conectarGoogle);
+document.getElementById('btn-logout').addEventListener('click', async () => { await signOut(auth); window.location.reload(); });
+
+onAuthStateChanged(auth, async (user) => { 
+    if (user) { 
+        try {
+            const qSnap = await getDocs(collection(db, "usuarios_sistema")); let autorizado = false;
+            if (qSnap.empty) { await addDoc(collection(db, "usuarios_sistema"), { email: user.email.toLowerCase(), rol: 'admin' }); autorizado = true; } 
+            else { qSnap.forEach(d => { if(d.data().email && d.data().email.toLowerCase() === user.email.toLowerCase()) autorizado = true; }); }
+            if (!autorizado) { alert(`Acceso Denegado:\nTu cuenta (${user.email}) no está autorizada.`); await signOut(auth); document.getElementById('login-container').style.display = 'flex'; document.getElementById('app-container').style.display = 'none'; return; }
+        } catch(e) { return alert("Error al validar permisos."); }
+
+        document.getElementById('login-container').style.display = 'none'; document.getElementById('app-container').style.display = 'flex'; 
+        const userInfoBox = document.getElementById('user-info'); userInfoBox.textContent = user.email; 
+        if (userInfoBox && !document.getElementById('version-tag')) { userInfoBox.insertAdjacentHTML('afterend', `<div id="version-tag" style="font-size:0.85em; color:var(--accent-teal); margin-top:5px; font-weight:700; padding:0 10px;">${APP_VERSION}</div>`); }
+        await cargarConfig(); cargarVista('Dashboard'); 
+        
+        const btnMobileMenu = document.getElementById('btn-mobile-menu');
+        const btnCerrarMenuMobile = document.getElementById('btn-cerrar-menu-mobile');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('mobile-overlay');
+
+        if(btnMobileMenu) btnMobileMenu.addEventListener('click', () => { sidebar.classList.add('active'); overlay.style.display = 'block'; });
+        if(btnCerrarMenuMobile) btnCerrarMenuMobile.addEventListener('click', () => { sidebar.classList.remove('active'); overlay.style.display = 'none'; });
+        if(overlay) overlay.addEventListener('click', () => { sidebar.classList.remove('active'); overlay.style.display = 'none'; });
+
+    } else { 
+        document.getElementById('login-container').style.display = 'flex'; document.getElementById('app-container').style.display = 'none'; 
+    } 
+});
+
+const inputBuscadorGeneral = document.getElementById('input-buscador-general'); if(inputBuscadorGeneral) { inputBuscadorGeneral.addEventListener('input', () => { cargarVista(estadoActualVista); }); }
+
+document.addEventListener('change', async (e) => {
+    if(e.target.classList.contains('chk-alta-paso')) {
+        const id = e.target.getAttribute('data-id'), idx = parseInt(e.target.getAttribute('data-idx'));
+        try {
+            const docRef = doc(db, "alumnos", id), alDoc = await getDoc(docRef), al = alDoc.data();
+            let checks = al.checklist_alta || [false, false, false, false, false]; checks[idx] = e.target.checked;
+            await updateDoc(docRef, { checklist_alta: checks });
+            if (checks.filter(Boolean).length === 5 && (estadoActualVista === 'Dashboard' || estadoActualVista === 'Altas - Pendientes') && (al.estado_agenda === 'Alta Efectiva' || al.estado_agenda === 'Alta Ilegal')) { setTimeout(() => { cargarVista(estadoActualVista); }, 1000); }
+        } catch(err) {}
+    }
+});
+
+// ==================== LÓGICA DE GESTOS SWIPE (MÓVILES) ====================
 let touchStartX = 0; let touchStartY = 0; let swipeEl = null;
 
 document.addEventListener('touchstart', e => {
@@ -910,6 +1008,7 @@ document.addEventListener('touchend', e => {
     swipeEl = null;
 });
 
+// Cierra el swipe si haces click en otro lado
 document.addEventListener('click', (e) => {
     if(!e.target.closest('.swipe-wrapper') && window.innerWidth <= 850) {
         document.querySelectorAll('.swipe-content').forEach(el => el.style.transform = 'translateX(0)');
@@ -1075,17 +1174,6 @@ async function llenarFormularioAlumno(id) {
     const info = getEstadoYBadge(d);
     const badgeEl = document.getElementById('modal-status-badge');
     if (badgeEl) { badgeEl.className = `status-badge ${info.colorBadge}`; badgeEl.textContent = info.txtEstado; badgeEl.style.display = 'inline-flex'; }
-
-    const accionesCont = document.getElementById('modal-acciones-container');
-    if (accionesCont) {
-        accionesCont.style.display = 'block';
-        accionesCont.innerHTML = `
-            <button type="button" style="background:var(--accent-teal); color:white; border:none; padding:8px 14px; border-radius:8px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">Acciones ⋮</button>
-            <div class="dropdown-menu-wrapper" style="top:100%; left:0;">
-                <div class="dropdown-menu">${generarBotonesAccion(d, id)}</div>
-            </div>
-        `;
-    }
 
     const hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00'; diasSemana.forEach(dia => { const dD = d.disponibilidad[dia.id], tI = document.getElementById(`disp-${dia.id}-inicio`), tF = document.getElementById(`disp-${dia.id}-fin`), cA = document.getElementById(`disp-${dia.id}-all`), cN = document.getElementById(`disp-${dia.id}-none`), sE = document.getElementById(`estado-${dia.id}`); tI.disabled=false; tF.disabled=false; cA.checked=false; cN.checked=false; sE.textContent=""; if (!dD || dD.length===0) { cN.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Bloqueado"; sE.style.color="var(--accent-red)"; } else if (dD[0].inicio===hApe && dD[0].fin===hCie) { cA.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Libre"; sE.style.color="var(--accent-teal)"; } else { tI.value = dD[0].inicio; tF.value = dD[0].fin; } }); 
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); const tabBtns = document.querySelectorAll('.tab-btn'); if(tabBtns.length > 0) { tabBtns[0].classList.add('active'); } document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none'); if(document.getElementById('tab-datos')) document.getElementById('tab-datos').style.display = 'block';
