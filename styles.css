@@ -234,7 +234,7 @@ body {
 
 .tray-chip { padding: 10px 14px; background: var(--hover-bg); border: 1px solid var(--border-color); border-radius: 12px; display: flex; flex-direction: column; gap: 6px; transition: 0.2s; min-width: 240px; flex-grow: 1; }
 .tray-chip-header { display: flex; justify-content: space-between; align-items: center; width: 100%; }
-.tray-chip-name { cursor: pointer; flex-grow: 1; }
+.tray-chip-name { cursor: pointer; flex-grow: 1; display:flex; align-items:center; gap:8px; }
 .tray-chip:hover { background: white; border-color: var(--accent-teal); box-shadow: 0 2px 6px rgba(0, 123, 143, 0.15); }
 
 /* =======================================================================
@@ -258,7 +258,7 @@ body {
    ======================================================================= */
 .modern-modal { background: var(--bg-main); width: 95%; max-width: 800px; border-radius:16px; border:1px solid var(--border-color); box-shadow:0 10px 40px rgba(0,0,0,0.1); padding:0; }
 .modern-modal::backdrop { background: rgba(0,0,0,0.4); backdrop-filter: blur(2px); }
-.modal-drag-pill { display: none; } /* Oculto en PC */
+.modal-drag-pill { display: none; } 
 
 .modern-input { background: var(--hover-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px 14px; font-family: inherit; font-size: 14px; color: var(--text-main); outline: none; transition: 0.2s; width: 100%; box-sizing: border-box; }
 .modern-input:focus { border-color: var(--accent-teal); background: #ffffff; box-shadow: 0 0 0 3px rgba(0,123,143,0.1); }
@@ -278,7 +278,6 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
    DISEÑO RESPONSIVO (MÓVILES, BOTTOM SHEETS Y GESTOS)
    ======================================================================= */
 @media (max-width: 850px) {
-    /* Bottom Nav Appears */
     .bottom-nav {
         display: flex; position: fixed; bottom: 0; left: 0; width: 100%;
         background: var(--bg-sidebar); border-top: 1px solid var(--border-color);
@@ -300,13 +299,15 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
     
     #bulk-actions-bar { bottom: 80px !important; width: 90%; justify-content: center; }
 
-    /* Configuración de Cascada en Móvil */
-    .row-item { padding: 14px; gap: 0; border: none; } /* El borde lo maneja el swipe-wrapper ahora */
+    /* Ocultar botones de acciones en lista principal móvil (se usa swipe) */
+    .row-actions-container { display: none !important; }
+    .alumno-actions:hover .dropdown-menu-wrapper { display: none !important; }
+
+    .row-item { padding: 14px; gap: 0; border: none; } 
     .swipe-wrapper { border: 1px solid var(--border-color); }
     
     .row-content-wrapper { flex-direction: column; align-items: flex-start; gap: 12px; position: relative; }
     .row-header { width: 100%; align-items: flex-start; padding-right: 30px; box-sizing: border-box; }
-    .row-actions-container { position: absolute; top: 0; right: 0; }
     .row-main-info { width: 100%; min-width: 0; word-break: break-word; }
     
     .row-disp-grid { width: 100%; justify-content: flex-start; flex-wrap: nowrap !important; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; gap: 8px; padding-bottom: 4px; }
@@ -314,7 +315,6 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
     .disp-box { flex: 0 0 auto; min-width: 55px; } 
     .row-meta { align-items: flex-start; text-align: left; margin-top: 4px; width: 100%; padding-top: 10px; border-top: 1px dashed var(--border-color); }
     
-    /* Timeline Vertical (Flow) */
     .timeline-wrapper { flex-direction: column; align-items: flex-start; padding: 10px 0 10px 10px; gap: 0; min-width: unset; overflow-x: visible; overflow-y: visible; }
     .timeline-line { width: 3px; height: calc(100% - 60px); left: 32px; top: 30px; background: linear-gradient(to bottom, var(--accent-blue) 0%, var(--accent-blue) 40%, #e5a93d 40%, #e5a93d 50%, var(--accent-teal) 50%, var(--accent-teal) 100%); }
     .timeline-node { flex-direction: row; width: 100%; justify-content: flex-start; min-width: unset; padding: 15px 0; }
@@ -325,16 +325,16 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
     .timeline-tray::before { top: -8px; left: 20px !important; transform: rotate(45deg); }
     .tray-chip { min-width: 100%; max-width: 100%; }
     
-    /* MODALES BOTTOM SHEETS (Aparecen desde abajo en celular) */
+    /* MODALES BOTTOM SHEETS */
     dialog.modern-modal {
         margin: 0; margin-top: auto; 
         width: 100% !important; max-width: 100% !important;
         height: 88vh; max-height: 88vh !important;
-        border-radius: 20px 20px 0 0;
-        border: none;
+        border-radius: 20px 20px 0 0; border: none;
         transform: translateY(100%);
         animation: slideUp 0.3s forwards cubic-bezier(0.16, 1, 0.3, 1);
     }
+    dialog.auto-height-modal { height: auto !important; min-height: auto !important; }
     @keyframes slideUp { to { transform: translateY(0); } }
     .modal-drag-pill { display: block; width: 40px; height: 5px; background: #d9d2c5; border-radius: 3px; margin: 0 auto 20px auto; }
 }
