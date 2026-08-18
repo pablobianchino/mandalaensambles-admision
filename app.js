@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-const APP_VERSION = "v3.5.2";
+const APP_VERSION = "v3.5.3";
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 const firebaseConfig = {
@@ -158,6 +158,7 @@ let estadoActualVista = 'Dashboard';
 window.tituloABMActual = '';
 let configApp = {};
 let chartFlowInst = null, chartEntrevistasInst = null, chartAltasInst = null, chartFlowDashboardInst = null;
+let clipboardDisponibilidad = null, clipboardDisponibilidadProfe = null; 
 let historialActual = []; 
 
 const configNodosFlujo = [
@@ -171,12 +172,6 @@ const configNodosFlujo = [
     { id: 'Altas Incompletas', label: 'Altas Confirmadas Incompletas', icon: '⚠️', color: 'phase-3', filterFn: (d) => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5) },
     { id: 'Altas Finalizadas', label: 'Altas Finalizadas', icon: '🏆', color: 'phase-3', filterFn: (d) => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5) }
 ];
-
-if (!document.getElementById('modal-nota-rapida')) {
-    const dlg = document.createElement('dialog'); dlg.id = 'modal-nota-rapida'; dlg.className = 'modern-modal'; dlg.style.width = '90%'; dlg.style.maxWidth = '400px'; dlg.style.padding = '24px';
-    dlg.innerHTML = `<h3 style="margin:0 0 15px 0; color:var(--text-main);">Agregar Nota</h3><input type="hidden" id="nota-rapida-id"><textarea id="nota-rapida-texto" rows="3" class="modern-input" placeholder="Escribe el registro de contacto..."></textarea><div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;"><button type="button" class="btn-cerrar-modal" data-modal="modal-nota-rapida" style="padding:10px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted);">Cancelar</button><button id="btn-guardar-nota-rapida" class="btn-primary">Guardar</button></div>`;
-    document.body.appendChild(dlg);
-}
 
 const quill = new Quill('#editor-container', { theme: 'snow', modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] } });
 const quillInforme = new Quill('#informe-editor-container', { theme: 'snow', modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] } });
@@ -292,7 +287,6 @@ async function actualizarEventoSeguro(al, titulos, desc) {
     throw new Error("Google Calendar rechazó la actualización.\nDetalle: " + lastError);
 }
 
-// ARREGLO 3.5.2: Corrección de sintaxis en eliminarEventoSeguro que rompía la ejecución.
 async function eliminarEventoSeguro(al) {
     if (!al.id_evento_reserva) return;
     let calGrabado = al.calendario_evento_reserva, primaryCalId = await getCalendarIdParaAlumno(al), fallbackCalId = configApp.calendario_por_defecto, candidatos = [];
@@ -1008,7 +1002,6 @@ document.addEventListener('touchend', e => {
     swipeEl = null;
 });
 
-// Cierra el swipe si haces click en otro lado
 document.addEventListener('click', (e) => {
     if(!e.target.closest('.swipe-wrapper') && window.innerWidth <= 850) {
         document.querySelectorAll('.swipe-content').forEach(el => el.style.transform = 'translateX(0)');
@@ -1019,6 +1012,56 @@ document.addEventListener('click', (e) => {
 document.addEventListener('click', async (e) => {
     const target = e.target;
     
+    // FUNCION DE COPY/PASTE DISPONIBILIDAD (WEB Y MOBILE)
+    if (target.classList.contains('btn-copy-disp') || target.closest('.btn-copy-disp')) {
+        e.preventDefault();
+        const btn = target.classList.contains('btn-copy-disp') ? target : target.closest('.btn-copy-disp');
+        const diaId = btn.getAttribute('data-dia');
+        clipboardDisponibilidad = {
+            inicio: document.getElementById(`disp-${diaId}-inicio`).value,
+            fin: document.getElementById(`disp-${diaId}-fin`).value,
+            all: document.getElementById(`disp-${diaId}-all`).checked,
+            none: document.getElementById(`disp-${diaId}-none`).checked
+        };
+        return;
+    }
+    if (target.classList.contains('btn-paste-disp') || target.closest('.btn-paste-disp')) {
+        e.preventDefault();
+        if (!clipboardDisponibilidad) return alert("No hay horario copiado.");
+        const btn = target.classList.contains('btn-paste-disp') ? target : target.closest('.btn-paste-disp');
+        const diaId = btn.getAttribute('data-dia');
+        document.getElementById(`disp-${diaId}-inicio`).value = clipboardDisponibilidad.inicio;
+        document.getElementById(`disp-${diaId}-fin`).value = clipboardDisponibilidad.fin;
+        document.getElementById(`disp-${diaId}-all`).checked = clipboardDisponibilidad.all;
+        document.getElementById(`disp-${diaId}-none`).checked = clipboardDisponibilidad.none;
+        window.updateDispStateForDay(diaId, false);
+        return;
+    }
+    if (target.classList.contains('btn-copy-disp-p') || target.closest('.btn-copy-disp-p')) {
+        e.preventDefault();
+        const btn = target.classList.contains('btn-copy-disp-p') ? target : target.closest('.btn-copy-disp-p');
+        const diaId = btn.getAttribute('data-dia');
+        clipboardDisponibilidadProfe = {
+            inicio: document.getElementById(`disp-p-${diaId}-inicio`).value,
+            fin: document.getElementById(`disp-p-${diaId}-fin`).value,
+            all: document.getElementById(`disp-p-${diaId}-all`).checked,
+            none: document.getElementById(`disp-p-${diaId}-none`).checked
+        };
+        return;
+    }
+    if (target.classList.contains('btn-paste-disp-p') || target.closest('.btn-paste-disp-p')) {
+        e.preventDefault();
+        if (!clipboardDisponibilidadProfe) return alert("No hay horario copiado.");
+        const btn = target.classList.contains('btn-paste-disp-p') ? target : target.closest('.btn-paste-disp-p');
+        const diaId = btn.getAttribute('data-dia');
+        document.getElementById(`disp-p-${diaId}-inicio`).value = clipboardDisponibilidadProfe.inicio;
+        document.getElementById(`disp-p-${diaId}-fin`).value = clipboardDisponibilidadProfe.fin;
+        document.getElementById(`disp-p-${diaId}-all`).checked = clipboardDisponibilidadProfe.all;
+        document.getElementById(`disp-p-${diaId}-none`).checked = clipboardDisponibilidadProfe.none;
+        window.updateDispStateForDay(diaId, true);
+        return;
+    }
+
     // Auto-cierre del Bottom Sheet Modal al tocar una acción adentro
     if(target.closest('#mobile-actions-container') && target.tagName === 'BUTTON' && !target.classList.contains('btn-cerrar-modal')) {
         document.getElementById('modal-mobile-actions').close();
@@ -1174,6 +1217,17 @@ async function llenarFormularioAlumno(id) {
     const info = getEstadoYBadge(d);
     const badgeEl = document.getElementById('modal-status-badge');
     if (badgeEl) { badgeEl.className = `status-badge ${info.colorBadge}`; badgeEl.textContent = info.txtEstado; badgeEl.style.display = 'inline-flex'; }
+
+    const accionesCont = document.getElementById('modal-acciones-container');
+    if (accionesCont) {
+        accionesCont.style.display = 'block';
+        accionesCont.innerHTML = `
+            <button type="button" style="background:var(--accent-teal); color:white; border:none; padding:8px 14px; border-radius:8px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">Acciones ⋮</button>
+            <div class="dropdown-menu-wrapper" style="top:100%; left:0;">
+                <div class="dropdown-menu">${generarBotonesAccion(d, id)}</div>
+            </div>
+        `;
+    }
 
     const hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00'; diasSemana.forEach(dia => { const dD = d.disponibilidad[dia.id], tI = document.getElementById(`disp-${dia.id}-inicio`), tF = document.getElementById(`disp-${dia.id}-fin`), cA = document.getElementById(`disp-${dia.id}-all`), cN = document.getElementById(`disp-${dia.id}-none`), sE = document.getElementById(`estado-${dia.id}`); tI.disabled=false; tF.disabled=false; cA.checked=false; cN.checked=false; sE.textContent=""; if (!dD || dD.length===0) { cN.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Bloqueado"; sE.style.color="var(--accent-red)"; } else if (dD[0].inicio===hApe && dD[0].fin===hCie) { cA.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Libre"; sE.style.color="var(--accent-teal)"; } else { tI.value = dD[0].inicio; tF.value = dD[0].fin; } }); 
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); const tabBtns = document.querySelectorAll('.tab-btn'); if(tabBtns.length > 0) { tabBtns[0].classList.add('active'); } document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none'); if(document.getElementById('tab-datos')) document.getElementById('tab-datos').style.display = 'block';
