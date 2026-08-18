@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-const APP_VERSION = "v3.5.4";
+const APP_VERSION = "v3.8.0"; // Google Calendar Sync: Pre-Altas (🚀) y Altas Confirmadas (Individual / Grupal)
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 const firebaseConfig = {
@@ -23,7 +23,11 @@ let agrupadorActual = 'ninguno';
 let filtroChipActual = 'Todos';
 let filtroAlarmaActual = 'Todos'; 
 let vistaModo = 'lista'; 
-let selectedBulkIds = []; 
+let selectedBulkIds = [];
+let matchListenersAttached = false;
+let matchCantidadActual = 4;
+let matchGruposSugeridos = [];
+let matchProfesores = []; 
 
 const selAgrupador = document.getElementById('select-agrupador');
 if(selAgrupador) {
@@ -226,7 +230,20 @@ function renderHistorial() {
     });
 }
 
-const defaultCfg = { hora_apertura: '09:00', hora_cierre: '22:00', calendario_por_defecto: 'productora.mandalahouse@gmail.com', identificador_bateria: '🥁', emoji_guitarra: '🎸', emoji_cajon: '📦', emoji_canto: '🎤', emoji_piano: '🎹', emoji_bajo: '🎸', valor_clase: '$10.000', cantidad_aulas: '3', cantidad_baterias: '2', texto_nombre_agendar: 'MDL {nombre} {edad} {año_actual} @{instrumento} @{suscripcion}', formato_evento_reserva: '❓📋 {emojiinstrumento} {alumno} {edad}', formato_evento_confirmado: '✅📋 {emojiinstrumento} {alumno} {edad}', texto_profe: "*⚠ PRE CHECK - ENTREVISTA*\n📅 *FECHA: {fecha_hora}*\n*👥 ALUMNO:*\n🔹 {nombre} ({edad})\n🔹 {instrumento} | {suscripcion}\n*INFO:*\n{descripcion}\n\n*🕐 HISTORIAL DE CONTACTO:*\n{historial}", texto_opciones_multiples: "*⚠ PRE CHECK - ENTREVISTA*\n*🎈 CONFIRMAR ASISTENCIA*\n\n📅 OPCIONES DE FECHA:\n{opciones}\n\n*Por favor confirmar asistencia y agendar en tu calendario. En cuanto reciba el OK y pago del alumno, te aviso con la confirmación definitiva.*\n\n*📰 INFO PARA LA ENTREVISTA:*\n{descripcion}\n\n*🕐 HISTORIAL DE CONTACTO:*\n{historial}", texto_alumno: "📅 *Agenda de clase*\n🧩 {fecha_hora} con Profe {profe}\n✅ Inscripción: forms.gle/xxx\n💸 Valor: {valor}\n🧩 Alias: {alias_profe}", texto_conf_alumno: "Genial Gracias!\nTe esperamos!\n\n🧩 Día y horario: {fecha_hora}\n🧩 Profe: {profe}\n📍 *Dirección:* Av. Cabildo 2970\n\nEl profe te va a estar escribiendo el mismo día!", texto_conf_profe: "*✅ ENTREVISTA CONFIRMADA*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Clase: {suscripcion}\n\n*📰 INFO PARA LA ENTREVISTA:*\n{descripcion}\n\n*🕐 HISTORIAL DE CONTACTO:*\n{historial}", texto_cancela_alumno: "*❗ PRE CHECK - ENTREVISTA*\n*❌ RESERVA CANCELADA*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Clase: {suscripcion}\n\n*🕐 HISTORIAL DE CONTACTO:*\n{historial}", texto_prealta: "*⚠ PRE ALTA INICIADA*\n\n*👥 DATOS DE LA SUSCRIPCIÓN:*\n🔹 Suscripción: {suscripcion}\n🔹 Nombre de alumno: {nombre}\n🔹 Instrumento: {instrumento}\n🔹 Grupo: {grupo}\n🔹 Profesor: {profe}\n🔹 Inicio de clases: {fecha inicio clases}", texto_alta_confirmada: "*✅ NUEVA ALTA CONFIRMADA*\n\n*👥 DATOS DE LA SUSCRIPCIÓN:*\n🔹 Suscripción: {suscripcion}\n🔹 Nombre de alumno: {nombre}\n🔹 Instrumento: {instrumento}\n🔹 Grupo: {grupo}\n🔹 Profesor: {profe}\n🔹 Inicio de clases: {fecha inicio clases}" };
+const defaultCfg = { 
+    hora_apertura: '09:00', hora_cierre: '22:00', calendario_por_defecto: 'productora.mandalahouse@gmail.com', identificador_bateria: '🥁', emoji_guitarra: '🎸', emoji_cajon: '📦', emoji_canto: '🎤', emoji_piano: '🎹', emoji_bajo: '🎸', valor_clase: '$10.000', cantidad_aulas: '3', cantidad_baterias: '2', texto_nombre_agendar: 'MDL {nombre} {edad} {año_actual} @{instrumento} @{suscripcion}', formato_evento_reserva: '❓📋 {emojiinstrumento} {alumno} {edad}', formato_evento_confirmado: '✅📋 {emojiinstrumento} {alumno} {edad}', texto_profe: "*⚠ PRE CHECK - ENTREVISTA*\n📅 *FECHA: {fecha_hora}*\n*👥 ALUMNO:*\n🔹 {nombre} ({edad})\n🔹 {instrumento} | {suscripcion}\n*INFO:*\n{descripcion}\n\n*🕐 HISTORIAL DE CONTACTO:*\n{historial}", texto_opciones_multiples: "*⚠ PRE CHECK - ENTREVISTA*\n*🎈 CONFIRMAR ASISTENCIA*\n\n📅 OPCIONES DE FECHA:\n{opciones}\n\n*Por favor confirmar asistencia y agendar en tu calendario. En cuanto reciba el OK y pago del alumno, te aviso con la confirmación definitiva.*\n\n*📰 INFO PARA LA ENTREVISTA:*\n{descripcion}\n\n*🕐 HISTORIAL DE CONTACTO:*\n{historial}", texto_alumno: "📅 *Agenda de clase*\n🧩 {fecha_hora} con Profe {profe}\n✅ Inscripción: forms.gle/xxx\n💸 Valor: {valor}\n🧩 Alias: {alias_profe}", texto_conf_alumno: "Genial Gracias!\nTe esperamos!\n\n🧩 Día y horario: {fecha_hora}\n🧩 Profe: {profe}\n📍 *Dirección:* Av. Cabildo 2970\n\nEl profe te va a estar escribiendo el mismo día!", texto_conf_profe: "*✅ ENTREVISTA CONFIRMADA*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Clase: {suscripcion}\n\n*📰 INFO PARA LA ENTREVISTA:*\n{descripcion}\n\n*🕐 HISTORIAL DE CONTACTO:*\n{historial}", texto_cancela_alumno: "*❗ PRE CHECK - ENTREVISTA*\n*❌ RESERVA CANCELADA*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Clase: {suscripcion}\n\n*🕐 HISTORIAL DE CONTACTO:*\n{historial}", texto_prealta: "*⚠ PRE ALTA INICIADA*\n\n*👥 DATOS DE LA SUSCRIPCIÓN:*\n🔹 Suscripción: {suscripcion}\n🔹 Nombre de alumno: {nombre}\n🔹 Instrumento: {instrumento}\n🔹 Grupo: {grupo}\n🔹 Profesor: {profe}\n🔹 Inicio de clases: {fecha inicio clases}", texto_alta_confirmada: "*✅ NUEVA ALTA CONFIRMADA*\n\n*👥 DATOS DE LA SUSCRIPCIÓN:*\n🔹 Suscripción: {suscripcion}\n🔹 Nombre de alumno: {nombre}\n🔹 Instrumento: {instrumento}\n🔹 Grupo: {grupo}\n🔹 Profesor: {profe}\n🔹 Inicio de clases: {fecha inicio clases}",
+    grupo_min_integrantes: 2,
+    grupo_max_integrantes: 6,
+    reglas_edad_match: [
+        { desde: 20, rango_min: -4, rango_max: 8 },
+        { desde: 30, rango_min: -5, rango_max: 8 },
+        { desde: 40, rango_min: -5, rango_max: 10 },
+        { desde: 50, rango_min: -10, rango_max: 10 },
+        { desde: 60, rango_min: -5, rango_max: 10 },
+        { desde: 70, rango_min: -5, rango_max: 5 }
+    ],
+    reglas_edad_ninos: { hasta: 13, libre: true }
+};
 async function cargarConfig() { const docSnap = await getDoc(doc(db, "configuracion", "general")); configApp = docSnap.exists() ? { ...defaultCfg, ...docSnap.data() } : defaultCfg; }
 
 function reemplazarVariables(texto, datos) { let res = texto; for (const [key, value] of Object.entries(datos)) { res = res.replaceAll(`{${key}}`, value || ''); } res = res.replace(/\{[a-zA-Z0-9_ ]+\}/g, ''); return res; }
@@ -260,15 +277,139 @@ async function fetchCalendarAPI(action, payload) {
 }
 
 async function getEventosCalendario(calendarId, timeMin, timeMax) { return await fetchCalendarAPI('getEvents', { calendarId, timeMin, timeMax }); }
-async function crearEventoCalendario(calendarId, titulo, inicioStr, finStr) { return await fetchCalendarAPI('createEvent', { calendarId, summary: titulo, start: { dateTime: inicioStr }, end: { dateTime: finStr } }); }
+async function crearEventoCalendario(calendarId, titulo, inicioStr, finStr, descripcion = "") { 
+    return await fetchCalendarAPI('createEvent', { 
+        calendarId, 
+        summary: titulo, 
+        description: descripcion,
+        start: { dateTime: inicioStr }, 
+        end: { dateTime: finStr } 
+    }); 
+}
 async function actualizarEventoCalendario(calendarId, eventId, titulo, descripcion) { return await fetchCalendarAPI('updateEvent', { calendarId, eventId, summary: titulo, description: descripcion }); }
 async function eliminarEventoCalendario(calendarId, eventId) { return await fetchCalendarAPI('deleteEvent', { calendarId, eventId }); }
 
+function getEmojiInstrumento(instrumentoArr, cfg) {
+    const insts = Array.isArray(instrumentoArr) ? instrumentoArr : (instrumentoArr ? [instrumentoArr] : []);
+    const c = cfg || configApp || defaultCfg;
+    let emojis = [];
+    insts.forEach(i => {
+        let instL = (i || '').toLowerCase();
+        if (instL.includes('bater')) emojis.push(c.identificador_bateria || '🥁');
+        else if (instL.includes('guitarra')) emojis.push(c.emoji_guitarra || '🎸');
+        else if (instL.includes('cajón') || instL.includes('cajon')) emojis.push(c.emoji_cajon || '📦');
+        else if (instL.includes('canto') || instL.includes('voz')) emojis.push(c.emoji_canto || '🎤');
+        else if (instL.includes('piano') || instL.includes('teclado')) emojis.push(c.emoji_piano || '🎹');
+        else if (instL.includes('bajo')) emojis.push(c.emoji_bajo || '🎸');
+    });
+    return [...new Set(emojis.filter(Boolean))].join('') || '🎵';
+}
+
+function construirTitulosPrealtaYAlta(al, tipo, cfg) {
+    // tipo: 'prealta' | 'confirmada'
+    const tipoSusc = detectarTipoSuscripcion(al.tipo_suscripcion || '');
+    const esInd = tipoSusc === 'individual';
+    const emojiInst = getEmojiInstrumento(al.instrumento, cfg);
+    const nombreAlumno = al.nombre || 'Alumno';
+    const nombreGrupo = al.grupo_asignado || 'Grupo';
+
+    let titulo = '';
+    if (tipo === 'prealta') {
+        if (esInd) {
+            titulo = `🚀${emojiInst} ${nombreAlumno}`;
+        } else {
+            titulo = `🚀🧩 ${nombreGrupo}`;
+        }
+    } else {
+        // Alta confirmada
+        if (esInd) {
+            titulo = `${emojiInst} ${nombreAlumno}`;
+        } else {
+            titulo = `🧩 ${nombreGrupo}`;
+        }
+    }
+    return { tituloProfe: titulo, tituloDefecto: titulo };
+}
+
+function construirDescripcionEventoAlta(al, esGrupo = false, alumnosGrupo = []) {
+    if (esGrupo && alumnosGrupo.length > 0) {
+        const listaIntegrantes = alumnosGrupo.map(a => `• ${a.nombre} (${(a.instrumento || []).join(', ') || 'Instrumento'}) - Tel: ${a.celular || '-'}`).join('\n');
+        return `👥 INTEGRANTES DEL GRUPO (${alumnosGrupo.length}):\n${listaIntegrantes}\n\n🏫 Grupo: ${al.grupo_asignado || '-'}\n👨‍🏫 Profe: ${al.reserva_profe_nombre || '-'}`;
+    }
+    const instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || '-');
+    const descP = al.descripcion ? al.descripcion.replace(/<[^>]*>?/gm, '').trim() : '';
+    return `👤 ALUMNO:\n• Nombre: ${al.nombre}\n• Edad: ${al.edad || '-'}\n• Celular: ${al.celular || '-'}\n• Instrumento: ${instStr}\n• Suscripción: ${al.tipo_suscripcion || '-'}\n\n📝 INFORMACIÓN ADICIONAL:\n${descP || 'Sin notas adicionales.'}`;
+}
+
 async function getCalendarIdParaAlumno(al) {
+    if (al.calendario_evento_alta) return al.calendario_evento_alta;
     if (al.reserva_cal_id) return al.reserva_cal_id;
     if (al.reserva_profe_id) { const pDoc = await getDoc(doc(db, "profesores", al.reserva_profe_id)); if (pDoc.exists() && pDoc.data().correo_calendario) return pDoc.data().correo_calendario; }
     if (al.reserva_profe_nombre) { const pQ = await getDocs(query(collection(db, "profesores"), where("nombre", "==", al.reserva_profe_nombre))); if (!pQ.empty && pQ.docs[0].data().correo_calendario) return pQ.docs[0].data().correo_calendario; }
-    return null;
+    return configApp.calendario_por_defecto || null;
+}
+
+async function sincronizarEventoPrealtaCalendar(al, esIndividual, fIsoStart, fIsoEnd, otrosAlumnosDelGrupo = []) {
+    try {
+        const titulos = construirTitulosPrealtaYAlta(al, 'prealta', configApp);
+        const desc = construirDescripcionEventoAlta(al, !esIndividual, otrosAlumnosDelGrupo);
+        let primaryCalId = await getCalendarIdParaAlumno(al) || configApp.calendario_por_defecto;
+
+        // Si es grupal, verificar si algún compañero del grupo ya tiene evento creado
+        let existingEventId = al.id_evento_alta;
+        let existingCalId = al.calendario_evento_alta || primaryCalId;
+
+        if (!esIndividual && !existingEventId && otrosAlumnosDelGrupo.length > 0) {
+            const compConEv = otrosAlumnosDelGrupo.find(c => c.id_evento_alta);
+            if (compConEv) {
+                existingEventId = compConEv.id_evento_alta;
+                existingCalId = compConEv.calendario_evento_alta || primaryCalId;
+            }
+        }
+
+        if (existingEventId && existingCalId) {
+            await actualizarEventoCalendario(existingCalId, existingEventId, titulos.tituloProfe, desc);
+            return { id: existingEventId, calendar: existingCalId };
+        } else {
+            const evRes = await crearEventoCalendario(primaryCalId, titulos.tituloProfe, fIsoStart, fIsoEnd, desc);
+            return { id: evRes.id, calendar: primaryCalId };
+        }
+    } catch(err) {
+        console.warn("No se pudo sincronizar evento de Pre-Alta en Google Calendar:", err);
+        return null;
+    }
+}
+
+async function sincronizarEventoAltaConfirmadaCalendar(al, esIndividual, otrosAlumnosDelGrupo = []) {
+    try {
+        const titulos = construirTitulosPrealtaYAlta(al, 'confirmada', configApp);
+        const desc = construirDescripcionEventoAlta(al, !esIndividual, otrosAlumnosDelGrupo);
+        
+        let targetEventId = al.id_evento_alta;
+        let targetCalId = al.calendario_evento_alta;
+
+        if (!targetEventId && !esIndividual && otrosAlumnosDelGrupo.length > 0) {
+            const compConEv = otrosAlumnosDelGrupo.find(c => c.id_evento_alta);
+            if (compConEv) {
+                targetEventId = compConEv.id_evento_alta;
+                targetCalId = compConEv.calendario_evento_alta;
+            }
+        }
+
+        if (targetEventId && targetCalId) {
+            await actualizarEventoCalendario(targetCalId, targetEventId, titulos.tituloProfe, desc);
+        }
+    } catch(err) {
+        console.warn("No se pudo actualizar evento de alta confirmada en Google Calendar:", err);
+    }
+}
+
+async function eliminarEventoAltaSeguro(al) {
+    const evId = al.id_evento_alta;
+    const calId = al.calendario_evento_alta || await getCalendarIdParaAlumno(al);
+    if (evId && calId) {
+        try { await eliminarEventoCalendario(calId, evId); } catch(e) {}
+    }
 }
 
 async function crearEventoSeguro(al, titulos, inicio, fin) {
@@ -385,10 +526,17 @@ function getEstadoYBadge(al) {
     else if (al.estado_agenda === 'Lista de espera') colorBadge = 'bg-gray';
     else if (al.estado_agenda === 'Pre-alta Pendiente') colorBadge = 'bg-blue';
     else if (al.estado_agenda === 'Pre-alta Iniciada') colorBadge = 'bg-yellow';
-    else if (al.estado_agenda === 'Alta Efectiva' || al.estado_agenda === 'Alta Ilegal') {
+    else if (al.estado_agenda === 'Alta Efectiva' || al.estado_agenda === 'Alta Ilegal' || al.estado_agenda === 'Alta Finalizada') {
         let checks = al.checklist_alta || [];
-        if (checks.filter(Boolean).length === 5) { colorBadge = 'bg-teal'; txtEstado = 'Alta Finalizada'; colorIndicador = 'ind-teal'; }
-        else { colorBadge = 'bg-red'; txtEstado = 'Alta Incompleta'; colorIndicador = 'ind-red'; }
+        if (checks.filter(Boolean).length === 5 || al.estado_agenda === 'Alta Finalizada') {
+            colorBadge = 'bg-teal';
+            txtEstado = 'Alta Finalizada';
+            colorIndicador = 'ind-teal';
+        } else {
+            colorBadge = 'bg-red';
+            txtEstado = 'Alta Confirmada Incompleta';
+            colorIndicador = 'ind-red';
+        }
     }
     else if (al.estado_agenda.includes('suspendida') || al.estado_agenda === 'Alta Suspendida') { colorBadge = 'bg-red'; colorIndicador = 'ind-red'; }
 
@@ -416,12 +564,20 @@ function generarBotonesAccion(al, id) {
     }
     else if (al.estado_agenda === 'Pre-alta Pendiente') {
         accionesHtml += `<button type="button" class="dropdown-item btn-abrir-prealta" data-id="${id}">⚙️ Iniciar Pre-Alta</button>`;
+        accionesHtml += `<button type="button" class="dropdown-item btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
+        accionesHtml += `<button type="button" class="dropdown-item btn-suspender-alta" data-id="${id}">❌ Suspender</button>`;
     }
     else if (al.estado_agenda === 'Pre-alta Iniciada') {
         accionesHtml += `<button type="button" class="dropdown-item btn-abrir-confirmar-alta" data-id="${id}">✅ Confirmar Alta</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-reenviar-prealta" data-id="${id}">📤 Copiar texto Pre-Alta</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${al.grupo_asignado||''}">✏️ Editar Pre-Alta</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-suspender-alta" data-id="${id}">❌ Suspender Alta</button>`;
     }
-    else if (al.estado_agenda === 'Alta Efectiva' || al.estado_agenda === 'Alta Ilegal') {
-        accionesHtml += `<button type="button" class="dropdown-item btn-reenviar-alta" data-id="${id}">📤 Copiar texto Alta Conf.</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-suspender-alta" data-id="${id}">❌ Suspender Alta</button>`;
+    else if (al.estado_agenda === 'Alta Efectiva' || al.estado_agenda === 'Alta Ilegal' || al.estado_agenda === 'Alta Finalizada') {
+        let checks = al.checklist_alta || [];
+        const esFinalizada = checks.filter(Boolean).length === 5 || al.estado_agenda === 'Alta Finalizada';
+        if (!esFinalizada) {
+            accionesHtml += `<button type="button" class="dropdown-item btn-finalizar-alta-directa" data-id="${id}">🏁 Finalizar Alta</button>`;
+        }
+        accionesHtml += `<button type="button" class="dropdown-item btn-reenviar-alta" data-id="${id}">📤 Copiar texto Alta Conf.</button>`;
+        accionesHtml += `<button type="button" class="dropdown-item btn-suspender-alta" data-id="${id}">❌ Suspender Alta</button>`;
     }
     else if (al.estado_agenda === 'Alta Suspendida') {
         accionesHtml += `<button type="button" class="dropdown-item btn-devolver-espera" data-id="${id}">♻️ Enviar a Espera</button>`;
@@ -472,6 +628,42 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
 
     let menuAcciones = `<div class="alumno-actions row-actions-container"><button type="button" class="btn-row-action">⋮</button><div class="dropdown-menu-wrapper"><div class="dropdown-menu">${generarBotonesAccion(al, id)}</div></div></div>`;
 
+    let checklistHtml = '';
+    const esAltaConfirmadaOFinalizada = al.estado_agenda === 'Alta Efectiva' || al.estado_agenda === 'Alta Ilegal' || al.estado_agenda === 'Alta Finalizada';
+    if (esAltaConfirmadaOFinalizada || al.checklist_alta) {
+        const checks = al.checklist_alta || [false, false, false, false, false];
+        const pasostitulos = [
+            '1. Notificar Alumno',
+            '2. Pago / Comprobante',
+            '3. Cargar en Sistema',
+            '4. Grupo WhatsApp',
+            '5. Notificar Profe'
+        ];
+        const completados = checks.filter(Boolean).length;
+        const porcentaje = Math.round((completados / 5) * 100);
+        const barColor = completados === 5 ? 'var(--accent-teal)' : (completados >= 3 ? '#e5a93d' : 'var(--accent-red)');
+
+        checklistHtml = `
+            <div class="alta-checklist-wrapper" style="margin-top:10px; padding:10px 12px; background:var(--hover-bg); border-radius:10px; border:1px solid var(--border-color);" onclick="event.stopPropagation();">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:11.5px; font-weight:700; color:var(--text-main);">
+                    <span>📋 Checklist de Alta (${completados}/5)</span>
+                    <span style="color:${barColor};">${porcentaje}%</span>
+                </div>
+                <div style="width:100%; height:6px; background:#e9e5de; border-radius:4px; overflow:hidden; margin-bottom:8px;">
+                    <div style="width:${porcentaje}%; height:100%; background:${barColor}; transition:width 0.3s ease;"></div>
+                </div>
+                <div style="display:flex; flex-wrap:wrap; gap:8px 12px; font-size:11px; color:var(--text-muted);">
+                    ${checks.map((chk, idx) => `
+                        <label style="display:inline-flex; align-items:center; gap:5px; margin:0; cursor:pointer; font-weight:600; text-transform:none; color:${chk ? 'var(--text-main)' : 'var(--text-muted)'};">
+                            <input type="checkbox" class="chk-alta-paso" data-id="${id}" data-idx="${idx}" ${chk ? 'checked' : ''} style="accent-color:var(--accent-teal); width:15px; height:15px; cursor:pointer;">
+                            <span style="${chk ? 'text-decoration:none;' : ''}">${pasostitulos[idx] || `Paso ${idx+1}`}</span>
+                        </label>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
     return `
         <div class="swipe-wrapper" data-id="${id}">
             <div class="swipe-bg-actions">
@@ -492,8 +684,11 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                         </div>
                     </div>
                     ${dispHtml}
+                    ${checklistHtml}
                     <div class="row-meta">
                         <div>Profe: <strong style="color:var(--text-main);">${al.reserva_profe_nombre || '-'}</strong></div>
+                        ${al.grupo_asignado ? `<div>Grupo: <strong style="color:var(--accent-teal);">${al.grupo_asignado}</strong></div>` : ''}
+                        ${(al.horario_match || al.reserva_fecha_texto) ? `<div style="font-size:11px; color:var(--text-muted); font-weight:600;">📅 ${al.horario_match || al.reserva_fecha_texto}</div>` : ''}
                         <div class="priority-text ${info.claseTexto}" style="margin-top:2px;">${info.txtTiempo}</div>
                     </div>
                     ${menuAcciones}
@@ -613,12 +808,20 @@ function renderTimelineUnificado(containerId, configNodos, datos) {
             let newId = el.getAttribute('data-id');
             let index = parseInt(el.getAttribute('data-index'));
             
-            const trayContainer = document.getElementById('timeline-tray-container');
-            const trayContent = document.getElementById('timeline-tray-content');
+            let trayContainer = document.getElementById('timeline-tray-container');
+            if (!trayContainer) {
+                trayContainer = document.createElement('div');
+                trayContainer.id = 'timeline-tray-container';
+                trayContainer.className = 'timeline-tray-container';
+                trayContainer.innerHTML = '<div class="timeline-tray" id="timeline-tray-content"></div>';
+                if (cont.parentNode) cont.parentNode.appendChild(trayContainer);
+                else cont.appendChild(trayContainer);
+            }
+            const trayContent = trayContainer.querySelector('#timeline-tray-content');
             
             if (el.classList.contains('active')) {
                 el.classList.remove('active');
-                trayContainer.style.display = 'none';
+                if (trayContainer) trayContainer.style.display = 'none';
                 return;
             }
 
@@ -670,10 +873,10 @@ function renderTimelineUnificado(containerId, configNodos, datos) {
                 
                 if (window.innerWidth <= 850) {
                     const wrapper = cont.querySelector('.timeline-wrapper');
-                    wrapper.insertBefore(trayContainer, el.nextSibling);
+                    if (wrapper) wrapper.insertBefore(trayContainer, el.nextSibling);
                     trayContent.style.setProperty('--tray-arrow-pos', `20px`);
-                } else {
-                    cont.appendChild(trayContainer);
+                } else if (cont.parentNode && !cont.parentNode.contains(trayContainer)) {
+                    cont.parentNode.appendChild(trayContainer);
                 }
                 trayContainer.style.display = 'block';
             }
@@ -724,14 +927,30 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
             const grupos = {};
             filtrados.forEach(al => {
                 let clave = 'Sin clasificar';
-                if (agrupadorActual === 'instrumento') clave = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || clave);
+                if (agrupadorActual === 'grupo') clave = al.grupo_asignado || 'Sin Grupo Asignado';
+                else if (agrupadorActual === 'instrumento') clave = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || clave);
                 else if (agrupadorActual === 'nivel') clave = al.nivel || clave;
                 else if (agrupadorActual === 'suscripcion') clave = al.tipo_suscripcion || clave;
                 else if (agrupadorActual === 'profe') clave = al.reserva_profe_nombre || clave;
                 if (!grupos[clave]) grupos[clave] = []; grupos[clave].push(al);
             });
             for (const [clave, alumnosGrupo] of Object.entries(grupos)) {
-                html += `<div class="group-header"><span style="color:var(--accent-red);">●</span> ${clave} <span class="group-count">${alumnosGrupo.length}</span></div>`;
+                const idsStr = alumnosGrupo.map(a => a.id).join(',');
+                const esSinGrupo = clave === 'Sin clasificar' || clave === 'Sin Grupo Asignado';
+                const actionsHtml = !esSinGrupo ? `
+                    <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                        <button type="button" class="btn-seleccionar-todo-grupo" data-ids="${idsStr}" style="font-size:11.5px; padding:4px 10px; border:1px solid var(--border-color); border-radius:6px; background:#fff; cursor:pointer; font-weight:600; color:var(--text-muted); font-family:inherit;">☑️ Seleccionar Grupo</button>
+                        <button type="button" class="btn-iniciar-prealta-grupo" data-grupo="${clave}" data-ids="${idsStr}" style="font-size:11.5px; padding:4px 12px; border:none; border-radius:6px; background:var(--accent-teal); color:#fff; cursor:pointer; font-weight:700; font-family:inherit;">⚙️ Iniciar Pre-Alta Grupo</button>
+                    </div>` : '';
+
+                html += `
+                    <div class="group-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="color:var(--accent-teal);">●</span> <span>${clave}</span> <span class="group-count">${alumnosGrupo.length}</span>
+                        </div>
+                        ${actionsHtml}
+                    </div>
+                `;
                 html += alumnosGrupo.map(a => generarFilaAlumno(a, a.id, estadoActualVista)).join('');
             }
         }
@@ -763,6 +982,7 @@ async function cargarVista(vista) {
     
     document.getElementById('btn-carga-masiva').style.display = 'none'; document.getElementById('search-container-general').style.display = 'none'; document.getElementById('alarm-filters').style.display = 'none'; document.getElementById('btn-toggle-view').style.display = 'none';
     vResumen.style.display = 'none'; if(vResumenTime) vResumenTime.style.display = 'none'; contLista.style.display = 'none'; contKanban.style.display = 'none'; contEstad.style.display = 'none'; cv.style.display = 'none';
+    const contMatch = document.getElementById('match-pendientes-container'); if(contMatch) contMatch.style.display = 'none';
 
     if (vista.includes('-') || vista === 'Lista de Espera') { 
         cv.style.display = 'flex'; 
@@ -824,7 +1044,7 @@ async function cargarVista(vista) {
             });
             
         } catch(e) {}
-    } else if (vista === 'Inbox - Pendientes' || vista === 'Altas - Pendientes') {
+    } else if (vista === 'Inbox - Pendientes' || vista === 'Altas - Pendientes' || vista === 'Altas - En Curso') {
         const isAdm = vista === 'Inbox - Pendientes';
         document.getElementById('btn-carga-masiva').style.display = isAdm ? 'block' : 'none'; 
         try {
@@ -833,36 +1053,59 @@ async function cargarVista(vista) {
             let dataFiltrada = [];
             if (isAdm) {
                 dataFiltrada = allData.filter(d => ['Pendiente procesar', 'Pendiente validación por profe', 'Pendiente validación por alumno'].includes(d.estado_agenda));
-            } else {
-                dataFiltrada = allData.filter(d => ['Pre-alta Pendiente', 'Pre-alta Iniciada'].includes(d.estado_agenda) || ((d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5)));
+            } else if (vista === 'Altas - Pendientes') {
+                // Solo Pre-alta Pendiente
+                dataFiltrada = allData.filter(d => d.estado_agenda === 'Pre-alta Pendiente');
+                if (agrupadorActual === 'ninguno') {
+                    agrupadorActual = 'grupo';
+                    const selAgr = document.getElementById('select-agrupador');
+                    if (selAgr) selAgr.value = 'grupo';
+                }
+            } else if (vista === 'Altas - En Curso') {
+                // Solo Pre-alta Iniciada
+                dataFiltrada = allData.filter(d => d.estado_agenda === 'Pre-alta Iniciada');
+                if (agrupadorActual === 'ninguno') {
+                    agrupadorActual = 'grupo';
+                    const selAgr = document.getElementById('select-agrupador');
+                    if (selAgr) selAgr.value = 'grupo';
+                }
             }
             
             renderListaFilas('lista-generica', dataFiltrada, 'all', null);
         } catch(e) {}
-    } else if (vista === 'Inbox - Confirmadas' || vista === 'Inbox - Suspendidas' || vista === 'Altas - Confirmadas' || vista === 'Altas - Suspendidas' || vista === 'Lista de Espera') {
+    } else if (vista === 'Inbox - Confirmadas' || vista === 'Inbox - Suspendidas' || vista === 'Altas - Confirmadas' || vista === 'Altas - Finalizadas' || vista === 'Altas - Suspendidas' || vista === 'Lista de Espera') {
         try { 
-            let estQuery = vista;
-            if(vista === 'Inbox - Confirmadas') estQuery = 'Agenda confirmada';
-            else if(vista === 'Inbox - Suspendidas') estQuery = 'Agenda suspendida';
-            else if(vista === 'Lista de Espera') estQuery = 'Lista de espera';
-            else if(vista === 'Altas - Confirmadas') estQuery = 'Alta Efectiva';
-            else if(vista === 'Altas - Suspendidas') estQuery = 'Alta Suspendida';
-            
             const qSnap = await getDocs(collection(db, "alumnos")); let allData = [];
             qSnap.forEach(d => { 
+                const data = d.data();
                 let ok = false; 
-                if(estQuery==='Alta Efectiva') {
-                    ok = (d.data().estado_agenda === 'Alta Efectiva' || d.data().estado_agenda === 'Alta Ilegal') && d.data().checklist_alta && d.data().checklist_alta.filter(Boolean).length === 5;
-                } else ok=(d.data().estado_agenda===estQuery); 
-                if(ok) allData.push({id: d.id, ...d.data()}); 
+                if (vista === 'Inbox - Confirmadas') ok = (data.estado_agenda === 'Agenda confirmada');
+                else if (vista === 'Inbox - Suspendidas') ok = (data.estado_agenda === 'Agenda suspendida');
+                else if (vista === 'Lista de Espera') ok = (data.estado_agenda === 'Lista de espera');
+                else if (vista === 'Altas - Confirmadas') {
+                    // Altas confirmadas con checklist incompleto
+                    ok = (data.estado_agenda === 'Alta Efectiva' || data.estado_agenda === 'Alta Ilegal') && (!data.checklist_alta || data.checklist_alta.filter(Boolean).length < 5);
+                }
+                else if (vista === 'Altas - Finalizadas') {
+                    // Altas con los 5 checks completados
+                    ok = (data.estado_agenda === 'Alta Efectiva' || data.estado_agenda === 'Alta Ilegal' || data.estado_agenda === 'Alta Finalizada') && data.checklist_alta && data.checklist_alta.filter(Boolean).length === 5;
+                }
+                else if (vista === 'Altas - Suspendidas') ok = (data.estado_agenda === 'Alta Suspendida');
+                
+                if (ok) allData.push({ id: d.id, ...data }); 
             });
             renderListaFilas('lista-generica', allData, 'all', null);
         } catch(e) {}
-    } else if (vista === 'Match - Pendientes' || vista === 'Match - Confirmados') {
-        contLista.style.display = 'flex'; contLista.innerHTML = '<div style="color:var(--text-muted); padding:20px;">Módulo Match en construcción (Etapa 4)...</div>';
+    } else if (vista === 'Match - Pendientes') {
+        await renderMatchPendientes();
+    } else if (vista === 'Match - Confirmados') {
+        contLista.style.display = 'flex';
+        document.getElementById('vista-titulo').textContent = 'Match — Confirmados';
+        await renderMatchConfirmados(contLista);
     } else if (vista === 'Estadísticas') { contEstad.style.display = 'flex'; renderCharts();
     } else if (vista === 'Configuración') { contLista.style.display = 'flex'; contLista.innerHTML = ''; renderConfigHub(contLista);
     } else if (vista === 'Ajustes Generales') { contLista.style.display = 'flex'; contLista.innerHTML = ''; renderConfig(contLista);
+    } else if (vista === 'Ajustes Match') { contLista.style.display = 'flex'; contLista.innerHTML = ''; renderConfigMatch(contLista);
     } else if (vista.startsWith('ABM')) { contLista.style.display = 'flex'; contLista.innerHTML = ''; const colMap = { 'ABM-Profesores': 'profesores', 'ABM-Instrumentos': 'instrumentos', 'ABM-Suscripciones': 'tipos_suscripcion', 'ABM-Usuarios': 'usuarios_sistema' }; cargarABM(colMap[vista] || vista.split('-')[1].toLowerCase(), vista.split('-')[1], contLista); }
 }
 
@@ -870,6 +1113,7 @@ function renderConfigHub(cont) {
     cont.innerHTML = `
         <div style="max-width:800px; width:100%; padding:20px;">
             <div style="background:var(--item-bg); border:1px solid var(--border-color); border-radius:12px; padding:20px; display:flex; align-items:center; gap:15px; margin-bottom:10px; cursor:pointer;" onclick="cargarVista('Ajustes Generales')"><span style="font-size:1.5em; opacity:0.7;">⚙️</span><div><strong style="color:var(--text-main);">Ajustes Generales</strong><div style="font-size:12px; color:var(--text-muted);">Límites, calendarios y textos.</div></div></div>
+            <div style="background:var(--item-bg); border:1px solid var(--border-color); border-radius:12px; padding:20px; display:flex; align-items:center; gap:15px; margin-bottom:10px; cursor:pointer;" onclick="cargarVista('Ajustes Match')"><span style="font-size:1.5em; opacity:0.7;">🧩</span><div><strong style="color:var(--text-main);">Ajustes de Match</strong><div style="font-size:12px; color:var(--text-muted);">Límites de integrantes y reglas de edad para grupos.</div></div></div>
             <div style="background:var(--item-bg); border:1px solid var(--border-color); border-radius:12px; padding:20px; display:flex; align-items:center; gap:15px; margin-bottom:10px; cursor:pointer;" onclick="cargarVista('ABM-Usuarios')"><span style="font-size:1.5em; opacity:0.7;">🔐</span><div><strong style="color:var(--text-main);">Usuarios del Sistema</strong><div style="font-size:12px; color:var(--text-muted);">Administrar accesos.</div></div></div>
             <div style="background:var(--item-bg); border:1px solid var(--border-color); border-radius:12px; padding:20px; display:flex; align-items:center; gap:15px; margin-bottom:10px; cursor:pointer;" onclick="cargarVista('ABM-Profesores')"><span style="font-size:1.5em; opacity:0.7;">👥</span><div><strong style="color:var(--text-main);">Profesores</strong><div style="font-size:12px; color:var(--text-muted);">Alta y disponibilidad.</div></div></div>
             <div style="background:var(--item-bg); border:1px solid var(--border-color); border-radius:12px; padding:20px; display:flex; align-items:center; gap:15px; margin-bottom:10px; cursor:pointer;" onclick="cargarVista('ABM-Instrumentos')"><span style="font-size:1.5em; opacity:0.7;">🎸</span><div><strong style="color:var(--text-main);">Instrumentos</strong></div></div>
@@ -880,6 +1124,161 @@ function renderConfigHub(cont) {
 function renderConfig(cont) { 
     cont.innerHTML = `<div style="margin-bottom:25px; font-size:0.9em; color:var(--text-muted);"><span style="cursor:pointer; color:var(--accent-teal);" onclick="cargarVista('Configuración')">Configuración</span> &gt; <strong style="color:var(--text-main);">Ajustes Generales</strong></div><div style="max-width:800px; padding:30px; background:white; border-radius:12px; border:1px solid var(--border-color);"> <h3 style="margin-top:0; color:var(--text-main); font-size:1.2em;">Límites de Calendario</h3> <div style="display:flex; gap:15px; margin-bottom:25px; flex-wrap:wrap;"> <div style="flex:1; min-width:150px;"><label>Hora Apertura:<input type="time" id="cfg-apertura" class="modern-input" value="${configApp.hora_apertura||'09:00'}"></label></div> <div style="flex:1; min-width:150px;"><label>Hora Cierre:<input type="time" id="cfg-cierre" class="modern-input" value="${configApp.hora_cierre||'22:00'}"></label></div> </div> <div style="display:flex; gap:15px; margin-bottom:25px; flex-wrap:wrap;"> <div style="flex:1; min-width:150px;"><label>Aulas totales:<input type="number" id="cfg-aulas" class="modern-input" value="${configApp.cantidad_aulas}"></label></div> <div style="flex:1; min-width:150px;"><label>Baterías totales:<input type="number" id="cfg-bats" class="modern-input" value="${configApp.cantidad_baterias}"></label></div> </div> <h3 style="margin-top:0; color:var(--text-main); border-top:1px solid var(--border-color); padding-top:20px;">Calendario y Emojis</h3> <label style="margin-bottom:15px;">Calendario Defecto:<input type="email" id="cfg-cal-defecto" class="modern-input" value="${configApp.calendario_por_defecto||''}"></label> <div style="display:flex; gap:10px; margin-bottom:25px; flex-wrap:wrap;"> <div style="width:80px;"><label>Batería:<input type="text" id="cfg-idbat" class="modern-input" value="${configApp.identificador_bateria||''}"></label></div> <div style="width:80px;"><label>Guitarra:<input type="text" id="cfg-em-gui" class="modern-input" value="${configApp.emoji_guitarra||'🎸'}"></label></div> <div style="width:80px;"><label>Cajón:<input type="text" id="cfg-em-caj" class="modern-input" value="${configApp.emoji_cajon||'📦'}"></label></div> <div style="width:80px;"><label>Canto:<input type="text" id="cfg-em-can" class="modern-input" value="${configApp.emoji_canto||'🎤'}"></label></div> <div style="width:80px;"><label>Piano:<input type="text" id="cfg-em-pia" class="modern-input" value="${configApp.emoji_piano||'🎹'}"></label></div> <div style="width:80px;"><label>Bajo:<input type="text" id="cfg-em-baj" class="modern-input" value="${configApp.emoji_bajo||'🎸'}"></label></div> </div> <h3 style="margin-top:0; color:var(--text-main); border-top:1px solid var(--border-color); padding-top:20px;">Mensajes y Textos</h3> <label style="margin-bottom:15px;">Valor de Clase (Monto): <input type="text" id="cfg-valor" class="modern-input" value="${configApp.valor_clase}"></label> <label style="margin-bottom:15px;">Título Evento (Reserva): <input type="text" id="cfg-evt-res" class="modern-input" value="${configApp.formato_evento_reserva}"></label> <label style="margin-bottom:15px;">Título Evento (Confirmado): <input type="text" id="cfg-evt-conf" class="modern-input" value="${configApp.formato_evento_confirmado}"></label> <label style="margin-bottom:15px;">Nombre para Agendar (WS): <input type="text" id="cfg-nombre-agendar" class="modern-input" value="${configApp.texto_nombre_agendar}"></label> <label style="margin-bottom:15px;">Texto Opciones Múltiples: <textarea id="cfg-txt-opt-mul" class="modern-input" style="height:200px;">${configApp.texto_opciones_multiples}</textarea></label> <label style="margin-bottom:15px;">Texto 1 Sola Opción: <textarea id="cfg-txt-p" class="modern-input" style="height:150px;">${configApp.texto_profe}</textarea></label> <label style="margin-bottom:15px;">Texto Confirmación Alumno: <textarea id="cfg-txt-conf-a" class="modern-input" style="height:150px;">${configApp.texto_conf_alumno}</textarea></label> <label style="margin-bottom:15px;">Texto Cancelación: <textarea id="cfg-txt-cancela" class="modern-input" style="height:100px;">${configApp.texto_cancela_alumno}</textarea></label> <label style="margin-bottom:15px;">Texto Pre-Alta: <textarea id="cfg-txt-prealta" class="modern-input" style="height:150px;">${configApp.texto_prealta}</textarea></label> <label style="margin-bottom:20px;">Texto Nueva Alta: <textarea id="cfg-txt-alta-conf" class="modern-input" style="height:150px;">${configApp.texto_alta_confirmada}</textarea></label> <button id="btn-guardar-cfg" class="btn-primary" style="width:100%;">Guardar Configuración</button> </div>`; 
     document.getElementById('btn-guardar-cfg').addEventListener('click', async (e) => { setBotonCargando(e.target, true); await setDoc(doc(db, "configuracion", "general"), { hora_apertura: document.getElementById('cfg-apertura').value, hora_cierre: document.getElementById('cfg-cierre').value, cantidad_aulas: document.getElementById('cfg-aulas').value, cantidad_baterias: document.getElementById('cfg-bats').value, identificador_bateria: document.getElementById('cfg-idbat').value, emoji_guitarra: document.getElementById('cfg-em-gui').value, emoji_cajon: document.getElementById('cfg-em-caj').value, emoji_canto: document.getElementById('cfg-em-can').value, emoji_piano: document.getElementById('cfg-em-pia').value, emoji_bajo: document.getElementById('cfg-em-baj').value, calendario_por_defecto: document.getElementById('cfg-cal-defecto').value, valor_clase: document.getElementById('cfg-valor').value, formato_evento_reserva: document.getElementById('cfg-evt-res').value, formato_evento_confirmado: document.getElementById('cfg-evt-conf').value, texto_nombre_agendar: document.getElementById('cfg-nombre-agendar').value, texto_opciones_multiples: document.getElementById('cfg-txt-opt-mul').value, texto_profe: document.getElementById('cfg-txt-p').value, texto_alumno: document.getElementById('cfg-txt-a').value, texto_conf_profe: document.getElementById('cfg-txt-conf-p').value, texto_conf_alumno: document.getElementById('cfg-txt-conf-a').value, texto_cancela_alumno: document.getElementById('cfg-txt-cancela').value, texto_prealta: document.getElementById('cfg-txt-prealta').value, texto_alta_confirmada: document.getElementById('cfg-txt-alta-conf').value }, { merge: true }); await cargarConfig(); setBotonCargando(e.target, false); alert('Guardado.'); }); 
+}
+
+function renderConfigMatch(cont) {
+    const minInt = configApp.grupo_min_integrantes || 2;
+    const maxInt = configApp.grupo_max_integrantes || 6;
+    const ninosCfg = configApp.reglas_edad_ninos || { hasta: 13, libre: true };
+    const reglasEdad = Array.isArray(configApp.reglas_edad_match) && configApp.reglas_edad_match.length > 0
+        ? configApp.reglas_edad_match
+        : defaultCfg.reglas_edad_match;
+
+    let rowsHtml = reglasEdad.map((r, idx) => `
+        <tr data-index="${idx}" style="border-bottom:1px solid var(--border-color);">
+            <td style="padding:10px 8px;">
+                <input type="number" class="modern-input cfg-regla-desde" value="${r.desde}" min="13" max="99" style="width:80px; padding:6px 8px;"> años
+            </td>
+            <td style="padding:10px 8px;">
+                <input type="number" class="modern-input cfg-regla-min" value="${r.rango_min}" min="-30" max="0" style="width:70px; padding:6px 8px;"> años
+            </td>
+            <td style="padding:10px 8px;">
+                <input type="number" class="modern-input cfg-regla-max" value="${r.rango_max}" min="0" max="30" style="width:70px; padding:6px 8px;"> años
+            </td>
+            <td style="padding:10px 8px; text-align:center;">
+                <button type="button" class="btn-borrar-regla-edad" style="background:none; border:none; cursor:pointer; color:var(--accent-red); font-size:1.1em;" title="Eliminar regla">🗑️</button>
+            </td>
+        </tr>
+    `).join('');
+
+    cont.innerHTML = `
+        <div style="margin-bottom:25px; font-size:0.9em; color:var(--text-muted);">
+            <span style="cursor:pointer; color:var(--accent-teal);" onclick="cargarVista('Configuración')">Configuración</span> &gt; <strong style="color:var(--text-main);">Ajustes de Match</strong>
+        </div>
+        <div style="max-width:800px; padding:30px; background:white; border-radius:12px; border:1px solid var(--border-color); display:flex; flex-direction:column; gap:25px;">
+            <div>
+                <h3 style="margin-top:0; color:var(--text-main); font-size:1.2em; margin-bottom:6px;">👥 Tamaño de Grupos</h3>
+                <p style="color:var(--text-muted); font-size:0.9em; margin:0 0 15px 0;">Cantidad mínima y máxima de integrantes permitidos por ensamble/grupo.</p>
+                <div style="display:flex; gap:15px; flex-wrap:wrap;">
+                    <div style="flex:1; min-width:140px;">
+                        <label>Mínimo de Integrantes:
+                            <input type="number" id="cfg-grupo-min" class="modern-input" min="2" max="10" value="${minInt}">
+                        </label>
+                    </div>
+                    <div style="flex:1; min-width:140px;">
+                        <label>Máximo de Integrantes:
+                            <input type="number" id="cfg-grupo-max" class="modern-input" min="2" max="12" value="${maxInt}">
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div style="border-top:1px solid var(--border-color); padding-top:20px;">
+                <h3 style="margin-top:0; color:var(--text-main); font-size:1.2em; margin-bottom:6px;">🧒 Grupos de Niños (< 13 años)</h3>
+                <p style="color:var(--text-muted); font-size:0.9em; margin:0 0 12px 0;">Comportamiento para menores de 13 años.</p>
+                <label style="cursor:pointer; font-weight:600; display:flex; align-items:center; gap:8px; text-transform:none; margin:0; color:var(--text-main);">
+                    <input type="checkbox" id="cfg-ninos-libre" ${ninosCfg.libre ? 'checked' : ''} style="width:18px; height:18px; accent-color:var(--accent-teal);">
+                    Rango libre (sin restricción de edad mínima entre niños < 13)
+                </label>
+            </div>
+
+            <div style="border-top:1px solid var(--border-color); padding-top:20px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <div>
+                        <h3 style="margin:0; color:var(--text-main); font-size:1.2em;">📊 Reglas de Tolerancia de Edad (Adultos)</h3>
+                        <p style="color:var(--text-muted); font-size:0.9em; margin:4px 0 0 0;">Define cuánto margen de diferencia en años se tolera para armar un grupo.</p>
+                    </div>
+                    <button type="button" id="btn-agregar-regla-edad" class="filter-chip active" style="font-family:inherit; cursor:pointer;">＋ Agregar Tramo</button>
+                </div>
+
+                <div style="overflow-x:auto;">
+                    <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left;">
+                        <thead>
+                            <tr style="background:var(--hover-bg); border-bottom:2px solid var(--border-color); color:var(--text-muted);">
+                                <th style="padding:10px 8px;">Desde Edad</th>
+                                <th style="padding:10px 8px;">Rango Mín. (-años)</th>
+                                <th style="padding:10px 8px;">Rango Máx. (+años)</th>
+                                <th style="padding:10px 8px; width:40px; text-align:center;">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-reglas-edad-body">
+                            ${rowsHtml}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <button id="btn-guardar-cfg-match" class="btn-primary" style="width:100%; padding:12px; font-size:14px; margin-top:10px;">Guardar Configuración de Match</button>
+        </div>
+    `;
+
+    // Listener para eliminar filas
+    cont.querySelectorAll('.btn-borrar-regla-edad').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const tr = e.target.closest('tr');
+            if (tr) tr.remove();
+        });
+    });
+
+    // Listener para agregar tramos
+    document.getElementById('btn-agregar-regla-edad')?.addEventListener('click', () => {
+        const tbody = document.getElementById('tabla-reglas-edad-body');
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid var(--border-color)';
+        tr.innerHTML = `
+            <td style="padding:10px 8px;">
+                <input type="number" class="modern-input cfg-regla-desde" value="20" min="13" max="99" style="width:80px; padding:6px 8px;"> años
+            </td>
+            <td style="padding:10px 8px;">
+                <input type="number" class="modern-input cfg-regla-min" value="-5" min="-30" max="0" style="width:70px; padding:6px 8px;"> años
+            </td>
+            <td style="padding:10px 8px;">
+                <input type="number" class="modern-input cfg-regla-max" value="8" min="0" max="30" style="width:70px; padding:6px 8px;"> años
+            </td>
+            <td style="padding:10px 8px; text-align:center;">
+                <button type="button" class="btn-borrar-regla-edad" style="background:none; border:none; cursor:pointer; color:var(--accent-red); font-size:1.1em;" title="Eliminar regla">🗑️</button>
+            </td>
+        `;
+        tr.querySelector('.btn-borrar-regla-edad').addEventListener('click', () => tr.remove());
+        tbody.appendChild(tr);
+    });
+
+    // Listener para guardar
+    document.getElementById('btn-guardar-cfg-match')?.addEventListener('click', async (e) => {
+        const btn = e.target;
+        setBotonCargando(btn, true);
+
+        const gMin = parseInt(document.getElementById('cfg-grupo-min').value) || 2;
+        const gMax = parseInt(document.getElementById('cfg-grupo-max').value) || 6;
+        const ninosLibre = document.getElementById('cfg-ninos-libre').checked;
+
+        const reglas = [];
+        document.querySelectorAll('#tabla-reglas-edad-body tr').forEach(tr => {
+            const desde = parseInt(tr.querySelector('.cfg-regla-desde').value);
+            const rMin = parseInt(tr.querySelector('.cfg-regla-min').value);
+            const rMax = parseInt(tr.querySelector('.cfg-regla-max').value);
+            if (!isNaN(desde) && !isNaN(rMin) && !isNaN(rMax)) {
+                reglas.push({ desde, rango_min: rMin, rango_max: rMax });
+            }
+        });
+        reglas.sort((a, b) => a.desde - b.desde);
+
+        try {
+            await setDoc(doc(db, "configuracion", "general"), {
+                grupo_min_integrantes: gMin,
+                grupo_max_integrantes: gMax,
+                reglas_edad_ninos: { hasta: 13, libre: ninosLibre },
+                reglas_edad_match: reglas
+            }, { merge: true });
+
+            await cargarConfig();
+            alert('Configuración de Match guardada correctamente.');
+        } catch(err) {
+            alert('Error al guardar configuración de Match: ' + err.message);
+        }
+
+        setBotonCargando(btn, false);
+    });
 }
 
 async function renderCharts() {
@@ -929,8 +1328,1448 @@ async function renderCharts() {
     } catch(e) {}
 }
 
+// ================================================================
+// MÓDULO MATCH — ETAPA 4 — Fase 3: Formulario interactivo
+// ================================================================
+
+async function renderMatchPendientes() {
+    document.getElementById('vista-titulo').textContent = 'Match — Pendientes';
+    // Ocultar controles estándar (fueron auto-mostrados por vista.includes('-'))
+    document.getElementById('controles-vista').style.display = 'none';
+    document.getElementById('search-container-general').style.display = 'none';
+    // Mostrar container del módulo
+    const cont = document.getElementById('match-pendientes-container');
+    cont.style.display = 'flex';
+
+    // Cargar suscripciones (solo si no se cargaron antes)
+    const selSusc = document.getElementById('match-suscripcion');
+    if (selSusc.options.length <= 1) {
+        try {
+            const sSp = await getDocs(collection(db, "tipos_suscripcion"));
+            sSp.forEach(d => {
+                selSusc.innerHTML += `<option value="${d.data().nombre}">${d.data().nombre}</option>`;
+            });
+        } catch(e) {}
+    }
+
+    // Cargar profesores desde Firestore
+    await cargarProfesoresMatch();
+
+    // Cargar instrumentos para exclusión (solo si no se cargaron antes)
+    const selExc = document.getElementById('match-excluir-instrumentos');
+    if (selExc.options.length === 0) {
+        try {
+            const iS = await getDocs(collection(db, "instrumentos"));
+            iS.forEach(d => selExc.innerHTML += `<option value="${d.data().nombre}">${d.data().nombre}</option>`);
+        } catch(e) {}
+    }
+    syncSelectToChips('match-excluir-instrumentos', 'match-chips-excluir');
+
+    // Leer máx/mín de grupo desde config
+    const cfgMax = (configApp && configApp.grupo_max_integrantes) || 6;
+    const cfgMin = (configApp && configApp.grupo_min_integrantes) || 2;
+    document.getElementById('match-cant-max-label').textContent = cfgMax;
+
+    // Registrar listeners del formulario solo una vez
+    if (!matchListenersAttached) {
+        matchListenersAttached = true;
+        initMatchFormListeners(cfgMin, cfgMax);
+    }
+}
+
+async function cargarProfesoresMatch() {
+    const selProfe = document.getElementById('match-profe');
+    selProfe.innerHTML = '<option value="">Cualquier profesor disponible</option>';
+    matchProfesores = [];
+    try {
+        const profSnap = await getDocs(collection(db, "profesores"));
+        profSnap.forEach(d => matchProfesores.push({ id: d.id, ...d.data() }));
+    } catch(e) {}
+    filtrarProfesoresMatch();
+}
+
+function detectarTipoSuscripcion(nombreSusc) {
+    if (!nombreSusc) return 'individual';
+    const s = nombreSusc.toLowerCase();
+    if (s.includes('ensamble') || s.includes('banda')) return 'ensamble';
+    if (s.includes('grupal') || s.includes('grupo') || s.includes('coro')) return 'grupal';
+    return 'individual';
+}
+
+function adaptarFormularioPorSuscripcion(nombreSusc) {
+    const tipo = detectarTipoSuscripcion(nombreSusc);
+    const opcGrupales = document.getElementById('match-opciones-grupales');
+    const cantoWrapper = document.getElementById('match-canto-wrapper');
+    const excluirWrapper = document.getElementById('match-excluir-wrapper');
+    const cantWrapper = document.getElementById('match-cantidad-wrapper');
+    const nivelWrapper = document.getElementById('match-nivel-wrapper');
+
+    if (tipo === 'individual') {
+        if (opcGrupales) opcGrupales.style.display = 'none';
+        if (cantoWrapper) cantoWrapper.style.display = 'none';
+        if (cantWrapper) cantWrapper.style.display = 'none';
+        if (nivelWrapper) nivelWrapper.style.display = 'none';
+    } else if (tipo === 'grupal') {
+        if (opcGrupales) opcGrupales.style.display = 'flex';
+        if (cantoWrapper) cantoWrapper.style.display = 'block';
+        const esCanto = document.getElementById('match-chk-canto')?.checked || false;
+        if (excluirWrapper) excluirWrapper.style.display = esCanto ? 'none' : 'block';
+        if (cantWrapper) cantWrapper.style.display = 'block';
+        if (nivelWrapper) nivelWrapper.style.display = 'block';
+    } else if (tipo === 'ensamble') {
+        if (opcGrupales) opcGrupales.style.display = 'flex';
+        if (cantoWrapper) cantoWrapper.style.display = 'none'; // Ensambles son instrumentales
+        if (excluirWrapper) excluirWrapper.style.display = 'block';
+        if (cantWrapper) cantWrapper.style.display = 'block';
+        if (nivelWrapper) nivelWrapper.style.display = 'block';
+    }
+    filtrarProfesoresMatch();
+}
+
+function filtrarProfesoresMatch() {
+    const susc = document.getElementById('match-suscripcion')?.value || '';
+    const tipo = detectarTipoSuscripcion(susc);
+    const esCanto = tipo === 'grupal' && (document.getElementById('match-chk-canto')?.checked || false);
+    const selProfe = document.getElementById('match-profe');
+    if (!selProfe) return;
+    const valActual = selProfe.value;
+
+    selProfe.innerHTML = '<option value="">Cualquier profesor disponible</option>';
+
+    const profesFiltrados = matchProfesores.filter(pr => {
+        if (tipo === 'individual') return true;
+        if (esCanto) return (pr.skills || []).some(s => s.toLowerCase().includes('canto') || s.toLowerCase().includes('voz'));
+        if (tipo === 'ensamble') return pr.ensambles === true;
+        return pr.grupales === true || pr.ensambles === true;
+    });
+
+    profesFiltrados.forEach(pr => {
+        const opt = document.createElement('option');
+        opt.value = pr.id;
+        opt.textContent = pr.nombre;
+        opt.dataset.skills = JSON.stringify(pr.skills || []);
+        opt.dataset.ensambles = pr.ensambles ? 'true' : 'false';
+        opt.dataset.disponibilidad = JSON.stringify(pr.disponibilidad || {});
+        opt.dataset.correoCalendario = pr.correo_calendario || '';
+        opt.dataset.nombre = pr.nombre || '';
+        selProfe.appendChild(opt);
+    });
+
+    if (valActual) selProfe.value = valActual;
+    mostrarSkillsProfe();
+}
+
+function mostrarSkillsProfe() {
+    const selProfe = document.getElementById('match-profe');
+    const cont = document.getElementById('match-profe-skills');
+    if (!cont) return;
+    const opt = selProfe.options[selProfe.selectedIndex];
+    if (!opt || !opt.value) { cont.innerHTML = ''; return; }
+    try {
+        const skills = JSON.parse(opt.dataset.skills || '[]');
+        cont.innerHTML = skills.length > 0
+            ? skills.map(s => `<span class="match-skill-tag">${s}</span>`).join('')
+            : '<span style="font-size:12px; color:var(--text-light);">Sin skills registrados</span>';
+    } catch { cont.innerHTML = ''; }
+}
+
+function initMatchFormListeners(cfgMin = 2, cfgMax = 6) {
+    // Panel colapsable
+    document.getElementById('match-criterios-toggle')?.addEventListener('click', () => {
+        document.getElementById('match-criterios-panel').classList.toggle('collapsed');
+    });
+
+    // Cambio de Suscripción -> adapta automáticamente los campos
+    document.getElementById('match-suscripcion')?.addEventListener('change', (e) => {
+        adaptarFormularioPorSuscripcion(e.target.value);
+    });
+
+    // Checkbox Grupales de Canto
+    document.getElementById('match-chk-canto')?.addEventListener('change', () => {
+        const esCanto = document.getElementById('match-chk-canto').checked;
+        const excWrapper = document.getElementById('match-excluir-wrapper');
+        if (excWrapper) excWrapper.style.display = esCanto ? 'none' : 'block';
+        filtrarProfesoresMatch();
+    });
+
+    // Cambio de profesor → mostrar skills
+    document.getElementById('match-profe')?.addEventListener('change', mostrarSkillsProfe);
+
+    // Pills de días (multi-selección)
+    document.querySelectorAll('.match-day-pill').forEach(pill => {
+        pill.addEventListener('click', () => pill.classList.toggle('active'));
+    });
+
+    // Stepper cantidad máxima
+    document.getElementById('match-cant-menos')?.addEventListener('click', () => {
+        if (matchCantidadActual > cfgMin) {
+            matchCantidadActual--;
+            document.getElementById('match-cantidad-valor').textContent = matchCantidadActual;
+        }
+    });
+    document.getElementById('match-cant-mas')?.addEventListener('click', () => {
+        if (matchCantidadActual < cfgMax) {
+            matchCantidadActual++;
+            document.getElementById('match-cantidad-valor').textContent = matchCantidadActual;
+        }
+    });
+
+    // Cargar alumnos de prueba
+    document.getElementById('btn-mock-match-data')?.addEventListener('click', generarAlumnosPruebaMatch);
+    document.getElementById('btn-mock-match-indiv')?.addEventListener('click', generarAlumnosIndividualesPruebaMatch);
+    document.getElementById('btn-limpiar-mock-data')?.addEventListener('click', limpiarAlumnosPruebaMatch);
+
+    // Limpiar formulario
+    document.getElementById('match-btn-limpiar')?.addEventListener('click', resetMatchForm);
+
+    // Buscar matches
+    document.getElementById('match-btn-buscar')?.addEventListener('click', ejecutarBusquedaMatch);
+
+    // Confirmar desde modal de confirmación
+    document.getElementById('btn-ejecutar-confirmar-match')?.addEventListener('click', ejecutarConfirmarMatch);
+
+    // Confirmar desde modal de detalle
+    document.getElementById('btn-detalle-confirmar')?.addEventListener('click', () => {
+        const idx = parseInt(document.getElementById('detalle-grupo-index')?.value);
+        if (!isNaN(idx) && matchGruposSugeridos[idx]) {
+            document.getElementById('modal-detalle-grupo').close();
+            abrirModalConfirmarMatch(matchGruposSugeridos[idx]);
+        }
+    });
+}
+
+function resetMatchForm() {
+    const selSusc = document.getElementById('match-suscripcion');
+    if (selSusc) selSusc.selectedIndex = 0;
+    adaptarFormularioPorSuscripcion('');
+
+    // Reset Canto
+    const chkCanto = document.getElementById('match-chk-canto');
+    if (chkCanto) chkCanto.checked = false;
+
+    // Reset profe
+    document.getElementById('match-profe').selectedIndex = 0;
+    document.getElementById('match-profe-skills').innerHTML = '';
+    filtrarProfesoresMatch();
+
+    // Reset edad
+    document.getElementById('match-edad-desde').value = '';
+    document.getElementById('match-edad-hasta').value = '';
+
+    // Reset stepper
+    matchCantidadActual = 4;
+    document.getElementById('match-cantidad-valor').textContent = 4;
+
+    // Reset niveles
+    document.querySelectorAll('[name="match-nivel"]').forEach(cb => cb.checked = false);
+
+    // Reset días
+    document.querySelectorAll('.match-day-pill').forEach(p => p.classList.remove('active'));
+
+    // Reset horario
+    document.getElementById('match-hora-desde').value = '';
+    document.getElementById('match-hora-hasta').value = '';
+
+    // Reset exclusión de instrumentos
+    const excSel = document.getElementById('match-excluir-instrumentos');
+    if (excSel) {
+        Array.from(excSel.options).forEach(o => o.selected = false);
+        syncSelectToChips('match-excluir-instrumentos', 'match-chips-excluir');
+    }
+
+    // Ocultar resultados
+    ocultarResultadosMatch();
+}
+
+function ocultarResultadosMatch() {
+    const res = document.getElementById('match-resultados');
+    const badge = document.getElementById('match-resultados-badge');
+    const grid = document.getElementById('match-resultados-grid');
+    const noRes = document.getElementById('match-sin-resultados');
+    if (res) res.style.display = 'none';
+    if (badge) badge.style.display = 'none';
+    if (grid) grid.innerHTML = '';
+    if (noRes) noRes.style.display = 'none';
+    matchGruposSugeridos = [];
+}
+
+// ================================================================
+// MÓDULO MATCH — ETAPA 4 — Fases 4 y 5: Motor de Match y Resultados
+// ================================================================
+
+// Días de la semana para mapeo
+const mapaDiasCodigos = { 'L': 'Lunes', 'M': 'Martes', 'X': 'Miércoles', 'J': 'Jueves', 'V': 'Viernes', 'S': 'Sábado' };
+
+// Función de compatibilidad de niveles
+function sonNivelesCompatibles(niveles) {
+    const limpios = niveles.filter(n => n && typeof n === 'string' && n.trim() !== '');
+    if (limpios.length <= 1) return true;
+    const esInicial = limpios.every(n => n === 'Inicial I' || n === 'Inicial II');
+    const esAvanzado = limpios.every(n => n === 'Intermedio' || n === 'Avanzado');
+    return esInicial || esAvanzado;
+}
+
+// Función de compatibilidad de edades
+function sonEdadesCompatibles(edades, cfg) {
+    const validas = edades.filter(e => typeof e === 'number' && !isNaN(e) && e > 0);
+    if (validas.length <= 1) return true;
+
+    const tieneNinos = validas.some(e => e < 13);
+    const tieneAdultos = validas.some(e => e >= 13);
+
+    // No mezclar niños con adultos
+    if (tieneNinos && tieneAdultos) return false;
+
+    // Si todos son niños (< 13)
+    if (tieneNinos && !tieneAdultos) {
+        const ninosLibre = cfg.reglas_edad_ninos?.libre !== false;
+        if (ninosLibre) return true;
+        const minE = Math.min(...validas), maxE = Math.max(...validas);
+        return (maxE - minE) <= 3; // tolerancia por defecto si no es libre
+    }
+
+    // Adultos (todos >= 13)
+    const minEdad = Math.min(...validas);
+    const maxEdad = Math.max(...validas);
+    const diffEdad = maxEdad - minEdad;
+
+    const reglas = Array.isArray(cfg.reglas_edad_match) && cfg.reglas_edad_match.length > 0
+        ? cfg.reglas_edad_match
+        : defaultCfg.reglas_edad_match;
+
+    // Buscar la regla aplicable según la edad menor o de referencia
+    let reglaAplicable = reglas[0];
+    for (let r of reglas) {
+        if (minEdad >= r.desde) {
+            reglaAplicable = r;
+        }
+    }
+
+    const tolerancia = Math.abs(reglaAplicable.rango_max - reglaAplicable.rango_min);
+    return diffEdad <= tolerancia;
+}
+
+// Calcular intersección horaria entre alumnos y profesor en un día
+function buscarHuecosComunes(alumnos, profe, diasFiltro, horaDesde, horaHasta) {
+    const slots = [];
+    const diasEvaluar = diasFiltro && diasFiltro.length > 0
+        ? diasFiltro
+        : ['L', 'M', 'X', 'J', 'V', 'S'];
+
+    diasEvaluar.forEach(diaId => {
+        // Horarios del profesor en este día
+        const dispProfe = (profe.disponibilidad && profe.disponibilidad[diaId]) || [];
+        if (dispProfe.length === 0) return;
+
+        // Horarios de cada alumno en este día
+        const dispAlumnos = alumnos.map(al => (al.disponibilidad && al.disponibilidad[diaId]) || []);
+        if (dispAlumnos.some(d => d.length === 0)) return; // Si algún alumno no tiene disp este día, descartar
+
+        // Evaluar cada rango del profesor
+        dispProfe.forEach(rProfe => {
+            let pIniMins = convertirHoraAMinutos(rProfe.inicio || '09:00');
+            let pFinMins = convertirHoraAMinutos(rProfe.fin || '22:00');
+
+            // Acotar con los filtros del formulario si se especificaron
+            if (horaDesde) {
+                const fIniMins = convertirHoraAMinutos(horaDesde);
+                if (fIniMins > pIniMins) pIniMins = fIniMins;
+            }
+            if (horaHasta) {
+                const fFinMins = convertirHoraAMinutos(horaHasta);
+                if (fFinMins < pFinMins) pFinMins = fFinMins;
+            }
+
+            if (pFinMins - pIniMins < 60) return; // Mínimo 1 hora
+
+            // Intersectar con la disponibilidad de todos los alumnos
+            let iniComun = pIniMins;
+            let finComun = pFinMins;
+
+            for (let dispAl of dispAlumnos) {
+                let alumnoCubre = false;
+                for (let rAl of dispAl) {
+                    const alIni = convertirHoraAMinutos(rAl.inicio || '09:00');
+                    const alFin = convertirHoraAMinutos(rAl.fin || '22:00');
+
+                    const startMax = Math.max(iniComun, alIni);
+                    const endMin = Math.min(finComun, alFin);
+
+                    if (endMin - startMax >= 60) {
+                        iniComun = startMax;
+                        finComun = endMin;
+                        alumnoCubre = true;
+                        break;
+                    }
+                }
+                if (!alumnoCubre) {
+                    iniComun = -1;
+                    break;
+                }
+            }
+
+            if (iniComun >= 0 && finComun - iniComun >= 60) {
+                // Generar slot de 1 hora
+                const horaIniStr = minutosAHora(iniComun);
+                const horaFinStr = minutosAHora(iniComun + 60);
+                slots.push({
+                    diaId,
+                    diaNombre: mapaDiasCodigos[diaId] || diaId,
+                    inicio: horaIniStr,
+                    fin: horaFinStr,
+                    inicioMin: iniComun,
+                    finMin: finComun,
+                    duracionTotalMin: finComun - iniComun
+                });
+            }
+        });
+    });
+
+    return slots;
+}
+
+function convertirHoraAMinutos(horaStr) {
+    if (!horaStr) return 0;
+    const parts = horaStr.split(':');
+    return parseInt(parts[0], 10) * 60 + parseInt(parts[1] || 0, 10);
+}
+
+function minutosAHora(mins) {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+}
+
+// Cálculo del % de compatibilidad
+function calcularScoreCompatibilidad(alumnos, profe, slot, esCanto, esGrupal) {
+    let score = 0;
+    const desglose = [];
+
+    // 1. Compatibilidad de Horarios (30%)
+    if (slot.duracionTotalMin >= 120) {
+        score += 30;
+        desglose.push('🕒 Gran flexibilidad horaria (+30%)');
+    } else if (slot.duracionTotalMin >= 60) {
+        score += 25;
+        desglose.push('🕒 Coincidencia horaria (+25%)');
+    }
+
+    // 2. Compatibilidad de Niveles (25%)
+    const niveles = alumnos.map(a => a.nivel).filter(Boolean);
+    const todosMismoNivel = niveles.length > 0 && niveles.every(n => n === niveles[0]);
+    if (todosMismoNivel) {
+        score += 25;
+        desglose.push(`🎯 Mismo nivel (${niveles[0]}) (+25%)`);
+    } else if (sonNivelesCompatibles(niveles)) {
+        score += 20;
+        desglose.push('🎯 Niveles afines compatibles (+20%)');
+    } else {
+        score += 10;
+        desglose.push('🎯 Niveles con diferencia (+10%)');
+    }
+
+    // 3. Compatibilidad de Edades (25%)
+    const edades = alumnos.map(a => a.edad).filter(e => typeof e === 'number' && e > 0);
+    if (edades.length <= 1) {
+        score += 25;
+        desglose.push('👤 Edad acorde (+25%)');
+    } else {
+        const minE = Math.min(...edades), maxE = Math.max(...edades);
+        const diff = maxE - minE;
+        if (diff <= 3) {
+            score += 25;
+            desglose.push(`🎂 Edades muy homogéneas (${minE}-${maxE}a) (+25%)`);
+        } else if (diff <= 8) {
+            score += 20;
+            desglose.push(`🎂 Rango de edad equilibrado (${minE}-${maxE}a) (+20%)`);
+        } else {
+            score += 15;
+            desglose.push(`🎂 Rango de edad tolerable (${minE}-${maxE}a) (+15%)`);
+        }
+    }
+
+    // 4. Variedad de Instrumentos / Skills (20%)
+    if (!esGrupal) {
+        score += 20;
+        desglose.push('🎸 Clase individual asignada (+20%)');
+    } else if (esCanto) {
+        score += 20;
+        desglose.push('🎤 Grupo vocal canto (+20%)');
+    } else {
+        const todosInsts = new Set();
+        alumnos.forEach(a => {
+            const insts = Array.isArray(a.instrumento) ? a.instrumento : [a.instrumento];
+            insts.forEach(i => { if (i) todosInsts.add(i); });
+        });
+        if (todosInsts.size >= 3) {
+            score += 20;
+            desglose.push(`🎼 Excelente variedad (${todosInsts.size} inst.) (+20%)`);
+        } else if (todosInsts.size >= 2) {
+            score += 15;
+            desglose.push(`🎼 Ensamble equilibrado (${todosInsts.size} inst.) (+15%)`);
+        } else {
+            score += 5;
+            desglose.push('🎼 Pocos instrumentos variados (+5%)');
+        }
+    }
+
+    return { porcentaje: Math.min(score, 100), desglose };
+}
+
+// Generador de combinaciones de alumnos
+function generarCombinaciones(arr, k) {
+    if (k === 1) return arr.map(e => [e]);
+    const res = [];
+    for (let i = 0; i < arr.length - k + 1; i++) {
+        const head = arr[i];
+        const tailCombos = generarCombinaciones(arr.slice(i + 1), k - 1);
+        tailCombos.forEach(t => res.push([head, ...t]));
+    }
+    return res;
+}
+
+// EJECUCIÓN PRINCIPAL DE BÚSQUEDA
+async function ejecutarBusquedaMatch() {
+    const susc = document.getElementById('match-suscripcion').value;
+    if (!susc) {
+        alert('Por favor seleccioná una suscripción.');
+        return;
+    }
+
+    const btnBuscar = document.getElementById('match-btn-buscar');
+    setBotonCargando(btnBuscar, true);
+
+    const tipoDetectado = detectarTipoSuscripcion(susc);
+    const esGrupal = tipoDetectado !== 'individual';
+    const esCanto = tipoDetectado === 'grupal' && (document.getElementById('match-chk-canto')?.checked || false);
+
+    const selExcluir = document.getElementById('match-excluir-instrumentos');
+    const excluirInsts = selExcluir ? Array.from(selExcluir.selectedOptions).map(o => o.value) : [];
+
+    const profeIdSeleccionado = document.getElementById('match-profe').value;
+    const edadDesde = parseInt(document.getElementById('match-edad-desde').value) || null;
+    const edadHasta = parseInt(document.getElementById('match-edad-hasta').value) || null;
+    const cantidadDeseada = matchCantidadActual || 4;
+
+    const nivelesSeleccionados = Array.from(document.querySelectorAll('input[name="match-nivel"]:checked')).map(cb => cb.value);
+
+    const diasMap = { 'lunes': 'L', 'martes': 'M', 'miercoles': 'X', 'jueves': 'J', 'viernes': 'V', 'sabado': 'S' };
+    const diasSeleccionados = Array.from(document.querySelectorAll('.match-day-pill.active')).map(p => diasMap[p.dataset.dia] || p.dataset.dia);
+
+    const horaDesde = document.getElementById('match-hora-desde').value || null;
+    const horaHasta = document.getElementById('match-hora-hasta').value || null;
+
+    // Mostrar sección de resultados
+    const resSec = document.getElementById('match-resultados');
+    const grid = document.getElementById('match-resultados-grid');
+    const noRes = document.getElementById('match-sin-resultados');
+    const badge = document.getElementById('match-resultados-badge');
+
+    if (resSec) resSec.style.display = 'flex';
+    if (grid) grid.innerHTML = '';
+    if (badge) badge.style.display = 'none';
+    if (noRes) { noRes.style.display = 'block'; noRes.textContent = '🔄 Buscando alumnos en lista de espera y cruzando horarios...'; }
+
+    try {
+        // 1. Obtener alumnos en Lista de espera
+        const qSnap = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", "Lista de espera")));
+        let candidatos = [];
+
+        qSnap.forEach(d => {
+            const al = { id: d.id, ...d.data() };
+            if (al.tipo_suscripcion !== susc) return;
+
+            // Filtro de edad
+            if (edadDesde !== null && al.edad && al.edad < edadDesde) return;
+            if (edadHasta !== null && al.edad && al.edad > edadHasta) return;
+
+            // Filtro de nivel en grupal
+            if (esGrupal && nivelesSeleccionados.length > 0 && al.nivel && !nivelesSeleccionados.includes(al.nivel)) return;
+
+            const insts = Array.isArray(al.instrumento) ? al.instrumento : (al.instrumento ? [al.instrumento] : []);
+
+            // Filtro Canto
+            if (esCanto) {
+                const tieneCanto = insts.some(i => i.toLowerCase().includes('canto') || i.toLowerCase().includes('voz'));
+                if (!tieneCanto) return;
+            }
+
+            // Exclusión de instrumentos
+            if (excluirInsts.length > 0) {
+                const disponibles = insts.filter(i => !excluirInsts.includes(i));
+                if (disponibles.length === 0) return;
+            }
+
+            candidatos.push(al);
+        });
+
+        if (candidatos.length === 0) {
+            noRes.textContent = 'No hay alumnos en Lista de Espera que coincidan con la suscripción y filtros seleccionados.';
+            setBotonCargando(btnBuscar, false);
+            return;
+        }
+
+        // 2. Profesores a evaluar
+        let profesAEvaluar = matchProfesores.filter(pr => {
+            if (profeIdSeleccionado && pr.id !== profeIdSeleccionado) return false;
+            if (!esGrupal) return true;
+            if (esCanto) return (pr.skills || []).some(s => s.toLowerCase().includes('canto'));
+            return pr.ensambles === true;
+        });
+
+        if (profesAEvaluar.length === 0) {
+            noRes.textContent = 'No hay profesores disponibles con las habilidades/aptitud para esta búsqueda.';
+            setBotonCargando(btnBuscar, false);
+            return;
+        }
+
+        // 3. Algoritmo de Armado de Grupos / Matches
+        const sugerencias = [];
+        const configActiva = configApp || defaultCfg;
+        const minIntegrantes = configActiva.grupo_min_integrantes || 2;
+
+        if (!esGrupal) {
+            // CASO INDIVIDUAL
+            candidatos.forEach(al => {
+                const insts = Array.isArray(al.instrumento) ? al.instrumento : [al.instrumento];
+                profesAEvaluar.forEach(pr => {
+                    // Check skills del profe
+                    const profeSkills = pr.skills || [];
+                    const enseñaInst = insts.some(i => profeSkills.includes(i) || profeSkills.length === 0);
+                    if (!enseñaInst) return;
+
+                    const huecos = buscarHuecosComunes([al], pr, diasSeleccionados, horaDesde, horaHasta);
+                    huecos.forEach(slot => {
+                        const { porcentaje, desglose } = calcularScoreCompatibilidad([al], pr, slot, false, false);
+                        const horaCorta = slot.inicio.replace(':', '.');
+                        const nombreSugerido = `${slot.diaId}${horaCorta} ${pr.nombre.split(' ')[0]}`;
+
+                        sugerencias.push({
+                            tipo: 'Individual',
+                            nombreSugerido,
+                            horario: `${slot.diaNombre} ${slot.inicio} a ${slot.fin} hs`,
+                            slot,
+                            profeId: pr.id,
+                            profeNombre: pr.nombre,
+                            profeCalId: pr.correo_calendario || '',
+                            aula: 'Aula 1',
+                            alumnos: [al],
+                            compatibilidad: porcentaje,
+                            desglose
+                        });
+                    });
+                });
+            });
+        } else {
+            // CASO GRUPAL / ENSAMBLE
+            const tamanoMaximo = Math.min(cantidadDeseada, candidatos.length);
+            const tamanos = [];
+            for (let t = tamanoMaximo; t >= minIntegrantes; t--) {
+                tamanos.push(t);
+            }
+
+            for (let tam of tamanos) {
+                const combinaciones = generarCombinaciones(candidatos, tam);
+
+                for (let grupoAlumnos of combinaciones) {
+                    // Regla de niveles
+                    const nivelesGrupo = grupoAlumnos.map(a => a.nivel);
+                    if (!sonNivelesCompatibles(nivelesGrupo)) continue;
+
+                    // Regla de edades
+                    const edadesGrupo = grupoAlumnos.map(a => a.edad);
+                    if (!sonEdadesCompatibles(edadesGrupo, configActiva)) continue;
+
+                    // Regla de variedad de instrumentos (para ensambles que no sean solo Canto)
+                    if (!esCanto) {
+                        const instDistintos = new Set();
+                        grupoAlumnos.forEach(a => {
+                            const insts = Array.isArray(a.instrumento) ? a.instrumento : [a.instrumento];
+                            insts.forEach(i => { if (i) instDistintos.add(i); });
+                        });
+                        if (instDistintos.size < 2) continue; // Requiere mínimo 2 instrumentos diferentes
+                    }
+
+                    // Evaluar contra profesores
+                    profesAEvaluar.forEach(pr => {
+                        const huecos = buscarHuecosComunes(grupoAlumnos, pr, diasSeleccionados, horaDesde, horaHasta);
+                        huecos.forEach(slot => {
+                            const { porcentaje, desglose } = calcularScoreCompatibilidad(grupoAlumnos, pr, slot, esCanto, true);
+                            const horaCorta = slot.inicio.replace(':', '.');
+                            const nombreSugerido = `${slot.diaId}${horaCorta} ${pr.nombre.split(' ')[0]}`;
+
+                            sugerencias.push({
+                                tipo: esCanto ? 'Grupal Canto' : 'Ensamble',
+                                nombreSugerido,
+                                horario: `${slot.diaNombre} ${slot.inicio} a ${slot.fin} hs`,
+                                slot,
+                                profeId: pr.id,
+                                profeNombre: pr.nombre,
+                                profeCalId: pr.correo_calendario || '',
+                                aula: 'Aula Principal',
+                                alumnos: grupoAlumnos,
+                                compatibilidad: porcentaje,
+                                desglose
+                            });
+                        });
+                    });
+                }
+            }
+        }
+
+        // Ordenar por mejor compatibilidad y tamaño
+        sugerencias.sort((a, b) => {
+            if (b.compatibilidad !== a.compatibilidad) return b.compatibilidad - a.compatibilidad;
+            return b.alumnos.length - a.alumnos.length;
+        });
+
+        // Limitar a las mejores 25 sugerencias únicas
+        const unicos = [];
+        const firmas = new Set();
+        for (let sug of sugerencias) {
+            const idsAlumnos = sug.alumnos.map(a => a.id).sort().join('_');
+            const firma = `${sug.profeId}_${sug.slot.diaId}_${sug.slot.inicio}_${idsAlumnos}`;
+            if (!firmas.has(firma)) {
+                firmas.add(firma);
+                unicos.push(sug);
+            }
+            if (unicos.length >= 25) break;
+        }
+
+        matchGruposSugeridos = unicos;
+        renderResultadosMatch();
+
+    } catch(err) {
+        console.error("Error en búsqueda de matches:", err);
+        noRes.textContent = 'Ocurrió un error al procesar el match: ' + err.message;
+    }
+
+    setBotonCargando(btnBuscar, false);
+}
+
+// RENDERIZADO DE RESULTADOS (Fase 5)
+function renderResultadosMatch() {
+    const grid = document.getElementById('match-resultados-grid');
+    const noRes = document.getElementById('match-sin-resultados');
+    const badge = document.getElementById('match-resultados-badge');
+
+    if (!grid || !noRes || !badge) return;
+
+    if (matchGruposSugeridos.length === 0) {
+        grid.innerHTML = '';
+        noRes.style.display = 'block';
+        noRes.textContent = 'No se encontraron combinaciones compatibles con los criterios seleccionados.';
+        badge.style.display = 'none';
+        return;
+    }
+
+    noRes.style.display = 'none';
+    badge.style.display = 'inline-flex';
+    const esIndividual = matchGruposSugeridos.length > 0 && matchGruposSugeridos[0].tipo === 'Individual';
+    badge.textContent = esIndividual ? `${matchGruposSugeridos.length} opciones sugeridas` : `${matchGruposSugeridos.length} grupos sugeridos`;
+
+    grid.innerHTML = matchGruposSugeridos.map((grupo, idx) => {
+        const pct = grupo.compatibilidad || 80;
+        let barClass = 'high';
+        if (pct < 60) barClass = 'low';
+        else if (pct < 80) barClass = 'medium';
+
+        const isBest = idx === 0 && pct >= 85;
+        const isInd = grupo.tipo === 'Individual';
+
+        const alumnosHtml = grupo.alumnos.map(al => {
+            const instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || 'Sin inst.');
+            const nivelStr = al.nivel || '';
+            const edadStr = al.edad ? `${al.edad}a` : '';
+
+            return `
+                <div class="match-student-row">
+                    <span class="match-student-name">👤 ${al.nombre}</span>
+                    <div class="match-student-tags">
+                        <span class="match-student-tag">${instStr}</span>
+                        ${nivelStr ? `<span class="match-student-tag nivel">${nivelStr}</span>` : ''}
+                        ${edadStr ? `<span class="match-student-tag edad">${edadStr}</span>` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        const cardTitulo = isInd ? `👤 ${grupo.alumnos[0].nombre}` : grupo.nombreSugerido;
+        const cardSubtitulo = isInd ? `Clase Individual con ${grupo.profeNombre}` : `${grupo.tipo} · ${grupo.alumnos.length} integrantes`;
+        const btnAccionTxt = isInd ? '👤 Asignar Profe' : '🧩 Confirmar';
+
+        return `
+            <div class="match-result-card ${isBest ? 'best-match' : ''}">
+                <div class="match-card-header">
+                    <div>
+                        <h4 class="match-card-title">${cardTitulo}</h4>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${cardSubtitulo}</div>
+                    </div>
+                    ${isBest ? `<span class="status-badge bg-teal" style="font-size:10px;">⭐ Mejor Match</span>` : ''}
+                </div>
+
+                <!-- Barra de compatibilidad -->
+                <div class="match-compat-bar-wrapper">
+                    <div class="match-compat-label">
+                        <span style="font-size:11px; font-weight:700; color:var(--text-muted);">COMPATIBILIDAD</span>
+                        <span class="match-compat-pct" style="color:var(--accent-teal);">${pct}%</span>
+                    </div>
+                    <div class="match-compat-bar-track">
+                        <div class="match-compat-bar ${barClass}" style="width:${pct}%;"></div>
+                    </div>
+                </div>
+
+                <!-- Lista de integrantes -->
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                    ${alumnosHtml}
+                </div>
+
+                <!-- Footer Horario / Profe -->
+                <div class="match-card-footer">
+                    <div>📅 <strong>${grupo.horario}</strong></div>
+                    <div>👨‍🏫 Profesor: <strong>${grupo.profeNombre}</strong></div>
+                </div>
+
+                <!-- Acciones -->
+                <div class="match-card-actions">
+                    <button type="button" class="match-card-btn-revisar" onclick="abrirModalDetalleGrupo(${idx})">👁️ Revisar</button>
+                    <button type="button" class="btn-primary" onclick="abrirModalConfirmarMatchPorIndice(${idx})">${btnAccionTxt}</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Abrir detalle / revisión de grupo
+window.abrirModalDetalleGrupo = function(idx) {
+    const grupo = matchGruposSugeridos[idx];
+    if (!grupo) return;
+
+    document.getElementById('detalle-grupo-index').value = idx;
+    document.getElementById('detalle-grupo-titulo').textContent = grupo.nombreSugerido;
+    document.getElementById('detalle-grupo-badge').textContent = `${grupo.tipo} · ${grupo.alumnos.length} alumnos`;
+
+    const pct = grupo.compatibilidad || 80;
+    document.getElementById('detalle-compat-pct').textContent = `${pct}%`;
+    const bar = document.getElementById('detalle-compat-bar');
+    bar.style.width = `${pct}%`;
+    bar.className = `match-compat-bar ${pct >= 80 ? 'high' : (pct >= 60 ? 'medium' : 'low')}`;
+
+    // Desglose
+    const desgloseCont = document.getElementById('detalle-compat-desglose');
+    desgloseCont.innerHTML = (grupo.desglose || []).map(item =>
+        `<span style="font-size:11px; padding:4px 10px; background:var(--hover-bg); border:1px solid var(--border-color); border-radius:20px; color:var(--text-main); font-weight:600;">${item}</span>`
+    ).join('');
+
+    // Integrantes
+    const intCont = document.getElementById('detalle-grupo-integrantes');
+    intCont.innerHTML = grupo.alumnos.map(al => {
+        const instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || 'Sin inst.');
+        return `
+            <div class="match-confirm-row">
+                <div style="flex:1;">
+                    <div style="font-weight:700; color:var(--text-main); font-size:13.5px;">👤 ${al.nombre}</div>
+                    <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">📱 ${al.celular || 'Sin celular'} · ${al.tipo_suscripcion || ''}</div>
+                </div>
+                <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+                    <span class="match-student-tag">${instStr}</span>
+                    ${al.nivel ? `<span class="match-student-tag nivel">${al.nivel}</span>` : ''}
+                    ${al.edad ? `<span class="match-student-tag edad">${al.edad}a</span>` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // Info horario / profe / aula
+    document.getElementById('detalle-grupo-info').innerHTML = `
+        <div>📅 <strong>Horario:</strong> ${grupo.horario}</div>
+        <div>👨‍🏫 <strong>Profesor Asignado:</strong> ${grupo.profeNombre}</div>
+        <div>🏫 <strong>Espacio Sugerido:</strong> ${grupo.aula || 'Aula Principal'}</div>
+    `;
+
+    document.getElementById('modal-detalle-grupo').showModal();
+};
+
+// Abrir confirmación por índice
+window.abrirModalConfirmarMatchPorIndice = function(idx) {
+    const grupo = matchGruposSugeridos[idx];
+    if (grupo) abrirModalConfirmarMatch(grupo);
+};
+
+function abrirModalConfirmarMatch(grupo) {
+    const isInd = grupo.tipo === 'Individual';
+    const nombreSugerido = isInd ? 'Clase Individual' : (grupo.nombreSugerido || '');
+    const modalTitulo = document.getElementById('match-confirm-modal-titulo');
+    const wrapperNombre = document.getElementById('match-confirm-nombre-grupo-wrapper');
+    const btnEjecutar = document.getElementById('btn-ejecutar-confirmar-match');
+
+    if (modalTitulo) modalTitulo.textContent = isInd ? '👤 Asignar Profesor a Alumno' : '🧩 Confirmar Match de Grupo';
+    if (wrapperNombre) wrapperNombre.style.display = isInd ? 'none' : 'block';
+    if (btnEjecutar) btnEjecutar.textContent = isInd ? '✅ Asignar Profesor' : '✅ Confirmar y Asignar';
+
+    document.getElementById('match-confirm-nombre-grupo').value = nombreSugerido;
+    document.getElementById('match-confirm-resumen').innerHTML = `
+        <div>📅 <strong>${grupo.horario || 'Horario por definir'}</strong></div>
+        <div>👨‍🏫 Profesor: <strong>${grupo.profeNombre || 'Sin asignar'}</strong></div>
+        ${grupo.aula ? `<div>🏫 Espacio: <strong>${grupo.aula}</strong></div>` : ''}
+    `;
+    document.getElementById('match-confirm-integrantes').innerHTML = (grupo.alumnos || []).map(al =>
+        `<div class="match-confirm-row">
+            <span class="match-confirm-row-name">👤 ${al.nombre}</span>
+            <span class="match-confirm-row-info">${(al.instrumento || []).join(', ')} · ${al.nivel || '-'} · ${al.edad ? al.edad + 'a' : '-'}</span>
+        </div>`
+    ).join('');
+    document.getElementById('match-confirm-data').value = JSON.stringify(grupo);
+    document.getElementById('modal-confirmar-match').showModal();
+}
+
+// Helper para calcular la próxima fecha y hora sugerida según día y hora
+function calcularProximaFechaDiaHora(diaCodigo, horaStr) {
+    const diasMap = { 'D': 0, 'L': 1, 'M': 2, 'X': 3, 'J': 4, 'V': 5, 'S': 6 };
+    const targetDay = diasMap[diaCodigo];
+    if (targetDay === undefined) return '';
+
+    const [hs, mins] = (horaStr || '18:00').split(':').map(Number);
+    const fecha = new Date();
+    const currentDay = fecha.getDay();
+    let diff = targetDay - currentDay;
+    if (diff <= 0) diff += 7;
+    fecha.setDate(fecha.getDate() + diff);
+    fecha.setHours(hs || 18, mins || 0, 0, 0);
+
+    const y = fecha.getFullYear();
+    const m = (fecha.getMonth() + 1).toString().padStart(2, '0');
+    const d = fecha.getDate().toString().padStart(2, '0');
+    const h = fecha.getHours().toString().padStart(2, '0');
+    const mi = fecha.getMinutes().toString().padStart(2, '0');
+    return `${y}-${m}-${d}T${h}:${mi}`;
+}
+
+// CONFIRMACIÓN Y ASIGNACIÓN MASIVA (Fase 6)
+async function ejecutarConfirmarMatch() {
+    const dataRaw = document.getElementById('match-confirm-data').value;
+    if (!dataRaw) return;
+
+    const grupo = JSON.parse(dataRaw);
+    const isInd = grupo.tipo === 'Individual';
+    let nombreGrupo = document.getElementById('match-confirm-nombre-grupo').value.trim();
+
+    if (!isInd && !nombreGrupo) {
+        alert('Por favor ingresá un nombre para el grupo.');
+        return;
+    }
+    if (isInd) nombreGrupo = 'Clase Individual';
+
+    const btnConfirm = document.getElementById('btn-ejecutar-confirmar-match');
+    setBotonCargando(btnConfirm, true);
+
+    const now = new Date();
+    const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+
+    const diaId = grupo.slot?.diaId || 'M';
+    const horaInicio = grupo.slot?.inicio || '18:00';
+    const fechaSugerida = calcularProximaFechaDiaHora(diaId, horaInicio);
+
+    try {
+        for (const al of grupo.alumnos) {
+            const alRef = doc(db, "alumnos", al.id);
+            const alDoc = await getDoc(alRef);
+            const alData = alDoc.exists() ? alDoc.data() : {};
+            const hist = alData.historial || [];
+
+            const textoHist = isInd
+                ? `Asignado a clase individual con Profe ${grupo.profeNombre || 'a definir'} (${grupo.horario}).`
+                : `Match confirmado: Asignado al grupo "${nombreGrupo}" (${grupo.horario}) con Profe ${grupo.profeNombre || 'a definir'}.`;
+
+            hist.push({
+                id: Date.now() + Math.floor(Math.random() * 1000),
+                texto: textoHist,
+                fecha: fechaStr
+            });
+
+            await updateDoc(alRef, {
+                estado_agenda: "Pre-alta Pendiente",
+                grupo_asignado: isInd ? '' : nombreGrupo,
+                reserva_profe_id: grupo.profeId || '',
+                reserva_profe_nombre: grupo.profeNombre || '',
+                reserva_fecha_texto: grupo.horario || '',
+                horario_match: grupo.horario || '',
+                dia_match: diaId,
+                horario_inicio_match: horaInicio,
+                horario_fin_match: grupo.slot?.fin || '',
+                aula_asignada: grupo.aula || '',
+                fecha_sugerida_inicio: fechaSugerida,
+                fecha_inicio_clases: fechaSugerida ? new Date(fechaSugerida).toISOString() : null,
+                historial: hist
+            });
+        }
+
+        document.getElementById('modal-confirmar-match').close();
+
+        if (isInd) {
+            alert(`✅ Profesor ${grupo.profeNombre} asignado a ${grupo.alumnos[0].nombre}. Pasó a Altas Pendientes.`);
+        } else {
+            alert(`✅ Grupo "${nombreGrupo}" confirmado con éxito. ${grupo.alumnos.length} alumnos pasaron a Altas Pendientes con su grupo y horario.`);
+        }
+
+        // Re-ejecutar búsqueda para actualizar la grilla
+        await ejecutarBusquedaMatch();
+
+    } catch(err) {
+        console.error("Error al confirmar match:", err);
+        alert("Error al confirmar: " + err.message);
+    }
+
+    setBotonCargando(btnConfirm, false);
+}
+
+// GENERADOR DE ALUMNOS DE PRUEBA EN LISTA DE ESPERA
+async function generarAlumnosPruebaMatch() {
+    const btn = document.getElementById('btn-mock-match-data');
+    setBotonCargando(btn, true);
+
+    try {
+        const suscDocs = await getDocs(collection(db, "tipos_suscripcion"));
+        const listaSusc = [];
+        suscDocs.forEach(d => listaSusc.push(d.data().nombre));
+
+        // Detectar nombres de suscripción acordes
+        const suscEnsamble = listaSusc.find(s => s.toLowerCase().includes('ensamble')) || 'Ensamble';
+        const suscGrupal = listaSusc.find(s => s.toLowerCase().includes('grupal')) || 'Clases Grupales';
+        const suscIndividual = listaSusc.find(s => s.toLowerCase().includes('individual')) || 'Clases Individuales';
+
+        const now = new Date();
+        const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+
+        const mockStudents = [
+            // 1. Ensamble Adultos (Inicial) -> compatibles Martes y Miércoles 18 a 21hs
+            {
+                nombre: "Lucas Benítez (Test)",
+                celular: "+54 9 11 5555-0101",
+                edad: 25,
+                nivel: "Inicial I",
+                instrumento: ["Guitarra"],
+                tipo_suscripcion: suscEnsamble,
+                estado_agenda: "Lista de espera",
+                disponibilidad: {
+                    L: [],
+                    M: [{ inicio: "17:00", fin: "21:00" }],
+                    X: [{ inicio: "18:00", fin: "21:00" }],
+                    J: [], V: [], S: []
+                },
+                historial: [{ id: Date.now(), texto: "Alumno de prueba generado para Match.", fecha: fechaStr }]
+            },
+            {
+                nombre: "Sofía Morales (Test)",
+                celular: "+54 9 11 5555-0102",
+                edad: 28,
+                nivel: "Inicial II",
+                instrumento: ["Batería"],
+                tipo_suscripcion: suscEnsamble,
+                estado_agenda: "Lista de espera",
+                disponibilidad: {
+                    L: [],
+                    M: [{ inicio: "18:00", fin: "22:00" }],
+                    X: [{ inicio: "18:00", fin: "21:00" }],
+                    J: [], V: [], S: []
+                },
+                historial: [{ id: Date.now() + 1, texto: "Alumno de prueba generado para Match.", fecha: fechaStr }]
+            },
+            {
+                nombre: "Mateo Rossi (Test)",
+                celular: "+54 9 11 5555-0103",
+                edad: 24,
+                nivel: "Inicial I",
+                instrumento: ["Bajo"],
+                tipo_suscripcion: suscEnsamble,
+                estado_agenda: "Lista de espera",
+                disponibilidad: {
+                    L: [],
+                    M: [{ inicio: "18:00", fin: "21:00" }],
+                    X: [],
+                    J: [{ inicio: "19:00", fin: "21:00" }],
+                    V: [], S: []
+                },
+                historial: [{ id: Date.now() + 2, texto: "Alumno de prueba generado para Match.", fecha: fechaStr }]
+            },
+            {
+                nombre: "Camila Fernández (Test)",
+                celular: "+54 9 11 5555-0104",
+                edad: 27,
+                nivel: "Inicial II",
+                instrumento: ["Piano"],
+                tipo_suscripcion: suscEnsamble,
+                estado_agenda: "Lista de espera",
+                disponibilidad: {
+                    L: [],
+                    M: [{ inicio: "18:00", fin: "20:00" }],
+                    X: [{ inicio: "18:00", fin: "21:00" }],
+                    J: [], V: [], S: []
+                },
+                historial: [{ id: Date.now() + 3, texto: "Alumno de prueba generado para Match.", fecha: fechaStr }]
+            },
+
+            // 2. Grupal Canto (Intermedio / Avanzado) -> compatibles Jueves 18 a 21hs y Sábado
+            {
+                nombre: "Valentina Gómez (Test)",
+                celular: "+54 9 11 5555-0201",
+                edad: 32,
+                nivel: "Intermedio",
+                instrumento: ["Canto"],
+                tipo_suscripcion: suscGrupal,
+                estado_agenda: "Lista de espera",
+                disponibilidad: {
+                    L: [], M: [], X: [],
+                    J: [{ inicio: "18:00", fin: "21:00" }],
+                    V: [],
+                    S: [{ inicio: "10:00", fin: "14:00" }]
+                },
+                historial: [{ id: Date.now() + 4, texto: "Alumno de prueba generado para Match.", fecha: fechaStr }]
+            },
+            {
+                nombre: "Julieta Díaz (Test)",
+                celular: "+54 9 11 5555-0202",
+                edad: 35,
+                nivel: "Avanzado",
+                instrumento: ["Canto"],
+                tipo_suscripcion: suscGrupal,
+                estado_agenda: "Lista de espera",
+                disponibilidad: {
+                    L: [], M: [], X: [],
+                    J: [{ inicio: "18:00", fin: "21:00" }],
+                    V: [],
+                    S: [{ inicio: "10:00", fin: "14:00" }]
+                },
+                historial: [{ id: Date.now() + 5, texto: "Alumno de prueba generado para Match.", fecha: fechaStr }]
+            },
+            {
+                nombre: "Mariano Castro (Test)",
+                celular: "+54 9 11 5555-0203",
+                edad: 30,
+                nivel: "Intermedio",
+                instrumento: ["Canto"],
+                tipo_suscripcion: suscGrupal,
+                estado_agenda: "Lista de espera",
+                disponibilidad: {
+                    L: [], M: [], X: [],
+                    J: [{ inicio: "18:00", fin: "20:00" }],
+                    V: [],
+                    S: [{ inicio: "11:00", fin: "14:00" }]
+                },
+                historial: [{ id: Date.now() + 6, texto: "Alumno de prueba generado para Match.", fecha: fechaStr }]
+            },
+
+            // 3. Niños (< 13a) -> compatibles Viernes 16 a 19hs
+            {
+                nombre: "Tomás Navarro (Test Niño)",
+                celular: "+54 9 11 5555-0301",
+                edad: 9,
+                nivel: "Inicial I",
+                instrumento: ["Batería"],
+                tipo_suscripcion: suscEnsamble,
+                estado_agenda: "Lista de espera",
+                disponibilidad: {
+                    L: [], M: [], X: [], J: [],
+                    V: [{ inicio: "16:00", fin: "19:00" }],
+                    S: [{ inicio: "10:00", fin: "13:00" }]
+                },
+                historial: [{ id: Date.now() + 7, texto: "Alumno de prueba generado para Match.", fecha: fechaStr }]
+            },
+            {
+                nombre: "Joaquín Paz (Test Niño)",
+                celular: "+54 9 11 5555-0302",
+                edad: 10,
+                nivel: "Inicial I",
+                instrumento: ["Guitarra"],
+                tipo_suscripcion: suscEnsamble,
+                estado_agenda: "Lista de espera",
+                disponibilidad: {
+                    L: [], M: [], X: [], J: [],
+                    V: [{ inicio: "16:00", fin: "19:00" }],
+                    S: [{ inicio: "10:00", fin: "13:00" }]
+                },
+                historial: [{ id: Date.now() + 8, texto: "Alumno de prueba generado para Match.", fecha: fechaStr }]
+            },
+            {
+                nombre: "Emma Silva (Test Niña)",
+                celular: "+54 9 11 5555-0303",
+                edad: 8,
+                nivel: "Inicial I",
+                instrumento: ["Piano"],
+                tipo_suscripcion: suscEnsamble,
+                estado_agenda: "Lista de espera",
+                disponibilidad: {
+                    L: [], M: [], X: [], J: [],
+                    V: [{ inicio: "16:00", fin: "19:00" }],
+                    S: [{ inicio: "10:00", fin: "13:00" }]
+                },
+                historial: [{ id: Date.now() + 9, texto: "Alumno de prueba generado para Match.", fecha: fechaStr }]
+            },
+
+            // 4. Clases Individuales (Adultos/Jóvenes)
+            {
+                nombre: "Nicolás Varela (Test Indiv)",
+                celular: "+54 9 11 5555-0401",
+                edad: 26,
+                nivel: "Inicial I",
+                instrumento: ["Guitarra"],
+                tipo_suscripcion: suscIndividual,
+                estado_agenda: "Lista de espera",
+                disponibilidad: {
+                    L: [{ inicio: "14:00", fin: "20:00" }],
+                    M: [{ inicio: "15:00", fin: "21:00" }],
+                    X: [{ inicio: "14:00", fin: "20:00" }],
+                    J: [{ inicio: "15:00", fin: "21:00" }],
+                    V: [{ inicio: "14:00", fin: "20:00" }],
+                    S: []
+                },
+                historial: [{ id: Date.now() + 10, texto: "Alumno de prueba individual generado para Match.", fecha: fechaStr }]
+            },
+            {
+                nombre: "Paula Méndez (Test Indiv)",
+                celular: "+54 9 11 5555-0402",
+                edad: 29,
+                nivel: "Inicial II",
+                instrumento: ["Canto"],
+                tipo_suscripcion: suscIndividual,
+                estado_agenda: "Lista de espera",
+                disponibilidad: {
+                    L: [],
+                    M: [{ inicio: "16:00", fin: "21:00" }],
+                    X: [{ inicio: "16:00", fin: "21:00" }],
+                    J: [{ inicio: "16:00", fin: "21:00" }],
+                    V: [], S: [{ inicio: "10:00", fin: "14:00" }]
+                },
+                historial: [{ id: Date.now() + 11, texto: "Alumno de prueba individual generado para Match.", fecha: fechaStr }]
+            },
+            {
+                nombre: "Gonzalo Rivas (Test Indiv)",
+                celular: "+54 9 11 5555-0403",
+                edad: 23,
+                nivel: "Inicial I",
+                instrumento: ["Batería"],
+                tipo_suscripcion: suscIndividual,
+                estado_agenda: "Lista de espera",
+                disponibilidad: {
+                    L: [{ inicio: "15:00", fin: "20:00" }],
+                    M: [{ inicio: "15:00", fin: "20:00" }],
+                    X: [{ inicio: "15:00", fin: "20:00" }],
+                    J: [{ inicio: "15:00", fin: "20:00" }],
+                    V: [], S: []
+                },
+                historial: [{ id: Date.now() + 12, texto: "Alumno individual de prueba generado para Match.", fecha: fechaStr }]
+            },
+            {
+                nombre: "Clara Soria (Test Indiv)",
+                celular: "+54 9 11 5555-0404",
+                edad: 34,
+                nivel: "Intermedio",
+                instrumento: ["Piano"],
+                tipo_suscripcion: suscIndividual,
+                estado_agenda: "Lista de espera",
+                disponibilidad: {
+                    L: [{ inicio: "16:00", fin: "21:00" }],
+                    M: [],
+                    X: [{ inicio: "16:00", fin: "21:00" }],
+                    J: [],
+                    V: [{ inicio: "16:00", fin: "21:00" }],
+                    S: []
+                },
+                historial: [{ id: Date.now() + 13, texto: "Alumno individual de prueba generado para Match.", fecha: fechaStr }]
+            }
+        ];
+
+        for (let st of mockStudents) {
+            await addDoc(collection(db, "alumnos"), st);
+        }
+
+        alert(`✅ Se crearon ${mockStudents.length} alumnos de prueba en Lista de Espera (Ensambles, Canto Grupal, Niños y Clases Individuales).`);
+        
+        const selSusc = document.getElementById('match-suscripcion');
+        if (selSusc && suscEnsamble) {
+            selSusc.value = suscEnsamble;
+            adaptarFormularioPorSuscripcion(suscEnsamble);
+        }
+
+    } catch(e) {
+        console.error("Error al generar alumnos de prueba:", e);
+        alert("Error al generar alumnos de prueba: " + e.message);
+    }
+
+    setBotonCargando(btn, false);
+}
+
+// GENERADOR EXCLUSIVO DE ALUMNOS INDIVIDUALES DE PRUEBA
+async function generarAlumnosIndividualesPruebaMatch() {
+    const btn = document.getElementById('btn-mock-match-indiv');
+    setBotonCargando(btn, true);
+
+    try {
+        const suscDocs = await getDocs(collection(db, "tipos_suscripcion"));
+        const listaSusc = [];
+        suscDocs.forEach(d => listaSusc.push(d.data().nombre));
+
+        const suscIndividual = listaSusc.find(s => s.toLowerCase().includes('individual')) || 'Clases Individuales';
+
+        const now = new Date();
+        const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+
+        const mockIndividuales = [
+            {
+                nombre: "Nicolás Varela (Test Indiv)",
+                celular: "+54 9 11 5555-0401",
+                edad: 26,
+                nivel: "Inicial I",
+                instrumento: ["Guitarra"],
+                tipo_suscripcion: suscIndividual,
+                estado_agenda: "Lista de espera",
+                disponibilidad: {
+                    L: [{ inicio: "14:00", fin: "20:00" }],
+                    M: [{ inicio: "15:00", fin: "21:00" }],
+                    X: [{ inicio: "14:00", fin: "20:00" }],
+                    J: [{ inicio: "15:00", fin: "21:00" }],
+                    V: [{ inicio: "14:00", fin: "20:00" }],
+                    S: []
+                },
+                historial: [{ id: Date.now(), texto: "Alumno individual de prueba generado para Match.", fecha: fechaStr }]
+            },
+            {
+                nombre: "Paula Méndez (Test Indiv)",
+                celular: "+54 9 11 5555-0402",
+                edad: 29,
+                nivel: "Inicial II",
+                instrumento: ["Canto"],
+                tipo_suscripcion: suscIndividual,
+                estado_agenda: "Lista de espera",
+                disponibilidad: {
+                    L: [],
+                    M: [{ inicio: "16:00", fin: "21:00" }],
+                    X: [{ inicio: "16:00", fin: "21:00" }],
+                    J: [{ inicio: "16:00", fin: "21:00" }],
+                    V: [], S: [{ inicio: "10:00", fin: "14:00" }]
+                },
+                historial: [{ id: Date.now() + 1, texto: "Alumno individual de prueba generado para Match.", fecha: fechaStr }]
+            },
+            {
+                nombre: "Gonzalo Rivas (Test Indiv)",
+                celular: "+54 9 11 5555-0403",
+                edad: 23,
+                nivel: "Inicial I",
+                instrumento: ["Batería"],
+                tipo_suscripcion: suscIndividual,
+                estado_agenda: "Lista de espera",
+                disponibilidad: {
+                    L: [{ inicio: "15:00", fin: "20:00" }],
+                    M: [{ inicio: "15:00", fin: "20:00" }],
+                    X: [{ inicio: "15:00", fin: "20:00" }],
+                    J: [{ inicio: "15:00", fin: "20:00" }],
+                    V: [], S: []
+                },
+                historial: [{ id: Date.now() + 2, texto: "Alumno individual de prueba generado para Match.", fecha: fechaStr }]
+            },
+            {
+                nombre: "Clara Soria (Test Indiv)",
+                celular: "+54 9 11 5555-0404",
+                edad: 34,
+                nivel: "Intermedio",
+                instrumento: ["Piano"],
+                tipo_suscripcion: suscIndividual,
+                estado_agenda: "Lista de espera",
+                disponibilidad: {
+                    L: [{ inicio: "16:00", fin: "21:00" }],
+                    M: [],
+                    X: [{ inicio: "16:00", fin: "21:00" }],
+                    J: [],
+                    V: [{ inicio: "16:00", fin: "21:00" }],
+                    S: []
+                },
+                historial: [{ id: Date.now() + 3, texto: "Alumno individual de prueba generado para Match.", fecha: fechaStr }]
+            }
+        ];
+
+        for (let st of mockIndividuales) {
+            await addDoc(collection(db, "alumnos"), st);
+        }
+
+        alert("✅ Se cargaron 4 alumnos individuales de prueba (Guitarra, Canto, Batería, Piano) en Lista de Espera.");
+
+        const selSusc = document.getElementById('match-suscripcion');
+        if (selSusc && suscIndividual) {
+            selSusc.value = suscIndividual;
+            adaptarFormularioPorSuscripcion(suscIndividual);
+        }
+
+    } catch(err) {
+        console.error("Error al generar alumnos individuales de prueba:", err);
+        alert("Error al generar alumnos: " + err.message);
+    }
+
+    setBotonCargando(btn, false);
+}
+
+// LIMPIEZA DE ALUMNOS DE PRUEBA
+async function limpiarAlumnosPruebaMatch() {
+    if (!confirm("¿Deseas eliminar todos los alumnos de prueba creados para testear Match?")) return;
+    const btn = document.getElementById('btn-limpiar-mock-data');
+    setBotonCargando(btn, true);
+
+    try {
+        const qSnap = await getDocs(collection(db, "alumnos"));
+        let eliminados = 0;
+        for (let d of qSnap.docs) {
+            const data = d.data();
+            if (data.nombre && (data.nombre.includes('(Test') || data.nombre.includes('(test'))) {
+                await deleteDoc(doc(db, "alumnos", d.id));
+                eliminados++;
+            }
+        }
+        alert(`🧹 Se eliminaron ${eliminados} registros de prueba.`);
+        ocultarResultadosMatch();
+        if (estadoActualVista === 'Match - Confirmados') {
+            await renderMatchConfirmados(document.getElementById('lista-generica'));
+        }
+    } catch(e) {
+        console.error("Error al eliminar pruebas:", e);
+        alert("Error al eliminar pruebas: " + e.message);
+    }
+    setBotonCargando(btn, false);
+}
+
+// VISTA MATCH — CONFIRMADOS (Fase 7)
+async function renderMatchConfirmados(cont) {
+    document.getElementById('vista-titulo').textContent = 'Match — Confirmados';
+    document.getElementById('controles-vista').style.display = 'flex';
+    renderFiltrosChips();
+    document.getElementById('search-container-general').style.display = 'block';
+
+    try {
+        const qSnap = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", "Pre-alta Pendiente")));
+        const allData = [];
+        qSnap.forEach(d => {
+            const data = d.data();
+            if (data.grupo_asignado) {
+                allData.push({ id: d.id, ...data });
+            }
+        });
+
+        // Agrupar por grupo por defecto para mayor claridad
+        if (agrupadorActual === 'ninguno') {
+            agrupadorActual = 'grupo';
+            const selAgr = document.getElementById('select-agrupador');
+            if (selAgr) selAgr.value = 'grupo';
+        }
+
+        renderListaFilas('lista-generica', allData, 'all', null);
+    } catch(e) {
+        cont.innerHTML = '<div style="color:var(--text-muted); padding:20px;">Error al cargar alumnos confirmados.</div>';
+    }
+}
+
+// ================================================================
+
 const btnLogin = document.getElementById('btn-login'); if (btnLogin) btnLogin.addEventListener('click', conectarGoogle);
 document.getElementById('btn-logout').addEventListener('click', async () => { await signOut(auth); window.location.reload(); });
+
 
 onAuthStateChanged(auth, async (user) => { 
     if (user) { 
@@ -968,8 +2807,26 @@ document.addEventListener('change', async (e) => {
         try {
             const docRef = doc(db, "alumnos", id), alDoc = await getDoc(docRef), al = alDoc.data();
             let checks = al.checklist_alta || [false, false, false, false, false]; checks[idx] = e.target.checked;
-            await updateDoc(docRef, { checklist_alta: checks });
-            if (checks.filter(Boolean).length === 5 && (estadoActualVista === 'Dashboard' || estadoActualVista === 'Altas - Pendientes') && (al.estado_agenda === 'Alta Efectiva' || al.estado_agenda === 'Alta Ilegal')) { setTimeout(() => { cargarVista(estadoActualVista); }, 1000); }
+            
+            if (checks.filter(Boolean).length === 5) {
+                const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+                const hist = al.historial || [];
+                hist.push({
+                    id: Date.now(),
+                    texto: "Alta Finalizada: Todos los pasos del checklist completados. Ciclo de admisión cerrado.",
+                    fecha: fechaStr
+                });
+                await updateDoc(docRef, { 
+                    checklist_alta: checks,
+                    fecha_alta_finalizada: new Date().toISOString(),
+                    historial: hist
+                });
+                alert("🏆 ¡Felicitaciones! Checklist completo. El alumno pasó a Altas Finalizadas.");
+                cargarVista(estadoActualVista);
+            } else {
+                await updateDoc(docRef, { checklist_alta: checks });
+                cargarVista(estadoActualVista);
+            }
         } catch(err) {}
     }
 });
@@ -1060,6 +2917,37 @@ document.addEventListener('click', async (e) => {
         document.getElementById(`disp-p-${diaId}-none`).checked = clipboardDisponibilidadProfe.none;
         window.updateDispStateForDay(diaId, true);
         return;
+    }
+
+    // Toggle dropdown de acciones dentro del modal de edición de alumno
+    if (target.id === 'btn-trigger-modal-acciones' || target.closest('#btn-trigger-modal-acciones')) {
+        e.stopPropagation();
+        e.preventDefault();
+        const drop = document.getElementById('modal-acciones-dropdown');
+        if (drop) {
+            drop.classList.toggle('show');
+        }
+        return;
+    }
+
+    // Si hace clic en un botón de acción adentro del modal de edición, cerrar el dropdown
+    if (target.closest('#modal-acciones-dropdown') && target.tagName === 'BUTTON') {
+        const drop = document.getElementById('modal-acciones-dropdown');
+        if (drop) drop.classList.remove('show');
+        if (target.classList.contains('btn-abrir-prealta') || target.classList.contains('btn-editar-prealta') || target.classList.contains('btn-abrir-confirmar-alta') || target.classList.contains('btn-buscar-agenda') || target.classList.contains('btn-abrir-suspender')) {
+            const wrap = document.getElementById('form-alumno-wrapper');
+            if (wrap) {
+                wrap.style.display = 'none';
+                document.body.appendChild(wrap);
+            }
+            document.getElementById('modal-alta-alumno').close();
+        }
+    }
+
+    // Clic fuera del dropdown de acciones del modal
+    if (!target.closest('#modal-acciones-container')) {
+        const drop = document.getElementById('modal-acciones-dropdown');
+        if (drop) drop.classList.remove('show');
     }
 
     // Auto-cierre del Bottom Sheet Modal al tocar una acción adentro
@@ -1171,12 +3059,398 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    if (target.classList.contains('btn-abrir-prealta')) { const id = target.getAttribute('data-id'); document.getElementById('prealta-alumno-id').value = id; document.getElementById('titulo-prealta').textContent = 'Iniciar Pre-Alta'; document.getElementById('prealta-fecha-inicio').value = ''; document.getElementById('prealta-grupo').value = ''; document.getElementById('modal-iniciar-prealta').showModal(); return; }
-    if (target.id === 'btn-guardar-prealta') { const id = document.getElementById('prealta-alumno-id').value, fIni = document.getElementById('prealta-fecha-inicio').value, grp = document.getElementById('prealta-grupo').value; if(!fIni || !grp) return alert("Completa todos los campos."); setBotonCargando(target, true); const fIso = new Date(fIni).toISOString(), updates = { estado_agenda: "Pre-alta Iniciada", fecha_inicio_clases: fIso, grupo_asignado: grp }; const al = (await getDoc(doc(db, "alumnos", id))).data(); if(!al.fecha_prealta) updates.fecha_prealta = new Date().toISOString(); if(!al.checklist_alta) updates.checklist_alta = [false, false, false, false, false]; await updateDoc(doc(db, "alumnos", id), updates); const dataText = await generarTextoConHistorial(id, 'texto_prealta'); await navigator.clipboard.writeText(dataText.txt); document.getElementById('modal-iniciar-prealta').close(); alert("Pre-Alta Iniciada.\nTexto copiado."); setBotonCargando(target, false); cargarVista(estadoActualVista); return; }
+    // Botón Iniciar / Editar Pre-Alta (Individual o Directo desde Lista de Espera / En Curso)
+    if (target.classList.contains('btn-abrir-prealta') || target.classList.contains('btn-editar-prealta')) {
+        const id = target.getAttribute('data-id');
+        const alDoc = await getDoc(doc(db, "alumnos", id));
+        const al = alDoc.exists() ? alDoc.data() : {};
+        document.getElementById('prealta-alumno-id').value = id;
+        
+        const tipoSusc = detectarTipoSuscripcion(al.tipo_suscripcion || '');
+        const esIndividual = tipoSusc === 'individual';
+        const esEdicion = target.classList.contains('btn-editar-prealta') || al.estado_agenda === 'Pre-alta Iniciada';
+        const vieneDeMatch = Boolean(al.horario_match || al.reserva_fecha_texto || al.reserva_profe_id);
+
+        document.getElementById('titulo-prealta').textContent = `${esEdicion ? 'Editar' : 'Iniciar'} Pre-Alta — ${al.nombre || 'Alumno'}`;
+        
+        const campoGrupo = document.getElementById('prealta-campo-grupo');
+        const campoProfe = document.getElementById('prealta-campo-profe');
+        const selectProfe = document.getElementById('prealta-profe-select');
+        const alertaValidacion = document.getElementById('prealta-alerta-validacion');
+        if (alertaValidacion) alertaValidacion.style.display = 'none';
+
+        if (esIndividual) {
+            // Es individual: ocultar campo grupo y mostrar selector de profe
+            if (campoGrupo) campoGrupo.style.display = 'none';
+            if (campoProfe) campoProfe.style.display = 'block';
+
+            // Poblar select de profesores compatibles según skills del alumno
+            const insts = Array.isArray(al.instrumento) ? al.instrumento : (al.instrumento ? [al.instrumento] : []);
+            selectProfe.innerHTML = '<option value="">Seleccionar profesor...</option>';
+            
+            try {
+                const pSnap = await getDocs(collection(db, "profesores"));
+                pSnap.forEach(pDoc => {
+                    const pr = { id: pDoc.id, ...pDoc.data() };
+                    const profeSkills = pr.skills || [];
+                    const enseñaInst = insts.some(i => profeSkills.includes(i) || profeSkills.length === 0);
+                    if (enseñaInst) {
+                        const opt = document.createElement('option');
+                        opt.value = pr.id;
+                        opt.textContent = `${pr.nombre} (${(pr.skills || []).join(', ') || 'General'})`;
+                        opt.dataset.nombre = pr.nombre;
+                        opt.dataset.calId = pr.correo_calendario || '';
+                        opt.dataset.disponibilidad = JSON.stringify(pr.disponibilidad || {});
+                        selectProfe.appendChild(opt);
+                    }
+                });
+
+                if (al.reserva_profe_id) {
+                    selectProfe.value = al.reserva_profe_id;
+                }
+            } catch(e) {}
+
+            document.getElementById('prealta-grupo').value = 'Clase Individual';
+        } else {
+            // Es grupal/ensamble: mostrar campo grupo y ocultar selector profe
+            if (campoGrupo) campoGrupo.style.display = 'block';
+            if (campoProfe) campoProfe.style.display = 'none';
+            document.getElementById('prealta-grupo').value = al.grupo_asignado || '';
+        }
+        
+        let fVal = '';
+        if (al.fecha_inicio_clases) fVal = al.fecha_inicio_clases.substring(0, 16);
+        else if (al.fecha_sugerida_inicio) fVal = al.fecha_sugerida_inicio;
+        else if (al.dia_match && al.horario_inicio_match) fVal = calcularProximaFechaDiaHora(al.dia_match, al.horario_inicio_match);
+        document.getElementById('prealta-fecha-inicio').value = fVal;
+
+        const banner = document.getElementById('prealta-info-banner');
+        banner.style.display = 'block';
+        if (esEdicion) {
+            banner.innerHTML = `✏️ <strong>Modificar Pre-Alta de ${al.nombre}:</strong> Podés ajustar el día, la hora de la clase y el ${esIndividual ? 'profesor asignado' : 'grupo'}.`;
+        } else if (vieneDeMatch) {
+            banner.innerHTML = `📅 <strong>Horario Match:</strong> ${al.horario_match || al.reserva_fecha_texto || '-'} · 👨‍🏫 <strong>Profesor:</strong> ${al.reserva_profe_nombre || '-'}`;
+        } else {
+            banner.innerHTML = `ℹ️ <strong>Pre-Alta Directa desde Lista de Espera:</strong> Alumno ${esIndividual ? 'Individual' : 'Grupal'} (${(al.instrumento || []).join(', ')}).`;
+        }
+        document.getElementById('modal-iniciar-prealta').showModal();
+        return;
+    }
+
+    // Botón Copiar / Reenviar texto de Pre-Alta
+    if (target.classList.contains('btn-reenviar-prealta')) {
+        const id = target.getAttribute('data-id');
+        try {
+            const dataText = await generarTextoConHistorial(id, 'texto_prealta');
+            await navigator.clipboard.writeText(dataText.txt);
+            alert("✅ Texto de Pre-Alta copiado al portapapeles:\n\n" + dataText.txt);
+        } catch(e) {
+            alert("Error al copiar texto: " + e.message);
+        }
+        return;
+    }
+
+    // Botón Copiar / Reenviar texto de Alta Confirmada
+    if (target.classList.contains('btn-reenviar-alta')) {
+        const id = target.getAttribute('data-id');
+        try {
+            const dataText = await generarTextoConHistorial(id, 'texto_alta_confirmada');
+            await navigator.clipboard.writeText(dataText.txt);
+            alert("✅ Texto de Alta Confirmada copiado al portapapeles:\n\n" + dataText.txt);
+        } catch(e) {
+            alert("Error al copiar texto: " + e.message);
+        }
+        return;
+    }
+
+    // Botón Iniciar Pre-Alta Grupal / Masivo
+    if (target.classList.contains('btn-iniciar-prealta-grupo') || target.id === 'btn-bulk-prealta') {
+        const idsRaw = target.getAttribute('data-ids');
+        const ids = idsRaw ? idsRaw.split(',').filter(Boolean) : [...selectedBulkIds];
+        if (!ids || ids.length === 0) return alert("No hay alumnos seleccionados.");
+        const grupoNom = target.getAttribute('data-grupo') || '';
+
+        const primerDoc = await getDoc(doc(db, "alumnos", ids[0]));
+        const primerAl = primerDoc.exists() ? primerDoc.data() : {};
+
+        document.getElementById('prealta-alumno-id').value = ids.join(',');
+        document.getElementById('titulo-prealta').textContent = `Iniciar Pre-Alta Grupal (${ids.length} alumnos)`;
+        
+        const campoGrupo = document.getElementById('prealta-campo-grupo');
+        const campoProfe = document.getElementById('prealta-campo-profe');
+        if (campoGrupo) campoGrupo.style.display = 'block';
+        if (campoProfe) campoProfe.style.display = 'none';
+
+        document.getElementById('prealta-grupo').value = grupoNom || primerAl.grupo_asignado || '';
+
+        let fVal = '';
+        if (primerAl.fecha_inicio_clases) fVal = primerAl.fecha_inicio_clases.substring(0, 16);
+        else if (primerAl.fecha_sugerida_inicio) fVal = primerAl.fecha_sugerida_inicio;
+        else if (primerAl.dia_match && primerAl.horario_inicio_match) fVal = calcularProximaFechaDiaHora(primerAl.dia_match, primerAl.horario_inicio_match);
+        document.getElementById('prealta-fecha-inicio').value = fVal;
+
+        const banner = document.getElementById('prealta-info-banner');
+        if (primerAl.horario_match || primerAl.reserva_fecha_texto || primerAl.reserva_profe_nombre) {
+            banner.style.display = 'block';
+            banner.innerHTML = `👥 <strong>Grupo:</strong> ${grupoNom || primerAl.grupo_asignado || '-'} · 📅 <strong>Horario:</strong> ${primerAl.horario_match || primerAl.reserva_fecha_texto || '-'} · 👨‍🏫 <strong>Profesor:</strong> ${primerAl.reserva_profe_nombre || '-'}`;
+        } else {
+            banner.style.display = 'none';
+        }
+        document.getElementById('modal-iniciar-prealta').showModal();
+        return;
+    }
+
+    // Botón Seleccionar Todo el Grupo
+    if (target.classList.contains('btn-seleccionar-todo-grupo')) {
+        const ids = (target.getAttribute('data-ids') || '').split(',').filter(Boolean);
+        ids.forEach(id => {
+            if (!selectedBulkIds.includes(id)) selectedBulkIds.push(id);
+            const chk = document.querySelector(`.bulk-chk[data-id="${id}"]`);
+            if (chk) chk.checked = true;
+        });
+        actualizarBulkBar();
+        return;
+    }
+
+    // Guardar Pre-Alta (Procesa 1 o N alumnos con validación de horarios)
+    if (target.id === 'btn-guardar-prealta') {
+        const idsRaw = document.getElementById('prealta-alumno-id').value;
+        const ids = idsRaw.split(',').filter(Boolean);
+        const fIni = document.getElementById('prealta-fecha-inicio').value;
+        const grp = document.getElementById('prealta-grupo').value.trim();
+        const selProfe = document.getElementById('prealta-profe-select');
+        const profeId = selProfe ? selProfe.value : '';
+        const profeNombre = selProfe && selProfe.selectedOptions[0] ? selProfe.selectedOptions[0].dataset.nombre : '';
+
+        if (!fIni) return alert("Por favor ingresá la fecha y hora de la primera clase.");
+
+        const primerDoc = await getDoc(doc(db, "alumnos", ids[0]));
+        const primerAl = primerDoc.exists() ? primerDoc.data() : {};
+        const tipoSusc = detectarTipoSuscripcion(primerAl.tipo_suscripcion || '');
+        const esIndividual = tipoSusc === 'individual';
+
+        if (esIndividual && !profeId && !primerAl.reserva_profe_id) {
+            return alert("Por favor seleccioná un profesor para la clase individual.");
+        }
+        if (!esIndividual && !grp) {
+            return alert("Por favor ingresá el nombre del grupo.");
+        }
+
+        setBotonCargando(target, true);
+
+        // VALIDACIÓN DE HORARIOS / CALENDARIO EN CASO INDIVIDUAL DIRECTO
+        const dateObj = new Date(fIni);
+        if (isNaN(dateObj.getTime())) {
+            setBotonCargando(target, false);
+            return alert("Fecha y hora inválidas.");
+        }
+
+        const diasCodigos = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+        const diaCodigo = diasCodigos[dateObj.getDay()];
+        const horaInicioStr = `${dateObj.getHours().toString().padStart(2, '0')}:${dateObj.getMinutes().toString().padStart(2, '0')}`;
+        const durMin = 60;
+        const horaFinMin = dateObj.getHours() * 60 + dateObj.getMinutes() + durMin;
+        const horaFinStr = minutosAHora(horaFinMin);
+
+        // Validar disponibilidad del alumno
+        if (primerAl.disponibilidad && primerAl.disponibilidad[diaCodigo]) {
+            const rangosAl = primerAl.disponibilidad[diaCodigo];
+            const cubreAl = rangosAl.some(r => {
+                const rIni = convertirHoraAMinutos(r.inicio || '09:00');
+                const rFin = convertirHoraAMinutos(r.fin || '22:00');
+                const slIni = dateObj.getHours() * 60 + dateObj.getMinutes();
+                return slIni >= rIni && (slIni + durMin) <= rFin;
+            });
+            if (rangosAl.length > 0 && !cubreAl) {
+                const confirmarForzar = confirm(`⚠️ Atención: El alumno no tiene cargada disponibilidad en su perfil para los ${mapaDiasCodigos[diaCodigo] || diaCodigo} a las ${horaInicioStr} hs.\n\n¿Deseas continuar e iniciar la Pre-Alta de todas formas?`);
+                if (!confirmarForzar) {
+                    setBotonCargando(target, false);
+                    return;
+                }
+            }
+        }
+
+        const dateObjEnd = new Date(dateObj.getTime() + durMin * 60000);
+        const fIsoEnd = dateObjEnd.toISOString();
+
+        // Si es grupal, buscar otros alumnos del grupo para descripción y verificación de evento existente
+        let alumnosDelGrupo = [];
+        if (!esIndividual && grp) {
+            try {
+                const grpSnap = await getDocs(query(collection(db, "alumnos"), where("grupo_asignado", "==", grp)));
+                grpSnap.forEach(d => {
+                    const dData = d.data();
+                    alumnosDelGrupo.push({ id: d.id, ...dData });
+                });
+            } catch(e) {}
+        }
+
+        let evSincronizado = null;
+
+        for (let id of ids) {
+            const alDoc = await getDoc(doc(db, "alumnos", id));
+            const al = alDoc.exists() ? alDoc.data() : {};
+            const finalProfeId = profeId || al.reserva_profe_id || '';
+            const finalProfeNombre = profeNombre || al.reserva_profe_nombre || '';
+            const finalGrupo = esIndividual ? 'Clase Individual' : (grp || al.grupo_asignado || 'Grupo Sin Nombre');
+
+            const alParaSync = {
+                ...al,
+                reserva_profe_id: finalProfeId,
+                reserva_profe_nombre: finalProfeNombre,
+                grupo_asignado: finalGrupo,
+                instrumento: al.instrumento || []
+            };
+
+            // Para grupal aseguramos incluir al alumno actual en la lista para la descripción
+            if (!esIndividual) {
+                if (!alumnosDelGrupo.some(a => a.id === id)) {
+                    alumnosDelGrupo.push({ id, ...alParaSync });
+                }
+            }
+
+            // Sincronizar / crear / actualizar evento en Google Calendar
+            if (!evSincronizado || esIndividual) {
+                evSincronizado = await sincronizarEventoPrealtaCalendar(alParaSync, esIndividual, fIso, fIsoEnd, alumnosDelGrupo);
+            }
+
+            const updates = {
+                estado_agenda: "Pre-alta Iniciada",
+                fecha_inicio_clases: fIso,
+                grupo_asignado: finalGrupo,
+                reserva_profe_id: finalProfeId,
+                reserva_profe_nombre: finalProfeNombre,
+                dia_match: diaCodigo,
+                horario_inicio_match: horaInicioStr,
+                horario_fin_match: horaFinStr,
+                horario_match: `${mapaDiasCodigos[diaCodigo] || diaCodigo} ${horaInicioStr} a ${horaFinStr} hs`
+            };
+
+            if (evSincronizado) {
+                updates.id_evento_alta = evSincronizado.id;
+                updates.calendario_evento_alta = evSincronizado.calendar;
+            }
+
+            if (!al.fecha_prealta) updates.fecha_prealta = new Date().toISOString();
+            if (!al.checklist_alta) updates.checklist_alta = [false, false, false, false, false];
+            await updateDoc(doc(db, "alumnos", id), updates);
+
+            const dataText = await generarTextoConHistorial(id, 'texto_prealta', updates.horario_match, finalProfeId, finalProfeNombre);
+            textosCopiados.push(`--- ${al.nombre} ---\n${dataText.txt}`);
+        }
+
+        await navigator.clipboard.writeText(textosCopiados.join('\n\n'));
+        document.getElementById('modal-iniciar-prealta').close();
+        alert(`✅ Pre-Alta iniciada para ${ids.length} alumno(s).\nEvento agendado en Google Calendar con formato 🚀 y texto copiado.`);
+        selectedBulkIds = [];
+        actualizarBulkBar();
+        setBotonCargando(target, false);
+        cargarVista(estadoActualVista);
+        return;
+    }
     if (target.classList.contains('btn-abrir-confirmar-alta')) { document.getElementById('conf-alta-alumno-id').value = target.getAttribute('data-id'); document.getElementById('modal-confirmar-alta').showModal(); return; }
-    if (target.id === 'btn-guardar-confirmacion-alta') { const id = document.getElementById('conf-alta-alumno-id').value, est = document.querySelector('input[name="opt-tipo-alta"]:checked').value; setBotonCargando(target, true); await updateDoc(doc(db, "alumnos", id), { estado_agenda: est }); const dataText = await generarTextoConHistorial(id, 'texto_alta_confirmada'); await navigator.clipboard.writeText(dataText.txt); document.getElementById('modal-confirmar-alta').close(); alert("Alta Confirmada.\nTexto copiado."); setBotonCargando(target, false); cargarVista(estadoActualVista); return; }
-    if (target.classList.contains('btn-devolver-espera')) { const motivo = prompt("¿Motivo para devolver a Lista de Espera?"); if (motivo !== null) { if (motivo.trim() === "") return alert("Debes ingresar un motivo."); const id = target.getAttribute('data-id'); const al = (await getDoc(doc(db, "alumnos", id))).data(), now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`, hist = al.historial || []; hist.push({ id: Date.now(), texto: `Devuelto a espera. Motivo: ${motivo.trim()}`, fecha: fechaStr }); await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Lista de espera", fecha_inicio_clases: null, grupo_asignado: null, checklist_alta: null, historial: hist }); cargarVista(estadoActualVista); } return; }
-    if (target.classList.contains('btn-suspender-alta')) { const motivo = prompt("¿Motivo de Suspensión de Alta?"); if (motivo !== null) { if (motivo.trim() === "") return alert("Debes ingresar un motivo."); const id = target.getAttribute('data-id'); const al = (await getDoc(doc(db, "alumnos", id))).data(), now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`, hist = al.historial || []; hist.push({ id: Date.now(), texto: `Alta suspendida. Motivo: ${motivo.trim()}`, fecha: fechaStr }); await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Alta Suspendida", historial: hist }); cargarVista(estadoActualVista); } return; }
+    if (target.id === 'btn-guardar-confirmacion-alta') {
+        const id = document.getElementById('conf-alta-alumno-id').value, est = document.querySelector('input[name="opt-tipo-alta"]:checked').value;
+        setBotonCargando(target, true);
+        const alDoc = await getDoc(doc(db, "alumnos", id));
+        const al = alDoc.exists() ? alDoc.data() : {};
+        const tipoSusc = detectarTipoSuscripcion(al.tipo_suscripcion || '');
+        const esIndividual = tipoSusc === 'individual';
+
+        // Actualizar título en Calendar a Alta Confirmada (remueve el cohete 🚀)
+        let alumnosDelGrupo = [];
+        if (!esIndividual && al.grupo_asignado) {
+            try {
+                const grpSnap = await getDocs(query(collection(db, "alumnos"), where("grupo_asignado", "==", al.grupo_asignado)));
+                grpSnap.forEach(d => alumnosDelGrupo.push({ id: d.id, ...d.data() }));
+            } catch(e) {}
+        }
+        await sincronizarEventoAltaConfirmadaCalendar(al, esIndividual, alumnosDelGrupo);
+
+        await updateDoc(doc(db, "alumnos", id), { estado_agenda: est });
+        const dataText = await generarTextoConHistorial(id, 'texto_alta_confirmada');
+        await navigator.clipboard.writeText(dataText.txt);
+        document.getElementById('modal-confirmar-alta').close();
+        alert("Alta Confirmada.\nTexto copiado y evento en Calendar actualizado a Alta Confirmada.");
+        setBotonCargando(target, false);
+        cargarVista(estadoActualVista);
+        return;
+    }
+    // Acción directa: Finalizar Alta
+    if (target.classList.contains('btn-finalizar-alta-directa')) {
+        const id = target.getAttribute('data-id');
+        if (confirm("¿Confirmar todos los pasos del checklist y dar por FINALIZADA el alta?")) {
+            const alDoc = await getDoc(doc(db, "alumnos", id));
+            const al = alDoc.exists() ? alDoc.data() : {};
+            const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+            const hist = al.historial || [];
+            hist.push({
+                id: Date.now(),
+                texto: "Alta Finalizada: Todos los pasos del checklist confirmados. Ciclo de admisión cerrado con éxito.",
+                fecha: fechaStr
+            });
+            await updateDoc(doc(db, "alumnos", id), {
+                checklist_alta: [true, true, true, true, true],
+                fecha_alta_finalizada: new Date().toISOString(),
+                historial: hist
+            });
+            alert("🏁 Alta Finalizada con éxito. El registro pasó a Altas Finalizadas.");
+            cargarVista(estadoActualVista);
+        }
+        return;
+    }
+    if (target.classList.contains('btn-devolver-espera')) {
+        const motivo = prompt("¿Motivo para devolver a Lista de Espera?");
+        if (motivo !== null) {
+            if (motivo.trim() === "") return alert("Debes ingresar un motivo.");
+            const id = target.getAttribute('data-id');
+            const alDoc = await getDoc(doc(db, "alumnos", id));
+            const al = alDoc.exists() ? alDoc.data() : {};
+            const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+            const hist = al.historial || [];
+            hist.push({
+                id: Date.now(),
+                texto: `Devuelto a Lista de Espera desde ${al.estado_agenda || 'Altas'}. Motivo: ${motivo.trim()}`,
+                fecha: fechaStr
+            });
+            await eliminarEventoAltaSeguro(al);
+            await updateDoc(doc(db, "alumnos", id), {
+                estado_agenda: "Lista de espera",
+                grupo_asignado: null,
+                reserva_profe_id: null,
+                reserva_profe_nombre: null,
+                reserva_fecha_texto: null,
+                horario_match: null,
+                dia_match: null,
+                horario_inicio_match: null,
+                horario_fin_match: null,
+                fecha_sugerida_inicio: null,
+                fecha_inicio_clases: null,
+                id_evento_alta: null,
+                calendario_evento_alta: null,
+                checklist_alta: null,
+                historial: hist
+            });
+            alert("✅ Alumno devuelto a Lista de Espera con motivo registrado en el historial.");
+            cargarVista(estadoActualVista);
+        }
+        return;
+    }
+    if (target.classList.contains('btn-suspender-alta')) { 
+        const motivo = prompt("¿Motivo de Suspensión de Alta?"); 
+        if (motivo !== null) { 
+            if (motivo.trim() === "") return alert("Debes ingresar un motivo."); 
+            const id = target.getAttribute('data-id'); 
+            const alDoc = await getDoc(doc(db, "alumnos", id));
+            const al = alDoc.exists() ? alDoc.data() : {};
+            const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`, hist = al.historial || []; 
+            hist.push({ id: Date.now(), texto: `Alta suspendida. Motivo: ${motivo.trim()}`, fecha: fechaStr }); 
+            await eliminarEventoAltaSeguro(al);
+            await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Alta Suspendida", historial: hist }); 
+            cargarVista(estadoActualVista); 
+        } 
+        return; 
+    }
 
     if (target.classList.contains('btn-buscar-agenda')) { alumnoIdActual = target.getAttribute('data-id'); const modal = document.getElementById('modal-agenda'), resDiv = document.getElementById('resultados-agenda'); resDiv.innerHTML = ''; const hoy = new Date(), d7 = new Date(); d7.setDate(d7.getDate()+7); document.getElementById('agenda-start').value = hoy.toISOString().split('T')[0]; document.getElementById('agenda-end').value = d7.toISOString().split('T')[0]; document.getElementById('btn-procesar-seleccion-agenda').style.display = 'none'; try { const selectProfe = document.getElementById('agenda-profe-filtro'); selectProfe.innerHTML = '<option value="">Todos los profesores</option>'; const pSnap = await getDocs(collection(db, "profesores")); pSnap.forEach(p => { if(p.data().entrevista) selectProfe.innerHTML += `<option value="${p.id}">${p.data().nombre}</option>`; }); resDiv.innerHTML = '<p style="color:var(--text-muted); font-size:13px;">Selecciona el rango y haz clic en Buscar.</p>'; modal.showModal(); setTimeout(() => { syncSelectToChips('agenda-profe-filtro', 'chips-profesores'); }, 100); } catch(err) {} return; }
     if (target.id === 'btn-ejecutar-busqueda') { const resDiv = document.getElementById('resultados-agenda'), dStrStart = document.getElementById('agenda-start').value, dStrEnd = document.getElementById('agenda-end').value; if(!dStrStart || !dStrEnd) return alert("Fechas inválidas."); const selProfe = document.getElementById('agenda-profe-filtro'), fProfs = Array.from(selProfe.selectedOptions).map(o => o.value), searchAll = fProfs.length === 0 || fProfs.includes(""); resDiv.innerHTML = '<p>Buscando...</p>'; document.getElementById('btn-procesar-seleccion-agenda').style.display = 'none'; setBotonCargando(target, true); try { const al = (await getDoc(doc(db, "alumnos", alumnoIdActual))).data(), arrI = Array.isArray(al.instrumento) ? al.instrumento : [al.instrumento], esBat = arrI.some(i => i.toLowerCase().includes('bater')), dMap = { 'D':0, 'L':1, 'M':2, 'X':3, 'J':4, 'V':5, 'S':6 }; const dS = new Date(dStrStart+'T00:00:00'), dE = new Date(dStrEnd+'T23:59:59'); const pS = await getDocs(collection(db, "profesores")), todosLosProfes = [], profesFiltradosIDs = []; pS.forEach(p => { const d = p.data(); if(d.correo_calendario) { todosLosProfes.push({ id: p.id, nombre: d.nombre, calId: d.correo_calendario, disponibilidad: d.disponibilidad }); if (d.entrevista && (searchAll || fProfs.includes(p.id))) { profesFiltradosIDs.push(p.id); } } }); if(profesFiltradosIDs.length === 0) { setBotonCargando(target, false); return resDiv.innerHTML = '<p>No hay profes seleccionados.</p>'; } let allEv = []; for(const pr of todosLosProfes) { try { const data = await getEventosCalendario(pr.calId, dS.toISOString(), dE.toISOString()); if(data.items) allEv = allEv.concat(data.items.map(ev => ({...ev, profeId: pr.id}))); } catch(e) {} } const opts = generarOpcionesAgenda(al.disponibilidad, allEv, esBat, todosLosProfes, profesFiltradosIDs, dS, dE, configApp); if(opts.length===0) { resDiv.innerHTML='<p>No hay huecos libres.</p>'; } else { document.getElementById('btn-procesar-seleccion-agenda').style.display = 'block'; let html = ''; opts.forEach((op, index) => { html += `<label style="display:flex; gap:10px; margin-bottom:10px; cursor:pointer;"><input type="checkbox" class="chk-agenda-opt" data-calid="${op.calId}" data-profe="${op.profeNombre}" data-profeid="${op.profeId}" data-start="${op.inicioData}" data-end="${op.finData}" data-fechatxt="${op.fechaTextoAmi}"> <span>🕒 ${op.fechaTextoAmi} (${op.profeNombre})</span></label>`; }); resDiv.innerHTML = html; } } catch(e) { resDiv.innerHTML='<p>Error en la búsqueda.</p>'; } setBotonCargando(target, false); return; }
@@ -1234,8 +3508,8 @@ async function llenarFormularioAlumno(id) {
     if (accionesCont) {
         accionesCont.style.display = 'block';
         accionesCont.innerHTML = `
-            <button type="button" style="background:var(--accent-teal); color:white; border:none; padding:8px 14px; border-radius:8px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">Acciones ⋮</button>
-            <div class="dropdown-menu-wrapper" style="top:100%; left:0;">
+            <button type="button" id="btn-trigger-modal-acciones" style="background:var(--accent-teal); color:white; border:none; padding:7px 14px; border-radius:8px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">Acciones ▾</button>
+            <div class="dropdown-menu-wrapper" id="modal-acciones-dropdown" style="top:100%; left:0; right:auto; z-index:1200; min-width:220px;">
                 <div class="dropdown-menu">${generarBotonesAccion(d, id)}</div>
             </div>
         `;
