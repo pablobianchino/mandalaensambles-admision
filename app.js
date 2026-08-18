@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-const APP_VERSION = "v3.5.3";
+const APP_VERSION = "v3.5.4";
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 const firebaseConfig = {
@@ -478,12 +478,12 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                 <button class="swipe-btn left btn-nota-rapida" data-id="${id}">📝 Nota</button>
                 <button class="swipe-btn right btn-row-actions-swipe" data-id="${id}">⋮ Acciones</button>
             </div>
-            <div class="row-item swipe-content">
+            <div class="row-item swipe-content btn-editar-alumno" data-id="${id}">
                 <div class="row-content-wrapper">
                     <div class="row-header">
                         <input type="checkbox" class="bulk-chk" data-id="${id}" onclick="event.stopPropagation(); window.toggleBulkSelection('${id}', this.checked)">
                         <div class="row-indicator ${info.colorIndicador}"></div>
-                        <div class="row-main-info btn-editar-alumno" data-id="${id}">
+                        <div class="row-main-info">
                             <div class="row-name">
                                 <span>${al.nombre}</span>
                                 <span class="status-badge ${info.colorBadge}">${info.txtEstado}</span>
@@ -1087,7 +1087,7 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    if (target.classList.contains('btn-eliminar-alumno')) { e.stopPropagation(); if(confirm("¿Eliminar este alumno por completo?")) { const id = target.closest('.row-item').getAttribute('data-id'); try { const al = (await getDoc(doc(db, "alumnos", id))).data(); if (al && al.id_evento_reserva) { await eliminarEventoSeguro(al); } } catch(err) {} await deleteDoc(doc(db, "alumnos", id)); cargarVista(estadoActualVista); } return; }
+    if (target.classList.contains('btn-eliminar-alumno')) { e.stopPropagation(); if(confirm("¿Eliminar este alumno por completo?")) { const id = target.closest('.btn-editar-alumno').getAttribute('data-id'); try { const al = (await getDoc(doc(db, "alumnos", id))).data(); if (al && al.id_evento_reserva) { await eliminarEventoSeguro(al); } } catch(err) {} await deleteDoc(doc(db, "alumnos", id)); cargarVista(estadoActualVista); } return; }
     
     // Captura clic en los 3 puntos (Solo móvil, en Bandeja Flow)
     if (target.classList.contains('btn-row-action') && window.innerWidth <= 850) {
@@ -1123,8 +1123,20 @@ document.addEventListener('click', async (e) => {
     }
     if (target.id === 'btn-guardar-nota-rapida') { const id = document.getElementById('nota-rapida-id').value, texto = document.getElementById('nota-rapida-texto').value; if (!texto.trim()) return alert("La nota no puede estar vacía."); setBotonCargando(target, true); try { const alDoc = await getDoc(doc(db, "alumnos", id)); if (alDoc.exists()) { const alData = alDoc.data(), hist = alData.historial || []; const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`; hist.push({ id: Date.now(), texto: texto.trim(), fecha: fechaStr }); await updateDoc(doc(db, "alumnos", id), { historial: hist }); document.getElementById('modal-nota-rapida').close(); cargarVista(estadoActualVista); } } catch(e) {} setBotonCargando(target, false); return; }
 
+    // EDICIÓN DE ALUMNO: Se asegura que el clic no haya sido en una acción o checkbox
     const rowInfo = target.closest('.btn-editar-alumno');
-    if (rowInfo) { const id = rowInfo.getAttribute('data-id'); const wrap = document.getElementById('form-alumno-wrapper'); document.getElementById('modal-alta-alumno').appendChild(wrap); wrap.style.display = 'block'; document.getElementById('alumno-id').value = id; await llenarFormularioAlumno(id); document.getElementById('form-titulo').textContent = 'Editar Alumno'; document.getElementById('container-ingreso-directo').style.display = 'none'; document.getElementById('modal-alta-alumno').showModal(); return; }
+    if (rowInfo && !target.closest('.alumno-actions') && !target.closest('.bulk-chk') && !target.classList.contains('btn-row-action')) { 
+        const id = rowInfo.getAttribute('data-id'); 
+        const wrap = document.getElementById('form-alumno-wrapper'); 
+        document.getElementById('modal-alta-alumno').appendChild(wrap); 
+        wrap.style.display = 'block'; 
+        document.getElementById('alumno-id').value = id; 
+        await llenarFormularioAlumno(id); 
+        document.getElementById('form-titulo').textContent = 'Editar Alumno'; 
+        document.getElementById('container-ingreso-directo').style.display = 'none'; 
+        document.getElementById('modal-alta-alumno').showModal(); 
+        return; 
+    }
 
     if (target.classList.contains('btn-nombre-agendar')) { const id = target.getAttribute('data-id'); try { const al = (await getDoc(doc(db, "alumnos", id))).data(); const iS = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento; let template = configApp.texto_nombre_agendar || 'MDL {nombre} {edad} {año_actual} @{instrumento} @{suscripcion}'; const txt = reemplazarVariables(template, { nombre: al.nombre, edad: al.edad || '', 'año_actual': new Date().getFullYear().toString(), instrumento: iS, suscripcion: al.tipo_suscripcion || '' }).replace(/\s+/g, ' ').trim(); await navigator.clipboard.writeText(txt); alert("Nombre copiado:\n" + txt); } catch(e) {} return; }
     
