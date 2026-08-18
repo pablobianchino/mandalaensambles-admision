@@ -124,8 +124,9 @@ body {
    ======================================================================= */
 .lista-filas { display:flex; flex-direction:column; gap:6px; max-width: 100%; }
 
-/* Swipe Wrapper - CORRECCIÓN DE MENÚ OCULTO EN PC */
-.swipe-wrapper { position: relative; width: 100%; border-radius: 12px; overflow: visible; }
+/* Swipe Wrapper - CORRECCIÓN DE Z-INDEX PARA EL MENÚ EN PC */
+.swipe-wrapper { position: relative; width: 100%; border-radius: 12px; overflow: visible; z-index: 1; }
+.swipe-wrapper:hover { z-index: 100; }
 .swipe-bg-actions { display: none; } /* Oculto en PC por defecto */
 
 .row-item { 
@@ -134,7 +135,7 @@ body {
     gap: 0; cursor: pointer; transition: transform 0.2s ease-out, box-shadow 0.2s, border-color 0.2s; position:relative; width:100%; box-sizing: border-box;
     z-index: 2; /* Sobre las acciones de swipe */
 }
-.swipe-wrapper:hover .row-item { border-color: #d9d2c5; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+.row-item:hover { border-color: #d9d2c5; box-shadow: 0 4px 12px rgba(0,0,0,0.03); z-index: 100; }
 
 .abm-row { flex-direction: row !important; align-items: center !important; justify-content: space-between !important; gap: 15px !important; }
 
