@@ -124,12 +124,9 @@ body {
    ======================================================================= */
 .lista-filas { display:flex; flex-direction:column; gap:6px; max-width: 100%; }
 
-/* Swipe Wrapper para Celulares */
-.swipe-wrapper { position: relative; width: 100%; border-radius: 12px; overflow: hidden; background: #e9e5de; }
-.swipe-bg-actions { position: absolute; top:0; left:0; width:100%; height:100%; display:flex; justify-content:space-between; align-items:center; z-index: 1; }
-.swipe-btn { height: 100%; border: none; color: white; font-weight: 700; font-family: inherit; padding: 0 20px; cursor: pointer; }
-.swipe-btn.left { background: var(--accent-teal); }
-.swipe-btn.right { background: var(--accent-red); }
+/* Swipe Wrapper - CORRECCIÓN DE MENÚ OCULTO EN PC */
+.swipe-wrapper { position: relative; width: 100%; border-radius: 12px; overflow: visible; }
+.swipe-bg-actions { display: none; } /* Oculto en PC por defecto */
 
 .row-item { 
     background: var(--item-bg); border: 1px solid var(--border-color); border-radius: 12px; 
@@ -137,7 +134,7 @@ body {
     gap: 0; cursor: pointer; transition: transform 0.2s ease-out, box-shadow 0.2s, border-color 0.2s; position:relative; width:100%; box-sizing: border-box;
     z-index: 2; /* Sobre las acciones de swipe */
 }
-.swipe-wrapper:hover .row-item { border-color: #d9d2c5; }
+.swipe-wrapper:hover .row-item { border-color: #d9d2c5; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
 
 .abm-row { flex-direction: row !important; align-items: center !important; justify-content: space-between !important; gap: 15px !important; }
 
@@ -303,8 +300,13 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
     .row-actions-container { display: none !important; }
     .alumno-actions:hover .dropdown-menu-wrapper { display: none !important; }
 
+    /* Configuración de Cascada en Móvil y Encapsulamiento del Swipe */
     .row-item { padding: 14px; gap: 0; border: none; } 
-    .swipe-wrapper { border: 1px solid var(--border-color); }
+    .swipe-wrapper { border: 1px solid var(--border-color); overflow: hidden; background: #e9e5de; }
+    .swipe-bg-actions { display: flex; position: absolute; top:0; left:0; width:100%; height:100%; justify-content:space-between; align-items:center; z-index: 1; }
+    .swipe-btn { height: 100%; border: none; color: white; font-weight: 700; font-family: inherit; padding: 0 20px; cursor: pointer; }
+    .swipe-btn.left { background: var(--accent-teal); }
+    .swipe-btn.right { background: var(--accent-red); }
     
     .row-content-wrapper { flex-direction: column; align-items: flex-start; gap: 12px; position: relative; }
     .row-header { width: 100%; align-items: flex-start; padding-right: 30px; box-sizing: border-box; }
