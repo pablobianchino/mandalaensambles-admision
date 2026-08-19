@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-const APP_VERSION = "v4.4.0"; // Feature: Copiar a Sheets (BD y Facturación) + Rediseño ABM Profesores con Modal y etiquetas Evaluador
+const APP_VERSION = "v4.5.0"; // UI: Paleta de colores degradé sincronizada en Flow y Badges + 'PENDIENTE VALIDACIÓN POR EVALUADOR' en mayúsculas
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 const firebaseConfig = {
@@ -174,16 +174,16 @@ let clipboardDisponibilidad = null, clipboardDisponibilidadProfe = null;
 let historialActual = []; 
 
 const configNodosFlujo = [
-    { id: 'Pendiente procesar', label: 'Sin Agendar', icon: '⏳', color: 'phase-1', vistaDestino: 'Inbox - Pendientes' },
-    { id: 'Pendiente validación por profe', label: 'Validando con Evaluador', icon: '👨‍🏫', color: 'phase-1', vistaDestino: 'Inbox - En Validacion' },
-    { id: 'Pendiente validación por alumno', label: 'Validando con Alumno', icon: '🧑‍🎓', color: 'phase-1', vistaDestino: 'Inbox - En Validacion' },
-    { id: 'Agenda confirmada', label: 'Entrevista Confirmada', icon: '✅', color: 'phase-1', vistaDestino: 'Inbox - Confirmadas' },
-    { id: 'Lista de espera', label: 'Lista de Espera', icon: '🛋️', color: 'phase-2', vistaDestino: 'Lista de Espera' },
-    { id: 'Validando Grupo', label: 'Grupos en Validación', icon: '👥', color: 'phase-2', vistaDestino: 'Match - En Validacion' },
-    { id: 'Pre-alta Pendiente', label: 'Altas Pendientes', icon: '📝', color: 'phase-3', vistaDestino: 'Altas - Pendientes' },
-    { id: 'Pre-alta Iniciada', label: 'Altas en Curso', icon: '🚀', color: 'phase-3', vistaDestino: 'Altas - En Curso' },
-    { id: 'Altas Incompletas', label: 'Altas Confirmadas Incompletas', icon: '⚠️', color: 'phase-3', vistaDestino: 'Altas - Confirmadas', filterFn: (d) => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5) },
-    { id: 'Altas Finalizadas', label: 'Altas Finalizadas', icon: '🏆', color: 'phase-3', vistaDestino: 'Altas - Finalizadas', filterFn: (d) => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5) }
+    { id: 'Pendiente procesar', label: 'Sin Agendar', icon: '⏳', color: 'node-blue-1', hexColor: '#74a9d8', vistaDestino: 'Inbox - Pendientes' },
+    { id: 'Pendiente validación por profe', label: 'Validando con Evaluador', icon: '👨‍🏫', color: 'node-blue-2', hexColor: '#4a8cd2', vistaDestino: 'Inbox - En Validacion' },
+    { id: 'Pendiente validación por alumno', label: 'Validando con Alumno', icon: '🧑‍🎓', color: 'node-blue-3', hexColor: '#256bbb', vistaDestino: 'Inbox - En Validacion' },
+    { id: 'Agenda confirmada', label: 'Entrevista Confirmada', icon: '✅', color: 'node-blue-4', hexColor: '#134b8c', vistaDestino: 'Inbox - Confirmadas' },
+    { id: 'Lista de espera', label: 'Lista de Espera', icon: '🛋️', color: 'node-amber', hexColor: '#e5a93d', vistaDestino: 'Lista de Espera' },
+    { id: 'Validando Grupo', label: 'Grupos en Validación', icon: '👥', color: 'node-purple', hexColor: '#8e44ad', vistaDestino: 'Match - En Validacion' },
+    { id: 'Pre-alta Pendiente', label: 'Altas Pendientes', icon: '📝', color: 'node-green-1', hexColor: '#5cc88a', vistaDestino: 'Altas - Pendientes' },
+    { id: 'Pre-alta Iniciada', label: 'Altas en Curso', icon: '🚀', color: 'node-green-2', hexColor: '#31a364', vistaDestino: 'Altas - En Curso' },
+    { id: 'Altas Incompletas', label: 'Altas Confirmadas Incompletas', icon: '⚠️', color: 'node-green-3', hexColor: '#1b7f47', vistaDestino: 'Altas - Confirmadas', filterFn: (d) => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5) },
+    { id: 'Altas Finalizadas', label: 'Altas Finalizadas', icon: '🏆', color: 'node-green-4', hexColor: '#0d5c30', vistaDestino: 'Altas - Finalizadas', filterFn: (d) => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5) }
 ];
 
 const quill = new Quill('#editor-container', { theme: 'snow', modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] } });
@@ -572,49 +572,80 @@ function getFechaReferenciaAlumno(al) {
 }
 
 function getEstadoYBadge(al) {
-    let colorIndicador = 'ind-gray', colorBadge = 'bg-gray', claseTexto = 'text-gray', txtTiempo = '', txtEstado = al.estado_agenda, fechaCalculo = null;
+    let colorIndicador = 'ind-gray', colorBadge = 'bg-gray', claseTexto = 'text-gray', txtTiempo = '', txtEstado = (al.estado_agenda || '').toUpperCase(), fechaCalculo = null;
     
-    if (al.estado_agenda === 'Altas Incompletas') txtEstado = 'Alta Incompleta';
+    if (al.estado_agenda === 'Pendiente procesar') {
+        txtEstado = 'SIN AGENDAR';
+        colorBadge = 'bg-blue-1';
+        colorIndicador = 'ind-blue-1';
+    } else if (al.estado_agenda === 'Pendiente validación por profe') {
+        txtEstado = 'PENDIENTE VALIDACIÓN POR EVALUADOR';
+        colorBadge = 'bg-blue-2';
+        colorIndicador = 'ind-blue-2';
+    } else if (al.estado_agenda === 'Pendiente validación por alumno') {
+        txtEstado = 'PENDIENTE VALIDACIÓN POR ALUMNO';
+        colorBadge = 'bg-blue-3';
+        colorIndicador = 'ind-blue-3';
+    } else if (al.estado_agenda === 'Agenda confirmada') {
+        txtEstado = 'ENTREVISTA CONFIRMADA';
+        colorBadge = 'bg-blue-4';
+        colorIndicador = 'ind-blue-4';
+    } else if (al.estado_agenda === 'Lista de espera') {
+        txtEstado = 'LISTA DE ESPERA';
+        colorBadge = 'bg-amber';
+        colorIndicador = 'ind-amber';
+    } else if (al.estado_agenda === 'Validando Grupo') {
+        txtEstado = 'GRUPOS EN VALIDACIÓN';
+        colorBadge = 'bg-purple';
+        colorIndicador = 'ind-purple';
+    } else if (al.estado_agenda === 'Pre-alta Pendiente') {
+        txtEstado = 'ALTA PENDIENTE';
+        colorBadge = 'bg-green-1';
+        colorIndicador = 'ind-green-1';
+    } else if (al.estado_agenda === 'Pre-alta Iniciada') {
+        txtEstado = 'ALTA EN CURSO';
+        colorBadge = 'bg-green-2';
+        colorIndicador = 'ind-green-2';
+    } else if (al.estado_agenda === 'Altas Incompletas') {
+        txtEstado = 'ALTA CONFIRMADA INCOMPLETA';
+        colorBadge = 'bg-green-3';
+        colorIndicador = 'ind-green-3';
+    } else if (al.estado_agenda === 'Alta Efectiva' || al.estado_agenda === 'Alta Ilegal' || al.estado_agenda === 'Alta Finalizada') {
+        let checks = al.checklist_alta || [];
+        if (checks.filter(Boolean).length === 5 || al.estado_agenda === 'Alta Finalizada') {
+            colorBadge = 'bg-green-4';
+            txtEstado = 'ALTA FINALIZADA';
+            colorIndicador = 'ind-green-4';
+        } else {
+            colorBadge = 'bg-green-3';
+            txtEstado = 'ALTA CONFIRMADA INCOMPLETA';
+            colorIndicador = 'ind-green-3';
+        }
+    } else if (al.estado_agenda && (al.estado_agenda.includes('suspendida') || al.estado_agenda === 'Alta Suspendida')) {
+        txtEstado = al.estado_agenda.toUpperCase();
+        colorBadge = 'bg-red';
+        colorIndicador = 'ind-red';
+    }
 
     fechaCalculo = getFechaReferenciaAlumno(al);
 
     if (fechaCalculo) {
         let diffHs = (fechaCalculo - new Date()) / (1000 * 60 * 60);
         if (diffHs < 0) { 
-            colorIndicador = 'ind-gray'; claseTexto = 'text-gray'; 
+            claseTexto = 'text-gray'; 
             let horas = Math.abs(Math.round(diffHs));
             txtTiempo = horas > 24 ? `Vencida hace ${Math.round(horas/24)} d` : `Vencida hace ${horas} hs`;
         } else if (diffHs <= 24) { 
-            colorIndicador = 'ind-red'; claseTexto = 'text-red'; 
+            claseTexto = 'text-red'; 
             txtTiempo = `Faltan ${Math.round(diffHs)} hs`;
         } else if (diffHs <= 48) { 
-            colorIndicador = 'ind-yellow'; claseTexto = 'text-yellow'; 
+            claseTexto = 'text-yellow'; 
             txtTiempo = `Faltan ${Math.round(diffHs)} hs`;
         } else { 
-            colorIndicador = 'ind-teal'; claseTexto = 'text-teal'; 
+            claseTexto = 'text-teal'; 
             txtTiempo = `Faltan ${Math.round(diffHs/24)} d`;
         }
     }
-
-    if (al.estado_agenda === 'Pendiente procesar') colorBadge = 'bg-gray';
-    else if (al.estado_agenda.includes('Validando')) colorBadge = 'bg-blue';
-    else if (al.estado_agenda === 'Agenda confirmada') colorBadge = 'bg-teal';
-    else if (al.estado_agenda === 'Lista de espera') colorBadge = 'bg-gray';
-    else if (al.estado_agenda === 'Pre-alta Pendiente') colorBadge = 'bg-blue';
-    else if (al.estado_agenda === 'Pre-alta Iniciada') colorBadge = 'bg-yellow';
-    else if (al.estado_agenda === 'Alta Efectiva' || al.estado_agenda === 'Alta Ilegal' || al.estado_agenda === 'Alta Finalizada') {
-        let checks = al.checklist_alta || [];
-        if (checks.filter(Boolean).length === 5 || al.estado_agenda === 'Alta Finalizada') {
-            colorBadge = 'bg-teal';
-            txtEstado = 'Alta Finalizada';
-            colorIndicador = 'ind-teal';
-        } else {
-            colorBadge = 'bg-red';
-            txtEstado = 'Alta Confirmada Incompleta';
-            colorIndicador = 'ind-red';
-        }
-    }
-    else if (al.estado_agenda.includes('suspendida') || al.estado_agenda === 'Alta Suspendida') { colorBadge = 'bg-red'; colorIndicador = 'ind-red'; }
 
     return { colorIndicador, colorBadge, claseTexto, txtTiempo, txtEstado };
 }
@@ -1753,7 +1784,7 @@ async function cargarVista(vista) {
             document.getElementById('dashboard-flow-chart-container').style.display = 'block';
             let flowLabels = configNodosFlujo.map(n => n.label);
             let flowData = configNodosFlujo.map(n => allData.filter(d => n.filterFn ? n.filterFn(d) : d.estado_agenda === n.id).length);
-            let phaseColors = configNodosFlujo.map(n => n.color === 'phase-1' ? '#1f5491' : (n.color === 'phase-2' ? '#e5a93d' : '#007b8f'));
+            let phaseColors = configNodosFlujo.map(n => n.hexColor || '#1f5491');
             
             if(chartFlowDashboardInst) chartFlowDashboardInst.destroy();
             chartFlowDashboardInst = new Chart(document.getElementById('chartFlowDashboard'), { 
@@ -2038,7 +2069,7 @@ async function renderCharts() {
         
         let flowLabels = configNodosFlujo.map(n => n.label);
         let flowData = configNodosFlujo.map(n => allData.filter(d => n.filterFn ? n.filterFn(d) : d.estado_agenda === n.id).length);
-        let phaseColors = configNodosFlujo.map(n => n.color === 'phase-1' ? '#1f5491' : (n.color === 'phase-2' ? '#e5a93d' : '#007b8f'));
+        let phaseColors = configNodosFlujo.map(n => n.hexColor || '#1f5491');
 
         let entConf = allData.filter(d => d.estado_agenda === 'Agenda confirmada').length;
         let entSusp = allData.filter(d => d.estado_agenda === 'Agenda suspendida').length;

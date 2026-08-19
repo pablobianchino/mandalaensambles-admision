@@ -280,27 +280,71 @@ body {
 }
 .timeline-line { 
     position: absolute; top: 40px; left: 5%; width: 90%; height: 3px; z-index: 0; 
-    background: linear-gradient(to right, var(--accent-blue) 0%, var(--accent-blue) 40%, #e5a93d 40%, #e5a93d 50%, var(--accent-teal) 50%, var(--accent-teal) 100%);
+    background: linear-gradient(to right, #74a9d8 0%, #134b8c 38%, #e5a93d 42%, #8e44ad 56%, #5cc88a 68%, #0d5c30 100%);
 }
 .timeline-node { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; cursor: pointer; flex: 1; min-width: 85px; }
 .timeline-circle { width: 45px; height: 45px; border-radius: 50%; background: var(--bg-main); border: 3px solid var(--border-color); display: flex; align-items: center; justify-content: center; font-size: 1.2em; transition: 0.3s ease; color: var(--text-muted); }
 .timeline-label { margin-top: 12px; font-weight: 700; font-size: 11px; color: var(--text-muted); text-align: center; font-family: inherit; line-height: 1.15; white-space: normal; max-width: 95px; }
 .timeline-count { position: absolute; top: -10px; color: white; border-radius: 12px; padding: 2px 8px; font-size: 11px; font-weight: 800; font-family: 'Geist Mono', monospace; transition: 0.3s; }
 
+/* Nodos Timeline con Degradé por Etapa */
+.node-blue-1 .timeline-circle { border-color: #74a9d8; }
+.node-blue-1.active .timeline-circle { background: white; box-shadow: 0 4px 12px rgba(116, 169, 216, 0.3); transform: scale(1.15); }
+.node-blue-1 .timeline-count { background: #74a9d8; }
+.node-blue-1.active .timeline-label { color: var(--text-main); }
+
+.node-blue-2 .timeline-circle { border-color: #4a8cd2; }
+.node-blue-2.active .timeline-circle { background: white; box-shadow: 0 4px 12px rgba(74, 140, 210, 0.3); transform: scale(1.15); }
+.node-blue-2 .timeline-count { background: #4a8cd2; }
+.node-blue-2.active .timeline-label { color: var(--text-main); }
+
+.node-blue-3 .timeline-circle { border-color: #256bbb; }
+.node-blue-3.active .timeline-circle { background: white; box-shadow: 0 4px 12px rgba(37, 107, 187, 0.3); transform: scale(1.15); }
+.node-blue-3 .timeline-count { background: #256bbb; }
+.node-blue-3.active .timeline-label { color: var(--text-main); }
+
+.node-blue-4 .timeline-circle { border-color: #134b8c; }
+.node-blue-4.active .timeline-circle { background: white; box-shadow: 0 4px 12px rgba(19, 75, 140, 0.3); transform: scale(1.15); }
+.node-blue-4 .timeline-count { background: #134b8c; }
+.node-blue-4.active .timeline-label { color: var(--text-main); }
+
+.node-amber .timeline-circle { border-color: #e5a93d; }
+.node-amber.active .timeline-circle { background: white; box-shadow: 0 4px 12px rgba(229, 169, 61, 0.3); transform: scale(1.15); }
+.node-amber .timeline-count { background: #e5a93d; }
+.node-amber.active .timeline-label { color: var(--text-main); }
+
+.node-purple .timeline-circle { border-color: #8e44ad; }
+.node-purple.active .timeline-circle { background: white; box-shadow: 0 4px 12px rgba(142, 68, 173, 0.3); transform: scale(1.15); }
+.node-purple .timeline-count { background: #8e44ad; }
+.node-purple.active .timeline-label { color: var(--text-main); }
+
+.node-green-1 .timeline-circle { border-color: #5cc88a; }
+.node-green-1.active .timeline-circle { background: white; box-shadow: 0 4px 12px rgba(92, 200, 138, 0.3); transform: scale(1.15); }
+.node-green-1 .timeline-count { background: #5cc88a; }
+.node-green-1.active .timeline-label { color: var(--text-main); }
+
+.node-green-2 .timeline-circle { border-color: #31a364; }
+.node-green-2.active .timeline-circle { background: white; box-shadow: 0 4px 12px rgba(49, 163, 100, 0.3); transform: scale(1.15); }
+.node-green-2 .timeline-count { background: #31a364; }
+.node-green-2.active .timeline-label { color: var(--text-main); }
+
+.node-green-3 .timeline-circle { border-color: #1b7f47; }
+.node-green-3.active .timeline-circle { background: white; box-shadow: 0 4px 12px rgba(27, 127, 71, 0.3); transform: scale(1.15); }
+.node-green-3 .timeline-count { background: #1b7f47; }
+.node-green-3.active .timeline-label { color: var(--text-main); }
+
+.node-green-4 .timeline-circle { border-color: #0d5c30; }
+.node-green-4.active .timeline-circle { background: white; box-shadow: 0 4px 12px rgba(13, 92, 48, 0.3); transform: scale(1.15); }
+.node-green-4 .timeline-count { background: #0d5c30; }
+.node-green-4.active .timeline-label { color: var(--text-main); }
+
+/* Compatibilidad fases anteriores */
 .phase-1 .timeline-circle { border-color: var(--accent-blue); }
-.phase-1.active .timeline-circle { background: white; box-shadow: 0 4px 12px rgba(31,84,145,0.15); transform: scale(1.15); }
 .phase-1 .timeline-count { background: var(--accent-blue); }
-.phase-1.active .timeline-label { color: var(--text-main); }
-
 .phase-2 .timeline-circle { border-color: #e5a93d; }
-.phase-2.active .timeline-circle { background: white; box-shadow: 0 4px 12px rgba(229,169,61,0.15); transform: scale(1.15); }
 .phase-2 .timeline-count { background: #e5a93d; }
-.phase-2.active .timeline-label { color: var(--text-main); }
-
 .phase-3 .timeline-circle { border-color: var(--accent-teal); }
-.phase-3.active .timeline-circle { background: white; box-shadow: 0 4px 12px rgba(0,123,143,0.15); transform: scale(1.15); }
 .phase-3 .timeline-count { background: var(--accent-teal); }
-.phase-3.active .timeline-label { color: var(--text-main); }
 
 .timeline-tray-container { display: none; padding: 0 15px; margin-bottom: 20px; transition: 0.3s ease; width: 100%; }
 .timeline-tray { background: var(--item-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 15px; position: relative; display: flex; flex-wrap: wrap; gap: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
@@ -315,11 +359,36 @@ body {
    BADGES DE ESTADO Y TEXTOS DE PRIORIDAD
    ======================================================================= */
 .status-badge { display: inline-flex; align-items: center; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
-.bg-red { background: rgba(194, 86, 59, 0.1); color: var(--accent-red); }
-.bg-teal { background: rgba(0, 123, 143, 0.1); color: var(--accent-teal); }
+
+/* Badges con Paleta Coordinada del Flow */
+.bg-blue-1 { background: rgba(116, 169, 216, 0.22); color: #205586; }
+.bg-blue-2 { background: rgba(74, 140, 210, 0.22); color: #164880; }
+.bg-blue-3 { background: rgba(37, 107, 187, 0.22); color: #0d3668; }
+.bg-blue-4 { background: rgba(19, 75, 140, 0.22); color: #072346; }
+.bg-amber { background: rgba(229, 169, 61, 0.22); color: #9c6710; }
+.bg-purple { background: rgba(142, 68, 173, 0.22); color: #5c2477; }
+.bg-green-1 { background: rgba(92, 200, 138, 0.22); color: #1d6e3c; }
+.bg-green-2 { background: rgba(49, 163, 100, 0.22); color: #12552d; }
+.bg-green-3 { background: rgba(27, 127, 71, 0.22); color: #0c4322; }
+.bg-green-4 { background: rgba(13, 92, 48, 0.22); color: #052b14; }
+
+/* Indicadores de Fila Coordinados */
+.ind-blue-1 { background: #74a9d8; }
+.ind-blue-2 { background: #4a8cd2; }
+.ind-blue-3 { background: #256bbb; }
+.ind-blue-4 { background: #134b8c; }
+.ind-amber { background: #e5a93d; }
+.ind-purple { background: #8e44ad; }
+.ind-green-1 { background: #5cc88a; }
+.ind-green-2 { background: #31a364; }
+.ind-green-3 { background: #1b7f47; }
+.ind-green-4 { background: #0d5c30; }
+
+.bg-red { background: rgba(194, 86, 59, 0.15); color: var(--accent-red); }
+.bg-teal { background: rgba(0, 123, 143, 0.15); color: var(--accent-teal); }
 .bg-yellow { background: rgba(229, 169, 61, 0.15); color: #c28c2e; }
-.bg-blue { background: rgba(31, 84, 145, 0.1); color: var(--accent-blue); }
-.bg-gray { background: rgba(138, 144, 151, 0.1); color: var(--text-muted); }
+.bg-blue { background: rgba(31, 84, 145, 0.15); color: var(--accent-blue); }
+.bg-gray { background: rgba(138, 144, 151, 0.15); color: var(--text-muted); }
 
 .priority-text { font-size: 11.5px; font-weight: 700; }
 .text-red { color: var(--accent-red); }
