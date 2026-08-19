@@ -5015,31 +5015,6 @@ document.getElementById('btn-guardar-abm-edit').addEventListener('click', async 
     }
     
     setBotonCargando(btnTarget, false); 
-});entById('abm-edit-entrevista').checked; 
-        dO.grupales = document.getElementById('abm-edit-grupales').checked; 
-        dO.ensambles = document.getElementById('abm-edit-ensambles').checked; 
-        
-        const selSkills = document.getElementById('abm-edit-skills');
-        dO.skills = Array.from(selSkills.selectedOptions).map(o => o.value);
-
-        const disp = {}; const hApe = configApp.hora_apertura || '09:00'; const hCie = configApp.hora_cierre || '22:00'; 
-        diasSemana.forEach(d => { 
-            const cA = document.getElementById(`disp-p-${d.id}-all`).checked, cN = document.getElementById(`disp-p-${d.id}-none`).checked; 
-            let i = document.getElementById(`disp-p-${d.id}-inicio`).value, f = document.getElementById(`disp-p-${d.id}-fin`).value; 
-            if(cN) disp[d.id] = []; else if(cA) disp[d.id] = [{inicio:hApe, fin:hCie}]; else { if(i||f) disp[d.id] = [{inicio: i||hApe, fin: f||hCie}]; else disp[d.id] = []; } 
-        }); 
-        dO.disponibilidad = disp; 
-    } 
-    
-    try {
-        await updateDoc(doc(db, col, id), dO); 
-        document.getElementById('modal-abm-edit').close(); 
-        await cargarVista('ABM-' + window.tituloABMActual); 
-    } catch(err) {
-        alert("Error al guardar: " + err.message);
-    }
-    
-    setBotonCargando(btnTarget, false); 
 });
 
 document.querySelectorAll('#sidebar .nav-item, #sidebar .nav-item-small').forEach(item => { 
