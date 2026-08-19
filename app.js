@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-const APP_VERSION = "v4.2.0"; // Feature: Agrupaciones iteradas (3 niveles), Propuesta manual de grupo desde Espera con validación Match, y rol Entrevistador vs Profe
+const APP_VERSION = "v4.4.0"; // Feature: Copiar a Sheets (BD y Facturación) + Rediseño ABM Profesores con Modal y etiquetas Evaluador
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 const firebaseConfig = {
@@ -175,7 +175,7 @@ let historialActual = [];
 
 const configNodosFlujo = [
     { id: 'Pendiente procesar', label: 'Sin Agendar', icon: '⏳', color: 'phase-1', vistaDestino: 'Inbox - Pendientes' },
-    { id: 'Pendiente validación por profe', label: 'Validando con Profesor', icon: '👨‍🏫', color: 'phase-1', vistaDestino: 'Inbox - En Validacion' },
+    { id: 'Pendiente validación por profe', label: 'Validando con Evaluador', icon: '👨‍🏫', color: 'phase-1', vistaDestino: 'Inbox - En Validacion' },
     { id: 'Pendiente validación por alumno', label: 'Validando con Alumno', icon: '🧑‍🎓', color: 'phase-1', vistaDestino: 'Inbox - En Validacion' },
     { id: 'Agenda confirmada', label: 'Entrevista Confirmada', icon: '✅', color: 'phase-1', vistaDestino: 'Inbox - Confirmadas' },
     { id: 'Lista de espera', label: 'Lista de Espera', icon: '🛋️', color: 'phase-2', vistaDestino: 'Lista de Espera' },
@@ -624,13 +624,13 @@ function generarBotonesAccion(al, id) {
 
     if (al.estado_agenda === 'Pendiente procesar') { accionesHtml += `<button type="button" class="dropdown-item btn-buscar-agenda" data-id="${id}">🔍 Buscar Agenda</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-abrir-suspender" data-id="${id}">⏸️ Suspender</button>`; } 
     else if (al.estado_agenda === 'Pendiente validación por profe') {
-        accionesHtml += `<button type="button" class="dropdown-item btn-validado-profe-popup" data-id="${id}">✅ Validado por Profesor</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-reenviar-profe" data-id="${id}">📤 Re-enviar a Profe</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-cancelar-reserva" data-id="${id}">❌ Cancelar Validación</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-abrir-suspender" data-id="${id}">⏸️ Suspender</button>`; 
+        accionesHtml += `<button type="button" class="dropdown-item btn-validado-profe-popup" data-id="${id}">✅ Validado por Evaluador</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-reenviar-profe" data-id="${id}">📤 Re-enviar a Evaluador</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-cancelar-reserva" data-id="${id}">❌ Cancelar Validación</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-abrir-suspender" data-id="${id}">⏸️ Suspender</button>`; 
     } 
     else if (al.estado_agenda === 'Pendiente validación por alumno') {
         accionesHtml += `<button type="button" class="dropdown-item btn-confirmar-entrevista" data-id="${id}">✅ Confirmar Agenda</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-reenviar-alumno" data-id="${id}">📤 Re-Enviar a Alumno</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-cancelar-reserva" data-id="${id}">❌ Cancelar Agenda</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-abrir-suspender" data-id="${id}">⏸️ Suspender</button>`; 
     }
     else if (al.estado_agenda === 'Agenda confirmada') {
-        accionesHtml += `<button type="button" class="dropdown-item btn-admision-finalizada" data-id="${id}">🏁 Admisión Finalizada</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-enviar-conf-profe" data-id="${id}">📤 Re-Enviar conf. a Profe</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-enviar-conf-alumno" data-id="${id}">📤 Re-Enviar conf. a Alumno</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-cancelar-reserva" data-id="${id}">↩️ Cancelar Confirmación</button>`;
+        accionesHtml += `<button type="button" class="dropdown-item btn-admision-finalizada" data-id="${id}">🏁 Admisión Finalizada</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-enviar-conf-profe" data-id="${id}">📤 Re-Enviar conf. a Evaluador</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-enviar-conf-alumno" data-id="${id}">📤 Re-Enviar conf. a Alumno</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-cancelar-reserva" data-id="${id}">↩️ Cancelar Confirmación</button>`;
     }
     else if (al.estado_agenda === 'Agenda suspendida') {
         accionesHtml += `<button type="button" class="dropdown-item btn-recuperar-agenda" data-id="${id}">♻️ Recuperar Agenda</button>`;
@@ -647,9 +647,13 @@ function generarBotonesAccion(al, id) {
         accionesHtml += `<button type="button" class="dropdown-item btn-abrir-prealta" data-id="${id}">⚙️ Iniciar Pre-Alta</button>`;
         accionesHtml += `<button type="button" class="dropdown-item btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
         accionesHtml += `<button type="button" class="dropdown-item btn-suspender-alta" data-id="${id}">❌ Suspender</button>`;
+        accionesHtml += `<button type="button" class="dropdown-item" onclick="window.copiarFilaExcelBD('${id}')">📋 Copiar Fila BD (Sheets)</button>`;
+        accionesHtml += `<button type="button" class="dropdown-item" onclick="window.copiarFilaExcelFacturacion('${id}')">💰 Copiar Fila Facturación</button>`;
     }
     else if (al.estado_agenda === 'Pre-alta Iniciada') {
         accionesHtml += `<button type="button" class="dropdown-item btn-abrir-confirmar-alta" data-id="${id}">✅ Confirmar Alta</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-reenviar-prealta" data-id="${id}">📤 Copiar texto Pre-Alta</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${al.grupo_asignado||''}">✏️ Editar Pre-Alta</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-suspender-alta" data-id="${id}">❌ Suspender Alta</button>`;
+        accionesHtml += `<button type="button" class="dropdown-item" onclick="window.copiarFilaExcelBD('${id}')">📋 Copiar Fila BD (Sheets)</button>`;
+        accionesHtml += `<button type="button" class="dropdown-item" onclick="window.copiarFilaExcelFacturacion('${id}')">💰 Copiar Fila Facturación</button>`;
     }
     else if (al.estado_agenda === 'Alta Efectiva' || al.estado_agenda === 'Alta Ilegal' || al.estado_agenda === 'Alta Finalizada') {
         let checks = al.checklist_alta || [];
@@ -659,6 +663,8 @@ function generarBotonesAccion(al, id) {
         }
         accionesHtml += `<button type="button" class="dropdown-item btn-reenviar-alta" data-id="${id}">📤 Copiar texto Alta Conf.</button>`;
         accionesHtml += `<button type="button" class="dropdown-item btn-suspender-alta" data-id="${id}">❌ Suspender Alta</button>`;
+        accionesHtml += `<button type="button" class="dropdown-item" onclick="window.copiarFilaExcelBD('${id}')">📋 Copiar Fila BD (Sheets)</button>`;
+        accionesHtml += `<button type="button" class="dropdown-item" onclick="window.copiarFilaExcelFacturacion('${id}')">💰 Copiar Fila Facturación</button>`;
     }
     else if (al.estado_agenda === 'Alta Suspendida') {
         accionesHtml += `<button type="button" class="dropdown-item btn-devolver-espera" data-id="${id}">♻️ Enviar a Espera</button>`;
@@ -792,7 +798,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                     ${dispHtml}
                     ${checklistHtml}
                     <div class="row-meta">
-                        <div>${(estadoActualVista && estadoActualVista.startsWith('Inbox')) ? 'Entrevistador' : 'Profe'}: <strong style="color:var(--text-main);">${al.reserva_profe_nombre || '-'}</strong></div>
+                        <div>${((estadoActualVista && (estadoActualVista.startsWith('Inbox') || estadoActualVista === 'Lista de Espera' || estadoActualVista === 'Dashboard')) || ['Pendiente procesar', 'Pendiente validación por profe', 'Pendiente validación por alumno', 'Agenda confirmada', 'Agenda suspendida', 'Lista de espera'].includes(al.estado_agenda)) ? 'Evaluador' : 'Profe'}: <strong style="color:var(--text-main);">${al.reserva_profe_nombre || '-'}</strong></div>
                         ${al.grupo_asignado ? `<div>Grupo: <strong style="color:var(--accent-teal);">${al.grupo_asignado}</strong></div>` : ''}
                         ${fechaMetaHtml}
                         <div class="priority-text ${info.claseTexto}" style="margin-top:2px;">${info.txtTiempo}</div>
@@ -864,12 +870,17 @@ window.toggleBulkSelection = function(id, isChecked) {
 function actualizarBulkBar() {
     const bar = document.getElementById('bulk-actions-bar');
     const btnProp = document.getElementById('btn-bulk-propuesta-grupo');
+    const btnBD = document.getElementById('btn-bulk-copiar-bd');
+    const btnFact = document.getElementById('btn-bulk-copiar-fact');
     if (selectedBulkIds.length > 0) {
         document.getElementById('bulk-count').textContent = `${selectedBulkIds.length} seleccionados`;
         bar.style.display = 'flex';
         if (btnProp) {
             btnProp.style.display = (estadoActualVista === 'Lista de Espera' || selectedBulkIds.length >= 2) ? 'inline-block' : 'none';
         }
+        const esAltas = estadoActualVista && estadoActualVista.startsWith('Altas');
+        if (btnBD) btnBD.style.display = esAltas ? 'inline-block' : 'none';
+        if (btnFact) btnFact.style.display = esAltas ? 'inline-block' : 'none';
     } else {
         bar.style.display = 'none';
     }
@@ -899,6 +910,185 @@ document.getElementById('btn-bulk-suspender').addEventListener('click', async ()
     actualizarBulkBar();
     cargarVista(estadoActualVista);
 });
+
+// =======================================================================
+// EXPORTACIÓN Y COPIADO PARA EXCEL / GOOGLE SHEETS (BD Y FACTURACIÓN)
+// =======================================================================
+
+function formatearFechaAltaParaExcel(al) {
+    if (al.fecha_alta_confirmada) {
+        const d = new Date(al.fecha_alta_confirmada);
+        if (!isNaN(d.getTime())) return `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;
+    }
+    if (al.fecha_alta_finalizada) {
+        const d = new Date(al.fecha_alta_finalizada);
+        if (!isNaN(d.getTime())) return `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;
+    }
+    if (al.fecha_prealta) {
+        const d = new Date(al.fecha_prealta);
+        if (!isNaN(d.getTime())) return `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;
+    }
+    const now = new Date();
+    return `${now.getDate().toString().padStart(2,'0')}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getFullYear()}`;
+}
+
+function formatearFechaInicioParaExcel(al) {
+    if (al.fecha_inicio_clases) {
+        const d = new Date(al.fecha_inicio_clases);
+        if (!isNaN(d.getTime())) {
+            const dia = d.getDate().toString().padStart(2, '0');
+            const mes = (d.getMonth() + 1).toString().padStart(2, '0');
+            const hora = d.getHours().toString().padStart(2, '0');
+            const min = d.getMinutes().toString().padStart(2, '0');
+            return `${dia}/${mes} ${hora}:${min}`;
+        }
+    }
+    if (al.dia_match && al.horario_inicio_match) {
+        return `${al.dia_match} ${al.horario_inicio_match}`;
+    }
+    return al.reserva_fecha_texto || "";
+}
+
+window.generarFilaExcelBD = function(al) {
+    const instFinal = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento[0] : (al.instrumento || ''));
+    const pagoStr = al.estado_agenda === 'Alta Efectiva' ? 'SI' : (al.estado_agenda === 'Alta Ilegal' ? 'NO' : '');
+    const fechaAlta = formatearFechaAltaParaExcel(al);
+    const fechaInicio = formatearFechaInicioParaExcel(al);
+
+    // Columnas según especificación:
+    // 1: Alumno
+    // 2: Profesor
+    // 3: Día (Vacío)
+    // 4: Ensamble (nombre grupo o "Individual")
+    // 5: Nivel del Ensamble
+    // 6: Instrumento
+    // 7: Clase (tipo_suscripcion)
+    // 8: Subclase (Vacío)
+    // 9: Estado ("Alta")
+    // 10: Pagó? (SI / NO)
+    // 11: Facturación (Vacío)
+    // 12: CUIT (Vacío)
+    // 13: En lista de difusión? (Vacío)
+    // 14: Fecha de Alta (DD/MM/YYYY)
+    // 15: Fecha de Baja (Vacío)
+    // 16: Fecha de Inicio de clases (DD/MM HH:mm)
+    return [
+        al.nombre || '',
+        al.reserva_profe_nombre || '',
+        '',
+        al.grupo_asignado || 'Individual',
+        al.nivel || '',
+        instFinal,
+        al.tipo_suscripcion || '',
+        '',
+        'Alta',
+        pagoStr,
+        '',
+        '',
+        '',
+        fechaAlta,
+        '',
+        fechaInicio
+    ].join('\t');
+};
+
+window.generarFilaExcelFacturacion = function(al) {
+    // Columnas según especificación:
+    // 1: Alumno
+    // 2: Profe
+    // 3: Clase (nombre de grupo o "Individual")
+    // 4: Cuota esperada (Vacío)
+    // 5: Pago real (Vacío)
+    // 6: Pago real esperado (Vacío)
+    // 7: Descuento (Vacío)
+    // 8: Proporcional (Vacío)
+    // 9: Observación (Vacío)
+    // 10: A quién pagó (Vacío)
+    // 11: Forma de pago (Vacío)
+    // 12: Moroso? (Vacío)
+    return [
+        al.nombre || '',
+        al.reserva_profe_nombre || '',
+        al.grupo_asignado || 'Individual',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        ''
+    ].join('\t');
+};
+
+window.copiarFilaExcelBD = async function(id) {
+    try {
+        const alDoc = await getDoc(doc(db, "alumnos", id));
+        if (!alDoc.exists()) return alert("Alumno no encontrado.");
+        const al = alDoc.data();
+        const fila = window.generarFilaExcelBD(al);
+        await navigator.clipboard.writeText(fila);
+        alert(`📋 Fila para BD de GoogleSheet copiada al portapapeles:\n\n${fila}`);
+    } catch(err) {
+        alert("Error al copiar fila: " + err.message);
+    }
+};
+
+window.copiarFilaExcelFacturacion = async function(id) {
+    try {
+        const alDoc = await getDoc(doc(db, "alumnos", id));
+        if (!alDoc.exists()) return alert("Alumno no encontrado.");
+        const al = alDoc.data();
+        const fila = window.generarFilaExcelFacturacion(al);
+        await navigator.clipboard.writeText(fila);
+        alert(`💰 Fila para Facturación de GoogleSheet copiada al portapapeles:\n\n${fila}`);
+    } catch(err) {
+        alert("Error al copiar fila: " + err.message);
+    }
+};
+
+window.copiarSeleccionExcelBD = async function() {
+    if (selectedBulkIds.length === 0) return alert("Seleccioná al menos un alumno.");
+    try {
+        let filas = [];
+        for (const id of selectedBulkIds) {
+            const alDoc = await getDoc(doc(db, "alumnos", id));
+            if (alDoc.exists()) {
+                filas.push(window.generarFilaExcelBD(alDoc.data()));
+            }
+        }
+        const textoCompleto = filas.join('\n');
+        await navigator.clipboard.writeText(textoCompleto);
+        alert(`📋 ${filas.length} fila(s) para BD de GoogleSheet copiadas al portapapeles. ¡Listo para pegar en Sheets!`);
+    } catch(err) {
+        alert("Error al copiar selección: " + err.message);
+    }
+};
+
+window.copiarSeleccionExcelFacturacion = async function() {
+    if (selectedBulkIds.length === 0) return alert("Seleccioná al menos un alumno.");
+    try {
+        let filas = [];
+        for (const id of selectedBulkIds) {
+            const alDoc = await getDoc(doc(db, "alumnos", id));
+            if (alDoc.exists()) {
+                filas.push(window.generarFilaExcelFacturacion(alDoc.data()));
+            }
+        }
+        const textoCompleto = filas.join('\n');
+        await navigator.clipboard.writeText(textoCompleto);
+        alert(`💰 ${filas.length} fila(s) para Facturación de GoogleSheet copiadas al portapapeles. ¡Listo para pegar en Sheets!`);
+    } catch(err) {
+        alert("Error al copiar selección: " + err.message);
+    }
+};
+
+const btnBulkCopiarBD = document.getElementById('btn-bulk-copiar-bd');
+if (btnBulkCopiarBD) btnBulkCopiarBD.addEventListener('click', window.copiarSeleccionExcelBD);
+
+const btnBulkCopiarFact = document.getElementById('btn-bulk-copiar-fact');
+if (btnBulkCopiarFact) btnBulkCopiarFact.addEventListener('click', window.copiarSeleccionExcelFacturacion);
 
 // =======================================================================
 // NUEVA PROPUESTA DE GRUPO MANUAL (DESDE LISTA DE ESPERA)
@@ -1280,8 +1470,8 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
             else if (criterio === 'nivel') clave = al.nivel || clave;
             else if (criterio === 'suscripcion') clave = al.tipo_suscripcion || clave;
             else if (criterio === 'profe') {
-                const esInbox = estadoActualVista && estadoActualVista.startsWith('Inbox');
-                clave = al.reserva_profe_nombre || (esInbox ? 'Sin Entrevistador' : 'Sin Profesor');
+                const esEtapaAdmision = (estadoActualVista && (estadoActualVista.startsWith('Inbox') || estadoActualVista === 'Lista de Espera' || estadoActualVista === 'Dashboard')) || (['Pendiente procesar', 'Pendiente validación por profe', 'Pendiente validación por alumno', 'Agenda confirmada', 'Agenda suspendida', 'Lista de espera'].includes(al.estado_agenda));
+                clave = al.reserva_profe_nombre || (esEtapaAdmision ? 'Sin Evaluador' : 'Sin Profesor');
             }
             return clave;
         }
@@ -4662,78 +4852,73 @@ document.getElementById('form-alumno').addEventListener('submit', async (e) => {
 async function cargarABM(coleccion, titulo, cont) { 
     window.tituloABMActual = titulo; 
     const qS = await getDocs(collection(db, coleccion));
-    let h = `<div style="margin-bottom:25px; font-size:0.9em; color:var(--text-muted);"><span style="cursor:pointer; color:var(--accent-teal);" onclick="cargarVista('Configuración')">Configuración</span> &gt; <strong style="color:var(--text-main);">${titulo}</strong></div> <div style="display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap; padding:25px; background:white; border-radius:12px; border:1px solid var(--border-color); margin-bottom:20px;"><div style="flex-grow:1; min-width:180px;"><label>${coleccion === 'usuarios_sistema' ? 'Correo' : 'Nombre'}</label><input type="text" id="input-nuevo-abm" class="modern-input"></div>`; 
+    let h = `<div style="margin-bottom:25px; font-size:0.9em; color:var(--text-muted);"><span style="cursor:pointer; color:var(--accent-teal);" onclick="cargarVista('Configuración')">Configuración</span> &gt; <strong style="color:var(--text-main);">${titulo}</strong></div>`; 
     
-    let selectInstHtml = '';
-    if(coleccion === 'profesores') { 
-        const iS = await getDocs(collection(db, "instrumentos"));
-        let opts = '';
-        iS.forEach(d => opts += `<option value="${d.data().nombre}">${d.data().nombre}</option>`);
-        selectInstHtml = `<div style="flex-grow:1; min-width:100%; margin-top:10px;"><label style="margin-bottom:8px;">Skills (Instrumentos que enseña)</label><select id="input-skills-abm" multiple style="display:none;">${opts}</select><div id="chips-skills-abm"></div></div>`;
-        
-        h += `<div style="flex-grow:1; min-width:200px;"><label>Email Calendar</label><input type="email" id="input-correo-abm" class="modern-input"></div><div style="flex-grow:1; min-width:150px;"><label>Celular</label><input type="text" id="input-celular-abm" class="modern-input"></div><div style="flex-grow:1; min-width:150px;"><label>Alias</label><input type="text" id="input-alias-abm" class="modern-input"></div>
-        <div style="flex-grow:1; min-width:100%; display:flex; flex-wrap:wrap; gap:15px; margin-top:10px; padding:15px; background:var(--hover-bg); border-radius:8px; border:1px solid var(--border-color);">
-            <label style="display:flex; align-items:center; gap:6px; cursor:pointer; text-transform:none; margin:0; font-weight:600;"><input type="checkbox" id="input-entrevista-abm" checked style="width:18px;height:18px; accent-color:var(--accent-teal);"> Apto para entrevistas</label>
-            <label style="display:flex; align-items:center; gap:6px; cursor:pointer; text-transform:none; margin:0; font-weight:600;"><input type="checkbox" id="input-grupales-abm" style="width:18px;height:18px; accent-color:var(--accent-teal);"> Apto para clases grupales</label>
-            <label style="display:flex; align-items:center; gap:6px; cursor:pointer; text-transform:none; margin:0; font-weight:600;"><input type="checkbox" id="input-ensambles-abm" style="width:18px;height:18px; accent-color:var(--accent-teal);"> Apto para ensambles</label>
-        </div>${selectInstHtml}`; 
-    } 
-    h += `<button id="btn-guardar-abm" class="btn-primary" style="height:42px;">+ Agregar</button></div>`; 
+    if (coleccion === 'profesores') {
+        h += `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
+                <div style="font-size:1.1em; font-weight:700; color:var(--text-main);">Listado de Profesores</div>
+                <button type="button" id="btn-nuevo-profesor-modal" class="btn-primary" style="height:38px; padding:0 16px; font-size:13px; font-weight:700;">➕ Nuevo Profesor</button>
+            </div>
+        `;
+    } else {
+        h += `<div style="display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap; padding:25px; background:white; border-radius:12px; border:1px solid var(--border-color); margin-bottom:20px;"><div style="flex-grow:1; min-width:180px;"><label>${coleccion === 'usuarios_sistema' ? 'Correo' : 'Nombre'}</label><input type="text" id="input-nuevo-abm" class="modern-input"></div><button id="btn-guardar-abm" class="btn-primary" style="height:42px;">+ Agregar</button></div>`; 
+    }
     
     qS.forEach(d => { 
         const dt = d.data(); 
         let displayNom = dt.nombre || dt.email; 
         
         let tags = [];
-        if(dt.entrevista) tags.push('Entrevistas');
+        if(dt.entrevista) tags.push('Evaluador');
         if(dt.grupales) tags.push('Grupales');
         if(dt.ensambles) tags.push('Ensambles');
 
-        let ex = coleccion==='profesores' ? ` <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">${dt.correo_calendario}</div><div style="font-size:11px; color:var(--accent-teal); font-weight:600; margin-top:2px;">${(dt.skills || []).join(' • ')}</div><div style="font-size:10px; color:var(--accent-blue); font-weight:600; margin-top:2px;">${tags.join(' | ')}</div>` : ''; 
+        // Se oculta el ID Calendario en la ficha del profesor
+        let ex = coleccion==='profesores' ? ` <div style="font-size:11px; color:var(--accent-teal); font-weight:600; margin-top:2px;">${(dt.skills || []).join(' • ') || 'Sin skills'}</div><div style="font-size:10px; color:var(--accent-blue); font-weight:600; margin-top:2px;">${tags.join(' | ')}</div>` : ''; 
         h += `<div class="row-item abm-row" onclick="window.abrirEdicionABM('${d.id}', '${coleccion}', '${displayNom}', '${dt.correo_calendario||''}', '${dt.celular||''}', '${dt.alias_transferencia||''}')"><div><strong style="color:var(--text-main); font-size:15px;">${displayNom}</strong>${ex}</div><button class="btn-row-action" onclick="event.stopPropagation(); window.eliminarABM('${d.id}', '${coleccion}')">❌</button></div>`; 
     }); 
     cont.innerHTML = h; 
 
-    if(coleccion === 'profesores') {
-        setTimeout(() => { syncSelectToChips('input-skills-abm', 'chips-skills-abm'); }, 100);
+    if (coleccion === 'profesores') {
+        const btnNuevoProfe = document.getElementById('btn-nuevo-profesor-modal');
+        if (btnNuevoProfe) {
+            btnNuevoProfe.addEventListener('click', () => {
+                window.abrirEdicionABM('', 'profesores', '', '', '', '');
+            });
+        }
+    } else {
+        const btnGuardarSimple = document.getElementById('btn-guardar-abm');
+        if (btnGuardarSimple) {
+            btnGuardarSimple.addEventListener('click', async () => { 
+                const n = document.getElementById('input-nuevo-abm').value.trim(); 
+                if(!n) return; 
+                const dO = coleccion === 'usuarios_sistema' ? { email: n.toLowerCase() } : { nombre: n }; 
+                await addDoc(collection(db, coleccion), dO); 
+                cargarABM(coleccion, titulo, cont); 
+            }); 
+        }
     }
-
-    document.getElementById('btn-guardar-abm').addEventListener('click', async () => { 
-        const n = document.getElementById('input-nuevo-abm').value.trim(); 
-        if(!n) return; 
-        const dO = coleccion === 'usuarios_sistema' ? { email: n.toLowerCase() } : { nombre: n }; 
-        if(coleccion==='profesores'){ 
-            dO.correo_calendario=document.getElementById('input-correo-abm').value.trim(); 
-            dO.celular=document.getElementById('input-celular-abm').value.trim(); 
-            dO.alias_transferencia=document.getElementById('input-alias-abm').value.trim(); 
-            dO.entrevista=document.getElementById('input-entrevista-abm').checked; 
-            dO.grupales=document.getElementById('input-grupales-abm').checked; 
-            dO.ensambles=document.getElementById('input-ensambles-abm').checked; 
-            
-            const selSkills = document.getElementById('input-skills-abm');
-            dO.skills = Array.from(selSkills.selectedOptions).map(o=>o.value);
-
-            const hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00', dispAllDay = [ { inicio: hApe, fin: hCie } ]; 
-            dO.disponibilidad = { 'L': dispAllDay, 'M': dispAllDay, 'X': dispAllDay, 'J': dispAllDay, 'V': dispAllDay, 'S': dispAllDay }; 
-        } 
-        await addDoc(collection(db, coleccion), dO); 
-        cargarABM(coleccion, titulo, cont); 
-    }); 
 }
 
 window.abrirEdicionABM = async function(id, col, nom, cor, cel, ali) { 
-    document.getElementById('abm-edit-id').value = id; 
+    document.getElementById('abm-edit-id').value = id || ''; 
     document.getElementById('abm-edit-coleccion').value = col; 
     document.getElementById('label-abm-edit-nombre').innerHTML = col === 'usuarios_sistema' ? `Correo: <input type="text" id="abm-edit-nombre" class="modern-input" required>` : `Nombre: <input type="text" id="abm-edit-nombre" class="modern-input" required>`; 
-    document.getElementById('abm-edit-nombre').value = nom;
+    document.getElementById('abm-edit-nombre').value = nom || '';
     
+    const tituloModal = document.querySelector('#modal-abm-edit h3');
+    if (tituloModal) {
+        tituloModal.textContent = id ? (col === 'profesores' ? 'Editar Profesor' : 'Editar Elemento') : (col === 'profesores' ? 'Nuevo Profesor' : 'Nuevo Elemento');
+    }
+
     if(col==='profesores') { 
         document.getElementById('div-abm-edit-profe').style.display='block'; 
-        document.getElementById('abm-edit-correo').value=cor; 
-        document.getElementById('abm-edit-celular').value=cel; 
-        document.getElementById('abm-edit-alias').value=ali; 
+        document.getElementById('abm-edit-correo').value = cor || ''; 
+        document.getElementById('abm-edit-celular').value = cel || ''; 
+        document.getElementById('abm-edit-alias').value = ali || ''; 
         
-        document.getElementById('abm-edit-entrevista').checked = false;
+        document.getElementById('abm-edit-entrevista').checked = !id;
         document.getElementById('abm-edit-grupales').checked = false;
         document.getElementById('abm-edit-ensambles').checked = false;
         
@@ -4742,37 +4927,47 @@ window.abrirEdicionABM = async function(id, col, nom, cor, cel, ali) {
         selSkills.innerHTML = '';
         iS.forEach(d => selSkills.innerHTML += `<option value="${d.data().nombre}">${d.data().nombre}</option>`);
 
-        try { 
-            const pr = (await getDoc(doc(db, col, id))).data(); 
-            document.getElementById('abm-edit-entrevista').checked = !!pr.entrevista;
-            document.getElementById('abm-edit-grupales').checked = !!pr.grupales;
-            document.getElementById('abm-edit-ensambles').checked = !!pr.ensambles;
+        if (id) {
+            try { 
+                const pr = (await getDoc(doc(db, col, id))).data(); 
+                document.getElementById('abm-edit-entrevista').checked = !!pr.entrevista;
+                document.getElementById('abm-edit-grupales').checked = !!pr.grupales;
+                document.getElementById('abm-edit-ensambles').checked = !!pr.ensambles;
 
-            Array.from(selSkills.options).forEach(o => o.selected = (pr.skills||[]).includes(o.value));
+                Array.from(selSkills.options).forEach(o => o.selected = (pr.skills||[]).includes(o.value));
+                syncSelectToChips('abm-edit-skills', 'chips-abm-edit-skills');
+
+                const hApe = configApp.hora_apertura || '09:00'; const hCie = configApp.hora_cierre || '22:00'; 
+                diasSemana.forEach(dia => { 
+                    const dD = pr.disponibilidad ? pr.disponibilidad[dia.id] : []; 
+                    const tI = document.getElementById(`disp-p-${dia.id}-inicio`), tF = document.getElementById(`disp-p-${dia.id}-fin`), cA = document.getElementById(`disp-p-${dia.id}-all`), cN = document.getElementById(`disp-p-${dia.id}-none`), sE = document.getElementById(`estado-p-${dia.id}`); 
+                    tI.disabled=false; tF.disabled=false; cA.checked=false; cN.checked=false; sE.textContent=""; 
+                    if (!dD || dD.length===0) { cN.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Bloqueado"; sE.style.color="var(--accent-red)"; } 
+                    else if (dD[0].inicio===hApe && dD[0].fin===hCie) { cA.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Libre"; sE.style.color="var(--accent-teal)"; } 
+                    else { tI.value = dD[0].inicio; tF.value = dD[0].fin; } 
+                }); 
+            } catch(e) {} 
+        } else {
             syncSelectToChips('abm-edit-skills', 'chips-abm-edit-skills');
-
-            const hApe = configApp.hora_apertura || '09:00'; const hCie = configApp.hora_cierre || '22:00'; 
-            diasSemana.forEach(dia => { 
-                const dD = pr.disponibilidad ? pr.disponibilidad[dia.id] : []; 
-                const tI = document.getElementById(`disp-p-${dia.id}-inicio`), tF = document.getElementById(`disp-p-${dia.id}-fin`), cA = document.getElementById(`disp-p-${dia.id}-all`), cN = document.getElementById(`disp-p-${dia.id}-none`), sE = document.getElementById(`estado-p-${dia.id}`); 
-                tI.disabled=false; tF.disabled=false; cA.checked=false; cN.checked=false; sE.textContent=""; 
-                if (!dD || dD.length===0) { cN.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Bloqueado"; sE.style.color="var(--accent-red)"; } 
-                else if (dD[0].inicio===hApe && dD[0].fin===hCie) { cA.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Libre"; sE.style.color="var(--accent-teal)"; } 
-                else { tI.value = dD[0].inicio; tF.value = dD[0].fin; } 
-            }); 
-        } catch(e) {} 
+            const hApe = configApp.hora_apertura || '09:00'; const hCie = configApp.hora_cierre || '22:00';
+            diasSemana.forEach(dia => {
+                const tI = document.getElementById(`disp-p-${dia.id}-inicio`), tF = document.getElementById(`disp-p-${dia.id}-fin`), cA = document.getElementById(`disp-p-${dia.id}-all`), cN = document.getElementById(`disp-p-${dia.id}-none`), sE = document.getElementById(`estado-p-${dia.id}`);
+                tI.disabled=true; tF.disabled=true; cA.checked=true; cN.checked=false; sE.textContent="Libre"; sE.style.color="var(--accent-teal)";
+                tI.value=''; tF.value='';
+            });
+        }
     } else {
         document.getElementById('div-abm-edit-profe').style.display='none'; 
     }
     document.getElementById('modal-abm-edit').showModal(); 
-}
+};
 
 window.eliminarABM = async function(id, col) { 
     if(confirm("¿Eliminar?")) { 
         await deleteDoc(doc(db, col, id)); 
         cargarVista('ABM-' + window.tituloABMActual); 
     } 
-}
+};
 
 document.getElementById('btn-guardar-abm-edit').addEventListener('click', async (e) => { 
     const btnTarget = e.currentTarget;
@@ -4780,14 +4975,47 @@ document.getElementById('btn-guardar-abm-edit').addEventListener('click', async 
     
     const id = document.getElementById('abm-edit-id').value;
     const col = document.getElementById('abm-edit-coleccion').value;
-    const nombreInput = document.getElementById('abm-edit-nombre').value; 
+    const nombreInput = document.getElementById('abm-edit-nombre').value.trim(); 
+    if (!nombreInput) {
+        setBotonCargando(btnTarget, false);
+        return alert("El nombre/correo no puede estar vacío.");
+    }
     const dO = col === 'usuarios_sistema' ? { email: nombreInput.toLowerCase() } : { nombre: nombreInput }; 
     
     if(col === 'profesores') { 
-        dO.correo_calendario = document.getElementById('abm-edit-correo').value; 
-        dO.celular = document.getElementById('abm-edit-celular').value; 
-        dO.alias_transferencia = document.getElementById('abm-edit-alias').value; 
+        dO.correo_calendario = document.getElementById('abm-edit-correo').value.trim(); 
+        dO.celular = document.getElementById('abm-edit-celular').value.trim(); 
+        dO.alias_transferencia = document.getElementById('abm-edit-alias').value.trim(); 
         dO.entrevista = document.getElementById('abm-edit-entrevista').checked; 
+        dO.grupales = document.getElementById('abm-edit-grupales').checked; 
+        dO.ensambles = document.getElementById('abm-edit-ensambles').checked; 
+        
+        const selSkills = document.getElementById('abm-edit-skills');
+        dO.skills = Array.from(selSkills.selectedOptions).map(o => o.value);
+
+        const disp = {}; const hApe = configApp.hora_apertura || '09:00'; const hCie = configApp.hora_cierre || '22:00'; 
+        diasSemana.forEach(d => { 
+            const cA = document.getElementById(`disp-p-${d.id}-all`).checked, cN = document.getElementById(`disp-p-${d.id}-none`).checked; 
+            let i = document.getElementById(`disp-p-${d.id}-inicio`).value, f = document.getElementById(`disp-p-${d.id}-fin`).value; 
+            if(cN) disp[d.id] = []; else if(cA) disp[d.id] = [{inicio:hApe, fin:hCie}]; else { if(i||f) disp[d.id] = [{inicio: i||hApe, fin: f||hCie}]; else disp[d.id] = []; } 
+        }); 
+        dO.disponibilidad = disp; 
+    } 
+    
+    try {
+        if (id) {
+            await updateDoc(doc(db, col, id), dO); 
+        } else {
+            await addDoc(collection(db, col), dO);
+        }
+        document.getElementById('modal-abm-edit').close(); 
+        await cargarVista('ABM-' + window.tituloABMActual); 
+    } catch(err) {
+        alert("Error al guardar: " + err.message);
+    }
+    
+    setBotonCargando(btnTarget, false); 
+});entById('abm-edit-entrevista').checked; 
         dO.grupales = document.getElementById('abm-edit-grupales').checked; 
         dO.ensambles = document.getElementById('abm-edit-ensambles').checked; 
         

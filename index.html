@@ -137,7 +137,7 @@
                             <option value="suscripcion">Suscripción</option>
                             <option value="instrumento">Instrumento</option>
                             <option value="nivel">Nivel</option>
-                            <option value="profe">Entrevistador / Profe</option>
+                            <option value="profe">Evaluador / Profe</option>
                             <option value="grupo">Grupo</option>
                         </select>
                     </div>
@@ -147,7 +147,7 @@
                             <option value="ninguno">Ninguno</option>
                             <option value="instrumento">Instrumento</option>
                             <option value="nivel">Nivel</option>
-                            <option value="profe">Entrevistador / Profe</option>
+                            <option value="profe">Evaluador / Profe</option>
                             <option value="suscripcion">Suscripción</option>
                             <option value="grupo">Grupo</option>
                         </select>
@@ -158,7 +158,7 @@
                             <option value="ninguno">Ninguno</option>
                             <option value="instrumento">Instrumento</option>
                             <option value="nivel">Nivel</option>
-                            <option value="profe">Entrevistador / Profe</option>
+                            <option value="profe">Evaluador / Profe</option>
                             <option value="suscripcion">Suscripción</option>
                             <option value="grupo">Grupo</option>
                         </select>
@@ -347,6 +347,8 @@
         <div id="bulk-actions-bar" style="display:none;">
             <span id="bulk-count">0 seleccionados</span>
             <button id="btn-bulk-propuesta-grupo" class="btn-primary" style="padding:6px 14px; font-size:12.5px; display:none;">➕ Nueva Propuesta de Grupo</button>
+            <button id="btn-bulk-copiar-bd" style="padding:6px 12px; font-size:12px; font-weight:700; border-radius:6px; background:#fff; border:1px solid var(--border-color); color:var(--text-main); cursor:pointer; display:none;">📋 Copiar BD</button>
+            <button id="btn-bulk-copiar-fact" style="padding:6px 12px; font-size:12px; font-weight:700; border-radius:6px; background:#fff; border:1px solid var(--border-color); color:var(--text-main); cursor:pointer; display:none;">💰 Copiar Facturación</button>
             <button id="btn-bulk-suspender">Suspender</button>
             <button id="btn-bulk-cancelar">Cancelar</button>
         </div>
@@ -511,7 +513,7 @@
                     <div style="flex:1;"><label>Desde:</label><input type="date" id="agenda-start" class="modern-input" required></div>
                     <div style="flex:1;"><label>Hasta:</label><input type="date" id="agenda-end" class="modern-input" required></div>
                 </div>
-                <div><label>Profesor(es):</label><select id="agenda-profe-filtro" multiple style="display:none;"></select><div id="chips-profesores"></div></div>
+                <div><label>Evaluador(es):</label><select id="agenda-profe-filtro" multiple style="display:none;"></select><div id="chips-profesores"></div></div>
                 <button id="btn-ejecutar-busqueda" class="btn-primary" style="height:42px;">Buscar Agenda</button>
             </div>
             <input type="text" id="input-buscador-popup" class="modern-input" placeholder="Filtrar resultados..." style="margin-bottom: 15px; display:none;">
@@ -527,7 +529,7 @@
         <div style="padding:24px;">
             <div class="modal-drag-pill"></div>
             <h3 style="margin:0 0 10px 0; color:var(--text-main);">Confirmar Opción Elegida</h3>
-            <p style="color:var(--text-muted); font-size:0.95em;">Selecciona el horario que el profesor validó para reservar en Calendar:</p>
+            <p style="color:var(--text-muted); font-size:0.95em;">Selecciona el horario que el evaluador validó para reservar en Calendar:</p>
             <div id="opciones-validadas-container" style="margin-bottom: 20px; background:var(--hover-bg); padding:15px; border-radius:8px; border:1px solid var(--border-color);"></div>
             <input type="hidden" id="validar-profe-alumno-id">
             <div style="display:flex; gap:10px; justify-content:flex-end;">
@@ -634,7 +636,7 @@
                 <label>Alias Transferencia: <input type="text" id="abm-edit-alias" class="modern-input"></label>
                 
                 <div style="display:flex; flex-wrap:wrap; gap:15px; margin-top:15px; padding:15px; background:var(--hover-bg); border-radius:8px; border:1px solid var(--border-color);">
-                    <label style="cursor:pointer; font-weight:600; display:flex; align-items:center; gap:8px; text-transform:none; margin:0;"><input type="checkbox" id="abm-edit-entrevista" style="width:18px; height:18px; accent-color:var(--accent-teal);"> Apto para entrevistas</label>
+                    <label style="cursor:pointer; font-weight:600; display:flex; align-items:center; gap:8px; text-transform:none; margin:0;"><input type="checkbox" id="abm-edit-entrevista" style="width:18px; height:18px; accent-color:var(--accent-teal);"> Apto para Admisiones</label>
                     <label style="cursor:pointer; font-weight:600; display:flex; align-items:center; gap:8px; text-transform:none; margin:0;"><input type="checkbox" id="abm-edit-grupales" style="width:18px; height:18px; accent-color:var(--accent-teal);"> Apto para clases grupales</label>
                     <label style="cursor:pointer; font-weight:600; display:flex; align-items:center; gap:8px; text-transform:none; margin:0;"><input type="checkbox" id="abm-edit-ensambles" style="width:18px; height:18px; accent-color:var(--accent-teal);"> Apto para ensambles</label>
                 </div>
@@ -818,12 +820,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=4.2.0"></script>
+    <script type="module" src="app.js?v=4.4.0"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=4.2.0').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=4.4.0').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {
