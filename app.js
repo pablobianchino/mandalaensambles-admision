@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-const APP_VERSION = "v3.8.0"; // Google Calendar Sync: Pre-Altas (🚀) y Altas Confirmadas (Individual / Grupal)
+const APP_VERSION = "v4.2.0"; // Feature: Agrupaciones iteradas (3 niveles), Propuesta manual de grupo desde Espera con validación Match, y rol Entrevistador vs Profe
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 const firebaseConfig = {
@@ -29,13 +29,21 @@ let matchCantidadActual = 4;
 let matchGruposSugeridos = [];
 let matchProfesores = []; 
 
-const selAgrupador = document.getElementById('select-agrupador');
-if(selAgrupador) {
-    selAgrupador.addEventListener('change', (e) => {
-        agrupadorActual = e.target.value;
-        cargarVista(estadoActualVista);
-    });
-}
+let agrupadorNivel1 = 'ninguno';
+let agrupadorNivel2 = 'ninguno';
+let agrupadorNivel3 = 'ninguno';
+
+['select-agrupador-1', 'select-agrupador-2', 'select-agrupador-3'].forEach((id, idx) => {
+    const sel = document.getElementById(id);
+    if (sel) {
+        sel.addEventListener('change', (e) => {
+            if (idx === 0) agrupadorNivel1 = e.target.value;
+            if (idx === 1) agrupadorNivel2 = e.target.value;
+            if (idx === 2) agrupadorNivel3 = e.target.value;
+            cargarVista(estadoActualVista);
+        });
+    }
+});
 
 document.querySelectorAll('.filter-alarm').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -166,15 +174,16 @@ let clipboardDisponibilidad = null, clipboardDisponibilidadProfe = null;
 let historialActual = []; 
 
 const configNodosFlujo = [
-    { id: 'Pendiente procesar', label: 'Sin Agendar', icon: '⏳', color: 'phase-1' },
-    { id: 'Pendiente validación por profe', label: 'Validando con Profesor', icon: '👨‍🏫', color: 'phase-1' },
-    { id: 'Pendiente validación por alumno', label: 'Validando con Alumno', icon: '🧑‍🎓', color: 'phase-1' },
-    { id: 'Agenda confirmada', label: 'Entrevista Confirmada', icon: '✅', color: 'phase-1' },
-    { id: 'Lista de espera', label: 'Lista de Espera', icon: '🛋️', color: 'phase-2' },
-    { id: 'Pre-alta Pendiente', label: 'Altas Pendientes', icon: '📝', color: 'phase-3' },
-    { id: 'Pre-alta Iniciada', label: 'Altas en Curso', icon: '🚀', color: 'phase-3' },
-    { id: 'Altas Incompletas', label: 'Altas Confirmadas Incompletas', icon: '⚠️', color: 'phase-3', filterFn: (d) => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5) },
-    { id: 'Altas Finalizadas', label: 'Altas Finalizadas', icon: '🏆', color: 'phase-3', filterFn: (d) => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5) }
+    { id: 'Pendiente procesar', label: 'Sin Agendar', icon: '⏳', color: 'phase-1', vistaDestino: 'Inbox - Pendientes' },
+    { id: 'Pendiente validación por profe', label: 'Validando con Profesor', icon: '👨‍🏫', color: 'phase-1', vistaDestino: 'Inbox - En Validacion' },
+    { id: 'Pendiente validación por alumno', label: 'Validando con Alumno', icon: '🧑‍🎓', color: 'phase-1', vistaDestino: 'Inbox - En Validacion' },
+    { id: 'Agenda confirmada', label: 'Entrevista Confirmada', icon: '✅', color: 'phase-1', vistaDestino: 'Inbox - Confirmadas' },
+    { id: 'Lista de espera', label: 'Lista de Espera', icon: '🛋️', color: 'phase-2', vistaDestino: 'Lista de Espera' },
+    { id: 'Validando Grupo', label: 'Grupos en Validación', icon: '👥', color: 'phase-2', vistaDestino: 'Match - En Validacion' },
+    { id: 'Pre-alta Pendiente', label: 'Altas Pendientes', icon: '📝', color: 'phase-3', vistaDestino: 'Altas - Pendientes' },
+    { id: 'Pre-alta Iniciada', label: 'Altas en Curso', icon: '🚀', color: 'phase-3', vistaDestino: 'Altas - En Curso' },
+    { id: 'Altas Incompletas', label: 'Altas Confirmadas Incompletas', icon: '⚠️', color: 'phase-3', vistaDestino: 'Altas - Confirmadas', filterFn: (d) => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5) },
+    { id: 'Altas Finalizadas', label: 'Altas Finalizadas', icon: '🏆', color: 'phase-3', vistaDestino: 'Altas - Finalizadas', filterFn: (d) => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5) }
 ];
 
 const quill = new Quill('#editor-container', { theme: 'snow', modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] } });
@@ -246,23 +255,57 @@ const defaultCfg = {
 };
 async function cargarConfig() { const docSnap = await getDoc(doc(db, "configuracion", "general")); configApp = docSnap.exists() ? { ...defaultCfg, ...docSnap.data() } : defaultCfg; }
 
+function formatearTextoHistorial(historialArr) {
+    if (!historialArr || historialArr.length === 0) return 'Sin registros previos.';
+    const sorted = [...historialArr].sort((a, b) => a.id - b.id);
+    return sorted.map(h => {
+        let t = (h.texto || '')
+            .replace(/<br\s*[\/]?>/gi, '\n')
+            .replace(/<\/p>/gi, '\n')
+            .replace(/<[^>]*>?/gm, '')
+            .replace(/\r\n/g, '\n')
+            .replace(/\n\s*\n/g, '\n')
+            .trim();
+        return `[${h.fecha}] ${t}`;
+    }).filter(Boolean).join('\n');
+}
+
 function reemplazarVariables(texto, datos) { let res = texto; for (const [key, value] of Object.entries(datos)) { res = res.replaceAll(`{${key}}`, value || ''); } res = res.replace(/\{[a-zA-Z0-9_ ]+\}/g, ''); return res; }
 function formatoLocalISO(date) { const tzo = -date.getTimezoneOffset(), dif = tzo >= 0 ? '+' : '-', pad = num => (num < 10 ? '0' : '') + num; return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + 'T' + pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds()) + dif + pad(Math.floor(Math.abs(tzo) / 60)) + ':' + pad(Math.abs(tzo) % 60); }
 function formatearFechaAmi(fechaIsoStr) { const d = new Date(fechaIsoStr), dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']; let min = d.getMinutes(), minStr = min === 0 ? 'hs' : `:${min < 10 ? '0'+min : min}hs`; return `${dias[d.getDay()]} ${d.getDate()}/${d.getMonth()+1} ${d.getHours()}${minStr}`; }
+
+function getEmojiInstrumento(instrumentoInput, cfg, al = null) {
+    let instRef = '';
+    if (al && al.instrumento_asignado) {
+        instRef = al.instrumento_asignado;
+    } else if (typeof instrumentoInput === 'string' && instrumentoInput.trim()) {
+        instRef = instrumentoInput;
+    } else if (Array.isArray(instrumentoInput) && instrumentoInput.length > 0) {
+        instRef = instrumentoInput[0]; // Tomar el primer instrumento si es array
+    }
+    const c = cfg || configApp || defaultCfg;
+    const instL = (instRef || '').toLowerCase();
+    if (instL.includes('bater')) return c.identificador_bateria || '🥁';
+    if (instL.includes('guitarra')) return c.emoji_guitarra || '🎸';
+    if (instL.includes('cajón') || instL.includes('cajon')) return c.emoji_cajon || '📦';
+    if (instL.includes('canto') || instL.includes('voz')) return c.emoji_canto || '🎤';
+    if (instL.includes('piano') || instL.includes('teclado')) return c.emoji_piano || '🎹';
+    if (instL.includes('bajo')) return c.emoji_bajo || '🎸';
+    return '🎵';
+}
 
 function construirTitulosEvento(al, tipo, cfg) {
     let template = tipo === 'reserva' ? cfg.formato_evento_reserva : cfg.formato_evento_confirmado;
     if (template === '? {profe} Ent {alumno}') template = '❓📋 {emojiinstrumento} {alumno} {edad}';
     if (template === '📋🎸{instrumento} - {alumno} {edad}') template = '✅📋 {emojiinstrumento} {alumno} {edad}';
 
-    let emojis = []; const insts = Array.isArray(al.instrumento) ? al.instrumento : [al.instrumento];
-    insts.forEach(i => { let instL = (i || '').toLowerCase(); if (instL.includes('bater')) emojis.push(cfg.identificador_bateria || '🥁'); else if (instL.includes('guitarra')) emojis.push(cfg.emoji_guitarra || '🎸'); else if (instL.includes('cajón') || instL.includes('cajon')) emojis.push(cfg.emoji_cajon || '📦'); else if (instL.includes('canto') || instL.includes('voz')) emojis.push(cfg.emoji_canto || '🎤'); else if (instL.includes('piano') || instL.includes('teclado')) emojis.push(cfg.emoji_piano || '🎹'); else if (instL.includes('bajo')) emojis.push(cfg.emoji_bajo || '🎸'); });
-    let strEmojis = [...new Set(emojis.filter(e => e))].join(''); 
+    const instElegido = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento[0] : al.instrumento) || '';
+    const strEmojis = getEmojiInstrumento(instElegido, cfg, al);
 
-    let tituloProfe = reemplazarVariables(template, { alumno: al.nombre, edad: al.edad || '', emojiinstrumento: strEmojis, instrumento: insts.join(', ') }).replace(/\s+/g, ' ').trim();
+    let tituloProfe = reemplazarVariables(template, { alumno: al.nombre, edad: al.edad || '', emojiinstrumento: strEmojis, instrumento: instElegido }).replace(/\s+/g, ' ').trim();
     let profeStr = al.reserva_profe_nombre ? ` (${al.reserva_profe_nombre})` : '';
     let strEmojisConProfe = strEmojis ? `${strEmojis}${profeStr}` : profeStr.trim();
-    let tituloDefecto = reemplazarVariables(template, { alumno: al.nombre, edad: al.edad || '', emojiinstrumento: strEmojisConProfe, instrumento: insts.join(', ') }).replace(/\s+/g, ' ').trim();
+    let tituloDefecto = reemplazarVariables(template, { alumno: al.nombre, edad: al.edad || '', emojiinstrumento: strEmojisConProfe, instrumento: instElegido }).replace(/\s+/g, ' ').trim();
     return { tituloProfe, tituloDefecto };
 }
 
@@ -289,27 +332,12 @@ async function crearEventoCalendario(calendarId, titulo, inicioStr, finStr, desc
 async function actualizarEventoCalendario(calendarId, eventId, titulo, descripcion) { return await fetchCalendarAPI('updateEvent', { calendarId, eventId, summary: titulo, description: descripcion }); }
 async function eliminarEventoCalendario(calendarId, eventId) { return await fetchCalendarAPI('deleteEvent', { calendarId, eventId }); }
 
-function getEmojiInstrumento(instrumentoArr, cfg) {
-    const insts = Array.isArray(instrumentoArr) ? instrumentoArr : (instrumentoArr ? [instrumentoArr] : []);
-    const c = cfg || configApp || defaultCfg;
-    let emojis = [];
-    insts.forEach(i => {
-        let instL = (i || '').toLowerCase();
-        if (instL.includes('bater')) emojis.push(c.identificador_bateria || '🥁');
-        else if (instL.includes('guitarra')) emojis.push(c.emoji_guitarra || '🎸');
-        else if (instL.includes('cajón') || instL.includes('cajon')) emojis.push(c.emoji_cajon || '📦');
-        else if (instL.includes('canto') || instL.includes('voz')) emojis.push(c.emoji_canto || '🎤');
-        else if (instL.includes('piano') || instL.includes('teclado')) emojis.push(c.emoji_piano || '🎹');
-        else if (instL.includes('bajo')) emojis.push(c.emoji_bajo || '🎸');
-    });
-    return [...new Set(emojis.filter(Boolean))].join('') || '🎵';
-}
-
 function construirTitulosPrealtaYAlta(al, tipo, cfg) {
     // tipo: 'prealta' | 'confirmada'
     const tipoSusc = detectarTipoSuscripcion(al.tipo_suscripcion || '');
     const esInd = tipoSusc === 'individual';
-    const emojiInst = getEmojiInstrumento(al.instrumento, cfg);
+    const instElegido = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento[0] : al.instrumento) || '';
+    const emojiInst = getEmojiInstrumento(instElegido, cfg, al);
     const nombreAlumno = al.nombre || 'Alumno';
     const nombreGrupo = al.grupo_asignado || 'Grupo';
 
@@ -333,10 +361,10 @@ function construirTitulosPrealtaYAlta(al, tipo, cfg) {
 
 function construirDescripcionEventoAlta(al, esGrupo = false, alumnosGrupo = []) {
     if (esGrupo && alumnosGrupo.length > 0) {
-        const listaIntegrantes = alumnosGrupo.map(a => `• ${a.nombre} (${(a.instrumento || []).join(', ') || 'Instrumento'}) - Tel: ${a.celular || '-'}`).join('\n');
+        const listaIntegrantes = alumnosGrupo.map(a => `• ${a.nombre} (${a.instrumento_asignado || (Array.isArray(a.instrumento) ? a.instrumento[0] : a.instrumento) || 'Instrumento'}) - Tel: ${a.celular || '-'}`).join('\n');
         return `👥 INTEGRANTES DEL GRUPO (${alumnosGrupo.length}):\n${listaIntegrantes}\n\n🏫 Grupo: ${al.grupo_asignado || '-'}\n👨‍🏫 Profe: ${al.reserva_profe_nombre || '-'}`;
     }
-    const instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || '-');
+    const instStr = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || '-'));
     const descP = al.descripcion ? al.descripcion.replace(/<[^>]*>?/gm, '').trim() : '';
     return `👤 ALUMNO:\n• Nombre: ${al.nombre}\n• Edad: ${al.edad || '-'}\n• Celular: ${al.celular || '-'}\n• Instrumento: ${instStr}\n• Suscripción: ${al.tipo_suscripcion || '-'}\n\n📝 INFORMACIÓN ADICIONAL:\n${descP || 'Sin notas adicionales.'}`;
 }
@@ -353,31 +381,52 @@ async function sincronizarEventoPrealtaCalendar(al, esIndividual, fIsoStart, fIs
     try {
         const titulos = construirTitulosPrealtaYAlta(al, 'prealta', configApp);
         const desc = construirDescripcionEventoAlta(al, !esIndividual, otrosAlumnosDelGrupo);
-        let primaryCalId = await getCalendarIdParaAlumno(al) || configApp.calendario_por_defecto;
+        let primaryCalId = await getCalendarIdParaAlumno(al);
+        let fallbackCalId = configApp.calendario_por_defecto || 'productora.mandalahouse@gmail.com';
 
         // Si es grupal, verificar si algún compañero del grupo ya tiene evento creado
         let existingEventId = al.id_evento_alta;
-        let existingCalId = al.calendario_evento_alta || primaryCalId;
+        let existingCalId = al.calendario_evento_alta || primaryCalId || fallbackCalId;
 
         if (!esIndividual && !existingEventId && otrosAlumnosDelGrupo.length > 0) {
             const compConEv = otrosAlumnosDelGrupo.find(c => c.id_evento_alta);
             if (compConEv) {
                 existingEventId = compConEv.id_evento_alta;
-                existingCalId = compConEv.calendario_evento_alta || primaryCalId;
+                existingCalId = compConEv.calendario_evento_alta || primaryCalId || fallbackCalId;
             }
         }
 
         if (existingEventId && existingCalId) {
-            await actualizarEventoCalendario(existingCalId, existingEventId, titulos.tituloProfe, desc);
-            return { id: existingEventId, calendar: existingCalId };
-        } else {
-            const evRes = await crearEventoCalendario(primaryCalId, titulos.tituloProfe, fIsoStart, fIsoEnd, desc);
-            return { id: evRes.id, calendar: primaryCalId };
+            try {
+                await actualizarEventoCalendario(existingCalId, existingEventId, titulos.tituloProfe, desc);
+                return { id: existingEventId, calendar: existingCalId };
+            } catch(e) {
+                console.warn("Fallo actualización de evento:", e);
+            }
+        }
+
+        // Crear evento: intentar en primaryCalId, luego en fallback
+        if (primaryCalId) {
+            try {
+                const evRes = await crearEventoCalendario(primaryCalId, titulos.tituloProfe, fIsoStart, fIsoEnd, desc);
+                return { id: evRes.id, calendar: primaryCalId };
+            } catch(e) {
+                console.warn(`Fallo crear evento en ${primaryCalId}:`, e);
+            }
+        }
+
+        if (fallbackCalId && fallbackCalId !== primaryCalId) {
+            try {
+                const evRes = await crearEventoCalendario(fallbackCalId, titulos.tituloDefecto, fIsoStart, fIsoEnd, desc);
+                return { id: evRes.id, calendar: fallbackCalId };
+            } catch(e) {
+                console.warn(`Fallo fallback en ${fallbackCalId}:`, e);
+            }
         }
     } catch(err) {
         console.warn("No se pudo sincronizar evento de Pre-Alta en Google Calendar:", err);
-        return null;
     }
+    return null;
 }
 
 async function sincronizarEventoAltaConfirmadaCalendar(al, esIndividual, otrosAlumnosDelGrupo = []) {
@@ -491,16 +540,43 @@ function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, todosLosProfes, pr
     return opciones;
 }
 
+function getFechaReferenciaAlumno(al) {
+    if (!al) return null;
+    const est = al.estado_agenda;
+    
+    // Estados sin fecha límite activa: no deben calcular urgencias ni aparecer en prioridades
+    if (est === 'Lista de espera' || est === 'Pendiente procesar' || est === 'Pre-alta Pendiente' || est === 'Agenda suspendida' || est === 'Alta Suspendida' || est === 'Alta Finalizada') {
+        return null;
+    }
+
+    if (est === 'Pre-alta Iniciada' && al.fecha_inicio_clases) {
+        const d = new Date(al.fecha_inicio_clases);
+        return isNaN(d.getTime()) ? null : d;
+    }
+
+    if (est === 'Pendiente validación por profe' || est === 'Pendiente validación por alumno' || est === 'Agenda confirmada') {
+        if (al.reserva_inicio) {
+            const d = new Date(al.reserva_inicio);
+            return isNaN(d.getTime()) ? null : d;
+        }
+        if (al.opciones_propuestas && Array.isArray(al.opciones_propuestas) && al.opciones_propuestas.length > 0) {
+            const fechas = al.opciones_propuestas
+                .map(o => o.inicio ? new Date(o.inicio) : null)
+                .filter(d => d && !isNaN(d.getTime()))
+                .sort((a, b) => a - b);
+            if (fechas.length > 0) return fechas[0];
+        }
+    }
+
+    return null;
+}
+
 function getEstadoYBadge(al) {
     let colorIndicador = 'ind-gray', colorBadge = 'bg-gray', claseTexto = 'text-gray', txtTiempo = '', txtEstado = al.estado_agenda, fechaCalculo = null;
     
     if (al.estado_agenda === 'Altas Incompletas') txtEstado = 'Alta Incompleta';
 
-    if ((al.estado_agenda === 'Pendiente validación por profe' || al.estado_agenda === 'Pendiente validación por alumno' || al.estado_agenda === 'Agenda confirmada') && al.reserva_inicio) { 
-        fechaCalculo = new Date(al.reserva_inicio); 
-    } else if (al.estado_agenda === 'Pre-alta Iniciada' && al.fecha_inicio_clases) { 
-        fechaCalculo = new Date(al.fecha_inicio_clases); 
-    }
+    fechaCalculo = getFechaReferenciaAlumno(al);
 
     if (fechaCalculo) {
         let diffHs = (fechaCalculo - new Date()) / (1000 * 60 * 60);
@@ -562,6 +638,11 @@ function generarBotonesAccion(al, id) {
     else if (al.estado_agenda === 'Lista de espera') {
         accionesHtml += `<button type="button" class="dropdown-item btn-abrir-prealta" data-id="${id}">⚙️ Iniciar Pre-Alta</button>`;
     }
+    else if (al.estado_agenda === 'Validando Grupo') {
+        accionesHtml += `<button type="button" class="dropdown-item" onclick="window.aprobarAlumnoIndividualPrealta('${id}')">🚀 Aprobar a Pre-Alta</button>`;
+        accionesHtml += `<button type="button" class="dropdown-item" onclick="window.enviarWhatsAppValidacionGrupo('${id}')">💬 WhatsApp Propuesta</button>`;
+        accionesHtml += `<button type="button" class="dropdown-item" onclick="window.rechazarAlumnoGrupoYVolverEspera('${id}')">↩️ Volver a Lista de Espera</button>`;
+    }
     else if (al.estado_agenda === 'Pre-alta Pendiente') {
         accionesHtml += `<button type="button" class="dropdown-item btn-abrir-prealta" data-id="${id}">⚙️ Iniciar Pre-Alta</button>`;
         accionesHtml += `<button type="button" class="dropdown-item btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
@@ -595,6 +676,16 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
     let suscStr = al.tipo_suscripcion || ''; let cel = al.celular || ''; let edad = al.edad ? al.edad + 'a' : '-';
 
     if (isKanban) {
+        let opcionesKanbanHtml = '';
+        if (al.opciones_propuestas && al.opciones_propuestas.length > 1) {
+            opcionesKanbanHtml = `
+                <div style="font-size:11px; color:var(--accent-teal); margin-top:5px; line-height:1.3; background:var(--hover-bg); padding:4px 6px; border-radius:6px; border:1px solid var(--border-color);">
+                    <div style="font-weight:700;">📅 ${al.opciones_propuestas.length} Opciones:</div>
+                    ${al.opciones_propuestas.map(o => `<div style="color:var(--text-muted); font-size:10px;"><strong>${o.letra || '-'}:</strong> ${o.fechaTexto}</div>`).join('')}
+                </div>
+            `;
+        }
+
         return `
         <div class="kanban-card btn-editar-alumno" draggable="true" ondragstart="window.dragKanban(event, '${id}')" data-id="${id}">
             <div class="kanban-card-title">
@@ -602,6 +693,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                 <span style="font-size:16px;" class="btn-row-action" onclick="event.stopPropagation(); window.abrirOpcionesKanban('${id}', this)">⋮</span>
             </div>
             <div class="kanban-card-sub">${edad} • <strong style="color:var(--accent-teal);">${instStr}</strong></div>
+            ${opcionesKanbanHtml}
             <div class="priority-text ${info.claseTexto}">${info.txtTiempo}</div>
             <div class="dropdown-menu-wrapper" id="menu-kanban-${id}" style="display:none; position:absolute; top:30px; right:10px;">
                 <div class="dropdown-menu">${generarBotonesAccion(al, id)}</div>
@@ -664,6 +756,20 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
         `;
     }
 
+    let fechaMetaHtml = '';
+    if (al.opciones_propuestas && al.opciones_propuestas.length > 1) {
+        fechaMetaHtml = `
+            <div style="margin-top:3px; background:rgba(0, 123, 143, 0.07); border:1px solid rgba(0, 123, 143, 0.2); border-radius:6px; padding:4px 8px;">
+                <div style="font-size:11px; color:var(--accent-teal); font-weight:700;">📅 ${al.opciones_propuestas.length} Opciones propuestas:</div>
+                <div style="font-size:10.5px; color:var(--text-main); line-height:1.35; margin-top:2px;">
+                    ${al.opciones_propuestas.map(o => `<div><strong>${o.letra || '-'}:</strong> ${o.fechaTexto}</div>`).join('')}
+                </div>
+            </div>
+        `;
+    } else if (al.horario_match || al.reserva_fecha_texto) {
+        fechaMetaHtml = `<div style="font-size:11px; color:var(--text-muted); font-weight:600;">📅 ${al.horario_match || al.reserva_fecha_texto}</div>`;
+    }
+
     return `
         <div class="swipe-wrapper" data-id="${id}">
             <div class="swipe-bg-actions">
@@ -686,9 +792,9 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                     ${dispHtml}
                     ${checklistHtml}
                     <div class="row-meta">
-                        <div>Profe: <strong style="color:var(--text-main);">${al.reserva_profe_nombre || '-'}</strong></div>
+                        <div>${(estadoActualVista && estadoActualVista.startsWith('Inbox')) ? 'Entrevistador' : 'Profe'}: <strong style="color:var(--text-main);">${al.reserva_profe_nombre || '-'}</strong></div>
                         ${al.grupo_asignado ? `<div>Grupo: <strong style="color:var(--accent-teal);">${al.grupo_asignado}</strong></div>` : ''}
-                        ${(al.horario_match || al.reserva_fecha_texto) ? `<div style="font-size:11px; color:var(--text-muted); font-weight:600;">📅 ${al.horario_match || al.reserva_fecha_texto}</div>` : ''}
+                        ${fechaMetaHtml}
                         <div class="priority-text ${info.claseTexto}" style="margin-top:2px;">${info.txtTiempo}</div>
                     </div>
                     ${menuAcciones}
@@ -757,9 +863,13 @@ window.toggleBulkSelection = function(id, isChecked) {
 
 function actualizarBulkBar() {
     const bar = document.getElementById('bulk-actions-bar');
+    const btnProp = document.getElementById('btn-bulk-propuesta-grupo');
     if (selectedBulkIds.length > 0) {
         document.getElementById('bulk-count').textContent = `${selectedBulkIds.length} seleccionados`;
         bar.style.display = 'flex';
+        if (btnProp) {
+            btnProp.style.display = (estadoActualVista === 'Lista de Espera' || selectedBulkIds.length >= 2) ? 'inline-block' : 'none';
+        }
     } else {
         bar.style.display = 'none';
     }
@@ -789,6 +899,243 @@ document.getElementById('btn-bulk-suspender').addEventListener('click', async ()
     actualizarBulkBar();
     cargarVista(estadoActualVista);
 });
+
+// =======================================================================
+// NUEVA PROPUESTA DE GRUPO MANUAL (DESDE LISTA DE ESPERA)
+// =======================================================================
+
+const btnBulkProp = document.getElementById('btn-bulk-propuesta-grupo');
+if (btnBulkProp) {
+    btnBulkProp.addEventListener('click', async () => {
+        if (selectedBulkIds.length < 2) {
+            alert('Por favor seleccioná al menos 2 alumnos para armar una propuesta de grupo.');
+            return;
+        }
+        await abrirModalNuevaPropuestaGrupoManual();
+    });
+}
+
+let alumnosPropuestaManualCache = [];
+
+async function abrirModalNuevaPropuestaGrupoManual() {
+    alumnosPropuestaManualCache = [];
+    for (const id of selectedBulkIds) {
+        try {
+            const snap = await getDoc(doc(db, "alumnos", id));
+            if (snap.exists()) alumnosPropuestaManualCache.push({ id: snap.id, ...snap.data() });
+        } catch(e) {}
+    }
+
+    if (alumnosPropuestaManualCache.length === 0) return;
+
+    // Cargar profesores en select
+    const selProfe = document.getElementById('propuesta-manual-profe');
+    if (selProfe) {
+        try {
+            const qP = await getDocs(collection(db, "profesores"));
+            let profesList = [];
+            qP.forEach(d => profesList.push({ id: d.id, ...d.data() }));
+            selProfe.innerHTML = '<option value="">Seleccionar profesor...</option>' + profesList.map(p => {
+                const skillsStr = (p.skills || []).join(', ');
+                return `<option value="${p.id}" data-nombre="${p.nombre}">${p.nombre} ${skillsStr ? `(${skillsStr})` : ''}</option>`;
+            }).join('');
+        } catch(e) {}
+    }
+
+    // Renderizar lista de alumnos e instrumento asignado
+    const contAl = document.getElementById('propuesta-manual-alumnos-container');
+    if (contAl) {
+        contAl.innerHTML = alumnosPropuestaManualCache.map(al => {
+            const insts = Array.isArray(al.instrumento) ? al.instrumento : (al.instrumento ? [al.instrumento] : ['Varios']);
+            const optionsInst = insts.map(i => `<option value="${i}">${i}</option>`).join('');
+            return `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 10px; background:var(--hover-bg); border-radius:8px; border:1px solid var(--border-color); gap:10px; flex-wrap:wrap;">
+                    <div>
+                        <div style="font-weight:700; font-size:13px; color:var(--text-main);">👤 ${al.nombre}</div>
+                        <div style="font-size:11px; color:var(--text-muted);">${al.edad ? al.edad + 'a • ' : ''}${al.nivel || '-'} • ${al.tipo_suscripcion || ''}</div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="font-size:11px; color:var(--text-muted); font-weight:600;">Instrumento:</span>
+                        <select class="propuesta-manual-inst-alumno modern-input" data-alumno-id="${al.id}" style="width:auto; padding:4px 8px; font-size:12px;">
+                            ${optionsInst}
+                        </select>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    actualizarSugerenciaNombreGrupoManual();
+    validarPropuestaManualMatch();
+
+    // Listeners para auto-actualización
+    ['propuesta-manual-profe', 'propuesta-manual-dia', 'propuesta-manual-hora-inicio', 'propuesta-manual-hora-fin'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.onchange = () => {
+                actualizarSugerenciaNombreGrupoManual();
+                validarPropuestaManualMatch();
+            };
+        }
+    });
+
+    document.getElementById('modal-nueva-propuesta-grupo').showModal();
+}
+
+function actualizarSugerenciaNombreGrupoManual() {
+    const selProfe = document.getElementById('propuesta-manual-profe');
+    const dia = document.getElementById('propuesta-manual-dia')?.value || 'J';
+    const horaIni = document.getElementById('propuesta-manual-hora-inicio')?.value || '19:30';
+    const horaStr = horaIni.replace(':', '.');
+    const profeNombre = selProfe?.selectedOptions[0]?.getAttribute('data-nombre') || '';
+    const primerNombreProfe = profeNombre.split(' ')[0] || 'Profe';
+
+    const inputNom = document.getElementById('propuesta-manual-nombre');
+    if (inputNom && (!inputNom.value || inputNom.dataset.autogenerado === 'true')) {
+        inputNom.value = `${dia}${horaStr} ${primerNombreProfe}`;
+        inputNom.dataset.autogenerado = 'true';
+    }
+}
+
+function validarPropuestaManualMatch() {
+    const warnings = [];
+    const dia = document.getElementById('propuesta-manual-dia')?.value || 'J';
+    const horaIni = document.getElementById('propuesta-manual-hora-inicio')?.value || '19:30';
+    const horaFin = document.getElementById('propuesta-manual-hora-fin')?.value || '21:00';
+    const selProfe = document.getElementById('propuesta-manual-profe');
+    const profeId = selProfe?.value;
+
+    if (!profeId) {
+        warnings.push('⚠️ No se ha seleccionado un profesor asignado.');
+    }
+
+    // 1. Validar disponibilidad de cada alumno
+    alumnosPropuestaManualCache.forEach(al => {
+        if (al.disponibilidad && al.disponibilidad[dia]) {
+            const slots = al.disponibilidad[dia];
+            if (!slots || slots.length === 0) {
+                warnings.push(`⚠️ ${al.nombre} no tiene disponibilidad registrada para el día ${dia}.`);
+            } else {
+                const coincide = slots.some(s => {
+                    if (s.inicio === configApp.hora_apertura && s.fin === configApp.hora_cierre) return true;
+                    return s.inicio <= horaIni && s.fin >= horaFin;
+                });
+                if (!coincide) {
+                    warnings.push(`⚠️ ${al.nombre} tiene disponibilidad en ${dia} pero en un rango distinto a ${horaIni}-${horaFin} hs.`);
+                }
+            }
+        } else {
+            warnings.push(`⚠️ ${al.nombre} no tiene disponibilidad registrada para el día ${dia}.`);
+        }
+    });
+
+    // 2. Validar edades
+    const edades = alumnosPropuestaManualCache.map(a => parseInt(a.edad)).filter(e => !isNaN(e) && e > 0);
+    if (edades.length > 1) {
+        const minEdad = Math.min(...edades);
+        const maxEdad = Math.max(...edades);
+        const diff = maxEdad - minEdad;
+        const maxPermitido = minEdad < 18 ? (configApp.reglas_edad_ninos?.diferencia_maxima_anios || 3) : (configApp.reglas_edad_match?.diferencia_maxima_anios || 10);
+        if (diff > maxPermitido) {
+            warnings.push(`⚠️ Diferencia de edad alta: el más joven tiene ${minEdad} años y el mayor ${maxEdad} años (diferencia de ${diff} años, regla sugerida: máx ${maxPermitido}).`);
+        }
+    }
+
+    // 3. Validar cantidad
+    if (alumnosPropuestaManualCache.length < 2) {
+        warnings.push('⚠️ Se requieren al menos 2 integrantes para conformar un grupo.');
+    }
+
+    const warnCont = document.getElementById('propuesta-manual-warnings-container');
+    const warnList = document.getElementById('propuesta-manual-warnings-list');
+    if (warnCont && warnList) {
+        if (warnings.length > 0) {
+            warnList.innerHTML = warnings.map(w => `<div>• ${w}</div>`).join('');
+            warnCont.style.display = 'block';
+        } else {
+            warnList.innerHTML = '';
+            warnCont.style.display = 'none';
+        }
+    }
+
+    return warnings;
+}
+
+const btnEjecutarPropManual = document.getElementById('btn-ejecutar-crear-propuesta-manual');
+if (btnEjecutarPropManual) {
+    btnEjecutarPropManual.addEventListener('click', async () => {
+        const warnings = validarPropuestaManualMatch();
+        if (warnings.length > 0) {
+            if (!confirm(`Se detectaron las siguientes advertencias de compatibilidad:\n\n${warnings.join('\n')}\n\n¿Deseas forzar la creación de la propuesta de grupo de todas formas?`)) {
+                return;
+            }
+        }
+
+        const selProfe = document.getElementById('propuesta-manual-profe');
+        const profeId = selProfe.value;
+        const profeNombre = selProfe.selectedOptions[0]?.getAttribute('data-nombre') || 'Profesor';
+        const dia = document.getElementById('propuesta-manual-dia').value;
+        const diasNombres = { 'L': 'Lunes', 'M': 'Martes', 'X': 'Miércoles', 'J': 'Jueves', 'V': 'Viernes', 'S': 'Sábado' };
+        const diaNombre = diasNombres[dia] || dia;
+        const horaIni = document.getElementById('propuesta-manual-hora-inicio').value || '19:30';
+        const horaFin = document.getElementById('propuesta-manual-hora-fin').value || '21:00';
+        const aula = document.getElementById('propuesta-manual-aula').value || 'Aula Principal';
+        const nombreGrupo = document.getElementById('propuesta-manual-nombre').value.trim() || `${dia}${horaIni} ${profeNombre}`;
+        const horarioTexto = `${diaNombre} ${horaIni} a ${horaFin} hs`;
+
+        setBotonCargando(btnEjecutarPropManual, true);
+
+        const now = new Date();
+        const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+        const fechaSugerida = calcularProximaFechaDiaHora(dia, horaIni);
+
+        try {
+            for (const al of alumnosPropuestaManualCache) {
+                const selInst = document.querySelector(`.propuesta-manual-inst-alumno[data-alumno-id="${al.id}"]`);
+                const instAsignado = selInst ? selInst.value : (Array.isArray(al.instrumento) ? al.instrumento[0] : (al.instrumento || ''));
+
+                const hist = al.historial || [];
+                hist.push({
+                    id: Date.now() + Math.floor(Math.random() * 1000),
+                    texto: `Propuesta de grupo "${nombreGrupo}" armada manualmente (${horarioTexto}) con Profe ${profeNombre}. En espera de validación con el alumno.`,
+                    fecha: fechaStr
+                });
+
+                await updateDoc(doc(db, "alumnos", al.id), {
+                    estado_agenda: "Validando Grupo",
+                    estado_validacion_alumno: "pendiente",
+                    instrumento_asignado: instAsignado,
+                    grupo_asignado: nombreGrupo,
+                    reserva_profe_id: profeId || '',
+                    reserva_profe_nombre: profeNombre,
+                    reserva_fecha_texto: horarioTexto,
+                    horario_match: horarioTexto,
+                    dia_match: dia,
+                    horario_inicio_match: horaIni,
+                    horario_fin_match: horaFin,
+                    aula_asignada: aula,
+                    fecha_sugerida_inicio: fechaSugerida,
+                    fecha_inicio_clases: fechaSugerida ? new Date(fechaSugerida).toISOString() : null,
+                    historial: hist
+                });
+            }
+
+            document.getElementById('modal-nueva-propuesta-grupo').close();
+            selectedBulkIds = [];
+            document.querySelectorAll('.bulk-chk').forEach(c => c.checked = false);
+            actualizarBulkBar();
+
+            alert(`✅ Propuesta de grupo "${nombreGrupo}" creada con éxito.\nLos alumnos pasaron a "Grupos en Validación".`);
+            await cargarVista('Match - En Validacion');
+
+        } catch(err) {
+            console.error("Error al crear propuesta manual:", err);
+            alert("Error: " + err.message);
+        }
+
+        setBotonCargando(btnEjecutarPropManual, false);
+    });
+}
 
 function renderTimelineUnificado(containerId, configNodos, datos) {
     const cont = document.getElementById(containerId);
@@ -850,7 +1197,11 @@ function renderTimelineUnificado(containerId, configNodos, datos) {
                         if(instStr) details.push(`<strong style="color:var(--accent-teal)">${instStr}</strong>`);
                         if(al.reserva_profe_nombre) details.push(`Profe: ${al.reserva_profe_nombre}`);
                         if(al.grupo_asignado) details.push(`Grupo: ${al.grupo_asignado}`);
-                        if(al.reserva_fecha_texto) details.push(`Entrevista: ${al.reserva_fecha_texto}`);
+                        if(al.opciones_propuestas && al.opciones_propuestas.length > 1) {
+                            details.push(`Opciones: ${al.opciones_propuestas.map(o => `${o.letra || '-'}: ${o.fechaTexto}`).join(' / ')}`);
+                        } else if(al.reserva_fecha_texto) {
+                            details.push(`Entrevista: ${al.reserva_fecha_texto}`);
+                        }
                         if(al.fecha_inicio_clases) { const f = new Date(al.fecha_inicio_clases); details.push(`Alta: ${f.getDate()}/${f.getMonth()+1}`); }
                         
                         let detailsHtml = details.length > 0 ? `<div style="font-size:11px; color:var(--text-muted); line-height:1.4; display:flex; flex-wrap:wrap; gap:4px; row-gap:2px;"><span>${details.join('</span><span style="opacity:0.5">•</span><span>')}</span></div>` : '';
@@ -920,39 +1271,74 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
         contKanban.style.display = 'none';
         cont.style.display = 'flex';
 
-        let html = '';
-        if (agrupadorActual === 'ninguno') {
-            html = filtrados.map(a => generarFilaAlumno(a, a.id, estadoActualVista)).join('');
-        } else {
-            const grupos = {};
-            filtrados.forEach(al => {
-                let clave = 'Sin clasificar';
-                if (agrupadorActual === 'grupo') clave = al.grupo_asignado || 'Sin Grupo Asignado';
-                else if (agrupadorActual === 'instrumento') clave = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || clave);
-                else if (agrupadorActual === 'nivel') clave = al.nivel || clave;
-                else if (agrupadorActual === 'suscripcion') clave = al.tipo_suscripcion || clave;
-                else if (agrupadorActual === 'profe') clave = al.reserva_profe_nombre || clave;
-                if (!grupos[clave]) grupos[clave] = []; grupos[clave].push(al);
-            });
-            for (const [clave, alumnosGrupo] of Object.entries(grupos)) {
-                const idsStr = alumnosGrupo.map(a => a.id).join(',');
-                const esSinGrupo = clave === 'Sin clasificar' || clave === 'Sin Grupo Asignado';
-                const actionsHtml = !esSinGrupo ? `
-                    <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-                        <button type="button" class="btn-seleccionar-todo-grupo" data-ids="${idsStr}" style="font-size:11.5px; padding:4px 10px; border:1px solid var(--border-color); border-radius:6px; background:#fff; cursor:pointer; font-weight:600; color:var(--text-muted); font-family:inherit;">☑️ Seleccionar Grupo</button>
-                        <button type="button" class="btn-iniciar-prealta-grupo" data-grupo="${clave}" data-ids="${idsStr}" style="font-size:11.5px; padding:4px 12px; border:none; border-radius:6px; background:var(--accent-teal); color:#fff; cursor:pointer; font-weight:700; font-family:inherit;">⚙️ Iniciar Pre-Alta Grupo</button>
-                    </div>` : '';
+        const nivelesActivos = [agrupadorNivel1, agrupadorNivel2, agrupadorNivel3].filter(n => n && n !== 'ninguno');
 
-                html += `
-                    <div class="group-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <span style="color:var(--accent-teal);">●</span> <span>${clave}</span> <span class="group-count">${alumnosGrupo.length}</span>
+        function obtenerClaveAgrupador(al, criterio) {
+            let clave = 'Sin clasificar';
+            if (criterio === 'grupo') clave = al.grupo_asignado || 'Sin Grupo Asignado';
+            else if (criterio === 'instrumento') clave = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || clave);
+            else if (criterio === 'nivel') clave = al.nivel || clave;
+            else if (criterio === 'suscripcion') clave = al.tipo_suscripcion || clave;
+            else if (criterio === 'profe') {
+                const esInbox = estadoActualVista && estadoActualVista.startsWith('Inbox');
+                clave = al.reserva_profe_nombre || (esInbox ? 'Sin Entrevistador' : 'Sin Profesor');
+            }
+            return clave;
+        }
+
+        function renderNivelAgrupado(alumnos, nivelIndex) {
+            if (nivelIndex >= nivelesActivos.length) {
+                return alumnos.map(a => generarFilaAlumno(a, a.id, estadoActualVista)).join('');
+            }
+
+            const criterio = nivelesActivos[nivelIndex];
+            const grupos = {};
+            alumnos.forEach(al => {
+                const clave = obtenerClaveAgrupador(al, criterio);
+                if (!grupos[clave]) grupos[clave] = [];
+                grupos[clave].push(al);
+            });
+
+            let outHtml = '';
+            const levelNumber = nivelIndex + 1;
+
+            for (const [clave, alumnosSubgrupo] of Object.entries(grupos)) {
+                const idsStr = alumnosSubgrupo.map(a => a.id).join(',');
+                const esSinGrupo = clave === 'Sin clasificar' || clave === 'Sin Grupo Asignado' || clave === 'Sin Entrevistador' || clave === 'Sin Profesor';
+                
+                let actionsHtml = '';
+                if (criterio === 'grupo' && !esSinGrupo) {
+                    actionsHtml = `
+                        <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                            <button type="button" class="btn-seleccionar-todo-grupo" data-ids="${idsStr}" style="font-size:11px; padding:3px 8px; border:1px solid var(--border-color); border-radius:6px; background:#fff; cursor:pointer; font-weight:600; color:var(--text-muted); font-family:inherit;">☑️ Seleccionar Grupo</button>
+                            <button type="button" class="btn-iniciar-prealta-grupo" data-grupo="${clave}" data-ids="${idsStr}" style="font-size:11px; padding:3px 10px; border:none; border-radius:6px; background:var(--accent-teal); color:#fff; cursor:pointer; font-weight:700; font-family:inherit;">⚙️ Iniciar Pre-Alta Grupo</button>
+                        </div>`;
+                }
+
+                const iconLevel = levelNumber === 1 ? '📂' : (levelNumber === 2 ? '📁' : '🔹');
+                const styleIndent = levelNumber === 1 ? 'margin-top:12px; margin-bottom:6px;' : (levelNumber === 2 ? 'margin-left:14px; margin-top:8px; margin-bottom:4px; font-size:0.95em;' : 'margin-left:28px; margin-top:6px; margin-bottom:4px; font-size:0.9em;');
+                const bgLevel = levelNumber === 1 ? 'var(--hover-bg)' : (levelNumber === 2 ? '#fdfbf7' : 'transparent');
+                const borderLevel = levelNumber <= 2 ? 'border:1px solid var(--border-color);' : 'border-left:2px solid var(--accent-teal);';
+
+                outHtml += `
+                    <div class="group-header group-header-l${levelNumber}" style="${styleIndent} ${borderLevel} background:${bgLevel}; border-radius:8px; padding:8px 12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                        <div style="display:flex; align-items:center; gap:8px; font-weight:700; color:var(--text-main);">
+                            <span>${iconLevel}</span> <span>${clave}</span> <span class="group-count" style="font-size:11px; padding:2px 7px;">${alumnosSubgrupo.length}</span>
                         </div>
                         ${actionsHtml}
                     </div>
                 `;
-                html += alumnosGrupo.map(a => generarFilaAlumno(a, a.id, estadoActualVista)).join('');
+
+                outHtml += renderNivelAgrupado(alumnosSubgrupo, nivelIndex + 1);
             }
+            return outHtml;
+        }
+
+        let html = '';
+        if (nivelesActivos.length === 0) {
+            html = filtrados.map(a => generarFilaAlumno(a, a.id, estadoActualVista)).join('');
+        } else {
+            html = renderNivelAgrupado(filtrados, 0);
         }
         cont.innerHTML = html;
         
@@ -963,11 +1349,153 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
     }
 }
 
+// =======================================================================
+// NAVEGACIÓN PRINCIPAL: PESTAÑAS SEGMENTADAS Y BADGES EN VIVO
+// =======================================================================
+
+const moduloSubtabs = {
+    'Inbox': [
+        { vista: 'Inbox - Pendientes', label: 'Sin Agendar', icon: '⏳', countFn: (alumnos) => alumnos.filter(d => d.estado_agenda === 'Pendiente procesar').length },
+        { vista: 'Inbox - En Validacion', label: 'En Espera de Validación', icon: '👨‍🏫', countFn: (alumnos) => alumnos.filter(d => ['Pendiente validación por profe', 'Pendiente validación por alumno'].includes(d.estado_agenda)).length },
+        { vista: 'Inbox - Confirmadas', label: 'Confirmadas', icon: '✅', countFn: (alumnos) => alumnos.filter(d => d.estado_agenda === 'Agenda confirmada').length },
+        { vista: 'Inbox - Suspendidas', label: 'Suspendidas', icon: '⏸️', countFn: (alumnos) => alumnos.filter(d => d.estado_agenda === 'Agenda suspendida').length }
+    ],
+    'Altas': [
+        { vista: 'Altas - Pendientes', label: 'Pendientes', icon: '📝', countFn: (alumnos) => alumnos.filter(d => d.estado_agenda === 'Pre-alta Pendiente').length },
+        { vista: 'Altas - En Curso', label: 'En Curso', icon: '🚀', countFn: (alumnos) => alumnos.filter(d => d.estado_agenda === 'Pre-alta Iniciada').length },
+        { vista: 'Altas - Confirmadas', label: 'Confirmadas', icon: '⚠️', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5)).length },
+        { vista: 'Altas - Finalizadas', label: 'Finalizadas', icon: '🏆', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal' || d.estado_agenda === 'Alta Finalizada') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5)).length },
+        { vista: 'Altas - Suspendidas', label: 'Suspendidas', icon: '❌', countFn: (alumnos) => alumnos.filter(d => d.estado_agenda === 'Alta Suspendida').length }
+    ],
+    'Match': [
+        { vista: 'Match - Pendientes', label: 'Crear Grupos / Match', icon: '🔍', countFn: (alumnos) => alumnos.filter(d => d.estado_agenda === 'Lista de espera').length },
+        { vista: 'Match - En Validacion', label: 'Grupos en Validación', icon: '👥', countFn: (alumnos) => alumnos.filter(d => d.estado_agenda === 'Validando Grupo').length },
+        { vista: 'Ajustes Match', label: 'Reglas y Tolerancias', icon: '⚙️' }
+    ]
+};
+
+let cachedAlumnosData = [];
+
+function actualizarBadgesYNavegacion(allData) {
+    if (Array.isArray(allData)) cachedAlumnosData = allData;
+    const datos = cachedAlumnosData || [];
+    
+    // Conteo Inbox (Sin Agendar + En Validación)
+    const countInbox = datos.filter(d => ['Pendiente procesar', 'Pendiente validación por profe', 'Pendiente validación por alumno'].includes(d.estado_agenda)).length;
+    const bInbox = document.getElementById('badge-inbox');
+    if (bInbox) {
+        bInbox.textContent = countInbox;
+        bInbox.style.display = countInbox > 0 ? 'inline-block' : 'none';
+    }
+
+    // Conteo Lista de Espera
+    const countEspera = datos.filter(d => d.estado_agenda === 'Lista de espera').length;
+    const bEspera = document.getElementById('badge-espera');
+    if (bEspera) {
+        bEspera.textContent = countEspera;
+        bEspera.style.display = countEspera > 0 ? 'inline-block' : 'none';
+    }
+
+    // Conteo Match (Grupos en validación o candidatos)
+    const countMatchVal = datos.filter(d => d.estado_agenda === 'Validando Grupo').length;
+    const bMatch = document.getElementById('badge-match');
+    if (bMatch) {
+        const txtBadge = countMatchVal > 0 ? countMatchVal : (countEspera > 0 ? countEspera : 0);
+        bMatch.textContent = txtBadge;
+        bMatch.style.display = txtBadge > 0 ? 'inline-block' : 'none';
+    }
+
+    // Conteo Altas (Pendientes + En Curso)
+    const countAltas = datos.filter(d => d.estado_agenda === 'Pre-alta Pendiente' || d.estado_agenda === 'Pre-alta Iniciada').length;
+    const bAltas = document.getElementById('badge-altas');
+    if (bAltas) {
+        bAltas.textContent = countAltas;
+        bAltas.style.display = countAltas > 0 ? 'inline-block' : 'none';
+    }
+}
+
+function renderSegmentedTabs(vista) {
+    const container = document.getElementById('modulo-subtabs-container');
+    const bar = document.getElementById('modulo-subtabs-bar');
+    if (!container || !bar) return;
+
+    let modulo = null;
+    if (vista.startsWith('Inbox')) modulo = 'Inbox';
+    else if (vista.startsWith('Altas')) modulo = 'Altas';
+    else if (vista.startsWith('Match') || vista === 'Ajustes Match') modulo = 'Match';
+
+    if (!modulo || !moduloSubtabs[modulo]) {
+        container.style.display = 'none';
+        bar.innerHTML = '';
+        return;
+    }
+
+    const tabs = moduloSubtabs[modulo];
+    const datos = cachedAlumnosData || [];
+
+    bar.innerHTML = tabs.map(tab => {
+        const isActive = tab.vista === vista;
+        let badgeHtml = '';
+        if (tab.countFn) {
+            const cnt = tab.countFn(datos);
+            badgeHtml = `<span class="tab-badge">${cnt}</span>`;
+        }
+        return `
+            <button type="button" class="segmented-tab-btn ${isActive ? 'active' : ''}" data-vista="${tab.vista}">
+                <span>${tab.icon} ${tab.label}</span>
+                ${badgeHtml}
+            </button>
+        `;
+    }).join('');
+
+    container.style.display = 'flex';
+
+    bar.querySelectorAll('.segmented-tab-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const v = e.currentTarget.getAttribute('data-vista');
+            if (v && v !== estadoActualVista) {
+                cargarVista(v);
+            }
+        });
+    });
+}
+
 async function cargarVista(vista) {
     estadoActualVista = vista; 
     
-    let tituloMostrado = vista.includes('-') ? vista.split('-')[1].trim() : vista;
-    document.getElementById('vista-titulo').textContent = tituloMostrado;
+    let modulo = null;
+    if (vista.startsWith('Inbox')) modulo = 'Inbox';
+    else if (vista.startsWith('Altas')) modulo = 'Altas';
+    else if (vista.startsWith('Match') || vista === 'Ajustes Match') modulo = 'Match';
+    else if (vista === 'Lista de Espera') modulo = 'Lista de Espera';
+    else if (vista === 'Dashboard') modulo = 'Dashboard';
+    else if (vista === 'Estadísticas') modulo = 'Estadísticas';
+    else if (vista.startsWith('Configuración') || vista.startsWith('Ajustes') || vista.startsWith('ABM')) modulo = 'Configuración';
+
+    // Resaltar en sidebar simplificado
+    document.querySelectorAll('#sidebar .nav-item, #sidebar .nav-item-small').forEach(el => {
+        el.classList.remove('active');
+        if (modulo && el.getAttribute('data-modulo') === modulo) {
+            el.classList.add('active');
+        } else if (el.getAttribute('data-vista') === vista) {
+            el.classList.add('active');
+        }
+    });
+
+    // Renderizar subtabs superiores correspondientes al módulo
+    renderSegmentedTabs(vista);
+
+    const tituloEl = document.getElementById('vista-titulo');
+    if (tituloEl) {
+        if (vista.includes('-')) {
+            const partes = vista.split('-');
+            const seccion = partes[0].trim();
+            const subseccion = partes[1].trim();
+            tituloEl.innerHTML = `<span style="color:var(--text-muted); font-weight:500;">${seccion} › </span><span style="color:var(--text-main); font-weight:700;">${subseccion}</span>`;
+        } else {
+            tituloEl.innerHTML = `<span style="color:var(--text-main); font-weight:700;">${vista}</span>`;
+        }
+    }
     
     document.querySelectorAll('.bottom-nav-item').forEach(el => el.classList.remove('active'));
     let bottomVista = vista;
@@ -980,8 +1508,8 @@ async function cargarVista(vista) {
     const formWrapper = document.getElementById('form-alumno-wrapper'), cv = document.getElementById('controles-vista');
     if (formWrapper) { formWrapper.style.display = 'none'; document.getElementById('modal-alta-alumno').appendChild(formWrapper); }
     
-    document.getElementById('btn-carga-masiva').style.display = 'none'; document.getElementById('search-container-general').style.display = 'none'; document.getElementById('alarm-filters').style.display = 'none'; document.getElementById('btn-toggle-view').style.display = 'none';
-    vResumen.style.display = 'none'; if(vResumenTime) vResumenTime.style.display = 'none'; contLista.style.display = 'none'; contKanban.style.display = 'none'; contEstad.style.display = 'none'; cv.style.display = 'none';
+    document.getElementById('btn-carga-masiva').style.display = 'none'; document.getElementById('search-container-general').style.display = 'none'; document.getElementById('alarm-filters').style.display = 'none';
+    vResumen.style.display = 'none'; if(vResumenTime) vResumenTime.style.display = 'none'; contLista.style.display = 'none'; if(contKanban) contKanban.style.display = 'none'; contEstad.style.display = 'none'; cv.style.display = 'none';
     const contMatch = document.getElementById('match-pendientes-container'); if(contMatch) contMatch.style.display = 'none';
 
     if (vista.includes('-') || vista === 'Lista de Espera') { 
@@ -989,7 +1517,6 @@ async function cargarVista(vista) {
         renderFiltrosChips(); 
         document.getElementById('search-container-general').style.display = 'block'; 
         
-        if (vista === 'Inbox - Pendientes' || vista === 'Altas - Pendientes') document.getElementById('btn-toggle-view').style.display = 'flex';
         if (vista === 'Inbox - Confirmadas' || vista === 'Altas - Confirmadas') document.getElementById('alarm-filters').style.display = 'flex';
     }
     
@@ -1002,14 +1529,12 @@ async function cargarVista(vista) {
 
         try {
             const qSnap = await getDocs(collection(db, "alumnos")); let allData = []; qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
+            actualizarBadgesYNavegacion(allData);
+            renderSegmentedTabs(vista);
+            
             let urgencies = []; 
             allData.forEach(al => { 
-                let dateToEval = null; 
-                if ((al.estado_agenda === 'Pendiente validación por profe' || al.estado_agenda === 'Pendiente validación por alumno' || al.estado_agenda === 'Agenda confirmada') && al.reserva_inicio) { 
-                    dateToEval = new Date(al.reserva_inicio); 
-                } else if (al.estado_agenda === 'Pre-alta Iniciada' && al.fecha_inicio_clases) { 
-                    dateToEval = new Date(al.fecha_inicio_clases); 
-                } 
+                let dateToEval = getFechaReferenciaAlumno(al);
                 if (dateToEval && !isNaN(dateToEval.getTime())) { 
                     let diffHs = (dateToEval - new Date()) / (1000 * 60 * 60); 
                     if (diffHs <= 48) urgencies.push(al); 
@@ -1026,7 +1551,11 @@ async function cargarVista(vista) {
                 });
             }
 
-            urgencies.sort((a,b) => { let dA = (a.estado_agenda==='Pre-alta Iniciada') ? new Date(a.fecha_inicio_clases) : new Date(a.reserva_inicio); let dB = (b.estado_agenda==='Pre-alta Iniciada') ? new Date(b.fecha_inicio_clases) : new Date(b.reserva_inicio); return dA - dB; });
+            urgencies.sort((a,b) => { 
+                const dA = getFechaReferenciaAlumno(a) || new Date(8640000000000000); 
+                const dB = getFechaReferenciaAlumno(b) || new Date(8640000000000000); 
+                return dA - dB; 
+            });
             document.getElementById('resumen-urgencias').innerHTML = urgencies.length > 0 ? urgencies.map(a => generarFilaAlumno(a, a.id, vista)).join('') : '<div style="color:var(--text-muted); padding:10px; font-weight:500;">No hay gestiones críticas a la vista.</div>';
             
             renderTimelineUnificado('timeline-unificado', configNodosFlujo, allData);
@@ -1040,33 +1569,53 @@ async function cargarVista(vista) {
             chartFlowDashboardInst = new Chart(document.getElementById('chartFlowDashboard'), { 
                 type: 'bar', 
                 data: { labels: flowLabels, datasets: [{ label: 'Alumnos', data: flowData, backgroundColor: phaseColors, borderRadius: 6 }] },
-                options: { plugins: { title: { display: false }, legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+                options: { 
+                    onClick: (evt, elements) => {
+                        if (elements && elements.length > 0) {
+                            const index = elements[0].index;
+                            const nodo = configNodosFlujo[index];
+                            if (nodo && nodo.vistaDestino) {
+                                cargarVista(nodo.vistaDestino);
+                            }
+                        }
+                    },
+                    onHover: (event, chartElement) => {
+                        if (event.native && event.native.target) {
+                            event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                        }
+                    },
+                    plugins: { title: { display: false }, legend: { display: false } }, 
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } 
+                }
             });
             
         } catch(e) {}
-    } else if (vista === 'Inbox - Pendientes' || vista === 'Altas - Pendientes' || vista === 'Altas - En Curso') {
-        const isAdm = vista === 'Inbox - Pendientes';
-        document.getElementById('btn-carga-masiva').style.display = isAdm ? 'block' : 'none'; 
+    } else if (vista === 'Inbox - Pendientes' || vista === 'Inbox - En Validacion' || vista === 'Altas - Pendientes' || vista === 'Altas - En Curso') {
+        const isSinAgendar = vista === 'Inbox - Pendientes';
+        const isEnValidacion = vista === 'Inbox - En Validacion';
+        document.getElementById('btn-carga-masiva').style.display = isSinAgendar ? 'block' : 'none'; 
         try {
             const qSnap = await getDocs(collection(db, "alumnos")); let allData = []; qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
+            actualizarBadgesYNavegacion(allData);
+            renderSegmentedTabs(vista);
             
             let dataFiltrada = [];
-            if (isAdm) {
-                dataFiltrada = allData.filter(d => ['Pendiente procesar', 'Pendiente validación por profe', 'Pendiente validación por alumno'].includes(d.estado_agenda));
+            if (isSinAgendar) {
+                dataFiltrada = allData.filter(d => d.estado_agenda === 'Pendiente procesar');
+            } else if (isEnValidacion) {
+                dataFiltrada = allData.filter(d => ['Pendiente validación por profe', 'Pendiente validación por alumno'].includes(d.estado_agenda));
             } else if (vista === 'Altas - Pendientes') {
-                // Solo Pre-alta Pendiente
                 dataFiltrada = allData.filter(d => d.estado_agenda === 'Pre-alta Pendiente');
-                if (agrupadorActual === 'ninguno') {
-                    agrupadorActual = 'grupo';
-                    const selAgr = document.getElementById('select-agrupador');
+                if (agrupadorNivel1 === 'ninguno') {
+                    agrupadorNivel1 = 'grupo';
+                    const selAgr = document.getElementById('select-agrupador-1');
                     if (selAgr) selAgr.value = 'grupo';
                 }
             } else if (vista === 'Altas - En Curso') {
-                // Solo Pre-alta Iniciada
                 dataFiltrada = allData.filter(d => d.estado_agenda === 'Pre-alta Iniciada');
-                if (agrupadorActual === 'ninguno') {
-                    agrupadorActual = 'grupo';
-                    const selAgr = document.getElementById('select-agrupador');
+                if (agrupadorNivel1 === 'ninguno') {
+                    agrupadorNivel1 = 'grupo';
+                    const selAgr = document.getElementById('select-agrupador-1');
                     if (selAgr) selAgr.value = 'grupo';
                 }
             }
@@ -1076,28 +1625,29 @@ async function cargarVista(vista) {
     } else if (vista === 'Inbox - Confirmadas' || vista === 'Inbox - Suspendidas' || vista === 'Altas - Confirmadas' || vista === 'Altas - Finalizadas' || vista === 'Altas - Suspendidas' || vista === 'Lista de Espera') {
         try { 
             const qSnap = await getDocs(collection(db, "alumnos")); let allData = [];
-            qSnap.forEach(d => { 
-                const data = d.data();
-                let ok = false; 
-                if (vista === 'Inbox - Confirmadas') ok = (data.estado_agenda === 'Agenda confirmada');
-                else if (vista === 'Inbox - Suspendidas') ok = (data.estado_agenda === 'Agenda suspendida');
-                else if (vista === 'Lista de Espera') ok = (data.estado_agenda === 'Lista de espera');
-                else if (vista === 'Altas - Confirmadas') {
-                    // Altas confirmadas con checklist incompleto
-                    ok = (data.estado_agenda === 'Alta Efectiva' || data.estado_agenda === 'Alta Ilegal') && (!data.checklist_alta || data.checklist_alta.filter(Boolean).length < 5);
+            qSnap.forEach(d => allData.push({ id: d.id, ...d.data() }));
+            actualizarBadgesYNavegacion(allData);
+            renderSegmentedTabs(vista);
+            
+            let dataFiltrada = allData.filter(data => {
+                if (vista === 'Inbox - Confirmadas') return data.estado_agenda === 'Agenda confirmada';
+                if (vista === 'Inbox - Suspendidas') return data.estado_agenda === 'Agenda suspendida';
+                if (vista === 'Lista de Espera') return data.estado_agenda === 'Lista de espera';
+                if (vista === 'Altas - Confirmadas') {
+                    return (data.estado_agenda === 'Alta Efectiva' || data.estado_agenda === 'Alta Ilegal') && (!data.checklist_alta || data.checklist_alta.filter(Boolean).length < 5);
                 }
-                else if (vista === 'Altas - Finalizadas') {
-                    // Altas con los 5 checks completados
-                    ok = (data.estado_agenda === 'Alta Efectiva' || data.estado_agenda === 'Alta Ilegal' || data.estado_agenda === 'Alta Finalizada') && data.checklist_alta && data.checklist_alta.filter(Boolean).length === 5;
+                if (vista === 'Altas - Finalizadas') {
+                    return (data.estado_agenda === 'Alta Efectiva' || data.estado_agenda === 'Alta Ilegal' || data.estado_agenda === 'Alta Finalizada') && data.checklist_alta && data.checklist_alta.filter(Boolean).length === 5;
                 }
-                else if (vista === 'Altas - Suspendidas') ok = (data.estado_agenda === 'Alta Suspendida');
-                
-                if (ok) allData.push({ id: d.id, ...data }); 
+                if (vista === 'Altas - Suspendidas') return data.estado_agenda === 'Alta Suspendida';
+                return false;
             });
-            renderListaFilas('lista-generica', allData, 'all', null);
+            renderListaFilas('lista-generica', dataFiltrada, 'all', null);
         } catch(e) {}
     } else if (vista === 'Match - Pendientes') {
         await renderMatchPendientes();
+    } else if (vista === 'Match - En Validacion') {
+        await renderMatchEnValidacion(contLista);
     } else if (vista === 'Match - Confirmados') {
         contLista.style.display = 'flex';
         document.getElementById('vista-titulo').textContent = 'Match — Confirmados';
@@ -1311,19 +1861,62 @@ async function renderCharts() {
         chartFlowInst = new Chart(document.getElementById('chartFlow'), { 
             type: 'bar', 
             data: { labels: flowLabels, datasets: [{ label: 'Alumnos', data: flowData, backgroundColor: phaseColors, borderRadius: 6 }] },
-            options: { plugins: { title: { display: true, text: 'Flow de Admisión', font: { size: 16 } }, legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+            options: { 
+                onClick: (evt, elements) => {
+                    if (elements && elements.length > 0) {
+                        const index = elements[0].index;
+                        const nodo = configNodosFlujo[index];
+                        if (nodo && nodo.vistaDestino) {
+                            cargarVista(nodo.vistaDestino);
+                        }
+                    }
+                },
+                onHover: (event, chartElement) => {
+                    if (event.native && event.native.target) {
+                        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                    }
+                },
+                plugins: { title: { display: true, text: 'Flow de Admisión', font: { size: 16 } }, legend: { display: false } }, 
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } 
+            }
         });
         
         chartEntrevistasInst = new Chart(document.getElementById('chartEntrevistas'), { 
             type: 'doughnut', 
             data: { labels: ['Confirmadas', 'Suspendidas'], datasets: [{ data: [entConf, entSusp], backgroundColor: ['#007b8f', '#c2563b'] }] },
-            options: { plugins: { title: { display: true, text: 'Entrevistas', font: { size: 16 } } } }
+            options: { 
+                onClick: (evt, elements) => {
+                    if (elements && elements.length > 0) {
+                        const index = elements[0].index;
+                        cargarVista(index === 0 ? 'Inbox - Confirmadas' : 'Inbox - Suspendidas');
+                    }
+                },
+                onHover: (event, chartElement) => {
+                    if (event.native && event.native.target) {
+                        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                    }
+                },
+                plugins: { title: { display: true, text: 'Entrevistas', font: { size: 16 } } } 
+            }
         });
         
         chartAltasInst = new Chart(document.getElementById('chartAltas'), { 
             type: 'doughnut', 
             data: { labels: ['Finalizadas', 'Suspendidas'], datasets: [{ data: [altFin, altSusp], backgroundColor: ['#007b8f', '#c2563b'] }] },
-            options: { plugins: { title: { display: true, text: 'Altas', font: { size: 16 } } } }
+            options: { 
+                onClick: (evt, elements) => {
+                    if (elements && elements.length > 0) {
+                        const index = elements[0].index;
+                        cargarVista(index === 0 ? 'Altas - Finalizadas' : 'Altas - Suspendidas');
+                    }
+                },
+                onHover: (event, chartElement) => {
+                    if (event.native && event.native.target) {
+                        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                    }
+                },
+                plugins: { title: { display: true, text: 'Altas', font: { size: 16 } } } 
+            }
         });
     } catch(e) {}
 }
@@ -1333,7 +1926,7 @@ async function renderCharts() {
 // ================================================================
 
 async function renderMatchPendientes() {
-    document.getElementById('vista-titulo').textContent = 'Match — Pendientes';
+    document.getElementById('vista-titulo').innerHTML = '<span style="color:var(--text-muted); font-weight:500;">Match › </span><span style="color:var(--text-main); font-weight:700;">Pendientes</span>';
     // Ocultar controles estándar (fueron auto-mostrados por vista.includes('-'))
     document.getElementById('controles-vista').style.display = 'none';
     document.getElementById('search-container-general').style.display = 'none';
@@ -1355,9 +1948,17 @@ async function renderMatchPendientes() {
     // Cargar profesores desde Firestore
     await cargarProfesoresMatch();
 
-    // Cargar instrumentos para exclusión (solo si no se cargaron antes)
+    // Cargar instrumentos para filtro objetivo y exclusión (solo si no se cargaron antes)
+    const selInstFiltro = document.getElementById('match-instrumento-filtro');
+    if (selInstFiltro && selInstFiltro.options.length <= 1) {
+        try {
+            const iS = await getDocs(collection(db, "instrumentos"));
+            iS.forEach(d => selInstFiltro.innerHTML += `<option value="${d.data().nombre}">${d.data().nombre}</option>`);
+        } catch(e) {}
+    }
+
     const selExc = document.getElementById('match-excluir-instrumentos');
-    if (selExc.options.length === 0) {
+    if (selExc && selExc.options.length === 0) {
         try {
             const iS = await getDocs(collection(db, "instrumentos"));
             iS.forEach(d => selExc.innerHTML += `<option value="${d.data().nombre}">${d.data().nombre}</option>`);
@@ -1858,6 +2459,7 @@ async function ejecutarBusquedaMatch() {
 
     const horaDesde = document.getElementById('match-hora-desde').value || null;
     const horaHasta = document.getElementById('match-hora-hasta').value || null;
+    const instFiltro = document.getElementById('match-instrumento-filtro')?.value || '';
 
     // Mostrar sección de resultados
     const resSec = document.getElementById('match-resultados');
@@ -1887,6 +2489,12 @@ async function ejecutarBusquedaMatch() {
             if (esGrupal && nivelesSeleccionados.length > 0 && al.nivel && !nivelesSeleccionados.includes(al.nivel)) return;
 
             const insts = Array.isArray(al.instrumento) ? al.instrumento : (al.instrumento ? [al.instrumento] : []);
+
+            // Filtro de instrumento específico (opcional)
+            if (instFiltro) {
+                const tieneInst = insts.some(i => i.toLowerCase().trim() === instFiltro.toLowerCase().trim());
+                if (!tieneInst) return;
+            }
 
             // Filtro Canto
             if (esCanto) {
@@ -1932,10 +2540,12 @@ async function ejecutarBusquedaMatch() {
             // CASO INDIVIDUAL
             candidatos.forEach(al => {
                 const insts = Array.isArray(al.instrumento) ? al.instrumento : [al.instrumento];
+                const instElegido = instFiltro || al.instrumento_asignado || insts[0] || '';
+
                 profesAEvaluar.forEach(pr => {
                     // Check skills del profe
                     const profeSkills = pr.skills || [];
-                    const enseñaInst = insts.some(i => profeSkills.includes(i) || profeSkills.length === 0);
+                    const enseñaInst = profeSkills.includes(instElegido) || profeSkills.length === 0 || insts.some(i => profeSkills.includes(i));
                     if (!enseñaInst) return;
 
                     const huecos = buscarHuecosComunes([al], pr, diasSeleccionados, horaDesde, horaHasta);
@@ -1943,6 +2553,8 @@ async function ejecutarBusquedaMatch() {
                         const { porcentaje, desglose } = calcularScoreCompatibilidad([al], pr, slot, false, false);
                         const horaCorta = slot.inicio.replace(':', '.');
                         const nombreSugerido = `${slot.diaId}${horaCorta} ${pr.nombre.split(' ')[0]}`;
+
+                        const alConInst = { ...al, instrumento_asignado: instElegido };
 
                         sugerencias.push({
                             tipo: 'Individual',
@@ -1953,7 +2565,7 @@ async function ejecutarBusquedaMatch() {
                             profeNombre: pr.nombre,
                             profeCalId: pr.correo_calendario || '',
                             aula: 'Aula 1',
-                            alumnos: [al],
+                            alumnos: [alConInst],
                             compatibilidad: porcentaje,
                             desglose
                         });
@@ -2278,8 +2890,8 @@ async function ejecutarConfirmarMatch() {
             const hist = alData.historial || [];
 
             const textoHist = isInd
-                ? `Asignado a clase individual con Profe ${grupo.profeNombre || 'a definir'} (${grupo.horario}).`
-                : `Match confirmado: Asignado al grupo "${nombreGrupo}" (${grupo.horario}) con Profe ${grupo.profeNombre || 'a definir'}.`;
+                ? `Propuesta individual pre-armada con Profe ${grupo.profeNombre || 'a definir'} (${grupo.horario}). En espera de validación con el alumno.`
+                : `Match pre-armado: Asignado al grupo "${nombreGrupo}" (${grupo.horario}) con Profe ${grupo.profeNombre || 'a definir'}. En espera de validación con el alumno.`;
 
             hist.push({
                 id: Date.now() + Math.floor(Math.random() * 1000),
@@ -2287,8 +2899,12 @@ async function ejecutarConfirmarMatch() {
                 fecha: fechaStr
             });
 
+            const instAsignado = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento[0] : (al.instrumento || ''));
+
             await updateDoc(alRef, {
-                estado_agenda: "Pre-alta Pendiente",
+                estado_agenda: "Validando Grupo",
+                estado_validacion_alumno: "pendiente",
+                instrumento_asignado: instAsignado,
                 grupo_asignado: isInd ? '' : nombreGrupo,
                 reserva_profe_id: grupo.profeId || '',
                 reserva_profe_nombre: grupo.profeNombre || '',
@@ -2307,13 +2923,13 @@ async function ejecutarConfirmarMatch() {
         document.getElementById('modal-confirmar-match').close();
 
         if (isInd) {
-            alert(`✅ Profesor ${grupo.profeNombre} asignado a ${grupo.alumnos[0].nombre}. Pasó a Altas Pendientes.`);
+            alert(`✅ Propuesta individual creada con éxito. Pasó a "Grupos en Validación" para coordinar con el alumno.`);
         } else {
-            alert(`✅ Grupo "${nombreGrupo}" confirmado con éxito. ${grupo.alumnos.length} alumnos pasaron a Altas Pendientes con su grupo y horario.`);
+            alert(`✅ Grupo "${nombreGrupo}" pre-armado con éxito. Pasó a "Grupos en Validación" para coordinar con los alumnos.`);
         }
 
-        // Re-ejecutar búsqueda para actualizar la grilla
-        await ejecutarBusquedaMatch();
+        // Navegar directamente a la pestaña de Grupos en Validación
+        await cargarVista('Match - En Validacion');
 
     } catch(err) {
         console.error("Error al confirmar match:", err);
@@ -2322,6 +2938,285 @@ async function ejecutarConfirmarMatch() {
 
     setBotonCargando(btnConfirm, false);
 }
+
+// =======================================================================
+// MÓDULO MATCH — VISTA DE CAJAS: GRUPOS EN VALIDACIÓN
+// =======================================================================
+
+async function renderMatchEnValidacion(container) {
+    document.getElementById('vista-titulo').innerHTML = '<span style="color:var(--text-muted); font-weight:500;">Match › </span><span style="color:var(--text-main); font-weight:700;">Grupos en Validación</span>';
+    document.getElementById('controles-vista').style.display = 'none';
+    document.getElementById('search-container-general').style.display = 'none';
+    const contMatch = document.getElementById('match-pendientes-container');
+    if (contMatch) contMatch.style.display = 'none';
+    
+    container.style.display = 'flex';
+    container.innerHTML = '<div style="padding:20px; color:var(--text-muted); text-align:center;">Cargando grupos en validación...</div>';
+
+    try {
+        const qSnap = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", "Validando Grupo")));
+        let alumnosEnValidacion = [];
+        qSnap.forEach(d => alumnosEnValidacion.push({ id: d.id, ...d.data() }));
+
+        if (alumnosEnValidacion.length === 0) {
+            container.innerHTML = `
+                <div style="text-align:center; padding:50px 20px; background:white; border-radius:14px; border:1px solid var(--border-color); color:var(--text-muted); width:100%;">
+                    <div style="font-size:2.5em; margin-bottom:10px;">👥</div>
+                    <div style="font-size:16px; font-weight:700; color:var(--text-main); margin-bottom:6px;">No hay grupos en validación</div>
+                    <div style="font-size:13px; max-width:450px; margin:0 auto;">Creá una propuesta desde <strong>"Crear Grupos / Match"</strong> para comenzar a coordinar y validar con los alumnos.</div>
+                </div>
+            `;
+            return;
+        }
+
+        // Agrupar por grupo_asignado
+        const gruposMap = {};
+        alumnosEnValidacion.forEach(al => {
+            const grpNom = al.grupo_asignado || 'Clases Individuales';
+            if (!gruposMap[grpNom]) gruposMap[grpNom] = [];
+            gruposMap[grpNom].push(al);
+        });
+
+        let html = '';
+        Object.entries(gruposMap).forEach(([nombreGrupo, integrantes]) => {
+            const primer = integrantes[0] || {};
+            const horario = primer.horario_match || primer.reserva_fecha_texto || 'Horario a confirmar';
+            const profeNom = primer.reserva_profe_nombre || 'Profe a definir';
+            const aula = primer.aula_asignada || 'Aula Principal';
+            const confirmados = integrantes.filter(i => i.estado_validacion_alumno === 'confirmado').length;
+            const total = integrantes.length;
+            const todosConfirmados = confirmados === total;
+
+            const chipClass = todosConfirmados ? 'status-val-ok' : (confirmados > 0 ? 'status-val-pending' : 'status-val-pending');
+            const chipTxt = `${confirmados}/${total} Validados`;
+
+            const integrantesHtml = integrantes.map(al => {
+                const isConfirmed = al.estado_validacion_alumno === 'confirmado';
+                const instAsignado = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento);
+                const emojiInst = obtenerEmojiInstrumento(instAsignado);
+                
+                return `
+                    <div class="group-member-row">
+                        <div class="group-member-info">
+                            <span class="group-member-name">👤 ${al.nombre}</span>
+                            ${al.edad ? `<span style="font-size:12px; color:var(--text-muted);">${al.edad}a</span>` : ''}
+                            <span class="match-student-tag">${emojiInst} ${instAsignado}</span>
+                            <span class="group-member-status-chip ${isConfirmed ? 'status-val-ok' : 'status-val-pending'}">
+                                ${isConfirmed ? '✅ Confirmó' : '⏳ Pendiente'}
+                            </span>
+                        </div>
+                        <div class="group-member-actions">
+                            <button type="button" class="filter-chip" onclick="window.enviarWhatsAppValidacionGrupo('${al.id}')" title="Mensaje WhatsApp" style="padding:5px 10px; font-size:12px;">💬 WhatsApp</button>
+                            <button type="button" class="filter-chip ${isConfirmed ? 'active' : ''}" onclick="window.toggleValidacionAlumnoGrupo('${al.id}', ${!isConfirmed})" title="Marcar confirmación" style="padding:5px 10px; font-size:12px;">
+                                ${isConfirmed ? '✔️ Desmarcar' : '✔️ Confirmó'}
+                            </button>
+                            <button type="button" class="filter-chip" onclick="window.aprobarAlumnoIndividualPrealta('${al.id}')" title="Aprobar individualmente a Altas" style="padding:5px 10px; font-size:12px; color:var(--accent-teal);">🚀 Aprobar</button>
+                            <button type="button" class="filter-chip" onclick="window.rechazarAlumnoGrupoYVolverEspera('${al.id}')" title="Rechazar y regresar a Lista de Espera" style="padding:5px 8px; font-size:12px; color:var(--accent-red); border-color:rgba(194,86,59,0.3);">❌</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            html += `
+                <div class="group-box-card" style="width:100%;">
+                    <div class="group-box-header">
+                        <div>
+                            <div class="group-box-title">
+                                <span>🧩 ${nombreGrupo}</span>
+                                <span class="group-member-status-chip ${chipClass}">${chipTxt}</span>
+                            </div>
+                            <div class="group-box-subtitle">
+                                <span>📅 <strong>${horario}</strong></span>
+                                <span>•</span>
+                                <span>👨‍🏫 Profe: <strong>${profeNom}</strong></span>
+                                <span>•</span>
+                                <span>🏫 Espacio: <strong>${aula}</strong></span>
+                            </div>
+                        </div>
+                        <div class="group-box-actions">
+                            <button type="button" class="btn-primary" onclick="window.aprobarGrupoCompletoPrealta('${nombreGrupo}')" style="padding:8px 16px; font-size:13px;">
+                                ✅ Aprobar Grupo a Altas
+                            </button>
+                            <button type="button" class="filter-chip" onclick="window.desarmarGrupoValidacion('${nombreGrupo}')" style="padding:8px 12px; font-size:13px; color:var(--accent-red); border-color:rgba(194,86,59,0.3);">
+                                ❌ Desarmar Grupo
+                            </button>
+                        </div>
+                    </div>
+                    <div class="group-box-members">
+                        ${integrantesHtml}
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+
+    } catch(err) {
+        container.innerHTML = `<div style="padding:20px; color:var(--accent-red);">Error al cargar grupos en validación: ${err.message}</div>`;
+    }
+}
+
+// Window actions para validación de grupos
+window.toggleValidacionAlumnoGrupo = async function(alumnoId, nuevoEstado) {
+    try {
+        await updateDoc(doc(db, "alumnos", alumnoId), {
+            estado_validacion_alumno: nuevoEstado ? "confirmado" : "pendiente"
+        });
+        await cargarVista('Match - En Validacion');
+    } catch(err) {
+        alert('Error al actualizar validación: ' + err.message);
+    }
+};
+
+window.aprobarGrupoCompletoPrealta = async function(nombreGrupo) {
+    if (!confirm(`¿Aprobar el grupo "${nombreGrupo}" y pasar a todos sus integrantes a Altas Pendientes?`)) return;
+    try {
+        const qSnap = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", "Validando Grupo")));
+        const now = new Date();
+        const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+
+        for (const d of qSnap.docs) {
+            const data = d.data();
+            if ((data.grupo_asignado || 'Clases Individuales') === nombreGrupo) {
+                const hist = data.historial || [];
+                hist.push({
+                    id: Date.now() + Math.floor(Math.random() * 1000),
+                    texto: `Validación grupal aprobada: Grupo "${nombreGrupo}" pasa a Altas Pendientes.`,
+                    fecha: fechaStr
+                });
+                await updateDoc(doc(db, "alumnos", d.id), {
+                    estado_agenda: "Pre-alta Pendiente",
+                    estado_validacion_alumno: "confirmado",
+                    historial: hist
+                });
+            }
+        }
+        alert(`✅ Grupo "${nombreGrupo}" aprobado con éxito. Pasó a Altas Pendientes.`);
+        await cargarVista('Altas - Pendientes');
+    } catch(err) {
+        alert('Error al aprobar grupo: ' + err.message);
+    }
+};
+
+window.aprobarAlumnoIndividualPrealta = async function(alumnoId) {
+    try {
+        const alDoc = await getDoc(doc(db, "alumnos", alumnoId));
+        if (!alDoc.exists()) return;
+        const al = alDoc.data();
+        if (!confirm(`¿Aprobar a ${al.nombre} y pasarlo a Altas Pendientes?`)) return;
+
+        const now = new Date();
+        const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+        const hist = al.historial || [];
+        hist.push({
+            id: Date.now() + Math.floor(Math.random() * 1000),
+            texto: `Validación individual aprobada para ${al.grupo_asignado || 'clase'}. Pasa a Altas Pendientes.`,
+            fecha: fechaStr
+        });
+
+        await updateDoc(doc(db, "alumnos", alumnoId), {
+            estado_agenda: "Pre-alta Pendiente",
+            estado_validacion_alumno: "confirmado",
+            historial: hist
+        });
+
+        alert(`✅ ${al.nombre} aprobado a Altas Pendientes.`);
+        await cargarVista('Match - En Validacion');
+    } catch(err) {
+        alert('Error al aprobar alumno: ' + err.message);
+    }
+};
+
+window.rechazarAlumnoGrupoYVolverEspera = async function(alumnoId) {
+    try {
+        const alDoc = await getDoc(doc(db, "alumnos", alumnoId));
+        if (!alDoc.exists()) return;
+        const al = alDoc.data();
+        if (!confirm(`¿El alumno ${al.nombre} rechazó la propuesta de grupo? Se lo devolverá a Lista de Espera.`)) return;
+
+        const now = new Date();
+        const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+        const hist = al.historial || [];
+        hist.push({
+            id: Date.now() + Math.floor(Math.random() * 1000),
+            texto: `Propuesta de grupo "${al.grupo_asignado || ''}" rechazada/no disponible. Vuelve a Lista de Espera.`,
+            fecha: fechaStr
+        });
+
+        await updateDoc(doc(db, "alumnos", alumnoId), {
+            estado_agenda: "Lista de espera",
+            grupo_asignado: "",
+            estado_validacion_alumno: null,
+            historial: hist
+        });
+
+        alert(`↩️ ${al.nombre} volvió a Lista de Espera.`);
+        await cargarVista('Match - En Validacion');
+    } catch(err) {
+        alert('Error al devolver alumno a lista de espera: ' + err.message);
+    }
+};
+
+window.desarmarGrupoValidacion = async function(nombreGrupo) {
+    if (!confirm(`¿Estás seguro de desarmar el grupo "${nombreGrupo}"? Todos sus integrantes regresarán a Lista de Espera.`)) return;
+    try {
+        const qSnap = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", "Validando Grupo")));
+        const now = new Date();
+        const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+
+        for (const d of qSnap.docs) {
+            const data = d.data();
+            if ((data.grupo_asignado || 'Clases Individuales') === nombreGrupo) {
+                const hist = data.historial || [];
+                hist.push({
+                    id: Date.now() + Math.floor(Math.random() * 1000),
+                    texto: `Propuesta de grupo "${nombreGrupo}" desarmada. Alumno vuelve a Lista de Espera.`,
+                    fecha: fechaStr
+                });
+                await updateDoc(doc(db, "alumnos", d.id), {
+                    estado_agenda: "Lista de espera",
+                    grupo_asignado: "",
+                    estado_validacion_alumno: null,
+                    historial: hist
+                });
+            }
+        }
+        alert(`↩️ Grupo "${nombreGrupo}" desarmado. Alumnos retornaron a Lista de Espera.`);
+        await cargarVista('Match - En Validacion');
+    } catch(err) {
+        alert('Error al desarmar grupo: ' + err.message);
+    }
+};
+
+window.enviarWhatsAppValidacionGrupo = async function(alumnoId) {
+    try {
+        const alDoc = await getDoc(doc(db, "alumnos", alumnoId));
+        if (!alDoc.exists()) return;
+        const al = alDoc.data();
+        const cel = (al.celular || '').replace(/\D/g, '');
+        const grp = al.grupo_asignado || 'tu clase';
+        const hor = al.horario_match || al.reserva_fecha_texto || 'horario a coordinar';
+        const prof = al.reserva_profe_nombre || 'nuestro equipo docente';
+        const inst = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento[0] : (al.instrumento || 'música'));
+        const emojiInst = obtenerEmojiInstrumento(inst);
+
+        const txt = `¡Hola ${al.nombre}! 🎶 Te escribimos de Mandala Ensambles.
+Tenemos armada la propuesta para que formes parte del grupo *${grp}* ${emojiInst} (${inst}) con el Profe *${prof}* los días *${hor}*.
+
+¿Nos confirmás si te queda bien este horario para asegurar tu lugar e iniciar tu pre-alta? ¡Muchas gracias! 😊`;
+
+        await navigator.clipboard.writeText(txt);
+        alert(`📋 Mensaje copiado al portapapeles.\n\nAbriendo WhatsApp para ${al.nombre}...`);
+
+        if (cel) {
+            window.open(`https://wa.me/${cel}?text=${encodeURIComponent(txt)}`, '_blank');
+        } else {
+            alert('El alumno no tiene número de celular registrado.');
+        }
+    } catch(err) {
+        alert('Error al generar WhatsApp: ' + err.message);
+    }
+};
 
 // GENERADOR DE ALUMNOS DE PRUEBA EN LISTA DE ESPERA
 async function generarAlumnosPruebaMatch() {
@@ -2955,10 +3850,11 @@ document.addEventListener('click', async (e) => {
         document.getElementById('modal-mobile-actions').close();
     }
     
-    if (target.tagName === 'DIALOG') { const rect = target.getBoundingClientRect(), inDialog = (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom);
+    if (target.tagName === 'DIALOG') { 
+        const rect = target.getBoundingClientRect(), inDialog = (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom);
         if (!inDialog) {
-            if (target.id === 'modal-alta-alumno') document.querySelector('#form-alumno button[type="submit"]').click();
-            else target.close(); return;
+            target.close(); 
+            return;
         }
     }
     
@@ -3059,6 +3955,46 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
+    async function renderListaInstrumentosAlumnos(alumnosArr) {
+        const wrapLista = document.getElementById('prealta-lista-alumnos-instrumentos');
+        const contAlumnos = document.getElementById('prealta-alumnos-container');
+        if (!wrapLista || !contAlumnos) return;
+        
+        wrapLista.style.display = 'block';
+        contAlumnos.innerHTML = '';
+
+        let todosInstrumentos = [];
+        try {
+            const iSnap = await getDocs(collection(db, "instrumentos"));
+            iSnap.forEach(d => todosInstrumentos.push(d.data().nombre));
+        } catch(e) {}
+
+        alumnosArr.forEach(al => {
+            const instsAlumno = Array.isArray(al.instrumento) ? al.instrumento : (al.instrumento ? [al.instrumento] : []);
+            const opcionesInst = instsAlumno.length > 0 ? instsAlumno : todosInstrumentos;
+            const instActual = al.instrumento_asignado || instsAlumno[0] || (opcionesInst[0] || '');
+
+            const optHtml = opcionesInst.map(i => {
+                const emoji = getEmojiInstrumento(i, configApp);
+                return `<option value="${i}" ${i === instActual ? 'selected' : ''}>${emoji} ${i}</option>`;
+            }).join('');
+
+            contAlumnos.innerHTML += `
+                <div class="prealta-alumno-row" style="display:flex; align-items:center; justify-content:space-between; background:var(--hover-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 12px; gap:10px;">
+                    <div style="font-size:13px; font-weight:600; color:var(--text-main); flex:1;">
+                        👤 ${al.nombre}
+                        <div style="font-size:11px; color:var(--text-muted);">${al.tipo_suscripcion || 'Ensamble'} ${al.edad ? '· ' + al.edad + 'a' : ''}</div>
+                    </div>
+                    <div>
+                        <select class="modern-input prealta-alumno-inst-select" data-id="${al.id}" style="width:170px; padding:6px 8px; font-size:12.5px;">
+                            ${optHtml}
+                        </select>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
     // Botón Iniciar / Editar Pre-Alta (Individual o Directo desde Lista de Espera / En Curso)
     if (target.classList.contains('btn-abrir-prealta') || target.classList.contains('btn-editar-prealta')) {
         const id = target.getAttribute('data-id');
@@ -3076,24 +4012,24 @@ document.addEventListener('click', async (e) => {
         const campoGrupo = document.getElementById('prealta-campo-grupo');
         const campoProfe = document.getElementById('prealta-campo-profe');
         const selectProfe = document.getElementById('prealta-profe-select');
+        const campoInst = document.getElementById('prealta-campo-instrumento');
+        const selInstPrealta = document.getElementById('prealta-instrumento-select');
+        const wrapLista = document.getElementById('prealta-lista-alumnos-instrumentos');
         const alertaValidacion = document.getElementById('prealta-alerta-validacion');
         if (alertaValidacion) alertaValidacion.style.display = 'none';
 
-        if (esIndividual) {
-            // Es individual: ocultar campo grupo y mostrar selector de profe
-            if (campoGrupo) campoGrupo.style.display = 'none';
-            if (campoProfe) campoProfe.style.display = 'block';
+        const instsAlumno = Array.isArray(al.instrumento) ? al.instrumento : (al.instrumento ? [al.instrumento] : []);
+        const instActual = al.instrumento_asignado || instsAlumno[0] || '';
 
-            // Poblar select de profesores compatibles según skills del alumno
-            const insts = Array.isArray(al.instrumento) ? al.instrumento : (al.instrumento ? [al.instrumento] : []);
+        async function refrescarProfesoresPrealta(instrumentoSeleccionado, profeSeleccionadoId = '') {
+            if (!selectProfe) return;
             selectProfe.innerHTML = '<option value="">Seleccionar profesor...</option>';
-            
             try {
                 const pSnap = await getDocs(collection(db, "profesores"));
                 pSnap.forEach(pDoc => {
                     const pr = { id: pDoc.id, ...pDoc.data() };
                     const profeSkills = pr.skills || [];
-                    const enseñaInst = insts.some(i => profeSkills.includes(i) || profeSkills.length === 0);
+                    const enseñaInst = !instrumentoSeleccionado || profeSkills.length === 0 || profeSkills.some(s => s.toLowerCase() === instrumentoSeleccionado.toLowerCase());
                     if (enseñaInst) {
                         const opt = document.createElement('option');
                         opt.value = pr.id;
@@ -3101,21 +4037,41 @@ document.addEventListener('click', async (e) => {
                         opt.dataset.nombre = pr.nombre;
                         opt.dataset.calId = pr.correo_calendario || '';
                         opt.dataset.disponibilidad = JSON.stringify(pr.disponibilidad || {});
+                        if (pr.id === profeSeleccionadoId) opt.selected = true;
                         selectProfe.appendChild(opt);
                     }
                 });
-
-                if (al.reserva_profe_id) {
-                    selectProfe.value = al.reserva_profe_id;
-                }
             } catch(e) {}
+        }
 
+        if (esIndividual) {
+            // Es individual: mostrar campo instrumento simple, ocultar lista grupal
+            if (campoInst) campoInst.style.display = 'block';
+            if (wrapLista) wrapLista.style.display = 'none';
+            if (campoGrupo) campoGrupo.style.display = 'none';
+            if (campoProfe) campoProfe.style.display = 'block';
+
+            if (selInstPrealta) {
+                selInstPrealta.innerHTML = '';
+                if (instsAlumno.length > 0) {
+                    instsAlumno.forEach(i => {
+                        selInstPrealta.innerHTML += `<option value="${i}" ${i === instActual ? 'selected' : ''}>${i}</option>`;
+                    });
+                } else {
+                    selInstPrealta.innerHTML = '<option value="">Sin instrumento especificado</option>';
+                }
+                selInstPrealta.onchange = () => refrescarProfesoresPrealta(selInstPrealta.value, selectProfe.value);
+            }
+
+            await refrescarProfesoresPrealta(instActual, al.reserva_profe_id || '');
             document.getElementById('prealta-grupo').value = 'Clase Individual';
         } else {
-            // Es grupal/ensamble: mostrar campo grupo y ocultar selector profe
+            // Es grupal/ensamble: ocultar selector simple y mostrar lista de integrantes
+            if (campoInst) campoInst.style.display = 'none';
             if (campoGrupo) campoGrupo.style.display = 'block';
             if (campoProfe) campoProfe.style.display = 'none';
             document.getElementById('prealta-grupo').value = al.grupo_asignado || '';
+            await renderListaInstrumentosAlumnos([{ id, ...al }]);
         }
         
         let fVal = '';
@@ -3137,32 +4093,6 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    // Botón Copiar / Reenviar texto de Pre-Alta
-    if (target.classList.contains('btn-reenviar-prealta')) {
-        const id = target.getAttribute('data-id');
-        try {
-            const dataText = await generarTextoConHistorial(id, 'texto_prealta');
-            await navigator.clipboard.writeText(dataText.txt);
-            alert("✅ Texto de Pre-Alta copiado al portapapeles:\n\n" + dataText.txt);
-        } catch(e) {
-            alert("Error al copiar texto: " + e.message);
-        }
-        return;
-    }
-
-    // Botón Copiar / Reenviar texto de Alta Confirmada
-    if (target.classList.contains('btn-reenviar-alta')) {
-        const id = target.getAttribute('data-id');
-        try {
-            const dataText = await generarTextoConHistorial(id, 'texto_alta_confirmada');
-            await navigator.clipboard.writeText(dataText.txt);
-            alert("✅ Texto de Alta Confirmada copiado al portapapeles:\n\n" + dataText.txt);
-        } catch(e) {
-            alert("Error al copiar texto: " + e.message);
-        }
-        return;
-    }
-
     // Botón Iniciar Pre-Alta Grupal / Masivo
     if (target.classList.contains('btn-iniciar-prealta-grupo') || target.id === 'btn-bulk-prealta') {
         const idsRaw = target.getAttribute('data-ids');
@@ -3170,18 +4100,29 @@ document.addEventListener('click', async (e) => {
         if (!ids || ids.length === 0) return alert("No hay alumnos seleccionados.");
         const grupoNom = target.getAttribute('data-grupo') || '';
 
-        const primerDoc = await getDoc(doc(db, "alumnos", ids[0]));
-        const primerAl = primerDoc.exists() ? primerDoc.data() : {};
+        const alumnosList = [];
+        for (let id of ids) {
+            const dSnap = await getDoc(doc(db, "alumnos", id));
+            if (dSnap.exists()) alumnosList.push({ id: dSnap.id, ...dSnap.data() });
+        }
+        if (alumnosList.length === 0) return alert("No se encontraron datos de los alumnos.");
+
+        const primerAl = alumnosList[0];
 
         document.getElementById('prealta-alumno-id').value = ids.join(',');
         document.getElementById('titulo-prealta').textContent = `Iniciar Pre-Alta Grupal (${ids.length} alumnos)`;
         
         const campoGrupo = document.getElementById('prealta-campo-grupo');
         const campoProfe = document.getElementById('prealta-campo-profe');
+        const campoInst = document.getElementById('prealta-campo-instrumento');
+        if (campoInst) campoInst.style.display = 'none';
         if (campoGrupo) campoGrupo.style.display = 'block';
         if (campoProfe) campoProfe.style.display = 'none';
 
         document.getElementById('prealta-grupo').value = grupoNom || primerAl.grupo_asignado || '';
+
+        // Renderizar lista interactiva de alumnos con selector de instrumento para cada uno
+        await renderListaInstrumentosAlumnos(alumnosList);
 
         let fVal = '';
         if (primerAl.fecha_inicio_clases) fVal = primerAl.fecha_inicio_clases.substring(0, 16);
@@ -3270,6 +4211,7 @@ document.addEventListener('click', async (e) => {
             }
         }
 
+        const fIso = dateObj.toISOString();
         const dateObjEnd = new Date(dateObj.getTime() + durMin * 60000);
         const fIsoEnd = dateObjEnd.toISOString();
 
@@ -3286,19 +4228,24 @@ document.addEventListener('click', async (e) => {
         }
 
         let evSincronizado = null;
+        let textosCopiados = [];
 
         for (let id of ids) {
             const alDoc = await getDoc(doc(db, "alumnos", id));
             const al = alDoc.exists() ? alDoc.data() : {};
+            const finalGrupo = esIndividual ? 'Clase Individual' : (grp || al.grupo_asignado || 'Grupo Sin Nombre');
+            const rowSelect = document.querySelector(`.prealta-alumno-inst-select[data-id="${id}"]`);
+            const instSeleccionado = rowSelect ? rowSelect.value : (document.getElementById('prealta-instrumento-select')?.value || '');
+            const instFinal = instSeleccionado || al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento[0] : (al.instrumento || ''));
+
             const finalProfeId = profeId || al.reserva_profe_id || '';
             const finalProfeNombre = profeNombre || al.reserva_profe_nombre || '';
-            const finalGrupo = esIndividual ? 'Clase Individual' : (grp || al.grupo_asignado || 'Grupo Sin Nombre');
-
             const alParaSync = {
                 ...al,
                 reserva_profe_id: finalProfeId,
                 reserva_profe_nombre: finalProfeNombre,
                 grupo_asignado: finalGrupo,
+                instrumento_asignado: instFinal,
                 instrumento: al.instrumento || []
             };
 
@@ -3318,6 +4265,7 @@ document.addEventListener('click', async (e) => {
                 estado_agenda: "Pre-alta Iniciada",
                 fecha_inicio_clases: fIso,
                 grupo_asignado: finalGrupo,
+                instrumento_asignado: instFinal,
                 reserva_profe_id: finalProfeId,
                 reserva_profe_nombre: finalProfeNombre,
                 dia_match: diaCodigo,
@@ -3452,11 +4400,196 @@ document.addEventListener('click', async (e) => {
         return; 
     }
 
-    if (target.classList.contains('btn-buscar-agenda')) { alumnoIdActual = target.getAttribute('data-id'); const modal = document.getElementById('modal-agenda'), resDiv = document.getElementById('resultados-agenda'); resDiv.innerHTML = ''; const hoy = new Date(), d7 = new Date(); d7.setDate(d7.getDate()+7); document.getElementById('agenda-start').value = hoy.toISOString().split('T')[0]; document.getElementById('agenda-end').value = d7.toISOString().split('T')[0]; document.getElementById('btn-procesar-seleccion-agenda').style.display = 'none'; try { const selectProfe = document.getElementById('agenda-profe-filtro'); selectProfe.innerHTML = '<option value="">Todos los profesores</option>'; const pSnap = await getDocs(collection(db, "profesores")); pSnap.forEach(p => { if(p.data().entrevista) selectProfe.innerHTML += `<option value="${p.id}">${p.data().nombre}</option>`; }); resDiv.innerHTML = '<p style="color:var(--text-muted); font-size:13px;">Selecciona el rango y haz clic en Buscar.</p>'; modal.showModal(); setTimeout(() => { syncSelectToChips('agenda-profe-filtro', 'chips-profesores'); }, 100); } catch(err) {} return; }
-    if (target.id === 'btn-ejecutar-busqueda') { const resDiv = document.getElementById('resultados-agenda'), dStrStart = document.getElementById('agenda-start').value, dStrEnd = document.getElementById('agenda-end').value; if(!dStrStart || !dStrEnd) return alert("Fechas inválidas."); const selProfe = document.getElementById('agenda-profe-filtro'), fProfs = Array.from(selProfe.selectedOptions).map(o => o.value), searchAll = fProfs.length === 0 || fProfs.includes(""); resDiv.innerHTML = '<p>Buscando...</p>'; document.getElementById('btn-procesar-seleccion-agenda').style.display = 'none'; setBotonCargando(target, true); try { const al = (await getDoc(doc(db, "alumnos", alumnoIdActual))).data(), arrI = Array.isArray(al.instrumento) ? al.instrumento : [al.instrumento], esBat = arrI.some(i => i.toLowerCase().includes('bater')), dMap = { 'D':0, 'L':1, 'M':2, 'X':3, 'J':4, 'V':5, 'S':6 }; const dS = new Date(dStrStart+'T00:00:00'), dE = new Date(dStrEnd+'T23:59:59'); const pS = await getDocs(collection(db, "profesores")), todosLosProfes = [], profesFiltradosIDs = []; pS.forEach(p => { const d = p.data(); if(d.correo_calendario) { todosLosProfes.push({ id: p.id, nombre: d.nombre, calId: d.correo_calendario, disponibilidad: d.disponibilidad }); if (d.entrevista && (searchAll || fProfs.includes(p.id))) { profesFiltradosIDs.push(p.id); } } }); if(profesFiltradosIDs.length === 0) { setBotonCargando(target, false); return resDiv.innerHTML = '<p>No hay profes seleccionados.</p>'; } let allEv = []; for(const pr of todosLosProfes) { try { const data = await getEventosCalendario(pr.calId, dS.toISOString(), dE.toISOString()); if(data.items) allEv = allEv.concat(data.items.map(ev => ({...ev, profeId: pr.id}))); } catch(e) {} } const opts = generarOpcionesAgenda(al.disponibilidad, allEv, esBat, todosLosProfes, profesFiltradosIDs, dS, dE, configApp); if(opts.length===0) { resDiv.innerHTML='<p>No hay huecos libres.</p>'; } else { document.getElementById('btn-procesar-seleccion-agenda').style.display = 'block'; let html = ''; opts.forEach((op, index) => { html += `<label style="display:flex; gap:10px; margin-bottom:10px; cursor:pointer;"><input type="checkbox" class="chk-agenda-opt" data-calid="${op.calId}" data-profe="${op.profeNombre}" data-profeid="${op.profeId}" data-start="${op.inicioData}" data-end="${op.finData}" data-fechatxt="${op.fechaTextoAmi}"> <span>🕒 ${op.fechaTextoAmi} (${op.profeNombre})</span></label>`; }); resDiv.innerHTML = html; } } catch(e) { resDiv.innerHTML='<p>Error en la búsqueda.</p>'; } setBotonCargando(target, false); return; }
-    if (target.id === 'btn-procesar-seleccion-agenda') { const checks = document.querySelectorAll('.chk-agenda-opt:checked'); if (checks.length === 0) return alert("Selecciona al menos un horario."); const opciones = Array.from(checks).map((chk, index) => { const letras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"; return { letra: letras[index], profeId: chk.getAttribute('data-profeid'), profeNombre: chk.getAttribute('data-profe'), calId: chk.getAttribute('data-calid'), inicio: chk.getAttribute('data-start'), fin: chk.getAttribute('data-end'), fechaTexto: chk.getAttribute('data-fechatxt') }; }); const pId = opciones[0].profeId, pNom = opciones[0].profeNombre, cId = opciones[0].calId; const al = (await getDoc(doc(db, "alumnos", alumnoIdActual))).data(); let finalTxt = ""; if (opciones.length === 1) { let data = await generarTextoConHistorial(alumnoIdActual, 'texto_profe', opciones[0].fechaTexto, pId, pNom, opciones); finalTxt = data.txt; } else { let data = await generarTextoConHistorial(alumnoIdActual, 'texto_opciones_multiples', 'Varias opciones', pId, pNom, opciones); finalTxt = data.txt; } setBotonCargando(target, true); try { let updateData = { estado_agenda: "Pendiente validación por profe", reserva_profe_id: pId, reserva_profe_nombre: pNom, reserva_cal_id: cId, opciones_propuestas: opciones, reserva_fecha_texto: opciones.length === 1 ? opciones[0].fechaTexto : 'Varias opciones' }; if (al.id_evento_reserva) { await eliminarEventoSeguro(al); updateData.id_evento_reserva = null; updateData.calendario_evento_reserva = null; } await updateDoc(doc(db, "alumnos", alumnoIdActual), updateData); await navigator.clipboard.writeText(finalTxt); alert("Texto copiado al portapapeles. Estado avanzado."); document.getElementById('modal-agenda').close(); cargarVista(estadoActualVista); } catch(e) { alert("❌ Error:\n\n" + e.message); } setBotonCargando(target, false); return; }
+    if (target.classList.contains('btn-buscar-agenda')) { 
+        alumnoIdActual = target.getAttribute('data-id'); 
+        const modal = document.getElementById('modal-agenda'), resDiv = document.getElementById('resultados-agenda'); 
+        resDiv.innerHTML = ''; 
+        const hoy = new Date(), d7 = new Date(); 
+        d7.setDate(d7.getDate()+7); 
+        document.getElementById('agenda-start').value = hoy.toISOString().split('T')[0]; 
+        document.getElementById('agenda-end').value = d7.toISOString().split('T')[0]; 
+        document.getElementById('btn-procesar-seleccion-agenda').style.display = 'none'; 
+        try { 
+            const alDoc = await getDoc(doc(db, "alumnos", alumnoIdActual));
+            const al = alDoc.exists() ? alDoc.data() : {};
+            const insts = Array.isArray(al.instrumento) ? al.instrumento : (al.instrumento ? [al.instrumento] : []);
+            const wrapInst = document.getElementById('agenda-instrumento-wrapper');
+            const selInst = document.getElementById('agenda-instrumento-select');
+            
+            const instActual = al.instrumento_asignado || insts[0] || '';
+
+            if (wrapInst && selInst) {
+                if (insts.length > 0) {
+                    wrapInst.style.display = 'block';
+                    selInst.innerHTML = insts.map(i => `<option value="${i}" ${i === instActual ? 'selected' : ''}>${i}</option>`).join('');
+                } else {
+                    wrapInst.style.display = 'none';
+                }
+            }
+
+            async function refrescarProfesoresEntrevista(instrumentoSeleccionado) {
+                const selectProfe = document.getElementById('agenda-profe-filtro');
+                if (!selectProfe) return;
+                selectProfe.innerHTML = '<option value="">Todos los profesores</option>';
+                try {
+                    const pSnap = await getDocs(collection(db, "profesores"));
+                    pSnap.forEach(p => {
+                        const d = p.data();
+                        if (d.entrevista) {
+                            const skills = d.skills || [];
+                            const ensena = !instrumentoSeleccionado || skills.length === 0 || skills.some(s => s.toLowerCase() === instrumentoSeleccionado.toLowerCase());
+                            if (ensena) {
+                                selectProfe.innerHTML += `<option value="${p.id}">${d.nombre}</option>`;
+                            }
+                        }
+                    });
+                    syncSelectToChips('agenda-profe-filtro', 'chips-profesores');
+                } catch(e) {}
+            }
+
+            if (selInst) {
+                selInst.onchange = () => refrescarProfesoresEntrevista(selInst.value);
+            }
+
+            await refrescarProfesoresEntrevista(instActual);
+            resDiv.innerHTML = '<p style="color:var(--text-muted); font-size:13px;">Selecciona el rango y haz clic en Buscar Agenda.</p>'; 
+            modal.showModal(); 
+        } catch(err) {} 
+        return; 
+    }
+    if (target.id === 'btn-ejecutar-busqueda') { 
+        const resDiv = document.getElementById('resultados-agenda'), dStrStart = document.getElementById('agenda-start').value, dStrEnd = document.getElementById('agenda-end').value; 
+        if(!dStrStart || !dStrEnd) return alert("Fechas inválidas."); 
+        const selProfe = document.getElementById('agenda-profe-filtro'), fProfs = Array.from(selProfe.selectedOptions).map(o => o.value), searchAll = fProfs.length === 0 || fProfs.includes(""); 
+        resDiv.innerHTML = '<p>Buscando...</p>'; 
+        document.getElementById('btn-procesar-seleccion-agenda').style.display = 'none'; 
+        setBotonCargando(target, true); 
+        try { 
+            const al = (await getDoc(doc(db, "alumnos", alumnoIdActual))).data();
+            const instElegido = document.getElementById('agenda-instrumento-select')?.value || '';
+            const arrI = instElegido ? [instElegido] : (Array.isArray(al.instrumento) ? al.instrumento : [al.instrumento]);
+            const esBat = arrI.some(i => (i || '').toLowerCase().includes('bater'));
+            const dMap = { 'D':0, 'L':1, 'M':2, 'X':3, 'J':4, 'V':5, 'S':6 }; 
+            const dS = new Date(dStrStart+'T00:00:00'), dE = new Date(dStrEnd+'T23:59:59'); 
+            const pS = await getDocs(collection(db, "profesores")), todosLosProfes = [], profesFiltradosIDs = []; 
+            pS.forEach(p => { 
+                const d = p.data(); 
+                if(d.correo_calendario) { 
+                    todosLosProfes.push({ id: p.id, nombre: d.nombre, calId: d.correo_calendario, disponibilidad: d.disponibilidad }); 
+                    if (d.entrevista && (searchAll || fProfs.includes(p.id))) { 
+                        profesFiltradosIDs.push(p.id); 
+                    } 
+                } 
+            }); 
+            if(profesFiltradosIDs.length === 0) { 
+                setBotonCargando(target, false); 
+                return resDiv.innerHTML = '<p>No hay profes seleccionados con este instrumento.</p>'; 
+            } 
+            let allEv = []; 
+            for(const pr of todosLosProfes) { 
+                try { 
+                    const data = await getEventosCalendario(pr.calId, dS.toISOString(), dE.toISOString()); 
+                    if(data.items) allEv = allEv.concat(data.items.map(ev => ({...ev, profeId: pr.id}))); 
+                } catch(e) {} 
+            } 
+            const opts = generarOpcionesAgenda(al.disponibilidad, allEv, esBat, todosLosProfes, profesFiltradosIDs, dS, dE, configApp); 
+            if(opts.length===0) { 
+                resDiv.innerHTML='<p>No hay huecos libres en el rango seleccionado.</p>'; 
+            } else { 
+                document.getElementById('btn-procesar-seleccion-agenda').style.display = 'block'; 
+                // Ordenar los recomendados (pegados a clase) primero
+                opts.sort((a, b) => (b.pegado ? 1 : 0) - (a.pegado ? 1 : 0));
+                let html = ''; 
+                opts.forEach((op, index) => { 
+                    const icon = op.pegado ? '⭐' : '🕒';
+                    const tagRecom = op.pegado ? ' <span style="background:var(--accent-teal); color:#fff; font-size:10px; padding:2px 7px; border-radius:10px; font-weight:700; margin-left:6px;">Recomendado</span>' : '';
+                    html += `
+                        <label style="display:flex; align-items:center; gap:10px; margin-bottom:8px; cursor:pointer; padding:8px 10px; border-radius:8px; border:1px solid ${op.pegado ? 'var(--accent-teal)' : 'var(--border-color)'}; background:${op.pegado ? 'rgba(0, 123, 143, 0.08)' : 'var(--bg-main)'};">
+                            <input type="checkbox" class="chk-agenda-opt" data-calid="${op.calId}" data-profe="${op.profeNombre}" data-profeid="${op.profeId}" data-start="${op.inicioData}" data-end="${op.finData}" data-fechatxt="${op.fechaTextoAmi}"> 
+                            <span style="font-size:13px; color:var(--text-main); font-weight:${op.pegado ? '600' : 'normal'};">${icon} <strong>${op.fechaTextoAmi}</strong> (${op.profeNombre})${tagRecom}</span>
+                        </label>
+                    `; 
+                }); 
+                resDiv.innerHTML = html; 
+            } 
+        } catch(e) { 
+            resDiv.innerHTML='<p>Error en la búsqueda.</p>'; 
+        } 
+        setBotonCargando(target, false); 
+        return; 
+    }
+    if (target.id === 'btn-procesar-seleccion-agenda') { 
+        const checks = document.querySelectorAll('.chk-agenda-opt:checked'); 
+        if (checks.length === 0) return alert("Selecciona al menos un horario."); 
+        const opciones = Array.from(checks).map((chk, index) => { 
+            const letras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"; 
+            return { letra: letras[index], profeId: chk.getAttribute('data-profeid'), profeNombre: chk.getAttribute('data-profe'), calId: chk.getAttribute('data-calid'), inicio: chk.getAttribute('data-start'), fin: chk.getAttribute('data-end'), fechaTexto: chk.getAttribute('data-fechatxt') }; 
+        }); 
+        const pId = opciones[0].profeId, pNom = opciones[0].profeNombre, cId = opciones[0].calId; 
+        const al = (await getDoc(doc(db, "alumnos", alumnoIdActual))).data(); 
+        const instElegido = document.getElementById('agenda-instrumento-select')?.value || (Array.isArray(al.instrumento) ? al.instrumento[0] : (al.instrumento || ''));
+        al.instrumento_asignado = instElegido;
+
+        let finalTxt = ""; 
+        if (opciones.length === 1) { 
+            let data = await generarTextoConHistorial(alumnoIdActual, 'texto_profe', opciones[0].fechaTexto, pId, pNom, opciones); 
+            finalTxt = data.txt; 
+        } else { 
+            let data = await generarTextoConHistorial(alumnoIdActual, 'texto_opciones_multiples', 'Varias opciones', pId, pNom, opciones); 
+            finalTxt = data.txt; 
+        } 
+        setBotonCargando(target, true); 
+        try { 
+            let updateData = { 
+                estado_agenda: "Pendiente validación por profe", 
+                instrumento_asignado: instElegido,
+                reserva_profe_id: pId, 
+                reserva_profe_nombre: pNom, 
+                reserva_cal_id: cId, 
+                opciones_propuestas: opciones, 
+                reserva_fecha_texto: opciones.length === 1 ? opciones[0].fechaTexto : 'Varias opciones' 
+            }; 
+            if (al.id_evento_reserva) { 
+                await eliminarEventoSeguro(al); 
+                updateData.id_evento_reserva = null; 
+                updateData.calendario_evento_reserva = null; 
+            } 
+            await updateDoc(doc(db, "alumnos", alumnoIdActual), updateData); 
+            await navigator.clipboard.writeText(finalTxt); 
+            alert("Texto copiado al portapapeles. Estado avanzado."); 
+            document.getElementById('modal-agenda').close(); 
+            cargarVista(estadoActualVista); 
+        } catch(e) { 
+            alert("❌ Error:\n\n" + e.message); 
+        } 
+        setBotonCargando(target, false); 
+        return; 
+    }
     
-    async function generarTextoConHistorial(idAlumno, plantillaKey, overrideFecha = null, overrideProfeId = null, overrideProfeNombre = null, overrideOpciones = null) { const al = (await getDoc(doc(db, "alumnos", idAlumno))).data(); let aliasP = ''; const targetProfeId = overrideProfeId || al.reserva_profe_id; const targetProfeNom = overrideProfeNombre || al.reserva_profe_nombre; if (targetProfeId) { const pDoc = await getDoc(doc(db, "profesores", targetProfeId)); if(pDoc.exists()) aliasP = pDoc.data().alias_transferencia||''; } let histText = al.historial && al.historial.length > 0 ? [...al.historial].sort((a,b)=>a.id-b.id).map(h => `[${h.fecha}] ${h.texto}`).join('\n') : 'Sin registros previos.'; let template = configApp[plantillaKey] || ''; template = template.replace(/\{historial\}/gi, histText); const iS = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento; const dP = al.descripcion ? al.descripcion.replace(/<[^>]*>?/gm, '').trim() : ''; const fAmiInicio = al.fecha_inicio_clases ? formatearFechaAmi(al.fecha_inicio_clases) : ''; let opc = overrideOpciones || al.opciones_propuestas || []; let opcionesStr = opc.length > 0 ? opc.map(o => `${o.letra || '-'}- ${o.fechaTexto}`).join('\n') : ''; let fHora = overrideFecha || al.reserva_fecha_texto || ''; if (opc.length > 1 && (fHora === 'Varias opciones' || !fHora)) { fHora = '\n' + opcionesStr; } const txt = reemplazarVariables(template, { fecha_hora: fHora, opciones: opcionesStr, nombre: al.nombre, edad: al.edad||'-', instrumento: iS, suscripcion: al.tipo_suscripcion || '', descripcion: dP, profe: targetProfeNom || '', valor: configApp.valor_clase || '', alias_profe: aliasP || '', grupo: al.grupo_asignado || '', 'fecha inicio clases': fAmiInicio }); return { al, txt }; }
+    async function generarTextoConHistorial(idAlumno, plantillaKey, overrideFecha = null, overrideProfeId = null, overrideProfeNombre = null, overrideOpciones = null) { 
+        const al = (await getDoc(doc(db, "alumnos", idAlumno))).data(); 
+        let aliasP = ''; 
+        const targetProfeId = overrideProfeId || al.reserva_profe_id; 
+        const targetProfeNom = overrideProfeNombre || al.reserva_profe_nombre; 
+        if (targetProfeId) { 
+            const pDoc = await getDoc(doc(db, "profesores", targetProfeId)); 
+            if(pDoc.exists()) aliasP = pDoc.data().alias_transferencia||''; 
+        } 
+        let histText = formatearTextoHistorial(al.historial); 
+        let template = configApp[plantillaKey] || ''; 
+        template = template.replace(/\{historial\}/gi, histText); 
+        const iS = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || '')); 
+        const dP = al.descripcion ? al.descripcion.replace(/<[^>]*>?/gm, '').trim() : ''; 
+        const fAmiInicio = al.fecha_inicio_clases ? formatearFechaAmi(al.fecha_inicio_clases) : ''; 
+        let opc = overrideOpciones || al.opciones_propuestas || []; 
+        let opcionesStr = opc.length > 0 ? opc.map(o => `${o.letra || '-'}- ${o.fechaTexto}`).join('\n') : ''; 
+        let fHora = overrideFecha || al.reserva_fecha_texto || ''; 
+        if (opc.length > 1 && (fHora === 'Varias opciones' || !fHora)) { 
+            fHora = '\n' + opcionesStr; 
+        } 
+        const txt = reemplazarVariables(template, { fecha_hora: fHora, opciones: opcionesStr, nombre: al.nombre, edad: al.edad||'-', instrumento: iS, suscripcion: al.tipo_suscripcion || '', descripcion: dP, profe: targetProfeNom || '', valor: configApp.valor_clase || '', alias_profe: aliasP || '', grupo: al.grupo_asignado || '', 'fecha inicio clases': fAmiInicio }); 
+        return { al, txt }; 
+    }
 
     if (target.classList.contains('btn-validado-profe-popup')) { const id = target.getAttribute('data-id'); const al = (await getDoc(doc(db, "alumnos", id))).data(); const container = document.getElementById('opciones-validadas-container'); container.innerHTML = ''; if (al.opciones_propuestas && al.opciones_propuestas.length > 0) { al.opciones_propuestas.forEach((op, index) => { container.innerHTML += `<label style="display:flex; gap:8px; margin-bottom:8px; cursor:pointer;"><input type="radio" name="opt-valida-profe" value='${JSON.stringify(op)}' ${index===0?'checked':''}> ${op.letra ? op.letra+'- ' : ''}${op.fechaTexto}</label>`; }); } else { const op = { inicio: al.reserva_inicio, fin: al.reserva_fin, fechaTexto: al.reserva_fecha_texto, calId: al.reserva_cal_id, profeId: al.reserva_profe_id, profeNombre: al.reserva_profe_nombre }; container.innerHTML = `<label style="display:flex; gap:8px; margin-bottom:8px; cursor:pointer;"><input type="radio" name="opt-valida-profe" value='${JSON.stringify(op)}' checked> ${op.fechaTexto}</label>`; } document.getElementById('validar-profe-alumno-id').value = id; document.getElementById('modal-validar-profe').showModal(); return; }
     if (target.id === 'btn-confirmar-validacion-profe') { const id = document.getElementById('validar-profe-alumno-id').value, selectedRadio = document.querySelector('input[name="opt-valida-profe"]:checked'); if(!selectedRadio) return alert("Selecciona una opción."); const op = JSON.parse(selectedRadio.value), al = (await getDoc(doc(db, "alumnos", id))).data(); setBotonCargando(target, true); try { al.reserva_profe_id = op.profeId; al.reserva_profe_nombre = op.profeNombre; al.reserva_cal_id = op.calId; al.reserva_fecha_texto = op.fechaTexto; al.reserva_inicio = op.inicio; al.reserva_fin = op.fin; const titulos = construirTitulosEvento(al, 'reserva', configApp); const evRes = await crearEventoSeguro(al, titulos, op.inicio, op.fin); await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente validación por alumno", id_evento_reserva: evRes.id, calendario_evento_reserva: evRes.calendar, reserva_profe_id: op.profeId, reserva_profe_nombre: op.profeNombre, reserva_cal_id: op.calId, reserva_fecha_texto: op.fechaTexto, reserva_inicio: op.inicio, reserva_fin: op.fin, opciones_propuestas: null }); const dataText = await generarTextoConHistorial(id, 'texto_alumno'); await navigator.clipboard.writeText(dataText.txt); alert("Reserva en Calendar creada exitosamente.\n\nTexto copiado."); document.getElementById('modal-validar-profe').close(); cargarVista(estadoActualVista); } catch(e) { alert("❌ Error:\n\n" + e.message); } setBotonCargando(target, false); return; }

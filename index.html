@@ -56,46 +56,36 @@
             <button id="btn-nuevo-alumno" class="btn-nuevo-sidebar">＋ Nuevo alumno</button>
 
             <ul class="nav flex-column" style="list-style:none; padding:0; margin:15px 0 0 0; flex-grow:1;">
-                <li class="nav-item" data-vista="Dashboard"><span class="nav-icon">◷</span> Dashboard</li>
+                <li class="nav-item" data-vista="Dashboard" data-modulo="Dashboard"><span class="nav-icon">◷</span> <span>Dashboard</span></li>
                 
                 <li class="nav-divider"></li>
                 
-                <details class="nav-accordion">
-                    <summary class="nav-item"><span class="nav-icon">📥</span> Inbox</summary>
-                    <div class="nav-submenu">
-                        <li class="nav-item sub-item" data-vista="Inbox - Pendientes">Pendientes</li>
-                        <li class="nav-item sub-item" data-vista="Inbox - Confirmadas">Confirmadas</li>
-                        <li class="nav-item sub-item" data-vista="Inbox - Suspendidas">Suspendidas</li>
-                    </div>
-                </details>
+                <li class="nav-item" data-vista="Inbox - Pendientes" data-modulo="Inbox">
+                    <span class="nav-icon">📥</span> <span>Inbox</span>
+                    <span class="nav-badge" id="badge-inbox" style="display:none;">0</span>
+                </li>
 
-                <li class="nav-item" data-vista="Lista de Espera"><span class="nav-icon">🛋️</span> Lista de espera</li>
+                <li class="nav-item" data-vista="Lista de Espera" data-modulo="Lista de Espera">
+                    <span class="nav-icon">🛋️</span> <span>Lista de espera</span>
+                    <span class="nav-badge" id="badge-espera" style="display:none;">0</span>
+                </li>
                 
-                <details class="nav-accordion">
-                    <summary class="nav-item"><span class="nav-icon">🧩</span> Match</summary>
-                    <div class="nav-submenu">
-                        <li class="nav-item sub-item" data-vista="Match - Pendientes">Pendientes</li>
-                        <li class="nav-item sub-item" data-vista="Match - Confirmados">Confirmados</li>
-                    </div>
-                </details>
+                <li class="nav-item" data-vista="Match - Pendientes" data-modulo="Match">
+                    <span class="nav-icon">🧩</span> <span>Match</span>
+                    <span class="nav-badge" id="badge-match" style="display:none;">0</span>
+                </li>
 
-                <details class="nav-accordion">
-                    <summary class="nav-item"><span class="nav-icon">🚀</span> Altas</summary>
-                    <div class="nav-submenu">
-                        <li class="nav-item sub-item" data-vista="Altas - Pendientes">Pendientes</li>
-                        <li class="nav-item sub-item" data-vista="Altas - En Curso">En Curso</li>
-                        <li class="nav-item sub-item" data-vista="Altas - Confirmadas">Confirmadas</li>
-                        <li class="nav-item sub-item" data-vista="Altas - Finalizadas">Finalizadas</li>
-                        <li class="nav-item sub-item" data-vista="Altas - Suspendidas">Suspendidas</li>
-                    </div>
-                </details>
+                <li class="nav-item" data-vista="Altas - Pendientes" data-modulo="Altas">
+                    <span class="nav-icon">🚀</span> <span>Altas</span>
+                    <span class="nav-badge" id="badge-altas" style="display:none;">0</span>
+                </li>
 
                 <li class="nav-divider"></li>
-                <li class="nav-item" data-vista="Estadísticas"><span class="nav-icon">📊</span> Métricas</li>
+                <li class="nav-item" data-vista="Estadísticas" data-modulo="Estadísticas"><span class="nav-icon">📊</span> <span>Métricas</span></li>
             </ul>
 
             <div style="margin-top: auto; padding-top: 15px; border-top: 1px solid #ece6dc; display:flex; flex-direction:column; gap:8px;">
-                <li class="nav-item-small" data-vista="Configuración"><span class="nav-icon">⚙️</span> Configuración</li>
+                <li class="nav-item-small" data-vista="Configuración" data-modulo="Configuración"><span class="nav-icon">⚙️</span> Configuración</li>
                 <div id="user-info" style="font-size: 0.8em; color: #8a9097; word-break: break-all; padding: 0 10px;"></div>
                 <button id="btn-logout" class="btn-logout">Cerrar sesión</button>
             </div>
@@ -127,22 +117,50 @@
                 </div>
             </div>
 
+            <!-- BARRA DE PESTAÑAS SEGMENTADAS (SUB-TABS SUPERIORES) -->
+            <div id="modulo-subtabs-container" class="segmented-tabs-wrapper" style="display:none;">
+                <div id="modulo-subtabs-bar" class="segmented-tabs-bar">
+                    <!-- Se inyectan dinámicamente según el módulo activo -->
+                </div>
+            </div>
+
             <!-- BARRA DE FILTROS Y AGRUPADORES -->
             <div id="controles-vista" style="display:none; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:15px; border-bottom:1px solid #ece6dc; padding-bottom:15px;">
                 <div id="filtros-chips" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
                     <!-- Se inyectan por JS Instrumentos -->
                 </div>
                 <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                    <button id="btn-toggle-view" class="filter-chip" style="display:none; font-family:inherit; color:var(--accent-blue);"><span class="nav-icon" style="filter:none;">📋</span> Vista Tablero</button>
-                    <div style="display:flex; align-items:center; gap:8px; font-size:0.9em; color:#8a9097; font-weight:500;">
-                        Agrupar:
-                        <select id="select-agrupador" style="padding:6px 12px; border-radius:8px; border:1px solid #ece6dc; background:#fff; font-family:inherit; color:#1c1f22; outline:none; cursor:pointer;">
+                    <div style="display:flex; align-items:center; gap:6px; font-size:0.85em; color:#8a9097; font-weight:600;">
+                        <span>Agrupar 1:</span>
+                        <select id="select-agrupador-1" style="padding:5px 10px; border-radius:8px; border:1px solid #ece6dc; background:#fff; font-family:inherit; color:#1c1f22; outline:none; cursor:pointer; font-size:12px;">
                             <option value="ninguno">Sin agrupar</option>
-                            <option value="grupo">Grupo</option>
+                            <option value="suscripcion">Suscripción</option>
                             <option value="instrumento">Instrumento</option>
                             <option value="nivel">Nivel</option>
-                            <option value="profe">Profesor</option>
+                            <option value="profe">Entrevistador / Profe</option>
+                            <option value="grupo">Grupo</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px; font-size:0.85em; color:#8a9097; font-weight:600;">
+                        <span>Subagrupar 2:</span>
+                        <select id="select-agrupador-2" style="padding:5px 10px; border-radius:8px; border:1px solid #ece6dc; background:#fff; font-family:inherit; color:#1c1f22; outline:none; cursor:pointer; font-size:12px;">
+                            <option value="ninguno">Ninguno</option>
+                            <option value="instrumento">Instrumento</option>
+                            <option value="nivel">Nivel</option>
+                            <option value="profe">Entrevistador / Profe</option>
                             <option value="suscripcion">Suscripción</option>
+                            <option value="grupo">Grupo</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px; font-size:0.85em; color:#8a9097; font-weight:600;">
+                        <span>Subagrupar 3:</span>
+                        <select id="select-agrupador-3" style="padding:5px 10px; border-radius:8px; border:1px solid #ece6dc; background:#fff; font-family:inherit; color:#1c1f22; outline:none; cursor:pointer; font-size:12px;">
+                            <option value="ninguno">Ninguno</option>
+                            <option value="instrumento">Instrumento</option>
+                            <option value="nivel">Nivel</option>
+                            <option value="profe">Entrevistador / Profe</option>
+                            <option value="suscripcion">Suscripción</option>
+                            <option value="grupo">Grupo</option>
                         </select>
                     </div>
                 </div>
@@ -216,6 +234,14 @@
                                     </div>
                                 </div>
 
+                                <!-- Instrumento Específico (Opcional) -->
+                                <div id="match-instrumento-wrapper">
+                                    <label style="font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:6px;">INSTRUMENTO OBJETIVO (OPCIONAL)</label>
+                                    <select id="match-instrumento-filtro" class="modern-input">
+                                        <option value="">Cualquier instrumento</option>
+                                    </select>
+                                </div>
+
                                 <!-- Profesor -->
                                 <div>
                                     <label style="font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:6px;">PROFESOR</label>
@@ -254,11 +280,11 @@
                                     <label style="font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:8px;">NIVEL</label>
                                     <div style="display:flex; gap:8px; flex-wrap:wrap;">
                                         <label class="match-check-chip">
-                                            <input type="checkbox" name="match-nivel" value="Inicial I" checked>
+                                            <input type="checkbox" name="match-nivel" value="Inicial I">
                                             <span>Inicial I</span>
                                         </label>
                                         <label class="match-check-chip">
-                                            <input type="checkbox" name="match-nivel" value="Inicial II" checked>
+                                            <input type="checkbox" name="match-nivel" value="Inicial II">
                                             <span>Inicial II</span>
                                         </label>
                                         <label class="match-check-chip">
@@ -320,6 +346,7 @@
         <!-- BARRA FLOTANTE DE ACCIONES MASIVAS -->
         <div id="bulk-actions-bar" style="display:none;">
             <span id="bulk-count">0 seleccionados</span>
+            <button id="btn-bulk-propuesta-grupo" class="btn-primary" style="padding:6px 14px; font-size:12.5px; display:none;">➕ Nueva Propuesta de Grupo</button>
             <button id="btn-bulk-suspender">Suspender</button>
             <button id="btn-bulk-cancelar">Cancelar</button>
         </div>
@@ -475,13 +502,17 @@
             <div class="modal-drag-pill"></div>
             <h3 style="margin:0 0 15px 0; color:var(--text-main); font-size:1.4em;">Buscar Disponibilidad</h3>
             <div id="info-alumno-agenda" style="margin-bottom:15px; padding:15px; background:var(--hover-bg); border-radius:8px; display:none; border:1px solid var(--border-color);"></div>
+            <div id="agenda-instrumento-wrapper" style="margin-bottom:15px; display:none;">
+                <label style="font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:6px;">INSTRUMENTO PARA ESTA ENTREVISTA</label>
+                <select id="agenda-instrumento-select" class="modern-input"></select>
+            </div>
             <div style="margin-bottom: 15px; padding: 15px; background: var(--bg-main); border:1px solid var(--border-color); border-radius: 8px; display:flex; flex-direction:column; gap:15px;">
                 <div style="display:flex; gap:10px;">
                     <div style="flex:1;"><label>Desde:</label><input type="date" id="agenda-start" class="modern-input" required></div>
                     <div style="flex:1;"><label>Hasta:</label><input type="date" id="agenda-end" class="modern-input" required></div>
                 </div>
                 <div><label>Profesor(es):</label><select id="agenda-profe-filtro" multiple style="display:none;"></select><div id="chips-profesores"></div></div>
-                <button id="btn-ejecutar-busqueda" class="btn-primary" style="height:42px;">Buscar Huecos</button>
+                <button id="btn-ejecutar-busqueda" class="btn-primary" style="height:42px;">Buscar Agenda</button>
             </div>
             <input type="text" id="input-buscador-popup" class="modern-input" placeholder="Filtrar resultados..." style="margin-bottom: 15px; display:none;">
             <div id="resultados-agenda" style="margin-bottom:15px; max-height:40vh; overflow-y:auto;"></div>
@@ -512,6 +543,20 @@
             <h3 id="titulo-prealta" style="margin:0 0 12px 0; color:var(--text-main); font-weight:700;">Iniciar Pre-Alta</h3>
             <input type="hidden" id="prealta-alumno-id">
             <div id="prealta-info-banner" style="display:none; background:var(--hover-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 12px; font-size:12.5px; margin-bottom:15px; color:var(--text-muted); line-height:1.4;"></div>
+            
+            <div id="prealta-campo-instrumento" style="margin-bottom:12px;">
+                <label style="font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:6px;">INSTRUMENTO DE LA CLASE
+                    <select id="prealta-instrumento-select" class="modern-input">
+                        <option value="">Seleccionar instrumento...</option>
+                    </select>
+                </label>
+            </div>
+
+            <!-- Asignación grupal por alumno -->
+            <div id="prealta-lista-alumnos-instrumentos" style="display:none; margin-bottom:15px;">
+                <label style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:8px;">ASIGNACIÓN DE INSTRUMENTOS POR ALUMNO</label>
+                <div id="prealta-alumnos-container" style="display:flex; flex-direction:column; gap:8px; max-height:220px; overflow-y:auto; padding-right:4px;"></div>
+            </div>
             
             <div id="prealta-campo-grupo">
                 <label style="font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:6px;">GRUPO O TALLER
@@ -695,15 +740,91 @@
         </div>
     </dialog>
 
+    <!-- ================================================ -->
+    <!-- MODAL: NUEVA PROPUESTA DE GRUPO MANUAL (DESDE ESPERA) -->
+    <!-- ================================================ -->
+    <dialog id="modal-nueva-propuesta-grupo" class="modern-modal auto-height-modal" style="max-width:580px;">
+        <div style="padding:24px;">
+            <div class="modal-drag-pill"></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+                <h3 style="margin:0; font-size:1.3em; font-weight:700; color:var(--text-main);">🧩 Nueva Propuesta de Grupo</h3>
+                <button type="button" class="btn-cerrar-modal" data-modal="modal-nueva-propuesta-grupo" style="background:transparent; border:none; cursor:pointer; font-size:1.5em; color:#9a9388;">&times;</button>
+            </div>
+
+            <!-- Formulario de configuración de propuesta -->
+            <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:18px;">
+                <div>
+                    <label style="font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:5px;">PROFESOR ASIGNADO</label>
+                    <select id="propuesta-manual-profe" class="modern-input" required>
+                        <option value="">Seleccionar profesor...</option>
+                    </select>
+                </div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
+                    <div>
+                        <label style="font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:5px;">DÍA</label>
+                        <select id="propuesta-manual-dia" class="modern-input">
+                            <option value="L">Lunes</option>
+                            <option value="M">Martes</option>
+                            <option value="X">Miércoles</option>
+                            <option value="J" selected>Jueves</option>
+                            <option value="V">Viernes</option>
+                            <option value="S">Sábado</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:5px;">HORA INICIO</label>
+                        <input type="time" id="propuesta-manual-hora-inicio" class="modern-input" value="19:30">
+                    </div>
+                    <div>
+                        <label style="font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:5px;">HORA FIN</label>
+                        <input type="time" id="propuesta-manual-hora-fin" class="modern-input" value="21:00">
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <div>
+                        <label style="font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:5px;">ESPACIO / AULA</label>
+                        <input type="text" id="propuesta-manual-aula" class="modern-input" value="Aula Principal">
+                    </div>
+                    <div>
+                        <label style="font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:5px;">NOMBRE DEL GRUPO</label>
+                        <input type="text" id="propuesta-manual-nombre" class="modern-input" placeholder="Ej: J19.30 Belu">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabla de asignación de instrumentos por alumno -->
+            <div style="margin-bottom:16px;">
+                <label style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:8px;">ALUMNOS SELECCIONADOS E INSTRUMENTOS</label>
+                <div id="propuesta-manual-alumnos-container" style="display:flex; flex-direction:column; gap:8px; max-height:200px; overflow-y:auto; padding-right:4px;"></div>
+            </div>
+
+            <!-- Panel de advertencias y validación Match -->
+            <div id="propuesta-manual-warnings-container" style="display:none; background:#fff8e6; border:1px solid #ffd591; border-radius:10px; padding:12px 14px; margin-bottom:18px;">
+                <div style="display:flex; align-items:center; gap:6px; font-weight:700; color:#d46b08; font-size:12.5px; margin-bottom:6px;">
+                    <span>⚠️ Advertencias de Validación Match</span>
+                </div>
+                <div id="propuesta-manual-warnings-list" style="font-size:11.5px; color:#873800; line-height:1.4; display:flex; flex-direction:column; gap:4px;"></div>
+            </div>
+
+            <div style="display:flex; gap:10px; justify-content:flex-end; padding-top:15px; border-top:1px solid var(--border-color);">
+                <button type="button" class="btn-cerrar-modal" data-modal="modal-nueva-propuesta-grupo" style="padding:10px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted); font-family:inherit;">Cancelar</button>
+                <button id="btn-ejecutar-crear-propuesta-manual" class="btn-primary">🧩 Crear Propuesta en Validación</button>
+            </div>
+        </div>
+    </dialog>
+
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js"></script>
+    <script type="module" src="app.js?v=4.2.0"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=4.2.0').then(reg => {
+                    reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {
                     console.log('Error PWA: ', err);
