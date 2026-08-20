@@ -236,15 +236,21 @@ body {
 .btn-row-action:hover { background: var(--hover-bg); color: var(--text-main); }
 
 /* =======================================================================
-   MENÚ DESPLEGABLE DE ACCIONES
+   MENÚ DESPLEGABLE DE ACCIONES (CLICK-TO-TOGGLE)
    ======================================================================= */
 .alumno-actions { position: relative; }
 .dropdown-menu-wrapper { 
     display: none; position: absolute; top: 100%; right: 0; 
     padding-top: 8px; z-index: 1000; min-width: 200px; 
 }
-.alumno-actions:hover .dropdown-menu-wrapper,
-.dropdown-menu-wrapper.show { display: block !important; }
+.dropdown-menu-wrapper.show { 
+    display: block !important; 
+    animation: fadeInMenu 0.15s ease-out;
+}
+@keyframes fadeInMenu {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
 .dropdown-menu { 
     background-color: var(--bg-sidebar); border: 1px solid var(--border-color); 
     border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); 
@@ -415,7 +421,25 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
 .tab-btn:hover { color: var(--text-main); }
 .tab-btn.active { color: var(--accent-teal); border-bottom-color: var(--accent-teal); }
 
-.toast-notification { background: var(--text-main); color: #fff; padding: 12px 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); font-size: 13px; font-weight: 500; opacity: 0; transition: 0.3s ease; }
+.toast-notification { 
+    background: #1c1f22; 
+    color: #fff; 
+    padding: 12px 18px; 
+    border-radius: 10px; 
+    box-shadow: 0 8px 24px rgba(0,0,0,0.22); 
+    font-size: 13px; 
+    font-weight: 600; 
+    opacity: 0; 
+    transform: translateY(8px);
+    transition: 0.25s ease; 
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-left: 4px solid var(--accent-teal);
+}
+.toast-notification.toast-success { border-left-color: #27ae60; background: #18221b; }
+.toast-notification.toast-error { border-left-color: var(--accent-red); background: #261715; }
+.toast-notification.toast-warning { border-left-color: #e5a93d; background: #262115; }
 
 /* =======================================================================
    DISEÑO RESPONSIVO (MÓVILES, BOTTOM SHEETS Y GESTOS)

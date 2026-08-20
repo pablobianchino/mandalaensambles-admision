@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-const APP_VERSION = "v4.5.0"; // UI: Paleta de colores degradé sincronizada en Flow y Badges + 'PENDIENTE VALIDACIÓN POR EVALUADOR' en mayúsculas
+const APP_VERSION = "v4.6.0"; // UX/UI: Menú ⋮ Click-to-toggle, Buscador con Debounce y Limpiar, Toasts inteligentes, Kanban click-outside y Empty States
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 const firebaseConfig = {
@@ -155,14 +155,33 @@ async function conectarGoogle() {
     try { await signInWithPopup(auth, provider); } catch (err) { alert("Error al intentar iniciar sesión."); } 
 }
 
-window.alert = function(msg) {
+window.alert = function(msg, tipo = '') {
     const container = document.getElementById('toast-container');
     if (!container) return console.log(msg); 
     const toast = document.createElement('div');
-    toast.className = 'toast-notification'; toast.textContent = msg;
+    
+    let extraClass = '';
+    const str = String(msg || '');
+    if (tipo === 'success' || str.includes('✅') || str.toLowerCase().includes('éxito') || str.toLowerCase().includes('copiado') || str.toLowerCase().includes('guardado')) {
+        extraClass = 'toast-success';
+    } else if (tipo === 'error' || str.includes('❌') || str.toLowerCase().includes('error') || str.toLowerCase().includes('falló') || str.toLowerCase().includes('no se pudo')) {
+        extraClass = 'toast-error';
+    } else if (tipo === 'warning' || str.includes('⚠️') || str.toLowerCase().includes('atención') || str.toLowerCase().includes('alerta')) {
+        extraClass = 'toast-warning';
+    }
+
+    toast.className = `toast-notification ${extraClass}`.trim();
+    toast.textContent = str;
     container.appendChild(toast);
-    setTimeout(() => toast.style.opacity = '1', 10);
-    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 5000);
+    setTimeout(() => {
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateY(0)';
+    }, 10);
+    setTimeout(() => { 
+        toast.style.opacity = '0'; 
+        toast.style.transform = 'translateY(8px)';
+        setTimeout(() => toast.remove(), 300); 
+    }, 4500);
 };
 
 let alumnoIdActual = null;
@@ -1479,8 +1498,14 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
     }
 
     if(filtrados.length === 0) { 
-        cont.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px; font-weight:500;">No hay alumnos en esta vista.</div>'; 
-        contKanban.innerHTML = '';
+        cont.style.display = 'flex';
+        if (contKanban) contKanban.style.display = 'none';
+        cont.innerHTML = `
+            <div style="color:var(--text-muted); text-align:center; padding:30px 20px; font-weight:500; background:var(--bg-sidebar); border-radius:12px; border:1px dashed var(--border-color); margin:15px 0; width:100%; box-sizing:border-box;">
+                <div style="font-size:15px; font-weight:700; color:var(--text-main); margin-bottom:4px;">No hay alumnos en esta vista</div>
+                <div style="font-size:12px; color:var(--text-muted);">Todas las gestiones están al día o no coinciden con los filtros aplicados.</div>
+            </div>`; 
+        if (contKanban) contKanban.innerHTML = '';
         return; 
     }
 
@@ -3915,7 +3940,34 @@ onAuthStateChanged(auth, async (user) => {
     } 
 });
 
-const inputBuscadorGeneral = document.getElementById('input-buscador-general'); if(inputBuscadorGeneral) { inputBuscadorGeneral.addEventListener('input', () => { cargarVista(estadoActualVista); }); }
+// Buscador general con debounce (250ms) y botón para limpiar
+let searchDebounceTimer = null;
+const inputBuscadorGeneral = document.getElementById('input-buscador-general');
+const btnLimpiarBuscador = document.getElementById('btn-limpiar-buscador');
+
+if (inputBuscadorGeneral) {
+    inputBuscadorGeneral.addEventListener('input', (e) => {
+        const val = e.target.value;
+        if (btnLimpiarBuscador) {
+            btnLimpiarBuscador.style.display = val.trim().length > 0 ? 'block' : 'none';
+        }
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = setTimeout(() => {
+            cargarVista(estadoActualVista);
+        }, 250);
+    });
+}
+
+if (btnLimpiarBuscador) {
+    btnLimpiarBuscador.addEventListener('click', () => {
+        if (inputBuscadorGeneral) {
+            inputBuscadorGeneral.value = '';
+            btnLimpiarBuscador.style.display = 'none';
+            inputBuscadorGeneral.focus();
+            cargarVista(estadoActualVista);
+        }
+    });
+}
 
 document.addEventListener('change', async (e) => {
     if(e.target.classList.contains('chk-alta-paso')) {
@@ -4066,6 +4118,26 @@ document.addEventListener('click', async (e) => {
         if (drop) drop.classList.remove('show');
     }
 
+    // Clic en acción dentro de cualquier dropdown desktop de fila -> cerrarlo
+    if (target.closest('.dropdown-menu-wrapper') && target.tagName === 'BUTTON') {
+        const wrap = target.closest('.dropdown-menu-wrapper');
+        if (wrap && wrap.id !== 'modal-acciones-dropdown') {
+            wrap.classList.remove('show');
+        }
+    }
+
+    // Clic fuera de los dropdowns de acciones en filas (Desktop)
+    if (!target.closest('.alumno-actions')) {
+        document.querySelectorAll('.dropdown-menu-wrapper.show').forEach(d => {
+            if (d.id !== 'modal-acciones-dropdown') d.classList.remove('show');
+        });
+    }
+
+    // Clic fuera de menús de tarjetas Kanban
+    if (!target.closest('[id^="menu-kanban-"]') && !target.classList.contains('btn-row-action')) {
+        document.querySelectorAll('[id^="menu-kanban-"]').forEach(m => m.style.display = 'none');
+    }
+
     // Auto-cierre del Bottom Sheet Modal al tocar una acción adentro
     if(target.closest('#mobile-actions-container') && target.tagName === 'BUTTON' && !target.classList.contains('btn-cerrar-modal')) {
         document.getElementById('modal-mobile-actions').close();
@@ -4094,13 +4166,29 @@ document.addEventListener('click', async (e) => {
 
     if (target.classList.contains('btn-eliminar-alumno')) { e.stopPropagation(); if(confirm("¿Eliminar este alumno por completo?")) { const id = target.closest('.btn-editar-alumno').getAttribute('data-id'); try { const al = (await getDoc(doc(db, "alumnos", id))).data(); if (al && al.id_evento_reserva) { await eliminarEventoSeguro(al); } } catch(err) {} await deleteDoc(doc(db, "alumnos", id)); cargarVista(estadoActualVista); } return; }
     
-    // Captura clic en los 3 puntos (Solo móvil, en Bandeja Flow)
-    if (target.classList.contains('btn-row-action') && window.innerWidth <= 850) {
+    // Captura clic en los 3 puntos (Móvil abre Bottom Sheet / Desktop hace toggle de menú fijo)
+    if (target.classList.contains('btn-row-action') || target.closest('.btn-row-action')) {
         e.stopPropagation();
-        const wrapper = target.nextElementSibling; 
-        if (wrapper && wrapper.classList.contains('dropdown-menu-wrapper')) {
-            document.getElementById('mobile-actions-container').innerHTML = wrapper.querySelector('.dropdown-menu').innerHTML;
-            document.getElementById('modal-mobile-actions').showModal();
+        const btn = target.classList.contains('btn-row-action') ? target : target.closest('.btn-row-action');
+        const wrapper = btn.nextElementSibling || btn.closest('.alumno-actions')?.querySelector('.dropdown-menu-wrapper');
+        
+        if (window.innerWidth <= 850) {
+            if (wrapper && wrapper.classList.contains('dropdown-menu-wrapper')) {
+                document.getElementById('mobile-actions-container').innerHTML = wrapper.querySelector('.dropdown-menu').innerHTML;
+                document.getElementById('modal-mobile-actions').showModal();
+            }
+        } else {
+            if (wrapper) {
+                const isShown = wrapper.classList.contains('show');
+                document.querySelectorAll('.dropdown-menu-wrapper.show').forEach(d => {
+                    if (d !== wrapper && d.id !== 'modal-acciones-dropdown') d.classList.remove('show');
+                });
+                if (!isShown) {
+                    wrapper.classList.add('show');
+                } else {
+                    wrapper.classList.remove('show');
+                }
+            }
         }
         return;
     }
