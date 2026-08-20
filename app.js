@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-const APP_VERSION = "v4.6.0"; // UX/UI: Menú ⋮ Click-to-toggle, Buscador con Debounce y Limpiar, Toasts inteligentes, Kanban click-outside y Empty States
+const APP_VERSION = "v4.7.2"; // v4.7.2: Rediseño compacto y responsivo de gráficos de métricas para desktop y móvil
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 const firebaseConfig = {
@@ -183,6 +183,53 @@ window.alert = function(msg, tipo = '') {
         setTimeout(() => toast.remove(), 300); 
     }, 4500);
 };
+
+// ================================================================
+// MODAL DE CONFIRMACIÓN CUSTOM — Punto 6 (reemplaza confirm() nativo)
+// ================================================================
+window.confirmar = function(titulo, descripcion = '', textoBoton = 'Confirmar', icono = '⚠️') {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('modal-confirmar-accion');
+        if (!modal) { resolve(window._originalConfirm ? window._originalConfirm(titulo) : false); return; }
+
+        document.getElementById('confirmar-titulo').textContent = titulo;
+        document.getElementById('confirmar-descripcion').textContent = descripcion;
+        document.getElementById('confirmar-btn-ok').textContent = textoBoton;
+        document.getElementById('confirmar-icon').textContent = icono;
+
+        const btnOk = document.getElementById('confirmar-btn-ok');
+        const btnCancelar = document.getElementById('confirmar-btn-cancelar');
+
+        const clonOk = btnOk.cloneNode(true);
+        const clonCancelar = btnCancelar.cloneNode(true);
+        btnOk.replaceWith(clonOk);
+        btnCancelar.replaceWith(clonCancelar);
+
+        clonOk.addEventListener('click', () => { modal.close(); resolve(true); }, { once: true });
+        clonCancelar.addEventListener('click', () => { modal.close(); resolve(false); }, { once: true });
+
+        modal.addEventListener('close', () => resolve(false), { once: true });
+        modal.showModal();
+    });
+};
+
+// ================================================================
+// SKELETON LOADER — Punto 7
+// ================================================================
+function mostrarSkeleton(containerId = 'lista-generica', cantidad = 5) {
+    const cont = document.getElementById(containerId);
+    if (!cont) return;
+    cont.style.display = 'flex';
+    cont.style.flexDirection = 'column';
+    cont.style.gap = '10px';
+    cont.innerHTML = Array.from({ length: cantidad }, () => `
+        <div class="skeleton-row">
+            <div class="skeleton-line fat"></div>
+            <div class="skeleton-line medium"></div>
+            <div class="skeleton-line short"></div>
+        </div>
+    `).join('');
+}
 
 let alumnoIdActual = null;
 let estadoActualVista = 'Dashboard';
@@ -1306,7 +1353,7 @@ if (btnEjecutarPropManual) {
     btnEjecutarPropManual.addEventListener('click', async () => {
         const warnings = validarPropuestaManualMatch();
         if (warnings.length > 0) {
-            if (!confirm(`Se detectaron las siguientes advertencias de compatibilidad:\n\n${warnings.join('\n')}\n\n¿Deseas forzar la creación de la propuesta de grupo de todas formas?`)) {
+            if (!(await window.confirmar('Advertencias de compatibilidad', 'Â¿Forzar la creaciÃ³n de la propuesta de grupo de todas formas?', 'Forzar Propuesta', 'warning'))) {
                 return;
             }
         }
@@ -1758,10 +1805,14 @@ async function cargarVista(vista) {
     vResumen.style.display = 'none'; if(vResumenTime) vResumenTime.style.display = 'none'; contLista.style.display = 'none'; if(contKanban) contKanban.style.display = 'none'; contEstad.style.display = 'none'; cv.style.display = 'none';
     const contMatch = document.getElementById('match-pendientes-container'); if(contMatch) contMatch.style.display = 'none';
 
-    if (vista.includes('-') || vista === 'Lista de Espera') { 
+    const esVistaConLista = vista.startsWith('Inbox') || vista.startsWith('Altas') || vista === 'Lista de Espera';
+
+    if (esVistaConLista) { 
         cv.style.display = 'flex'; 
         renderFiltrosChips(); 
         document.getElementById('search-container-general').style.display = 'block'; 
+        // Skeleton loader — muestra mientras llegan los datos de Firestore
+        mostrarSkeleton('lista-generica', 6);
         
         if (vista === 'Inbox - Confirmadas' || vista === 'Altas - Confirmadas') document.getElementById('alarm-filters').style.display = 'flex';
     }
@@ -1891,12 +1942,30 @@ async function cargarVista(vista) {
             renderListaFilas('lista-generica', dataFiltrada, 'all', null);
         } catch(e) {}
     } else if (vista === 'Match - Pendientes') {
+        try { 
+            const qSnap = await getDocs(collection(db, "alumnos")); let allData = [];
+            qSnap.forEach(d => allData.push({ id: d.id, ...d.data() }));
+            actualizarBadgesYNavegacion(allData);
+            renderSegmentedTabs(vista);
+        } catch(e) {}
         await renderMatchPendientes();
     } else if (vista === 'Match - En Validacion') {
+        try { 
+            const qSnap = await getDocs(collection(db, "alumnos")); let allData = [];
+            qSnap.forEach(d => allData.push({ id: d.id, ...d.data() }));
+            actualizarBadgesYNavegacion(allData);
+            renderSegmentedTabs(vista);
+        } catch(e) {}
         await renderMatchEnValidacion(contLista);
     } else if (vista === 'Match - Confirmados') {
         contLista.style.display = 'flex';
         document.getElementById('vista-titulo').textContent = 'Match — Confirmados';
+        try { 
+            const qSnap = await getDocs(collection(db, "alumnos")); let allData = [];
+            qSnap.forEach(d => allData.push({ id: d.id, ...d.data() }));
+            actualizarBadgesYNavegacion(allData);
+            renderSegmentedTabs(vista);
+        } catch(e) {}
         await renderMatchConfirmados(contLista);
     } else if (vista === 'Estadísticas') { contEstad.style.display = 'flex'; renderCharts();
     } else if (vista === 'Configuración') { contLista.style.display = 'flex'; contLista.innerHTML = ''; renderConfigHub(contLista);
@@ -2080,91 +2149,297 @@ function renderConfigMatch(cont) {
 async function renderCharts() {
     const cont = document.getElementById('estadisticas-container');
     cont.innerHTML = `
-        <div style="display:flex; gap:20px; flex-wrap:wrap; margin-bottom:20px;">
-            <div style="background:white; padding:20px; border-radius:12px; border:1px solid var(--border-color); flex:1; min-width:100%;"><canvas id="chartFlow" style="max-height: 250px;"></canvas></div>
-        </div>
-        <div style="display:flex; gap:20px; flex-wrap:wrap;">
-            <div style="background:white; padding:20px; border-radius:12px; border:1px solid var(--border-color); flex:1; min-width:300px;"><canvas id="chartEntrevistas"></canvas></div>
-            <div style="background:white; padding:20px; border-radius:12px; border:1px solid var(--border-color); flex:1; min-width:300px;"><canvas id="chartAltas"></canvas></div>
+        <div class="metrics-grid">
+            <!-- Fila 1: Flow de Admisión (ancho completo, prominente) -->
+            <div class="chart-card full-width">
+                <div class="chart-canvas-wrapper tall">
+                    <canvas id="chartFlow"></canvas>
+                </div>
+            </div>
+
+            <!-- Fila 2: Entrevistas + Altas (doughnut compactos) -->
+            <div class="chart-card">
+                <div class="chart-canvas-wrapper">
+                    <canvas id="chartEntrevistas"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-canvas-wrapper">
+                    <canvas id="chartAltas"></canvas>
+                </div>
+            </div>
+
+            <!-- Fila 3: Instrumento + Suscripción (doughnut compactos) -->
+            <div class="chart-card">
+                <div class="chart-canvas-wrapper">
+                    <canvas id="chartInstrumento"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-canvas-wrapper">
+                    <canvas id="chartSuscripcion"></canvas>
+                </div>
+            </div>
+
+            <!-- Fila 4: Altas por mes (línea temporal) -->
+            <div class="chart-card full-width">
+                <div class="chart-canvas-wrapper">
+                    <canvas id="chartAltasPorMes"></canvas>
+                </div>
+            </div>
+
+            <!-- Fila 5: Tasa de conversión por instrumento (barras apiladas) -->
+            <div class="chart-card full-width">
+                <div class="chart-canvas-wrapper">
+                    <canvas id="chartConversion"></canvas>
+                </div>
+            </div>
         </div>
     `;
     try {
         const qSnap = await getDocs(collection(db, "alumnos"));
         let allData = []; qSnap.forEach(d => allData.push(d.data()));
-        
+
+        // ── Datos para gráficos existentes ──────────────────────────────────
         let flowLabels = configNodosFlujo.map(n => n.label);
-        let flowData = configNodosFlujo.map(n => allData.filter(d => n.filterFn ? n.filterFn(d) : d.estado_agenda === n.id).length);
+        let flowData   = configNodosFlujo.map(n => allData.filter(d => n.filterFn ? n.filterFn(d) : d.estado_agenda === n.id).length);
         let phaseColors = configNodosFlujo.map(n => n.hexColor || '#1f5491');
 
         let entConf = allData.filter(d => d.estado_agenda === 'Agenda confirmada').length;
         let entSusp = allData.filter(d => d.estado_agenda === 'Agenda suspendida').length;
-        
-        let altFin = allData.filter(d => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5)).length;
+
+        let altFin  = allData.filter(d => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5)).length;
         let altSusp = allData.filter(d => d.estado_agenda === 'Alta Suspendida').length;
 
-        if(chartFlowInst) chartFlowInst.destroy(); if(chartEntrevistasInst) chartEntrevistasInst.destroy(); if(chartAltasInst) chartAltasInst.destroy();
-        
-        chartFlowInst = new Chart(document.getElementById('chartFlow'), { 
-            type: 'bar', 
-            data: { labels: flowLabels, datasets: [{ label: 'Alumnos', data: flowData, backgroundColor: phaseColors, borderRadius: 6 }] },
-            options: { 
-                onClick: (evt, elements) => {
-                    if (elements && elements.length > 0) {
-                        const index = elements[0].index;
-                        const nodo = configNodosFlujo[index];
-                        if (nodo && nodo.vistaDestino) {
-                            cargarVista(nodo.vistaDestino);
+        // ── Helper para extraer lista limpia de instrumentos ────────────────
+        const extraerInstrumentos = (inst) => {
+            if (!inst) return ['Sin especificar'];
+            if (Array.isArray(inst)) {
+                const arr = inst.map(x => String(x || '').trim()).filter(Boolean);
+                return arr.length > 0 ? arr : ['Sin especificar'];
+            }
+            if (typeof inst === 'string') {
+                const s = inst.trim();
+                return s ? s.split(',').map(x => x.trim()).filter(Boolean) : ['Sin especificar'];
+            }
+            return [String(inst).trim() || 'Sin especificar'];
+        };
+
+        const extraerSuscripcion = (sus) => {
+            if (!sus) return 'Sin especificar';
+            if (Array.isArray(sus)) {
+                const arr = sus.map(x => String(x || '').trim()).filter(Boolean);
+                return arr.length > 0 ? arr.join(', ') : 'Sin especificar';
+            }
+            if (typeof sus === 'string') return sus.trim() || 'Sin especificar';
+            return String(sus).trim() || 'Sin especificar';
+        };
+
+        // ── Nuevo 1: Distribución por instrumento ────────────────────────────
+        const instrMap = {};
+        allData.forEach(d => {
+            const list = extraerInstrumentos(d.instrumento);
+            list.forEach(inst => {
+                instrMap[inst] = (instrMap[inst] || 0) + 1;
+            });
+        });
+        const instrLabels = Object.keys(instrMap).sort((a, b) => instrMap[b] - instrMap[a]);
+        const instrData   = instrLabels.map(k => instrMap[k]);
+        const instrPalette = ['#74a9d8','#4a8cd2','#256bbb','#134b8c','#e5a93d','#8e44ad','#5cc88a','#31a364','#1b7f47','#0d5c30','#c2563b','#e67e22'];
+
+        // ── Nuevo 2: Distribución por tipo suscripción ───────────────────────
+        const suscMap = {};
+        allData.forEach(d => {
+            const sus = extraerSuscripcion(d.tipo_suscripcion);
+            suscMap[sus] = (suscMap[sus] || 0) + 1;
+        });
+        const suscLabels = Object.keys(suscMap).sort((a, b) => suscMap[b] - suscMap[a]);
+        const suscData   = suscLabels.map(k => suscMap[k]);
+        const suscPalette = ['#007b8f','#31a364','#e5a93d','#8e44ad','#c2563b','#256bbb','#74a9d8','#1b7f47'];
+
+        // ── Nuevo 3: Altas confirmadas por mes (últimos 12 meses) ─────────────
+        const now12 = new Date();
+        const mesLabels = [];
+        const mesData   = [];
+        for (let i = 11; i >= 0; i--) {
+            const d = new Date(now12.getFullYear(), now12.getMonth() - i, 1);
+            mesLabels.push(d.toLocaleString('es-AR', { month: 'short', year: '2-digit' }));
+            const mesStart = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+            const mesEnd   = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59).getTime();
+            const count = allData.filter(al => {
+                if (!al.fecha_alta_confirmada) return false;
+                const t = new Date(al.fecha_alta_confirmada).getTime();
+                return t >= mesStart && t <= mesEnd;
+            }).length;
+            mesData.push(count);
+        }
+
+        // ── Nuevo 4: Tasa de conversión por instrumento ──────────────────────
+        // Para cada instrumento: cuántos ingresaron (todos) vs cuántos llegaron a Alta
+        const instAll = {};
+        const instAlta = {};
+        const estadosAlta = ['Pre-alta Pendiente', 'Pre-alta Iniciada', 'Alta Efectiva', 'Alta Ilegal', 'Altas Incompletas', 'Alta Finalizada'];
+        allData.forEach(d => {
+            const list = extraerInstrumentos(d.instrumento);
+            const llegoAlta = estadosAlta.includes(d.estado_agenda);
+            list.forEach(inst => {
+                instAll[inst] = (instAll[inst] || 0) + 1;
+                if (llegoAlta) {
+                    instAlta[inst] = (instAlta[inst] || 0) + 1;
+                }
+            });
+        });
+        const convInstrLabels = Object.keys(instAll).filter(k => instAll[k] > 0).sort((a, b) => instAll[b] - instAll[a]).slice(0, 8);
+        const convTotal  = convInstrLabels.map(k => instAll[k]);
+        const convAlta   = convInstrLabels.map(k => instAlta[k] || 0);
+        const convResto  = convInstrLabels.map((k, i) => convTotal[i] - convAlta[i]);
+
+        // ── Destruir instancias previas ──────────────────────────────────────
+        [chartFlowInst, chartEntrevistasInst, chartAltasInst].forEach(c => c && c.destroy());
+        if (window.chartInstrumentoInst) window.chartInstrumentoInst.destroy();
+        if (window.chartSuscripcionInst) window.chartSuscripcionInst.destroy();
+        if (window.chartAltasPorMesInst) window.chartAltasPorMesInst.destroy();
+        if (window.chartConversionInst)  window.chartConversionInst.destroy();
+
+        // ── Renderizar gráficos existentes ───────────────────────────────────
+        const hoverCursor = (event, chartElement) => {
+            if (event.native && event.native.target) event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+        };
+
+        chartFlowInst = new Chart(document.getElementById('chartFlow'), {
+            type: 'bar',
+            data: { labels: flowLabels, datasets: [{ label: 'Alumnos', data: flowData, backgroundColor: phaseColors, borderRadius: 5 }] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                onClick: (evt, elements) => { if (elements?.length > 0) { const nodo = configNodosFlujo[elements[0].index]; if (nodo?.vistaDestino) cargarVista(nodo.vistaDestino); } },
+                onHover: hoverCursor,
+                plugins: { title: { display: true, text: 'Flow de Admisión — Alumnos por etapa', font: { size: 14, weight: 'bold' }, padding: { bottom: 8 } }, legend: { display: false } },
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 } } }, x: { ticks: { font: { size: 10.5 } } } }
+            }
+        });
+
+        chartEntrevistasInst = new Chart(document.getElementById('chartEntrevistas'), {
+            type: 'doughnut',
+            data: { labels: ['Confirmadas', 'Suspendidas'], datasets: [{ data: [entConf, entSusp], backgroundColor: ['#007b8f', '#c2563b'] }] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '62%',
+                onClick: (evt, elements) => { if (elements?.length > 0) cargarVista(elements[0].index === 0 ? 'Inbox - Confirmadas' : 'Inbox - Suspendidas'); },
+                onHover: hoverCursor,
+                plugins: {
+                    title: { display: true, text: 'Entrevistas', font: { size: 13, weight: 'bold' }, padding: { bottom: 6 } },
+                    legend: { position: 'right', labels: { boxWidth: 10, font: { size: 11 } } }
+                }
+            }
+        });
+
+        chartAltasInst = new Chart(document.getElementById('chartAltas'), {
+            type: 'doughnut',
+            data: { labels: ['Finalizadas', 'Suspendidas'], datasets: [{ data: [altFin, altSusp], backgroundColor: ['#007b8f', '#c2563b'] }] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '62%',
+                onClick: (evt, elements) => { if (elements?.length > 0) cargarVista(elements[0].index === 0 ? 'Altas - Finalizadas' : 'Altas - Suspendidas'); },
+                onHover: hoverCursor,
+                plugins: {
+                    title: { display: true, text: 'Altas', font: { size: 13, weight: 'bold' }, padding: { bottom: 6 } },
+                    legend: { position: 'right', labels: { boxWidth: 10, font: { size: 11 } } }
+                }
+            }
+        });
+
+        // ── Nuevo 1: Instrumento ─────────────────────────────────────────────
+        window.chartInstrumentoInst = new Chart(document.getElementById('chartInstrumento'), {
+            type: 'doughnut',
+            data: { labels: instrLabels, datasets: [{ data: instrData, backgroundColor: instrPalette.slice(0, instrLabels.length) }] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '62%',
+                plugins: {
+                    title: { display: true, text: 'Alumnos por Instrumento', font: { size: 13, weight: 'bold' }, padding: { bottom: 6 } },
+                    legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10.5 } } },
+                    tooltip: { callbacks: { label: (ctx) => ` ${ctx.label}: ${ctx.raw} (${Math.round(ctx.raw / (allData.length || 1) * 100)}%)` } }
+                }
+            }
+        });
+
+        // ── Nuevo 2: Suscripción ─────────────────────────────────────────────
+        window.chartSuscripcionInst = new Chart(document.getElementById('chartSuscripcion'), {
+            type: 'doughnut',
+            data: { labels: suscLabels, datasets: [{ data: suscData, backgroundColor: suscPalette.slice(0, suscLabels.length) }] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '62%',
+                plugins: {
+                    title: { display: true, text: 'Alumnos por Tipo de Suscripción', font: { size: 13, weight: 'bold' }, padding: { bottom: 6 } },
+                    legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10.5 } } },
+                    tooltip: { callbacks: { label: (ctx) => ` ${ctx.label}: ${ctx.raw} (${Math.round(ctx.raw / (allData.length || 1) * 100)}%)` } }
+                }
+            }
+        });
+
+        // ── Nuevo 3: Altas por mes ───────────────────────────────────────────
+        window.chartAltasPorMesInst = new Chart(document.getElementById('chartAltasPorMes'), {
+            type: 'line',
+            data: {
+                labels: mesLabels,
+                datasets: [{
+                    label: 'Altas confirmadas',
+                    data: mesData,
+                    borderColor: '#007b8f',
+                    backgroundColor: 'rgba(0,123,143,0.12)',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#007b8f',
+                    pointRadius: 4,
+                    tension: 0.35,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { title: { display: true, text: 'Altas confirmadas por mes (últimos 12 meses)', font: { size: 13, weight: 'bold' }, padding: { bottom: 6 } }, legend: { display: false } },
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 } } }, x: { ticks: { font: { size: 11 } } } }
+            }
+        });
+
+        // ── Nuevo 4: Conversión por instrumento ──────────────────────────────
+        window.chartConversionInst = new Chart(document.getElementById('chartConversion'), {
+            type: 'bar',
+            data: {
+                labels: convInstrLabels,
+                datasets: [
+                    { label: 'Llegaron a Alta', data: convAlta, backgroundColor: '#31a364', borderRadius: 3 },
+                    { label: 'No llegaron a Alta', data: convResto, backgroundColor: '#c2563b', borderRadius: 3 }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: { display: true, text: 'Conversión a Alta por Instrumento', font: { size: 13, weight: 'bold' }, padding: { bottom: 6 } },
+                    legend: { labels: { boxWidth: 10, font: { size: 11 } } },
+                    tooltip: {
+                        callbacks: {
+                            afterBody: (items) => {
+                                const idx = items[0].dataIndex;
+                                const total = convTotal[idx];
+                                const alta = convAlta[idx];
+                                return total > 0 ? [`Tasa de conversión: ${Math.round(alta / total * 100)}%`] : [];
+                            }
                         }
                     }
                 },
-                onHover: (event, chartElement) => {
-                    if (event.native && event.native.target) {
-                        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
-                    }
-                },
-                plugins: { title: { display: true, text: 'Flow de Admisión', font: { size: 16 } }, legend: { display: false } }, 
-                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } 
+                scales: { x: { stacked: true, ticks: { font: { size: 10.5 } } }, y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 } } } }
             }
         });
-        
-        chartEntrevistasInst = new Chart(document.getElementById('chartEntrevistas'), { 
-            type: 'doughnut', 
-            data: { labels: ['Confirmadas', 'Suspendidas'], datasets: [{ data: [entConf, entSusp], backgroundColor: ['#007b8f', '#c2563b'] }] },
-            options: { 
-                onClick: (evt, elements) => {
-                    if (elements && elements.length > 0) {
-                        const index = elements[0].index;
-                        cargarVista(index === 0 ? 'Inbox - Confirmadas' : 'Inbox - Suspendidas');
-                    }
-                },
-                onHover: (event, chartElement) => {
-                    if (event.native && event.native.target) {
-                        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
-                    }
-                },
-                plugins: { title: { display: true, text: 'Entrevistas', font: { size: 16 } } } 
-            }
-        });
-        
-        chartAltasInst = new Chart(document.getElementById('chartAltas'), { 
-            type: 'doughnut', 
-            data: { labels: ['Finalizadas', 'Suspendidas'], datasets: [{ data: [altFin, altSusp], backgroundColor: ['#007b8f', '#c2563b'] }] },
-            options: { 
-                onClick: (evt, elements) => {
-                    if (elements && elements.length > 0) {
-                        const index = elements[0].index;
-                        cargarVista(index === 0 ? 'Altas - Finalizadas' : 'Altas - Suspendidas');
-                    }
-                },
-                onHover: (event, chartElement) => {
-                    if (event.native && event.native.target) {
-                        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
-                    }
-                },
-                plugins: { title: { display: true, text: 'Altas', font: { size: 16 } } } 
-            }
-        });
-    } catch(e) {}
+
+    } catch(e) { console.error('Error renderCharts:', e); }
 }
 
 // ================================================================
@@ -3315,7 +3590,7 @@ window.toggleValidacionAlumnoGrupo = async function(alumnoId, nuevoEstado) {
 };
 
 window.aprobarGrupoCompletoPrealta = async function(nombreGrupo) {
-    if (!confirm(`¿Aprobar el grupo "${nombreGrupo}" y pasar a todos sus integrantes a Altas Pendientes?`)) return;
+    if (!(await window.confirmar('Aprobar grupo', 'Todos sus integrantes pasaran a Altas Pendientes.', 'Aprobar Grupo'))) return;
     try {
         const qSnap = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", "Validando Grupo")));
         const now = new Date();
@@ -3349,7 +3624,7 @@ window.aprobarAlumnoIndividualPrealta = async function(alumnoId) {
         const alDoc = await getDoc(doc(db, "alumnos", alumnoId));
         if (!alDoc.exists()) return;
         const al = alDoc.data();
-        if (!confirm(`¿Aprobar a ${al.nombre} y pasarlo a Altas Pendientes?`)) return;
+        if (!(await window.confirmar('Aprobar alumno', 'El alumno pasara a Altas Pendientes.', 'Aprobar'))) return;
 
         const now = new Date();
         const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
@@ -3378,7 +3653,7 @@ window.rechazarAlumnoGrupoYVolverEspera = async function(alumnoId) {
         const alDoc = await getDoc(doc(db, "alumnos", alumnoId));
         if (!alDoc.exists()) return;
         const al = alDoc.data();
-        if (!confirm(`¿El alumno ${al.nombre} rechazó la propuesta de grupo? Se lo devolverá a Lista de Espera.`)) return;
+        if (!(await window.confirmar('Confirmar rechazo', 'El alumno volvera a Lista de Espera.', 'Confirmar rechazo'))) return;
 
         const now = new Date();
         const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
@@ -3404,7 +3679,7 @@ window.rechazarAlumnoGrupoYVolverEspera = async function(alumnoId) {
 };
 
 window.desarmarGrupoValidacion = async function(nombreGrupo) {
-    if (!confirm(`¿Estás seguro de desarmar el grupo "${nombreGrupo}"? Todos sus integrantes regresarán a Lista de Espera.`)) return;
+    if (!(await window.confirmar('Desarmar grupo', 'Todos los integrantes volvran a Lista de Espera.', 'Desarmar'))) return;
     try {
         const qSnap = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", "Validando Grupo")));
         const now = new Date();
@@ -3850,7 +4125,7 @@ async function generarAlumnosIndividualesPruebaMatch() {
 
 // LIMPIEZA DE ALUMNOS DE PRUEBA
 async function limpiarAlumnosPruebaMatch() {
-    if (!confirm("¿Deseas eliminar todos los alumnos de prueba creados para testear Match?")) return;
+    if (!(await window.confirmar('Eliminar alumnos de prueba', 'Se eliminaran todos los registros de prueba. Esta accion no se puede deshacer.', 'Eliminar'))) return;
     const btn = document.getElementById('btn-limpiar-mock-data');
     setBotonCargando(btn, true);
 
@@ -4164,7 +4439,17 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    if (target.classList.contains('btn-eliminar-alumno')) { e.stopPropagation(); if(confirm("¿Eliminar este alumno por completo?")) { const id = target.closest('.btn-editar-alumno').getAttribute('data-id'); try { const al = (await getDoc(doc(db, "alumnos", id))).data(); if (al && al.id_evento_reserva) { await eliminarEventoSeguro(al); } } catch(err) {} await deleteDoc(doc(db, "alumnos", id)); cargarVista(estadoActualVista); } return; }
+    if (target.classList.contains('btn-eliminar-alumno')) { 
+        e.stopPropagation(); 
+        const ok = await window.confirmar('¿Eliminar este alumno?', 'Esta acción es permanente y no se puede deshacer.', '🗑️ Eliminar', '⚠️');
+        if (ok) { 
+            const id = target.closest('.btn-editar-alumno').getAttribute('data-id'); 
+            try { const al = (await getDoc(doc(db, "alumnos", id))).data(); if (al && al.id_evento_reserva) { await eliminarEventoSeguro(al); } } catch(err) {} 
+            await deleteDoc(doc(db, "alumnos", id)); 
+            cargarVista(estadoActualVista); 
+        } 
+        return; 
+    }
     
     // Captura clic en los 3 puntos (Móvil abre Bottom Sheet / Desktop hace toggle de menú fijo)
     if (target.classList.contains('btn-row-action') || target.closest('.btn-row-action')) {
@@ -4512,7 +4797,7 @@ document.addEventListener('click', async (e) => {
                 return slIni >= rIni && (slIni + durMin) <= rFin;
             });
             if (rangosAl.length > 0 && !cubreAl) {
-                const confirmarForzar = confirm(`⚠️ Atención: El alumno no tiene cargada disponibilidad en su perfil para los ${mapaDiasCodigos[diaCodigo] || diaCodigo} a las ${horaInicioStr} hs.\n\n¿Deseas continuar e iniciar la Pre-Alta de todas formas?`);
+                const confirmarForzar = await window.confirmar('Disponibilidad no coincide', 'El alumno no tiene disponibilidad para el horario seleccionado. Â¿Iniciar la Pre-Alta de todas formas?', 'Forzar Pre-Alta');
                 if (!confirmarForzar) {
                     setBotonCargando(target, false);
                     return;
@@ -4636,7 +4921,8 @@ document.addEventListener('click', async (e) => {
     // Acción directa: Finalizar Alta
     if (target.classList.contains('btn-finalizar-alta-directa')) {
         const id = target.getAttribute('data-id');
-        if (confirm("¿Confirmar todos los pasos del checklist y dar por FINALIZADA el alta?")) {
+        const ok = await window.confirmar('¿Finalizar Alta?', 'Se marcará el checklist completo y el ciclo de admisión quedará cerrado.', '🏁 Finalizar Alta', '✅');
+        if (ok) {
             const alDoc = await getDoc(doc(db, "alumnos", id));
             const al = alDoc.exists() ? alDoc.data() : {};
             const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
@@ -5082,7 +5368,7 @@ window.abrirEdicionABM = async function(id, col, nom, cor, cel, ali) {
 };
 
 window.eliminarABM = async function(id, col) { 
-    if(confirm("¿Eliminar?")) { 
+    if(await window.confirmar('Eliminar registro', 'Esta accion es permanente y no se puede deshacer.', 'Eliminar')) {
         await deleteDoc(doc(db, col, id)); 
         cargarVista('ABM-' + window.tituloABMActual); 
     } 
