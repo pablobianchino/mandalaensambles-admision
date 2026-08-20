@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-const APP_VERSION = "v4.7.2"; // v4.7.2: Rediseño compacto y responsivo de gráficos de métricas para desktop y móvil
+const APP_VERSION = "v4.7.3"; // v4.7.3: Fix obtenerEmojiInstrumento en Match Grupos en Validación y WhatsApp
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 const firebaseConfig = {
@@ -3458,6 +3458,21 @@ async function ejecutarConfirmarMatch() {
     }
 
     setBotonCargando(btnConfirm, false);
+}
+
+function obtenerEmojiInstrumento(inst) {
+    if (!inst) return '🎵';
+    const s = (Array.isArray(inst) ? inst.join(' ') : String(inst)).toLowerCase();
+    if (s.includes('gui') || s.includes('electr')) return configApp?.emoji_guitarra || '🎸';
+    if (s.includes('bat')) return configApp?.identificador_bateria || '🥁';
+    if (s.includes('canto') || s.includes('voz') || s.includes('coro')) return configApp?.emoji_canto || '🎤';
+    if (s.includes('pian') || s.includes('tecl')) return configApp?.emoji_piano || '🎹';
+    if (s.includes('baj')) return configApp?.emoji_bajo || '🎸';
+    if (s.includes('caj')) return configApp?.emoji_cajon || '📦';
+    if (s.includes('sax') || s.includes('vient')) return '🎷';
+    if (s.includes('viol')) return '🎻';
+    if (s.includes('ukel') || s.includes('ucu')) return '🪕';
+    return '🎵';
 }
 
 // =======================================================================
