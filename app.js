@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-const APP_VERSION = "v4.7.3"; // v4.7.3: Fix obtenerEmojiInstrumento en Match Grupos en Validación y WhatsApp
+const APP_VERSION = "v4.7.4"; // v4.7.4: Actualización texto WhatsApp para validación de grupos (Nacho)
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 const firebaseConfig = {
@@ -3730,14 +3730,14 @@ window.enviarWhatsAppValidacionGrupo = async function(alumnoId) {
         if (!alDoc.exists()) return;
         const al = alDoc.data();
         const cel = (al.celular || '').replace(/\D/g, '');
-        const grp = al.grupo_asignado || 'tu clase';
         const hor = al.horario_match || al.reserva_fecha_texto || 'horario a coordinar';
         const prof = al.reserva_profe_nombre || 'nuestro equipo docente';
-        const inst = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento[0] : (al.instrumento || 'música'));
+        const inst = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || 'música'));
+        const susc = al.tipo_suscripcion || 'tu suscripción';
         const emojiInst = obtenerEmojiInstrumento(inst);
 
-        const txt = `¡Hola ${al.nombre}! 🎶 Te escribimos de Mandala Ensambles.
-Tenemos armada la propuesta para que formes parte del grupo *${grp}* ${emojiInst} (${inst}) con el Profe *${prof}* los días *${hor}*.
+        const txt = `¡Hola ${al.nombre}! 🧩 Te escribo de Mandala Ensambles. Mi nombre es Nacho.
+Tenemos armada una propuesta para ${susc} de ${emojiInst} ${inst} con el Profe *${prof}* los días *${hor}*.
 
 ¿Nos confirmás si te queda bien este horario para asegurar tu lugar e iniciar tu pre-alta? ¡Muchas gracias! 😊`;
 
