@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-const APP_VERSION = "v4.7.4"; // v4.7.4: Actualización texto WhatsApp para validación de grupos (Nacho)
+const APP_VERSION = "v4.7.5"; // v4.7.5: Ocultar información de Aula/Espacio en vistas y modales de Match
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 const firebaseConfig = {
@@ -3313,11 +3313,10 @@ window.abrirModalDetalleGrupo = function(idx) {
         `;
     }).join('');
 
-    // Info horario / profe / aula
+    // Info horario / profe
     document.getElementById('detalle-grupo-info').innerHTML = `
         <div>📅 <strong>Horario:</strong> ${grupo.horario}</div>
         <div>👨‍🏫 <strong>Profesor Asignado:</strong> ${grupo.profeNombre}</div>
-        <div>🏫 <strong>Espacio Sugerido:</strong> ${grupo.aula || 'Aula Principal'}</div>
     `;
 
     document.getElementById('modal-detalle-grupo').showModal();
@@ -3344,7 +3343,6 @@ function abrirModalConfirmarMatch(grupo) {
     document.getElementById('match-confirm-resumen').innerHTML = `
         <div>📅 <strong>${grupo.horario || 'Horario por definir'}</strong></div>
         <div>👨‍🏫 Profesor: <strong>${grupo.profeNombre || 'Sin asignar'}</strong></div>
-        ${grupo.aula ? `<div>🏫 Espacio: <strong>${grupo.aula}</strong></div>` : ''}
     `;
     document.getElementById('match-confirm-integrantes').innerHTML = (grupo.alumnos || []).map(al =>
         `<div class="match-confirm-row">
@@ -3565,8 +3563,6 @@ async function renderMatchEnValidacion(container) {
                                 <span>📅 <strong>${horario}</strong></span>
                                 <span>•</span>
                                 <span>👨‍🏫 Profe: <strong>${profeNom}</strong></span>
-                                <span>•</span>
-                                <span>🏫 Espacio: <strong>${aula}</strong></span>
                             </div>
                         </div>
                         <div class="group-box-actions">

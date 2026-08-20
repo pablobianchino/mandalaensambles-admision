@@ -785,10 +785,9 @@
                     </div>
                 </div>
 
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                    <div>
-                        <label style="font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:5px;">ESPACIO / AULA</label>
-                        <input type="text" id="propuesta-manual-aula" class="modern-input" value="Aula Principal">
+                <div style="display:grid; grid-template-columns: 1fr; gap:10px;">
+                    <div style="display:none;">
+                        <input type="hidden" id="propuesta-manual-aula" value="Aula Principal">
                     </div>
                     <div>
                         <label style="font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:5px;">NOMBRE DEL GRUPO</label>
@@ -835,12 +834,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=4.7.4"></script>
+    <script type="module" src="app.js?v=4.7.5"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=4.7.4').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=4.7.5').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {
