@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-const APP_VERSION = "v4.7.5"; // v4.7.5: Ocultar información de Aula/Espacio en vistas y modales de Match
+const APP_VERSION = "v4.8.0"; // v4.8.0: Botones de acción principales visibles y menú secundario (⋮)
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 const firebaseConfig = {
@@ -716,60 +716,135 @@ function getEstadoYBadge(al) {
     return { colorIndicador, colorBadge, claseTexto, txtTiempo, txtEstado };
 }
 
-function generarBotonesAccion(al, id) {
-    let accionesHtml = '';
+function generarBotonesPrincipalesVisibles(al, id) {
+    let html = '';
+    const est = al.estado_agenda;
 
-    if (al.estado_agenda === 'Pendiente procesar') { accionesHtml += `<button type="button" class="dropdown-item btn-buscar-agenda" data-id="${id}">🔍 Buscar Agenda</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-abrir-suspender" data-id="${id}">⏸️ Suspender</button>`; } 
-    else if (al.estado_agenda === 'Pendiente validación por profe') {
-        accionesHtml += `<button type="button" class="dropdown-item btn-validado-profe-popup" data-id="${id}">✅ Validado por Evaluador</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-reenviar-profe" data-id="${id}">📤 Re-enviar a Evaluador</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-cancelar-reserva" data-id="${id}">❌ Cancelar Validación</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-abrir-suspender" data-id="${id}">⏸️ Suspender</button>`; 
-    } 
-    else if (al.estado_agenda === 'Pendiente validación por alumno') {
-        accionesHtml += `<button type="button" class="dropdown-item btn-confirmar-entrevista" data-id="${id}">✅ Confirmar Agenda</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-reenviar-alumno" data-id="${id}">📤 Re-Enviar a Alumno</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-cancelar-reserva" data-id="${id}">❌ Cancelar Agenda</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-abrir-suspender" data-id="${id}">⏸️ Suspender</button>`; 
-    }
-    else if (al.estado_agenda === 'Agenda confirmada') {
-        accionesHtml += `<button type="button" class="dropdown-item btn-admision-finalizada" data-id="${id}">🏁 Admisión Finalizada</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-enviar-conf-profe" data-id="${id}">📤 Re-Enviar conf. a Evaluador</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-enviar-conf-alumno" data-id="${id}">📤 Re-Enviar conf. a Alumno</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-cancelar-reserva" data-id="${id}">↩️ Cancelar Confirmación</button>`;
-    }
-    else if (al.estado_agenda === 'Agenda suspendida') {
-        accionesHtml += `<button type="button" class="dropdown-item btn-recuperar-agenda" data-id="${id}">♻️ Recuperar Agenda</button>`;
-    }
-    else if (al.estado_agenda === 'Lista de espera') {
-        accionesHtml += `<button type="button" class="dropdown-item btn-abrir-prealta" data-id="${id}">⚙️ Iniciar Pre-Alta</button>`;
-    }
-    else if (al.estado_agenda === 'Validando Grupo') {
-        accionesHtml += `<button type="button" class="dropdown-item" onclick="window.aprobarAlumnoIndividualPrealta('${id}')">🚀 Aprobar a Pre-Alta</button>`;
-        accionesHtml += `<button type="button" class="dropdown-item" onclick="window.enviarWhatsAppValidacionGrupo('${id}')">💬 WhatsApp Propuesta</button>`;
-        accionesHtml += `<button type="button" class="dropdown-item" onclick="window.rechazarAlumnoGrupoYVolverEspera('${id}')">↩️ Volver a Lista de Espera</button>`;
-    }
-    else if (al.estado_agenda === 'Pre-alta Pendiente') {
-        accionesHtml += `<button type="button" class="dropdown-item btn-abrir-prealta" data-id="${id}">⚙️ Iniciar Pre-Alta</button>`;
-        accionesHtml += `<button type="button" class="dropdown-item btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
-        accionesHtml += `<button type="button" class="dropdown-item btn-suspender-alta" data-id="${id}">❌ Suspender</button>`;
-        accionesHtml += `<button type="button" class="dropdown-item" onclick="window.copiarFilaExcelBD('${id}')">📋 Copiar Fila BD (Sheets)</button>`;
-        accionesHtml += `<button type="button" class="dropdown-item" onclick="window.copiarFilaExcelFacturacion('${id}')">💰 Copiar Fila Facturación</button>`;
-    }
-    else if (al.estado_agenda === 'Pre-alta Iniciada') {
-        accionesHtml += `<button type="button" class="dropdown-item btn-abrir-confirmar-alta" data-id="${id}">✅ Confirmar Alta</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-reenviar-prealta" data-id="${id}">📤 Copiar texto Pre-Alta</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${al.grupo_asignado||''}">✏️ Editar Pre-Alta</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`; accionesHtml += `<button type="button" class="dropdown-item btn-suspender-alta" data-id="${id}">❌ Suspender Alta</button>`;
-        accionesHtml += `<button type="button" class="dropdown-item" onclick="window.copiarFilaExcelBD('${id}')">📋 Copiar Fila BD (Sheets)</button>`;
-        accionesHtml += `<button type="button" class="dropdown-item" onclick="window.copiarFilaExcelFacturacion('${id}')">💰 Copiar Fila Facturación</button>`;
-    }
-    else if (al.estado_agenda === 'Alta Efectiva' || al.estado_agenda === 'Alta Ilegal' || al.estado_agenda === 'Alta Finalizada') {
+    if (est === 'Pendiente procesar') {
+        html += `<button type="button" class="row-quick-btn primary btn-buscar-agenda" data-id="${id}">🔍 Buscar Agenda</button>`;
+    } else if (est === 'Pendiente validación por profe') {
+        html += `<button type="button" class="row-quick-btn primary btn-validado-profe-popup" data-id="${id}">✅ Validado por Evaluador</button>`;
+        html += `<button type="button" class="row-quick-btn secondary btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
+    } else if (est === 'Pendiente validación por alumno') {
+        html += `<button type="button" class="row-quick-btn primary btn-confirmar-entrevista" data-id="${id}">✅ Confirmar Agenda</button>`;
+        html += `<button type="button" class="row-quick-btn secondary btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
+    } else if (est === 'Agenda confirmada') {
+        html += `<button type="button" class="row-quick-btn primary btn-admision-finalizada" data-id="${id}">🏁 Admisión Finalizada</button>`;
+        html += `<button type="button" class="row-quick-btn secondary btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
+    } else if (est === 'Agenda suspendida') {
+        html += `<button type="button" class="row-quick-btn primary btn-recuperar-agenda" data-id="${id}">♻️ Recuperar Agenda</button>`;
+    } else if (est === 'Lista de espera') {
+        html += `<button type="button" class="row-quick-btn primary btn-abrir-prealta" data-id="${id}">⚙️ Iniciar Pre-Alta</button>`;
+        html += `<button type="button" class="row-quick-btn secondary btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
+    } else if (est === 'Validando Grupo') {
+        const isConfirmed = al.estado_validacion_alumno === 'confirmado';
+        html += `<button type="button" class="row-quick-btn secondary" onclick="window.enviarWhatsAppValidacionGrupo('${id}')">💬 WhatsApp</button>`;
+        html += `<button type="button" class="row-quick-btn ${isConfirmed ? 'primary' : 'secondary'}" onclick="window.toggleValidacionAlumnoGrupo('${id}', ${!isConfirmed})">${isConfirmed ? '✔️ Desmarcar' : '✔️ Confirmó'}</button>`;
+        html += `<button type="button" class="row-quick-btn primary" onclick="window.aprobarAlumnoIndividualPrealta('${id}')">🚀 Aprobar</button>`;
+        html += `<button type="button" class="row-quick-btn danger" onclick="window.rechazarAlumnoGrupoYVolverEspera('${id}')">❌</button>`;
+    } else if (est === 'Pre-alta Pendiente') {
+        html += `<button type="button" class="row-quick-btn primary btn-abrir-prealta" data-id="${id}">⚙️ Iniciar Pre-Alta</button>`;
+        html += `<button type="button" class="row-quick-btn secondary btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
+    } else if (est === 'Pre-alta Iniciada') {
+        html += `<button type="button" class="row-quick-btn primary btn-abrir-confirmar-alta" data-id="${id}">✅ Confirmar Alta</button>`;
+        html += `<button type="button" class="row-quick-btn secondary btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${al.grupo_asignado||''}">✏️ Editar Pre-Alta</button>`;
+    } else if (est === 'Alta Efectiva' || est === 'Alta Ilegal' || est === 'Alta Finalizada') {
         let checks = al.checklist_alta || [];
-        const esFinalizada = checks.filter(Boolean).length === 5 || al.estado_agenda === 'Alta Finalizada';
+        const esFinalizada = checks.filter(Boolean).length === 5 || est === 'Alta Finalizada';
         if (!esFinalizada) {
-            accionesHtml += `<button type="button" class="dropdown-item btn-finalizar-alta-directa" data-id="${id}">🏁 Finalizar Alta</button>`;
+            html += `<button type="button" class="row-quick-btn primary btn-finalizar-alta-directa" data-id="${id}">🏁 Finalizar Alta</button>`;
         }
-        accionesHtml += `<button type="button" class="dropdown-item btn-reenviar-alta" data-id="${id}">📤 Copiar texto Alta Conf.</button>`;
-        accionesHtml += `<button type="button" class="dropdown-item btn-suspender-alta" data-id="${id}">❌ Suspender Alta</button>`;
-        accionesHtml += `<button type="button" class="dropdown-item" onclick="window.copiarFilaExcelBD('${id}')">📋 Copiar Fila BD (Sheets)</button>`;
-        accionesHtml += `<button type="button" class="dropdown-item" onclick="window.copiarFilaExcelFacturacion('${id}')">💰 Copiar Fila Facturación</button>`;
-    }
-    else if (al.estado_agenda === 'Alta Suspendida') {
-        accionesHtml += `<button type="button" class="dropdown-item btn-devolver-espera" data-id="${id}">♻️ Enviar a Espera</button>`;
+        html += `<button type="button" class="row-quick-btn secondary btn-reenviar-alta" data-id="${id}">💬 Copiar texto Alta Conf.</button>`;
+    } else if (est === 'Alta Suspendida') {
+        html += `<button type="button" class="row-quick-btn primary btn-devolver-espera" data-id="${id}">♻️ Enviar a Espera</button>`;
     }
 
-    if (al.estado_agenda !== 'Pre-alta Pendiente' && al.estado_agenda !== 'Lista de espera' && al.estado_agenda !== 'Alta Suspendida' && al.estado_agenda !== 'Alta Efectiva' && al.estado_agenda !== 'Alta Ilegal') {
+    return html;
+}
+
+function generarBotonesAccion(al, id, esModal = false) {
+    let accionesHtml = '';
+    const est = al.estado_agenda;
+
+    if (esModal) {
+        // En el modal de edición se ofrecen todas las acciones principales arriba
+        if (est === 'Pendiente procesar') {
+            accionesHtml += `<button type="button" class="dropdown-item btn-buscar-agenda" data-id="${id}">🔍 Buscar Agenda</button>`;
+        } else if (est === 'Pendiente validación por profe') {
+            accionesHtml += `<button type="button" class="dropdown-item btn-validado-profe-popup" data-id="${id}">✅ Validado por Evaluador</button>`;
+            accionesHtml += `<button type="button" class="dropdown-item btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
+        } else if (est === 'Pendiente validación por alumno') {
+            accionesHtml += `<button type="button" class="dropdown-item btn-confirmar-entrevista" data-id="${id}">✅ Confirmar Agenda</button>`;
+            accionesHtml += `<button type="button" class="dropdown-item btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
+        } else if (est === 'Agenda confirmada') {
+            accionesHtml += `<button type="button" class="dropdown-item btn-admision-finalizada" data-id="${id}">🏁 Admisión Finalizada</button>`;
+            accionesHtml += `<button type="button" class="dropdown-item btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
+        } else if (est === 'Agenda suspendida') {
+            accionesHtml += `<button type="button" class="dropdown-item btn-recuperar-agenda" data-id="${id}">♻️ Recuperar Agenda</button>`;
+        } else if (est === 'Lista de espera') {
+            accionesHtml += `<button type="button" class="dropdown-item btn-abrir-prealta" data-id="${id}">⚙️ Iniciar Pre-Alta</button>`;
+            accionesHtml += `<button type="button" class="dropdown-item btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
+        } else if (est === 'Pre-alta Pendiente') {
+            accionesHtml += `<button type="button" class="dropdown-item btn-abrir-prealta" data-id="${id}">⚙️ Iniciar Pre-Alta</button>`;
+            accionesHtml += `<button type="button" class="dropdown-item btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
+        } else if (est === 'Pre-alta Iniciada') {
+            accionesHtml += `<button type="button" class="dropdown-item btn-abrir-confirmar-alta" data-id="${id}">✅ Confirmar Alta</button>`;
+            accionesHtml += `<button type="button" class="dropdown-item btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${al.grupo_asignado||''}">✏️ Editar Pre-Alta</button>`;
+        } else if (est === 'Alta Efectiva' || est === 'Alta Ilegal' || est === 'Alta Finalizada') {
+            let checks = al.checklist_alta || [];
+            const esFinalizada = checks.filter(Boolean).length === 5 || est === 'Alta Finalizada';
+            if (!esFinalizada) {
+                accionesHtml += `<button type="button" class="dropdown-item btn-finalizar-alta-directa" data-id="${id}">🏁 Finalizar Alta</button>`;
+            }
+            accionesHtml += `<button type="button" class="dropdown-item btn-reenviar-alta" data-id="${id}">💬 Copiar texto Alta Conf.</button>`;
+        } else if (est === 'Alta Suspendida') {
+            accionesHtml += `<button type="button" class="dropdown-item btn-devolver-espera" data-id="${id}">♻️ Enviar a Espera</button>`;
+        }
+    }
+
+    // Acciones secundarias en el menú de los tres puntos
+    if (est === 'Pendiente procesar') {
+        accionesHtml += `<button type="button" class="dropdown-item btn-abrir-suspender" data-id="${id}">⏸️ Suspender</button>`;
+    } else if (est === 'Pendiente validación por profe') {
+        accionesHtml += `<button type="button" class="dropdown-item btn-reenviar-profe" data-id="${id}">💬 Re-enviar a Evaluador</button>`;
+        accionesHtml += `<button type="button" class="dropdown-item btn-cancelar-reserva" data-id="${id}">❌ Cancelar Validación</button>`;
+        accionesHtml += `<button type="button" class="dropdown-item btn-abrir-suspender" data-id="${id}">⏸️ Suspender</button>`;
+    } else if (est === 'Pendiente validación por alumno') {
+        accionesHtml += `<button type="button" class="dropdown-item btn-reenviar-alumno" data-id="${id}">💬 Re-Enviar a Alumno</button>`;
+        accionesHtml += `<button type="button" class="dropdown-item btn-cancelar-reserva" data-id="${id}">❌ Cancelar Agenda</button>`;
+        accionesHtml += `<button type="button" class="dropdown-item btn-abrir-suspender" data-id="${id}">⏸️ Suspender</button>`;
+    } else if (est === 'Agenda confirmada') {
+        accionesHtml += `<button type="button" class="dropdown-item btn-enviar-conf-profe" data-id="${id}">💬 Enviar conf. a Evaluador</button>`;
+        accionesHtml += `<button type="button" class="dropdown-item btn-enviar-conf-alumno" data-id="${id}">💬 Enviar conf. a Alumno</button>`;
+        accionesHtml += `<button type="button" class="dropdown-item btn-cancelar-reserva" data-id="${id}">↩️ Cancelar Confirmación</button>`;
+    } else if (est === 'Agenda suspendida') {
+        // Sin acciones secundarias
+    } else if (est === 'Lista de espera') {
+        accionesHtml += `<button type="button" class="dropdown-item btn-abrir-suspender" data-id="${id}">⏸️ Suspender</button>`;
+    } else if (est === 'Validando Grupo') {
+        // Acciones ya visibles en tarjeta
+    } else if (est === 'Pre-alta Pendiente') {
+        accionesHtml += `<button type="button" class="dropdown-item btn-suspender-alta" data-id="${id}">❌ Suspender</button>`;
+        accionesHtml += `<button type="button" class="dropdown-item" onclick="window.copiarFilaExcelBD('${id}')">📋 Generar registro de BD</button>`;
+        accionesHtml += `<button type="button" class="dropdown-item" onclick="window.copiarFilaExcelFacturacion('${id}')">💰 Generar registro de Facturación</button>`;
+    } else if (est === 'Pre-alta Iniciada') {
+        accionesHtml += `<button type="button" class="dropdown-item btn-reenviar-prealta" data-id="${id}">💬 Notificar a Profesor</button>`;
+        accionesHtml += `<button type="button" class="dropdown-item btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
+        accionesHtml += `<button type="button" class="dropdown-item btn-suspender-alta" data-id="${id}">❌ Suspender Alta</button>`;
+        accionesHtml += `<button type="button" class="dropdown-item" onclick="window.copiarFilaExcelBD('${id}')">📋 Generar registro de BD</button>`;
+        accionesHtml += `<button type="button" class="dropdown-item" onclick="window.copiarFilaExcelFacturacion('${id}')">💰 Generar registro de Facturación</button>`;
+    } else if (est === 'Alta Efectiva' || est === 'Alta Ilegal' || est === 'Alta Finalizada') {
+        accionesHtml += `<button type="button" class="dropdown-item btn-suspender-alta" data-id="${id}">❌ Suspender Alta</button>`;
+        accionesHtml += `<button type="button" class="dropdown-item" onclick="window.copiarFilaExcelBD('${id}')">📋 Generar registro de BD</button>`;
+        accionesHtml += `<button type="button" class="dropdown-item" onclick="window.copiarFilaExcelFacturacion('${id}')">💰 Generar registro de Facturación</button>`;
+    } else if (est === 'Alta Suspendida') {
+        accionesHtml += `<button type="button" class="dropdown-item" onclick="window.copiarFilaExcelBD('${id}')">📋 Generar registro de BD</button>`;
+    }
+
+    if (est !== 'Pre-alta Pendiente' && est !== 'Lista de espera' && est !== 'Alta Suspendida' && est !== 'Alta Efectiva' && est !== 'Alta Ilegal' && est !== 'Alta Finalizada') {
         accionesHtml = `<button type="button" class="dropdown-item btn-nombre-agendar" data-id="${id}">📋 Generar nombre agenda WS</button>` + accionesHtml;
     }
+
     return accionesHtml;
 }
 
@@ -777,6 +852,9 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
     const info = getEstadoYBadge(al);
     let instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento;
     let suscStr = al.tipo_suscripcion || ''; let cel = al.celular || ''; let edad = al.edad ? al.edad + 'a' : '-';
+
+    const botonesVisibles = generarBotonesPrincipalesVisibles(al, id);
+    const botonesSecundarios = generarBotonesAccion(al, id);
 
     if (isKanban) {
         let opcionesKanbanHtml = '';
@@ -798,8 +876,9 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
             <div class="kanban-card-sub">${edad} • <strong style="color:var(--accent-teal);">${instStr}</strong></div>
             ${opcionesKanbanHtml}
             <div class="priority-text ${info.claseTexto}">${info.txtTiempo}</div>
+            ${botonesVisibles ? `<div class="row-actions-group" style="margin-top:6px; justify-content:stretch;" onclick="event.stopPropagation();">${botonesVisibles}</div>` : ''}
             <div class="dropdown-menu-wrapper" id="menu-kanban-${id}" style="display:none; position:absolute; top:30px; right:10px;">
-                <div class="dropdown-menu">${generarBotonesAccion(al, id)}</div>
+                <div class="dropdown-menu">${botonesSecundarios}</div>
             </div>
         </div>`;
     }
@@ -821,7 +900,20 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
     });
     dispHtml += '</div>';
 
-    let menuAcciones = `<div class="alumno-actions row-actions-container"><button type="button" class="btn-row-action">⋮</button><div class="dropdown-menu-wrapper"><div class="dropdown-menu">${generarBotonesAccion(al, id)}</div></div></div>`;
+    const tieneSecundarios = botonesSecundarios && botonesSecundarios.trim().length > 0;
+    let menuAcciones = `
+        <div class="row-actions-group" onclick="event.stopPropagation();">
+            ${botonesVisibles}
+            ${tieneSecundarios ? `
+                <div class="alumno-actions row-actions-container">
+                    <button type="button" class="btn-row-action" title="Más opciones">⋮</button>
+                    <div class="dropdown-menu-wrapper">
+                        <div class="dropdown-menu">${botonesSecundarios}</div>
+                    </div>
+                </div>
+            ` : ''}
+        </div>
+    `;
 
     let checklistHtml = '';
     const esAltaConfirmadaOFinalizada = al.estado_agenda === 'Alta Efectiva' || al.estado_agenda === 'Alta Ilegal' || al.estado_agenda === 'Alta Finalizada';
@@ -1126,9 +1218,9 @@ window.copiarFilaExcelBD = async function(id) {
         const al = alDoc.data();
         const fila = window.generarFilaExcelBD(al);
         await navigator.clipboard.writeText(fila);
-        alert(`📋 Fila para BD de GoogleSheet copiada al portapapeles:\n\n${fila}`);
+        alert(`📋 Registro para BD de GoogleSheet copiado al portapapeles:\n\n${fila}`);
     } catch(err) {
-        alert("Error al copiar fila: " + err.message);
+        alert("Error al generar registro: " + err.message);
     }
 };
 
@@ -1139,9 +1231,9 @@ window.copiarFilaExcelFacturacion = async function(id) {
         const al = alDoc.data();
         const fila = window.generarFilaExcelFacturacion(al);
         await navigator.clipboard.writeText(fila);
-        alert(`💰 Fila para Facturación de GoogleSheet copiada al portapapeles:\n\n${fila}`);
+        alert(`💰 Registro para Facturación de GoogleSheet copiado al portapapeles:\n\n${fila}`);
     } catch(err) {
-        alert("Error al copiar fila: " + err.message);
+        alert("Error al generar registro: " + err.message);
     }
 };
 
@@ -4514,7 +4606,7 @@ document.addEventListener('click', async (e) => {
 
     // EDICIÓN DE ALUMNO: Se asegura que el clic no haya sido en una acción o checkbox
     const rowInfo = target.closest('.btn-editar-alumno');
-    if (rowInfo && !target.closest('.alumno-actions') && !target.closest('.bulk-chk') && !target.classList.contains('btn-row-action')) { 
+    if (rowInfo && !target.closest('.alumno-actions') && !target.closest('.bulk-chk') && !target.closest('.row-actions-group') && !target.closest('.row-quick-btn') && !target.classList.contains('btn-row-action')) { 
         const id = rowInfo.getAttribute('data-id'); 
         const wrap = document.getElementById('form-alumno-wrapper'); 
         document.getElementById('modal-alta-alumno').appendChild(wrap); 
@@ -5249,7 +5341,7 @@ async function llenarFormularioAlumno(id) {
         accionesCont.innerHTML = `
             <button type="button" id="btn-trigger-modal-acciones" style="background:var(--accent-teal); color:white; border:none; padding:7px 14px; border-radius:8px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">Acciones ▾</button>
             <div class="dropdown-menu-wrapper" id="modal-acciones-dropdown" style="top:100%; left:0; right:auto; z-index:1200; min-width:220px;">
-                <div class="dropdown-menu">${generarBotonesAccion(d, id)}</div>
+                <div class="dropdown-menu">${generarBotonesAccion(d, id, true)}</div>
             </div>
         `;
     }

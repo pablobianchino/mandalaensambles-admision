@@ -236,6 +236,63 @@ body {
 .btn-row-action:hover { background: var(--hover-bg); color: var(--text-main); }
 
 /* =======================================================================
+   BOTONES DE ACCIÓN RÁPIDA (FILAS Y TARJETAS)
+   ======================================================================= */
+.row-actions-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+.row-quick-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    border: 1px solid var(--border-color);
+    background: #ffffff;
+    color: var(--text-main);
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    text-decoration: none;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+.row-quick-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+}
+.row-quick-btn.primary {
+    background: var(--accent-teal);
+    color: #ffffff;
+    border-color: var(--accent-teal);
+}
+.row-quick-btn.primary:hover {
+    filter: brightness(0.92);
+}
+.row-quick-btn.secondary {
+    background: var(--hover-bg);
+    color: var(--text-main);
+    border-color: var(--border-color);
+}
+.row-quick-btn.secondary:hover {
+    background: #e4ded3;
+}
+.row-quick-btn.danger {
+    background: #ffffff;
+    color: var(--accent-red);
+    border-color: rgba(194, 86, 59, 0.3);
+}
+.row-quick-btn.danger:hover {
+    background: rgba(194, 86, 59, 0.08);
+}
+
+/* =======================================================================
    MENÚ DESPLEGABLE DE ACCIONES (CLICK-TO-TOGGLE)
    ======================================================================= */
 .alumno-actions { position: relative; }
@@ -551,6 +608,9 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
     .row-disp-grid::-webkit-scrollbar { display: none; }
     .disp-box { flex: 0 0 auto; min-width: 55px; } 
     .row-meta { align-items: flex-start; text-align: left; margin-top: 4px; width: 100%; padding-top: 10px; border-top: 1px dashed var(--border-color); }
+    .row-actions-group { width: 100%; justify-content: flex-start; gap: 8px; margin-top: 4px; padding-top: 8px; border-top: 1px dashed var(--border-color); }
+    .row-quick-btn { flex: 1; min-width: 120px; justify-content: center; padding: 8px 10px; font-size: 12px; }
+
     
     .timeline-wrapper { flex-direction: column; align-items: flex-start; padding: 10px 0 10px 10px; gap: 0; min-width: unset; overflow-x: visible; overflow-y: visible; }
     .timeline-line { width: 3px; height: calc(100% - 60px); left: 32px; top: 30px; background: linear-gradient(to bottom, var(--accent-blue) 0%, var(--accent-blue) 40%, #e5a93d 40%, #e5a93d 50%, var(--accent-teal) 50%, var(--accent-teal) 100%); }
