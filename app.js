@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-const APP_VERSION = "v4.8.2"; // v4.8.2: Corrección Confirmar Agenda y acciones en tray de burbujas Timeline
+const APP_VERSION = "v4.8.3"; // v4.8.3: Restauración de propagación de eventos en row-actions-group y delegación global
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 const firebaseConfig = {
@@ -876,7 +876,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
             <div class="kanban-card-sub">${edad} • <strong style="color:var(--accent-teal);">${instStr}</strong></div>
             ${opcionesKanbanHtml}
             <div class="priority-text ${info.claseTexto}">${info.txtTiempo}</div>
-            ${botonesVisibles ? `<div class="row-actions-group" style="margin-top:6px; justify-content:stretch;" onclick="event.stopPropagation();">${botonesVisibles}</div>` : ''}
+            ${botonesVisibles ? `<div class="row-actions-group" style="margin-top:6px; justify-content:stretch;">${botonesVisibles}</div>` : ''}
             <div class="dropdown-menu-wrapper" id="menu-kanban-${id}" style="display:none; position:absolute; top:30px; right:10px;">
                 <div class="dropdown-menu">${botonesSecundarios}</div>
             </div>
@@ -902,7 +902,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
 
     const tieneSecundarios = botonesSecundarios && botonesSecundarios.trim().length > 0;
     let menuAcciones = `
-        <div class="row-actions-group" onclick="event.stopPropagation();">
+        <div class="row-actions-group">
             ${botonesVisibles}
             ${tieneSecundarios ? `
                 <div class="alumno-actions row-actions-container">
@@ -1593,7 +1593,7 @@ function renderTimelineUnificado(containerId, configNodos, datos) {
                         <div class="tray-chip" style="display:flex; flex-direction:column; gap:8px;">
                             <div class="tray-chip-header" style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
                                 <span class="tray-chip-name btn-editar-alumno" style="font-size:13.5px; font-weight:700; color:var(--text-main); cursor:pointer;" data-id="${al.id}">👤 ${al.nombre}</span>
-                                <div class="row-actions-group" onclick="event.stopPropagation();">
+                                <div class="row-actions-group">
                                     ${botonesVisibles}
                                     ${tieneSecundarios ? `
                                         <div class="alumno-actions row-actions-container" style="position:relative;">
@@ -5298,15 +5298,33 @@ document.addEventListener('click', async (e) => {
         return { al, txt }; 
     }
 
-    if (target.classList.contains('btn-validado-profe-popup')) { const id = target.getAttribute('data-id'); const al = (await getDoc(doc(db, "alumnos", id))).data(); const container = document.getElementById('opciones-validadas-container'); container.innerHTML = ''; if (al.opciones_propuestas && al.opciones_propuestas.length > 0) { al.opciones_propuestas.forEach((op, index) => { container.innerHTML += `<label style="display:flex; gap:8px; margin-bottom:8px; cursor:pointer;"><input type="radio" name="opt-valida-profe" value='${JSON.stringify(op)}' ${index===0?'checked':''}> ${op.letra ? op.letra+'- ' : ''}${op.fechaTexto}</label>`; }); } else { const op = { inicio: al.reserva_inicio, fin: al.reserva_fin, fechaTexto: al.reserva_fecha_texto, calId: al.reserva_cal_id, profeId: al.reserva_profe_id, profeNombre: al.reserva_profe_nombre }; container.innerHTML = `<label style="display:flex; gap:8px; margin-bottom:8px; cursor:pointer;"><input type="radio" name="opt-valida-profe" value='${JSON.stringify(op)}' checked> ${op.fechaTexto}</label>`; } document.getElementById('validar-profe-alumno-id').value = id; document.getElementById('modal-validar-profe').showModal(); return; }
+    if (target.classList.contains('btn-validado-profe-popup') || target.closest('.btn-validado-profe-popup')) { 
+        const btn = target.classList.contains('btn-validado-profe-popup') ? target : target.closest('.btn-validado-profe-popup');
+        const id = btn.getAttribute('data-id'); 
+        const al = (await getDoc(doc(db, "alumnos", id))).data(); 
+        const container = document.getElementById('opciones-validadas-container'); 
+        container.innerHTML = ''; 
+        if (al.opciones_propuestas && al.opciones_propuestas.length > 0) { 
+            al.opciones_propuestas.forEach((op, index) => { 
+                container.innerHTML += `<label style="display:flex; gap:8px; margin-bottom:8px; cursor:pointer;"><input type="radio" name="opt-valida-profe" value='${JSON.stringify(op)}' ${index===0?'checked':''}> ${op.letra ? op.letra+'- ' : ''}${op.fechaTexto}</label>`; 
+            }); 
+        } else { 
+            const op = { inicio: al.reserva_inicio, fin: al.reserva_fin, fechaTexto: al.reserva_fecha_texto, calId: al.reserva_cal_id, profeId: al.reserva_profe_id, profeNombre: al.reserva_profe_nombre }; 
+            container.innerHTML = `<label style="display:flex; gap:8px; margin-bottom:8px; cursor:pointer;"><input type="radio" name="opt-valida-profe" value='${JSON.stringify(op)}' checked> ${op.fechaTexto}</label>`; 
+        } 
+        document.getElementById('validar-profe-alumno-id').value = id; 
+        document.getElementById('modal-validar-profe').showModal(); 
+        return; 
+    }
     if (target.id === 'btn-confirmar-validacion-profe') { const id = document.getElementById('validar-profe-alumno-id').value, selectedRadio = document.querySelector('input[name="opt-valida-profe"]:checked'); if(!selectedRadio) return alert("Selecciona una opción."); const op = JSON.parse(selectedRadio.value), al = (await getDoc(doc(db, "alumnos", id))).data(); setBotonCargando(target, true); try { al.reserva_profe_id = op.profeId; al.reserva_profe_nombre = op.profeNombre; al.reserva_cal_id = op.calId; al.reserva_fecha_texto = op.fechaTexto; al.reserva_inicio = op.inicio; al.reserva_fin = op.fin; const titulos = construirTitulosEvento(al, 'reserva', configApp); const evRes = await crearEventoSeguro(al, titulos, op.inicio, op.fin); await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente validación por alumno", id_evento_reserva: evRes.id, calendario_evento_reserva: evRes.calendar, reserva_profe_id: op.profeId, reserva_profe_nombre: op.profeNombre, reserva_cal_id: op.calId, reserva_fecha_texto: op.fechaTexto, reserva_inicio: op.inicio, reserva_fin: op.fin, opciones_propuestas: null }); const dataText = await generarTextoConHistorial(id, 'texto_alumno'); await navigator.clipboard.writeText(dataText.txt); alert("Reserva en Calendar creada exitosamente.\n\nTexto copiado."); document.getElementById('modal-validar-profe').close(); cargarVista(estadoActualVista); } catch(e) { alert("❌ Error:\n\n" + e.message); } setBotonCargando(target, false); return; }
-    if (target.classList.contains('btn-confirmar-entrevista')) {
-        const id = target.getAttribute('data-id');
-        setBotonCargando(target, true);
+    if (target.classList.contains('btn-confirmar-entrevista') || target.closest('.btn-confirmar-entrevista')) {
+        const btn = target.classList.contains('btn-confirmar-entrevista') ? target : target.closest('.btn-confirmar-entrevista');
+        const id = btn.getAttribute('data-id');
+        setBotonCargando(btn, true);
         try {
             const alDoc = await getDoc(doc(db, "alumnos", id));
             if (!alDoc.exists()) {
-                setBotonCargando(target, false);
+                setBotonCargando(btn, false);
                 return alert("Alumno no encontrado.");
             }
             const al = alDoc.data();
@@ -5328,16 +5346,76 @@ document.addEventListener('click', async (e) => {
         } catch(e) {
             alert("❌ Error al confirmar agenda:\n\n" + e.message);
         }
-        setBotonCargando(target, false);
+        setBotonCargando(btn, false);
         return;
     }
-    if (target.classList.contains('btn-reenviar-profe') || target.classList.contains('btn-enviar-conf-profe')) { try { const id = target.getAttribute('data-id'); const al = (await getDoc(doc(db, "alumnos", id))).data(); let key = 'texto_conf_profe'; if (target.classList.contains('btn-reenviar-profe')) { key = (al.opciones_propuestas && al.opciones_propuestas.length > 1) ? 'texto_opciones_multiples' : 'texto_profe'; } const data = await generarTextoConHistorial(id, key); await navigator.clipboard.writeText(data.txt); alert("Texto copiado."); } catch(e) {} return; }
-    if (target.classList.contains('btn-reenviar-alumno') || target.classList.contains('btn-enviar-conf-alumno')) { try { const id = target.getAttribute('data-id'); const key = target.classList.contains('btn-reenviar-alumno') ? 'texto_alumno' : 'texto_conf_alumno'; const data = await generarTextoConHistorial(id, key); await navigator.clipboard.writeText(data.txt); alert("Texto copiado."); } catch(e) {} return; }
-    if (target.classList.contains('btn-cancelar-reserva')) { const motivo = prompt("¿Estás seguro de cancelar? Se eliminará en Calendar.\nIngresa motivo para historial:"); if (motivo !== null) { if (motivo.trim() === "") return alert("Debes ingresar motivo."); const id = target.getAttribute('data-id'); try { const alDoc = await getDoc(doc(db, "alumnos", id)); const alData = alDoc.data(); if (alData.id_evento_reserva) await eliminarEventoSeguro(alData); const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`; const hist = alData.historial || []; hist.push({ id: Date.now(), texto: `Reserva cancelada. Motivo: ${motivo.trim()}`, fecha: fechaStr }); const data = await generarTextoConHistorial(id, 'texto_cancela_alumno'); if (data.al.estado_agenda === 'Pendiente validación por alumno' || data.al.estado_agenda === 'Agenda confirmada') { await navigator.clipboard.writeText(data.txt); alert("Cancelada. Texto CANCELACIÓN copiado."); } await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente procesar", reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null, opciones_propuestas: null, historial: hist }); cargarVista(estadoActualVista); } catch(e) { alert("❌ Error:\n\n" + e.message); } } return; }
+    if (target.classList.contains('btn-reenviar-profe') || target.classList.contains('btn-enviar-conf-profe') || target.closest('.btn-reenviar-profe') || target.closest('.btn-enviar-conf-profe')) { 
+        const btn = target.closest('.btn-reenviar-profe') || target.closest('.btn-enviar-conf-profe');
+        try { 
+            const id = btn.getAttribute('data-id'); 
+            const al = (await getDoc(doc(db, "alumnos", id))).data(); 
+            let key = 'texto_conf_profe'; 
+            if (btn.classList.contains('btn-reenviar-profe')) { 
+                key = (al.opciones_propuestas && al.opciones_propuestas.length > 1) ? 'texto_opciones_multiples' : 'texto_profe'; 
+            } 
+            const data = await generarTextoConHistorial(id, key); 
+            await navigator.clipboard.writeText(data.txt); 
+            alert("Texto copiado."); 
+        } catch(e) {} 
+        return; 
+    }
+    if (target.classList.contains('btn-reenviar-alumno') || target.classList.contains('btn-enviar-conf-alumno') || target.closest('.btn-reenviar-alumno') || target.closest('.btn-enviar-conf-alumno')) { 
+        const btn = target.closest('.btn-reenviar-alumno') || target.closest('.btn-enviar-conf-alumno');
+        try { 
+            const id = btn.getAttribute('data-id'); 
+            const key = btn.classList.contains('btn-reenviar-alumno') ? 'texto_alumno' : 'texto_conf_alumno'; 
+            const data = await generarTextoConHistorial(id, key); 
+            await navigator.clipboard.writeText(data.txt); 
+            alert("Texto copiado."); 
+        } catch(e) {} 
+        return; 
+    }
+    if (target.classList.contains('btn-cancelar-reserva') || target.closest('.btn-cancelar-reserva')) { 
+        const btn = target.classList.contains('btn-cancelar-reserva') ? target : target.closest('.btn-cancelar-reserva');
+        const motivo = prompt("¿Estás seguro de cancelar? Se eliminará en Calendar.\nIngresa motivo para historial:"); 
+        if (motivo !== null) { 
+            if (motivo.trim() === "") return alert("Debes ingresar motivo."); 
+            const id = btn.getAttribute('data-id'); 
+            try { 
+                const alDoc = await getDoc(doc(db, "alumnos", id)); 
+                const alData = alDoc.data(); 
+                if (alData.id_evento_reserva) await eliminarEventoSeguro(alData); 
+                const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`; 
+                const hist = alData.historial || []; 
+                hist.push({ id: Date.now(), texto: `Reserva cancelada. Motivo: ${motivo.trim()}`, fecha: fechaStr }); 
+                const data = await generarTextoConHistorial(id, 'texto_cancela_alumno'); 
+                if (data.al.estado_agenda === 'Pendiente validación por alumno' || data.al.estado_agenda === 'Agenda confirmada') { 
+                    await navigator.clipboard.writeText(data.txt); 
+                    alert("Cancelada. Texto CANCELACIÓN copiado."); 
+                } 
+                await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente procesar", reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null, opciones_propuestas: null, historial: hist }); 
+                cargarVista(estadoActualVista); 
+            } catch(e) { 
+                alert("❌ Error:\n\n" + e.message); 
+            } 
+        } 
+        return; 
+    }
 
-    if (target.classList.contains('btn-abrir-suspender')) { document.getElementById('susp-alumno-id').value = target.getAttribute('data-id'); document.getElementById('susp-motivo').value = ""; document.getElementById('modal-suspender').showModal(); return; }
+    if (target.classList.contains('btn-abrir-suspender') || target.closest('.btn-abrir-suspender')) { 
+        const btn = target.classList.contains('btn-abrir-suspender') ? target : target.closest('.btn-abrir-suspender');
+        document.getElementById('susp-alumno-id').value = btn.getAttribute('data-id'); 
+        document.getElementById('susp-motivo').value = ""; 
+        document.getElementById('modal-suspender').showModal(); 
+        return; 
+    }
     if (target.id === 'btn-guardar-suspension') { const id = document.getElementById('susp-alumno-id').value, mtv = document.getElementById('susp-motivo').value; if(!mtv) return alert("Seleccione motivo"); setBotonCargando(target, true); try { const al = (await getDoc(doc(db, "alumnos", id))).data(); if (al.id_evento_reserva) await eliminarEventoSeguro(al); const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`, hist = al.historial || []; hist.push({ id: Date.now(), texto: `Suspendido. Motivo: ${mtv}`, fecha: fechaStr }); await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Agenda suspendida", motivo_suspension: mtv, reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null, historial: hist }); document.getElementById('modal-suspender').close(); cargarVista(estadoActualVista); } catch(err){ alert("❌ Error:\n\n" + err.message); } setBotonCargando(target, false); return;}
-    if (target.classList.contains('btn-recuperar-agenda')) { await updateDoc(doc(db, "alumnos", target.getAttribute('data-id')), { estado_agenda: "Pendiente procesar", motivo_suspension: null }); cargarVista(estadoActualVista); return; }
+    if (target.classList.contains('btn-recuperar-agenda') || target.closest('.btn-recuperar-agenda')) { 
+        const btn = target.classList.contains('btn-recuperar-agenda') ? target : target.closest('.btn-recuperar-agenda');
+        await updateDoc(doc(db, "alumnos", btn.getAttribute('data-id')), { estado_agenda: "Pendiente procesar", motivo_suspension: null }); 
+        cargarVista(estadoActualVista); 
+        return; 
+    }
     if (target.classList.contains('btn-cerrar-modal')) { document.getElementById(target.getAttribute('data-modal')).close(); return; }
     
     if (target.id === 'btn-nuevo-alumno') { 
