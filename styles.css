@@ -232,11 +232,30 @@ body {
 .row-meta { display:flex; flex-direction:column; align-items:flex-end; gap:3px; min-width:120px; font-size:12px; color:var(--text-muted); }
 .row-meta strong { color: var(--text-main); font-weight:600; }
 
-.btn-row-action { background: none; border: none; font-size: 1.2em; color: var(--text-light); cursor: pointer; padding: 4px 8px; border-radius: 6px; transition: 0.2s; }
-.btn-row-action:hover { background: var(--hover-bg); color: var(--text-main); }
+.btn-row-action { 
+    background: #ffffff; 
+    border: 1px solid var(--border-color); 
+    font-size: 13px; 
+    font-weight: 700;
+    color: var(--text-muted); 
+    cursor: pointer; 
+    padding: 4px 9px; 
+    border-radius: 20px; 
+    transition: 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+}
+.btn-row-action:hover { 
+    background: var(--hover-bg); 
+    color: var(--text-main); 
+    border-color: #d9d2c5;
+    transform: translateY(-1px);
+}
 
 /* =======================================================================
-   BOTONES DE ACCIÓN RÁPIDA (FILAS Y TARJETAS)
+   BOTONES DE ACCIÓN RÁPIDA (FILAS Y TARJETAS — FORMATO HOMOGÉNEO PILL MATCH)
    ======================================================================= */
 .row-actions-group {
     display: flex;
@@ -249,47 +268,54 @@ body {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    padding: 6px 12px;
-    border-radius: 8px;
+    padding: 5px 11px;
+    border-radius: 20px;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 600;
     font-family: inherit;
     cursor: pointer;
     border: 1px solid var(--border-color);
     background: #ffffff;
-    color: var(--text-main);
+    color: var(--accent-teal);
     transition: all 0.15s ease;
     white-space: nowrap;
     text-decoration: none;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
 }
 .row-quick-btn:hover {
+    border-color: #d9d2c5;
+    background: var(--hover-bg);
     transform: translateY(-1px);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.06);
 }
 .row-quick-btn.primary {
-    background: var(--accent-teal);
-    color: #ffffff;
-    border-color: var(--accent-teal);
+    color: var(--accent-teal);
+    border-color: rgba(0, 123, 143, 0.25);
+    background: #ffffff;
 }
 .row-quick-btn.primary:hover {
-    filter: brightness(0.92);
+    background: rgba(0, 123, 143, 0.05);
+    border-color: var(--accent-teal);
 }
 .row-quick-btn.secondary {
-    background: var(--hover-bg);
-    color: var(--text-main);
+    color: var(--text-muted);
     border-color: var(--border-color);
+    background: #ffffff;
 }
 .row-quick-btn.secondary:hover {
-    background: #e4ded3;
+    background: var(--hover-bg);
+    color: var(--text-main);
+    border-color: #d9d2c5;
 }
 .row-quick-btn.danger {
-    background: #ffffff;
     color: var(--accent-red);
     border-color: rgba(194, 86, 59, 0.3);
+    background: #ffffff;
+    padding: 5px 8px;
 }
 .row-quick-btn.danger:hover {
     background: rgba(194, 86, 59, 0.08);
+    border-color: var(--accent-red);
 }
 
 /* =======================================================================

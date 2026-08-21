@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-const APP_VERSION = "v4.8.0"; // v4.8.0: Botones de acción principales visibles y menú secundario (⋮)
+const APP_VERSION = "v4.8.1"; // v4.8.1: Homologación visual de botones rápidos a formato pill (Match)
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 const firebaseConfig = {
@@ -3632,12 +3632,12 @@ async function renderMatchEnValidacion(container) {
                             </span>
                         </div>
                         <div class="group-member-actions">
-                            <button type="button" class="filter-chip" onclick="window.enviarWhatsAppValidacionGrupo('${al.id}')" title="Mensaje WhatsApp" style="padding:5px 10px; font-size:12px;">💬 WhatsApp</button>
-                            <button type="button" class="filter-chip ${isConfirmed ? 'active' : ''}" onclick="window.toggleValidacionAlumnoGrupo('${al.id}', ${!isConfirmed})" title="Marcar confirmación" style="padding:5px 10px; font-size:12px;">
+                            <button type="button" class="row-quick-btn secondary" onclick="window.enviarWhatsAppValidacionGrupo('${al.id}')" title="Mensaje WhatsApp">💬 WhatsApp</button>
+                            <button type="button" class="row-quick-btn ${isConfirmed ? 'primary' : 'secondary'}" onclick="window.toggleValidacionAlumnoGrupo('${al.id}', ${!isConfirmed})" title="Marcar confirmación">
                                 ${isConfirmed ? '✔️ Desmarcar' : '✔️ Confirmó'}
                             </button>
-                            <button type="button" class="filter-chip" onclick="window.aprobarAlumnoIndividualPrealta('${al.id}')" title="Aprobar individualmente a Altas" style="padding:5px 10px; font-size:12px; color:var(--accent-teal);">🚀 Aprobar</button>
-                            <button type="button" class="filter-chip" onclick="window.rechazarAlumnoGrupoYVolverEspera('${al.id}')" title="Rechazar y regresar a Lista de Espera" style="padding:5px 8px; font-size:12px; color:var(--accent-red); border-color:rgba(194,86,59,0.3);">❌</button>
+                            <button type="button" class="row-quick-btn primary" onclick="window.aprobarAlumnoIndividualPrealta('${al.id}')" title="Aprobar individualmente a Altas">🚀 Aprobar</button>
+                            <button type="button" class="row-quick-btn danger" onclick="window.rechazarAlumnoGrupoYVolverEspera('${al.id}')" title="Rechazar y regresar a Lista de Espera">❌</button>
                         </div>
                     </div>
                 `;
