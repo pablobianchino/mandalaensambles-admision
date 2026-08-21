@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getFirestore, collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, setDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-const APP_VERSION = "v4.8.3"; // v4.8.3: Restauración de propagación de eventos en row-actions-group y delegación global
+const APP_VERSION = "v4.9.0"; // v4.9.0: Notación abreviada de horarios (18+, 18-) y disponibilidad multi-rango por día
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 const firebaseConfig = {
@@ -257,31 +257,161 @@ const quillInforme = new Quill('#informe-editor-container', { theme: 'snow', mod
 const quillPopup = new Quill('#informe-popup-editor-container', { theme: 'snow', modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] } });
 
 const diasSemana = [{ id:'L',nombre:'Lunes'}, {id:'M',nombre:'Martes'}, {id:'X',nombre:'Miércoles'}, {id:'J',nombre:'Jueves'}, {id:'V',nombre:'Viernes'}, {id:'S',nombre:'Sábado'}];
-const contDisp = document.getElementById('contenedor-disponibilidad'), contDispProfe = document.getElementById('contenedor-disponibilidad-profe');
 
-diasSemana.forEach(dia => {
-    contDisp.innerHTML += `<div class="dia-disponibilidad" style="display:flex; align-items:center; gap:8px; margin-bottom:8px;"><label style="margin:0;">${dia.nombre}:</label><input type="time" id="disp-${dia.id}-inicio" class="modern-input" style="width:auto; padding:6px 10px;"> <span>a</span> <input type="time" id="disp-${dia.id}-fin" class="modern-input" style="width:auto; padding:6px 10px;"><label style="font-weight:normal; width:auto; margin-left:10px; cursor:pointer; text-transform:none;"><input type="checkbox" id="disp-${dia.id}-all"> Todo el día</label><label style="font-weight:normal; width:auto; margin-left:10px; cursor:pointer; text-transform:none;"><input type="checkbox" id="disp-${dia.id}-none"> No disp.</label><button type="button" class="btn-copy-disp" data-dia="${dia.id}" style="background:none; border:none; cursor:pointer; font-size:1.1em; margin-left:auto;">📋</button><button type="button" class="btn-paste-disp" data-dia="${dia.id}" style="background:none; border:none; cursor:pointer; font-size:1.1em;">📥</button><span id="estado-${dia.id}" class="estado-disp" style="width:80px; text-align:right;"></span></div>`;
-    if(contDispProfe) {
-        contDispProfe.innerHTML += `<div class="dia-disponibilidad" style="display:flex; align-items:center; gap:8px; margin-bottom:8px;"><label style="margin:0;">${dia.nombre}:</label><input type="time" id="disp-p-${dia.id}-inicio" class="modern-input" style="width:auto; padding:6px 10px;"> <span>a</span> <input type="time" id="disp-p-${dia.id}-fin" class="modern-input" style="width:auto; padding:6px 10px;"><label style="font-weight:normal; width:auto; margin-left:10px; cursor:pointer; text-transform:none;"><input type="checkbox" id="disp-p-${dia.id}-all"> Todo el día</label><label style="font-weight:normal; width:auto; margin-left:10px; cursor:pointer; text-transform:none;"><input type="checkbox" id="disp-p-${dia.id}-none"> No disp.</label><button type="button" class="btn-copy-disp-p" data-dia="${dia.id}" style="background:none; border:none; cursor:pointer; font-size:1.1em; margin-left:auto;">📋</button><button type="button" class="btn-paste-disp-p" data-dia="${dia.id}" style="background:none; border:none; cursor:pointer; font-size:1.1em;">📥</button><span id="estado-p-${dia.id}" class="estado-disp" style="width:80px; text-align:right;"></span></div>`;
+// =======================================================================
+// HELPERS PARA FORMATEO DE HORARIOS (18+, 18-, Libre, Rangos, Multi-rango)
+// =======================================================================
+function limpiarHoraParaChip(h) {
+    if (!h) return '';
+    return h.endsWith(':00') ? h.replace(':00', '') : h;
+}
+
+function formatearChipHorario(rango, hApertura = '09:00', hCierre = '22:00') {
+    if (!rango || (!rango.inicio && !rango.fin)) return '-';
+    let ini = (rango.inicio || '').trim();
+    let fin = (rango.fin || '').trim();
+
+    // Caso 0: Todo el día
+    if ((ini === hApertura || !ini) && (fin === hCierre || !fin)) {
+        return 'Libre';
     }
-});
+
+    // Caso 1: Desde la apertura (o sin inicio especificado) hasta X hora -> "18-"
+    if ((ini === hApertura || !ini) && fin && fin < hCierre) {
+        return `${limpiarHoraParaChip(fin)}-`;
+    }
+
+    // Caso 2: Desde X hora hasta el cierre (o sin fin especificado) -> "18+"
+    if (ini && (fin === hCierre || !fin || fin >= hCierre)) {
+        return `${limpiarHoraParaChip(ini)}+`;
+    }
+
+    // Caso 3: Franja acotada intermedia -> "14-17" o "18:30-20"
+    return `${limpiarHoraParaChip(ini)}-${limpiarHoraParaChip(fin)}`;
+}
+
+function formatearDiaCompletoChips(rangosDia, hApertura = '09:00', hCierre = '22:00') {
+    if (!rangosDia || rangosDia.length === 0) return '-';
+    const chips = rangosDia.map(r => formatearChipHorario(r, hApertura, hCierre)).filter(c => c && c !== '-');
+    if (chips.length === 0) return '-';
+    if (chips.includes('Libre')) return 'Libre';
+    return chips.join('<br>');
+}
+
+// =======================================================================
+// RENDERIZADO DINÁMICO DE DISPONIBILIDAD EN FORMULARIOS (MULTI-RANGO)
+// =======================================================================
+function crearFilaRangoHTML(diaId, inicio = '', fin = '', esProfe = false, index = 0) {
+    return `
+        <div class="rango-item" style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+            <input type="time" class="modern-input rango-inicio" value="${inicio}" style="width:auto; padding:5px 8px; font-size:12.5px;">
+            <span style="font-size:12px; color:var(--text-muted);">a</span>
+            <input type="time" class="modern-input rango-fin" value="${fin}" style="width:auto; padding:5px 8px; font-size:12.5px;">
+            <button type="button" class="btn-quitar-rango" data-dia="${diaId}" data-profe="${esProfe}" title="Eliminar este rango" style="background:none; border:none; cursor:pointer; font-size:1em; padding:2px 4px; ${index === 0 ? 'display:none;' : ''}">🗑️</button>
+        </div>
+    `;
+}
+
+function renderContenedorDisponibilidad(containerId, esProfe = false) {
+    const cont = document.getElementById(containerId);
+    if (!cont) return;
+    const prefix = esProfe ? 'disp-p-' : 'disp-';
+    cont.innerHTML = '';
+    diasSemana.forEach(dia => {
+        const diaRow = document.createElement('div');
+        diaRow.className = 'dia-disponibilidad-row';
+        diaRow.id = `row-${prefix}${dia.id}`;
+        diaRow.style.cssText = 'background:var(--hover-bg); border:1px solid var(--border-color); border-radius:8px; padding:8px 12px; margin-bottom:8px; display:flex; flex-direction:column; gap:4px;';
+        
+        diaRow.innerHTML = `
+            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <strong style="min-width:75px; font-size:13px; color:var(--text-main);">${dia.nombre}:</strong>
+                    <label style="font-weight:normal; margin:0; cursor:pointer; font-size:12px; display:flex; align-items:center; gap:4px; text-transform:none;">
+                        <input type="checkbox" id="${prefix}${dia.id}-all" class="chk-disp-all" data-dia="${dia.id}" data-profe="${esProfe}"> Todo el día
+                    </label>
+                    <label style="font-weight:normal; margin:0; cursor:pointer; font-size:12px; display:flex; align-items:center; gap:4px; text-transform:none;">
+                        <input type="checkbox" id="${prefix}${dia.id}-none" class="chk-disp-none" data-dia="${dia.id}" data-profe="${esProfe}"> No disp.
+                    </label>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px; margin-left:auto;">
+                    <button type="button" class="${esProfe ? 'btn-copy-disp-p' : 'btn-copy-disp'}" data-dia="${dia.id}" title="Copiar horario" style="background:none; border:none; cursor:pointer; font-size:1.1em;">📋</button>
+                    <button type="button" class="${esProfe ? 'btn-paste-disp-p' : 'btn-paste-disp'}" data-dia="${dia.id}" title="Pegar horario" style="background:none; border:none; cursor:pointer; font-size:1.1em;">📥</button>
+                    <span id="${esProfe ? 'estado-p-' : 'estado-'}${dia.id}" class="estado-disp" style="width:75px; text-align:right; font-size:11.5px; font-weight:700;"></span>
+                </div>
+            </div>
+            <div id="rangos-${prefix}${dia.id}" class="rangos-list" style="display:flex; flex-direction:column; gap:2px; margin-top:4px;">
+                ${crearFilaRangoHTML(dia.id, '', '', esProfe, 0)}
+            </div>
+            <div style="display:flex; justify-content:flex-start; margin-top:2px;">
+                <button type="button" class="btn-agregar-rango" data-dia="${dia.id}" data-profe="${esProfe}" style="background:#fff; border:1px dashed var(--border-color); border-radius:6px; padding:3px 8px; font-size:11.5px; font-weight:600; color:var(--accent-teal); cursor:pointer; display:inline-flex; align-items:center; gap:4px;">➕ Agregar Rango</button>
+            </div>
+        `;
+        cont.appendChild(diaRow);
+    });
+}
+
+function actualizarBotonesQuitarRango(diaId, esProfe = false) {
+    const prefix = esProfe ? 'disp-p-' : 'disp-';
+    const container = document.getElementById(`rangos-${prefix}${diaId}`);
+    if (!container) return;
+    const items = container.querySelectorAll('.rango-item');
+    items.forEach((item) => {
+        const btnDel = item.querySelector('.btn-quitar-rango');
+        if (btnDel) {
+            btnDel.style.display = items.length > 1 ? 'inline-block' : 'none';
+        }
+    });
+}
+
+function agregarRangoDia(diaId, inicio = '', fin = '', esProfe = false) {
+    const prefix = esProfe ? 'disp-p-' : 'disp-';
+    const container = document.getElementById(`rangos-${prefix}${diaId}`);
+    if (!container) return;
+    const count = container.querySelectorAll('.rango-item').length;
+    container.insertAdjacentHTML('beforeend', crearFilaRangoHTML(diaId, inicio, fin, esProfe, count));
+    actualizarBotonesQuitarRango(diaId, esProfe);
+    const chkAll = document.getElementById(`${prefix}${diaId}-all`);
+    const chkNone = document.getElementById(`${prefix}${diaId}-none`);
+    if (chkAll) chkAll.checked = false;
+    if (chkNone) chkNone.checked = false;
+    window.updateDispStateForDay(diaId, esProfe);
+}
 
 window.updateDispStateForDay = function(dId, isProfe = false) {
     const prefix = isProfe ? 'disp-p-' : 'disp-', estadoPrefix = isProfe ? 'estado-p-' : 'estado-';
     const chkAll = document.getElementById(`${prefix}${dId}-all`), chkNone = document.getElementById(`${prefix}${dId}-none`);
-    const tIni = document.getElementById(`${prefix}${dId}-inicio`), tFin = document.getElementById(`${prefix}${dId}-fin`), spanE = document.getElementById(`${estadoPrefix}${dId}`);
-    if(!chkAll) return;
-    if (chkAll.checked) { chkNone.checked = false; tIni.disabled = tFin.disabled = true; tIni.value = tFin.value = ''; spanE.textContent = "Libre"; spanE.style.color = "var(--accent-teal)"; } 
-    else if (chkNone.checked) { chkAll.checked = false; tIni.disabled = tFin.disabled = true; tIni.value = tFin.value = ''; spanE.textContent = "Bloqueado"; spanE.style.color = "var(--accent-red)"; } 
-    else { tIni.disabled = tFin.disabled = false; spanE.textContent = ""; }
-}
+    const spanE = document.getElementById(`${estadoPrefix}${dId}`);
+    const rangosContainer = document.getElementById(`rangos-${prefix}${dId}`);
+    const btnAgregar = document.querySelector(`.btn-agregar-rango[data-dia="${dId}"][data-profe="${isProfe}"]`);
+    if (!chkAll || !rangosContainer) return;
+    
+    const inputs = rangosContainer.querySelectorAll('input[type="time"]');
+    const btnsDel = rangosContainer.querySelectorAll('.btn-quitar-rango');
+    
+    if (chkAll.checked) {
+        if (chkNone) chkNone.checked = false;
+        inputs.forEach(inp => { inp.disabled = true; inp.value = ''; });
+        btnsDel.forEach(b => b.disabled = true);
+        if (btnAgregar) btnAgregar.style.display = 'none';
+        if (spanE) { spanE.textContent = "Libre"; spanE.style.color = "var(--accent-teal)"; }
+    } else if (chkNone && chkNone.checked) {
+        chkAll.checked = false;
+        inputs.forEach(inp => { inp.disabled = true; inp.value = ''; });
+        btnsDel.forEach(b => b.disabled = true);
+        if (btnAgregar) btnAgregar.style.display = 'none';
+        if (spanE) { spanE.textContent = "Bloqueado"; spanE.style.color = "var(--accent-red)"; }
+    } else {
+        inputs.forEach(inp => { inp.disabled = false; });
+        btnsDel.forEach(b => b.disabled = false);
+        if (btnAgregar) btnAgregar.style.display = 'inline-flex';
+        if (spanE) { spanE.textContent = ""; }
+    }
+};
 
-diasSemana.forEach(dia => {
-    document.getElementById(`disp-${dia.id}-all`)?.addEventListener('change', () => window.updateDispStateForDay(dia.id, false));
-    document.getElementById(`disp-${dia.id}-none`)?.addEventListener('change', () => window.updateDispStateForDay(dia.id, false));
-    document.getElementById(`disp-p-${dia.id}-all`)?.addEventListener('change', () => window.updateDispStateForDay(dia.id, true));
-    document.getElementById(`disp-p-${dia.id}-none`)?.addEventListener('change', () => window.updateDispStateForDay(dia.id, true));
-});
+// Render inicial de contenedores
+renderContenedorDisponibilidad('contenedor-disponibilidad', false);
+renderContenedorDisponibilidad('contenedor-disponibilidad-profe', true);
 
 document.addEventListener('click', (e) => {
     if(e.target.classList.contains('tab-btn')) {
@@ -885,18 +1015,11 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
 
     let dispHtml = '<div class="row-disp-grid">';
     diasSemana.forEach(d => {
-        let tiene = al.disponibilidad && al.disponibilidad[d.id] && al.disponibilidad[d.id].length > 0, txt = '-';
-        if (tiene) { 
-            let p = al.disponibilidad[d.id][0]; 
-            if(p.inicio === configApp.hora_apertura && p.fin === configApp.hora_cierre) { 
-                txt = 'Libre'; 
-            } else { 
-                let ini = p.inicio.replace(':00', '');
-                let fin = p.fin.replace(':00', '');
-                txt = `${ini}-${fin}`; 
-            } 
-        }
-        dispHtml += `<div class="disp-box ${tiene ? 'active' : ''}"><div class="disp-day">${d.id}</div><div class="disp-time">${txt}</div></div>`;
+        const rangos = al.disponibilidad && al.disponibilidad[d.id];
+        const tiene = Array.isArray(rangos) && rangos.length > 0;
+        const txt = tiene ? formatearDiaCompletoChips(rangos, configApp.hora_apertura || '09:00', configApp.hora_cierre || '22:00') : '-';
+        const esActivo = tiene && txt !== '-';
+        dispHtml += `<div class="disp-box ${esActivo ? 'active' : ''}"><div class="disp-day">${d.id}</div><div class="disp-time">${txt}</div></div>`;
     });
     dispHtml += '</div>';
 
@@ -4384,6 +4507,20 @@ document.addEventListener('change', async (e) => {
             }
         } catch(err) {}
     }
+
+    if (e.target.classList.contains('chk-disp-all') || e.target.classList.contains('chk-disp-none')) {
+        const diaId = e.target.getAttribute('data-dia');
+        const esProfe = e.target.getAttribute('data-profe') === 'true';
+        const prefix = esProfe ? 'disp-p-' : 'disp-';
+        if (e.target.classList.contains('chk-disp-all') && e.target.checked) {
+            const cN = document.getElementById(`${prefix}${diaId}-none`);
+            if (cN) cN.checked = false;
+        } else if (e.target.classList.contains('chk-disp-none') && e.target.checked) {
+            const cA = document.getElementById(`${prefix}${diaId}-all`);
+            if (cA) cA.checked = false;
+        }
+        window.updateDispStateForDay(diaId, esProfe);
+    }
 });
 
 // ==================== LÓGICA DE GESTOS SWIPE (MÓVILES) ====================
@@ -4424,17 +4561,42 @@ document.addEventListener('click', (e) => {
 document.addEventListener('click', async (e) => {
     const target = e.target;
     
-    // FUNCION DE COPY/PASTE DISPONIBILIDAD (WEB Y MOBILE)
+    // AGREGAR Y QUITAR RANGOS HORARIOS
+    if (target.classList.contains('btn-agregar-rango') || target.closest('.btn-agregar-rango')) {
+        e.preventDefault();
+        const btn = target.classList.contains('btn-agregar-rango') ? target : target.closest('.btn-agregar-rango');
+        const diaId = btn.getAttribute('data-dia');
+        const esProfe = btn.getAttribute('data-profe') === 'true';
+        agregarRangoDia(diaId, '', '', esProfe);
+        return;
+    }
+    if (target.classList.contains('btn-quitar-rango') || target.closest('.btn-quitar-rango')) {
+        e.preventDefault();
+        const btn = target.classList.contains('btn-quitar-rango') ? target : target.closest('.btn-quitar-rango');
+        quitarRangoDia(btn);
+        return;
+    }
+
+    // FUNCION DE COPY/PASTE DISPONIBILIDAD (MULTI-RANGO)
     if (target.classList.contains('btn-copy-disp') || target.closest('.btn-copy-disp')) {
         e.preventDefault();
         const btn = target.classList.contains('btn-copy-disp') ? target : target.closest('.btn-copy-disp');
         const diaId = btn.getAttribute('data-dia');
+        const rangosCont = document.getElementById(`rangos-disp-${diaId}`);
+        const items = rangosCont ? rangosCont.querySelectorAll('.rango-item') : [];
+        const rangos = [];
+        items.forEach(item => {
+            rangos.push({
+                inicio: item.querySelector('.rango-inicio')?.value || '',
+                fin: item.querySelector('.rango-fin')?.value || ''
+            });
+        });
         clipboardDisponibilidad = {
-            inicio: document.getElementById(`disp-${diaId}-inicio`).value,
-            fin: document.getElementById(`disp-${diaId}-fin`).value,
-            all: document.getElementById(`disp-${diaId}-all`).checked,
-            none: document.getElementById(`disp-${diaId}-none`).checked
+            all: document.getElementById(`disp-${diaId}-all`)?.checked || false,
+            none: document.getElementById(`disp-${diaId}-none`)?.checked || false,
+            rangos: rangos
         };
+        alert("📋 Horario del día copiado");
         return;
     }
     if (target.classList.contains('btn-paste-disp') || target.closest('.btn-paste-disp')) {
@@ -4442,10 +4604,24 @@ document.addEventListener('click', async (e) => {
         if (!clipboardDisponibilidad) return alert("No hay horario copiado.");
         const btn = target.classList.contains('btn-paste-disp') ? target : target.closest('.btn-paste-disp');
         const diaId = btn.getAttribute('data-dia');
-        document.getElementById(`disp-${diaId}-inicio`).value = clipboardDisponibilidad.inicio;
-        document.getElementById(`disp-${diaId}-fin`).value = clipboardDisponibilidad.fin;
-        document.getElementById(`disp-${diaId}-all`).checked = clipboardDisponibilidad.all;
-        document.getElementById(`disp-${diaId}-none`).checked = clipboardDisponibilidad.none;
+        const rangosCont = document.getElementById(`rangos-disp-${diaId}`);
+        if (!rangosCont) return;
+        
+        const cA = document.getElementById(`disp-${diaId}-all`);
+        const cN = document.getElementById(`disp-${diaId}-none`);
+        if (cA) cA.checked = clipboardDisponibilidad.all;
+        if (cN) cN.checked = clipboardDisponibilidad.none;
+        
+        rangosCont.innerHTML = '';
+        const rangos = clipboardDisponibilidad.rangos || [];
+        if (rangos.length === 0) {
+            rangosCont.innerHTML = crearFilaRangoHTML(diaId, '', '', false, 0);
+        } else {
+            rangos.forEach((r, idx) => {
+                rangosCont.innerHTML += crearFilaRangoHTML(diaId, r.inicio || '', r.fin || '', false, idx);
+            });
+        }
+        actualizarBotonesQuitarRango(diaId, false);
         window.updateDispStateForDay(diaId, false);
         return;
     }
@@ -4453,12 +4629,21 @@ document.addEventListener('click', async (e) => {
         e.preventDefault();
         const btn = target.classList.contains('btn-copy-disp-p') ? target : target.closest('.btn-copy-disp-p');
         const diaId = btn.getAttribute('data-dia');
+        const rangosCont = document.getElementById(`rangos-disp-p-${diaId}`);
+        const items = rangosCont ? rangosCont.querySelectorAll('.rango-item') : [];
+        const rangos = [];
+        items.forEach(item => {
+            rangos.push({
+                inicio: item.querySelector('.rango-inicio')?.value || '',
+                fin: item.querySelector('.rango-fin')?.value || ''
+            });
+        });
         clipboardDisponibilidadProfe = {
-            inicio: document.getElementById(`disp-p-${diaId}-inicio`).value,
-            fin: document.getElementById(`disp-p-${diaId}-fin`).value,
-            all: document.getElementById(`disp-p-${diaId}-all`).checked,
-            none: document.getElementById(`disp-p-${diaId}-none`).checked
+            all: document.getElementById(`disp-p-${diaId}-all`)?.checked || false,
+            none: document.getElementById(`disp-p-${diaId}-none`)?.checked || false,
+            rangos: rangos
         };
+        alert("📋 Horario del evaluador copiado");
         return;
     }
     if (target.classList.contains('btn-paste-disp-p') || target.closest('.btn-paste-disp-p')) {
@@ -4466,10 +4651,24 @@ document.addEventListener('click', async (e) => {
         if (!clipboardDisponibilidadProfe) return alert("No hay horario copiado.");
         const btn = target.classList.contains('btn-paste-disp-p') ? target : target.closest('.btn-paste-disp-p');
         const diaId = btn.getAttribute('data-dia');
-        document.getElementById(`disp-p-${diaId}-inicio`).value = clipboardDisponibilidadProfe.inicio;
-        document.getElementById(`disp-p-${diaId}-fin`).value = clipboardDisponibilidadProfe.fin;
-        document.getElementById(`disp-p-${diaId}-all`).checked = clipboardDisponibilidadProfe.all;
-        document.getElementById(`disp-p-${diaId}-none`).checked = clipboardDisponibilidadProfe.none;
+        const rangosCont = document.getElementById(`rangos-disp-p-${diaId}`);
+        if (!rangosCont) return;
+        
+        const cA = document.getElementById(`disp-p-${diaId}-all`);
+        const cN = document.getElementById(`disp-p-${diaId}-none`);
+        if (cA) cA.checked = clipboardDisponibilidadProfe.all;
+        if (cN) cN.checked = clipboardDisponibilidadProfe.none;
+        
+        rangosCont.innerHTML = '';
+        const rangos = clipboardDisponibilidadProfe.rangos || [];
+        if (rangos.length === 0) {
+            rangosCont.innerHTML = crearFilaRangoHTML(diaId, '', '', true, 0);
+        } else {
+            rangos.forEach((r, idx) => {
+                rangosCont.innerHTML += crearFilaRangoHTML(diaId, r.inicio || '', r.fin || '', true, idx);
+            });
+        }
+        actualizarBotonesQuitarRango(diaId, true);
         window.updateDispStateForDay(diaId, true);
         return;
     }
@@ -5419,10 +5618,43 @@ document.addEventListener('click', async (e) => {
     if (target.classList.contains('btn-cerrar-modal')) { document.getElementById(target.getAttribute('data-modal')).close(); return; }
     
     if (target.id === 'btn-nuevo-alumno') { 
-        const wrap = document.getElementById('form-alumno-wrapper'); document.getElementById('modal-alta-alumno').appendChild(wrap); wrap.style.display = 'block'; document.getElementById('form-titulo').textContent = 'Nuevo Alumno'; document.getElementById('modal-status-badge').style.display = 'none'; document.getElementById('alumno-id').value = ''; document.getElementById('form-alumno').reset(); quill.setContents([]); quillInforme.setContents([]); quillInforme.enable(false); document.getElementById('aviso-informe-bloqueado').style.display = 'block'; historialActual = []; renderHistorial(); diasSemana.forEach(d => { document.getElementById(`disp-${d.id}-all`).checked=false; document.getElementById(`disp-${d.id}-none`).checked=false; document.getElementById(`estado-${d.id}`).textContent=""; }); document.getElementById('chk-ingreso-directo').checked = false; 
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); const tabBtns = document.querySelectorAll('.tab-btn'); if(tabBtns.length > 0) { tabBtns[0].classList.add('active'); } document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none'); if(document.getElementById('tab-datos')) document.getElementById('tab-datos').style.display = 'block';
-        const accionesCont = document.getElementById('modal-acciones-container'); if(accionesCont) accionesCont.style.display = 'none';
-        await cargarSelectsAlumnos(); document.getElementById('modal-alta-alumno').showModal(); return; 
+        const wrap = document.getElementById('form-alumno-wrapper'); 
+        document.getElementById('modal-alta-alumno').appendChild(wrap); 
+        wrap.style.display = 'block'; 
+        document.getElementById('form-titulo').textContent = 'Nuevo Alumno'; 
+        document.getElementById('modal-status-badge').style.display = 'none'; 
+        document.getElementById('alumno-id').value = ''; 
+        document.getElementById('form-alumno').reset(); 
+        quill.setContents([]); 
+        quillInforme.setContents([]); 
+        quillInforme.enable(false); 
+        document.getElementById('aviso-informe-bloqueado').style.display = 'block'; 
+        historialActual = []; 
+        renderHistorial(); 
+        
+        diasSemana.forEach(d => { 
+            const rangosCont = document.getElementById(`rangos-disp-${d.id}`);
+            if (rangosCont) rangosCont.innerHTML = crearFilaRangoHTML(d.id, '', '', false, 0);
+            const cA = document.getElementById(`disp-${d.id}-all`);
+            const cN = document.getElementById(`disp-${d.id}-none`);
+            const sE = document.getElementById(`estado-${d.id}`);
+            if (cA) cA.checked = false;
+            if (cN) cN.checked = false;
+            if (sE) sE.textContent = "";
+            actualizarBotonesQuitarRango(d.id, false);
+            window.updateDispStateForDay(d.id, false);
+        }); 
+        document.getElementById('chk-ingreso-directo').checked = false; 
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); 
+        const tabBtns = document.querySelectorAll('.tab-btn'); 
+        if(tabBtns.length > 0) { tabBtns[0].classList.add('active'); } 
+        document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none'); 
+        if(document.getElementById('tab-datos')) document.getElementById('tab-datos').style.display = 'block';
+        const accionesCont = document.getElementById('modal-acciones-container'); 
+        if(accionesCont) accionesCont.style.display = 'none';
+        await cargarSelectsAlumnos(); 
+        document.getElementById('modal-alta-alumno').showModal(); 
+        return; 
     }
     if (target.id === 'btn-cerrar-alumno') { const wrap = document.getElementById('form-alumno-wrapper'); wrap.style.display = 'none'; document.body.appendChild(wrap); document.getElementById('modal-alta-alumno').close(); return; }
 });
@@ -5436,7 +5668,20 @@ async function cargarSelectsAlumnos() {
 }
 
 async function llenarFormularioAlumno(id) { 
-    document.getElementById('alumno-id').value = id; const d = (await getDoc(doc(db, "alumnos", id))).data(); document.getElementById('nombre').value = d.nombre; document.getElementById('celular').value = d.celular; document.getElementById('edad').value = d.edad||''; document.getElementById('nivel').value = d.nivel||''; await cargarSelectsAlumnos(); const sI = document.getElementById('instrumento'); Array.from(sI.options).forEach(o => o.selected = (d.instrumento||[]).includes(o.value)); syncSelectToChips('instrumento', 'chips-instrumentos'); document.getElementById('tipo_suscripcion').value = d.tipo_suscripcion; quill.root.innerHTML = d.descripcion||''; historialActual = d.historial || []; renderHistorial(); 
+    document.getElementById('alumno-id').value = id; 
+    const d = (await getDoc(doc(db, "alumnos", id))).data(); 
+    document.getElementById('nombre').value = d.nombre; 
+    document.getElementById('celular').value = d.celular; 
+    document.getElementById('edad').value = d.edad||''; 
+    document.getElementById('nivel').value = d.nivel||''; 
+    await cargarSelectsAlumnos(); 
+    const sI = document.getElementById('instrumento'); 
+    Array.from(sI.options).forEach(o => o.selected = (d.instrumento||[]).includes(o.value)); 
+    syncSelectToChips('instrumento', 'chips-instrumentos'); 
+    document.getElementById('tipo_suscripcion').value = d.tipo_suscripcion; 
+    quill.root.innerHTML = d.descripcion||''; 
+    historialActual = d.historial || []; 
+    renderHistorial(); 
     
     quillInforme.root.innerHTML = d.informe_admision || '';
     const estadosBloqueados = ['Pendiente procesar', 'Pendiente validación por profe', 'Pendiente validación por alumno'];
@@ -5463,13 +5708,65 @@ async function llenarFormularioAlumno(id) {
         `;
     }
 
-    const hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00'; diasSemana.forEach(dia => { const dD = d.disponibilidad[dia.id], tI = document.getElementById(`disp-${dia.id}-inicio`), tF = document.getElementById(`disp-${dia.id}-fin`), cA = document.getElementById(`disp-${dia.id}-all`), cN = document.getElementById(`disp-${dia.id}-none`), sE = document.getElementById(`estado-${dia.id}`); tI.disabled=false; tF.disabled=false; cA.checked=false; cN.checked=false; sE.textContent=""; if (!dD || dD.length===0) { cN.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Bloqueado"; sE.style.color="var(--accent-red)"; } else if (dD[0].inicio===hApe && dD[0].fin===hCie) { cA.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Libre"; sE.style.color="var(--accent-teal)"; } else { tI.value = dD[0].inicio; tF.value = dD[0].fin; } }); 
+    const hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00'; 
+    diasSemana.forEach(dia => { 
+        const dD = (d.disponibilidad && d.disponibilidad[dia.id]) || [];
+        const rangosCont = document.getElementById(`rangos-disp-${dia.id}`);
+        const cA = document.getElementById(`disp-${dia.id}-all`);
+        const cN = document.getElementById(`disp-${dia.id}-none`);
+        const sE = document.getElementById(`estado-${dia.id}`);
+        
+        if (!rangosCont) return;
+        rangosCont.innerHTML = '';
+        if (cA) cA.checked = false;
+        if (cN) cN.checked = false;
+        if (sE) sE.textContent = "";
+        
+        if (dD.length === 0) {
+            if (cN) cN.checked = true;
+            rangosCont.innerHTML = crearFilaRangoHTML(dia.id, '', '', false, 0);
+        } else if (dD.length === 1 && dD[0].inicio === hApe && dD[0].fin === hCie) {
+            if (cA) cA.checked = true;
+            rangosCont.innerHTML = crearFilaRangoHTML(dia.id, '', '', false, 0);
+        } else {
+            dD.forEach((rango, idx) => {
+                rangosCont.innerHTML += crearFilaRangoHTML(dia.id, rango.inicio || '', rango.fin || '', false, idx);
+            });
+        }
+        actualizarBotonesQuitarRango(dia.id, false);
+        window.updateDispStateForDay(dia.id, false);
+    }); 
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); const tabBtns = document.querySelectorAll('.tab-btn'); if(tabBtns.length > 0) { tabBtns[0].classList.add('active'); } document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none'); if(document.getElementById('tab-datos')) document.getElementById('tab-datos').style.display = 'block';
 }
 
 document.getElementById('form-alumno').addEventListener('submit', async (e) => { 
-    e.preventDefault(); const btnSubmit = e.target.querySelector('button[type="submit"]'); setBotonCargando(btnSubmit, true);
-    const disp = {}, hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00'; diasSemana.forEach(d => { const cA = document.getElementById(`disp-${d.id}-all`).checked, cN = document.getElementById(`disp-${d.id}-none`).checked; let i = document.getElementById(`disp-${d.id}-inicio`).value, f = document.getElementById(`disp-${d.id}-fin`).value; if(cN) disp[d.id] = []; else if(cA) disp[d.id] = [{inicio:hApe, fin:hCie}]; else { if(i||f) disp[d.id] = [{inicio: i||hApe, fin: f||hCie}]; else disp[d.id] = []; } }); 
+    e.preventDefault(); 
+    const btnSubmit = e.target.querySelector('button[type="submit"]'); 
+    setBotonCargando(btnSubmit, true);
+    
+    const disp = {}, hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00'; 
+    diasSemana.forEach(d => { 
+        const cA = document.getElementById(`disp-${d.id}-all`)?.checked;
+        const cN = document.getElementById(`disp-${d.id}-none`)?.checked;
+        if (cN) {
+            disp[d.id] = [];
+        } else if (cA) {
+            disp[d.id] = [{ inicio: hApe, fin: hCie }];
+        } else {
+            const rangosCont = document.getElementById(`rangos-disp-${d.id}`);
+            const items = rangosCont ? rangosCont.querySelectorAll('.rango-item') : [];
+            const arr = [];
+            items.forEach(item => {
+                const i = item.querySelector('.rango-inicio')?.value || '';
+                const f = item.querySelector('.rango-fin')?.value || '';
+                if (i || f) {
+                    arr.push({ inicio: i || hApe, fin: f || hCie });
+                }
+            });
+            disp[d.id] = arr;
+        }
+    }); 
+    
     const selInst = document.getElementById('instrumento'), instV = Array.from(selInst.selectedOptions).map(o=>o.value), data = { nombre: document.getElementById('nombre').value, celular: document.getElementById('celular').value, edad: Number(document.getElementById('edad').value), nivel: document.getElementById('nivel').value, instrumento: instV, tipo_suscripcion: document.getElementById('tipo_suscripcion').value, descripcion: quill.root.innerHTML, informe_admision: quillInforme.root.innerHTML, disponibilidad: disp, historial: historialActual }; 
     try { const id = document.getElementById('alumno-id').value; if (id) { await updateDoc(doc(db, "alumnos", id), data); } else { const esDirecto = document.getElementById('chk-ingreso-directo').checked; if (esDirecto) { data.estado_agenda = "Lista de espera"; const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`; data.historial.push({ id: Date.now(), texto: "Ingreso directo a Lista de Espera.", fecha: fechaStr }); } else { data.estado_agenda = "Pendiente procesar"; } await addDoc(collection(db, "alumnos"), data); } const wrap = document.getElementById('form-alumno-wrapper'); wrap.style.display='none'; document.body.appendChild(wrap); document.getElementById('modal-alta-alumno').close(); cargarVista(estadoActualVista); } catch(err) { alert("Error al guardar."); } setBotonCargando(btnSubmit, false);
 });
@@ -5565,20 +5862,45 @@ window.abrirEdicionABM = async function(id, col, nom, cor, cel, ali) {
                 const hApe = configApp.hora_apertura || '09:00'; const hCie = configApp.hora_cierre || '22:00'; 
                 diasSemana.forEach(dia => { 
                     const dD = pr.disponibilidad ? pr.disponibilidad[dia.id] : []; 
-                    const tI = document.getElementById(`disp-p-${dia.id}-inicio`), tF = document.getElementById(`disp-p-${dia.id}-fin`), cA = document.getElementById(`disp-p-${dia.id}-all`), cN = document.getElementById(`disp-p-${dia.id}-none`), sE = document.getElementById(`estado-p-${dia.id}`); 
-                    tI.disabled=false; tF.disabled=false; cA.checked=false; cN.checked=false; sE.textContent=""; 
-                    if (!dD || dD.length===0) { cN.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Bloqueado"; sE.style.color="var(--accent-red)"; } 
-                    else if (dD[0].inicio===hApe && dD[0].fin===hCie) { cA.checked=true; tI.disabled=true; tF.disabled=true; tI.value=''; tF.value=''; sE.textContent="Libre"; sE.style.color="var(--accent-teal)"; } 
-                    else { tI.value = dD[0].inicio; tF.value = dD[0].fin; } 
+                    const rangosCont = document.getElementById(`rangos-disp-p-${dia.id}`);
+                    const cA = document.getElementById(`disp-p-${dia.id}-all`);
+                    const cN = document.getElementById(`disp-p-${dia.id}-none`);
+                    const sE = document.getElementById(`estado-p-${dia.id}`);
+                    
+                    if (!rangosCont) return;
+                    rangosCont.innerHTML = '';
+                    if (cA) cA.checked = false;
+                    if (cN) cN.checked = false;
+                    if (sE) sE.textContent = "";
+                    
+                    if (!dD || dD.length === 0) {
+                        if (cN) cN.checked = true;
+                        rangosCont.innerHTML = crearFilaRangoHTML(dia.id, '', '', true, 0);
+                    } else if (dD.length === 1 && dD[0].inicio === hApe && dD[0].fin === hCie) {
+                        if (cA) cA.checked = true;
+                        rangosCont.innerHTML = crearFilaRangoHTML(dia.id, '', '', true, 0);
+                    } else {
+                        dD.forEach((rango, idx) => {
+                            rangosCont.innerHTML += crearFilaRangoHTML(dia.id, rango.inicio || '', rango.fin || '', true, idx);
+                        });
+                    }
+                    actualizarBotonesQuitarRango(dia.id, true);
+                    window.updateDispStateForDay(dia.id, true);
                 }); 
             } catch(e) {} 
         } else {
             syncSelectToChips('abm-edit-skills', 'chips-abm-edit-skills');
-            const hApe = configApp.hora_apertura || '09:00'; const hCie = configApp.hora_cierre || '22:00';
             diasSemana.forEach(dia => {
-                const tI = document.getElementById(`disp-p-${dia.id}-inicio`), tF = document.getElementById(`disp-p-${dia.id}-fin`), cA = document.getElementById(`disp-p-${dia.id}-all`), cN = document.getElementById(`disp-p-${dia.id}-none`), sE = document.getElementById(`estado-p-${dia.id}`);
-                tI.disabled=true; tF.disabled=true; cA.checked=true; cN.checked=false; sE.textContent="Libre"; sE.style.color="var(--accent-teal)";
-                tI.value=''; tF.value='';
+                const rangosCont = document.getElementById(`rangos-disp-p-${dia.id}`);
+                if (rangosCont) rangosCont.innerHTML = crearFilaRangoHTML(dia.id, '', '', true, 0);
+                const cA = document.getElementById(`disp-p-${dia.id}-all`);
+                const cN = document.getElementById(`disp-p-${dia.id}-none`);
+                const sE = document.getElementById(`estado-p-${dia.id}`);
+                if (cA) cA.checked = true;
+                if (cN) cN.checked = false;
+                if (sE) { sE.textContent = "Libre"; sE.style.color = "var(--accent-teal)"; }
+                actualizarBotonesQuitarRango(dia.id, true);
+                window.updateDispStateForDay(dia.id, true);
             });
         }
     } else {
@@ -5620,9 +5942,25 @@ document.getElementById('btn-guardar-abm-edit').addEventListener('click', async 
 
         const disp = {}; const hApe = configApp.hora_apertura || '09:00'; const hCie = configApp.hora_cierre || '22:00'; 
         diasSemana.forEach(d => { 
-            const cA = document.getElementById(`disp-p-${d.id}-all`).checked, cN = document.getElementById(`disp-p-${d.id}-none`).checked; 
-            let i = document.getElementById(`disp-p-${d.id}-inicio`).value, f = document.getElementById(`disp-p-${d.id}-fin`).value; 
-            if(cN) disp[d.id] = []; else if(cA) disp[d.id] = [{inicio:hApe, fin:hCie}]; else { if(i||f) disp[d.id] = [{inicio: i||hApe, fin: f||hCie}]; else disp[d.id] = []; } 
+            const cA = document.getElementById(`disp-p-${d.id}-all`)?.checked;
+            const cN = document.getElementById(`disp-p-${d.id}-none`)?.checked;
+            if (cN) {
+                disp[d.id] = [];
+            } else if (cA) {
+                disp[d.id] = [{ inicio: hApe, fin: hCie }];
+            } else {
+                const rangosCont = document.getElementById(`rangos-disp-p-${d.id}`);
+                const items = rangosCont ? rangosCont.querySelectorAll('.rango-item') : [];
+                const arr = [];
+                items.forEach(item => {
+                    const i = item.querySelector('.rango-inicio')?.value || '';
+                    const f = item.querySelector('.rango-fin')?.value || '';
+                    if (i || f) {
+                        arr.push({ inicio: i || hApe, fin: f || hCie });
+                    }
+                });
+                disp[d.id] = arr;
+            }
         }); 
         dO.disponibilidad = disp; 
     } 
