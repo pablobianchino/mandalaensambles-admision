@@ -27,12 +27,124 @@ export function renderConfigHub(cont, callbacks = {}) {
         </div>`;
 }
 
-export function renderConfig(cont, configApp = defaultCfg, callbacks = {}) { 
+export async function renderConfig(cont, configApp = defaultCfg, callbacks = {}) { 
     const { setBotonCargando, cargarConfig } = callbacks;
-    cont.innerHTML = `<div style="margin-bottom:25px; font-size:0.9em; color:var(--text-muted);"><span style="cursor:pointer; color:var(--accent-teal);" onclick="window.cargarVistaGlobal('Configuracion')">Configuracion</span> &gt; <strong style="color:var(--text-main);">Ajustes Generales</strong></div><div style="max-width:800px; padding:30px; background:white; border-radius:12px; border:1px solid var(--border-color);"> <h3 style="margin-top:0; color:var(--text-main); font-size:1.2em;">Limites de Calendario</h3> <div style="display:flex; gap:15px; margin-bottom:25px; flex-wrap:wrap;"> <div style="flex:1; min-width:150px;"><label>Hora Apertura:<input type="time" id="cfg-apertura" class="modern-input" value="${configApp.hora_apertura||'09:00'}"></label></div> <div style="flex:1; min-width:150px;"><label>Hora Cierre:<input type="time" id="cfg-cierre" class="modern-input" value="${configApp.hora_cierre||'22:00'}"></label></div> </div> <div style="display:flex; gap:15px; margin-bottom:25px; flex-wrap:wrap;"> <div style="flex:1; min-width:150px;"><label>Aulas totales:<input type="number" id="cfg-aulas" class="modern-input" value="${configApp.cantidad_aulas}"></label></div> <div style="flex:1; min-width:150px;"><label>Baterias totales:<input type="number" id="cfg-bats" class="modern-input" value="${configApp.cantidad_baterias}"></label></div> </div> <h3 style="margin-top:0; color:var(--text-main); border-top:1px solid var(--border-color); padding-top:20px;">Calendario y Emojis</h3> <label style="margin-bottom:15px;">Calendario Defecto:<input type="email" id="cfg-cal-defecto" class="modern-input" value="${configApp.calendario_por_defecto||''}"></label> <div style="display:flex; gap:10px; margin-bottom:25px; flex-wrap:wrap;"> <div style="width:80px;"><label>Bateria:<input type="text" id="cfg-idbat" class="modern-input" value="${configApp.identificador_bateria||''}"></label></div> <div style="width:80px;"><label>Guitarra:<input type="text" id="cfg-em-gui" class="modern-input" value="${configApp.emoji_guitarra||'🎸'}"></label></div> <div style="width:80px;"><label>Cajon:<input type="text" id="cfg-em-caj" class="modern-input" value="${configApp.emoji_cajon||'📦'}"></label></div> <div style="width:80px;"><label>Canto:<input type="text" id="cfg-em-can" class="modern-input" value="${configApp.emoji_canto||'🎤'}"></label></div> <div style="width:80px;"><label>Piano:<input type="text" id="cfg-em-pia" class="modern-input" value="${configApp.emoji_piano||'🎹'}"></label></div> <div style="width:80px;"><label>Bajo:<input type="text" id="cfg-em-baj" class="modern-input" value="${configApp.emoji_bajo||'🎸'}"></label></div> </div> <h3 style="margin-top:0; color:var(--text-main); border-top:1px solid var(--border-color); padding-top:20px;">Mensajes y Textos</h3> <label style="margin-bottom:15px;">Valor de Clase (Monto): <input type="text" id="cfg-valor" class="modern-input" value="${configApp.valor_clase}"></label> <label style="margin-bottom:15px;">Titulo Evento (Reserva): <input type="text" id="cfg-evt-res" class="modern-input" value="${configApp.formato_evento_reserva}"></label> <label style="margin-bottom:15px;">Titulo Evento (Confirmado): <input type="text" id="cfg-evt-conf" class="modern-input" value="${configApp.formato_evento_confirmado}"></label> <label style="margin-bottom:15px;">Nombre para Agendar (WS): <input type="text" id="cfg-nombre-agendar" class="modern-input" value="${configApp.texto_nombre_agendar}"></label> <label style="margin-bottom:15px;">Texto Opciones Multiples: <textarea id="cfg-txt-opt-mul" class="modern-input" style="height:200px;">${configApp.texto_opciones_multiples}</textarea></label> <label style="margin-bottom:15px;">Texto 1 Sola Opcion: <textarea id="cfg-txt-p" class="modern-input" style="height:150px;">${configApp.texto_profe}</textarea></label> <label style="margin-bottom:15px;">Texto Confirmacion Alumno: <textarea id="cfg-txt-conf-a" class="modern-input" style="height:150px;">${configApp.texto_conf_alumno}</textarea></label> <label style="margin-bottom:15px;">Texto Cancelacion: <textarea id="cfg-txt-cancela" class="modern-input" style="height:100px;">${configApp.texto_cancela_alumno}</textarea></label> <label style="margin-bottom:15px;">Texto Pre-Alta: <textarea id="cfg-txt-prealta" class="modern-input" style="height:150px;">${configApp.texto_prealta}</textarea></label> <label style="margin-bottom:20px;">Texto Nueva Alta: <textarea id="cfg-txt-alta-conf" class="modern-input" style="height:150px;">${configApp.texto_alta_confirmada}</textarea></label> <button id="btn-guardar-cfg" class="btn-primary" style="width:100%;">Guardar Configuracion</button> </div>`; 
+    let cfgSnap;
+    try {
+        cfgSnap = await getDoc(doc(db, "configuracion", "general"));
+    } catch(e) {}
+    const currentCfg = (cfgSnap && cfgSnap.exists()) ? { ...defaultCfg, ...cfgSnap.data() } : configApp;
+
+    let tagsList = Array.isArray(currentCfg.perfil_psicologico_opciones) && currentCfg.perfil_psicologico_opciones.length > 0 
+        ? [...currentCfg.perfil_psicologico_opciones] 
+        : ['😊 Buena onda', '🙈 Tímido', '🎉 Extrovertido', '🦄 Raro', '🗣️ Muy hablador', '🌱 Humilde'];
+
+    const renderTagsAdmin = () => {
+        const wrap = document.getElementById('cfg-tags-admin-list');
+        if (!wrap) return;
+        wrap.innerHTML = tagsList.map((tag, idx) => `
+            <span style="display:inline-flex; align-items:center; gap:6px; padding:6px 12px; background:var(--hover-bg); border:1px solid var(--border-color); border-radius:20px; font-size:12.5px; font-weight:600; color:var(--text-main);">
+                ${tag}
+                <button type="button" class="btn-del-tag-cfg" data-idx="${idx}" style="background:none; border:none; color:var(--accent-red); cursor:pointer; font-weight:bold; padding:0 2px; font-size:14px;">✕</button>
+            </span>
+        `).join('');
+    };
+
+    cont.innerHTML = `
+        <div style="margin-bottom:25px; font-size:0.9em; color:var(--text-muted);">
+            <span style="cursor:pointer; color:var(--accent-teal);" onclick="window.cargarVistaGlobal('Configuración')">Configuración</span> &gt; <strong style="color:var(--text-main);">Ajustes Generales</strong>
+        </div>
+        <div style="max-width:800px; padding:30px; background:white; border-radius:12px; border:1px solid var(--border-color);">
+            <h3 style="margin-top:0; color:var(--text-main); font-size:1.2em;">Límites de Calendario</h3>
+            <div style="display:flex; gap:15px; margin-bottom:25px; flex-wrap:wrap;">
+                <div style="flex:1; min-width:150px;"><label>Hora Apertura:<input type="time" id="cfg-apertura" class="modern-input" value="${currentCfg.hora_apertura||'09:00'}"></label></div>
+                <div style="flex:1; min-width:150px;"><label>Hora Cierre:<input type="time" id="cfg-cierre" class="modern-input" value="${currentCfg.hora_cierre||'22:00'}"></label></div>
+            </div>
+            <div style="display:flex; gap:15px; margin-bottom:25px; flex-wrap:wrap;">
+                <div style="flex:1; min-width:150px;"><label>Aulas totales:<input type="number" id="cfg-aulas" class="modern-input" value="${currentCfg.cantidad_aulas}"></label></div>
+                <div style="flex:1; min-width:150px;"><label>Baterías totales:<input type="number" id="cfg-bats" class="modern-input" value="${currentCfg.cantidad_baterias}"></label></div>
+            </div>
+
+            <h3 style="margin-top:0; color:var(--text-main); border-top:1px solid var(--border-color); padding-top:20px;">🧠 Opciones de Perfil Psicológico / Emocional</h3>
+            <p style="color:var(--text-muted); font-size:0.9em; margin-bottom:12px;">Etiquetas que el evaluador puede seleccionar al cargar el informe o finalizar la admisión.</p>
+            <div id="cfg-tags-admin-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:15px;"></div>
+            <div style="display:flex; gap:10px; margin-bottom:25px; max-width:400px;">
+                <input type="text" id="cfg-new-tag-input" class="modern-input" placeholder="Nueva etiqueta (ej: ⚡ Enérgico)...">
+                <button type="button" id="btn-add-tag-cfg" class="btn-primary" style="white-space:nowrap; padding:0 16px;">+ Agregar</button>
+            </div>
+
+            <h3 style="margin-top:0; color:var(--text-main); border-top:1px solid var(--border-color); padding-top:20px;">Calendario y Emojis</h3>
+            <label style="margin-bottom:15px;">Calendario Defecto:<input type="email" id="cfg-cal-defecto" class="modern-input" value="${currentCfg.calendario_por_defecto||''}"></label>
+            <div style="display:flex; gap:10px; margin-bottom:25px; flex-wrap:wrap;">
+                <div style="width:80px;"><label>Batería:<input type="text" id="cfg-idbat" class="modern-input" value="${currentCfg.identificador_bateria||''}"></label></div>
+                <div style="width:80px;"><label>Guitarra:<input type="text" id="cfg-em-gui" class="modern-input" value="${currentCfg.emoji_guitarra||'🎸'}"></label></div>
+                <div style="width:80px;"><label>Cajón:<input type="text" id="cfg-em-caj" class="modern-input" value="${currentCfg.emoji_cajon||'📦'}"></label></div>
+                <div style="width:80px;"><label>Canto:<input type="text" id="cfg-em-can" class="modern-input" value="${currentCfg.emoji_canto||'🎤'}"></label></div>
+                <div style="width:80px;"><label>Piano:<input type="text" id="cfg-em-pia" class="modern-input" value="${currentCfg.emoji_piano||'🎹'}"></label></div>
+                <div style="width:80px;"><label>Bajo:<input type="text" id="cfg-em-baj" class="modern-input" value="${currentCfg.emoji_bajo||'🎸'}"></label></div>
+            </div>
+            
+            <h3 style="margin-top:0; color:var(--text-main); border-top:1px solid var(--border-color); padding-top:20px;">Mensajes y Textos</h3>
+            <label style="margin-bottom:15px;">Valor de Clase (Monto): <input type="text" id="cfg-valor" class="modern-input" value="${currentCfg.valor_clase}"></label>
+            <label style="margin-bottom:15px;">Título Evento (Reserva): <input type="text" id="cfg-evt-res" class="modern-input" value="${currentCfg.formato_evento_reserva}"></label>
+            <label style="margin-bottom:15px;">Título Evento (Confirmado): <input type="text" id="cfg-evt-conf" class="modern-input" value="${currentCfg.formato_evento_confirmado}"></label>
+            <label style="margin-bottom:15px;">Nombre para Agendar (WS): <input type="text" id="cfg-nombre-agendar" class="modern-input" value="${currentCfg.texto_nombre_agendar}"></label>
+            <label style="margin-bottom:15px;">Texto Opciones Múltiples: <textarea id="cfg-txt-opt-mul" class="modern-input" style="height:200px;">${currentCfg.texto_opciones_multiples}</textarea></label>
+            <label style="margin-bottom:15px;">Texto 1 Sola Opción: <textarea id="cfg-txt-p" class="modern-input" style="height:150px;">${currentCfg.texto_profe}</textarea></label>
+            <label style="margin-bottom:15px;">Texto Confirmación Alumno: <textarea id="cfg-txt-conf-a" class="modern-input" style="height:150px;">${currentCfg.texto_conf_alumno}</textarea></label>
+            <label style="margin-bottom:15px;">Texto Cancelación: <textarea id="cfg-txt-cancela" class="modern-input" style="height:100px;">${currentCfg.texto_cancela_alumno}</textarea></label>
+            <label style="margin-bottom:15px;">Texto Pre-Alta: <textarea id="cfg-txt-prealta" class="modern-input" style="height:150px;">${currentCfg.texto_prealta}</textarea></label>
+            <label style="margin-bottom:20px;">Texto Nueva Alta: <textarea id="cfg-txt-alta-conf" class="modern-input" style="height:150px;">${currentCfg.texto_alta_confirmada}</textarea></label>
+            <button id="btn-guardar-cfg" class="btn-primary" style="width:100%;">Guardar Configuración</button>
+        </div>`; 
+
+    renderTagsAdmin();
+
+    const autoGuardarTags = async () => {
+        try {
+            await setDoc(doc(db, "configuracion", "general"), { perfil_psicologico_opciones: tagsList }, { merge: true });
+            if (typeof configApp === 'object') {
+                configApp.perfil_psicologico_opciones = [...tagsList];
+            }
+            if (typeof cargarConfig === 'function') await cargarConfig();
+        } catch(e) {}
+    };
+
+    const handleAddTag = async () => {
+        const inp = document.getElementById('cfg-new-tag-input');
+        const val = (inp?.value || '').trim();
+        if (val && !tagsList.includes(val)) {
+            tagsList.push(val);
+            inp.value = '';
+            renderTagsAdmin();
+            await autoGuardarTags();
+            alert(`Etiqueta "${val}" agregada y guardada.`, 'success');
+        }
+    };
+
+    document.getElementById('btn-add-tag-cfg')?.addEventListener('click', handleAddTag);
+    document.getElementById('cfg-new-tag-input')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleAddTag();
+        }
+    });
+
+    document.getElementById('cfg-tags-admin-list')?.addEventListener('click', async (e) => {
+        if (e.target.classList.contains('btn-del-tag-cfg')) {
+            const idx = parseInt(e.target.dataset.idx, 10);
+            if (!isNaN(idx)) {
+                const [removed] = tagsList.splice(idx, 1);
+                renderTagsAdmin();
+                await autoGuardarTags();
+                alert(`Etiqueta "${removed}" eliminada.`, 'warning');
+            }
+        }
+    });
+
     document.getElementById('btn-guardar-cfg')?.addEventListener('click', async (e) => { 
         if (typeof setBotonCargando === 'function') setBotonCargando(e.target, true); 
-        await setDoc(doc(db, "configuracion", "general"), { 
+        const updatedData = { 
             hora_apertura: document.getElementById('cfg-apertura').value, 
             hora_cierre: document.getElementById('cfg-cierre').value, 
             cantidad_aulas: document.getElementById('cfg-aulas').value, 
@@ -53,11 +165,16 @@ export function renderConfig(cont, configApp = defaultCfg, callbacks = {}) {
             texto_conf_alumno: document.getElementById('cfg-txt-conf-a').value, 
             texto_cancela_alumno: document.getElementById('cfg-txt-cancela').value, 
             texto_prealta: document.getElementById('cfg-txt-prealta').value, 
-            texto_alta_confirmada: document.getElementById('cfg-txt-alta-conf').value 
-        }, { merge: true }); 
+            texto_alta_confirmada: document.getElementById('cfg-txt-alta-conf').value,
+            perfil_psicologico_opciones: tagsList
+        };
+        await setDoc(doc(db, "configuracion", "general"), updatedData, { merge: true }); 
+        if (typeof configApp === 'object') {
+            Object.assign(configApp, updatedData);
+        }
         if (typeof cargarConfig === 'function') await cargarConfig(); 
         if (typeof setBotonCargando === 'function') setBotonCargando(e.target, false); 
-        alert('Guardado.'); 
+        alert('Configuración guardada correctamente.'); 
     }); 
 }
 

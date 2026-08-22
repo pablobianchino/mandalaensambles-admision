@@ -699,6 +699,9 @@ export function renderResultadosMatch() {
             const instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || 'Sin inst.');
             const nivelStr = al.nivel || '';
             const edadStr = al.edad ? `${al.edad}a` : '';
+            const tagsPsicoHtml = (Array.isArray(al.perfil_psicologico) && al.perfil_psicologico.length > 0)
+                ? al.perfil_psicologico.map(t => `<span class="profile-tag-badge" style="font-size:9.5px; padding:1px 6px;">🧠 ${t}</span>`).join('')
+                : '';
 
             return `
                 <div class="match-student-row">
@@ -707,6 +710,7 @@ export function renderResultadosMatch() {
                         <span class="match-student-tag">${instStr}</span>
                         ${nivelStr ? `<span class="match-student-tag nivel">${nivelStr}</span>` : ''}
                         ${edadStr ? `<span class="match-student-tag edad">${edadStr}</span>` : ''}
+                        ${tagsPsicoHtml}
                     </div>
                 </div>
             `;
@@ -785,16 +789,20 @@ export function renderResultadosMatch() {
         if (intCont) {
             intCont.innerHTML = grupo.alumnos.map(al => {
                 const instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || 'Sin inst.');
+                const tagsPsicoHtml = (Array.isArray(al.perfil_psicologico) && al.perfil_psicologico.length > 0)
+                    ? al.perfil_psicologico.map(t => `<span class="profile-tag-badge" style="font-size:10px;">🧠 ${t}</span>`).join('')
+                    : '';
                 return `
                 <div class="match-confirm-row">
                     <div style="flex:1;">
                         <div style="font-weight:700; color:var(--text-main); font-size:13.5px;">👤 ${al.nombre}</div>
                         <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">📱 ${al.celular || 'Sin celular'} • ${al.tipo_suscripcion || ''}</div>
                     </div>
-                    <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+                    <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; align-items:center;">
                         <span class="match-student-tag">${instStr}</span>
                         ${al.nivel ? `<span class="match-student-tag nivel">${al.nivel}</span>` : ''}
                         ${al.edad ? `<span class="match-student-tag edad">${al.edad}a</span>` : ''}
+                        ${tagsPsicoHtml}
                     </div>
                 </div>
             `;

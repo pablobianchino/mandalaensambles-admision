@@ -269,17 +269,29 @@ async function conectarGoogle() {
 }
 
 window.alert = function(msg, tipo = '') {
-    const container = document.getElementById('toast-container');
+    const openModal = document.querySelector('dialog[open]');
+    let container;
+    if (openModal) {
+        let modalToastContainer = openModal.querySelector('.modal-toast-container');
+        if (!modalToastContainer) {
+            modalToastContainer = document.createElement('div');
+            modalToastContainer.className = 'modal-toast-container';
+            openModal.appendChild(modalToastContainer);
+        }
+        container = modalToastContainer;
+    } else {
+        container = document.getElementById('toast-container');
+    }
     if (!container) return console.log(msg); 
     const toast = document.createElement('div');
     
     let extraClass = '';
     const str = String(msg || '');
-    if (tipo === 'success' || str.includes('✅') || str.toLowerCase().includes('éxito') || str.toLowerCase().includes('copiado') || str.toLowerCase().includes('guardado')) {
+    if (tipo === 'success' || str.includes('✅') || str.toLowerCase().includes('éxito') || str.toLowerCase().includes('copiado') || str.toLowerCase().includes('guardado') || str.toLowerCase().includes('correctamente')) {
         extraClass = 'toast-success';
     } else if (tipo === 'error' || str.includes('❌') || str.toLowerCase().includes('error') || str.toLowerCase().includes('falló') || str.toLowerCase().includes('no se pudo')) {
         extraClass = 'toast-error';
-    } else if (tipo === 'warning' || str.includes('⚠️') || str.toLowerCase().includes('atención') || str.toLowerCase().includes('alerta')) {
+    } else if (tipo === 'warning' || str.includes('⚠️') || str.toLowerCase().includes('atención') || str.toLowerCase().includes('alerta') || str.toLowerCase().includes('obligatorio')) {
         extraClass = 'toast-warning';
     }
 
@@ -360,7 +372,44 @@ const quillPopup = new Quill('#informe-popup-editor-container', { theme: 'snow',
 renderContenedorDisponibilidad('contenedor-disponibilidad', false);
 renderContenedorDisponibilidad('contenedor-disponibilidad-profe', true);
 
+// Render y gestión de Perfil Psicológico / Emocional
+async function renderChipsPerfilPsicologico(containerId, seleccionados = []) {
+    const cont = document.getElementById(containerId);
+    if (!cont) return;
+    try {
+        const snap = await getDoc(doc(db, "configuracion", "general"));
+        if (snap.exists()) {
+            configApp = { ...defaultCfg, ...snap.data() };
+        }
+    } catch(e) {}
+
+    const opciones = (configApp && Array.isArray(configApp.perfil_psicologico_opciones) && configApp.perfil_psicologico_opciones.length > 0)
+        ? configApp.perfil_psicologico_opciones
+        : (defaultCfg.perfil_psicologico_opciones || []);
+    
+    const selSet = new Set(Array.isArray(seleccionados) ? seleccionados : []);
+
+    cont.innerHTML = opciones.map(op => {
+        const isAct = selSet.has(op);
+        return `<span class="profile-tag-chip ${isAct ? 'active' : ''}" data-val="${op}">${op}</span>`;
+    }).join('');
+}
+
+function getPerfilPsicologicoSeleccionado(containerId) {
+    const cont = document.getElementById(containerId);
+    if (!cont) return [];
+    const activeChips = cont.querySelectorAll('.profile-tag-chip.active');
+    return Array.from(activeChips).map(c => c.getAttribute('data-val')).filter(Boolean);
+}
+
 document.addEventListener('click', (e) => {
+    const chip = e.target.closest('.profile-tag-chip');
+    if (chip) {
+        e.preventDefault();
+        chip.classList.toggle('active');
+        return;
+    }
+
     if(e.target.classList.contains('tab-btn')) {
         e.preventDefault();
         const modal = e.target.closest('dialog');
@@ -498,6 +547,11 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
     const botonesVisibles = generarBotonesPrincipalesVisibles(al, id);
     const botonesSecundarios = generarBotonesAccion(al, id);
 
+    let tagsHtml = '';
+    if (Array.isArray(al.perfil_psicologico) && al.perfil_psicologico.length > 0) {
+        tagsHtml = `<div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:4px;">${al.perfil_psicologico.map(t => `<span class="profile-tag-badge">🧠 ${t}</span>`).join('')}</div>`;
+    }
+
     if (isKanban) {
         let opcionesKanbanHtml = '';
         if (al.opciones_propuestas && al.opciones_propuestas.length > 1) {
@@ -516,6 +570,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                 <span style="font-size:16px;" class="btn-row-action" onclick="event.stopPropagation(); window.abrirOpcionesKanban('${id}', this)">⋮</span>
             </div>
             <div class="kanban-card-sub">${edad} • <strong style="color:var(--accent-teal);">${instStr}</strong></div>
+            ${tagsHtml}
             ${opcionesKanbanHtml}
             <div class="priority-text ${info.claseTexto}">${info.txtTiempo}</div>
             ${botonesVisibles ? `<div class="row-actions-group" style="margin-top:6px; justify-content:stretch;">${botonesVisibles}</div>` : ''}
@@ -617,6 +672,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                                 <span class="status-badge ${info.colorBadge}">${info.txtEstado}</span>
                             </div>
                             <div class="row-sub"><span>${cel}</span> • <span>${edad}</span> • <strong style="color:var(--accent-teal);">${instStr}</strong> • <span>${suscStr}</span></div>
+                            ${tagsHtml}
                         </div>
                     </div>
                     ${dispHtml}
@@ -1949,29 +2005,57 @@ document.addEventListener('click', async (e) => {
 
     if (target.classList.contains('btn-nombre-agendar')) { const id = target.getAttribute('data-id'); try { const al = (await getDoc(doc(db, "alumnos", id))).data(); const iS = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento; let template = configApp.texto_nombre_agendar || 'MDL {nombre} {edad} {año_actual} @{instrumento} @{suscripcion}'; const txt = reemplazarVariables(template, { nombre: al.nombre, edad: al.edad || '', 'año_actual': new Date().getFullYear().toString(), instrumento: iS, suscripcion: al.tipo_suscripcion || '' }).replace(/\s+/g, ' ').trim(); await navigator.clipboard.writeText(txt); alert("Nombre copiado:\n" + txt); } catch(e) {} return; }
     
-    if (target.classList.contains('btn-admision-finalizada')) { 
-        const id = target.getAttribute('data-id'); 
+    if (target.classList.contains('btn-admision-finalizada') || target.closest('.btn-admision-finalizada')) { 
+        const btn = target.classList.contains('btn-admision-finalizada') ? target : target.closest('.btn-admision-finalizada');
+        const id = btn.getAttribute('data-id'); 
         document.getElementById('informe-final-alumno-id').value = id;
         try {
             const al = (await getDoc(doc(db, "alumnos", id))).data();
             quillPopup.root.innerHTML = al.informe_admision || '';
+            renderChipsPerfilPsicologico('informe-perfil-psicologico-chips', al.perfil_psicologico || []);
             document.getElementById('modal-informe-admision').showModal();
         } catch(e) {}
         return; 
     }
     
     if (target.id === 'btn-guardar-informe-final') {
+        const id = document.getElementById('informe-final-alumno-id').value;
+        const plainInfo = quillPopup.getText().trim();
+        const tags = getPerfilPsicologicoSeleccionado('informe-perfil-psicologico-chips');
+
+        // VALIDACIONES OBLIGATORIAS
+        if (!plainInfo) {
+            alert("⚠️ Es obligatorio escribir el diagnóstico o informe de la evaluación para finalizar la admisión.");
+            return;
+        }
+
+        if (!tags || tags.length === 0) {
+            alert("⚠️ Es obligatorio seleccionar al menos una etiqueta de perfil psicológico o emocional.");
+            return;
+        }
+
         const btn = target;
         setBotonCargando(btn, true);
-        const id = document.getElementById('informe-final-alumno-id').value;
         const informeTexto = quillPopup.root.innerHTML;
         try {
+            const alDoc = await getDoc(doc(db, "alumnos", id));
+            const al = alDoc.exists() ? alDoc.data() : {};
+            const hist = al.historial || [];
+            const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+            const tagsTxt = ` [Perfil Emocional: ${tags.join(', ')}]`;
+            hist.push({
+                id: Date.now(),
+                texto: `Admisión Finalizada. Diagnóstico/Informe registrado.${tagsTxt} Resumen: ${plainInfo.length > 120 ? plainInfo.substring(0, 120) + '...' : plainInfo}`,
+                fecha: fechaStr
+            });
             await updateDoc(doc(db, "alumnos", id), { 
                 estado_agenda: "Lista de espera",
-                informe_admision: informeTexto
+                informe_admision: informeTexto,
+                perfil_psicologico: tags,
+                historial: hist
             });
             document.getElementById('modal-informe-admision').close();
-            alert("Admisión Finalizada. Alumno en Lista de Espera.");
+            alert("Admisión Finalizada exitosamente. Alumno en Lista de Espera.");
             cargarVista(estadoActualVista);
         } catch(err) {
             alert("Error al guardar: " + err.message);
@@ -2509,6 +2593,8 @@ async function llenarFormularioAlumno(id) {
     renderHistorial(); 
     
     quillInforme.root.innerHTML = d.informe_admision || '';
+    renderChipsPerfilPsicologico('ficha-perfil-psicologico-chips', d.perfil_psicologico || []);
+    
     const estadosBloqueados = ['Pendiente procesar', 'Pendiente validación por profe', 'Pendiente validación por alumno'];
     if (estadosBloqueados.includes(d.estado_agenda)) {
         document.getElementById('aviso-informe-bloqueado').style.display = 'block';
@@ -2592,7 +2678,21 @@ document.getElementById('form-alumno').addEventListener('submit', async (e) => {
         }
     }); 
     
-    const selInst = document.getElementById('instrumento'), instV = Array.from(selInst.selectedOptions).map(o=>o.value), data = { nombre: document.getElementById('nombre').value, celular: document.getElementById('celular').value, edad: Number(document.getElementById('edad').value), nivel: document.getElementById('nivel').value, instrumento: instV, tipo_suscripcion: document.getElementById('tipo_suscripcion').value, descripcion: quill.root.innerHTML, informe_admision: quillInforme.root.innerHTML, disponibilidad: disp, historial: historialActual }; 
+    const selInst = document.getElementById('instrumento'), instV = Array.from(selInst.selectedOptions).map(o=>o.value);
+    const tagsPerfil = getPerfilPsicologicoSeleccionado('ficha-perfil-psicologico-chips');
+    const data = { 
+        nombre: document.getElementById('nombre').value, 
+        celular: document.getElementById('celular').value, 
+        edad: Number(document.getElementById('edad').value), 
+        nivel: document.getElementById('nivel').value, 
+        instrumento: instV, 
+        tipo_suscripcion: document.getElementById('tipo_suscripcion').value, 
+        descripcion: quill.root.innerHTML, 
+        informe_admision: quillInforme.root.innerHTML, 
+        perfil_psicologico: tagsPerfil,
+        disponibilidad: disp, 
+        historial: historialActual 
+    }; 
     try { const id = document.getElementById('alumno-id').value; if (id) { await updateDoc(doc(db, "alumnos", id), data); } else { const esDirecto = document.getElementById('chk-ingreso-directo').checked; if (esDirecto) { data.estado_agenda = "Lista de espera"; const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`; data.historial.push({ id: Date.now(), texto: "Ingreso directo a Lista de Espera.", fecha: fechaStr }); } else { data.estado_agenda = "Pendiente procesar"; } await addDoc(collection(db, "alumnos"), data); } const wrap = document.getElementById('form-alumno-wrapper'); wrap.style.display='none'; document.body.appendChild(wrap); document.getElementById('modal-alta-alumno').close(); cargarVista(estadoActualVista); } catch(err) { alert("Error al guardar."); } setBotonCargando(btnSubmit, false);
 });
 

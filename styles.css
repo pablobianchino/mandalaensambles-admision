@@ -524,6 +524,25 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
 .toast-notification.toast-error { border-left-color: var(--accent-red); background: #261715; }
 .toast-notification.toast-warning { border-left-color: #e5a93d; background: #262115; }
 
+.modal-toast-container {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+    align-items: center;
+    max-width: 90%;
+    width: auto;
+}
+.modal-toast-container .toast-notification {
+    pointer-events: auto;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+}
+
 /* =======================================================================
    SKELETON LOADER — Punto 7
    ======================================================================= */
@@ -1014,4 +1033,52 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
     display: flex;
     align-items: center;
     gap: 6px;
+}
+
+/* =======================================================================
+   PERFIL PSICOLÓGICO Y EMOCIONAL (TAGS Y BADGES)
+   ======================================================================= */
+.profile-tags-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 8px 0;
+}
+.profile-tag-chip {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12.5px;
+    font-weight: 600;
+    background: var(--hover-bg);
+    border: 1.5px solid var(--border-color);
+    color: var(--text-main);
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+.profile-tag-chip:hover {
+    border-color: var(--accent-teal);
+    transform: translateY(-1px);
+}
+.profile-tag-chip.active {
+    background: rgba(0, 123, 143, 0.12);
+    border-color: var(--accent-teal);
+    color: var(--accent-teal);
+    font-weight: 700;
+    box-shadow: 0 2px 6px rgba(0, 123, 143, 0.15);
+}
+.profile-tag-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 10.5px;
+    font-weight: 600;
+    background: rgba(142, 68, 173, 0.1);
+    border: 1px solid rgba(142, 68, 173, 0.25);
+    color: #7d3c98;
 }

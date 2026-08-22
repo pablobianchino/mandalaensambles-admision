@@ -2,7 +2,7 @@
 // src/config/constants.js — Constantes globales del sistema
 // =======================================================================
 
-export const APP_VERSION = "v4.9.7";
+export const APP_VERSION = "v4.9.10";
 export const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 export const firebaseConfig = {
@@ -57,7 +57,8 @@ export const defaultCfg = {
         { desde: 60, rango_min: -5, rango_max: 10 },
         { desde: 70, rango_min: -5, rango_max: 5 }
     ],
-    reglas_edad_ninos: { hasta: 13, libre: true }
+    reglas_edad_ninos: { hasta: 13, libre: true },
+    perfil_psicologico_opciones: ['😊 Buena onda', '🙈 Tímido', '🎉 Extrovertido', '🦄 Raro', '🗣️ Muy hablador', '🌱 Humilde']
 };
 
 export const configNodosFlujo = [
