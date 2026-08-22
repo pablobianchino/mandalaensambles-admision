@@ -1,0 +1,25 @@
+c:\PRIELARTE\APPS\app_mdl_admision\
+│
+├── index.html                  # Estructura HTML de la aplicación, vistas y modales
+├── styles.css                  # Hoja de estilos globales, variables CSS, temas y layout
+├── app.js                      # Controlador principal y Router de navegación de vistas
+├── server.ps1                  # Servidor HTTP local de desarrollo en PowerShell
+│
+└── src/                        # 📦 Módulos ES6 desacoplados
+    │
+    ├── config/
+    │   ├── constants.js        # Constantes globales, colores, emojis, configuración base y nodos del Flow
+    │   └── firebase.js         # Inicialización del SDK de Firebase (Auth, Firestore DB)
+    │
+    ├── services/
+    │   └── calendar.service.js # Servicio de integración con Google Calendar API y Google Apps Script
+    │
+    ├── ui/
+    │   └── horarios.ui.js      # Componentes UI de disponibilidad horaria y chips (+18 / -18)
+    │
+    └── modules/
+        ├── match.module.js     # Motor algorítmico de Match, combinatoria, compatibilidad y Grupos en Validación
+        ├── altas.module.js     # Gestión de Pre-altas, Altas, checklist y exportación a Excel / Facturación
+        ├── dashboard.module.js # Resumen, Timeline interactivo con bandeja y Gráficos Chart.js
+        ├── abm.module.js       # Ajustes Generales, Reglas de Match y ABM (Profesores, Instrumentos, Suscripciones, Usuarios)
+        └── inbox.module.js     # Flujo de Inbox, cálculo de alarmas/estados, acciones rápidas y tabs segmentadas
