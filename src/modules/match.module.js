@@ -1028,16 +1028,21 @@ export async function renderMatchEnValidacion(container) {
                 const isConfirmed = al.estado_validacion_alumno === 'confirmado';
                 const instAsignado = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento);
                 const emojiInst = obtenerEmojiInstrumento(instAsignado);
+                const tagsPsicoHtml = (Array.isArray(al.perfil_psicologico) && al.perfil_psicologico.length > 0)
+                    ? al.perfil_psicologico.map(t => `<span class="profile-tag-badge" style="font-size:10px; padding:2px 7px;">🧠 ${t}</span>`).join('')
+                    : '';
                 
                 return `
                     <div class="group-member-row">
-                        <div class="group-member-info">
+                        <div class="group-member-info" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                             <span class="group-member-name">👤 ${al.nombre}</span>
                             ${al.edad ? `<span style="font-size:12px; color:var(--text-muted);">${al.edad}a</span>` : ''}
                             <span class="match-student-tag">${emojiInst} ${instAsignado}</span>
+                            ${al.nivel ? `<span class="match-student-tag nivel">${al.nivel}</span>` : ''}
                             <span class="group-member-status-chip ${isConfirmed ? 'status-val-ok' : 'status-val-pending'}">
                                 ${isConfirmed ? '✅ Confirmó' : '⏳ Pendiente'}
                             </span>
+                            ${tagsPsicoHtml}
                         </div>
                         <div class="group-member-actions">
                             <button type="button" class="row-quick-btn secondary" onclick="window.enviarWhatsAppValidacionGrupo('${al.id}')" title="Mensaje WhatsApp">💬 WhatsApp</button>
