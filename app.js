@@ -1488,13 +1488,19 @@ async function cargarVista(vista) {
             
             let dataFiltrada = [];
             if (isSinAgendar) {
-                dataFiltrada = allData.filter(d => ['Pendiente procesar', 'Sin agendar'].includes(d.estado_agenda));
+                dataFiltrada = allData.filter(d => {
+                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                    return st === 'pendiente procesar' || st === 'sin agendar';
+                });
             } else if (isEnValidacion) {
-                dataFiltrada = allData.filter(d => ['Pendiente validación por profe', 'Pendiente validación por alumno'].includes(d.estado_agenda));
+                dataFiltrada = allData.filter(d => {
+                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                    return st === 'pendiente validacion por profe' || st === 'pendiente validacion por evaluador' || st === 'pendiente validacion por alumno';
+                });
             } else if (vista === 'Altas - Pendientes') {
-                dataFiltrada = allData.filter(d => d.estado_agenda === 'Pre-alta Pendiente');
+                dataFiltrada = allData.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'pre-alta pendiente');
             } else if (vista === 'Altas - En Curso') {
-                dataFiltrada = allData.filter(d => d.estado_agenda === 'Pre-alta Iniciada');
+                dataFiltrada = allData.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'pre-alta iniciada');
             }
             renderListaFilas('lista-generica', dataFiltrada, 'all', null);
         } catch(e) {}
@@ -1503,7 +1509,7 @@ async function cargarVista(vista) {
             const qSnap = await getDocs(collection(db, "alumnos")); let allData = []; qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
             actualizarBadgesYNavegacion(allData);
             renderSegmentedTabs(vista);
-            let dataFiltrada = allData.filter(d => d.estado_agenda === 'Lista de espera');
+            let dataFiltrada = allData.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'lista de espera');
             renderListaFilas('lista-generica', dataFiltrada, 'all', null);
         } catch(e) {}
     } else if (vista === 'Inbox - Confirmadas' || vista === 'Altas - Confirmadas') {
@@ -1514,9 +1520,15 @@ async function cargarVista(vista) {
             
             let dataFiltrada = [];
             if (vista === 'Inbox - Confirmadas') {
-                dataFiltrada = allData.filter(d => ['Entrevista agendada', 'Entrevista realizada', 'Entrevista reprogramada'].includes(d.estado_agenda));
+                dataFiltrada = allData.filter(d => {
+                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                    return st === 'agenda confirmada' || ['entrevista agendada', 'entrevista realizada', 'entrevista reprogramada'].includes(st);
+                });
             } else if (vista === 'Altas - Confirmadas') {
-                dataFiltrada = allData.filter(d => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5));
+                dataFiltrada = allData.filter(d => {
+                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                    return (st === 'alta efectiva' || st === 'alta ilegal') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5);
+                });
             }
             renderListaFilas('lista-generica', dataFiltrada, 'all', null);
         } catch(e) {}
@@ -1525,7 +1537,10 @@ async function cargarVista(vista) {
             const qSnap = await getDocs(collection(db, "alumnos")); let allData = []; qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
             actualizarBadgesYNavegacion(allData);
             renderSegmentedTabs(vista);
-            let dataFiltrada = allData.filter(d => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal' || d.estado_agenda === 'Alta Finalizada') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5));
+            let dataFiltrada = allData.filter(d => {
+                const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                return (st === 'alta efectiva' || st === 'alta ilegal' || st === 'alta finalizada') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5);
+            });
             renderListaFilas('lista-generica', dataFiltrada, 'all', null);
         } catch(e) {}
     } else if (vista === 'Inbox - Suspendidas' || vista === 'Altas - Suspendidas') {
@@ -1534,11 +1549,10 @@ async function cargarVista(vista) {
             actualizarBadgesYNavegacion(allData);
             renderSegmentedTabs(vista);
             
-            const targetState = vista === 'Inbox - Suspendidas' ? 'Agenda suspendida' : 'Alta suspendida';
+            const targetState = vista === 'Inbox - Suspendidas' ? 'agenda suspendida' : 'alta suspendida';
             let dataFiltrada = allData.filter(d => {
                 const normState = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-                const normTarget = targetState.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-                return normState === normTarget;
+                return normState === targetState;
             });
             renderListaFilas('lista-generica', dataFiltrada, 'all', null);
         } catch(e) {}
