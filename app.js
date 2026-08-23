@@ -1843,7 +1843,16 @@ onAuthStateChanged(auth, async (user) => {
         const sidebar = document.getElementById('sidebar');
         const overlay = document.getElementById('mobile-overlay');
 
-        if(btnMobileMenu) btnMobileMenu.addEventListener('click', () => { sidebar.classList.add('active'); overlay.style.display = 'block'; });
+        if(btnMobileMenu) {
+            btnMobileMenu.onclick = () => {
+                if (window.innerWidth <= 850) {
+                    sidebar.classList.toggle('active');
+                    if (overlay) overlay.style.display = sidebar.classList.contains('active') ? 'block' : 'none';
+                } else {
+                    sidebar.classList.toggle('collapsed');
+                }
+            };
+        }
         if(btnCerrarMenuMobile) btnCerrarMenuMobile.addEventListener('click', () => { sidebar.classList.remove('active'); overlay.style.display = 'none'; });
         if(overlay) overlay.addEventListener('click', () => { sidebar.classList.remove('active'); overlay.style.display = 'none'; });
 
