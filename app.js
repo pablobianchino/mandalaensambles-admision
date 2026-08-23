@@ -1812,9 +1812,17 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById('app-container').style.display = 'flex'; 
         
         const userInfoBox = document.getElementById('user-info'); 
-        if (userInfoBox) {
-            const nomDisp = window.usuarioActual.nombre ? `${window.usuarioActual.nombre} (${window.usuarioActual.email})` : window.usuarioActual.email;
-            userInfoBox.textContent = nomDisp; 
+        if (userInfoBox && window.usuarioActual) {
+            if (window.usuarioActual.nombre) {
+                userInfoBox.innerHTML = `
+                    <div style="font-weight:700; color:var(--text-main); font-size:12.5px; margin-bottom:2px; word-break:break-word;">${window.usuarioActual.nombre}</div>
+                    <div style="font-size:11px; color:var(--text-muted); word-break:break-all; line-height:1.25;">${window.usuarioActual.email}</div>
+                `;
+            } else {
+                userInfoBox.innerHTML = `
+                    <div style="font-size:11.5px; color:var(--text-main); word-break:break-all;">${window.usuarioActual.email}</div>
+                `;
+            }
         }
 
         if (userInfoBox && !document.getElementById('version-tag')) { 
