@@ -1352,6 +1352,11 @@ export function configurarSidebarPorPermisos() {
         bottomNavProfe.style.display = (rol === 'profesor' || mods.includes('portal_profesor') || rol === 'admin') ? 'flex' : 'none';
     }
 
+    const btnNuevoAlumno = document.getElementById('btn-nuevo-alumno');
+    if (btnNuevoAlumno) {
+        btnNuevoAlumno.style.display = (rol === 'profesor') ? 'none' : 'block';
+    }
+
     const modIdMap = {
         'Dashboard': 'dashboard',
         'Inbox': 'inbox',
@@ -2856,6 +2861,10 @@ document.addEventListener('click', async (e) => {
     if (target.classList.contains('btn-cerrar-modal')) { document.getElementById(target.getAttribute('data-modal')).close(); return; }
     
     if (target.id === 'btn-nuevo-alumno') { 
+        if (window.usuarioActual && window.usuarioActual.rol === 'profesor') {
+            alert('⛔ No tienes permisos para crear nuevos alumnos en admisión.');
+            return;
+        }
         const wrap = document.getElementById('form-alumno-wrapper'); 
         document.getElementById('modal-alta-alumno').appendChild(wrap); 
         wrap.style.display = 'block'; 
