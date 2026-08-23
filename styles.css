@@ -1052,9 +1052,10 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
 }
 .group-member-info {
     display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+    gap: 3px;
     flex: 1;
 }
 .group-member-name {

@@ -560,28 +560,24 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
     let emojiInst = instArray.length > 0 ? obtenerEmojiInstrumento(instArray[0]) : '🎵';
     let instStr = instArray.join(', ');
     let suscStr = al.tipo_suscripcion || ''; 
-    let cel = al.celular || ''; 
     let edad = al.edad ? al.edad + ' años' : '';
 
     const botonesVisibles = generarBotonesPrincipalesVisibles(al, id);
     const botonesSecundarios = generarBotonesAccion(al, id);
 
-    let filaContactoParts = [];
-    if (cel) filaContactoParts.push(`📱 ${cel}`);
-    if (edad) filaContactoParts.push(edad);
-    let filaContactoHtml = filaContactoParts.length > 0
-        ? `<div class="row-sub-line" style="font-size:12px; color:var(--text-muted); font-weight:500;">${filaContactoParts.join(' • ')}</div>`
-        : '';
+    let datosAlumnoParts = [];
+    if (edad) datosAlumnoParts.push(edad);
+    if (al.nivel) datosAlumnoParts.push(`<span class="match-student-tag nivel" style="font-size:10px; padding:2px 7px;">${al.nivel}</span>`);
+    if (instStr) {
+        let instFormat = `<strong style="color:var(--accent-teal); font-weight:600;">${emojiInst} ${instStr}</strong>`;
+        if (suscStr) instFormat += ` <span style="color:var(--text-muted); font-size:11px;">(${suscStr})</span>`;
+        datosAlumnoParts.push(instFormat);
+    } else if (suscStr) {
+        datosAlumnoParts.push(`<span>${suscStr}</span>`);
+    }
 
-    let filaInstSuscParts = [];
-    if (instStr) filaInstSuscParts.push(`<strong style="color:var(--accent-teal); font-weight:600;">${emojiInst} ${instStr}</strong>`);
-    if (suscStr) filaInstSuscParts.push(`<span>${suscStr}</span>`);
-    let filaInstSuscHtml = filaInstSuscParts.length > 0
-        ? `<div class="row-sub-line" style="font-size:12px; color:var(--text-muted);">${filaInstSuscParts.join(' • ')}</div>`
-        : '';
-
-    let filaNivelHtml = al.nivel
-        ? `<div class="row-sub-line" style="font-size:11.5px; margin-top:1px;"><span class="match-student-tag nivel" style="font-size:10px; padding:2px 7px;">Nivel: ${al.nivel}</span></div>`
+    let filaDatosHtml = datosAlumnoParts.length > 0
+        ? `<div class="row-sub-line" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:12px; color:var(--text-muted);">${datosAlumnoParts.join(' • ')}</div>`
         : '';
 
     let tagsHtml = '';
@@ -607,7 +603,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                 <span style="font-size:16px;" class="btn-row-action" onclick="event.stopPropagation(); window.abrirOpcionesKanban('${id}', this)">⋮</span>
             </div>
             <div class="kanban-card-sub">${edad || '-'} • <strong style="color:var(--accent-teal);">${instStr || 'Sin inst.'}</strong></div>
-            ${filaNivelHtml}
+            ${al.nivel ? `<div style="font-size:11px; margin-top:2px;"><span class="match-student-tag nivel" style="font-size:10px; padding:2px 7px;">${al.nivel}</span></div>` : ''}
             ${tagsHtml}
             ${opcionesKanbanHtml}
             <div class="priority-text ${info.claseTexto}">${info.txtTiempo}</div>
@@ -704,14 +700,12 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                     <div class="row-header">
                         <input type="checkbox" class="bulk-chk" data-id="${id}" onclick="event.stopPropagation(); window.toggleBulkSelection('${id}', this.checked)">
                         <div class="row-indicator ${info.colorIndicador}"></div>
-                        <div class="row-main-info" style="display:flex; flex-direction:column; gap:2px;">
-                            <div class="row-name" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <div class="row-main-info" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:2px;">
+                            <div class="row-name" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; text-align:left;">
                                 <span style="font-weight:700; color:var(--text-main); font-size:14px;">${al.nombre}</span>
                                 <span class="status-badge ${info.colorBadge}">${info.txtEstado}</span>
                             </div>
-                            ${filaContactoHtml}
-                            ${filaInstSuscHtml}
-                            ${filaNivelHtml}
+                            ${filaDatosHtml}
                             ${tagsHtml}
                         </div>
                     </div>
