@@ -1353,6 +1353,22 @@ export function configurarSidebarPorPermisos() {
         navProfe.style.display = (rol === 'profesor' || mods.includes('portal_profesor') || rol === 'admin') ? 'flex' : 'none';
     }
 
+    const bottomNavProfe = document.getElementById('bottom-nav-portal-profe');
+    if (bottomNavProfe) {
+        bottomNavProfe.style.display = (rol === 'profesor' || mods.includes('portal_profesor') || rol === 'admin') ? 'flex' : 'none';
+    }
+
+    const modIdMap = {
+        'Dashboard': 'dashboard',
+        'Inbox': 'inbox',
+        'Lista de Espera': 'espera',
+        'Match': 'match',
+        'Altas': 'altas',
+        'Estadísticas': 'metricas',
+        'Configuración': 'configuracion'
+    };
+
+    // Sidebar items (Escritorio / Menú Desplegable)
     document.querySelectorAll('#sidebar .nav-item, #sidebar .nav-item-small').forEach(item => {
         const mod = item.getAttribute('data-modulo');
         if (!mod) return;
@@ -1364,15 +1380,30 @@ export function configurarSidebarPorPermisos() {
         } else if (rol === 'profesor') {
             permitido = (mod === 'portal_profesor');
         } else {
-            const modIdMap = {
-                'Dashboard': 'dashboard',
-                'Inbox': 'inbox',
-                'Lista de Espera': 'espera',
-                'Match': 'match',
-                'Altas': 'altas',
-                'Estadísticas': 'metricas',
-                'Configuración': 'configuracion'
-            };
+            const idBuscado = modIdMap[mod] || mod.toLowerCase();
+            permitido = mods.includes(idBuscado);
+        }
+
+        item.style.display = permitido ? 'flex' : 'none';
+    });
+
+    // Bottom nav items (Barra inferior Móvil)
+    document.querySelectorAll('#bottom-nav .bottom-nav-item').forEach(item => {
+        if (item.id === 'btn-bottom-menu') {
+            item.style.display = 'flex';
+            return;
+        }
+        if (item.id === 'bottom-nav-portal-profe') return;
+
+        const mod = item.getAttribute('data-modulo');
+        if (!mod) return;
+
+        let permitido = false;
+        if (rol === 'admin') {
+            permitido = true;
+        } else if (rol === 'profesor') {
+            permitido = false;
+        } else {
             const idBuscado = modIdMap[mod] || mod.toLowerCase();
             permitido = mods.includes(idBuscado);
         }
@@ -1884,7 +1915,24 @@ onAuthStateChanged(auth, async (user) => {
         if (window.usuarioActual.rol === 'profesor') {
             cargarVista('Mis Grupos & Solicitud de Alumnos');
         } else {
-            cargarVista('Dashboard'); 
+            const mods = window.usuarioActual.modulos_habilitados || [];
+            if (window.usuarioActual.rol === 'admin' || mods.includes('dashboard')) {
+                cargarVista('Dashboard');
+            } else if (mods.includes('inbox')) {
+                cargarVista('Inbox - Pendientes');
+            } else if (mods.includes('espera')) {
+                cargarVista('Lista de Espera');
+            } else if (mods.includes('match')) {
+                cargarVista('Match - Pendientes');
+            } else if (mods.includes('altas')) {
+                cargarVista('Altas - Pendientes');
+            } else if (mods.includes('metricas')) {
+                cargarVista('Estadísticas');
+            } else if (mods.includes('configuracion')) {
+                cargarVista('Configuración');
+            } else {
+                cargarVista('Dashboard');
+            }
         }
         
         const btnMobileMenu = document.getElementById('btn-mobile-menu');
