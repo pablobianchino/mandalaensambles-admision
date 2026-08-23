@@ -322,9 +322,9 @@ export function renderConfigMatch(cont, configApp = defaultCfg, callbacks = {}) 
             }, { merge: true });
 
             if (typeof cargarConfig === 'function') await cargarConfig();
-            alert('Configuracion de Match guardada correctamente.');
+            alert('Configuración de Match guardada correctamente.');
         } catch(err) {
-            alert('Error al guardar configuracion de Match: ' + err.message);
+            alert('Error al guardar configuración de Match: ' + err.message);
         }
 
         if (typeof setBotonCargando === 'function') setBotonCargando(btn, false);
@@ -332,18 +332,25 @@ export function renderConfigMatch(cont, configApp = defaultCfg, callbacks = {}) 
 }
 
 // -----------------------------------------------------------------------
-// Render de ABM (Profesores, Instrumentos, Suscripciones, Usuarios)
+// Render de ABM (Profesores, Instrumentos, Suscripciones, Usuarios RBAC)
 // -----------------------------------------------------------------------
+const ROLES_MODULOS = {
+    admin: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas', 'portal_profesor', 'configuracion', 'permisos'],
+    admisiones: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas'],
+    profesor: ['portal_profesor'],
+    personalizado: []
+};
+
 export async function cargarABM(coleccion, titulo, cont) { 
     window.coleccionABMActual = coleccion; 
     window.tituloABMActual = titulo; 
     
     let h = `
     <div style="margin-bottom:20px; font-size:0.9em; color:var(--text-muted);">
-        <span style="cursor:pointer; color:var(--accent-teal);" onclick="window.cargarVistaGlobal('Configuracion')">Configuracion</span> &gt; <strong style="color:var(--text-main);">${titulo}</strong>
+        <span style="cursor:pointer; color:var(--accent-teal);" onclick="window.cargarVistaGlobal('Configuración')">Configuración</span> &gt; <strong style="color:var(--text-main);">${titulo}</strong>
     </div>
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; width:100%;">
-        <button class="btn-primary" onclick="window.abrirEdicionABM(null, '${coleccion}')">ï¼‹ Agregar ${titulo}</button>
+        <button class="btn-primary" onclick="window.abrirEdicionABM(null, '${coleccion}')">➕ Agregar ${titulo}</button>
     </div>`; 
 
     try { 
@@ -351,37 +358,173 @@ export async function cargarABM(coleccion, titulo, cont) {
         if (qS.empty) { 
             h += `<div style="color:var(--text-muted); padding:20px;">No hay registros cargados.</div>`; 
         } else { 
-            qS.forEach(d => { 
-                const dt = d.data(); 
-                const displayNom = coleccion === 'usuarios_sistema' ? dt.email : dt.nombre; 
-                let ex = ''; 
-                if (coleccion === 'profesores') { 
-                    ex = `<div style="font-size:12px; color:var(--text-muted); margin-top:2px;">Calendario: ${dt.correo_calendario || 'Sin asignar'} | Cel: ${dt.celular || '-'}</div>`; 
-                } 
-                h += `<div class="row-item abm-row" onclick="window.abrirEdicionABM('${d.id}', '${coleccion}', '${displayNom}', '${dt.correo_calendario||''}', '${dt.celular||''}', '${dt.alias_transferencia||''}')"><div><strong style="color:var(--text-main); font-size:15px;">${displayNom}</strong>${ex}</div><button class="btn-row-action" onclick="event.stopPropagation(); window.eliminarABM('${d.id}', '${coleccion}')">🗑️ï¸</button></div>`; 
-            }); 
+            if (coleccion === 'usuarios_sistema') {
+                const profsSnap = await getDocs(collection(db, "profesores"));
+                const profsMap = {};
+                profsSnap.forEach(d => profsMap[d.id] = d.data().nombre || d.id);
+
+                qS.forEach(d => {
+                    const u = d.data();
+                    const rol = u.rol || 'admisiones';
+                    const esActivo = u.activo !== false;
+                    const mods = Array.isArray(u.modulos_habilitados) ? u.modulos_habilitados : (ROLES_MODULOS[rol] || []);
+                    
+                    let badgeRol = '<span class="profile-tag-badge" style="background:#e8f4fd; color:#2980b9; border-color:#beddf3;">📥 Admisiones</span>';
+                    if (rol === 'admin') badgeRol = '<span class="profile-tag-badge" style="background:#fef5e7; color:#d35400; border-color:#fad7a0;">👑 Administrador</span>';
+                    else if (rol === 'profesor') badgeRol = '<span class="profile-tag-badge" style="background:#eafaf1; color:#27ae60; border-color:#a9dfbf;">👨‍🏫 Profesor</span>';
+                    else if (rol === 'personalizado') badgeRol = '<span class="profile-tag-badge" style="background:#f4ecf7; color:#8e44ad; border-color:#d2b4de;">🛠️ Personalizado</span>';
+
+                    const badgeActivo = esActivo 
+                        ? '<span class="status-val-ok" style="font-size:11px;">🟢 Activo</span>'
+                        : '<span class="status-val-reject" style="font-size:11px;">🔴 Inactivo</span>';
+
+                    const profeNom = u.profesor_id && profsMap[u.profesor_id] ? ` • Profe vinculado: <strong>${profsMap[u.profesor_id]}</strong>` : '';
+
+                    h += `
+                        <div class="row-item abm-row" style="padding:16px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:10px;">
+                            <div style="flex:1; min-width:240px;">
+                                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                    <strong style="color:var(--text-main); font-size:15px;">${u.email}</strong>
+                                    ${badgeRol}
+                                    ${badgeActivo}
+                                </div>
+                                <div style="font-size:12.5px; color:var(--text-muted); margin-top:4px;">
+                                    ${u.nombre ? `<span>${u.nombre}</span>` : '<span>Sin nombre de referencia</span>'}
+                                    ${profeNom}
+                                    <span style="margin-left:8px; font-size:11.5px; color:var(--text-muted);">(${mods.length} módulos autorizados)</span>
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <button type="button" class="btn-primary" style="font-size:12px; padding:6px 14px;" onclick="window.abrirEdicionABM('${d.id}', 'usuarios_sistema', '${u.email}')">✏️ Editar Permisos</button>
+                                <button type="button" class="btn-row-action" title="Revocar Acceso / Eliminar" onclick="event.stopPropagation(); window.eliminarABM('${d.id}', 'usuarios_sistema')">🗑️</button>
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                qS.forEach(d => { 
+                    const dt = d.data(); 
+                    const displayNom = dt.nombre || dt.email || d.id; 
+                    let ex = ''; 
+                    if (coleccion === 'profesores') { 
+                        ex = `<div style="font-size:12px; color:var(--text-muted); margin-top:2px;">Calendario: ${dt.correo_calendario || 'Sin asignar'} | Cel: ${dt.celular || '-'}</div>`; 
+                    } 
+                    h += `<div class="row-item abm-row" onclick="window.abrirEdicionABM('${d.id}', '${coleccion}', '${displayNom}', '${dt.correo_calendario||''}', '${dt.celular||''}', '${dt.alias_transferencia||''}')"><div><strong style="color:var(--text-main); font-size:15px;">${displayNom}</strong>${ex}</div><button class="btn-row-action" onclick="event.stopPropagation(); window.eliminarABM('${d.id}', '${coleccion}')">🗑️</button></div>`; 
+                }); 
+            }
         } 
     } catch(e) { 
-        h += `<div style="color:var(--accent-red); padding:20px;">Error al cargar.</div>`; 
+        h += `<div style="color:var(--accent-red); padding:20px;">Error al cargar: ${e.message}</div>`; 
     } 
     cont.innerHTML = h; 
 }
 
-export function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali = '', callbacks = {}) { 
+export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali = '', callbacks = {}) { 
     const { syncSelectToChips, poblarDisponibilidadMultiRango } = callbacks;
     document.getElementById('abm-edit-id').value = id || ''; 
     document.getElementById('abm-edit-coleccion').value = col; 
-    document.getElementById('label-abm-edit-nombre').innerHTML = col === 'usuarios_sistema' ? `Correo: <input type="text" id="abm-edit-nombre" class="modern-input" required>` : `Nombre: <input type="text" id="abm-edit-nombre" class="modern-input" required>`; 
+    document.getElementById('label-abm-edit-nombre').innerHTML = col === 'usuarios_sistema' 
+        ? `Correo Electrónico (Google Auth) *: <input type="email" id="abm-edit-nombre" class="modern-input" placeholder="usuario@gmail.com" required>` 
+        : `Nombre *: <input type="text" id="abm-edit-nombre" class="modern-input" required>`; 
     document.getElementById('abm-edit-nombre').value = nom || '';
     
     const tituloModal = document.querySelector('#modal-abm-edit h3');
     if (tituloModal) {
-        const nombreEntidad = col === 'usuarios_sistema' ? 'Usuario' : (col === 'profesores' ? 'Profesor' : (col === 'instrumentos' ? 'Instrumento' : 'Suscripcion'));
+        const nombreEntidad = col === 'usuarios_sistema' ? 'Usuario y Permisos' : (col === 'profesores' ? 'Profesor' : (col === 'instrumentos' ? 'Instrumento' : 'Suscripción'));
         tituloModal.textContent = id ? `Editar ${nombreEntidad}` : `Nuevo ${nombreEntidad}`;
     }
 
-    if (col === 'profesores') { 
-        document.getElementById('div-abm-edit-profe').style.display='block'; 
+    const divUser = document.getElementById('div-abm-edit-usuario');
+    const divProfe = document.getElementById('div-abm-edit-profe');
+
+    if (col === 'usuarios_sistema') {
+        if (divUser) divUser.style.display = 'block';
+        if (divProfe) divProfe.style.display = 'none';
+
+        // Cargar lista de profesores para vincular
+        const selProfLink = document.getElementById('abm-user-profesor-id');
+        if (selProfLink) {
+            selProfLink.innerHTML = '<option value="">Ninguno / No asociar a profesor</option>';
+            const pSnap = await getDocs(collection(db, "profesores"));
+            pSnap.forEach(d => {
+                const nom = d.data().nombre || d.id;
+                selProfLink.innerHTML += `<option value="${d.id}" data-nombre="${nom}">${nom}</option>`;
+            });
+
+            selProfLink.onchange = (e) => {
+                const opt = selProfLink.selectedOptions[0];
+                const profNombre = opt?.getAttribute('data-nombre') || '';
+                const inpNom = document.getElementById('abm-user-nombre');
+                if (profNombre && inpNom) {
+                    inpNom.value = profNombre;
+                }
+            };
+        }
+
+        const aplicarPlantillaRol = (rol) => {
+            const mods = ROLES_MODULOS[rol] || [];
+            document.querySelectorAll('.chk-user-modulo').forEach(chk => {
+                if (rol === 'personalizado') return;
+                chk.checked = mods.includes(chk.value);
+            });
+        };
+
+        const selRol = document.getElementById('abm-user-rol');
+        if (selRol) {
+            selRol.onchange = (e) => aplicarPlantillaRol(e.target.value);
+        }
+
+        const chkActivo = document.getElementById('abm-user-activo');
+        const lblActivo = document.getElementById('abm-user-activo-label');
+        if (chkActivo && lblActivo) {
+            chkActivo.onchange = (e) => {
+                lblActivo.textContent = e.target.checked ? 'Activo' : 'Inactivo';
+                lblActivo.style.color = e.target.checked ? 'var(--accent-teal)' : 'var(--accent-red)';
+            };
+        }
+
+        if (id) {
+            try {
+                const uDoc = await getDoc(doc(db, "usuarios_sistema", id));
+                if (uDoc.exists()) {
+                    const uData = uDoc.data();
+                    document.getElementById('abm-edit-nombre').value = uData.email || '';
+                    document.getElementById('abm-user-nombre').value = uData.nombre || '';
+                    const r = uData.rol || 'admisiones';
+                    if (selRol) selRol.value = r;
+                    if (selProfLink) selProfLink.value = uData.profesor_id || '';
+                    if (chkActivo) {
+                        chkActivo.checked = uData.activo !== false;
+                        if (lblActivo) {
+                            lblActivo.textContent = chkActivo.checked ? 'Activo' : 'Inactivo';
+                            lblActivo.style.color = chkActivo.checked ? 'var(--accent-teal)' : 'var(--accent-red)';
+                        }
+                    }
+
+                    const uMods = Array.isArray(uData.modulos_habilitados) ? uData.modulos_habilitados : (ROLES_MODULOS[r] || []);
+                    document.querySelectorAll('.chk-user-modulo').forEach(chk => {
+                        chk.checked = uMods.includes(chk.value);
+                    });
+                }
+            } catch(e) {}
+        } else {
+            document.getElementById('abm-user-nombre').value = '';
+            if (selRol) selRol.value = 'admisiones';
+            aplicarPlantillaRol('admisiones');
+            if (chkActivo) {
+                chkActivo.checked = true;
+                if (lblActivo) {
+                    lblActivo.textContent = 'Activo';
+                    lblActivo.style.color = 'var(--accent-teal)';
+                }
+            }
+            if (selProfLink) selProfLink.value = '';
+        }
+
+    } else if (col === 'profesores') { 
+        if (divUser) divUser.style.display = 'none';
+        if (divProfe) divProfe.style.display = 'block';
+
         document.getElementById('abm-edit-correo').value = cor || ''; 
         document.getElementById('abm-edit-celular').value = cel || ''; 
         document.getElementById('abm-edit-alias').value = ali || ''; 
@@ -434,21 +577,118 @@ export function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali = '',
             } 
         }
     } else { 
-        document.getElementById('div-abm-edit-profe').style.display='none'; 
+        if (divUser) divUser.style.display = 'none';
+        if (divProfe) divProfe.style.display = 'none';
     } 
     document.getElementById('modal-abm-edit')?.showModal(); 
 }
 
 export async function eliminarABM(id, col, callbacks = {}) { 
     const { cargarVista } = callbacks;
-    if (await window.confirmar('?Eliminar registro?', 'Esta accion no se puede deshacer.', 'Eliminar')) { 
+    const msg = col === 'usuarios_sistema' 
+        ? '¿Revocar acceso y eliminar a este usuario del sistema?'
+        : '¿Eliminar registro? Esta acción no se puede deshacer.';
+    
+    if (await window.confirmar(msg, 'Esta acción no se puede deshacer.', 'Eliminar')) { 
         await deleteDoc(doc(db, col, id)); 
+        alert('Registro eliminado.');
         if (typeof cargarVista === 'function') {
-            cargarVista('ABM-' + window.tituloABMActual); 
+            cargarVista('ABM-' + (window.tituloABMActual || '')); 
+        } else if (window.cargarVistaGlobal) {
+            window.cargarVistaGlobal('ABM-' + (window.tituloABMActual || ''));
         }
     } 
 }
 
+// Handler de guardado de modal ABM
+document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async (e) => {
+    const btn = e.target;
+    const id = document.getElementById('abm-edit-id')?.value;
+    const col = document.getElementById('abm-edit-coleccion')?.value;
+    const nomVal = (document.getElementById('abm-edit-nombre')?.value || '').trim();
+
+    if (!nomVal) {
+        alert(col === 'usuarios_sistema' ? 'Debes ingresar un correo electrónico.' : 'Debes ingresar un nombre.');
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Guardando...';
+
+    try {
+        if (col === 'usuarios_sistema') {
+            const email = nomVal.toLowerCase();
+            const nombre = (document.getElementById('abm-user-nombre')?.value || '').trim();
+            const rol = document.getElementById('abm-user-rol')?.value || 'admisiones';
+            const profesor_id = document.getElementById('abm-user-profesor-id')?.value || '';
+            const activo = document.getElementById('abm-user-activo')?.checked !== false;
+            
+            const modulosChecked = [];
+            document.querySelectorAll('.chk-user-modulo:checked').forEach(c => modulosChecked.push(c.value));
+
+            const userData = {
+                email,
+                nombre: nombre || email.split('@')[0],
+                rol,
+                profesor_id,
+                activo,
+                modulos_habilitados: modulosChecked,
+                fecha_actualizacion: new Date().toISOString()
+            };
+
+            if (id) {
+                await updateDoc(doc(db, "usuarios_sistema", id), userData);
+            } else {
+                userData.fecha_creacion = new Date().toISOString();
+                await addDoc(collection(db, "usuarios_sistema"), userData);
+            }
+
+            alert(`✅ Permisos de "${email}" guardados correctamente.`);
+
+        } else if (col === 'profesores') {
+            const selSkills = document.getElementById('abm-edit-skills');
+            const skillsArr = selSkills ? Array.from(selSkills.selectedOptions).map(o => o.value) : [];
+            const dataProfe = {
+                nombre: nomVal,
+                correo_calendario: document.getElementById('abm-edit-correo')?.value || '',
+                celular: document.getElementById('abm-edit-celular')?.value || '',
+                alias_transferencia: document.getElementById('abm-edit-alias')?.value || '',
+                entrevista: !!document.getElementById('abm-edit-entrevista')?.checked,
+                grupales: !!document.getElementById('abm-edit-grupales')?.checked,
+                ensambles: !!document.getElementById('abm-edit-ensambles')?.checked,
+                skills: skillsArr
+            };
+
+            if (id) {
+                await updateDoc(doc(db, "profesores", id), dataProfe);
+            } else {
+                await addDoc(collection(db, "profesores"), dataProfe);
+            }
+            alert('✅ Profesor guardado correctamente.');
+
+        } else {
+            const simpleData = { nombre: nomVal };
+            if (id) {
+                await updateDoc(doc(db, col, id), simpleData);
+            } else {
+                await addDoc(collection(db, col), simpleData);
+            }
+            alert('✅ Registro guardado.');
+        }
+
+        document.getElementById('modal-abm-edit')?.close();
+        if (window.cargarVistaGlobal) {
+            window.cargarVistaGlobal('ABM-' + (window.tituloABMActual || ''));
+        }
+    } catch(err) {
+        alert('Error al guardar: ' + err.message);
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Guardar Cambios';
+});
+
 // Window Global Bindings
 window.abrirEdicionABM = abrirEdicionABM;
 window.eliminarABM = eliminarABM;
+window.cargarABM = cargarABM;

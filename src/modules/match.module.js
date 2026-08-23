@@ -1556,3 +1556,272 @@ Tenemos armada una propuesta para ${susc} de ${emojiInst} ${inst} con el Profe *
         alert('Error al generar WhatsApp: ' + err.message);
     }
 };
+
+// =======================================================================
+// SUGERENCIA AUTOMÁTICA Y SOLICITUDES DE PROFESORES
+// =======================================================================
+export function buscarAlumnosCandidatosParaSolicitud(solicitud, alumnosEspera) {
+    return alumnosEspera.map(alumno => {
+        let score = 0;
+        let motivos = [];
+        let alertas = [];
+
+        // 1. Coincidencia de Instrumentos Multi-selección
+        const instsPed = Array.isArray(solicitud.instrumentos) && solicitud.instrumentos.length > 0
+            ? solicitud.instrumentos.map(i => (i || '').trim().toLowerCase())
+            : (solicitud.instrumento ? solicitud.instrumento.split(',').map(s => s.trim().toLowerCase()) : []);
+
+        const instsAl = Array.isArray(alumno.instrumento)
+            ? alumno.instrumento.map(i => (i || '').trim().toLowerCase())
+            : [(alumno.instrumento || '').trim().toLowerCase()];
+
+        const coincideInst = instsPed.length === 0 || instsAl.some(i => instsPed.includes(i));
+        if (coincideInst) {
+            score += 40;
+            const matchingInsts = instsAl.filter(i => instsPed.includes(i));
+            motivos.push(`Instrumento coincidente (${matchingInsts.join(', ') || solicitud.instrumento})`);
+        } else {
+            alertas.push(`Instrumentos alumno: ${instsAl.join(', ') || 'Sin inst.'} vs Buscados: ${solicitud.instrumento}`);
+        }
+
+        // 2. Coincidencia de Niveles Multi-selección
+        const nivelAl = (alumno.nivel || '').trim().toLowerCase();
+        const nivelesPed = Array.isArray(solicitud.niveles) && solicitud.niveles.length > 0
+            ? solicitud.niveles.map(n => (n || '').trim().toLowerCase())
+            : (solicitud.nivel ? solicitud.nivel.split(',').map(s => s.trim().toLowerCase()) : []);
+
+        const esNivelLibre = nivelesPed.length === 0 || nivelesPed.includes('cualquiera');
+        const coincideNivel = esNivelLibre || nivelesPed.includes(nivelAl);
+
+        if (coincideNivel) {
+            score += 30;
+            motivos.push(`Nivel coincidente (${alumno.nivel || 'Estándar'})`);
+        } else {
+            alertas.push(`Nivel alumno: ${alumno.nivel || 'Sin nivel'} vs Solicitados: ${solicitud.nivel || 'Cualquiera'}`);
+        }
+
+        // 3. Coincidencia de Disponibilidad Horaria en el día del grupo
+        const diaSol = (solicitud.dia || '').trim().toUpperCase();
+        const dispDia = alumno.disponibilidad && (alumno.disponibilidad[diaSol] || alumno.disponibilidad[solicitud.dia]);
+        if (Array.isArray(dispDia) && dispDia.length > 0) {
+            score += 30;
+            motivos.push(`Disponible día ${solicitud.dia || diaSol}`);
+        } else {
+            alertas.push(`Sin disponibilidad declarada día ${solicitud.dia || diaSol}`);
+        }
+
+        return {
+            alumno,
+            score, // 0 a 100
+            motivos,
+            alertas,
+            esMatchOptimo: score >= 70
+        };
+    }).filter(res => res.score >= 40)
+      .sort((a, b) => b.score - a.score);
+}
+
+export async function renderMatchSolicitudesProfes(cont, configApp, callbacks = {}) {
+    cont.innerHTML = `
+        <div style="display:flex; justify-content:center; padding:40px 0;">
+            <div class="skeleton-row" style="height:120px; width:100%; max-width:900px; border-radius:12px;"></div>
+        </div>
+    `;
+
+    try {
+        const solSnap = await getDocs(collection(db, "solicitudes_vacantes"));
+        const solicitudes = [];
+        solSnap.forEach(d => solicitudes.push({ id: d.id, ...d.data() }));
+
+        const alSnap = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", "Lista de espera")));
+        const alumnosEspera = [];
+        alSnap.forEach(d => alumnosEspera.push({ id: d.id, ...d.data() }));
+
+        const pendientes = solicitudes.filter(s => s.estado === 'Pendiente' || s.estado === 'En Proceso');
+        const cubiertas = solicitudes.filter(s => s.estado === 'Cubierta' || s.estado === 'Cancelada');
+
+        if (pendientes.length === 0 && cubiertas.length === 0) {
+            cont.innerHTML = `
+                <div style="background:white; border:1px solid var(--border-color); border-radius:12px; padding:40px 20px; text-align:center; color:var(--text-muted); max-width:900px; margin:0 auto;">
+                    <div style="font-size:2.2em; margin-bottom:8px;">🔔</div>
+                    <div style="font-weight:700; font-size:16px; color:var(--text-main);">No hay solicitudes de vacantes de profesores</div>
+                    <div style="font-size:13px; margin-top:4px;">Cuando los docentes soliciten alumnos desde su portal aparecerán aquí con candidatos sugeridos de la Lista de Espera.</div>
+                </div>
+            `;
+            return;
+        }
+
+        let html = `
+            <div style="max-width:950px; width:100%; margin:0 auto; display:flex; flex-direction:column; gap:20px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h3 style="margin:0; color:var(--text-main); font-size:1.3em;">🔔 Solicitudes de Profesores Pendientes (${pendientes.length})</h3>
+                </div>
+        `;
+
+        if (pendientes.length === 0) {
+            html += `<div style="background:white; padding:20px; border-radius:10px; border:1px solid var(--border-color); color:var(--text-muted);">No hay solicitudes pendientes en este momento.</div>`;
+        } else {
+            pendientes.forEach(sol => {
+                const candidatos = buscarAlumnosCandidatosParaSolicitud(sol, alumnosEspera);
+                let candHtml = '';
+                if (candidatos.length === 0) {
+                    candHtml = `
+                        <div style="padding:15px; background:var(--hover-bg); border-radius:8px; border:1px solid var(--border-color); font-size:12.5px; color:var(--text-muted);">
+                            ⚠️ No hay alumnos en Lista de Espera que coincidan con ${sol.instrumento} en este momento.
+                        </div>
+                    `;
+                } else {
+                    candHtml = candidatos.map(c => {
+                        const al = c.alumno;
+                        const instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || 'Sin inst.');
+                        const badgeMatch = c.score >= 90
+                            ? `<span class="status-val-ok" style="font-size:12px; font-weight:800;">🟢 ${c.score}% MATCH</span>`
+                            : (c.score >= 70 
+                                ? `<span class="status-val-pending" style="font-size:12px; font-weight:800;">🟡 ${c.score}% MATCH</span>`
+                                : `<span class="status-val-reject" style="font-size:12px; font-weight:800;">🟠 ${c.score}% PARCIAL</span>`);
+
+                        const tagsPsico = Array.isArray(al.perfil_psicologico) && al.perfil_psicologico.length > 0
+                            ? al.perfil_psicologico.map(t => `<span class="profile-tag-badge" style="font-size:9.5px;">🧠 ${t}</span>`).join('')
+                            : '';
+
+                        const motivosHtml = c.motivos.map(m => `<span style="color:#0d5c30;">✅ ${m}</span>`).join(' • ');
+                        const alertasHtml = c.alertas.length > 0 ? c.alertas.map(a => `<span style="color:var(--accent-red);">⚠️ ${a}</span>`).join(' • ') : '';
+
+                        const btnTxt = c.score >= 70 ? '➕ Asignar Alumno a la Solicitud' : '⚠️ Asignar con Excepción...';
+
+                        return `
+                            <div style="background:white; border:1px solid var(--border-color); border-radius:10px; padding:14px; display:flex; flex-direction:column; gap:8px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                        ${badgeMatch}
+                                        <strong style="color:var(--text-main); font-size:14px;">👤 ${al.nombre}</strong>
+                                        <span style="font-size:12px; color:var(--text-muted);">${al.edad ? al.edad + ' años' : ''} • ${instStr}</span>
+                                        ${tagsPsico}
+                                    </div>
+                                    <button type="button" class="btn-primary btn-asignar-candidato-solicitud" data-sol-id="${sol.id}" data-al-id="${al.id}" style="font-size:12px; padding:7px 14px;">
+                                        ${btnTxt}
+                                    </button>
+                                </div>
+                                <div style="font-size:11.5px; line-height:1.4; background:var(--hover-bg); padding:6px 10px; border-radius:6px; border:1px solid var(--border-color);">
+                                    ${motivosHtml} ${alertasHtml ? ` | ${alertasHtml}` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                html += `
+                    <div class="row-item" style="display:flex; flex-direction:column; gap:12px; padding:20px; border-left:4px solid #e5a93d;">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
+                            <div>
+                                <div style="font-size:11px; text-transform:uppercase; font-weight:800; color:#c98a1e; letter-spacing:0.05em;">SOLICITUD DE VACANTE</div>
+                                <h4 style="margin:2px 0 4px 0; color:var(--text-main); font-size:16px;">📢 Profe ${sol.profesorNombre} • Grupo: <strong style="color:var(--accent-teal);">${sol.grupoNombre}</strong> (${sol.horario || ''})</h4>
+                                <div style="font-size:13px; color:var(--text-main);">
+                                    🎯 Busca: <strong>${sol.instrumento}</strong> • Nivel: <strong>${sol.nivel || 'Cualquiera'}</strong>
+                                </div>
+                                ${sol.observaciones ? `<div style="font-size:12px; color:var(--text-muted); margin-top:4px;">📝 Nota del profe: <em>"${sol.observaciones}"</em></div>` : ''}
+                            </div>
+                            <span class="status-val-pending" style="font-size:11.5px;">⏳ ${sol.estado}</span>
+                        </div>
+
+                        <div style="border-top:1px solid var(--border-color); padding-top:12px; margin-top:4px;">
+                            <div style="font-size:12px; font-weight:700; color:var(--text-main); margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+                                <span>📥 ALUMNOS EN LISTA DE ESPERA QUE COINCIDEN (${candidatos.length}):</span>
+                            </div>
+                            <div style="display:flex; flex-direction:column; gap:8px;">
+                                ${candHtml}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        if (cubiertas.length > 0) {
+            html += `
+                <div style="margin-top:20px;">
+                    <h4 style="color:var(--text-muted); font-size:1.1em; margin-bottom:10px;">✅ Solicitudes Cubiertas / Historial (${cubiertas.length})</h4>
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        ${cubiertas.map(sol => `
+                            <div style="background:white; border:1px solid var(--border-color); border-radius:8px; padding:12px 16px; display:flex; justify-content:space-between; align-items:center; opacity:0.85;">
+                                <div>
+                                    <strong style="color:var(--text-main); font-size:13px;">${sol.instrumento} para ${sol.grupoNombre}</strong>
+                                    <div style="font-size:11.5px; color:var(--text-muted);">Profe ${sol.profesorNombre} • Asignado a: <strong>${sol.alumnoAsignadoNombre || 'Alumno'}</strong></div>
+                                </div>
+                                <span class="status-val-ok">✅ Cubierta</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        html += `</div>`;
+        cont.innerHTML = html;
+
+        // Listener de asignación
+        cont.querySelectorAll('.btn-asignar-candidato-solicitud').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const solId = btn.getAttribute('data-sol-id');
+                const alId = btn.getAttribute('data-al-id');
+                const sol = solicitudes.find(s => s.id === solId);
+                const al = alumnosEspera.find(a => a.id === alId);
+                if (!sol || !al) return;
+
+                if (!confirm(`¿Confirmas asignar a ${al.nombre} a la vacante de ${sol.instrumento} en "${sol.grupoNombre}" (Profe ${sol.profesorNombre})?`)) {
+                    return;
+                }
+
+                btn.disabled = true;
+                btn.textContent = 'Asignando...';
+
+                try {
+                    const instsPed = Array.isArray(sol.instrumentos) && sol.instrumentos.length > 0
+                        ? sol.instrumentos.map(i => (i || '').trim().toLowerCase())
+                        : (sol.instrumento ? sol.instrumento.split(',').map(s => s.trim().toLowerCase()) : []);
+
+                    const instsAl = Array.isArray(al.instrumento) ? al.instrumento : [al.instrumento];
+                    const instElegido = instsAl.find(i => instsPed.includes((i || '').trim().toLowerCase())) || instsAl[0] || sol.instrumento;
+
+                    const now = new Date();
+                    const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+                    const hist = al.historial || [];
+                    hist.push({
+                        id: Date.now(),
+                        texto: `Asignado a solicitud de vacante del docente ${sol.profesorNombre} en grupo "${sol.grupoNombre}" como ${instElegido}. Pasa a Pre-alta Pendiente.`,
+                        fecha: fechaStr
+                    });
+
+                    // 1. Actualizar alumno
+                    await updateDoc(doc(db, "alumnos", alId), {
+                        estado_agenda: "Pre-alta Pendiente",
+                        grupo_asignado: sol.grupoNombre,
+                        profesor_asignado: sol.profesorNombre,
+                        reserva_profe_nombre: sol.profesorNombre,
+                        reserva_profe_id: sol.profesorId || '',
+                        instrumento_asignado: instElegido,
+                        horario_match: sol.horario || '',
+                        historial: hist
+                    });
+
+                    // 2. Actualizar solicitud
+                    await updateDoc(doc(db, "solicitudes_vacantes", solId), {
+                        estado: "Cubierta",
+                        alumnoAsignadoId: alId,
+                        alumnoAsignadoNombre: al.nombre,
+                        fechaAsignacion: new Date().toISOString()
+                    });
+
+                    alert(`✅ ¡Alumno ${al.nombre} asignado con éxito a ${sol.grupoNombre}!`);
+                    await renderMatchSolicitudesProfes(cont, configApp, callbacks);
+                } catch(err) {
+                    alert('Error al asignar alumno: ' + err.message);
+                    btn.disabled = false;
+                }
+            });
+        });
+
+    } catch(err) {
+        cont.innerHTML = `<div style="color:var(--accent-red); padding:30px; text-align:center; font-weight:700;">Error al cargar solicitudes de profesores: ${err.message}</div>`;
+    }
+}

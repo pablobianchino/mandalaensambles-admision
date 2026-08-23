@@ -94,10 +94,15 @@ import {
     ejecutarConfirmarMatch,
     obtenerEmojiInstrumento,
     renderMatchEnValidacion,
+    renderMatchSolicitudesProfes,
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
 } from "./src/modules/match.module.js";
+
+import {
+    renderPortalProfesor
+} from "./src/modules/profesor.module.js";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -1181,6 +1186,7 @@ const moduloSubtabs = {
     ],
     'Match': [
         { vista: 'Match - Pendientes', label: 'Crear Grupos / Match', icon: '🔍', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'lista de espera').length },
+        { vista: 'Match - Solicitudes Profes', label: 'Solicitudes Profes', icon: '🔔' },
         { vista: 'Match - En Validacion', label: 'Grupos en Validación', icon: '👥', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'validando grupo').length },
         { vista: 'Ajustes Match', label: 'Reglas y Tolerancias', icon: '⚙️' }
     ]
@@ -1272,6 +1278,51 @@ function renderSegmentedTabs(vista) {
     });
 }
 
+export function verificarPermisoModulo(moduloDestino) {
+    if (!window.usuarioActual) return true;
+    if (window.usuarioActual.rol === 'admin') return true;
+    const mods = window.usuarioActual.modulos_habilitados || [];
+    return mods.includes(moduloDestino);
+}
+
+export function configurarSidebarPorPermisos() {
+    const usuario = window.usuarioActual || {};
+    const rol = usuario.rol || 'admisiones';
+    const mods = usuario.modulos_habilitados || [];
+
+    const navProfe = document.getElementById('nav-item-portal-profe');
+    if (navProfe) {
+        navProfe.style.display = (rol === 'profesor' || mods.includes('portal_profesor') || rol === 'admin') ? 'flex' : 'none';
+    }
+
+    document.querySelectorAll('#sidebar .nav-item, #sidebar .nav-item-small').forEach(item => {
+        const mod = item.getAttribute('data-modulo');
+        if (!mod) return;
+        if (item.id === 'nav-item-portal-profe') return;
+        
+        let permitido = false;
+        if (rol === 'admin') {
+            permitido = true;
+        } else if (rol === 'profesor') {
+            permitido = (mod === 'portal_profesor');
+        } else {
+            const modIdMap = {
+                'Dashboard': 'dashboard',
+                'Inbox': 'inbox',
+                'Lista de Espera': 'espera',
+                'Match': 'match',
+                'Altas': 'altas',
+                'Estadísticas': 'metricas',
+                'Configuración': 'configuracion'
+            };
+            const idBuscado = modIdMap[mod] || mod.toLowerCase();
+            permitido = mods.includes(idBuscado);
+        }
+
+        item.style.display = permitido ? 'flex' : 'none';
+    });
+}
+
 async function cargarVista(vista) {
     window.cargarVistaGlobal = cargarVista;
     estadoActualVista = vista; 
@@ -1284,6 +1335,27 @@ async function cargarVista(vista) {
     else if (vista === 'Dashboard') modulo = 'Dashboard';
     else if (vista === 'Estadísticas') modulo = 'Estadísticas';
     else if (vista.startsWith('Configuración') || vista.startsWith('Ajustes') || vista.startsWith('ABM')) modulo = 'Configuración';
+    else if (vista === 'Mis Grupos & Solicitud de Alumnos') modulo = 'portal_profesor';
+
+    // Route Guard RBAC
+    const modIdMap = {
+        'Dashboard': 'dashboard',
+        'Inbox': 'inbox',
+        'Lista de Espera': 'espera',
+        'Match': 'match',
+        'Altas': 'altas',
+        'Estadísticas': 'metricas',
+        'Configuración': 'configuracion',
+        'portal_profesor': 'portal_profesor'
+    };
+    const modId = modIdMap[modulo] || modulo;
+    if (modId && !verificarPermisoModulo(modId)) {
+        alert(`⛔ No tienes permiso para acceder al módulo "${modulo || vista}".`);
+        if (window.usuarioActual && window.usuarioActual.rol === 'profesor') {
+            return cargarVista('Mis Grupos & Solicitud de Alumnos');
+        }
+        return cargarVista('Dashboard');
+    }
 
     // Resaltar en sidebar simplificado
     document.querySelectorAll('#sidebar .nav-item, #sidebar .nav-item-small').forEach(el => {
@@ -1331,7 +1403,6 @@ async function cargarVista(vista) {
         cv.style.display = 'flex'; 
         renderFiltrosChips(); 
         document.getElementById('search-container-general').style.display = 'block'; 
-        // Skeleton loader — muestra mientras llegan los datos de Firestore
         mostrarSkeleton('lista-generica', 6);
         
         if (vista === 'Inbox - Confirmadas' || vista === 'Altas - Confirmadas') document.getElementById('alarm-filters').style.display = 'flex';
@@ -1410,7 +1481,6 @@ async function cargarVista(vista) {
     } else if (vista === 'Inbox - Pendientes' || vista === 'Inbox - En Validacion' || vista === 'Altas - Pendientes' || vista === 'Altas - En Curso') {
         const isSinAgendar = vista === 'Inbox - Pendientes';
         const isEnValidacion = vista === 'Inbox - En Validacion';
-        document.getElementById('btn-carga-masiva').style.display = isSinAgendar ? 'block' : 'none'; 
         try {
             const qSnap = await getDocs(collection(db, "alumnos")); let allData = []; qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
             actualizarBadgesYNavegacion(allData);
@@ -1418,49 +1488,57 @@ async function cargarVista(vista) {
             
             let dataFiltrada = [];
             if (isSinAgendar) {
-                dataFiltrada = allData.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'pendiente procesar');
+                dataFiltrada = allData.filter(d => ['Pendiente procesar', 'Sin agendar'].includes(d.estado_agenda));
             } else if (isEnValidacion) {
-                dataFiltrada = allData.filter(d => {
-                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-                    return st === 'pendiente validacion por profe' || st === 'pendiente validacion por evaluador' || st === 'pendiente validacion por alumno';
-                });
+                dataFiltrada = allData.filter(d => ['Pendiente validación por profe', 'Pendiente validación por alumno'].includes(d.estado_agenda));
             } else if (vista === 'Altas - Pendientes') {
-                dataFiltrada = allData.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'pre-alta pendiente');
-                if (agrupadorNivel1 === 'ninguno') {
-                    agrupadorNivel1 = 'grupo';
-                    const selAgr = document.getElementById('select-agrupador-1');
-                    if (selAgr) selAgr.value = 'grupo';
-                }
+                dataFiltrada = allData.filter(d => d.estado_agenda === 'Pre-alta Pendiente');
             } else if (vista === 'Altas - En Curso') {
-                dataFiltrada = allData.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'pre-alta iniciada');
-                if (agrupadorNivel1 === 'ninguno') {
-                    agrupadorNivel1 = 'grupo';
-                    const selAgr = document.getElementById('select-agrupador-1');
-                    if (selAgr) selAgr.value = 'grupo';
-                }
+                dataFiltrada = allData.filter(d => d.estado_agenda === 'Pre-alta Iniciada');
             }
-            
             renderListaFilas('lista-generica', dataFiltrada, 'all', null);
         } catch(e) {}
-    } else if (vista === 'Inbox - Confirmadas' || vista === 'Inbox - Suspendidas' || vista === 'Altas - Confirmadas' || vista === 'Altas - Finalizadas' || vista === 'Altas - Suspendidas' || vista === 'Lista de Espera') {
-        try { 
-            const qSnap = await getDocs(collection(db, "alumnos")); let allData = [];
-            qSnap.forEach(d => allData.push({ id: d.id, ...d.data() }));
+    } else if (vista === 'Lista de Espera') {
+        try {
+            const qSnap = await getDocs(collection(db, "alumnos")); let allData = []; qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
+            actualizarBadgesYNavegacion(allData);
+            renderSegmentedTabs(vista);
+            let dataFiltrada = allData.filter(d => d.estado_agenda === 'Lista de espera');
+            renderListaFilas('lista-generica', dataFiltrada, 'all', null);
+        } catch(e) {}
+    } else if (vista === 'Inbox - Confirmadas' || vista === 'Altas - Confirmadas') {
+        try {
+            const qSnap = await getDocs(collection(db, "alumnos")); let allData = []; qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
             actualizarBadgesYNavegacion(allData);
             renderSegmentedTabs(vista);
             
-            let dataFiltrada = allData.filter(data => {
-                if (vista === 'Inbox - Confirmadas') return data.estado_agenda === 'Agenda confirmada';
-                if (vista === 'Inbox - Suspendidas') return data.estado_agenda === 'Agenda suspendida';
-                if (vista === 'Lista de Espera') return data.estado_agenda === 'Lista de espera';
-                if (vista === 'Altas - Confirmadas') {
-                    return (data.estado_agenda === 'Alta Efectiva' || data.estado_agenda === 'Alta Ilegal') && (!data.checklist_alta || data.checklist_alta.filter(Boolean).length < 5);
-                }
-                if (vista === 'Altas - Finalizadas') {
-                    return (data.estado_agenda === 'Alta Efectiva' || data.estado_agenda === 'Alta Ilegal' || data.estado_agenda === 'Alta Finalizada') && data.checklist_alta && data.checklist_alta.filter(Boolean).length === 5;
-                }
-                if (vista === 'Altas - Suspendidas') return data.estado_agenda === 'Alta Suspendida';
-                return false;
+            let dataFiltrada = [];
+            if (vista === 'Inbox - Confirmadas') {
+                dataFiltrada = allData.filter(d => ['Entrevista agendada', 'Entrevista realizada', 'Entrevista reprogramada'].includes(d.estado_agenda));
+            } else if (vista === 'Altas - Confirmadas') {
+                dataFiltrada = allData.filter(d => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5));
+            }
+            renderListaFilas('lista-generica', dataFiltrada, 'all', null);
+        } catch(e) {}
+    } else if (vista === 'Altas - Finalizadas') {
+        try {
+            const qSnap = await getDocs(collection(db, "alumnos")); let allData = []; qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
+            actualizarBadgesYNavegacion(allData);
+            renderSegmentedTabs(vista);
+            let dataFiltrada = allData.filter(d => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal' || d.estado_agenda === 'Alta Finalizada') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5));
+            renderListaFilas('lista-generica', dataFiltrada, 'all', null);
+        } catch(e) {}
+    } else if (vista === 'Inbox - Suspendidas' || vista === 'Altas - Suspendidas') {
+        try {
+            const qSnap = await getDocs(collection(db, "alumnos")); let allData = []; qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
+            actualizarBadgesYNavegacion(allData);
+            renderSegmentedTabs(vista);
+            
+            const targetState = vista === 'Inbox - Suspendidas' ? 'Agenda suspendida' : 'Alta suspendida';
+            let dataFiltrada = allData.filter(d => {
+                const normState = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                const normTarget = targetState.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                return normState === normTarget;
             });
             renderListaFilas('lista-generica', dataFiltrada, 'all', null);
         } catch(e) {}
@@ -1472,6 +1550,15 @@ async function cargarVista(vista) {
             renderSegmentedTabs(vista);
         } catch(e) {}
         await renderMatchPendientes();
+    } else if (vista === 'Match - Solicitudes Profes') {
+        contLista.style.display = 'flex';
+        try { 
+            const qSnap = await getDocs(collection(db, "alumnos")); let allData = [];
+            qSnap.forEach(d => allData.push({ id: d.id, ...d.data() }));
+            actualizarBadgesYNavegacion(allData);
+            renderSegmentedTabs(vista);
+        } catch(e) {}
+        await renderMatchSolicitudesProfes(contLista, configApp, { setBotonCargando });
     } else if (vista === 'Match - En Validacion') {
         try { 
             const qSnap = await getDocs(collection(db, "alumnos")); let allData = [];
@@ -1490,6 +1577,9 @@ async function cargarVista(vista) {
             renderSegmentedTabs(vista);
         } catch(e) {}
         await renderMatchConfirmados(contLista);
+    } else if (vista === 'Mis Grupos & Solicitud de Alumnos') {
+        contLista.style.display = 'flex';
+        await renderPortalProfesor(contLista, window.usuarioActual, { setBotonCargando });
     } else if (vista === 'Estadísticas') { contEstad.style.display = 'flex'; renderCharts({ cargarVista });
     } else if (vista === 'Configuración') { contLista.style.display = 'flex'; contLista.innerHTML = ''; renderConfigHub(contLista, { cargarVista });
     } else if (vista === 'Ajustes Generales') { contLista.style.display = 'flex'; contLista.innerHTML = ''; renderConfig(contLista, configApp, { setBotonCargando, cargarConfig });
@@ -1499,7 +1589,6 @@ async function cargarVista(vista) {
 
 async function renderMatchPendientes() {
     document.getElementById('vista-titulo').innerHTML = '<span style="color:var(--text-muted); font-weight:500;">Match › </span><span style="color:var(--text-main); font-weight:700;">Pendientes</span>';
-    // Ocultar controles estándar (fueron auto-mostrados por vista.includes('-'))
     document.getElementById('controles-vista').style.display = 'none';
     document.getElementById('search-container-general').style.display = 'none';
     // Mostrar container del módulo
@@ -1586,19 +1675,128 @@ const btnLogin = document.getElementById('btn-login'); if (btnLogin) btnLogin.ad
 document.getElementById('btn-logout').addEventListener('click', async () => { await signOut(auth); window.location.reload(); });
 
 
+const ROLES_MODULOS_DEFAULT = {
+    admin: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas', 'portal_profesor', 'configuracion', 'permisos'],
+    admisiones: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas'],
+    profesor: ['portal_profesor'],
+    personalizado: []
+};
+
 onAuthStateChanged(auth, async (user) => { 
     if (user) { 
         try {
-            const qSnap = await getDocs(collection(db, "usuarios_sistema")); let autorizado = false;
-            if (qSnap.empty) { await addDoc(collection(db, "usuarios_sistema"), { email: user.email.toLowerCase(), rol: 'admin' }); autorizado = true; } 
-            else { qSnap.forEach(d => { if(d.data().email && d.data().email.toLowerCase() === user.email.toLowerCase()) autorizado = true; }); }
-            if (!autorizado) { alert(`Acceso Denegado:\nTu cuenta (${user.email}) no está autorizada.`); await signOut(auth); document.getElementById('login-container').style.display = 'flex'; document.getElementById('app-container').style.display = 'none'; return; }
-        } catch(e) { return alert("Error al validar permisos."); }
+            const qSnap = await getDocs(collection(db, "usuarios_sistema")); 
+            let usuarioEncontrado = null;
+            if (qSnap.empty) { 
+                const adminData = { 
+                    email: user.email.toLowerCase(), 
+                    nombre: user.displayName || user.email.split('@')[0], 
+                    rol: 'admin', 
+                    activo: true, 
+                    modulos_habilitados: ROLES_MODULOS_DEFAULT.admin,
+                    fecha_creacion: new Date().toISOString() 
+                };
+                const newDoc = await addDoc(collection(db, "usuarios_sistema"), adminData); 
+                usuarioEncontrado = { id: newDoc.id, ...adminData };
+            } else { 
+                qSnap.forEach(d => { 
+                    const dt = d.data();
+                    if(dt.email && dt.email.toLowerCase() === user.email.toLowerCase()) {
+                        usuarioEncontrado = { id: d.id, ...dt };
+                    }
+                }); 
+            }
 
-        document.getElementById('login-container').style.display = 'none'; document.getElementById('app-container').style.display = 'flex'; 
-        const userInfoBox = document.getElementById('user-info'); userInfoBox.textContent = user.email; 
-        if (userInfoBox && !document.getElementById('version-tag')) { userInfoBox.insertAdjacentHTML('afterend', `<div id="version-tag" style="font-size:0.85em; color:var(--accent-teal); margin-top:5px; font-weight:700; padding:0 10px;">${APP_VERSION}</div>`); }
-        await cargarConfig(); cargarVista('Dashboard'); 
+            if (!usuarioEncontrado && user.email.toLowerCase() === 'productora.mandalahouse@gmail.com') {
+                const adminData = { 
+                    email: user.email.toLowerCase(), 
+                    nombre: 'Mandala House Productora', 
+                    rol: 'admin', 
+                    activo: true, 
+                    modulos_habilitados: ROLES_MODULOS_DEFAULT.admin,
+                    fecha_creacion: new Date().toISOString() 
+                };
+                const newDoc = await addDoc(collection(db, "usuarios_sistema"), adminData); 
+                usuarioEncontrado = { id: newDoc.id, ...adminData };
+            }
+
+            if (!usuarioEncontrado) { 
+                alert(`⛔ Acceso Denegado:\nTu cuenta (${user.email}) no está autorizada para ingresar a este sistema.`); 
+                await signOut(auth); 
+                document.getElementById('login-container').style.display = 'flex'; 
+                document.getElementById('app-container').style.display = 'none'; 
+                return; 
+            }
+
+            if (usuarioEncontrado.activo === false) {
+                alert(`⛔ Cuenta Inactiva:\nTu usuario (${user.email}) ha sido desactivado por el administrador.`);
+                await signOut(auth);
+                document.getElementById('login-container').style.display = 'flex';
+                document.getElementById('app-container').style.display = 'none';
+                return;
+            }
+
+            const rol = usuarioEncontrado.rol || 'admisiones';
+            const modulos = Array.isArray(usuarioEncontrado.modulos_habilitados) && usuarioEncontrado.modulos_habilitados.length > 0
+                ? usuarioEncontrado.modulos_habilitados
+                : (ROLES_MODULOS_DEFAULT[rol] || []);
+
+            let nombreDocente = usuarioEncontrado.nombre;
+            let profesorId = usuarioEncontrado.profesor_id || '';
+
+            if (profesorId) {
+                try {
+                    const pDoc = await getDoc(doc(db, "profesores", profesorId));
+                    if (pDoc.exists() && pDoc.data().nombre) {
+                        nombreDocente = pDoc.data().nombre;
+                    }
+                } catch(e) {}
+            } else {
+                try {
+                    const pSnap = await getDocs(collection(db, "profesores"));
+                    pSnap.forEach(d => {
+                        const dt = d.data();
+                        if (dt.correo_calendario && dt.correo_calendario.toLowerCase() === user.email.toLowerCase()) {
+                            profesorId = d.id;
+                            nombreDocente = dt.nombre || nombreDocente;
+                        }
+                    });
+                } catch(e) {}
+            }
+
+            window.usuarioActual = {
+                ...usuarioEncontrado,
+                nombre: nombreDocente || usuarioEncontrado.nombre || user.displayName || user.email.split('@')[0],
+                profesor_id: profesorId,
+                rol,
+                modulos_habilitados: modulos
+            };
+
+        } catch(e) { 
+            return alert("Error al validar permisos de usuario: " + e.message); 
+        }
+
+        document.getElementById('login-container').style.display = 'none'; 
+        document.getElementById('app-container').style.display = 'flex'; 
+        
+        const userInfoBox = document.getElementById('user-info'); 
+        if (userInfoBox) {
+            const nomDisp = window.usuarioActual.nombre ? `${window.usuarioActual.nombre} (${window.usuarioActual.email})` : window.usuarioActual.email;
+            userInfoBox.textContent = nomDisp; 
+        }
+
+        if (userInfoBox && !document.getElementById('version-tag')) { 
+            userInfoBox.insertAdjacentHTML('afterend', `<div id="version-tag" style="font-size:0.85em; color:var(--accent-teal); margin-top:5px; font-weight:700; padding:0 10px;">${APP_VERSION}</div>`); 
+        }
+
+        await cargarConfig(); 
+        configurarSidebarPorPermisos();
+
+        if (window.usuarioActual.rol === 'profesor') {
+            cargarVista('Mis Grupos & Solicitud de Alumnos');
+        } else {
+            cargarVista('Dashboard'); 
+        }
         
         const btnMobileMenu = document.getElementById('btn-mobile-menu');
         const btnCerrarMenuMobile = document.getElementById('btn-cerrar-menu-mobile');
@@ -1610,7 +1808,8 @@ onAuthStateChanged(auth, async (user) => {
         if(overlay) overlay.addEventListener('click', () => { sidebar.classList.remove('active'); overlay.style.display = 'none'; });
 
     } else { 
-        document.getElementById('login-container').style.display = 'flex'; document.getElementById('app-container').style.display = 'none'; 
+        document.getElementById('login-container').style.display = 'flex'; 
+        document.getElementById('app-container').style.display = 'none'; 
     } 
 });
 

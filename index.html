@@ -60,6 +60,10 @@
                 
                 <li class="nav-divider"></li>
                 
+                <li class="nav-item" id="nav-item-portal-profe" data-vista="Mis Grupos & Solicitud de Alumnos" data-modulo="portal_profesor" style="display:none;">
+                    <span class="nav-icon">👨‍🏫</span> <span>Mis Grupos & Alumnos</span>
+                </li>
+
                 <li class="nav-item" data-vista="Inbox - Pendientes" data-modulo="Inbox">
                     <span class="nav-icon">📥</span> <span>Inbox</span>
                     <span class="nav-badge" id="badge-inbox" style="display:none;">0</span>
@@ -658,9 +662,150 @@
                 </div>
             </div>
 
+            <!-- SECCIÓN RBAC / PERMISOS PARA USUARIOS DEL SISTEMA -->
+            <div id="div-abm-edit-usuario" style="display:none; margin-top:10px;">
+                <label style="margin-top:8px;">Nombre / Referencia:
+                    <input type="text" id="abm-user-nombre" class="modern-input" placeholder="Ej: Martín Gómez">
+                </label>
+                
+                <div style="margin-top:12px;">
+                    <label>Rol de Usuario:
+                        <select id="abm-user-rol" class="modern-input">
+                            <option value="admin">👑 Administrador (Acceso Total)</option>
+                            <option value="admisiones">📥 Equipo de Admisión (Operativa)</option>
+                            <option value="profesor">👨‍🏫 Profesor / Docente (Exclusivo Mis Grupos)</option>
+                            <option value="personalizado">🛠️ Personalizado (Selección granular)</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div id="abm-user-profesor-link-wrapper" style="margin-top:12px;">
+                    <label>Asociar Ficha de Profesor:
+                        <select id="abm-user-profesor-id" class="modern-input"></select>
+                    </label>
+                    <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">💡 Si asocias un profesor, se usará su nombre en los saludos y se le asignarán sus grupos correspondientes.</div>
+                </div>
+
+                <div style="margin-top:15px; padding:12px; background:var(--hover-bg); border-radius:8px; border:1px solid var(--border-color); display:flex; align-items:center; justify-content:space-between;">
+                    <span style="font-weight:700; font-size:13px; color:var(--text-main);">Estado de la Cuenta:</span>
+                    <label style="display:flex; align-items:center; gap:8px; margin:0; cursor:pointer; font-weight:700; color:var(--accent-teal);">
+                        <input type="checkbox" id="abm-user-activo" checked style="width:18px; height:18px; accent-color:var(--accent-teal);">
+                        <span id="abm-user-activo-label">Activo</span>
+                    </label>
+                </div>
+
+                <div style="margin-top:15px;">
+                    <strong style="font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:8px;">Módulos Habilitados (Permisos Granulares):</strong>
+                    <div id="abm-user-modulos-grid" style="display:flex; flex-direction:column; gap:8px; background:var(--hover-bg); padding:12px; border-radius:8px; border:1px solid var(--border-color); max-height:180px; overflow-y:auto;">
+                        <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="dashboard" checked> 📊 Dashboard / Resumen</label>
+                        <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="inbox" checked> 📥 Inbox (Flujo de Entrevistas)</label>
+                        <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="espera" checked> 🛋️ Lista de Espera</label>
+                        <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="match" checked> 🧩 Match (Nuevos Grupos & Solicitudes)</label>
+                        <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="match_etapa4" checked> 👥 Match Etapa 4 (Sumar a Existentes)</label>
+                        <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="altas" checked> 🚀 Altas (Pre-alta, Curso, Confirmadas)</label>
+                        <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="metricas" checked> 📈 Métricas y Estadísticas</label>
+                        <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="portal_profesor"> 👨‍🏫 Portal Docente (Mis Grupos)</label>
+                        <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="configuracion"> ⚙️ Configuración del Sistema</label>
+                        <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="permisos"> 🔐 Gestión de Usuarios y Permisos</label>
+                    </div>
+                </div>
+            </div>
+
             <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
                 <button type="button" class="btn-cerrar-modal" data-modal="modal-abm-edit" style="padding:10px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted);">Cancelar</button>
                 <button id="btn-guardar-abm-edit" class="btn-primary">Guardar Cambios</button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- ================================================ -->
+    <!-- MODAL: SOLICITAR VACANTE / ALUMNO (PORTAL DOCENTE) -->
+    <!-- ================================================ -->
+    <dialog id="modal-solicitar-vacante" class="modern-modal auto-height-modal" style="max-width:540px;">
+        <div style="padding:24px;">
+            <div class="modal-drag-pill"></div>
+            <h3 style="margin:0 0 10px 0; color:var(--text-main); font-weight:700;">➕ Solicitar Alumno / Vacante</h3>
+            <p style="color:var(--text-muted); font-size:0.9em; margin-bottom:15px; line-height:1.4;">Busca alumnos para completar un grupo existente o para abrir una nueva clase según tus horarios libres en agenda.</p>
+            
+            <input type="hidden" id="sol-vac-profe-id">
+            <input type="hidden" id="sol-vac-profe-nombre">
+            <input type="hidden" id="sol-vac-profe-email">
+            <input type="hidden" id="sol-vac-dia">
+
+            <!-- Selector de Tipo de Solicitud -->
+            <div style="margin-bottom:15px; background:var(--hover-bg); padding:8px 12px; border-radius:10px; border:1px solid var(--border-color); display:flex; gap:16px;">
+                <label style="display:flex; align-items:center; gap:6px; margin:0; cursor:pointer; font-size:13px; font-weight:700; color:var(--text-main); text-transform:none;">
+                    <input type="radio" name="sol-vac-modo" id="sol-vac-modo-existente" value="existente" checked style="accent-color:var(--accent-teal);">
+                    👥 Grupo Existente
+                </label>
+                <label style="display:flex; align-items:center; gap:6px; margin:0; cursor:pointer; font-size:13px; font-weight:700; color:var(--text-main); text-transform:none;">
+                    <input type="radio" name="sol-vac-modo" id="sol-vac-modo-nuevo" value="nuevo" style="accent-color:var(--accent-teal);">
+                    ✨ Iniciar Nueva Clase / Grupo de Cero
+                </label>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:14px;">
+                <!-- Sección: Grupo Existente -->
+                <div id="sol-vac-sec-existente">
+                    <label>Grupo / Ensamble:
+                        <select id="sol-vac-grupo" class="modern-input"></select>
+                    </label>
+                    <div style="margin-top:10px;">
+                        <label>Horario del Grupo:
+                            <input type="text" id="sol-vac-horario" class="modern-input" placeholder="Ej: Jueves 19:00 a 20:30" readonly style="background:var(--hover-bg);">
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Sección: Nueva Clase de Cero (Horarios Libres de Agenda) -->
+                <div id="sol-vac-sec-nuevo" style="display:none; background:rgba(0,123,143,0.04); border:1px solid rgba(0,123,143,0.2); border-radius:10px; padding:14px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <label style="margin:0; font-weight:700; font-size:12.5px; color:var(--accent-teal);">📅 Horarios Libres en tu Agenda (Lunes a Sábado):</label>
+                        <button type="button" id="btn-recargar-slots-docente" style="background:none; border:none; cursor:pointer; font-size:12px; color:var(--accent-teal); font-weight:600;">🔄 Actualizar</button>
+                    </div>
+                    <select id="sol-vac-slot-libre" class="modern-input" style="font-size:13px;">
+                        <option value="">Cargando disponibilidad y calendario...</option>
+                    </select>
+                    <div style="font-size:11px; color:var(--text-muted); margin-top:5px;">⭐ = Horario recomendado contiguo a otra clase ya agendada en tu calendario.</div>
+
+                    <div style="margin-top:10px;">
+                        <label style="font-size:12px;">Nombre de la Nueva Clase / Grupo:
+                            <input type="text" id="sol-vac-nuevo-nombre" class="modern-input" placeholder="Ej: J18.00 Pablo (Ensamble Rock)">
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Instrumentos Requeridos (Multi-selección) -->
+                <div>
+                    <label style="display:block; margin-bottom:6px;">Instrumentos Buscados (puedes seleccionar más de uno):</label>
+                    <div id="sol-vac-instrumentos-container" style="display:flex; flex-wrap:wrap; gap:8px; background:var(--hover-bg); padding:10px; border-radius:10px; border:1px solid var(--border-color); max-height:140px; overflow-y:auto;">
+                        <span style="color:var(--text-muted); font-size:12px;">Cargando instrumentos...</span>
+                    </div>
+                </div>
+
+                <!-- Niveles Sugeridos (Multi-selección) -->
+                <div>
+                    <label style="display:block; margin-bottom:6px;">Niveles Sugeridos (puedes seleccionar más de uno):</label>
+                    <div id="sol-vac-niveles-container" style="display:flex; flex-wrap:wrap; gap:8px;">
+                        <button type="button" class="btn-chip-nivel active" data-nivel="Cualquiera" style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:700; border:1px solid var(--accent-teal); background:var(--accent-teal); color:#fff; cursor:pointer;">✨ Cualquiera</button>
+                        <button type="button" class="btn-chip-nivel" data-nivel="Inicial" style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:600; border:1px solid var(--border-color); background:#fff; color:var(--text-main); cursor:pointer;">🌱 Inicial</button>
+                        <button type="button" class="btn-chip-nivel" data-nivel="Nivel 1" style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:600; border:1px solid var(--border-color); background:#fff; color:var(--text-main); cursor:pointer;">🎸 Nivel 1</button>
+                        <button type="button" class="btn-chip-nivel" data-nivel="Nivel 2" style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:600; border:1px solid var(--border-color); background:#fff; color:var(--text-main); cursor:pointer;">⚡ Nivel 2</button>
+                        <button type="button" class="btn-chip-nivel" data-nivel="Avanzado" style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:600; border:1px solid var(--border-color); background:#fff; color:var(--text-main); cursor:pointer;">🏆 Avanzado</button>
+                    </div>
+                </div>
+
+                <!-- Observaciones -->
+                <div>
+                    <label>Observaciones / Perfil Deseado:
+                        <textarea id="sol-vac-obs" rows="3" class="modern-input" placeholder="Ej: Buscamos bajista con buena onda para temas de blues y rock..."></textarea>
+                    </label>
+                </div>
+            </div>
+
+            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px; border-top:1px solid var(--border-color); padding-top:15px;">
+                <button type="button" class="btn-cerrar-modal" data-modal="modal-solicitar-vacante" style="padding:10px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted);">Cancelar</button>
+                <button id="btn-guardar-solicitar-vacante" class="btn-primary">Enviar Solicitud</button>
             </div>
         </div>
     </dialog>
@@ -838,12 +983,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=4.9.10"></script>
+    <script type="module" src="app.js?v=4.12.1"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=4.9.10').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=4.12.1').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {
