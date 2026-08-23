@@ -705,7 +705,7 @@ export function renderResultadosMatch() {
 
             return `
                 <div class="match-student-row" style="cursor:pointer;" onclick="window.editarAlumnoModalDirecto('${al.id}')" title="Ver ficha y registro completo de ${al.nombre}">
-                    <span class="match-student-name" style="cursor:pointer; text-decoration:underline dotted; text-underline-offset:3px;">👤 ${al.nombre}</span>
+                    <span class="match-student-name" style="cursor:pointer;">👤 ${al.nombre}</span>
                     <div class="match-student-tags">
                         <span class="match-student-tag">${instStr}</span>
                         ${nivelStr ? `<span class="match-student-tag nivel">${nivelStr}</span>` : ''}
@@ -795,7 +795,7 @@ export function renderResultadosMatch() {
                 return `
                 <div class="match-confirm-row" style="cursor:pointer;" onclick="window.editarAlumnoModalDirecto('${al.id}')" title="Ver ficha y registro completo de ${al.nombre}">
                     <div style="flex:1;">
-                        <div style="font-weight:700; color:var(--text-main); font-size:13.5px; text-decoration:underline dotted; text-underline-offset:3px;">👤 ${al.nombre}</div>
+                        <div style="font-weight:700; color:var(--text-main); font-size:13.5px;">👤 ${al.nombre}</div>
                         <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">📱 ${al.celular || 'Sin celular'} • ${al.tipo_suscripcion || ''}</div>
                     </div>
                     <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; align-items:center;">
@@ -1035,7 +1035,7 @@ export async function renderMatchEnValidacion(container) {
                 return `
                     <div class="group-member-row">
                         <div class="group-member-info" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; cursor:pointer;" onclick="window.editarAlumnoModalDirecto('${al.id}')" title="Ver ficha y registro completo de ${al.nombre}">
-                            <span class="group-member-name" style="cursor:pointer; text-decoration:underline dotted; text-underline-offset:3px;">👤 ${al.nombre}</span>
+                            <span class="group-member-name">👤 ${al.nombre}</span>
                             ${al.edad ? `<span style="font-size:12px; color:var(--text-muted);">${al.edad}a</span>` : ''}
                             <span class="match-student-tag">${emojiInst} ${instAsignado}</span>
                             ${al.nivel ? `<span class="match-student-tag nivel">${al.nivel}</span>` : ''}
@@ -1699,7 +1699,7 @@ export async function renderMatchSolicitudesProfes(cont, configApp, callbacks = 
                                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
                                     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                                         ${badgeMatch}
-                                        <strong style="color:var(--text-main); font-size:14px; cursor:pointer; text-decoration:underline dotted; text-underline-offset:3px;" onclick="window.editarAlumnoModalDirecto('${al.id}')" title="Ver ficha y registro completo de ${al.nombre}">👤 ${al.nombre}</strong>
+                                        <strong style="color:var(--text-main); font-size:14px; cursor:pointer;" onclick="window.editarAlumnoModalDirecto('${al.id}')" title="Ver ficha y registro completo de ${al.nombre}">👤 ${al.nombre}</strong>
                                         <span style="font-size:12px; color:var(--text-muted);">${al.edad ? al.edad + ' años' : ''} • ${instStr}</span>
                                         ${tagsPsico}
                                     </div>
