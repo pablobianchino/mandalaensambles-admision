@@ -2871,6 +2871,12 @@ document.addEventListener('click', async (e) => {
         quillInforme.setContents([]); 
         quillInforme.enable(false); 
         document.getElementById('aviso-informe-bloqueado').style.display = 'block'; 
+        const elAltaBox = document.getElementById('modal-seccion-alta-box');
+        if (elAltaBox) elAltaBox.style.display = 'none';
+        const elFechaInf = document.getElementById('modal-informe-fecha-val');
+        const elEvalInf = document.getElementById('modal-informe-evaluador-val');
+        if (elFechaInf) elFechaInf.textContent = '-';
+        if (elEvalInf) elEvalInf.textContent = '-';
         historialActual = []; 
         renderHistorial(); 
         
@@ -2937,6 +2943,54 @@ async function llenarFormularioAlumno(id) {
     
     quillInforme.root.innerHTML = d.informe_admision || '';
     renderChipsPerfilPsicologico('ficha-perfil-psicologico-chips', d.perfil_psicologico || []);
+    
+    // 1. Datos de Entrevista en Tab Informe
+    let fechaEntrevistaTxt = '-';
+    if (d.opciones_propuestas && d.opciones_propuestas.length > 1) {
+        fechaEntrevistaTxt = d.opciones_propuestas.map(o => `${o.letra || '-'}: ${o.fechaTexto}`).join(' / ');
+    } else if (d.reserva_fecha_texto) {
+        fechaEntrevistaTxt = d.reserva_fecha_texto;
+    } else if (d.reserva_inicio) {
+        try {
+            const f = new Date(d.reserva_inicio);
+            if (!isNaN(f.getTime())) fechaEntrevistaTxt = f.toLocaleString();
+        } catch(e) {}
+    }
+    const evaluadorTxt = d.reserva_profe_nombre || '-';
+    const elFechaInf = document.getElementById('modal-informe-fecha-val');
+    const elEvalInf = document.getElementById('modal-informe-evaluador-val');
+    if (elFechaInf) elFechaInf.textContent = fechaEntrevistaTxt;
+    if (elEvalInf) elEvalInf.textContent = evaluadorTxt;
+
+    // 2. Datos de Suscripción de Alta en Tab Datos
+    const elAltaBox = document.getElementById('modal-seccion-alta-box');
+    const elAltaProfe = document.getElementById('modal-alta-profe-val');
+    const elAltaGrupo = document.getElementById('modal-alta-grupo-val');
+    const elAltaHorario = document.getElementById('modal-alta-horario-val');
+    
+    const tieneDatosAlta = d.grupo_asignado || d.horario_match || d.fecha_inicio_clases || d.profesor_asignado || (['Pre-alta pendiente', 'Pre-alta iniciada', 'Alta Efectiva', 'Alta Ilegal', 'Alta Finalizada', 'Validando grupo'].includes(d.estado_agenda) && d.reserva_profe_nombre);
+    
+    if (tieneDatosAlta && elAltaBox) {
+        elAltaBox.style.display = 'block';
+        if (elAltaProfe) elAltaProfe.textContent = d.profesor_asignado || d.reserva_profe_nombre || '-';
+        if (elAltaGrupo) elAltaGrupo.textContent = d.grupo_asignado || '-';
+        
+        let partesHorario = [];
+        if (d.horario_match) partesHorario.push(d.horario_match);
+        if (d.fecha_inicio_clases) {
+            try {
+                const f = new Date(d.fecha_inicio_clases);
+                if (!isNaN(f.getTime())) {
+                    const dia = f.getDate();
+                    const mes = f.getMonth() + 1;
+                    partesHorario.push(`Inicio: ${dia}/${mes}`);
+                }
+            } catch(e) {}
+        }
+        if (elAltaHorario) elAltaHorario.textContent = partesHorario.length > 0 ? partesHorario.join(' • ') : '-';
+    } else if (elAltaBox) {
+        elAltaBox.style.display = 'none';
+    }
     
     const estadosBloqueados = ['Pendiente procesar', 'Pendiente validación por profe', 'Pendiente validación por alumno'];
     if (estadosBloqueados.includes(d.estado_agenda)) {

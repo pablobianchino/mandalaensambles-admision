@@ -456,6 +456,26 @@
                     <label style="margin-top:15px;">Instrumentos * 
                         <select id="instrumento" multiple required style="display:none;"></select>
                     </label>
+
+                    <div id="modal-seccion-alta-box" style="display:none; margin-top:20px; padding:12px 16px; background:rgba(0, 123, 143, 0.05); border:1px solid rgba(0, 123, 143, 0.2); border-radius:10px;">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                            <span style="font-size:13px; font-weight:800; color:var(--accent-teal);">🎯 Suscripción & Asignación de Alta</span>
+                        </div>
+                        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px; font-size:12px;">
+                            <div>
+                                <span style="font-size:11px; color:var(--text-muted); font-weight:600;">👨‍🏫 Profesor Asignado:</span>
+                                <div id="modal-alta-profe-val" style="font-weight:700; color:var(--text-main); margin-top:2px;">-</div>
+                            </div>
+                            <div>
+                                <span style="font-size:11px; color:var(--text-muted); font-weight:600;">👥 Grupo Asignado:</span>
+                                <div id="modal-alta-grupo-val" style="font-weight:700; color:var(--accent-teal); margin-top:2px;">-</div>
+                            </div>
+                            <div>
+                                <span style="font-size:11px; color:var(--text-muted); font-weight:600;">🕒 Horario / Inicio de Clases:</span>
+                                <div id="modal-alta-horario-val" style="font-weight:700; color:var(--text-main); margin-top:2px;">-</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="tab-disp" class="tab-content" style="display:none;">
@@ -470,6 +490,16 @@
                 </div>
 
                 <div id="tab-informe" class="tab-content" style="display:none;">
+                    <div id="modal-informe-entrevista-box" style="background:var(--hover-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; margin-bottom:15px; display:flex; flex-wrap:wrap; gap:12px 24px; align-items:center;">
+                        <div>
+                            <span style="font-size:10.5px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">📅 Fecha y Hora de Entrevista</span>
+                            <div id="modal-informe-fecha-val" style="font-size:13px; font-weight:700; color:var(--text-main); margin-top:2px;">-</div>
+                        </div>
+                        <div>
+                            <span style="font-size:10.5px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">👨‍🏫 Evaluador a Cargo</span>
+                            <div id="modal-informe-evaluador-val" style="font-size:13px; font-weight:700; color:var(--accent-teal); margin-top:2px;">-</div>
+                        </div>
+                    </div>
                     <div id="aviso-informe-bloqueado" style="display:none; background:var(--hover-bg); color:var(--accent-red); padding:10px; border-radius:8px; margin-bottom:15px; font-weight:600; font-size:13px;">
                         ⚠️ El informe de admisión solo se puede completar una vez que la entrevista esté confirmada.
                     </div>
@@ -995,12 +1025,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=4.13.7"></script>
+    <script type="module" src="app.js?v=4.13.8"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=4.13.7').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=4.13.8').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {
