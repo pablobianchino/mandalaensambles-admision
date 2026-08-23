@@ -89,18 +89,37 @@ export function renderTimelineUnificado(containerId, configNodos, datos, callbac
                     trayContent.innerHTML = nodeData.map(al => {
                         let details = [];
                         if(al.edad) details.push(`${al.edad}a`);
+                        
                         let instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento;
-                        if(instStr) details.push(`<strong style="color:var(--accent-teal)">${instStr}</strong>`);
+                        let instParts = [];
+                        if(instStr) instParts.push(`<strong style="color:var(--accent-teal)">${instStr}</strong>`);
+                        if(al.nivel) instParts.push(`<span class="match-student-tag nivel" style="font-size:10px; padding:1px 6px;">${al.nivel}</span>`);
+                        if(instParts.length > 0) details.push(instParts.join(' '));
+
                         if(al.reserva_profe_nombre) details.push(`Profe: ${al.reserva_profe_nombre}`);
                         if(al.grupo_asignado) details.push(`Grupo: ${al.grupo_asignado}`);
-                        if(al.opciones_propuestas && al.opciones_propuestas.length > 1) {
-                            details.push(`Opciones: ${al.opciones_propuestas.map(o => `${o.letra || '-'}: ${o.fechaTexto}`).join(' / ')}`);
-                        } else if(al.reserva_fecha_texto) {
-                            details.push(`Entrevista: ${al.reserva_fecha_texto}`);
+
+                        // Fecha de entrevista solo en etapas previas a Lista de Espera (índices 0 a 3)
+                        const esEtapaEntrevista = index < 4;
+                        if(esEtapaEntrevista) {
+                            if(al.opciones_propuestas && al.opciones_propuestas.length > 1) {
+                                details.push(`<strong style="color:var(--accent-teal); font-weight:700;">📅 Opciones: ${al.opciones_propuestas.map(o => `${o.letra || '-'}: ${o.fechaTexto}`).join(' / ')}</strong>`);
+                            } else if(al.reserva_fecha_texto) {
+                                details.push(`<strong style="color:var(--accent-teal); font-weight:700;">📅 Entrevista: ${al.reserva_fecha_texto}</strong>`);
+                            }
                         }
-                        if(al.fecha_inicio_clases) { const f = new Date(al.fecha_inicio_clases); details.push(`Alta: ${f.getDate()}/${f.getMonth()+1}`); }
+
+                        // Inicio de Alta en etapas de Grupos en Validación y Altas (índices >= 5)
+                        if(index >= 5 && al.fecha_inicio_clases) { 
+                            try {
+                                const f = new Date(al.fecha_inicio_clases);
+                                if (!isNaN(f.getTime())) {
+                                    details.push(`<strong style="color:var(--accent-teal); font-weight:700;">📅 Inicio de Alta: ${f.getDate()}/${f.getMonth()+1}</strong>`);
+                                }
+                            } catch(e) {}
+                        }
                         
-                        let detailsHtml = details.length > 0 ? `<div style="font-size:11px; color:var(--text-muted); line-height:1.4; display:flex; flex-wrap:wrap; gap:4px; row-gap:2px;"><span>${details.join('</span><span style="opacity:0.5">•</span><span>')}</span></div>` : '';
+                        let detailsHtml = details.length > 0 ? `<div style="font-size:11px; color:var(--text-muted); line-height:1.4; display:flex; flex-wrap:wrap; gap:4px; row-gap:2px; align-items:center;"><span>${details.join('</span><span style="opacity:0.5">•</span><span>')}</span></div>` : '';
                         
                         const botonesVisibles = typeof generarBotonesPrincipalesVisibles === 'function' ? generarBotonesPrincipalesVisibles(al, al.id) : '';
                         const botonesSecundarios = typeof generarBotonesAccion === 'function' ? generarBotonesAccion(al, al.id) : '';
