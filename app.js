@@ -1186,17 +1186,35 @@ const moduloSubtabs = {
     ],
     'Match': [
         { vista: 'Match - Pendientes', label: 'Crear Grupos / Match', icon: '🔍', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'lista de espera').length },
-        { vista: 'Match - Solicitudes Profes', label: 'Solicitudes Profes', icon: '🔔' },
+        { vista: 'Match - Solicitudes Profes', label: 'Solicitudes Profes', icon: '🔔', countFn: () => cachedSolicitudesVacantesCount, className: 'tab-badge-solicitudes' },
         { vista: 'Match - En Validacion', label: 'Grupos en Validación', icon: '👥', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'validando grupo').length },
         { vista: 'Ajustes Match', label: 'Reglas y Tolerancias', icon: '⚙️' }
     ]
 };
 
 let cachedAlumnosData = [];
+let cachedSolicitudesVacantesCount = 0;
+
+async function refrescarConteoVacantes() {
+    try {
+        const solSnap = await getDocs(collection(db, "solicitudes_vacantes"));
+        let count = 0;
+        solSnap.forEach(d => {
+            const data = d.data();
+            if (data.estado === 'Pendiente' || !data.estado) count++;
+        });
+        cachedSolicitudesVacantesCount = count;
+        const bSol = document.querySelector('.tab-badge-solicitudes');
+        if (bSol) {
+            bSol.textContent = count;
+        }
+    } catch(e) {}
+}
 
 function actualizarBadgesYNavegacion(allData) {
     if (Array.isArray(allData)) cachedAlumnosData = allData;
     const datos = cachedAlumnosData || [];
+    refrescarConteoVacantes();
     
     // Conteo Inbox (Sin Agendar + En Validación)
     const countInbox = datos.filter(d => ['Pendiente procesar', 'Pendiente validación por profe', 'Pendiente validación por alumno'].includes(d.estado_agenda)).length;
@@ -1256,7 +1274,7 @@ function renderSegmentedTabs(vista) {
         let badgeHtml = '';
         if (tab.countFn) {
             const cnt = tab.countFn(datos);
-            badgeHtml = `<span class="tab-badge">${cnt}</span>`;
+            badgeHtml = `<span class="tab-badge ${tab.className || ''}">${cnt}</span>`;
         }
         return `
             <button type="button" class="segmented-tab-btn ${isActive ? 'active' : ''}" data-vista="${tab.vista}">
