@@ -568,13 +568,8 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
     let datosAlumnoParts = [];
     if (edad) datosAlumnoParts.push(edad);
     if (al.nivel) datosAlumnoParts.push(`<span class="match-student-tag nivel" style="font-size:10px; padding:2px 7px;">${al.nivel}</span>`);
-    if (instStr) {
-        let instFormat = `<strong style="color:var(--accent-teal); font-weight:600;">${emojiInst} ${instStr}</strong>`;
-        if (suscStr) instFormat += ` <span style="color:var(--text-muted); font-size:11px;">(${suscStr})</span>`;
-        datosAlumnoParts.push(instFormat);
-    } else if (suscStr) {
-        datosAlumnoParts.push(`<span>${suscStr}</span>`);
-    }
+    if (instStr) datosAlumnoParts.push(`<strong style="color:var(--accent-teal); font-weight:600;">${emojiInst} ${instStr}</strong>`);
+    if (suscStr) datosAlumnoParts.push(`<strong style="color:var(--accent-purple); font-weight:600;">🧩 ${suscStr}</strong>`);
 
     let filaDatosHtml = datosAlumnoParts.length > 0
         ? `<div class="row-sub-line" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:12px; color:var(--text-muted);">${datosAlumnoParts.join(' • ')}</div>`

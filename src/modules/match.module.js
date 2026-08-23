@@ -1032,13 +1032,8 @@ export async function renderMatchEnValidacion(container) {
                 let datosParts = [];
                 if (al.edad) datosParts.push(`${al.edad} años`);
                 if (al.nivel) datosParts.push(`<span class="match-student-tag nivel" style="font-size:10px; padding:2px 7px;">${al.nivel}</span>`);
-                if (instAsignado) {
-                    let instFormat = `<strong style="color:var(--accent-teal); font-weight:600;">${emojiInst} ${instAsignado}</strong>`;
-                    if (al.tipo_suscripcion) instFormat += ` <span style="color:var(--text-muted); font-size:11px;">(${al.tipo_suscripcion})</span>`;
-                    datosParts.push(instFormat);
-                } else if (al.tipo_suscripcion) {
-                    datosParts.push(`<span>${al.tipo_suscripcion}</span>`);
-                }
+                if (instAsignado) datosParts.push(`<strong style="color:var(--accent-teal); font-weight:600;">${emojiInst} ${instAsignado}</strong>`);
+                if (al.tipo_suscripcion) datosParts.push(`<strong style="color:var(--accent-purple); font-weight:600;">🧩 ${al.tipo_suscripcion}</strong>`);
 
                 const filaDatos = datosParts.length > 0
                     ? `<div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:12px; color:var(--text-muted); text-align:left;">${datosParts.join(' • ')}</div>`
