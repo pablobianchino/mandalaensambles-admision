@@ -680,7 +680,7 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
     #sidebar { position: fixed; top: 0; left: -280px; height: 100vh; z-index: 2001; box-shadow: 2px 0 15px rgba(0,0,0,0.05); }
     #sidebar.active { left: 0; }
     #mobile-overlay { z-index: 2000; }
-    #btn-mobile-menu { display: block !important; }
+    #btn-mobile-menu { display: none !important; }
     
     #main-content { padding: 15px; padding-bottom: 90px !important; width: 100vw; overflow-x: hidden; }
     
