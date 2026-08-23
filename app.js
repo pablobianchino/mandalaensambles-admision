@@ -556,15 +556,37 @@ const getEstadoYBadgeLocal = (al) => getEstadoYBadge(al, getFechaReferenciaAlumn
 
 function generarFilaAlumno(al, id, vista, isKanban = false) {
     const info = getEstadoYBadgeLocal(al);
-    let instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento;
-    let suscStr = al.tipo_suscripcion || ''; let cel = al.celular || ''; let edad = al.edad ? al.edad + 'a' : '-';
+    let instArray = Array.isArray(al.instrumento) ? al.instrumento : (al.instrumento ? [al.instrumento] : []);
+    let emojiInst = instArray.length > 0 ? obtenerEmojiInstrumento(instArray[0]) : '🎵';
+    let instStr = instArray.join(', ');
+    let suscStr = al.tipo_suscripcion || ''; 
+    let cel = al.celular || ''; 
+    let edad = al.edad ? al.edad + ' años' : '';
 
     const botonesVisibles = generarBotonesPrincipalesVisibles(al, id);
     const botonesSecundarios = generarBotonesAccion(al, id);
 
+    let filaContactoParts = [];
+    if (cel) filaContactoParts.push(`📱 ${cel}`);
+    if (edad) filaContactoParts.push(edad);
+    let filaContactoHtml = filaContactoParts.length > 0
+        ? `<div class="row-sub-line" style="font-size:12px; color:var(--text-muted); font-weight:500;">${filaContactoParts.join(' • ')}</div>`
+        : '';
+
+    let filaInstSuscParts = [];
+    if (instStr) filaInstSuscParts.push(`<strong style="color:var(--accent-teal); font-weight:600;">${emojiInst} ${instStr}</strong>`);
+    if (suscStr) filaInstSuscParts.push(`<span>${suscStr}</span>`);
+    let filaInstSuscHtml = filaInstSuscParts.length > 0
+        ? `<div class="row-sub-line" style="font-size:12px; color:var(--text-muted);">${filaInstSuscParts.join(' • ')}</div>`
+        : '';
+
+    let filaNivelHtml = al.nivel
+        ? `<div class="row-sub-line" style="font-size:11.5px; margin-top:1px;"><span class="match-student-tag nivel" style="font-size:10px; padding:2px 7px;">Nivel: ${al.nivel}</span></div>`
+        : '';
+
     let tagsHtml = '';
     if (Array.isArray(al.perfil_psicologico) && al.perfil_psicologico.length > 0) {
-        tagsHtml = `<div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:4px;">${al.perfil_psicologico.map(t => `<span class="profile-tag-badge">🧠 ${t}</span>`).join('')}</div>`;
+        tagsHtml = `<div class="row-sub-line" style="display:flex; flex-wrap:wrap; gap:4px; margin-top:2px;">${al.perfil_psicologico.map(t => `<span class="profile-tag-badge" style="font-size:9.5px; padding:1px 6px;">🧠 ${t}</span>`).join('')}</div>`;
     }
 
     if (isKanban) {
@@ -584,11 +606,12 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                 <span style="display:flex; align-items:center; gap:6px;"><div class="row-indicator ${info.colorIndicador}"></div>${al.nombre}</span>
                 <span style="font-size:16px;" class="btn-row-action" onclick="event.stopPropagation(); window.abrirOpcionesKanban('${id}', this)">⋮</span>
             </div>
-            <div class="kanban-card-sub">${edad} • <strong style="color:var(--accent-teal);">${instStr}</strong></div>
+            <div class="kanban-card-sub">${edad || '-'} • <strong style="color:var(--accent-teal);">${instStr || 'Sin inst.'}</strong></div>
+            ${filaNivelHtml}
             ${tagsHtml}
             ${opcionesKanbanHtml}
             <div class="priority-text ${info.claseTexto}">${info.txtTiempo}</div>
-            ${botonesVisibles ? `<div class="row-actions-group" style="margin-top:6px; justify-content:stretch;">${botonesVisibles}</div>` : ''}
+            ${botonesVisibles ? `<div class="row-actions-group" style="margin-top:6px; justify-content:stretch;"><div class="row-quick-btns-col" style="width:100%;">${botonesVisibles}</div></div>` : ''}
             <div class="dropdown-menu-wrapper" id="menu-kanban-${id}" style="display:none; position:absolute; top:30px; right:10px;">
                 <div class="dropdown-menu">${botonesSecundarios}</div>
             </div>
@@ -608,7 +631,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
     const tieneSecundarios = botonesSecundarios && botonesSecundarios.trim().length > 0;
     let menuAcciones = `
         <div class="row-actions-group">
-            ${botonesVisibles}
+            ${botonesVisibles ? `<div class="row-quick-btns-col">${botonesVisibles}</div>` : ''}
             ${tieneSecundarios ? `
                 <div class="alumno-actions row-actions-container">
                     <button type="button" class="btn-row-action" title="Más opciones">⋮</button>
@@ -681,12 +704,14 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                     <div class="row-header">
                         <input type="checkbox" class="bulk-chk" data-id="${id}" onclick="event.stopPropagation(); window.toggleBulkSelection('${id}', this.checked)">
                         <div class="row-indicator ${info.colorIndicador}"></div>
-                        <div class="row-main-info">
-                            <div class="row-name">
-                                <span>${al.nombre}</span>
+                        <div class="row-main-info" style="display:flex; flex-direction:column; gap:2px;">
+                            <div class="row-name" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                <span style="font-weight:700; color:var(--text-main); font-size:14px;">${al.nombre}</span>
                                 <span class="status-badge ${info.colorBadge}">${info.txtEstado}</span>
                             </div>
-                            <div class="row-sub"><span>${cel}</span> • <span>${edad}</span> • <strong style="color:var(--accent-teal);">${instStr}</strong> • <span>${suscStr}</span></div>
+                            ${filaContactoHtml}
+                            ${filaInstSuscHtml}
+                            ${filaNivelHtml}
                             ${tagsHtml}
                         </div>
                     </div>

@@ -1026,25 +1026,46 @@ export async function renderMatchEnValidacion(container) {
 
             const integrantesHtml = integrantes.map(al => {
                 const isConfirmed = al.estado_validacion_alumno === 'confirmado';
-                const instAsignado = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento);
+                const instAsignado = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || 'Sin inst.'));
                 const emojiInst = obtenerEmojiInstrumento(instAsignado);
+                
+                let contactoEdadParts = [];
+                if (al.celular) contactoEdadParts.push(`📱 ${al.celular}`);
+                if (al.edad) contactoEdadParts.push(`${al.edad} años`);
+                const filaContacto = contactoEdadParts.length > 0
+                    ? `<div style="font-size:12px; color:var(--text-muted); font-weight:500;">${contactoEdadParts.join(' • ')}</div>`
+                    : '';
+
+                let instSuscParts = [];
+                if (instAsignado) instSuscParts.push(`<strong style="color:var(--accent-teal); font-weight:600;">${emojiInst} ${instAsignado}</strong>`);
+                if (al.tipo_suscripcion) instSuscParts.push(`<span>${al.tipo_suscripcion}</span>`);
+                const filaInstSusc = instSuscParts.length > 0
+                    ? `<div style="font-size:12px; color:var(--text-muted);">${instSuscParts.join(' • ')}</div>`
+                    : '';
+
+                const filaNivel = al.nivel
+                    ? `<div style="font-size:11.5px; margin-top:1px;"><span class="match-student-tag nivel" style="font-size:10px; padding:2px 7px;">Nivel: ${al.nivel}</span></div>`
+                    : '';
+
                 const tagsPsicoHtml = (Array.isArray(al.perfil_psicologico) && al.perfil_psicologico.length > 0)
-                    ? al.perfil_psicologico.map(t => `<span class="profile-tag-badge" style="font-size:10px; padding:2px 7px;">🧠 ${t}</span>`).join('')
+                    ? `<div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:2px;">${al.perfil_psicologico.map(t => `<span class="profile-tag-badge" style="font-size:9.5px; padding:1px 6px;">🧠 ${t}</span>`).join('')}</div>`
                     : '';
                 
                 return `
-                    <div class="group-member-row">
-                        <div class="group-member-info" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; cursor:pointer;" onclick="window.editarAlumnoModalDirecto('${al.id}')" title="Ver ficha y registro completo de ${al.nombre}">
-                            <span class="group-member-name">👤 ${al.nombre}</span>
-                            ${al.edad ? `<span style="font-size:12px; color:var(--text-muted);">${al.edad}a</span>` : ''}
-                            <span class="match-student-tag">${emojiInst} ${instAsignado}</span>
-                            ${al.nivel ? `<span class="match-student-tag nivel">${al.nivel}</span>` : ''}
-                            <span class="group-member-status-chip ${isConfirmed ? 'status-val-ok' : 'status-val-pending'}">
-                                ${isConfirmed ? '✅ Confirmó' : '⏳ Pendiente'}
-                            </span>
+                    <div class="group-member-row" style="padding:12px 14px; align-items:center; gap:12px;">
+                        <div class="group-member-info" style="display:flex; flex-direction:column; gap:2px; cursor:pointer; flex:1;" onclick="window.editarAlumnoModalDirecto('${al.id}')" title="Ver ficha y registro completo de ${al.nombre}">
+                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                <span class="group-member-name" style="font-size:14px; font-weight:700; color:var(--text-main);">👤 ${al.nombre}</span>
+                                <span class="group-member-status-chip ${isConfirmed ? 'status-val-ok' : 'status-val-pending'}">
+                                    ${isConfirmed ? '✅ Confirmó' : '⏳ Pendiente'}
+                                </span>
+                            </div>
+                            ${filaContacto}
+                            ${filaInstSusc}
+                            ${filaNivel}
                             ${tagsPsicoHtml}
                         </div>
-                        <div class="group-member-actions" onclick="event.stopPropagation();">
+                        <div class="group-member-actions" onclick="event.stopPropagation();" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
                             <button type="button" class="row-quick-btn secondary" onclick="window.enviarWhatsAppValidacionGrupo('${al.id}')" title="Mensaje WhatsApp">💬 WhatsApp</button>
                             <button type="button" class="row-quick-btn ${isConfirmed ? 'primary' : 'secondary'}" onclick="window.toggleValidacionAlumnoGrupo('${al.id}', ${!isConfirmed})" title="Marcar confirmacion">
                                 ${isConfirmed ? '✔️ Desmarcar' : '✔️ Confirmó'}

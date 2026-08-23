@@ -306,24 +306,29 @@ body {
     transform: translateY(-1px);
 }
 
-/* =======================================================================
-   BOTONES DE ACCIÓN RÁPIDA (FILAS Y TARJETAS — FORMATO HOMOGÉNEO PILL MATCH)
-   ======================================================================= */
 .row-actions-group {
     display: flex;
     align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
+    gap: 8px;
+    flex-wrap: nowrap;
     justify-content: flex-end;
+}
+.row-quick-btns-col {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    align-items: stretch;
+    justify-content: center;
 }
 .row-quick-btn {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 5px;
-    padding: 5px 11px;
+    padding: 5px 12px;
     border-radius: 20px;
-    font-size: 12px;
-    font-weight: 600;
+    font-size: 11.5px;
+    font-weight: 700;
     font-family: inherit;
     cursor: pointer;
     border: 1px solid var(--border-color);
