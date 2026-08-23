@@ -616,10 +616,10 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
         const checks = al.checklist_alta || [false, false, false, false, false];
         const pasostitulos = [
             '1. Notificar Alumno',
-            '2. Pago / Comprobante',
-            '3. Cargar en Sistema',
-            '4. Grupo WhatsApp',
-            '5. Notificar Profe'
+            '2. Pago y Formulario',
+            '3. Carga en Sistema',
+            '4. Notificar Profe',
+            '5. Grupo WhatsApp'
         ];
         const completados = checks.filter(Boolean).length;
         const porcentaje = Math.round((completados / 5) * 100);
