@@ -94,9 +94,11 @@ export function renderTimelineUnificado(containerId, configNodos, datos, callbac
                         let instParts = [];
                         if(instStr) instParts.push(`<strong style="color:var(--accent-teal)">${instStr}</strong>`);
                         if(al.nivel) instParts.push(`<span class="match-student-tag nivel" style="font-size:10px; padding:1px 6px;">${al.nivel}</span>`);
+                        if(al.tipo_suscripcion) instParts.push(`<strong style="color:var(--accent-purple, #7d5ba6)">🧩 ${al.tipo_suscripcion}</strong>`);
                         if(instParts.length > 0) details.push(instParts.join(' '));
 
-                        if(al.reserva_profe_nombre) details.push(`Profe: ${al.reserva_profe_nombre}`);
+                        const rolDocente = index <= 4 ? 'Evaluador' : 'Profe';
+                        if(al.reserva_profe_nombre) details.push(`${rolDocente}: ${al.reserva_profe_nombre}`);
                         if(al.grupo_asignado) details.push(`Grupo: ${al.grupo_asignado}`);
 
                         // Fecha de entrevista solo en etapas previas a Lista de Espera (índices 0 a 3)
