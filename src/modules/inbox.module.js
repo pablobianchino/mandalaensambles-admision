@@ -108,7 +108,6 @@ export function generarBotonesPrincipalesVisibles(al, id) {
         html += `<button type="button" class="row-quick-btn primary btn-recuperar-agenda" data-id="${id}">♻️ Recuperar Agenda</button>`;
     } else if (est === 'lista de espera') {
         html += `<button type="button" class="row-quick-btn primary btn-abrir-prealta" data-id="${id}">⚙️ Iniciar Pre-Alta</button>`;
-        html += `<button type="button" class="row-quick-btn secondary btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
     } else if (est === 'validando grupo') {
         const isConfirmed = al.estado_validacion_alumno === 'confirmado';
         html += `<button type="button" class="row-quick-btn secondary" onclick="window.enviarWhatsAppValidacionGrupo('${id}')">💬 WhatsApp</button>`;
@@ -163,7 +162,6 @@ export function generarBotonesAccion(al, id, esModal = false) {
             html += `<button type="button" class="btn-action-primary btn-recuperar-agenda" data-id="${id}">♻️ Recuperar Agenda</button>`;
         } else if (est === 'lista de espera') {
             html += `<button type="button" class="btn-action-primary btn-abrir-prealta" data-id="${id}">⚙️ Iniciar Pre-Alta</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
             html += `<button type="button" class="btn-action-neutral btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
         } else if (est === 'validando grupo') {
             html += `<button type="button" class="btn-action-neutral" onclick="window.editarAlumnoModalDirecto('${id}')">✏️ Editar Ficha</button>`;

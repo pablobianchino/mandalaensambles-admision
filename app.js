@@ -150,6 +150,16 @@ let matchListenersAttached = false;
 let agrupadorNivel1 = 'ninguno';
 let agrupadorNivel2 = 'ninguno';
 let agrupadorNivel3 = 'ninguno';
+let agrupadoresEsperaInicializados = false;
+
+window.toggleGroupCollapsible = function(contentId, iconId) {
+    const contentEl = document.getElementById(contentId);
+    const iconEl = document.getElementById(iconId);
+    if (!contentEl) return;
+    const isHidden = contentEl.style.display === 'none';
+    contentEl.style.display = isHidden ? 'flex' : 'none';
+    if (iconEl) iconEl.textContent = isHidden ? '▼' : '▶';
+};
 
 ['select-agrupador-1', 'select-agrupador-2', 'select-agrupador-3'].forEach((id, idx) => {
     const sel = document.getElementById(id);
@@ -1115,15 +1125,18 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
 
             let outHtml = '';
             const levelNumber = nivelIndex + 1;
+            let groupCounter = 0;
 
             for (const [clave, alumnosSubgrupo] of Object.entries(grupos)) {
+                groupCounter++;
+                const groupId = `grp-lvl${levelNumber}-${nivelIndex}-${groupCounter}-${Math.random().toString(36).substr(2, 6)}`;
                 const idsStr = alumnosSubgrupo.map(a => a.id).join(',');
                 const esSinGrupo = clave === 'Sin clasificar' || clave === 'Sin Grupo Asignado' || clave === 'Sin Entrevistador' || clave === 'Sin Profesor';
                 
                 let actionsHtml = '';
                 if (criterio === 'grupo' && !esSinGrupo) {
                     actionsHtml = `
-                        <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                        <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;" onclick="event.stopPropagation();">
                             <button type="button" class="btn-seleccionar-todo-grupo" data-ids="${idsStr}" style="font-size:11px; padding:3px 8px; border:1px solid var(--border-color); border-radius:6px; background:#fff; cursor:pointer; font-weight:600; color:var(--text-muted); font-family:inherit;">☑️ Seleccionar Grupo</button>
                             <button type="button" class="btn-iniciar-prealta-grupo" data-grupo="${clave}" data-ids="${idsStr}" style="font-size:11px; padding:3px 10px; border:none; border-radius:6px; background:var(--accent-teal); color:#fff; cursor:pointer; font-weight:700; font-family:inherit;">⚙️ Iniciar Pre-Alta Grupo</button>
                         </div>`;
@@ -1135,15 +1148,17 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
                 const borderLevel = levelNumber <= 2 ? 'border:1px solid var(--border-color);' : 'border-left:2px solid var(--accent-teal);';
 
                 outHtml += `
-                    <div class="group-header group-header-l${levelNumber}" style="${styleIndent} ${borderLevel} background:${bgLevel}; border-radius:8px; padding:8px 12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                    <div class="group-header group-header-l${levelNumber}" style="${styleIndent} ${borderLevel} background:${bgLevel}; border-radius:8px; padding:8px 12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; cursor:pointer; user-select:none;" onclick="window.toggleGroupCollapsible('${groupId}-content', '${groupId}-icon')" title="Clic para desplegar u ocultar subgrupo">
                         <div style="display:flex; align-items:center; gap:8px; font-weight:700; color:var(--text-main);">
+                            <span id="${groupId}-icon" style="font-size:9px; color:var(--text-muted); width:12px; display:inline-block; transition:transform 0.2s;">▼</span>
                             <span>${iconLevel}</span> <span>${clave}</span> <span class="group-count" style="font-size:11px; padding:2px 7px;">${alumnosSubgrupo.length}</span>
                         </div>
                         ${actionsHtml}
                     </div>
+                    <div id="${groupId}-content" class="group-content-level group-content-l${levelNumber}" style="display:flex; flex-direction:column; gap:4px; width:100%;">
+                        ${renderNivelAgrupado(alumnosSubgrupo, nivelIndex + 1)}
+                    </div>
                 `;
-
-                outHtml += renderNivelAgrupado(alumnosSubgrupo, nivelIndex + 1);
             }
             return outHtml;
         }
@@ -1524,6 +1539,15 @@ async function cargarVista(vista) {
         } catch(e) {}
     } else if (vista === 'Lista de Espera') {
         try {
+            if (!agrupadoresEsperaInicializados) {
+                agrupadorNivel1 = 'suscripcion';
+                agrupadorNivel2 = 'nivel';
+                const s1 = document.getElementById('select-agrupador-1');
+                const s2 = document.getElementById('select-agrupador-2');
+                if (s1) s1.value = 'suscripcion';
+                if (s2) s2.value = 'nivel';
+                agrupadoresEsperaInicializados = true;
+            }
             const qSnap = await getDocs(collection(db, "alumnos")); let allData = []; qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
             actualizarBadgesYNavegacion(allData);
             renderSegmentedTabs(vista);
