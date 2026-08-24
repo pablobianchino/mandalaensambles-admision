@@ -234,6 +234,71 @@ body {
 .group-header { font-size: 15px; font-weight: 800; color: var(--text-main); margin: 24px 0 10px 0; display: flex; align-items: center; gap: 8px; letter-spacing: -0.01em; }
 .group-count { background: #e9e5de; color: var(--text-muted); font-size: 11px; padding: 2px 6px; border-radius: 10px; font-family: 'Geist Mono', monospace; font-weight:500; }
 
+/* AGRUPACIONES JERÁRQUICAS CON COLORES (OPCIÓN 1) */
+.group-card-l1 {
+    border-radius: 12px;
+    background: #ffffff;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+    margin-top: 14px;
+    margin-bottom: 6px;
+    transition: all 0.2s ease;
+}
+.group-banner-l1 {
+    padding: 12px 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    transition: filter 0.15s ease;
+}
+.group-banner-l1:hover { filter: brightness(0.98); }
+
+.group-card-l2 {
+    background: #fdfbf7;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-top: 6px;
+    margin-bottom: 8px;
+}
+.badge-nivel {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 800;
+    padding: 3px 9px;
+    border-radius: 6px;
+}
+.badge-nivel.inicial-1 { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+.badge-nivel.inicial-2 { background: #ecfccb; color: #3f6212; border: 1px solid #d9f99d; }
+.badge-nivel.intermedio { background: #f3e8ff; color: #6b21a8; border: 1px solid #e9d5ff; }
+.badge-nivel.avanzado { background: #ffe4e6; color: #9f1239; border: 1px solid #fecdd3; }
+
+.pill-instrumento {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 8px;
+    margin-top: 6px;
+}
+.pill-instrumento.guitarra { border-left: 4px solid #f59e0b; }
+.pill-instrumento.canto { border-left: 4px solid #ec4899; }
+.pill-instrumento.bateria { border-left: 4px solid #3b82f6; }
+.pill-instrumento.piano { border-left: 4px solid #8b5cf6; }
+.pill-instrumento.bajo { border-left: 4px solid #10b981; }
+.pill-instrumento.cajon { border-left: 4px solid #f97316; }
+
 /* BULK ACTIONS BAR */
 #bulk-actions-bar {
     position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);

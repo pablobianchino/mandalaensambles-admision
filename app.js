@@ -140,6 +140,13 @@ import {
     generarBotonesAccion
 } from "./src/modules/inbox.module.js";
 
+import {
+    parseCSV,
+    procesarFilasCSV,
+    mostrarModalPreviewCSV,
+    ejecutarImportacionMasiva
+} from "./src/modules/csv.module.js";
+
 let agrupadorActual = 'ninguno';
 let filtroChipActual = 'Todos';
 let filtroAlarmaActual = 'Todos'; 
@@ -436,13 +443,72 @@ document.addEventListener('click', (e) => {
     }
 });
 
+export function crearEntradaHistorial(texto, tipo = 'sistema', autor = null) {
+    const now = new Date();
+    const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+    let nombreAutor = autor;
+    if (!nombreAutor) {
+        if (window.usuarioActual) {
+            nombreAutor = window.usuarioActual.nombre || window.usuarioActual.email || 'Operador';
+        } else {
+            nombreAutor = 'Sistema';
+        }
+    }
+    return {
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        fecha: fechaStr,
+        texto: texto,
+        autor: nombreAutor,
+        tipo: tipo
+    };
+}
+window.crearEntradaHistorial = crearEntradaHistorial;
+
 function renderHistorial() {
-    const container = document.getElementById('lista-historial'); container.innerHTML = '';
-    if(historialActual.length === 0) { container.innerHTML = '<p style="color:var(--text-muted); font-size:13px; margin:0;">No hay registros en el historial.</p>'; return; }
-    const sorted = [...historialActual].sort((a,b) => b.id - a.id);
+    const container = document.getElementById('lista-historial'); 
+    if (!container) return;
+    container.innerHTML = '';
+    if (historialActual.length === 0) { 
+        container.innerHTML = '<p style="color:var(--text-muted); font-size:13px; margin:0;">No hay registros en el historial.</p>'; 
+        return; 
+    }
+    const sorted = [...historialActual].sort((a, b) => b.id - a.id);
     sorted.forEach(nota => {
-        const textoLimpio = nota.texto.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
-        container.innerHTML += `<div style="background:var(--hover-bg); border:1px solid var(--border-color); padding:12px; border-radius:8px; position:relative;"><div style="font-size:11px; color:var(--text-muted); margin-bottom:5px; font-weight:600;">🕒 ${nota.fecha}</div><div style="font-size:13px; color:var(--text-main);">${textoLimpio}</div><div style="position:absolute; top:10px; right:10px; display:flex; gap:5px;"><button type="button" class="btn-editar-nota" data-id="${nota.id}" style="background:transparent; border:none; cursor:pointer; font-size:1.1em;">✏️</button><button type="button" class="btn-eliminar-nota" data-id="${nota.id}" style="background:transparent; border:none; cursor:pointer; font-size:1.1em;">❌</button></div></div>`;
+        const textoLimpio = (nota.texto || '').replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
+        
+        let badgeTipoHtml = '';
+        const tipo = (nota.tipo || '').toLowerCase();
+        if (tipo === 'agenda') {
+            badgeTipoHtml = '<span style="background:rgba(37,107,187,0.12); color:#256bbb; font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px; border:1px solid rgba(37,107,187,0.25);">✅ Agenda</span>';
+        } else if (tipo === 'match') {
+            badgeTipoHtml = '<span style="background:rgba(142,68,173,0.12); color:#8e44ad; font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px; border:1px solid rgba(142,68,173,0.25);">👥 Match</span>';
+        } else if (tipo === 'alta') {
+            badgeTipoHtml = '<span style="background:rgba(49,163,100,0.12); color:#31a364; font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px; border:1px solid rgba(49,163,100,0.25);">🚀 Alta</span>';
+        } else if (tipo === 'suspension') {
+            badgeTipoHtml = '<span style="background:rgba(194,86,59,0.12); color:var(--accent-red); font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px; border:1px solid rgba(194,86,59,0.25);">⏸️ Suspensión</span>';
+        } else if (tipo === 'informe') {
+            badgeTipoHtml = '<span style="background:rgba(0,123,143,0.12); color:var(--accent-teal); font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px; border:1px solid rgba(0,123,143,0.25);">📝 Informe</span>';
+        } else if (tipo === 'nota') {
+            badgeTipoHtml = '<span style="background:#f4ece1; color:#9c6500; font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px; border:1px solid #e2ceb1;">💬 Nota</span>';
+        } else if (tipo === 'sistema') {
+            badgeTipoHtml = '<span style="background:rgba(0,0,0,0.06); color:var(--text-muted); font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px;">⚙️ Sistema</span>';
+        }
+        
+        const autorHtml = nota.autor ? `<span style="color:var(--text-muted); font-size:11px; font-weight:500;">👤 ${nota.autor}</span>` : '';
+
+        container.innerHTML += `
+            <div style="background:var(--hover-bg); border:1px solid var(--border-color); padding:12px; border-radius:8px; position:relative; display:flex; flex-direction:column; gap:6px;">
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding-right:50px;">
+                    <span style="font-size:11px; color:var(--text-muted); font-weight:600;">🕒 ${nota.fecha}</span>
+                    ${autorHtml ? '<span style="opacity:0.4;">•</span>' + autorHtml : ''}
+                    ${badgeTipoHtml}
+                </div>
+                <div style="font-size:13px; color:var(--text-main); line-height:1.4;">${textoLimpio}</div>
+                <div style="position:absolute; top:10px; right:10px; display:flex; gap:5px;">
+                    <button type="button" class="btn-editar-nota" data-id="${nota.id}" style="background:transparent; border:none; cursor:pointer; font-size:1.1em;" title="Editar">✏️</button>
+                    <button type="button" class="btn-eliminar-nota" data-id="${nota.id}" style="background:transparent; border:none; cursor:pointer; font-size:1.1em;" title="Eliminar">❌</button>
+                </div>
+            </div>`;
     });
 }
 
@@ -713,7 +779,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                         <div class="row-main-info" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:2px;">
                             <div class="row-name" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; text-align:left;">
                                 <span style="font-weight:700; color:var(--text-main); font-size:14px;">${al.nombre}</span>
-                                <span class="status-badge ${info.colorBadge}">${info.txtEstado}</span>
+                                ${al.estado_agenda === 'Lista de espera' ? '' : `<span class="status-badge ${info.colorBadge}">${info.txtEstado}</span>`}
                             </div>
                             ${filaDatosHtml}
                             ${tagsHtml}
@@ -722,7 +788,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                     ${dispHtml}
                     ${checklistHtml}
                     <div class="row-meta">
-                        <div>${((estadoActualVista && (estadoActualVista.startsWith('Inbox') || estadoActualVista === 'Lista de Espera' || estadoActualVista === 'Dashboard')) || ['Pendiente procesar', 'Pendiente validación por profe', 'Pendiente validación por alumno', 'Agenda confirmada', 'Agenda suspendida', 'Lista de espera'].includes(al.estado_agenda)) ? 'Evaluador' : 'Profe'}: <strong style="color:var(--text-main);">${al.reserva_profe_nombre || '-'}</strong></div>
+                        <div>${((estadoActualVista && (estadoActualVista.startsWith('Inbox') || estadoActualVista === 'Lista de Espera' || estadoActualVista === 'Dashboard')) || ['Pendiente procesar', 'Pendiente validación por profe', 'Pendiente validación por alumno', 'Agenda confirmada', 'Agenda suspendida', 'Lista de espera'].includes(al.estado_agenda)) ? 'Evaluador' : 'Profe'}: <strong style="color:var(--text-main);" title="${al.reserva_profe_nombre || ''}">${al.reserva_profe_nombre ? (al.reserva_profe_nombre.length > 25 ? al.reserva_profe_nombre.split(' ').slice(0, 3).join(' ') + '...' : al.reserva_profe_nombre) : '-'}</strong></div>
                         ${al.grupo_asignado ? `<div>Grupo: <strong style="color:var(--accent-teal);">${al.grupo_asignado}</strong></div>` : ''}
                         ${fechaMetaHtml}
                         <div class="priority-text ${info.claseTexto}" style="margin-top:2px;">${info.txtTiempo}</div>
@@ -857,6 +923,92 @@ if (btnBulkProp) {
             return;
         }
         await abrirModalNuevaPropuestaGrupoManual();
+    });
+}
+
+// =======================================================================
+// CARGA MASIVA CSV (LISTA DE ESPERA / INBOX)
+// =======================================================================
+const btnCargaMasiva = document.getElementById('btn-carga-masiva');
+const inputCSV = document.getElementById('input-csv');
+
+if (btnCargaMasiva && inputCSV) {
+    btnCargaMasiva.addEventListener('click', () => {
+        inputCSV.value = '';
+        inputCSV.click();
+    });
+
+    inputCSV.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        let existentes = cachedAlumnosData || [];
+        if (existentes.length === 0) {
+            try {
+                const snap = await getDocs(collection(db, "alumnos"));
+                existentes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                cachedAlumnosData = existentes;
+            } catch(err) {}
+        }
+
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            try {
+                const text = evt.target.result;
+                const filas = parseCSV(text);
+                const alumnos = procesarFilasCSV(filas, existentes);
+                mostrarModalPreviewCSV(alumnos);
+            } catch (err) {
+                alert("Error al leer el archivo CSV:\n\n" + err.message);
+            }
+        };
+        reader.readAsText(file, "UTF-8");
+    });
+}
+
+const chkSelectAllCSV = document.getElementById('chk-select-all-csv');
+if (chkSelectAllCSV) {
+    chkSelectAllCSV.addEventListener('change', (e) => {
+        const checked = e.target.checked;
+        document.querySelectorAll('.chk-csv-row').forEach(c => c.checked = checked);
+        const btnConfirmar = document.getElementById('btn-confirmar-importacion-csv');
+        const count = document.querySelectorAll('.chk-csv-row:checked').length;
+        if (btnConfirmar) btnConfirmar.textContent = `Confirmar Importación (${count})`;
+    });
+}
+
+document.addEventListener('change', (e) => {
+    if (e.target.classList.contains('chk-csv-row')) {
+        const total = document.querySelectorAll('.chk-csv-row').length;
+        const checked = document.querySelectorAll('.chk-csv-row:checked').length;
+        const allChk = document.getElementById('chk-select-all-csv');
+        if (allChk) allChk.checked = (total === checked);
+        const btnConfirmar = document.getElementById('btn-confirmar-importacion-csv');
+        if (btnConfirmar) btnConfirmar.textContent = `Confirmar Importación (${checked})`;
+    }
+});
+
+const btnConfirmarImportacion = document.getElementById('btn-confirmar-importacion-csv');
+if (btnConfirmarImportacion) {
+    btnConfirmarImportacion.addEventListener('click', async () => {
+        btnConfirmarImportacion.disabled = true;
+        const progressBar = document.getElementById('preview-csv-progress-bar');
+        const progressFill = document.getElementById('preview-csv-progress-fill');
+        const progressText = document.getElementById('preview-csv-progress-text');
+        if (progressBar) progressBar.style.display = 'block';
+
+        await ejecutarImportacionMasiva(
+            (guardados, total) => {
+                const pct = Math.round((guardados / total) * 100);
+                if (progressFill) progressFill.style.width = `${pct}%`;
+                if (progressText) progressText.textContent = `Importando ${guardados} de ${total} alumnos (${pct}%)...`;
+            },
+            (guardados, total) => {
+                alert(`✅ ¡Carga completada exitosamente!\n\nSe importaron ${guardados} alumnos a Lista de Espera.`);
+                document.getElementById('modal-preview-csv-espera').close();
+                cargarVista(estadoActualVista);
+            }
+        );
     });
 }
 
@@ -1139,6 +1291,47 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
             return clave;
         }
 
+        function obtenerTemaNivel1(clave, criterio) {
+            const cLower = (clave || '').toLowerCase();
+            if (criterio === 'suscripcion') {
+                if (cLower.includes('ensamble')) {
+                    return { bg: 'linear-gradient(90deg, #eff6ff 0%, #ffffff 100%)', border: '#2563eb', text: '#1e3a8a', badgeBg: '#2563eb', badgeText: '#ffffff', icon: '🧩', borderBox: '#bfdbfe' };
+                }
+                if (cLower.includes('indiv')) {
+                    return { bg: 'linear-gradient(90deg, #fff7ed 0%, #ffffff 100%)', border: '#ea580c', text: '#9a3412', badgeBg: '#ea580c', badgeText: '#ffffff', icon: '👤', borderBox: '#fed7aa' };
+                }
+                if (cLower.includes('grup')) {
+                    return { bg: 'linear-gradient(90deg, #f0fdfa 0%, #ffffff 100%)', border: '#0d9488', text: '#115e59', badgeBg: '#0d9488', badgeText: '#ffffff', icon: '👥', borderBox: '#99f6e4' };
+                }
+            }
+            if (criterio === 'nivel') {
+                if (cLower.includes('inicial 1') || (cLower.includes('inicial i') && !cLower.includes('inicial ii'))) {
+                    return { bg: 'linear-gradient(90deg, #f0fdf4 0%, #ffffff 100%)', border: '#16a34a', text: '#14532d', badgeBg: '#16a34a', badgeText: '#ffffff', icon: '🌱', borderBox: '#bbf7d0' };
+                }
+                if (cLower.includes('inicial 2') || cLower.includes('inicial ii')) {
+                    return { bg: 'linear-gradient(90deg, #f7fee7 0%, #ffffff 100%)', border: '#65a30d', text: '#365314', badgeBg: '#65a30d', badgeText: '#ffffff', icon: '🌿', borderBox: '#d9f99d' };
+                }
+                if (cLower.includes('intermedio')) {
+                    return { bg: 'linear-gradient(90deg, #faf5ff 0%, #ffffff 100%)', border: '#9333ea', text: '#581c87', badgeBg: '#9333ea', badgeText: '#ffffff', icon: '⚡', borderBox: '#e9d5ff' };
+                }
+                if (cLower.includes('avanzado')) {
+                    return { bg: 'linear-gradient(90deg, #fff1f2 0%, #ffffff 100%)', border: '#e11d48', text: '#881337', badgeBg: '#e11d48', badgeText: '#ffffff', icon: '🔥', borderBox: '#fecdd3' };
+                }
+            }
+            return { bg: 'linear-gradient(90deg, var(--hover-bg) 0%, #ffffff 100%)', border: 'var(--accent-teal)', text: 'var(--text-main)', badgeBg: 'var(--accent-teal)', badgeText: '#ffffff', icon: '📂', borderBox: 'var(--border-color)' };
+        }
+
+        function obtenerClasePillInstrumento(clave) {
+            const lower = (clave || '').toLowerCase();
+            if (lower.includes('guitarra')) return 'guitarra';
+            if (lower.includes('canto')) return 'canto';
+            if (lower.includes('bateria') || lower.includes('batería')) return 'bateria';
+            if (lower.includes('piano') || lower.includes('teclado')) return 'piano';
+            if (lower.includes('bajo')) return 'bajo';
+            if (lower.includes('cajon') || lower.includes('cajón')) return 'cajon';
+            return '';
+        }
+
         function renderNivelAgrupado(alumnos, nivelIndex) {
             if (nivelIndex >= nivelesActivos.length) {
                 return alumnos.map(a => generarFilaAlumno(a, a.id, estadoActualVista)).join('');
@@ -1146,11 +1339,24 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
 
             const criterio = nivelesActivos[nivelIndex];
             const grupos = {};
-            alumnos.forEach(al => {
-                const clave = obtenerClaveAgrupador(al, criterio);
-                if (!grupos[clave]) grupos[clave] = [];
-                grupos[clave].push(al);
-            });
+
+            // Desdoblamiento multi-instrumento: si agrupa por instrumento, el alumno figura en cada uno de ellos
+            if (criterio === 'instrumento') {
+                alumnos.forEach(al => {
+                    const insts = Array.isArray(al.instrumento) && al.instrumento.length > 0 ? al.instrumento : (al.instrumento ? [al.instrumento] : ['Sin Instrumento']);
+                    insts.forEach(inst => {
+                        const clave = inst.trim() || 'Sin Instrumento';
+                        if (!grupos[clave]) grupos[clave] = [];
+                        grupos[clave].push(al);
+                    });
+                });
+            } else {
+                alumnos.forEach(al => {
+                    const clave = obtenerClaveAgrupador(al, criterio);
+                    if (!grupos[clave]) grupos[clave] = [];
+                    grupos[clave].push(al);
+                });
+            }
 
             let outHtml = '';
             const levelNumber = nivelIndex + 1;
@@ -1171,23 +1377,64 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
                         </div>`;
                 }
 
-                const iconLevel = levelNumber === 1 ? '📂' : (levelNumber === 2 ? '📁' : '🔹');
-                const styleIndent = levelNumber === 1 ? 'margin-top:12px; margin-bottom:6px;' : (levelNumber === 2 ? 'margin-left:14px; margin-top:8px; margin-bottom:4px; font-size:0.95em;' : 'margin-left:28px; margin-top:6px; margin-bottom:4px; font-size:0.9em;');
-                const bgLevel = levelNumber === 1 ? 'var(--hover-bg)' : (levelNumber === 2 ? '#fdfbf7' : 'transparent');
-                const borderLevel = levelNumber <= 2 ? 'border:1px solid var(--border-color);' : 'border-left:2px solid var(--accent-teal);';
-
-                outHtml += `
-                    <div class="group-header group-header-l${levelNumber}" style="${styleIndent} ${borderLevel} background:${bgLevel}; border-radius:8px; padding:8px 12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; cursor:pointer; user-select:none;" onclick="window.toggleGroupCollapsible('${groupId}-content', '${groupId}-icon')" title="Clic para desplegar u ocultar subgrupo">
-                        <div style="display:flex; align-items:center; gap:8px; font-weight:700; color:var(--text-main);">
-                            <span id="${groupId}-icon" style="font-size:9px; color:var(--text-muted); width:12px; display:inline-block; transition:transform 0.2s;">▼</span>
-                            <span>${iconLevel}</span> <span>${clave}</span> <span class="group-count" style="font-size:11px; padding:2px 7px;">${alumnosSubgrupo.length}</span>
+                if (levelNumber === 1) {
+                    const tema = obtenerTemaNivel1(clave, criterio);
+                    outHtml += `
+                        <div class="group-card-l1" style="border-color:${tema.borderBox};">
+                            <div class="group-banner-l1" style="background:${tema.bg}; border-left:6px solid ${tema.border}; color:${tema.text};" onclick="window.toggleGroupCollapsible('${groupId}-content', '${groupId}-icon')" title="Clic para desplegar u ocultar">
+                                <div style="display:flex; align-items:center; gap:10px;">
+                                    <span id="${groupId}-icon" style="font-size:12px; transition:transform 0.2s;">▼</span>
+                                    <span style="font-size:18px;">${tema.icon}</span>
+                                    <span style="font-size:15px; font-weight:800; letter-spacing:-0.01em;">${clave.toUpperCase()}</span>
+                                    <span style="background:${tema.badgeBg}; color:${tema.badgeText}; font-size:11.5px; font-weight:700; padding:2px 8px; border-radius:12px;">${alumnosSubgrupo.length} alumnos</span>
+                                </div>
+                                ${actionsHtml}
+                            </div>
+                            <div id="${groupId}-content" style="padding:10px 14px; display:flex; flex-direction:column; gap:8px;">
+                                ${renderNivelAgrupado(alumnosSubgrupo, nivelIndex + 1)}
+                            </div>
                         </div>
-                        ${actionsHtml}
-                    </div>
-                    <div id="${groupId}-content" class="group-content-level group-content-l${levelNumber}" style="display:flex; flex-direction:column; gap:4px; width:100%;">
-                        ${renderNivelAgrupado(alumnosSubgrupo, nivelIndex + 1)}
-                    </div>
-                `;
+                    `;
+                } else if (levelNumber === 2) {
+                    let badgeCls = 'inicial-1';
+                    let iconNivel = '📁';
+                    const cLow = (clave || '').toLowerCase();
+                    if (cLow.includes('inicial 1') || (cLow.includes('inicial i') && !cLow.includes('inicial ii'))) { badgeCls = 'inicial-1'; iconNivel = '🌱'; }
+                    else if (cLow.includes('inicial 2') || cLow.includes('inicial ii')) { badgeCls = 'inicial-2'; iconNivel = '🌿'; }
+                    else if (cLow.includes('intermedio')) { badgeCls = 'intermedio'; iconNivel = '⚡'; }
+                    else if (cLow.includes('avanzado')) { badgeCls = 'avanzado'; iconNivel = '🔥'; }
+
+                    outHtml += `
+                        <div class="group-card-l2">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; cursor:pointer; user-select:none;" onclick="window.toggleGroupCollapsible('${groupId}-content', '${groupId}-icon')">
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <span id="${groupId}-icon" style="font-size:10px; color:#64748b; transition:transform 0.2s;">▼</span>
+                                    <span class="badge-nivel ${badgeCls}">${iconNivel} ${criterio === 'nivel' ? 'Nivel: ' : ''}${clave}</span>
+                                    <span style="color:#64748b; font-size:12px; font-weight:600;">(${alumnosSubgrupo.length} alumnos)</span>
+                                </div>
+                                ${actionsHtml}
+                            </div>
+                            <div id="${groupId}-content" style="display:flex; flex-direction:column; gap:6px;">
+                                ${renderNivelAgrupado(alumnosSubgrupo, nivelIndex + 1)}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    const pillCls = obtenerClasePillInstrumento(clave);
+                    const emoji = obtenerEmojiInstrumento(clave);
+                    outHtml += `
+                        <div style="margin-left:6px; margin-top:4px; margin-bottom:4px;">
+                            <div class="pill-instrumento ${pillCls}" style="cursor:pointer; user-select:none;" onclick="window.toggleGroupCollapsible('${groupId}-content', '${groupId}-icon')">
+                                <span id="${groupId}-icon" style="font-size:9px; color:#64748b; margin-right:2px; transition:transform 0.2s;">▼</span>
+                                <span>${emoji} ${clave}</span>
+                                <span style="background:#f1f5f9; color:#475569; font-size:10.5px; padding:1px 6px; border-radius:8px;">${alumnosSubgrupo.length}</span>
+                            </div>
+                            <div id="${groupId}-content" style="display:flex; flex-direction:column; gap:4px;">
+                                ${renderNivelAgrupado(alumnosSubgrupo, nivelIndex + 1)}
+                            </div>
+                        </div>
+                    `;
+                }
             }
             return outHtml;
         }
@@ -1509,6 +1756,14 @@ async function cargarVista(vista) {
         document.getElementById('search-container-general').style.display = 'block'; 
         mostrarSkeleton('lista-generica', 6);
         
+        if (vista === 'Lista de Espera' || vista === 'Inbox - Pendientes') {
+            const btnCSV = document.getElementById('btn-carga-masiva');
+            if (btnCSV) {
+                btnCSV.style.display = 'inline-block';
+                btnCSV.textContent = (vista === 'Lista de Espera') ? '📥 Cargar CSV' : '📥 CSV';
+            }
+        }
+
         if (vista === 'Inbox - Confirmadas' || vista === 'Altas - Confirmadas') document.getElementById('alarm-filters').style.display = 'flex';
     }
     
@@ -2401,13 +2656,8 @@ document.addEventListener('click', async (e) => {
             const alDoc = await getDoc(doc(db, "alumnos", id));
             const al = alDoc.exists() ? alDoc.data() : {};
             const hist = al.historial || [];
-            const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
             const tagsTxt = ` [Perfil Emocional: ${tags.join(', ')}]`;
-            hist.push({
-                id: Date.now(),
-                texto: `Admisión Finalizada. Diagnóstico/Informe registrado.${tagsTxt} Resumen: ${plainInfo.length > 120 ? plainInfo.substring(0, 120) + '...' : plainInfo}`,
-                fecha: fechaStr
-            });
+            hist.push(crearEntradaHistorial(`Admisión Finalizada. Diagnóstico e informe registrados.${tagsTxt} Alumno pasó a Lista de Espera.`, 'informe'));
             await updateDoc(doc(db, "alumnos", id), { 
                 estado_agenda: "Lista de espera",
                 informe_admision: informeTexto,
@@ -2428,7 +2678,9 @@ document.addEventListener('click', async (e) => {
     if (target.classList.contains('btn-abrir-prealta') || target.classList.contains('btn-editar-prealta')) {
         const id = target.getAttribute('data-id');
         const esEdicion = target.classList.contains('btn-editar-prealta');
-        await abrirModalPrealta(id, esEdicion, configApp);
+        const inicioPrev = target.getAttribute('data-inicio');
+        const grupoPrev = target.getAttribute('data-grupo');
+        await abrirModalPrealta(id, esEdicion, inicioPrev, grupoPrev, { configApp, setBotonCargando });
         return;
     }
 
@@ -2453,14 +2705,20 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    // Guardar Pre-Alta (Procesa 1 o N alumnos con validación de horarios)
+    // Guardar Pre-Alta (modal-iniciar-prealta)
     if (target.id === 'btn-guardar-prealta') {
-        await guardarPreAlta(target, { setBotonCargando, cargarVista, generarTextoConHistorial, estadoActualVista });
-        selectedBulkIds = [];
-        actualizarBulkBar();
+        await guardarPreAlta({ setBotonCargando, cargarVista, generarTextoConHistorial, estadoActualVista });
         return;
     }
-    if (target.classList.contains('btn-abrir-confirmar-alta')) { document.getElementById('conf-alta-alumno-id').value = target.getAttribute('data-id'); document.getElementById('modal-confirmar-alta').showModal(); return; }
+
+    // Botón Confirmar Alta (Abre modal)
+    if (target.classList.contains('btn-abrir-confirmar-alta')) {
+        const id = target.getAttribute('data-id');
+        document.getElementById('conf-alta-alumno-id').value = id;
+        document.getElementById('modal-confirmar-alta').showModal();
+        return;
+    }
+    // Guardar Confirmación de Alta
     if (target.id === 'btn-guardar-confirmacion-alta') {
         const id = document.getElementById('conf-alta-alumno-id').value, est = document.querySelector('input[name="opt-tipo-alta"]:checked').value;
         setBotonCargando(target, true);
@@ -2479,7 +2737,9 @@ document.addEventListener('click', async (e) => {
         }
         await sincronizarEventoAltaConfirmadaCalendar(al, esIndividual, alumnosDelGrupo);
 
-        await updateDoc(doc(db, "alumnos", id), { estado_agenda: est });
+        const hist = al.historial || [];
+        hist.push(crearEntradaHistorial(`Alta confirmada y efectiva (${est}) en el grupo/clase "${al.grupo_asignado || '-'}".`, 'alta'));
+        await updateDoc(doc(db, "alumnos", id), { estado_agenda: est, historial: hist });
         const dataText = await generarTextoConHistorial(id, 'texto_alta_confirmada');
         await navigator.clipboard.writeText(dataText.txt);
         document.getElementById('modal-confirmar-alta').close();
@@ -2495,13 +2755,8 @@ document.addEventListener('click', async (e) => {
         if (ok) {
             const alDoc = await getDoc(doc(db, "alumnos", id));
             const al = alDoc.exists() ? alDoc.data() : {};
-            const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
             const hist = al.historial || [];
-            hist.push({
-                id: Date.now(),
-                texto: "Alta Finalizada: Todos los pasos del checklist confirmados. Ciclo de admisión cerrado con éxito.",
-                fecha: fechaStr
-            });
+            hist.push(crearEntradaHistorial("Alta Finalizada: Todos los pasos del checklist confirmados. Ciclo de admisión cerrado con éxito.", 'alta'));
             await updateDoc(doc(db, "alumnos", id), {
                 checklist_alta: [true, true, true, true, true],
                 fecha_alta_finalizada: new Date().toISOString(),
@@ -2519,13 +2774,8 @@ document.addEventListener('click', async (e) => {
             const id = target.getAttribute('data-id');
             const alDoc = await getDoc(doc(db, "alumnos", id));
             const al = alDoc.exists() ? alDoc.data() : {};
-            const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
             const hist = al.historial || [];
-            hist.push({
-                id: Date.now(),
-                texto: `Devuelto a Lista de Espera desde ${al.estado_agenda || 'Altas'}. Motivo: ${motivo.trim()}`,
-                fecha: fechaStr
-            });
+            hist.push(crearEntradaHistorial(`Devuelto a Lista de Espera desde ${al.estado_agenda || 'Altas'}. Motivo: ${motivo.trim()}`, 'alta'));
             await eliminarEventoAltaSeguro(al);
             await updateDoc(doc(db, "alumnos", id), {
                 estado_agenda: "Lista de espera",
@@ -2556,8 +2806,8 @@ document.addEventListener('click', async (e) => {
             const id = target.getAttribute('data-id'); 
             const alDoc = await getDoc(doc(db, "alumnos", id));
             const al = alDoc.exists() ? alDoc.data() : {};
-            const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`, hist = al.historial || []; 
-            hist.push({ id: Date.now(), texto: `Alta suspendida. Motivo: ${motivo.trim()}`, fecha: fechaStr }); 
+            const hist = al.historial || []; 
+            hist.push(crearEntradaHistorial(`Alta suspendida. Motivo: ${motivo.trim()}`, 'suspension')); 
             await eliminarEventoAltaSeguro(al);
             await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Alta Suspendida", historial: hist }); 
             cargarVista(estadoActualVista); 

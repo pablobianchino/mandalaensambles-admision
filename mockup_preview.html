@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mockup Interactivo - Agrupaciones en Color (Opción 1)</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700;800&family=Geist+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: var(--bg-main, #f7f4ed);
+            font-family: 'Hanken Grotesk', sans-serif;
+            padding: 24px 20px;
+            margin: 0;
+            color: var(--text-main, #1c1a17);
+        }
+        .container {
+            max-width: 1040px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .demo-header {
+            background: #ffffff;
+            border: 1px solid var(--border-color, #e5e0d8);
+            border-radius: 12px;
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+        }
+        .demo-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--text-main, #1c1a17);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Nivel 1: Banners de Categoría */
+        .group-card-l1 {
+            border-radius: 12px;
+            background: #ffffff;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+            transition: all 0.2s ease;
+        }
+        .group-card-l1.ensamble { border-color: #bfdbfe; }
+        .group-card-l1.individuales { border-color: #fed7aa; }
+        .group-card-l1.grupales { border-color: #99f6e4; }
+
+        .group-banner-l1 {
+            padding: 12px 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.15s ease;
+        }
+        .group-banner-l1:hover { filter: brightness(0.98); }
+        .group-banner-l1.ensamble { background: linear-gradient(90deg, #eff6ff 0%, #ffffff 100%); border-left: 6px solid #2563eb; color: #1e3a8a; }
+        .group-banner-l1.individuales { background: linear-gradient(90deg, #fff7ed 0%, #ffffff 100%); border-left: 6px solid #ea580c; color: #9a3412; }
+        .group-banner-l1.grupales { background: linear-gradient(90deg, #f0fdfa 0%, #ffffff 100%); border-left: 6px solid #0d9488; color: #115e59; }
+
+        /* Nivel 2: Nivel pedagógico */
+        .group-card-l2 {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+        }
+        .badge-nivel {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12.5px;
+            font-weight: 800;
+            padding: 4px 10px;
+            border-radius: 6px;
+        }
+        .badge-nivel.inicial-1 { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .badge-nivel.inicial-2 { background: #ecfccb; color: #3f6212; border: 1px solid #d9f99d; }
+        .badge-nivel.intermedio { background: #f3e8ff; color: #6b21a8; border: 1px solid #e9d5ff; }
+
+        /* Nivel 3: Pill de Instrumento */
+        .pill-instrumento {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12.5px;
+            font-weight: 700;
+            color: #334155;
+            margin-bottom: 8px;
+            margin-top: 6px;
+        }
+        .pill-instrumento.guitarra { border-left: 4px solid #f59e0b; }
+        .pill-instrumento.canto { border-left: 4px solid #ec4899; }
+        .pill-instrumento.bateria { border-left: 4px solid #3b82f6; }
+        .pill-instrumento.piano { border-left: 4px solid #8b5cf6; }
+
+        /* Fila de Alumno Limpia */
+        .mockup-alumno-row {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+            transition: all 0.15s ease;
+        }
+        .mockup-alumno-row:hover {
+            border-color: #cbd5e1;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.04);
+        }
+        .matrix-day-box {
+            padding: 4px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            text-align: center;
+            min-width: 36px;
+            font-family: 'Geist Mono', monospace;
+            line-height: 1.15;
+        }
+        .matrix-day-box.active {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+        .matrix-day-box.empty {
+            background: #f1f5f9;
+            color: #94a3b8;
+        }
+        .btn-prealta-mock {
+            background: #0d9488;
+            color: #ffffff;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer;
+            font-family: inherit;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.15s ease;
+        }
+        .btn-prealta-mock:hover {
+            filter: brightness(0.92);
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- DEMO BAR -->
+    <div class="demo-header">
+        <div class="demo-title">
+            <span>🎨 Vista Previa Interactiva: Agrupaciones con Separadores en Color</span>
+        </div>
+        <div style="font-size: 12.5px; color: var(--text-muted);">
+            Basado en tu planilla de colores (Azul Ensambles · Naranja Individuales · Turquesa Grupales)
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- NIVEL 1: ENSAMBLE (AZUL) -->
+    <!-- ============================================================ -->
+    <div class="group-card-l1 ensamble">
+        <div class="group-banner-l1 ensamble" onclick="toggleSec('sec-ensamble', 'ico-ensamble')">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span id="ico-ensamble" style="font-size:12px; transition:transform 0.2s;">▼</span>
+                <span style="font-size:18px;">🧩</span>
+                <span style="font-size:15px; font-weight:800; letter-spacing:-0.01em;">ENSAMBLES</span>
+                <span style="background:#2563eb; color:white; font-size:11.5px; font-weight:700; padding:2px 8px; border-radius:12px;">35 alumnos</span>
+            </div>
+            <div>
+                <button type="button" style="font-size:11.5px; font-weight:700; background:white; border:1px solid #93c5fd; color:#1d4ed8; padding:4px 10px; border-radius:6px; cursor:pointer;" onclick="event.stopPropagation();">☑️ Seleccionar Todos</button>
+            </div>
+        </div>
+
+        <div id="sec-ensamble" style="padding:14px 16px; display:flex; flex-direction:column; gap:12px;">
+
+            <!-- NIVEL 2: INICIAL I -->
+            <div class="group-card-l2">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; cursor:pointer;" onclick="toggleSec('sec-ensamble-ini1', 'ico-ensamble-ini1')">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span id="ico-ensamble-ini1" style="font-size:10px; color:#64748b;">▼</span>
+                        <span class="badge-nivel inicial-1">🌱 Nivel: Inicial I</span>
+                        <span style="color:#64748b; font-size:12px; font-weight:600;">(10 alumnos)</span>
+                    </div>
+                </div>
+
+                <div id="sec-ensamble-ini1">
+                    <!-- NIVEL 3: GUITARRA -->
+                    <div style="margin-left: 8px;">
+                        <div class="pill-instrumento guitarra">
+                            <span>🎸 Guitarra</span>
+                            <span style="background:#f1f5f9; color:#475569; font-size:10.5px; padding:1px 6px; border-radius:8px;">3</span>
+                        </div>
+
+                        <!-- Fila 1: Delfina Murature (Guitarra) -->
+                        <div class="mockup-alumno-row">
+                            <div style="display:flex; align-items:center; gap:10px; min-width:220px;">
+                                <input type="checkbox" checked style="width:16px; height:16px; accent-color:#0d9488; cursor:pointer;">
+                                <div style="width:8px; height:8px; border-radius:50%; background:#eab308;"></div>
+                                <div>
+                                    <div style="font-weight:700; color:#0f172a; font-size:13.5px;">Delfina Murature</div>
+                                    <div style="font-size:11.5px; color:#64748b;">24 años · 📱 +54 9 11 4455-6677</div>
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:3px;">
+                                <div class="matrix-day-box active">L<br>19+</div>
+                                <div class="matrix-day-box active">M<br>19+</div>
+                                <div class="matrix-day-box active">X<br>19+</div>
+                                <div class="matrix-day-box active">J<br>19:30+</div>
+                                <div class="matrix-day-box active">V<br>17+</div>
+                                <div class="matrix-day-box empty">S<br>-</div>
+                            </div>
+                            <div style="font-size:12px; color:#64748b; min-width:140px;">
+                                <div>Evaluador: <strong style="color:#0f172a;">Nacho</strong></div>
+                                <div style="font-size:10.5px; color:#94a3b8;">📅 18/8/2026</div>
+                            </div>
+                            <div>
+                                <button class="btn-prealta-mock">⚙️ Iniciar Pre-Alta</button>
+                            </div>
+                        </div>
+
+                        <!-- Fila 2: Rodolfo Fuentes -->
+                        <div class="mockup-alumno-row">
+                            <div style="display:flex; align-items:center; gap:10px; min-width:220px;">
+                                <input type="checkbox" checked style="width:16px; height:16px; accent-color:#0d9488; cursor:pointer;">
+                                <div style="width:8px; height:8px; border-radius:50%; background:#eab308;"></div>
+                                <div>
+                                    <div style="font-weight:700; color:#0f172a; font-size:13.5px;">Rodolfo Oscar Fuentes</div>
+                                    <div style="font-size:11.5px; color:#64748b;">58 años · 📱 +54 9 11 8899-0011</div>
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:3px;">
+                                <div class="matrix-day-box active">L<br>16+</div>
+                                <div class="matrix-day-box empty">M<br>-</div>
+                                <div class="matrix-day-box active">X<br>17-20</div>
+                                <div class="matrix-day-box empty">J<br>-</div>
+                                <div class="matrix-day-box active">V<br>16+</div>
+                                <div class="matrix-day-box active">S<br>14+</div>
+                            </div>
+                            <div style="font-size:12px; color:#64748b; min-width:140px;">
+                                <div>Evaluador: <strong style="color:#0f172a;">Feli</strong></div>
+                                <div style="font-size:10.5px; color:#94a3b8;">📅 17/6/2026</div>
+                            </div>
+                            <div>
+                                <button class="btn-prealta-mock">⚙️ Iniciar Pre-Alta</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- NIVEL 3: CANTO (DESDOBLE MULTI-INSTRUMENTO) -->
+                    <div style="margin-left: 8px; margin-top: 14px;">
+                        <div class="pill-instrumento canto">
+                            <span>🎤 Canto</span>
+                            <span style="background:#f1f5f9; color:#475569; font-size:10.5px; padding:1px 6px; border-radius:8px;">4</span>
+                        </div>
+
+                        <!-- Fila 1: Delfina Murature (Canto - Desdoblada) -->
+                        <div class="mockup-alumno-row">
+                            <div style="display:flex; align-items:center; gap:10px; min-width:220px;">
+                                <input type="checkbox" checked style="width:16px; height:16px; accent-color:#0d9488; cursor:pointer;">
+                                <div style="width:8px; height:8px; border-radius:50%; background:#eab308;"></div>
+                                <div>
+                                    <div style="font-weight:700; color:#0f172a; font-size:13.5px;">Delfina Murature</div>
+                                    <div style="font-size:11.5px; color:#64748b;">24 años · 📱 +54 9 11 4455-6677</div>
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:3px;">
+                                <div class="matrix-day-box active">L<br>19+</div>
+                                <div class="matrix-day-box active">M<br>19+</div>
+                                <div class="matrix-day-box active">X<br>19+</div>
+                                <div class="matrix-day-box active">J<br>19:30+</div>
+                                <div class="matrix-day-box active">V<br>17+</div>
+                                <div class="matrix-day-box empty">S<br>-</div>
+                            </div>
+                            <div style="font-size:12px; color:#64748b; min-width:140px;">
+                                <div>Evaluador: <strong style="color:#0f172a;">Nacho</strong></div>
+                                <div style="font-size:10.5px; color:#94a3b8;">📅 18/8/2026</div>
+                            </div>
+                            <div>
+                                <button class="btn-prealta-mock">⚙️ Iniciar Pre-Alta</button>
+                            </div>
+                        </div>
+
+                        <!-- Fila 2: Camila Gómez -->
+                        <div class="mockup-alumno-row">
+                            <div style="display:flex; align-items:center; gap:10px; min-width:220px;">
+                                <input type="checkbox" checked style="width:16px; height:16px; accent-color:#0d9488; cursor:pointer;">
+                                <div style="width:8px; height:8px; border-radius:50%; background:#eab308;"></div>
+                                <div>
+                                    <div style="font-weight:700; color:#0f172a; font-size:13.5px;">Camila Gómez</div>
+                                    <div style="font-size:11.5px; color:#64748b;">21 años · 📱 +54 9 11 7766-5544</div>
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:3px;">
+                                <div class="matrix-day-box empty">L<br>-</div>
+                                <div class="matrix-day-box active">M<br>18+</div>
+                                <div class="matrix-day-box empty">X<br>-</div>
+                                <div class="matrix-day-box active">J<br>18+</div>
+                                <div class="matrix-day-box active">V<br>17+</div>
+                                <div class="matrix-day-box active">S<br>10-14</div>
+                            </div>
+                            <div style="font-size:12px; color:#64748b; min-width:140px;">
+                                <div>Evaluador: <strong style="color:#0f172a;">Nacho</strong></div>
+                                <div style="font-size:10.5px; color:#94a3b8;">📅 15/8/2026</div>
+                            </div>
+                            <div>
+                                <button class="btn-prealta-mock">⚙️ Iniciar Pre-Alta</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- NIVEL 1: CLASES INDIVIDUALES (NARANJA) -->
+    <!-- ============================================================ -->
+    <div class="group-card-l1 individuales">
+        <div class="group-banner-l1 individuales" onclick="toggleSec('sec-indiv', 'ico-indiv')">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span id="ico-indiv" style="font-size:12px; transition:transform 0.2s;">▶</span>
+                <span style="font-size:18px;">👤</span>
+                <span style="font-size:15px; font-weight:800; letter-spacing:-0.01em;">CLASES INDIVIDUALES</span>
+                <span style="background:#ea580c; color:white; font-size:11.5px; font-weight:700; padding:2px 8px; border-radius:12px;">8 alumnos</span>
+            </div>
+            <div>
+                <button type="button" style="font-size:11.5px; font-weight:700; background:white; border:1px solid #fdba74; color:#c2410c; padding:4px 10px; border-radius:6px; cursor:pointer;" onclick="event.stopPropagation();">☑️ Seleccionar Todos</button>
+            </div>
+        </div>
+        <div id="sec-indiv" style="display:none; padding:14px 16px;">
+            <p style="color:var(--text-muted); font-size:13px; margin:0;">Alumnos individuales colapsados...</p>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- NIVEL 1: CLASES GRUPALES (TURQUESA) -->
+    <!-- ============================================================ -->
+    <div class="group-card-l1 grupales">
+        <div class="group-banner-l1 grupales" onclick="toggleSec('sec-grup', 'ico-grup')">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span id="ico-grup" style="font-size:12px; transition:transform 0.2s;">▶</span>
+                <span style="font-size:18px;">👥</span>
+                <span style="font-size:15px; font-weight:800; letter-spacing:-0.01em;">CLASES GRUPALES</span>
+                <span style="background:#0d9488; color:white; font-size:11.5px; font-weight:700; padding:2px 8px; border-radius:12px;">14 alumnos</span>
+            </div>
+            <div>
+                <button type="button" style="font-size:11.5px; font-weight:700; background:white; border:1px solid #5eead4; color:#0f766e; padding:4px 10px; border-radius:6px; cursor:pointer;" onclick="event.stopPropagation();">☑️ Seleccionar Todos</button>
+            </div>
+        </div>
+        <div id="sec-grup" style="display:none; padding:14px 16px;">
+            <p style="color:var(--text-muted); font-size:13px; margin:0;">Alumnos de clases grupales colapsados...</p>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    function toggleSec(contentId, iconId) {
+        const el = document.getElementById(contentId);
+        const ico = document.getElementById(iconId);
+        if (!el) return;
+        const isHidden = el.style.display === 'none';
+        el.style.display = isHidden ? 'flex' : 'none';
+        if (ico) ico.textContent = isHidden ? '▼' : '▶';
+    }
+</script>
+
+</body>
+</html>

@@ -1419,21 +1419,15 @@ window.toggleValidacionAlumnoGrupo = async function(alumnoId, nuevoEstado) {
 };
 
 window.aprobarGrupoCompletoPrealta = async function(nombreGrupo) {
-    if (!(await window.confirmar('Aprobar grupo', 'Todos sus integrantes pasaran a Altas Pendientes.', 'Aprobar Grupo'))) return;
+    if (!(await window.confirmar('Aprobar grupo', 'Todos sus integrantes pasarán a Altas Pendientes.', 'Aprobar Grupo'))) return;
     try {
         const qSnap = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", "Validando Grupo")));
-        const now = new Date();
-        const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
-
         for (const d of qSnap.docs) {
             const data = d.data();
             if ((data.grupo_asignado || 'Clases Individuales') === nombreGrupo) {
                 const hist = data.historial || [];
-                hist.push({
-                    id: Date.now() + Math.floor(Math.random() * 1000),
-                    texto: `Validacion grupal aprobada: Grupo "${nombreGrupo}" pasa a Altas Pendientes.`,
-                    fecha: fechaStr
-                });
+                const fnHist = window.crearEntradaHistorial || ((txt, tipo) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema' }));
+                hist.push(fnHist(`Validación grupal aprobada: Grupo "${nombreGrupo}" pasa a Altas Pendientes.`, 'match'));
                 await updateDoc(doc(db, "alumnos", d.id), {
                     estado_agenda: "Pre-alta Pendiente",
                     estado_validacion_alumno: "confirmado",
@@ -1441,7 +1435,7 @@ window.aprobarGrupoCompletoPrealta = async function(nombreGrupo) {
                 });
             }
         }
-        alert(`✅ Grupo "${nombreGrupo}" aprobado con exito. Paso a Altas Pendientes.`);
+        alert(`✅ Grupo "${nombreGrupo}" aprobado con éxito. Pasó a Altas Pendientes.`);
         if (typeof window.cargarVistaGlobal === 'function') {
             await window.cargarVistaGlobal('Altas - Pendientes');
         }
@@ -1455,16 +1449,11 @@ window.aprobarAlumnoIndividualPrealta = async function(alumnoId) {
         const alDoc = await getDoc(doc(db, "alumnos", alumnoId));
         if (!alDoc.exists()) return;
         const al = alDoc.data();
-        if (!(await window.confirmar('Aprobar alumno', 'El alumno pasara a Altas Pendientes.', 'Aprobar'))) return;
+        if (!(await window.confirmar('Aprobar alumno', 'El alumno pasará a Altas Pendientes.', 'Aprobar'))) return;
 
-        const now = new Date();
-        const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
         const hist = al.historial || [];
-        hist.push({
-            id: Date.now() + Math.floor(Math.random() * 1000),
-            texto: `Validacion individual aprobada para ${al.grupo_asignado || 'clase'}. Pasa a Altas Pendientes.`,
-            fecha: fechaStr
-        });
+        const fnHist = window.crearEntradaHistorial || ((txt, tipo) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema' }));
+        hist.push(fnHist(`Validación individual aprobada para ${al.grupo_asignado || 'clase'}. Pasa a Altas Pendientes.`, 'match'));
 
         await updateDoc(doc(db, "alumnos", alumnoId), {
             estado_agenda: "Pre-alta Pendiente",
@@ -1485,16 +1474,11 @@ window.rechazarAlumnoGrupoYVolverEspera = async function(alumnoId) {
         const alDoc = await getDoc(doc(db, "alumnos", alumnoId));
         if (!alDoc.exists()) return;
         const al = alDoc.data();
-        if (!(await window.confirmar('Confirmar rechazo', 'El alumno volvera a Lista de Espera.', 'Confirmar rechazo'))) return;
+        if (!(await window.confirmar('Confirmar rechazo', 'El alumno volverá a Lista de Espera.', 'Confirmar rechazo'))) return;
 
-        const now = new Date();
-        const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
         const hist = al.historial || [];
-        hist.push({
-            id: Date.now() + Math.floor(Math.random() * 1000),
-            texto: `Propuesta de grupo "${al.grupo_asignado || ''}" rechazada/no disponible. Vuelve a Lista de Espera.`,
-            fecha: fechaStr
-        });
+        const fnHist = window.crearEntradaHistorial || ((txt, tipo) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema' }));
+        hist.push(fnHist(`Propuesta de grupo "${al.grupo_asignado || ''}" rechazada/no disponible. Vuelve a Lista de Espera.`, 'match'));
 
         await updateDoc(doc(db, "alumnos", alumnoId), {
             estado_agenda: "Lista de espera",
@@ -1503,7 +1487,7 @@ window.rechazarAlumnoGrupoYVolverEspera = async function(alumnoId) {
             historial: hist
         });
 
-        alert(`↩ï¸ ${al.nombre} volvio a Lista de Espera.`);
+        alert(`↩️ ${al.nombre} volvió a Lista de Espera.`);
         const cont = document.getElementById('lista-generica');
         if (cont) await renderMatchEnValidacion(cont);
     } catch(err) {
@@ -1512,21 +1496,16 @@ window.rechazarAlumnoGrupoYVolverEspera = async function(alumnoId) {
 };
 
 window.desarmarGrupoValidacion = async function(nombreGrupo) {
-    if (!(await window.confirmar('Desarmar grupo', 'Todos los integrantes volveran a Lista de Espera.', 'Desarmar'))) return;
+    if (!(await window.confirmar('Desarmar grupo', 'Todos los integrantes volverán a Lista de Espera.', 'Desarmar'))) return;
     try {
         const qSnap = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", "Validando Grupo")));
-        const now = new Date();
-        const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
 
         for (const d of qSnap.docs) {
             const data = d.data();
             if ((data.grupo_asignado || 'Clases Individuales') === nombreGrupo) {
                 const hist = data.historial || [];
-                hist.push({
-                    id: Date.now() + Math.floor(Math.random() * 1000),
-                    texto: `Propuesta de grupo "${nombreGrupo}" desarmada. Alumno vuelve a Lista de Espera.`,
-                    fecha: fechaStr
-                });
+                const fnHist = window.crearEntradaHistorial || ((txt, tipo) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema' }));
+                hist.push(fnHist(`Propuesta de grupo "${nombreGrupo}" desarmada. Alumno vuelve a Lista de Espera.`, 'match'));
                 await updateDoc(doc(db, "alumnos", d.id), {
                     estado_agenda: "Lista de espera",
                     grupo_asignado: "",
@@ -1535,7 +1514,7 @@ window.desarmarGrupoValidacion = async function(nombreGrupo) {
                 });
             }
         }
-        alert(`↩ï¸ Grupo "${nombreGrupo}" desarmado. Alumnos retornaron a Lista de Espera.`);
+        alert(`↩️ Grupo "${nombreGrupo}" desarmado. Alumnos retornaron a Lista de Espera.`);
         const cont = document.getElementById('lista-generica');
         if (cont) await renderMatchEnValidacion(cont);
     } catch(err) {

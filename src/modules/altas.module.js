@@ -364,6 +364,12 @@ export async function guardarPreAlta(btnTarget, callbacks = {}) {
 
         if (!al.fecha_prealta) updates.fecha_prealta = new Date().toISOString();
         if (!al.checklist_alta) updates.checklist_alta = [false, false, false, false, false];
+        
+        const hist = al.historial || [];
+        const fnHist = window.crearEntradaHistorial || ((txt, tipo) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema' }));
+        hist.push(fnHist(`Pre-Alta iniciada para "${finalGrupo}" con Profe ${finalProfeNombre} (Inicio: ${updates.horario_match}).`, 'alta'));
+        updates.historial = hist;
+
         await updateDoc(doc(db, "alumnos", id), updates);
 
         if (typeof generarTextoConHistorial === 'function') {
