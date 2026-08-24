@@ -2860,14 +2860,55 @@ document.addEventListener('click', async (e) => {
         return; 
     }
 
-    if (target.classList.contains('btn-abrir-suspender') || target.closest('.btn-abrir-suspender')) { 
-        const btn = target.classList.contains('btn-abrir-suspender') ? target : target.closest('.btn-abrir-suspender');
+    if (target.classList.contains('btn-abrir-suspender') || target.closest('.btn-abrir-suspender') ||
+        target.classList.contains('btn-suspender') || target.closest('.btn-suspender') ||
+        target.classList.contains('btn-suspender-espera') || target.closest('.btn-suspender-espera')) { 
+        const btn = target.closest('.btn-abrir-suspender') || target.closest('.btn-suspender') || target.closest('.btn-suspender-espera') || target;
         document.getElementById('susp-alumno-id').value = btn.getAttribute('data-id'); 
         document.getElementById('susp-motivo').value = ""; 
         document.getElementById('modal-suspender').showModal(); 
         return; 
     }
-    if (target.id === 'btn-guardar-suspension') { const id = document.getElementById('susp-alumno-id').value, mtv = document.getElementById('susp-motivo').value; if(!mtv) return alert("Seleccione motivo"); setBotonCargando(target, true); try { const al = (await getDoc(doc(db, "alumnos", id))).data(); if (al.id_evento_reserva) await eliminarEventoSeguro(al); const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`, hist = al.historial || []; hist.push({ id: Date.now(), texto: `Suspendido. Motivo: ${mtv}`, fecha: fechaStr }); await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Agenda suspendida", motivo_suspension: mtv, reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null, historial: hist }); document.getElementById('modal-suspender').close(); cargarVista(estadoActualVista); } catch(err){ alert("❌ Error:\n\n" + err.message); } setBotonCargando(target, false); return;}
+    if (target.id === 'btn-guardar-suspension') { 
+        const id = document.getElementById('susp-alumno-id').value;
+        const mtv = document.getElementById('susp-motivo').value; 
+        if(!mtv) return alert("Seleccione motivo"); 
+        setBotonCargando(target, true); 
+        try { 
+            const alDoc = await getDoc(doc(db, "alumnos", id));
+            const al = alDoc.data(); 
+            const estadoActual = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+            const esDeAltaOEspera = ['lista de espera', 'pre-alta pendiente', 'pre-alta iniciada', 'alta efectiva', 'alta ilegal', 'alta finalizada'].includes(estadoActual);
+            
+            if (al.id_evento_reserva) await eliminarEventoSeguro(al);
+            if (al.id_evento_alta) await eliminarEventoAltaSeguro(al);
+            
+            const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+            const hist = al.historial || []; 
+            hist.push({ id: Date.now(), texto: `Suspendido. Motivo: ${mtv}`, fecha: fechaStr }); 
+            
+            const nuevoEstado = esDeAltaOEspera ? "Alta suspendida" : "Agenda suspendida";
+            await updateDoc(doc(db, "alumnos", id), { 
+                estado_agenda: nuevoEstado, 
+                motivo_suspension: mtv, 
+                reserva_profe_id: null, 
+                reserva_profe_nombre: null, 
+                reserva_cal_id: null, 
+                reserva_fecha_texto: null, 
+                reserva_inicio: null, 
+                reserva_fin: null, 
+                id_evento_reserva: null, 
+                calendario_evento_reserva: null, 
+                historial: hist 
+            }); 
+            document.getElementById('modal-suspender').close(); 
+            cargarVista(estadoActualVista); 
+        } catch(err){ 
+            alert("❌ Error:\n\n" + err.message); 
+        } 
+        setBotonCargando(target, false); 
+        return;
+    }
     if (target.classList.contains('btn-recuperar-agenda') || target.closest('.btn-recuperar-agenda')) { 
         const btn = target.classList.contains('btn-recuperar-agenda') ? target : target.closest('.btn-recuperar-agenda');
         await updateDoc(doc(db, "alumnos", btn.getAttribute('data-id')), { estado_agenda: "Pendiente procesar", motivo_suspension: null }); 
