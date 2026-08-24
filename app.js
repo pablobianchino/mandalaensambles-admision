@@ -2618,7 +2618,27 @@ document.addEventListener('click', async (e) => {
         return; 
     }
 
-    if (target.classList.contains('btn-nombre-agendar')) { const id = target.getAttribute('data-id'); try { const al = (await getDoc(doc(db, "alumnos", id))).data(); const iS = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento; let template = configApp.texto_nombre_agendar || 'MDL {nombre} {edad} {año_actual} @{instrumento} @{suscripcion}'; const txt = reemplazarVariables(template, { nombre: al.nombre, edad: al.edad || '', 'año_actual': new Date().getFullYear().toString(), instrumento: iS, suscripcion: al.tipo_suscripcion || '' }).replace(/\s+/g, ' ').trim(); await navigator.clipboard.writeText(txt); alert("Nombre copiado:\n" + txt); } catch(e) {} return; }
+    if (target.classList.contains('btn-nombre-agendar') || target.closest('.btn-nombre-agendar')) {
+        const btn = target.classList.contains('btn-nombre-agendar') ? target : target.closest('.btn-nombre-agendar');
+        const id = btn.getAttribute('data-id');
+        try {
+            const al = (await getDoc(doc(db, "alumnos", id))).data();
+            const iS = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || '');
+            let template = configApp.texto_nombre_agendar || 'MDL {nombre} {edad} {año_actual} @{instrumento} @{suscripcion}';
+            const txt = reemplazarVariables(template, { 
+                nombre: al.nombre, 
+                edad: al.edad || '', 
+                'año_actual': new Date().getFullYear().toString(), 
+                instrumento: iS, 
+                suscripcion: al.tipo_suscripcion || '' 
+            }).replace(/\s+/g, ' ').trim();
+            await navigator.clipboard.writeText(txt);
+            alert("📋 Formato de contacto para WhatsApp copiado al portapapeles:\n\n" + txt);
+        } catch(e) {
+            alert("Error al copiar: " + e.message);
+        }
+        return;
+    }
     
     if (target.classList.contains('btn-admision-finalizada') || target.closest('.btn-admision-finalizada')) { 
         const btn = target.classList.contains('btn-admision-finalizada') ? target : target.closest('.btn-admision-finalizada');

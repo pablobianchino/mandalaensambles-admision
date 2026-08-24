@@ -95,6 +95,7 @@ export function generarBotonesPrincipalesVisibles(al, id) {
 
     if (est === 'pendiente procesar') {
         html += `<button type="button" class="row-quick-btn primary btn-buscar-agenda" data-id="${id}">🔍 Buscar Agenda</button>`;
+        html += `<button type="button" class="row-quick-btn secondary btn-nombre-agendar" data-id="${id}">📋 Formato WS</button>`;
     } else if (est === 'pendiente validacion por profe' || est === 'pendiente validacion por evaluador') {
         html += `<button type="button" class="row-quick-btn primary btn-validado-profe-popup" data-id="${id}">✅ Validado por Evaluador</button>`;
         html += `<button type="button" class="row-quick-btn secondary btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
@@ -142,26 +143,31 @@ export function generarBotonesAccion(al, id, esModal = false) {
     if (esModal) {
         if (est === 'pendiente procesar') {
             html += `<button type="button" class="btn-action-primary btn-buscar-agenda" data-id="${id}">🔍 Buscar Agenda</button>`;
+            html += `<button type="button" class="btn-action-neutral btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Agenda WS</button>`;
             html += `<button type="button" class="btn-action-neutral btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
         } else if (est === 'pendiente validacion por profe' || est === 'pendiente validacion por evaluador') {
             html += `<button type="button" class="btn-action-primary btn-validado-profe-popup" data-id="${id}">✅ Validado por Evaluador</button>`;
             html += `<button type="button" class="btn-action-neutral btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
             html += `<button type="button" class="btn-action-neutral btn-reenviar-profe" data-id="${id}">💬 Reenviar WhatsApp Evaluador</button>`;
+            html += `<button type="button" class="btn-action-neutral btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Agenda WS</button>`;
             html += `<button type="button" class="btn-action-neutral btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
         } else if (est === 'pendiente validacion por alumno') {
             html += `<button type="button" class="btn-action-primary btn-confirmar-entrevista" data-id="${id}">✅ Confirmar Agenda</button>`;
             html += `<button type="button" class="btn-action-neutral btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
             html += `<button type="button" class="btn-action-neutral btn-reenviar-alumno" data-id="${id}">💬 Reenviar WhatsApp Alumno</button>`;
+            html += `<button type="button" class="btn-action-neutral btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Agenda WS</button>`;
             html += `<button type="button" class="btn-action-neutral btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
         } else if (est === 'agenda confirmada') {
             html += `<button type="button" class="btn-action-primary btn-admision-finalizada" data-id="${id}">🏁 Admisión Finalizada</button>`;
             html += `<button type="button" class="btn-action-neutral btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
             html += `<button type="button" class="btn-action-neutral btn-cancelar-alumno" data-id="${id}">❌ Alumno Cancela</button>`;
+            html += `<button type="button" class="btn-action-neutral btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Agenda WS</button>`;
             html += `<button type="button" class="btn-action-neutral btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
         } else if (est === 'agenda suspendida') {
             html += `<button type="button" class="btn-action-primary btn-recuperar-agenda" data-id="${id}">♻️ Recuperar Agenda</button>`;
         } else if (est === 'lista de espera') {
             html += `<button type="button" class="btn-action-primary btn-abrir-prealta" data-id="${id}">⚙️ Iniciar Pre-Alta</button>`;
+            html += `<button type="button" class="btn-action-neutral btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Agenda WS</button>`;
             html += `<button type="button" class="btn-action-neutral btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
         } else if (est === 'validando grupo') {
             html += `<button type="button" class="btn-action-neutral" onclick="window.editarAlumnoModalDirecto('${id}')">✏️ Editar Ficha</button>`;
@@ -191,19 +197,24 @@ export function generarBotonesAccion(al, id, esModal = false) {
     }
 
     if (est === 'pendiente procesar') {
+        html += `<button type="button" class="dropdown-item btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Agenda WS</button>`;
         html += `<button type="button" class="dropdown-item btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
     } else if (est === 'pendiente validacion por profe' || est === 'pendiente validacion por evaluador') {
         html += `<button type="button" class="dropdown-item btn-reenviar-profe" data-id="${id}">💬 Reenviar WhatsApp Evaluador</button>`;
+        html += `<button type="button" class="dropdown-item btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Agenda WS</button>`;
         html += `<button type="button" class="dropdown-item btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
     } else if (est === 'pendiente validacion por alumno') {
         html += `<button type="button" class="dropdown-item btn-reenviar-alumno" data-id="${id}">💬 Reenviar WhatsApp Alumno</button>`;
+        html += `<button type="button" class="dropdown-item btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Agenda WS</button>`;
         html += `<button type="button" class="dropdown-item btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
     } else if (est === 'agenda confirmada') {
         html += `<button type="button" class="dropdown-item btn-cancelar-alumno" data-id="${id}">❌ Alumno Cancela</button>`;
+        html += `<button type="button" class="dropdown-item btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Agenda WS</button>`;
         html += `<button type="button" class="dropdown-item btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
     } else if (est === 'agenda suspendida') {
         // Todo cubierto en el botón principal
     } else if (est === 'lista de espera') {
+        html += `<button type="button" class="dropdown-item btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Agenda WS</button>`;
         html += `<button type="button" class="dropdown-item btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
     } else if (est === 'validando grupo') {
         html += `<button type="button" class="dropdown-item" onclick="window.editarAlumnoModalDirecto('${id}')">✏️ Editar Ficha</button>`;
