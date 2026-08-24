@@ -233,6 +233,87 @@ body {
 .filter-alarm { background: white; }
 .filter-alarm.active { background: var(--hover-bg); color: var(--text-main) !important; border-color: var(--text-main) !important; }
 
+/* BOTON Y POPOVER DE FILTROS DESPLEGABLES */
+.btn-filtros-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+.btn-filtros-trigger:hover, .btn-filtros-trigger.open {
+    border-color: var(--accent-teal);
+    background: var(--hover-bg);
+}
+.btn-filtros-trigger.has-active {
+    border-color: var(--accent-teal);
+    color: var(--accent-teal);
+    background: #f0fdfa;
+}
+
+.dropdown-filtros-menu {
+    animation: fadeInFilters 0.15s ease-out;
+}
+@keyframes fadeInFilters {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.active-filter-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 16px;
+    font-size: 12px;
+    font-weight: 600;
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+    transition: all 0.15s ease;
+}
+.active-filter-badge.tag-inst {
+    background: #f0fdfa;
+    color: #0f766e;
+    border-color: #99f6e4;
+}
+.active-filter-badge.tag-nivel {
+    background: #f0fdf4;
+    color: #166534;
+    border-color: #bbf7d0;
+}
+.active-filter-badge.tag-susc {
+    background: #eff6ff;
+    color: #1e40af;
+    border-color: #bfdbfe;
+}
+.active-filter-badge .btn-remove-filter {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+    color: inherit;
+    opacity: 0.6;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 2px;
+}
+.active-filter-badge .btn-remove-filter:hover {
+    opacity: 1;
+    transform: scale(1.2);
+}
+
 .group-header { font-size: 15px; font-weight: 800; color: var(--text-main); margin: 24px 0 10px 0; display: flex; align-items: center; gap: 8px; letter-spacing: -0.01em; }
 .group-count { background: #e9e5de; color: var(--text-muted); font-size: 11px; padding: 2px 6px; border-radius: 10px; font-family: 'Geist Mono', monospace; font-weight:500; }
 

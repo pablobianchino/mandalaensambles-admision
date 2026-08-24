@@ -202,13 +202,15 @@ if(btnToggleView) {
     });
 }
 
+let filtrosPopoverAbierto = false;
+
 function renderFiltrosChips() {
     const cont = document.getElementById('filtros-chips');
     if (!cont) return;
 
-    const esTodos = filtrosSeleccionados.instrumentos.size === 0 && 
-                    filtrosSeleccionados.niveles.size === 0 && 
-                    filtrosSeleccionados.suscripciones.size === 0;
+    const totalFiltrosActivos = filtrosSeleccionados.instrumentos.size + 
+                                filtrosSeleccionados.niveles.size + 
+                                filtrosSeleccionados.suscripciones.size;
 
     const instrumentos = [
         { id: 'Canto', label: '🎤 Canto' },
@@ -232,66 +234,206 @@ function renderFiltrosChips() {
         { id: 'Clase Individual', label: '👤 Individual' }
     ];
 
+    // Badges en pantalla: solo los filtros seleccionados
+    let activeBadgesHtml = '';
+    
+    filtrosSeleccionados.instrumentos.forEach(val => {
+        const item = instrumentos.find(i => i.id === val) || { label: val };
+        activeBadgesHtml += `
+            <span class="active-filter-badge tag-inst">
+                <span>${item.label}</span>
+                <button type="button" class="btn-remove-filter" data-type="instrumento" data-val="${val}" title="Quitar filtro">✕</button>
+            </span>`;
+    });
+
+    filtrosSeleccionados.niveles.forEach(val => {
+        const item = niveles.find(n => n.id === val) || { label: val };
+        activeBadgesHtml += `
+            <span class="active-filter-badge tag-nivel">
+                <span>${item.label}</span>
+                <button type="button" class="btn-remove-filter" data-type="nivel" data-val="${val}" title="Quitar filtro">✕</button>
+            </span>`;
+    });
+
+    filtrosSeleccionados.suscripciones.forEach(val => {
+        const item = suscripciones.find(s => s.id === val) || { label: val };
+        activeBadgesHtml += `
+            <span class="active-filter-badge tag-susc">
+                <span>${item.label}</span>
+                <button type="button" class="btn-remove-filter" data-type="suscripcion" data-val="${val}" title="Quitar filtro">✕</button>
+            </span>`;
+    });
+
+    if (totalFiltrosActivos > 0) {
+        activeBadgesHtml += `
+            <button type="button" id="btn-limpiar-todos-filtros" style="background:none; border:none; color:#ef4444; font-size:12px; font-weight:600; cursor:pointer; padding:3px 6px; text-decoration:underline; font-family:inherit;">Limpiar todo</button>
+        `;
+    }
+
     let html = `
-        <div style="display:flex; flex-wrap:wrap; gap:6px 8px; align-items:center; width:100%;">
-            <button type="button" class="filter-chip ${esTodos ? 'active' : ''}" data-type="todos" style="font-weight:700;">Todos</button>
+        <div style="position:relative; display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap; width:100%;">
+            <!-- Botón Disparador Filtros -->
+            <div style="position:relative;">
+                <button type="button" id="btn-toggle-filtros-panel" class="btn-filtros-trigger ${totalFiltrosActivos > 0 ? 'has-active' : ''} ${filtrosPopoverAbierto ? 'open' : ''}">
+                    <span style="font-size:14px;">⚡</span>
+                    <span>Filtros</span>
+                    ${totalFiltrosActivos > 0 ? `<span style="background:var(--accent-teal); color:#fff; font-size:10.5px; font-weight:700; padding:1px 6px; border-radius:10px;">${totalFiltrosActivos}</span>` : ''}
+                    <span style="font-size:10px; color:var(--text-muted); transition:transform 0.2s;">${filtrosPopoverAbierto ? '▲' : '▼'}</span>
+                </button>
 
-            <span style="color:var(--border-color); margin:0 2px;">|</span>
-            <span style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">Inst:</span>
-            ${instrumentos.map(i => `
-                <button type="button" class="filter-chip ${filtrosSeleccionados.instrumentos.has(i.id) ? 'active' : ''}" data-type="instrumento" data-val="${i.id}">${i.label}</button>
-            `).join('')}
+                <!-- Panel Popover Flotante -->
+                <div id="dropdown-filtros-panel" class="dropdown-filtros-menu" style="display:${filtrosPopoverAbierto ? 'block' : 'none'}; position:absolute; top:calc(100% + 8px); left:0; z-index:1100; background:#ffffff; border:1px solid var(--border-color); border-radius:14px; box-shadow:0 10px 30px rgba(0,0,0,0.12); padding:16px 18px; width:340px; box-sizing:border-box;">
+                    
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:8px;">
+                        <span style="font-size:13px; font-weight:800; color:var(--text-main); text-transform:uppercase; letter-spacing:0.04em;">Filtrar Alumnos</span>
+                        <button type="button" id="btn-cerrar-filtros-popover" style="background:none; border:none; cursor:pointer; font-size:14px; color:var(--text-muted); font-weight:700; padding:2px 6px;">✕</button>
+                    </div>
 
-            <span style="color:var(--border-color); margin:0 2px;">|</span>
-            <span style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">Nivel:</span>
-            ${niveles.map(n => `
-                <button type="button" class="filter-chip ${filtrosSeleccionados.niveles.has(n.id) ? 'active active-nivel' : ''}" data-type="nivel" data-val="${n.id}">${n.label}</button>
-            `).join('')}
+                    <!-- Sección Instrumentos -->
+                    <div style="margin-bottom:12px;">
+                        <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;">Instrumento</div>
+                        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                            ${instrumentos.map(i => `
+                                <button type="button" class="filter-chip ${filtrosSeleccionados.instrumentos.has(i.id) ? 'active' : ''}" data-type="instrumento" data-val="${i.id}">${i.label}</button>
+                            `).join('')}
+                        </div>
+                    </div>
 
-            <span style="color:var(--border-color); margin:0 2px;">|</span>
-            <span style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">Susc:</span>
-            ${suscripciones.map(s => `
-                <button type="button" class="filter-chip ${filtrosSeleccionados.suscripciones.has(s.id) ? 'active active-susc' : ''}" data-type="suscripcion" data-val="${s.id}">${s.label}</button>
-            `).join('')}
+                    <!-- Sección Nivel -->
+                    <div style="margin-bottom:12px;">
+                        <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;">Nivel Pedagógico</div>
+                        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                            ${niveles.map(n => `
+                                <button type="button" class="filter-chip ${filtrosSeleccionados.niveles.has(n.id) ? 'active active-nivel' : ''}" data-type="nivel" data-val="${n.id}">${n.label}</button>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Sección Suscripción -->
+                    <div style="margin-bottom:14px;">
+                        <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;">Suscripción</div>
+                        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                            ${suscripciones.map(s => `
+                                <button type="button" class="filter-chip ${filtrosSeleccionados.suscripciones.has(s.id) ? 'active active-susc' : ''}" data-type="suscripcion" data-val="${s.id}">${s.label}</button>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Footer Popover -->
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #f1f5f9; padding-top:10px;">
+                        <button type="button" id="btn-popover-limpiar" style="background:none; border:none; color:#ef4444; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; padding:4px 0; ${totalFiltrosActivos === 0 ? 'opacity:0.4; pointer-events:none;' : ''}">Limpiar</button>
+                        <button type="button" id="btn-popover-aplicar" style="background:var(--accent-teal); color:#ffffff; border:none; border-radius:8px; padding:5px 14px; font-size:12.5px; font-weight:700; cursor:pointer; font-family:inherit;">Listo</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chips de Filtros Activos en Pantalla -->
+            <div id="filtros-activos-chips" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                ${activeBadgesHtml}
+            </div>
         </div>
     `;
 
     cont.innerHTML = html;
 
-    cont.querySelectorAll('.filter-chip').forEach(btn => {
+    // Toggle popover
+    const btnToggle = document.getElementById('btn-toggle-filtros-panel');
+    if (btnToggle) {
+        btnToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            filtrosPopoverAbierto = !filtrosPopoverAbierto;
+            renderFiltrosChips();
+        });
+    }
+
+    const btnCerrar = document.getElementById('btn-cerrar-filtros-popover');
+    if (btnCerrar) {
+        btnCerrar.addEventListener('click', (e) => {
+            e.stopPropagation();
+            filtrosPopoverAbierto = false;
+            renderFiltrosChips();
+        });
+    }
+
+    const btnAplicar = document.getElementById('btn-popover-aplicar');
+    if (btnAplicar) {
+        btnAplicar.addEventListener('click', (e) => {
+            e.stopPropagation();
+            filtrosPopoverAbierto = false;
+            renderFiltrosChips();
+        });
+    }
+
+    const dropdownPanel = document.getElementById('dropdown-filtros-panel');
+    if (dropdownPanel) {
+        dropdownPanel.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+    }
+
+    // Toggle chip individual dentro del popover
+    cont.querySelectorAll('.dropdown-filtros-menu .filter-chip').forEach(btn => {
         btn.addEventListener('click', (e) => {
+            e.stopPropagation();
             const type = btn.getAttribute('data-type');
             const val = btn.getAttribute('data-val');
 
-            if (type === 'todos') {
-                filtrosSeleccionados.instrumentos.clear();
-                filtrosSeleccionados.niveles.clear();
-                filtrosSeleccionados.suscripciones.clear();
-            } else if (type === 'instrumento') {
-                if (filtrosSeleccionados.instrumentos.has(val)) {
-                    filtrosSeleccionados.instrumentos.delete(val);
-                } else {
-                    filtrosSeleccionados.instrumentos.add(val);
-                }
+            if (type === 'instrumento') {
+                if (filtrosSeleccionados.instrumentos.has(val)) filtrosSeleccionados.instrumentos.delete(val);
+                else filtrosSeleccionados.instrumentos.add(val);
             } else if (type === 'nivel') {
-                if (filtrosSeleccionados.niveles.has(val)) {
-                    filtrosSeleccionados.niveles.delete(val);
-                } else {
-                    filtrosSeleccionados.niveles.add(val);
-                }
+                if (filtrosSeleccionados.niveles.has(val)) filtrosSeleccionados.niveles.delete(val);
+                else filtrosSeleccionados.niveles.add(val);
             } else if (type === 'suscripcion') {
-                if (filtrosSeleccionados.suscripciones.has(val)) {
-                    filtrosSeleccionados.suscripciones.delete(val);
-                } else {
-                    filtrosSeleccionados.suscripciones.add(val);
-                }
+                if (filtrosSeleccionados.suscripciones.has(val)) filtrosSeleccionados.suscripciones.delete(val);
+                else filtrosSeleccionados.suscripciones.add(val);
             }
 
             renderFiltrosChips();
             cargarVista(estadoActualVista);
         });
     });
+
+    // Remover chip activo individual desde la barra principal
+    cont.querySelectorAll('.btn-remove-filter').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const type = btn.getAttribute('data-type');
+            const val = btn.getAttribute('data-val');
+
+            if (type === 'instrumento') filtrosSeleccionados.instrumentos.delete(val);
+            else if (type === 'nivel') filtrosSeleccionados.niveles.delete(val);
+            else if (type === 'suscripcion') filtrosSeleccionados.suscripciones.delete(val);
+
+            renderFiltrosChips();
+            cargarVista(estadoActualVista);
+        });
+    });
+
+    // Limpiar todos
+    const handleLimpiar = (e) => {
+        if (e) e.stopPropagation();
+        filtrosSeleccionados.instrumentos.clear();
+        filtrosSeleccionados.niveles.clear();
+        filtrosSeleccionados.suscripciones.clear();
+        renderFiltrosChips();
+        cargarVista(estadoActualVista);
+    };
+
+    const btnLimpiar = document.getElementById('btn-limpiar-todos-filtros');
+    if (btnLimpiar) btnLimpiar.addEventListener('click', handleLimpiar);
+
+    const btnPopoverLimpiar = document.getElementById('btn-popover-limpiar');
+    if (btnPopoverLimpiar) btnPopoverLimpiar.addEventListener('click', handleLimpiar);
 }
+
+// Cerrar popover si hace clic fuera
+document.addEventListener('click', (e) => {
+    if (filtrosPopoverAbierto && !e.target.closest('#filtros-chips')) {
+        filtrosPopoverAbierto = false;
+        renderFiltrosChips();
+    }
+});
 
 function setBotonCargando(btn, cargando) {
     if (!btn) return;
