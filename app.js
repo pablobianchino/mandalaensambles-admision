@@ -148,7 +148,11 @@ import {
 } from "./src/modules/csv.module.js";
 
 let agrupadorActual = 'ninguno';
-let filtroChipActual = 'Todos';
+let filtrosSeleccionados = {
+    instrumentos: new Set(),
+    niveles: new Set(),
+    suscripciones: new Set()
+};
 let filtroAlarmaActual = 'Todos'; 
 let vistaModo = 'lista'; 
 let selectedBulkIds = [];
@@ -201,14 +205,88 @@ if(btnToggleView) {
 function renderFiltrosChips() {
     const cont = document.getElementById('filtros-chips');
     if (!cont) return;
-    const instrumentos = ['Todos', 'Canto', 'Guitarra', 'Bajo', 'Batería', 'Piano', 'Cajón'];
-    cont.innerHTML = instrumentos.map(inst => 
-        `<button class="filter-chip ${filtroChipActual === inst ? 'active' : ''}" data-val="${inst}">${inst}</button>`
-    ).join('');
+
+    const esTodos = filtrosSeleccionados.instrumentos.size === 0 && 
+                    filtrosSeleccionados.niveles.size === 0 && 
+                    filtrosSeleccionados.suscripciones.size === 0;
+
+    const instrumentos = [
+        { id: 'Canto', label: '🎤 Canto' },
+        { id: 'Guitarra', label: '🎸 Guitarra' },
+        { id: 'Bajo', label: '🎸 Bajo' },
+        { id: 'Batería', label: '🥁 Batería' },
+        { id: 'Piano', label: '🎹 Piano' },
+        { id: 'Cajón', label: '📦 Cajón' }
+    ];
+
+    const niveles = [
+        { id: 'Inicial I', label: '🌱 Inicial I' },
+        { id: 'Inicial II', label: '🌿 Inicial II' },
+        { id: 'Intermedio', label: '⚡ Intermedio' },
+        { id: 'Avanzado', label: '🔥 Avanzado' }
+    ];
+
+    const suscripciones = [
+        { id: 'Ensamble', label: '🧩 Ensamble' },
+        { id: 'Clases Grupales', label: '👥 Grupal' },
+        { id: 'Clase Individual', label: '👤 Individual' }
+    ];
+
+    let html = `
+        <div style="display:flex; flex-wrap:wrap; gap:6px 8px; align-items:center; width:100%;">
+            <button type="button" class="filter-chip ${esTodos ? 'active' : ''}" data-type="todos" style="font-weight:700;">Todos</button>
+
+            <span style="color:var(--border-color); margin:0 2px;">|</span>
+            <span style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">Inst:</span>
+            ${instrumentos.map(i => `
+                <button type="button" class="filter-chip ${filtrosSeleccionados.instrumentos.has(i.id) ? 'active' : ''}" data-type="instrumento" data-val="${i.id}">${i.label}</button>
+            `).join('')}
+
+            <span style="color:var(--border-color); margin:0 2px;">|</span>
+            <span style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">Nivel:</span>
+            ${niveles.map(n => `
+                <button type="button" class="filter-chip ${filtrosSeleccionados.niveles.has(n.id) ? 'active active-nivel' : ''}" data-type="nivel" data-val="${n.id}">${n.label}</button>
+            `).join('')}
+
+            <span style="color:var(--border-color); margin:0 2px;">|</span>
+            <span style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">Susc:</span>
+            ${suscripciones.map(s => `
+                <button type="button" class="filter-chip ${filtrosSeleccionados.suscripciones.has(s.id) ? 'active active-susc' : ''}" data-type="suscripcion" data-val="${s.id}">${s.label}</button>
+            `).join('')}
+        </div>
+    `;
+
+    cont.innerHTML = html;
 
     cont.querySelectorAll('.filter-chip').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            filtroChipActual = e.target.getAttribute('data-val');
+            const type = btn.getAttribute('data-type');
+            const val = btn.getAttribute('data-val');
+
+            if (type === 'todos') {
+                filtrosSeleccionados.instrumentos.clear();
+                filtrosSeleccionados.niveles.clear();
+                filtrosSeleccionados.suscripciones.clear();
+            } else if (type === 'instrumento') {
+                if (filtrosSeleccionados.instrumentos.has(val)) {
+                    filtrosSeleccionados.instrumentos.delete(val);
+                } else {
+                    filtrosSeleccionados.instrumentos.add(val);
+                }
+            } else if (type === 'nivel') {
+                if (filtrosSeleccionados.niveles.has(val)) {
+                    filtrosSeleccionados.niveles.delete(val);
+                } else {
+                    filtrosSeleccionados.niveles.add(val);
+                }
+            } else if (type === 'suscripcion') {
+                if (filtrosSeleccionados.suscripciones.has(val)) {
+                    filtrosSeleccionados.suscripciones.delete(val);
+                } else {
+                    filtrosSeleccionados.suscripciones.add(val);
+                }
+            }
+
             renderFiltrosChips();
             cargarVista(estadoActualVista);
         });
@@ -1242,8 +1320,34 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
     const queryStr = (document.getElementById('input-buscador-general').value || '').toLowerCase();
     if (queryStr) { filtrados = filtrados.filter(al => al.nombre.toLowerCase().includes(queryStr)); }
 
-    if (filtroChipActual !== 'Todos') {
-        filtrados = filtrados.filter(al => { const insts = Array.isArray(al.instrumento) ? al.instrumento : [al.instrumento]; return insts.includes(filtroChipActual); });
+    // Filtro multi-select de instrumentos
+    if (filtrosSeleccionados.instrumentos.size > 0) {
+        filtrados = filtrados.filter(al => {
+            const insts = Array.isArray(al.instrumento) ? al.instrumento : (al.instrumento ? [al.instrumento] : []);
+            return Array.from(filtrosSeleccionados.instrumentos).some(selInst => insts.some(i => i.toLowerCase().includes(selInst.toLowerCase())));
+        });
+    }
+
+    // Filtro multi-select de niveles
+    if (filtrosSeleccionados.niveles.size > 0) {
+        filtrados = filtrados.filter(al => {
+            const nivelAl = al.nivel || 'Inicial I';
+            return Array.from(filtrosSeleccionados.niveles).some(selNiv => nivelAl.toLowerCase().includes(selNiv.toLowerCase()));
+        });
+    }
+
+    // Filtro multi-select de suscripciones
+    if (filtrosSeleccionados.suscripciones.size > 0) {
+        filtrados = filtrados.filter(al => {
+            const suscAl = (al.tipo_suscripcion || '').toLowerCase();
+            return Array.from(filtrosSeleccionados.suscripciones).some(selSusc => {
+                const sLow = selSusc.toLowerCase();
+                if (sLow.includes('ensamble')) return suscAl.includes('ensamble');
+                if (sLow.includes('grup')) return suscAl.includes('grup');
+                if (sLow.includes('indiv')) return suscAl.includes('indiv');
+                return suscAl.includes(sLow);
+            });
+        });
     }
 
     if (filtroAlarmaActual !== 'Todos') {
