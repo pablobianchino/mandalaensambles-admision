@@ -1245,8 +1245,11 @@ function actualizarBadgesYNavegacion(allData) {
     const datos = cachedAlumnosData || [];
     refrescarConteoVacantes();
     
-    // Conteo Inbox (Sin Agendar + En Validación)
-    const countInbox = datos.filter(d => ['Pendiente procesar', 'Pendiente validación por profe', 'Pendiente validación por alumno'].includes(d.estado_agenda)).length;
+    // Conteo Inbox (Alumnos pendientes de agendar primera entrevista)
+    const countInbox = datos.filter(d => {
+        const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        return st === 'pendiente procesar' || st === 'sin agendar';
+    }).length;
     const bInbox = document.getElementById('badge-inbox');
     if (bInbox) {
         bInbox.textContent = countInbox;
@@ -1254,7 +1257,7 @@ function actualizarBadgesYNavegacion(allData) {
     }
 
     // Conteo Lista de Espera
-    const countEspera = datos.filter(d => d.estado_agenda === 'Lista de espera').length;
+    const countEspera = datos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() === 'lista de espera').length;
     const bEspera = document.getElementById('badge-espera');
     if (bEspera) {
         bEspera.textContent = countEspera;
@@ -1262,7 +1265,7 @@ function actualizarBadgesYNavegacion(allData) {
     }
 
     // Conteo Match (Grupos en validación o candidatos)
-    const countMatchVal = datos.filter(d => d.estado_agenda === 'Validando Grupo').length;
+    const countMatchVal = datos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() === 'validando grupo').length;
     const bMatch = document.getElementById('badge-match');
     if (bMatch) {
         const txtBadge = countMatchVal > 0 ? countMatchVal : (countEspera > 0 ? countEspera : 0);
@@ -1270,8 +1273,11 @@ function actualizarBadgesYNavegacion(allData) {
         bMatch.style.display = txtBadge > 0 ? 'inline-block' : 'none';
     }
 
-    // Conteo Altas (Pendientes + En Curso)
-    const countAltas = datos.filter(d => d.estado_agenda === 'Pre-alta Pendiente' || d.estado_agenda === 'Pre-alta Iniciada').length;
+    // Conteo Altas (Pendientes)
+    const countAltas = datos.filter(d => {
+        const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        return st === 'pre-alta pendiente';
+    }).length;
     const bAltas = document.getElementById('badge-altas');
     if (bAltas) {
         bAltas.textContent = countAltas;

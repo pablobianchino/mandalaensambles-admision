@@ -2,7 +2,7 @@
 // src/config/constants.js — Constantes globales del sistema
 // =======================================================================
 
-export const APP_VERSION = "v4.13.9";
+export const APP_VERSION = "v4.14.0";
 export const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 export const firebaseConfig = {
@@ -62,14 +62,44 @@ export const defaultCfg = {
 };
 
 export const configNodosFlujo = [
-    { id: 'Pendiente procesar', label: 'Sin Agendar', icon: '⏳', color: 'node-blue-1', hexColor: '#74a9d8', vistaDestino: 'Inbox - Pendientes' },
-    { id: 'Pendiente validación por profe', label: 'Validando con Evaluador', icon: '👨‍🏫', color: 'node-blue-2', hexColor: '#4a8cd2', vistaDestino: 'Inbox - En Validacion' },
-    { id: 'Pendiente validación por alumno', label: 'Validando con Alumno', icon: '🧑‍🎓', color: 'node-blue-3', hexColor: '#256bbb', vistaDestino: 'Inbox - En Validacion' },
-    { id: 'Agenda confirmada', label: 'Entrevista Confirmada', icon: '✅', color: 'node-blue-4', hexColor: '#134b8c', vistaDestino: 'Inbox - Confirmadas' },
-    { id: 'Lista de espera', label: 'Lista de Espera', icon: '🛋️', color: 'node-amber', hexColor: '#e5a93d', vistaDestino: 'Lista de Espera' },
-    { id: 'Validando Grupo', label: 'Grupos en Validación', icon: '👥', color: 'node-purple', hexColor: '#8e44ad', vistaDestino: 'Match - En Validacion' },
-    { id: 'Pre-alta Pendiente', label: 'Altas Pendientes', icon: '📝', color: 'node-green-1', hexColor: '#5cc88a', vistaDestino: 'Altas - Pendientes' },
-    { id: 'Pre-alta Iniciada', label: 'Altas en Curso', icon: '🚀', color: 'node-green-2', hexColor: '#31a364', vistaDestino: 'Altas - En Curso' },
-    { id: 'Altas Incompletas', label: 'Altas Confirmadas Incompletas', icon: '⚠️', color: 'node-green-3', hexColor: '#1b7f47', vistaDestino: 'Altas - Confirmadas', filterFn: (d) => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5) },
-    { id: 'Altas Finalizadas', label: 'Altas Finalizadas', icon: '🏆', color: 'node-green-4', hexColor: '#0d5c30', vistaDestino: 'Altas - Finalizadas', filterFn: (d) => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5) }
+    { id: 'Pendiente procesar', label: 'Sin Agendar', icon: '⏳', color: 'node-blue-1', hexColor: '#74a9d8', vistaDestino: 'Inbox - Pendientes', filterFn: (d) => {
+        const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        return st === 'pendiente procesar' || st === 'sin agendar';
+    }},
+    { id: 'Pendiente validación por profe', label: 'Validando con Evaluador', icon: '👨‍🏫', color: 'node-blue-2', hexColor: '#4a8cd2', vistaDestino: 'Inbox - En Validacion', filterFn: (d) => {
+        const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        return st === 'pendiente validacion por profe' || st === 'pendiente validacion por evaluador';
+    }},
+    { id: 'Pendiente validación por alumno', label: 'Validando con Alumno', icon: '🧑‍🎓', color: 'node-blue-3', hexColor: '#256bbb', vistaDestino: 'Inbox - En Validacion', filterFn: (d) => {
+        const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        return st === 'pendiente validacion por alumno';
+    }},
+    { id: 'Agenda confirmada', label: 'Entrevista Confirmada', icon: '✅', color: 'node-blue-4', hexColor: '#134b8c', vistaDestino: 'Inbox - Confirmadas', filterFn: (d) => {
+        const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        return st === 'agenda confirmada' || st === 'entrevista confirmada';
+    }},
+    { id: 'Lista de espera', label: 'Lista de Espera', icon: '🛋️', color: 'node-amber', hexColor: '#e5a93d', vistaDestino: 'Lista de Espera', filterFn: (d) => {
+        const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        return st === 'lista de espera';
+    }},
+    { id: 'Validando Grupo', label: 'Grupos en Validación', icon: '👥', color: 'node-purple', hexColor: '#8e44ad', vistaDestino: 'Match - En Validacion', filterFn: (d) => {
+        const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        return st === 'validando grupo';
+    }},
+    { id: 'Pre-alta Pendiente', label: 'Altas Pendientes', icon: '📝', color: 'node-green-1', hexColor: '#5cc88a', vistaDestino: 'Altas - Pendientes', filterFn: (d) => {
+        const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        return st === 'pre-alta pendiente';
+    }},
+    { id: 'Pre-alta Iniciada', label: 'Altas en Curso', icon: '🚀', color: 'node-green-2', hexColor: '#31a364', vistaDestino: 'Altas - En Curso', filterFn: (d) => {
+        const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        return st === 'pre-alta iniciada';
+    }},
+    { id: 'Altas Incompletas', label: 'Altas Confirmadas Incompletas', icon: '⚠️', color: 'node-green-3', hexColor: '#1b7f47', vistaDestino: 'Altas - Confirmadas', filterFn: (d) => {
+        const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        return (st === 'alta efectiva' || st === 'alta ilegal' || st === 'alta finalizada') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5);
+    }},
+    { id: 'Altas Finalizadas', label: 'Altas Finalizadas', icon: '🏆', color: 'node-green-4', hexColor: '#0d5c30', vistaDestino: 'Altas - Finalizadas', filterFn: (d) => {
+        const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        return (st === 'alta efectiva' || st === 'alta ilegal' || st === 'alta finalizada') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5);
+    }}
 ];
