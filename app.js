@@ -451,17 +451,32 @@ async function cargarConfig() {
     configApp = docSnap.exists() ? { ...defaultCfg, ...docSnap.data() } : defaultCfg; 
 }
 
+export function convertirHtmlATextoPlano(html) {
+    if (!html) return '';
+    return html
+        .replace(/<br\s*[\/]?>/gi, '\n')
+        .replace(/<\/p>/gi, '\n')
+        .replace(/<\/div>/gi, '\n')
+        .replace(/<\/li>/gi, '\n')
+        .replace(/<li>/gi, '• ')
+        .replace(/<\/h[1-6]>/gi, '\n\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/gi, '&')
+        .replace(/&lt;/gi, '<')
+        .replace(/&gt;/gi, '>')
+        .replace(/&quot;/gi, '"')
+        .replace(/&#39;/gi, "'")
+        .replace(/\r\n/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
+
 function formatearTextoHistorial(historialArr) {
     if (!historialArr || historialArr.length === 0) return 'Sin registros previos.';
     const sorted = [...historialArr].sort((a, b) => a.id - b.id);
     return sorted.map(h => {
-        let t = (h.texto || '')
-            .replace(/<br\s*[\/]?>/gi, '\n')
-            .replace(/<\/p>/gi, '\n')
-            .replace(/<[^>]*>?/gm, '')
-            .replace(/\r\n/g, '\n')
-            .replace(/\n\s*\n/g, '\n')
-            .trim();
+        let t = convertirHtmlATextoPlano(h.texto || '');
         return `[${h.fecha}] ${t}`;
     }).filter(Boolean).join('\n');
 }
@@ -2729,7 +2744,7 @@ document.addEventListener('click', async (e) => {
         let template = configApp[plantillaKey] || ''; 
         template = template.replace(/\{historial\}/gi, histText); 
         const iS = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || '')); 
-        const dP = al.descripcion ? al.descripcion.replace(/<[^>]*>?/gm, '').trim() : ''; 
+        const dP = convertirHtmlATextoPlano(al.descripcion || ''); 
         const fAmiInicio = al.fecha_inicio_clases ? formatearFechaAmi(al.fecha_inicio_clases) : ''; 
         let opc = overrideOpciones || al.opciones_propuestas || []; 
         let opcionesStr = opc.length > 0 ? opc.map(o => `${o.letra || '-'}- ${o.fechaTexto}`).join('\n') : ''; 
@@ -2771,7 +2786,7 @@ document.addEventListener('click', async (e) => {
                 return alert("Alumno no encontrado.");
             }
             const al = alDoc.data();
-            const descP = al.descripcion ? al.descripcion.replace(/<[^>]*>?/gm, '').trim() : '';
+            const descP = convertirHtmlATextoPlano(al.descripcion || '');
             const titulos = construirTitulosEvento(al, 'confirmado', configApp);
             if (al.id_evento_reserva) {
                 try {
