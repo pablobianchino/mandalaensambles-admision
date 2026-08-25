@@ -509,12 +509,15 @@
                     <div id="ficha-perfil-psicologico-chips" class="profile-tags-wrapper"></div>
                 </div>
 
-                <div style="display:flex; flex-direction:column; gap:15px; border-top:1px solid var(--border-color); padding-top:15px; margin-top:10px;">
+                <div style="display:flex; flex-direction:column; gap:12px; border-top:1px solid var(--border-color); padding-top:15px; margin-top:10px;">
                     <label id="container-ingreso-directo" style="margin:0; cursor:pointer; font-weight:600; color:#1f5491; display:flex; align-items:center; gap:8px; font-size:0.9em; text-transform:none;">
                         <input type="checkbox" id="chk-ingreso-directo" style="width:18px; height:18px; margin:0; accent-color:var(--accent-teal);">
                         Ingreso a Lista de Espera directo
                     </label>
-                    <button type="submit" class="btn-primary" style="width:100%;">Guardar Alumno</button>
+                    <div style="display:flex; gap:10px; align-items:center; width:100%;">
+                        <button type="button" id="btn-modal-nueva-suscripcion" class="btn-secondary" style="display:none; flex:1; padding:10px; font-weight:700; font-size:12px;">➕ Nueva Suscripción</button>
+                        <button type="submit" id="btn-submit-alumno" class="btn-primary" style="flex:2;">Guardar Alumno</button>
+                    </div>
                 </div>
             </form>
         </div>
@@ -670,6 +673,39 @@
             <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
                 <button type="button" class="btn-cerrar-modal" data-modal="modal-suspender" style="padding:10px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted);">Cancelar</button>
                 <button id="btn-guardar-suspension" class="btn-primary" style="background:var(--accent-red);">Suspender</button>
+            </div>
+        </div>
+    </dialog>
+
+    <dialog id="modal-nueva-suscripcion" class="modern-modal auto-height-modal" style="max-width:480px; width:90%;">
+        <div style="padding:24px;">
+            <div class="modal-drag-pill"></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h3 style="margin:0; font-size:16px; font-weight:800; color:var(--text-main); display:flex; align-items:center; gap:6px;">
+                    <span>➕</span> Nueva Suscripción
+                </h3>
+                <button type="button" class="btn-cerrar-modal" data-modal="modal-nueva-suscripcion" style="background:transparent; border:none; cursor:pointer; font-size:1.5em; color:#9a9388; line-height:1;">&times;</button>
+            </div>
+            
+            <p style="font-size:12.5px; color:var(--text-muted); margin-bottom:15px; line-height:1.4;">
+                Se creará una nueva inscripción para <strong id="nueva-susc-alumno-nombre" style="color:var(--text-main);"></strong> conservando sus datos de contacto y antecedentes.
+            </p>
+
+            <input type="hidden" id="nueva-susc-alumno-id">
+
+            <div style="margin-bottom:12px;">
+                <label style="font-size:12px; font-weight:700; color:var(--text-main); display:block; margin-bottom:4px;">Nuevo Instrumento a cursar *</label>
+                <select id="nueva-susc-instrumento" class="modern-input" required></select>
+            </div>
+
+            <div style="margin-bottom:15px;">
+                <label style="font-size:12px; font-weight:700; color:var(--text-main); display:block; margin-bottom:4px;">Tipo de Suscripción *</label>
+                <select id="nueva-susc-tipo" class="modern-input" required></select>
+            </div>
+
+            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
+                <button type="button" class="btn-cerrar-modal" data-modal="modal-nueva-suscripcion" style="padding:10px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted);">Cancelar</button>
+                <button type="button" id="btn-confirmar-nueva-suscripcion" class="btn-primary">Crear Nueva Suscripción</button>
             </div>
         </div>
     </dialog>
@@ -1066,12 +1102,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=4.17.0"></script>
+    <script type="module" src="app.js?v=4.18.0"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=4.17.0').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=4.18.0').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {

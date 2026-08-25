@@ -3618,6 +3618,52 @@ document.addEventListener('click', async (e) => {
         return; 
     }
 
+    if (target.classList.contains('btn-pasar-espera-directo') || target.closest('.btn-pasar-espera-directo')) {
+        const btn = target.closest('.btn-pasar-espera-directo') || target;
+        const id = btn.getAttribute('data-id');
+        try {
+            const alDoc = await getDoc(doc(db, "alumnos", id));
+            if (!alDoc.exists()) return alert("Alumno no encontrado.");
+            const alData = alDoc.data();
+            
+            const ok = await window.confirmar(
+                `¿Pasar a ${alData.nombre} a Lista de Espera?`,
+                'El alumno se derivará directamente a la Lista de Espera sin pasar por el circuito de entrevista previa y quedará listo para el armado de grupos.',
+                '🛋️ Pasar a Espera',
+                'question'
+            );
+            if (ok) {
+                setBotonCargando(btn, true);
+                const now = new Date();
+                const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+                const hist = alData.historial || [];
+                hist.push({
+                    id: Date.now(),
+                    texto: 'Derivado directamente a Lista de Espera sin entrevista previa.',
+                    fecha: fechaStr
+                });
+                await updateDoc(doc(db, "alumnos", id), {
+                    estado_agenda: 'Lista de Espera',
+                    fecha_ingreso_espera: new Date().toISOString(),
+                    historial: hist
+                });
+                cargarVista(estadoActualVista);
+            }
+        } catch(e) {
+            alert("❌ Error al pasar a Lista de Espera: " + e.message);
+        }
+        return;
+    }
+
+    if (target.classList.contains('btn-abrir-nueva-suscripcion') || target.closest('.btn-abrir-nueva-suscripcion') || target.id === 'btn-modal-nueva-suscripcion') {
+        const btn = target.closest('.btn-abrir-nueva-suscripcion') || target;
+        const id = btn.getAttribute('data-id') || document.getElementById('alumno-id')?.value;
+        if (id) {
+            window.abrirModalNuevaSuscripcion(id);
+        }
+        return;
+    }
+
     if (target.classList.contains('btn-abrir-suspender') || target.closest('.btn-abrir-suspender') ||
         target.classList.contains('btn-suspender') || target.closest('.btn-suspender') ||
         target.classList.contains('btn-suspender-espera') || target.closest('.btn-suspender-espera')) { 
@@ -3724,6 +3770,8 @@ document.addEventListener('click', async (e) => {
         if(document.getElementById('tab-datos')) document.getElementById('tab-datos').style.display = 'block';
         const accionesCont = document.getElementById('modal-acciones-container'); 
         if(accionesCont) accionesCont.style.display = 'none';
+        const btnNuevaSusc = document.getElementById('btn-modal-nueva-suscripcion');
+        if (btnNuevaSusc) btnNuevaSusc.style.display = 'none';
         await cargarSelectsAlumnos(); 
         document.getElementById('modal-alta-alumno').showModal(); 
         return; 
@@ -3840,6 +3888,12 @@ async function llenarFormularioAlumno(id) {
         `;
     }
 
+    const btnNuevaSusc = document.getElementById('btn-modal-nueva-suscripcion');
+    if (btnNuevaSusc) {
+        btnNuevaSusc.style.display = 'block';
+        btnNuevaSusc.setAttribute('data-id', id);
+    }
+
     const hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00'; 
     diasSemana.forEach(dia => { 
         const dD = (d.disponibilidad && d.disponibilidad[dia.id]) || [];
@@ -3916,4 +3970,110 @@ document.getElementById('form-alumno').addEventListener('submit', async (e) => {
     }; 
     try { const id = document.getElementById('alumno-id').value; if (id) { await updateDoc(doc(db, "alumnos", id), data); } else { const esDirecto = document.getElementById('chk-ingreso-directo').checked; if (esDirecto) { data.estado_agenda = "Lista de espera"; const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`; data.historial.push({ id: Date.now(), texto: "Ingreso directo a Lista de Espera.", fecha: fechaStr }); } else { data.estado_agenda = "Pendiente procesar"; } await addDoc(collection(db, "alumnos"), data); } const wrap = document.getElementById('form-alumno-wrapper'); wrap.style.display='none'; document.body.appendChild(wrap); document.getElementById('modal-alta-alumno').close(); cargarVista(estadoActualVista); } catch(err) { alert("Error al guardar."); } setBotonCargando(btnSubmit, false);
 });
+
+// =======================================================================
+// NUEVA SUSCRIPCIÓN / RE-INSCRIPCIÓN DE ALUMNO EXISTENTE
+// =======================================================================
+window.abrirModalNuevaSuscripcion = async function(id) {
+    try {
+        const alDoc = await getDoc(doc(db, "alumnos", id));
+        if (!alDoc.exists()) return alert("Alumno no encontrado.");
+        const al = alDoc.data();
+        
+        const instActual = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento || 'Sin instrumento');
+        
+        document.getElementById('nueva-susc-alumno-id').value = id;
+        document.getElementById('nueva-susc-alumno-nombre').textContent = `${al.nombre || 'Alumno'} (${instActual})`;
+        
+        const sI = document.getElementById('nueva-susc-instrumento');
+        const sS = document.getElementById('nueva-susc-tipo');
+        if (sI) sI.innerHTML = '<option value="">Seleccione instrumento...</option>';
+        if (sS) sS.innerHTML = '<option value="">Seleccione tipo de suscripción...</option>';
+        
+        const iSnap = await getDocs(collection(db, "instrumentos"));
+        iSnap.forEach(d => {
+            const nom = d.data().nombre;
+            if (sI) sI.innerHTML += `<option value="${nom}">${nom}</option>`;
+        });
+        
+        const sSnap = await getDocs(collection(db, "tipos_suscripcion"));
+        sSnap.forEach(d => {
+            const nom = d.data().nombre;
+            if (sS) sS.innerHTML += `<option value="${nom}" ${nom === al.tipo_suscripcion ? 'selected' : ''}>${nom}</option>`;
+        });
+        
+        // Si el modal de edición estaba abierto, cerrarlo
+        const modalEdit = document.getElementById('modal-alta-alumno');
+        if (modalEdit && modalEdit.open) {
+            modalEdit.close();
+        }
+        
+        const modal = document.getElementById('modal-nueva-suscripcion');
+        if (modal) modal.showModal();
+    } catch(e) {
+        alert("Error al abrir modal de nueva suscripción: " + e.message);
+    }
+};
+
+const btnConfirmarNuevaSusc = document.getElementById('btn-confirmar-nueva-suscripcion');
+if (btnConfirmarNuevaSusc) {
+    btnConfirmarNuevaSusc.addEventListener('click', async () => {
+        const id = document.getElementById('nueva-susc-alumno-id').value;
+        const nuevoInst = document.getElementById('nueva-susc-instrumento')?.value;
+        const nuevoTipo = document.getElementById('nueva-susc-tipo')?.value;
+        
+        if (!nuevoInst) return alert("Por favor selecciona el nuevo instrumento.");
+        if (!nuevoTipo) return alert("Por favor selecciona el tipo de suscripción.");
+        
+        setBotonCargando(btnConfirmarNuevaSusc, true);
+        try {
+            const alDoc = await getDoc(doc(db, "alumnos", id));
+            if (!alDoc.exists()) throw new Error("Alumno no encontrado.");
+            const al = alDoc.data();
+            
+            const now = new Date();
+            const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+            const instPrevio = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento || '');
+            
+            const prevHist = al.historial || [];
+            const newHist = [
+                ...prevHist,
+                {
+                    id: Date.now(),
+                    texto: `Nueva suscripción para ${nuevoInst} (${nuevoTipo}) generada a partir de ficha previa de ${instPrevio || 'alumno existente'}.`,
+                    fecha: fechaStr
+                }
+            ];
+            
+            const nuevoAlumnoData = {
+                nombre: al.nombre || '',
+                celular: al.celular || '',
+                email: al.email || '',
+                edad: al.edad || '',
+                nivel: al.nivel || 'Inicial I',
+                instrumento: [nuevoInst],
+                instrumento_asignado: nuevoInst,
+                tipo_suscripcion: nuevoTipo,
+                disponibilidad: al.disponibilidad || {},
+                perfil_psicologico: al.perfil_psicologico || [],
+                descripcion: al.descripcion || '',
+                informe_admision: al.informe_admision || '',
+                estado_agenda: 'Pendiente procesar',
+                alumno_origen_id: id,
+                fecha_creacion: new Date().toISOString(),
+                historial: newHist
+            };
+            
+            await addDoc(collection(db, "alumnos"), nuevoAlumnoData);
+            document.getElementById('modal-nueva-suscripcion').close();
+            
+            alert(`🎉 Nueva suscripción creada con éxito para ${al.nombre} (${nuevoInst}).\n\nQuedó disponible en Inbox - Sin Agendar.`);
+            cargarVista(estadoActualVista || 'Inbox - Pendientes');
+        } catch(e) {
+            alert("❌ Error al crear nueva suscripción: " + e.message);
+        } finally {
+            setBotonCargando(btnConfirmarNuevaSusc, false);
+        }
+    });
+}
 
