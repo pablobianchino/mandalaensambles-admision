@@ -484,188 +484,46 @@ export async function renderPortalProfesor(cont, usuarioActual = {}, callbacks =
                     </div>
                 </div>
 
-                <!-- Tabs de Navegación del Portal -->
-                <div style="display:flex; gap:8px; border-bottom:2px solid var(--border-color); padding-bottom:0;">
-                    <button type="button" id="tab-btn-portal-grupos" class="tab-portal-profe active" style="padding:10px 18px; border:none; background:transparent; font-size:14px; font-weight:700; color:var(--accent-teal); border-bottom:3px solid var(--accent-teal); cursor:pointer; display:flex; align-items:center; gap:6px;">
-                        👥 Mis Grupos y Solicitudes
-                    </button>
-                    <button type="button" id="tab-btn-portal-perfil" class="tab-portal-profe" style="padding:10px 18px; border:none; background:transparent; font-size:14px; font-weight:600; color:var(--text-muted); border-bottom:3px solid transparent; cursor:pointer; display:flex; align-items:center; gap:6px;">
-                        👤 Mis Datos Personales y Disponibilidad
+                <!-- Banner Informativo Mi Perfil -->
+                <div style="background:rgba(0, 123, 143, 0.04); border:1px solid rgba(0, 123, 143, 0.18); border-radius:10px; padding:12px 18px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+                    <div>
+                        <strong style="color:var(--text-main); font-size:13.5px;">💡 Tus datos personales y disponibilidad</strong>
+                        <div style="font-size:12.5px; color:var(--text-muted); margin-top:2px;">Para actualizar tu celular, alias o disponibilidad horaria semanal, puedes ingresar en <strong>👤 Mi Perfil</strong>.</div>
+                    </div>
+                    <button type="button" id="btn-portal-ir-mi-perfil" class="btn-action-neutral" style="padding:7px 14px; font-size:12.5px; font-weight:700; cursor:pointer;">
+                        👤 Abrir Mi Perfil
                     </button>
                 </div>
 
-                <!-- CONTENIDO TAB 1: GRUPOS Y SOLICITUDES -->
-                <div id="tab-content-portal-grupos" style="display:flex; flex-direction:column; gap:20px;">
-                    <!-- Mis Solicitudes Activas -->
-                    <div style="background:white; border:1px solid var(--border-color); border-radius:14px; padding:22px; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
-                        <h3 style="margin:0 0 14px 0; color:var(--text-main); font-size:1.2em; display:flex; align-items:center; gap:8px;">
-                            <span>🔔 Mis Solicitudes de Vacantes</span>
-                            <span style="font-size:12px; background:var(--hover-bg); border:1px solid var(--border-color); border-radius:12px; padding:2px 8px; font-weight:700; color:var(--text-muted);">${misSolicitudes.length}</span>
-                        </h3>
-                        <div id="lista-mis-solicitudes">
-                            ${solicitudesHtml}
-                        </div>
-                    </div>
-
-                    <!-- Mis Grupos y Ensambles -->
-                    <div style="background:white; border:1px solid var(--border-color); border-radius:14px; padding:22px; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
-                        <h3 style="margin:0 0 14px 0; color:var(--text-main); font-size:1.2em; display:flex; align-items:center; gap:8px;">
-                            <span>👥 Mis Grupos y Ensambles</span>
-                            <span style="font-size:12px; background:var(--hover-bg); border:1px solid var(--border-color); border-radius:12px; padding:2px 8px; font-weight:700; color:var(--text-muted);">${gruposKeys.length}</span>
-                        </h3>
-                        <div id="lista-mis-grupos">
-                            ${gruposHtml}
-                        </div>
+                <!-- Mis Solicitudes Activas -->
+                <div style="background:white; border:1px solid var(--border-color); border-radius:14px; padding:22px; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
+                    <h3 style="margin:0 0 14px 0; color:var(--text-main); font-size:1.2em; display:flex; align-items:center; gap:8px;">
+                        <span>🔔 Mis Solicitudes de Vacantes</span>
+                        <span style="font-size:12px; background:var(--hover-bg); border:1px solid var(--border-color); border-radius:12px; padding:2px 8px; font-weight:700; color:var(--text-muted);">${misSolicitudes.length}</span>
+                    </h3>
+                    <div id="lista-mis-solicitudes">
+                        ${solicitudesHtml}
                     </div>
                 </div>
 
-                <!-- CONTENIDO TAB 2: MIS DATOS PERSONALES Y DISPONIBILIDAD -->
-                <div id="tab-content-portal-perfil" style="display:none; flex-direction:column; gap:20px;">
-                    <!-- Card 1: Contacto y Transferencia -->
-                    <div style="background:white; border:1px solid var(--border-color); border-radius:14px; padding:22px; box-shadow:0 2px 8px rgba(0,0,0,0.03); display:flex; flex-direction:column; gap:16px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:12px;">
-                            <div>
-                                <h3 style="margin:0; color:var(--text-main); font-size:1.2em; display:flex; align-items:center; gap:8px;">
-                                    <span>📱 Datos de Contacto y Cobro</span>
-                                </h3>
-                                <div style="font-size:12.5px; color:var(--text-muted); margin-top:2px;">Puedes editar tu número de WhatsApp y Alias para coordinar clases y transferencias de honorarios.</div>
-                            </div>
-                            <span class="status-val-ok" style="font-size:11px;">🟢 Docente Activo</span>
-                        </div>
-
-                        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:16px;">
-                            <div>
-                                <label style="font-weight:700; font-size:13px; margin-bottom:5px; display:block; color:var(--text-main);">Nombre del Docente:</label>
-                                <input type="text" class="modern-input" value="${profDocData?.nombre || profesorNombre}" disabled style="background:var(--hover-bg); cursor:not-allowed; opacity:0.85;">
-                            </div>
-                            <div>
-                                <label style="font-weight:700; font-size:13px; margin-bottom:5px; display:block; color:var(--text-main);">Email de Acceso:</label>
-                                <input type="text" class="modern-input" value="${usuarioActual?.email || profDocData?.correo_calendario || '-'}" disabled style="background:var(--hover-bg); cursor:not-allowed; opacity:0.85;">
-                            </div>
-                            <div>
-                                <label style="font-weight:700; font-size:13px; margin-bottom:5px; display:block; color:var(--text-main);">📱 Celular (WhatsApp de Contacto):</label>
-                                <input type="text" id="perfil-docente-celular" class="modern-input" value="${profDocData?.celular || ''}" placeholder="Ej: +54 9 11 1234-5678">
-                            </div>
-                            <div>
-                                <label style="font-weight:700; font-size:13px; margin-bottom:5px; display:block; color:var(--text-main);">🏦 Alias / CBU de Transferencia:</label>
-                                <input type="text" id="perfil-docente-alias" class="modern-input" value="${profDocData?.alias_transferencia || ''}" placeholder="Ej: tu.alias.mp">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Card 2: Skills y Aptitudes Asignadas (Solo lectura para Docentes) -->
-                    <div style="background:white; border:1px solid var(--border-color); border-radius:14px; padding:22px; box-shadow:0 2px 8px rgba(0,0,0,0.03); display:flex; flex-direction:column; gap:16px;">
-                        <div>
-                            <h3 style="margin:0; color:var(--text-main); font-size:1.2em; display:flex; align-items:center; gap:8px;">
-                                <span>🎸 Mis Skills e Instrumentos Asignados</span>
-                            </h3>
-                            <div style="font-size:12.5px; color:var(--text-muted); margin-top:2px;">Instrumentos que estás habilitado a enseñar en el sistema:</div>
-                        </div>
-                        <div>
-                            ${skillsProfeBadges}
-                        </div>
-                        <div style="border-top:1px solid var(--border-color); padding-top:12px;">
-                            <label style="font-weight:700; font-size:13px; margin-bottom:6px; display:block; color:var(--text-main);">Aptitudes Docentes:</label>
-                            ${aptitudesDocenteHtml}
-                        </div>
-                        <div style="font-size:11.5px; color:var(--text-muted); background:var(--hover-bg); padding:10px 14px; border-radius:8px; border:1px solid var(--border-color); display:flex; align-items:center; gap:6px;">
-                            <span>🔒</span> <em>Nota: Los instrumentos y aptitudes asignadas son administrados institucionalmente. Si necesitas agregar una especialidad, comunícate con la dirección.</em>
-                        </div>
-                    </div>
-
-                    <!-- Card 3: Disponibilidad Semanal -->
-                    <div style="background:white; border:1px solid var(--border-color); border-radius:14px; padding:22px; box-shadow:0 2px 8px rgba(0,0,0,0.03); display:flex; flex-direction:column; gap:16px;">
-                        <div>
-                            <h3 style="margin:0; color:var(--text-main); font-size:1.2em; display:flex; align-items:center; gap:8px;">
-                                <span>📅 Mi Disponibilidad Semanal</span>
-                            </h3>
-                            <div style="font-size:12.5px; color:var(--text-muted); margin-top:2px;">Define y actualiza en qué días y franjas horarias estás disponible para dictar clases y ensambles:</div>
-                        </div>
-                        <div id="contenedor-disp-portal-profe" style="display:flex; flex-direction:column; gap:8px;"></div>
-                        <div style="display:flex; justify-content:flex-end; padding-top:10px; border-top:1px solid var(--border-color);">
-                            <button type="button" id="btn-guardar-perfil-docente" class="btn-primary" style="padding:12px 24px; font-size:14.5px; font-weight:700; display:flex; align-items:center; gap:8px;">
-                                💾 Guardar Mis Datos y Disponibilidad
-                            </button>
-                        </div>
+                <!-- Mis Grupos y Ensambles -->
+                <div style="background:white; border:1px solid var(--border-color); border-radius:14px; padding:22px; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
+                    <h3 style="margin:0 0 14px 0; color:var(--text-main); font-size:1.2em; display:flex; align-items:center; gap:8px;">
+                        <span>👥 Mis Grupos y Ensambles</span>
+                        <span style="font-size:12px; background:var(--hover-bg); border:1px solid var(--border-color); border-radius:12px; padding:2px 8px; font-weight:700; color:var(--text-muted);">${gruposKeys.length}</span>
+                    </h3>
+                    <div id="lista-mis-grupos">
+                        ${gruposHtml}
                     </div>
                 </div>
             </div>
         `;
 
-        // Inicializar contenedor de disponibilidad de Mi Perfil
-        renderContenedorDisponibilidad('contenedor-disp-portal-profe', true);
-        poblarDisponibilidadMultiRango(profDocData?.disponibilidad || {}, true);
-
-        // Control de Tabs del Portal
-        const btnTabGrupos = document.getElementById('tab-btn-portal-grupos');
-        const btnTabPerfil = document.getElementById('tab-btn-portal-perfil');
-        const contentGrupos = document.getElementById('tab-content-portal-grupos');
-        const contentPerfil = document.getElementById('tab-content-portal-perfil');
-
-        if (btnTabGrupos && btnTabPerfil) {
-            btnTabGrupos.addEventListener('click', () => {
-                btnTabGrupos.classList.add('active');
-                btnTabGrupos.style.color = 'var(--accent-teal)';
-                btnTabGrupos.style.borderBottomColor = 'var(--accent-teal)';
-                btnTabGrupos.style.fontWeight = '700';
-
-                btnTabPerfil.classList.remove('active');
-                btnTabPerfil.style.color = 'var(--text-muted)';
-                btnTabPerfil.style.borderBottomColor = 'transparent';
-                btnTabPerfil.style.fontWeight = '600';
-
-                if (contentGrupos) contentGrupos.style.display = 'flex';
-                if (contentPerfil) contentPerfil.style.display = 'none';
-            });
-
-            btnTabPerfil.addEventListener('click', () => {
-                btnTabPerfil.classList.add('active');
-                btnTabPerfil.style.color = 'var(--accent-teal)';
-                btnTabPerfil.style.borderBottomColor = 'var(--accent-teal)';
-                btnTabPerfil.style.fontWeight = '700';
-
-                btnTabGrupos.classList.remove('active');
-                btnTabGrupos.style.color = 'var(--text-muted)';
-                btnTabGrupos.style.borderBottomColor = 'transparent';
-                btnTabGrupos.style.fontWeight = '600';
-
-                if (contentGrupos) contentGrupos.style.display = 'none';
-                if (contentPerfil) contentPerfil.style.display = 'flex';
-            });
-        }
-
-        // Listener Guardar Perfil Docente
-        const btnGuardarPerfil = document.getElementById('btn-guardar-perfil-docente');
-        if (btnGuardarPerfil) {
-            btnGuardarPerfil.addEventListener('click', async () => {
-                if (!profesorId) {
-                    alert("No se encontró la ficha de profesor vinculada a tu usuario. Contacta a administración.");
-                    return;
-                }
-                const celVal = (document.getElementById('perfil-docente-celular')?.value || '').trim();
-                const aliasVal = (document.getElementById('perfil-docente-alias')?.value || '').trim();
-                const dispProfe = extraerDisponibilidadMultiRango(true);
-
-                if (typeof setBotonCargando === 'function') setBotonCargando(btnGuardarPerfil, true);
-
-                try {
-                    await updateDoc(doc(db, "profesores", profesorId), {
-                        celular: celVal,
-                        alias_transferencia: aliasVal,
-                        disponibilidad: dispProfe
-                    });
-
-                    if (cachedProfesorDoc) {
-                        cachedProfesorDoc.celular = celVal;
-                        cachedProfesorDoc.alias_transferencia = aliasVal;
-                        cachedProfesorDoc.disponibilidad = dispProfe;
-                    }
-
-                    alert("🎉 ¡Tus datos personales y disponibilidad han sido guardados con éxito!");
-                } catch(e) {
-                    alert("❌ Error al guardar datos: " + e.message);
-                } finally {
-                    if (typeof setBotonCargando === 'function') setBotonCargando(btnGuardarPerfil, false);
+        const btnIrMiPerfil = document.getElementById('btn-portal-ir-mi-perfil');
+        if (btnIrMiPerfil) {
+            btnIrMiPerfil.addEventListener('click', () => {
+                if (typeof window.abrirModalMiPerfilGlobal === 'function') {
+                    window.abrirModalMiPerfilGlobal();
                 }
             });
         }
