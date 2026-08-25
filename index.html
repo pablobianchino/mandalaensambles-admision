@@ -90,6 +90,7 @@
 
             <div style="margin-top: auto; padding-top: 15px; border-top: 1px solid #ece6dc; display:flex; flex-direction:column; gap:8px;">
                 <li class="nav-item-small" data-vista="Configuración" data-modulo="Configuración"><span class="nav-icon">⚙️</span> Configuración</li>
+                <li id="nav-item-mi-perfil" class="nav-item-small" style="cursor:pointer;"><span class="nav-icon">👤</span> Mi Perfil</li>
                 <div id="user-info" style="font-size: 0.8em; color: #8a9097; word-break: break-all; padding: 0 10px;"></div>
                 <button id="btn-logout" class="btn-logout">Cerrar sesión</button>
             </div>
@@ -770,8 +771,8 @@
         </div>
     </dialog>
 
-    <dialog id="modal-abm-edit" class="modern-modal" style="width: 90%; max-width: 500px;">
-        <div style="padding:24px;">
+    <dialog id="modal-abm-edit" class="modern-modal" style="width: 90%; max-width: 580px;">
+        <div style="padding:24px; max-height:85vh; overflow-y:auto;">
             <div class="modal-drag-pill"></div>
             <h3 style="margin:0 0 15px 0; color:var(--text-main);">Editar Elemento</h3>
             <input type="hidden" id="abm-edit-id"><input type="hidden" id="abm-edit-coleccion">
@@ -800,13 +801,34 @@
                 </div>
             </div>
 
-            <!-- SECCIÓN RBAC / PERMISOS PARA USUARIOS DEL SISTEMA -->
+            <!-- SECCIÓN UNIFICADA RBAC Y DATOS DOCENTES PARA USUARIOS DEL SISTEMA -->
             <div id="div-abm-edit-usuario" style="display:none; margin-top:10px;">
-                <label style="margin-top:8px;">Nombre / Referencia:
-                    <input type="text" id="abm-user-nombre" class="modern-input" placeholder="Ej: Martín Gómez">
-                </label>
+                <!-- 1. Datos Personales y de Cuenta -->
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                    <label>Nombre Completo / Referencia:
+                        <input type="text" id="abm-user-nombre" class="modern-input" placeholder="Ej: Martín Gómez">
+                    </label>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                        <label>📱 Celular (WhatsApp):
+                            <input type="text" id="abm-user-celular" class="modern-input" placeholder="Ej: +54 9 11 1234-5678">
+                        </label>
+                        <label>🏦 Alias / CBU:
+                            <input type="text" id="abm-user-alias" class="modern-input" placeholder="Ej: martin.gomez.mp">
+                        </label>
+                    </div>
+
+                    <div style="padding:10px 12px; background:var(--hover-bg); border-radius:8px; border:1px solid var(--border-color); display:flex; align-items:center; justify-content:space-between;">
+                        <span style="font-weight:700; font-size:13px; color:var(--text-main);">Estado de la Cuenta:</span>
+                        <label style="display:flex; align-items:center; gap:8px; margin:0; cursor:pointer; font-weight:700; color:var(--accent-teal);">
+                            <input type="checkbox" id="abm-user-activo" checked style="width:18px; height:18px; accent-color:var(--accent-teal);">
+                            <span id="abm-user-activo-label">Activo</span>
+                        </label>
+                    </div>
+                </div>
                 
-                <div style="margin-top:12px;">
+                <!-- 2. Roles Asignados -->
+                <div style="margin-top:14px;">
                     <strong style="font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:8px;">Roles Asignados (Permite Múltiples):</strong>
                     <div id="abm-user-roles-grid" style="display:flex; flex-wrap:wrap; gap:8px 14px; background:var(--hover-bg); padding:10px 12px; border-radius:8px; border:1px solid var(--border-color);">
                         <label style="display:inline-flex; align-items:center; gap:6px; font-size:12.5px; margin:0; cursor:pointer; font-weight:700; text-transform:none;">
@@ -827,24 +849,45 @@
                     </div>
                 </div>
 
-                <div id="abm-user-profesor-link-wrapper" style="margin-top:12px;">
-                    <label>Asociar Ficha de Profesor:
-                        <select id="abm-user-profesor-id" class="modern-input"></select>
-                    </label>
-                    <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">💡 Si asocias un profesor, se usará su nombre en los saludos y se le asignarán sus grupos correspondientes.</div>
+                <div id="abm-user-profesor-link-wrapper" style="display:none;">
+                    <select id="abm-user-profesor-id" style="display:none;"></select>
                 </div>
 
-                <div style="margin-top:15px; padding:12px; background:var(--hover-bg); border-radius:8px; border:1px solid var(--border-color); display:flex; align-items:center; justify-content:space-between;">
-                    <span style="font-weight:700; font-size:13px; color:var(--text-main);">Estado de la Cuenta:</span>
-                    <label style="display:flex; align-items:center; gap:8px; margin:0; cursor:pointer; font-weight:700; color:var(--accent-teal);">
-                        <input type="checkbox" id="abm-user-activo" checked style="width:18px; height:18px; accent-color:var(--accent-teal);">
-                        <span id="abm-user-activo-label">Activo</span>
-                    </label>
+                <!-- 3. Sección Dinámica: Datos Docentes (Solo si es Profesor o Evaluador) -->
+                <div id="abm-user-seccion-docente" style="display:none; margin-top:14px; border:1.5px solid rgba(0, 123, 143, 0.25); background:rgba(0, 123, 143, 0.02); border-radius:10px; padding:14px;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+                        <span style="font-size:1.1em;">🎸</span>
+                        <strong style="color:var(--text-main); font-size:13.5px;">Perfil Docente y Disponibilidad:</strong>
+                    </div>
+
+                    <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:12px; padding:10px; background:#fff; border-radius:8px; border:1px solid var(--border-color);">
+                        <label style="cursor:pointer; font-weight:600; display:flex; align-items:center; gap:6px; font-size:12px; text-transform:none; margin:0;">
+                            <input type="checkbox" id="abm-user-entrevista" style="width:16px; height:16px; accent-color:var(--accent-teal);"> 🎧 Apto Admisiones
+                        </label>
+                        <label style="cursor:pointer; font-weight:600; display:flex; align-items:center; gap:6px; font-size:12px; text-transform:none; margin:0;">
+                            <input type="checkbox" id="abm-user-grupales" style="width:16px; height:16px; accent-color:var(--accent-teal);"> 👥 Apto Clases Grupales
+                        </label>
+                        <label style="cursor:pointer; font-weight:600; display:flex; align-items:center; gap:6px; font-size:12px; text-transform:none; margin:0;">
+                            <input type="checkbox" id="abm-user-ensambles" style="width:16px; height:16px; accent-color:var(--accent-teal);"> 🎵 Apto Ensambles
+                        </label>
+                    </div>
+
+                    <div style="margin-bottom:12px;">
+                        <label style="margin-bottom:6px; font-weight:700; font-size:12.5px; display:block;">Skills (Instrumentos que enseña / evalúa):</label>
+                        <select id="abm-user-skills" multiple style="display:none;"></select>
+                        <div id="chips-abm-user-skills" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;"></div>
+                    </div>
+
+                    <div style="margin-top:14px; border-top:1px solid var(--border-color); padding-top:12px;">
+                        <strong style="display:block; margin-bottom:8px; color:var(--text-main); font-size:13px; font-weight:700;">⏰ Disponibilidad Horaria Semanal:</strong>
+                        <div id="contenedor-disponibilidad-user-profe" style="display:flex; flex-direction:column; gap:8px;"></div>
+                    </div>
                 </div>
 
-                <div style="margin-top:15px;">
+                <!-- 4. Permisos Granulares de Módulos -->
+                <div style="margin-top:14px;">
                     <strong style="font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:8px;">Módulos Habilitados (Permisos Granulares):</strong>
-                    <div id="abm-user-modulos-grid" style="display:flex; flex-direction:column; gap:8px; background:var(--hover-bg); padding:12px; border-radius:8px; border:1px solid var(--border-color); max-height:180px; overflow-y:auto;">
+                    <div id="abm-user-modulos-grid" style="display:flex; flex-direction:column; gap:8px; background:var(--hover-bg); padding:12px; border-radius:8px; border:1px solid var(--border-color); max-height:160px; overflow-y:auto;">
                         <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="dashboard" checked> 📊 Dashboard / Resumen</label>
                         <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="inbox" checked> 📥 Inbox (Flujo de Entrevistas)</label>
                         <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="espera" checked> 🛋️ Lista de Espera</label>
@@ -862,6 +905,61 @@
             <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
                 <button type="button" class="btn-cerrar-modal" data-modal="modal-abm-edit" style="padding:10px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted);">Cancelar</button>
                 <button id="btn-guardar-abm-edit" class="btn-primary">Guardar Cambios</button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- MODAL UNIVERSAL MI PERFIL -->
+    <dialog id="modal-mi-perfil" class="modern-modal" style="width: 90%; max-width: 560px;">
+        <div style="padding:24px; max-height:85vh; overflow-y:auto;">
+            <div class="modal-drag-pill"></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h3 style="margin:0; color:var(--text-main); font-size:1.3em; display:flex; align-items:center; gap:8px;">
+                    <span>👤</span> <span>Mi Perfil</span>
+                </h3>
+                <button type="button" class="btn-cerrar-modal" data-modal="modal-mi-perfil" style="background:transparent; border:none; font-size:1.5em; cursor:pointer; color:#9a9388; line-height:1;">&times;</button>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:12px;">
+                <div>
+                    <label style="font-weight:700; font-size:12.5px; margin-bottom:4px; display:block;">Email de Acceso:</label>
+                    <input type="text" id="mi-perfil-email" class="modern-input" disabled style="background:var(--hover-bg); opacity:0.85; cursor:not-allowed;">
+                </div>
+
+                <div>
+                    <label style="font-weight:700; font-size:12.5px; margin-bottom:4px; display:block;">Nombre Completo / Referencia:</label>
+                    <input type="text" id="mi-perfil-nombre" class="modern-input" placeholder="Tu nombre">
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div>
+                        <label style="font-weight:700; font-size:12.5px; margin-bottom:4px; display:block;">📱 Celular (WhatsApp):</label>
+                        <input type="text" id="mi-perfil-celular" class="modern-input" placeholder="+54 9 11 ...">
+                    </div>
+                    <div>
+                        <label style="font-weight:700; font-size:12.5px; margin-bottom:4px; display:block;">🏦 Alias / CBU Transferencia:</label>
+                        <input type="text" id="mi-perfil-alias" class="modern-input" placeholder="tu.alias.mp">
+                    </div>
+                </div>
+
+                <!-- Sección Docente de Mi Perfil (si es Profesor / Evaluador) -->
+                <div id="mi-perfil-seccion-docente" style="display:none; margin-top:8px; border-top:1px solid var(--border-color); padding-top:14px;">
+                    <div style="margin-bottom:12px;">
+                        <strong style="font-size:12.5px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:6px;">🎸 Mis Instrumentos / Skills Asignados:</strong>
+                        <div id="mi-perfil-skills-badges" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">🔒 Los skills e instrumentos son administrados por la coordinación.</div>
+                    </div>
+
+                    <div style="margin-top:12px; border-top:1px solid var(--border-color); padding-top:12px;">
+                        <strong style="display:block; margin-bottom:8px; color:var(--text-main); font-size:13px; font-weight:700;">⏰ Mi Disponibilidad Horaria Semanal:</strong>
+                        <div id="contenedor-disponibilidad-mi-perfil" style="display:flex; flex-direction:column; gap:8px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px; border-top:1px solid var(--border-color); padding-top:15px;">
+                <button type="button" class="btn-cerrar-modal" data-modal="modal-mi-perfil" style="padding:10px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted);">Cancelar</button>
+                <button id="btn-guardar-mi-perfil" class="btn-primary" style="padding:10px 20px;">💾 Guardar Mi Perfil</button>
             </div>
         </div>
     </dialog>
@@ -1138,12 +1236,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=4.29.0"></script>
+    <script type="module" src="app.js?v=4.30.0"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=4.29.0').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=4.30.0').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {
