@@ -3901,12 +3901,15 @@ document.addEventListener('click', async (e) => {
         const btn = target.closest('.btn-abrir-suspender') || target.closest('.btn-suspender') || target.closest('.btn-suspender-espera') || target;
         document.getElementById('susp-alumno-id').value = btn.getAttribute('data-id'); 
         document.getElementById('susp-motivo').value = ""; 
+        const detEl = document.getElementById('susp-detalle-adicional');
+        if (detEl) detEl.value = "";
         document.getElementById('modal-suspender').showModal(); 
         return; 
     }
     if (target.id === 'btn-guardar-suspension') { 
         const id = document.getElementById('susp-alumno-id').value;
         const mtv = document.getElementById('susp-motivo').value; 
+        const det = document.getElementById('susp-detalle-adicional')?.value?.trim() || "";
         if(!mtv) return alert("Seleccione motivo"); 
         setBotonCargando(target, true, 'Guardando suspensión...'); 
         try { 
@@ -3925,12 +3928,14 @@ document.addEventListener('click', async (e) => {
             
             const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
             const hist = al.historial || []; 
-            hist.push({ id: Date.now(), texto: `Suspendido. Motivo: ${mtv}`, fecha: fechaStr }); 
+            const motivoCompleto = det ? `${mtv} (Detalle: ${det})` : mtv;
+            hist.push({ id: Date.now(), texto: `Suspendido. Motivo: ${motivoCompleto}`, fecha: fechaStr }); 
             
             const nuevoEstado = esDeAltaOEspera ? "Alta suspendida" : "Agenda suspendida";
             await updateDoc(doc(db, "alumnos", id), { 
                 estado_agenda: nuevoEstado, 
-                motivo_suspension: mtv, 
+                motivo_suspension: motivoCompleto, 
+                detalle_suspension: det || null,
                 reserva_profe_id_previo: profPrevioId,
                 reserva_profe_nombre_previo: profPrevioNom,
                 reserva_fecha_texto_previo: fechaPrevTexto,
