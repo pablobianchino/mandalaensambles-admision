@@ -9,7 +9,8 @@ import {
     diasSemana, 
     defaultCfg, 
     configNodosFlujo,
-    configNodosFlujoEvaluador
+    configNodosFlujoEvaluador,
+    configNodosFlujoCoordinador
 } from "./src/config/constants.js";
 
 import { 
@@ -2373,11 +2374,21 @@ async function cargarVista(vista) {
             
             const roles = Array.isArray(window.usuarioActual?.roles) && window.usuarioActual.roles.length > 0
                 ? window.usuarioActual.roles
-                : [window.usuarioActual?.rol || 'admisiones'];
+                : [window.usuarioActual?.rol || 'admisor'];
             const esEvaluador = roles.includes('evaluador');
-            const esSoloEval = esEvaluador && !roles.includes('admin') && !roles.includes('admisiones') && !roles.includes('admisor');
+            const esSoloEval = esEvaluador && !roles.includes('admin') && !roles.includes('admisiones') && !roles.includes('admisor') && !roles.includes('coordinador_grupos');
+            const esCoordinador = roles.includes('coordinador_grupos') || roles.includes('coordinador');
+            const esSoloCoordinador = esCoordinador && !roles.includes('admin') && !roles.includes('admisiones') && !roles.includes('admisor');
 
-            const poolUrgencias = esSoloEval ? filtrarAlumnosEvaluador(allData) : allData;
+            let poolUrgencias = allData;
+            if (esSoloEval) {
+                poolUrgencias = filtrarAlumnosEvaluador(allData);
+            } else if (esSoloCoordinador) {
+                poolUrgencias = allData.filter(d => {
+                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                    return ['lista de espera', 'validando grupo', 'pre-alta pendiente', 'pre-alta iniciada', 'alta efectiva', 'alta ilegal', 'alta finalizada'].includes(st);
+                });
+            }
             renderDashboardPrioridades(poolUrgencias, vista);
             
             let nodosDashboard = configNodosFlujo;
@@ -2386,6 +2397,12 @@ async function cargarVista(vista) {
             if (esSoloEval) {
                 nodosDashboard = configNodosFlujoEvaluador;
                 datosDashboard = filtrarAlumnosEvaluador(allData);
+            } else if (esSoloCoordinador) {
+                nodosDashboard = configNodosFlujoCoordinador;
+                datosDashboard = allData.filter(d => {
+                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                    return ['lista de espera', 'validando grupo', 'pre-alta pendiente', 'pre-alta iniciada', 'alta efectiva', 'alta ilegal', 'alta finalizada'].includes(st);
+                });
             }
             
             renderTimelineUnificado('timeline-unificado', nodosDashboard, datosDashboard, { generarBotonesPrincipalesVisibles, generarBotonesAccion });
@@ -2676,8 +2693,9 @@ document.getElementById('btn-logout').addEventListener('click', async () => { aw
 
 const ROLES_MODULOS_DEFAULT = {
     admin: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas', 'portal_profesor', 'configuracion', 'permisos'],
-    admisiones: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas'],
     admisor: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas'],
+    admisiones: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas'],
+    coordinador_grupos: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas'],
     evaluador: ['dashboard', 'inbox'],
     profesor: ['portal_profesor'],
     personalizado: []

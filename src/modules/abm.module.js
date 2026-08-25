@@ -342,8 +342,9 @@ export function renderConfigMatch(cont, configApp = defaultCfg, callbacks = {}) 
 // -----------------------------------------------------------------------
 const ROLES_MODULOS = {
     admin: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas', 'portal_profesor', 'configuracion', 'permisos'],
-    admisiones: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas'],
     admisor: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas'],
+    admisiones: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas'],
+    coordinador_grupos: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas'],
     evaluador: ['dashboard', 'inbox'],
     profesor: ['portal_profesor'],
     personalizado: []
@@ -537,10 +538,12 @@ export async function cargarABM(coleccion, titulo, cont) {
                     
                     const badgesRoles = rolesArr.map(r => {
                         if (r === 'admin') return '<span class="profile-tag-badge" style="background:#fef5e7; color:#d35400; border-color:#fad7a0;">👑 Administrador</span>';
+                        if (r === 'admisor' || r === 'admisiones') return '<span class="profile-tag-badge" style="background:#e8f4fd; color:#2980b9; border-color:#beddf3;">📥 Admisor</span>';
+                        if (r === 'coordinador_grupos' || r === 'coordinador') return '<span class="profile-tag-badge" style="background:#fef3c7; color:#92400e; border-color:#fde68a;">🧩 Coordinador</span>';
                         if (r === 'evaluador') return '<span class="profile-tag-badge" style="background:#f0fdfa; color:#0f766e; border-color:#99f6e4;">🎧 Evaluador</span>';
                         if (r === 'profesor') return '<span class="profile-tag-badge" style="background:#eafaf1; color:#27ae60; border-color:#a9dfbf;">👨‍🏫 Profesor</span>';
                         if (r === 'personalizado') return '<span class="profile-tag-badge" style="background:#f4ecf7; color:#8e44ad; border-color:#d2b4de;">🛠️ Personalizado</span>';
-                        return '<span class="profile-tag-badge" style="background:#e8f4fd; color:#2980b9; border-color:#beddf3;">📥 Admisiones</span>';
+                        return '<span class="profile-tag-badge" style="background:#e8f4fd; color:#2980b9; border-color:#beddf3;">📥 Admisor</span>';
                     }).join(' ');
 
                     const badgeActivo = esActivo 
@@ -699,9 +702,9 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
                     document.getElementById('abm-edit-nombre').value = uData.email || '';
                     document.getElementById('abm-user-nombre').value = uData.nombre || '';
                     
-                    const rolesCargados = Array.isArray(uData.roles) && uData.roles.length > 0 ? uData.roles : (uData.rol ? [uData.rol] : ['admisiones']);
+                    const rolesCargados = Array.isArray(uData.roles) && uData.roles.length > 0 ? uData.roles : (uData.rol ? [uData.rol] : ['admisor']);
                     document.querySelectorAll('.chk-user-rol').forEach(chk => {
-                        chk.checked = rolesCargados.includes(chk.value);
+                        chk.checked = rolesCargados.includes(chk.value) || (chk.value === 'admisor' && rolesCargados.includes('admisiones'));
                     });
 
                     if (selProfLink) selProfLink.value = uData.profesor_id || '';
@@ -722,7 +725,7 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
         } else {
             document.getElementById('abm-user-nombre').value = '';
             document.querySelectorAll('.chk-user-rol').forEach(chk => {
-                chk.checked = chk.value === 'admisiones';
+                chk.checked = chk.value === 'admisor';
             });
             aplicarPlantillaRoles();
             if (chkActivo) {
@@ -833,7 +836,7 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
             const rolesChecked = [];
             document.querySelectorAll('.chk-user-rol:checked').forEach(c => rolesChecked.push(c.value));
             if (rolesChecked.length === 0) rolesChecked.push('personalizado');
-            const rolPrincipal = rolesChecked[0] || 'admisiones';
+            const rolPrincipal = rolesChecked[0] || 'admisor';
 
             const profesor_id = document.getElementById('abm-user-profesor-id')?.value || '';
             const activo = document.getElementById('abm-user-activo')?.checked !== false;
