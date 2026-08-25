@@ -14,6 +14,10 @@ import {
     doc, 
     addDoc 
 } from "../config/firebase.js";
+import {
+    poblarDisponibilidadMultiRango,
+    extraerDisponibilidadMultiRango
+} from "../ui/horarios.ui.js";
 
 export function renderConfigHub(cont, callbacks = {}) {
     cont.innerHTML = `
@@ -626,53 +630,52 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
         if (divUser) divUser.style.display = 'none';
         if (divProfe) divProfe.style.display = 'block';
 
-        document.getElementById('abm-edit-correo').value = cor || ''; 
-        document.getElementById('abm-edit-celular').value = cel || ''; 
-        document.getElementById('abm-edit-alias').value = ali || ''; 
-
-        document.getElementById('abm-edit-entrevista').checked = !id;
-        document.getElementById('abm-edit-grupales').checked = false;
-        document.getElementById('abm-edit-ensambles').checked = false;
-
+        // 1. Cargar catálogo de instrumentos en el select de skills
         const selSkills = document.getElementById('abm-edit-skills');
         if (selSkills) {
-            getDocs(collection(db, "instrumentos")).then(iSnap => {
-                selSkills.innerHTML = '';
-                iSnap.forEach(d => {
-                    const instNom = d.data().nombre;
-                    selSkills.innerHTML += `<option value="${instNom}">${instNom}</option>`;
-                });
-                
-                if (id) {
-                    getDoc(doc(db, "profesores", id)).then(snap => {
-                        if (snap.exists()) {
-                            const pr = snap.data();
-                            document.getElementById('abm-edit-entrevista').checked = !!pr.entrevista;
-                            document.getElementById('abm-edit-grupales').checked = !!pr.grupales;
-                            document.getElementById('abm-edit-ensambles').checked = !!pr.ensambles;
-                            const skills = pr.skills || [];
-                            Array.from(selSkills.options).forEach(opt => {
-                                opt.selected = skills.includes(opt.value);
-                            });
-                            renderChipsSelectLocal('abm-edit-skills', 'chips-abm-edit-skills');
-                        }
-                    });
-                } else {
-                    renderChipsSelectLocal('abm-edit-skills', 'chips-abm-edit-skills');
-                }
+            selSkills.innerHTML = '';
+            const iSnap = await getDocs(collection(db, "instrumentos"));
+            iSnap.forEach(d => {
+                const instNom = d.data().nombre;
+                selSkills.innerHTML += `<option value="${instNom}">${instNom}</option>`;
             });
         }
 
-        const poblarDispFn = callbacks?.poblarDisponibilidadMultiRango || window.poblarDisponibilidadMultiRango;
-        if (typeof poblarDispFn === 'function') {
-            if (id) { 
-                getDoc(doc(db, "profesores", id)).then(snap => { 
-                    if(snap.exists()) poblarDispFn(snap.data().disponibilidad || {}, true); 
-                    else poblarDispFn({}, true); 
-                }); 
-            } else { 
-                poblarDispFn({}, true); 
-            } 
+        // 2. Si es edición, leer la ficha única y específica del profesor desde Firestore
+        if (id) {
+            const snap = await getDoc(doc(db, "profesores", id));
+            if (snap.exists()) {
+                const pr = snap.data();
+                document.getElementById('abm-edit-correo').value = pr.correo_calendario || cor || ''; 
+                document.getElementById('abm-edit-celular').value = pr.celular || cel || ''; 
+                document.getElementById('abm-edit-alias').value = pr.alias_transferencia || ali || ''; 
+                document.getElementById('abm-edit-entrevista').checked = !!pr.entrevista;
+                document.getElementById('abm-edit-grupales').checked = !!pr.grupales;
+                document.getElementById('abm-edit-ensambles').checked = !!pr.ensambles;
+                
+                const skills = Array.isArray(pr.skills) ? pr.skills : [];
+                if (selSkills) {
+                    Array.from(selSkills.options).forEach(opt => {
+                        opt.selected = skills.includes(opt.value);
+                    });
+                    renderChipsSelectLocal('abm-edit-skills', 'chips-abm-edit-skills');
+                }
+                
+                // Cargar la disponibilidad individual de este profesor
+                poblarDisponibilidadMultiRango(pr.disponibilidad || {}, true);
+            }
+        } else {
+            document.getElementById('abm-edit-correo').value = ''; 
+            document.getElementById('abm-edit-celular').value = ''; 
+            document.getElementById('abm-edit-alias').value = ''; 
+            document.getElementById('abm-edit-entrevista').checked = true;
+            document.getElementById('abm-edit-grupales').checked = false;
+            document.getElementById('abm-edit-ensambles').checked = false;
+            if (selSkills) {
+                Array.from(selSkills.options).forEach(opt => opt.selected = false);
+                renderChipsSelectLocal('abm-edit-skills', 'chips-abm-edit-skills');
+            }
+            poblarDisponibilidadMultiRango({}, true);
         }
     } else { 
         if (divUser) divUser.style.display = 'none';
