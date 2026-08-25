@@ -89,12 +89,13 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
             <label style="margin-bottom:15px;">Título Evento (Reserva): <input type="text" id="cfg-evt-res" class="modern-input" value="${currentCfg.formato_evento_reserva}"></label>
             <label style="margin-bottom:15px;">Título Evento (Confirmado): <input type="text" id="cfg-evt-conf" class="modern-input" value="${currentCfg.formato_evento_confirmado}"></label>
             <label style="margin-bottom:15px;">Nombre para Agendar (WS): <input type="text" id="cfg-nombre-agendar" class="modern-input" value="${currentCfg.texto_nombre_agendar}"></label>
-            <label style="margin-bottom:15px;">Texto Opciones Múltiples: <textarea id="cfg-txt-opt-mul" class="modern-input" style="height:200px;">${currentCfg.texto_opciones_multiples}</textarea></label>
-            <label style="margin-bottom:15px;">Texto 1 Sola Opción: <textarea id="cfg-txt-p" class="modern-input" style="height:150px;">${currentCfg.texto_profe}</textarea></label>
-            <label style="margin-bottom:15px;">Texto Confirmación Alumno: <textarea id="cfg-txt-conf-a" class="modern-input" style="height:150px;">${currentCfg.texto_conf_alumno}</textarea></label>
-            <label style="margin-bottom:15px;">Texto Cancelación: <textarea id="cfg-txt-cancela" class="modern-input" style="height:100px;">${currentCfg.texto_cancela_alumno}</textarea></label>
-            <label style="margin-bottom:15px;">Texto Pre-Alta: <textarea id="cfg-txt-prealta" class="modern-input" style="height:150px;">${currentCfg.texto_prealta}</textarea></label>
-            <label style="margin-bottom:20px;">Texto Nueva Alta: <textarea id="cfg-txt-alta-conf" class="modern-input" style="height:150px;">${currentCfg.texto_alta_confirmada}</textarea></label>
+            <label style="margin-bottom:15px;">Texto Opciones Múltiples: <textarea id="cfg-txt-opt-mul" class="modern-input" style="height:200px;">${currentCfg.texto_opciones_multiples || ''}</textarea></label>
+            <label style="margin-bottom:15px;">Texto 1 Sola Opción: <textarea id="cfg-txt-p" class="modern-input" style="height:150px;">${currentCfg.texto_profe || ''}</textarea></label>
+            <label style="margin-bottom:15px;">Texto Propuesta Horario al Alumno (Validación por Alumno): <textarea id="cfg-txt-alumno" class="modern-input" style="height:150px;">${currentCfg.texto_alumno || ''}</textarea></label>
+            <label style="margin-bottom:15px;">Texto Confirmación Alumno: <textarea id="cfg-txt-conf-a" class="modern-input" style="height:150px;">${currentCfg.texto_conf_alumno || ''}</textarea></label>
+            <label style="margin-bottom:15px;">Texto Cancelación: <textarea id="cfg-txt-cancela" class="modern-input" style="height:100px;">${currentCfg.texto_cancela_alumno || ''}</textarea></label>
+            <label style="margin-bottom:15px;">Texto Pre-Alta: <textarea id="cfg-txt-prealta" class="modern-input" style="height:150px;">${currentCfg.texto_prealta || ''}</textarea></label>
+            <label style="margin-bottom:20px;">Texto Nueva Alta: <textarea id="cfg-txt-alta-conf" class="modern-input" style="height:150px;">${currentCfg.texto_alta_confirmada || ''}</textarea></label>
             <button id="btn-guardar-cfg" class="btn-primary" style="width:100%;">Guardar Configuración</button>
         </div>`; 
 
@@ -162,6 +163,7 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
             texto_nombre_agendar: document.getElementById('cfg-nombre-agendar').value, 
             texto_opciones_multiples: document.getElementById('cfg-txt-opt-mul').value, 
             texto_profe: document.getElementById('cfg-txt-p').value, 
+            texto_alumno: document.getElementById('cfg-txt-alumno').value,
             texto_conf_alumno: document.getElementById('cfg-txt-conf-a').value, 
             texto_cancela_alumno: document.getElementById('cfg-txt-cancela').value, 
             texto_prealta: document.getElementById('cfg-txt-prealta').value, 
@@ -337,6 +339,8 @@ export function renderConfigMatch(cont, configApp = defaultCfg, callbacks = {}) 
 const ROLES_MODULOS = {
     admin: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas', 'portal_profesor', 'configuracion', 'permisos'],
     admisiones: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas'],
+    admisor: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas'],
+    evaluador: ['dashboard', 'inbox'],
     profesor: ['portal_profesor'],
     personalizado: []
 };
@@ -365,14 +369,17 @@ export async function cargarABM(coleccion, titulo, cont) {
 
                 qS.forEach(d => {
                     const u = d.data();
-                    const rol = u.rol || 'admisiones';
+                    const rolesArr = Array.isArray(u.roles) && u.roles.length > 0 ? u.roles : (u.rol ? [u.rol] : ['admisiones']);
                     const esActivo = u.activo !== false;
-                    const mods = Array.isArray(u.modulos_habilitados) ? u.modulos_habilitados : (ROLES_MODULOS[rol] || []);
+                    const mods = Array.isArray(u.modulos_habilitados) ? u.modulos_habilitados : (ROLES_MODULOS[rolesArr[0]] || []);
                     
-                    let badgeRol = '<span class="profile-tag-badge" style="background:#e8f4fd; color:#2980b9; border-color:#beddf3;">📥 Admisiones</span>';
-                    if (rol === 'admin') badgeRol = '<span class="profile-tag-badge" style="background:#fef5e7; color:#d35400; border-color:#fad7a0;">👑 Administrador</span>';
-                    else if (rol === 'profesor') badgeRol = '<span class="profile-tag-badge" style="background:#eafaf1; color:#27ae60; border-color:#a9dfbf;">👨‍🏫 Profesor</span>';
-                    else if (rol === 'personalizado') badgeRol = '<span class="profile-tag-badge" style="background:#f4ecf7; color:#8e44ad; border-color:#d2b4de;">🛠️ Personalizado</span>';
+                    const badgesRoles = rolesArr.map(r => {
+                        if (r === 'admin') return '<span class="profile-tag-badge" style="background:#fef5e7; color:#d35400; border-color:#fad7a0;">👑 Administrador</span>';
+                        if (r === 'evaluador') return '<span class="profile-tag-badge" style="background:#f0fdfa; color:#0f766e; border-color:#99f6e4;">🎧 Evaluador</span>';
+                        if (r === 'profesor') return '<span class="profile-tag-badge" style="background:#eafaf1; color:#27ae60; border-color:#a9dfbf;">👨‍🏫 Profesor</span>';
+                        if (r === 'personalizado') return '<span class="profile-tag-badge" style="background:#f4ecf7; color:#8e44ad; border-color:#d2b4de;">🛠️ Personalizado</span>';
+                        return '<span class="profile-tag-badge" style="background:#e8f4fd; color:#2980b9; border-color:#beddf3;">📥 Admisiones</span>';
+                    }).join(' ');
 
                     const badgeActivo = esActivo 
                         ? '<span class="status-val-ok" style="font-size:11px;">🟢 Activo</span>'
@@ -381,11 +388,11 @@ export async function cargarABM(coleccion, titulo, cont) {
                     const profeNom = u.profesor_id && profsMap[u.profesor_id] ? ` • Profe vinculado: <strong>${profsMap[u.profesor_id]}</strong>` : '';
 
                     h += `
-                        <div class="row-item abm-row" style="padding:16px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:10px;">
+                        <div class="row-item abm-row" style="padding:16px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:10px; cursor:pointer;" onclick="window.abrirEdicionABM('${d.id}', 'usuarios_sistema', '${u.email}')">
                             <div style="flex:1; min-width:240px;">
                                 <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                                     <strong style="color:var(--text-main); font-size:15px;">${u.email}</strong>
-                                    ${badgeRol}
+                                    ${badgesRoles}
                                     ${badgeActivo}
                                 </div>
                                 <div style="font-size:12.5px; color:var(--text-muted); margin-top:4px;">
@@ -395,7 +402,6 @@ export async function cargarABM(coleccion, titulo, cont) {
                                 </div>
                             </div>
                             <div style="display:flex; gap:8px; align-items:center;">
-                                <button type="button" class="btn-primary" style="font-size:12px; padding:6px 14px;" onclick="window.abrirEdicionABM('${d.id}', 'usuarios_sistema', '${u.email}')">✏️ Editar Permisos</button>
                                 <button type="button" class="btn-row-action" title="Revocar Acceso / Eliminar" onclick="event.stopPropagation(); window.eliminarABM('${d.id}', 'usuarios_sistema')">🗑️</button>
                             </div>
                         </div>
@@ -461,18 +467,27 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
             };
         }
 
-        const aplicarPlantillaRol = (rol) => {
-            const mods = ROLES_MODULOS[rol] || [];
+        const aplicarPlantillaRoles = () => {
+            const rolesSeleccionados = [];
+            document.querySelectorAll('.chk-user-rol:checked').forEach(c => rolesSeleccionados.push(c.value));
+            
+            // Si no hay roles seleccionados, no pisar
+            if (rolesSeleccionados.length === 0) return;
+
+            const modulosUnion = new Set();
+            rolesSeleccionados.forEach(r => {
+                const m = ROLES_MODULOS[r] || [];
+                m.forEach(mod => modulosUnion.add(mod));
+            });
+
             document.querySelectorAll('.chk-user-modulo').forEach(chk => {
-                if (rol === 'personalizado') return;
-                chk.checked = mods.includes(chk.value);
+                chk.checked = modulosUnion.has(chk.value);
             });
         };
 
-        const selRol = document.getElementById('abm-user-rol');
-        if (selRol) {
-            selRol.onchange = (e) => aplicarPlantillaRol(e.target.value);
-        }
+        document.querySelectorAll('.chk-user-rol').forEach(chk => {
+            chk.onchange = () => aplicarPlantillaRoles();
+        });
 
         const chkActivo = document.getElementById('abm-user-activo');
         const lblActivo = document.getElementById('abm-user-activo-label');
@@ -490,8 +505,12 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
                     const uData = uDoc.data();
                     document.getElementById('abm-edit-nombre').value = uData.email || '';
                     document.getElementById('abm-user-nombre').value = uData.nombre || '';
-                    const r = uData.rol || 'admisiones';
-                    if (selRol) selRol.value = r;
+                    
+                    const rolesCargados = Array.isArray(uData.roles) && uData.roles.length > 0 ? uData.roles : (uData.rol ? [uData.rol] : ['admisiones']);
+                    document.querySelectorAll('.chk-user-rol').forEach(chk => {
+                        chk.checked = rolesCargados.includes(chk.value);
+                    });
+
                     if (selProfLink) selProfLink.value = uData.profesor_id || '';
                     if (chkActivo) {
                         chkActivo.checked = uData.activo !== false;
@@ -501,7 +520,7 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
                         }
                     }
 
-                    const uMods = Array.isArray(uData.modulos_habilitados) ? uData.modulos_habilitados : (ROLES_MODULOS[r] || []);
+                    const uMods = Array.isArray(uData.modulos_habilitados) ? uData.modulos_habilitados : (ROLES_MODULOS[rolesCargados[0]] || []);
                     document.querySelectorAll('.chk-user-modulo').forEach(chk => {
                         chk.checked = uMods.includes(chk.value);
                     });
@@ -509,8 +528,10 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
             } catch(e) {}
         } else {
             document.getElementById('abm-user-nombre').value = '';
-            if (selRol) selRol.value = 'admisiones';
-            aplicarPlantillaRol('admisiones');
+            document.querySelectorAll('.chk-user-rol').forEach(chk => {
+                chk.checked = chk.value === 'admisiones';
+            });
+            aplicarPlantillaRoles();
             if (chkActivo) {
                 chkActivo.checked = true;
                 if (lblActivo) {
@@ -619,7 +640,12 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
         if (col === 'usuarios_sistema') {
             const email = nomVal.toLowerCase();
             const nombre = (document.getElementById('abm-user-nombre')?.value || '').trim();
-            const rol = document.getElementById('abm-user-rol')?.value || 'admisiones';
+            
+            const rolesChecked = [];
+            document.querySelectorAll('.chk-user-rol:checked').forEach(c => rolesChecked.push(c.value));
+            if (rolesChecked.length === 0) rolesChecked.push('personalizado');
+            const rolPrincipal = rolesChecked[0] || 'admisiones';
+
             const profesor_id = document.getElementById('abm-user-profesor-id')?.value || '';
             const activo = document.getElementById('abm-user-activo')?.checked !== false;
             
@@ -629,7 +655,8 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
             const userData = {
                 email,
                 nombre: nombre || email.split('@')[0],
-                rol,
+                roles: rolesChecked,
+                rol: rolPrincipal,
                 profesor_id,
                 activo,
                 modulos_habilitados: modulosChecked,

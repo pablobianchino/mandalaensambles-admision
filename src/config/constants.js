@@ -41,8 +41,8 @@ export const defaultCfg = {
     formato_evento_confirmado: '✅📋 {emojiinstrumento} {alumno} {edad}', 
     texto_profe: "*⚠ PRE CHECK - ENTREVISTA*\n📅 *FECHA: {fecha_hora}*\n*👥 ALUMNO:*\n🔹 {nombre} ({edad})\n🔹 {instrumento} | {suscripcion}\n*INFO:*\n{descripcion}\n\n*🕐 HISTORIAL DE CONTACTO:*\n{historial}", 
     texto_opciones_multiples: "*⚠ PRE CHECK - ENTREVISTA*\n*🎈 CONFIRMAR ASISTENCIA*\n\n📅 OPCIONES DE FECHA:\n{opciones}\n\n*Por favor confirmar asistencia y agendar en tu calendario. En cuanto reciba el OK y pago del alumno, te aviso con la confirmación definitiva.*\n\n*📰 INFO PARA LA ENTREVISTA:*\n{descripcion}\n\n*🕐 HISTORIAL DE CONTACTO:*\n{historial}", 
-    texto_alumno: "📅 *Agenda de clase*\n🧩 {fecha_hora} con Profe {profe}\n✅ Inscripción: forms.gle/xxx\n💸 Valor: {valor}\n🧩 Alias: {alias_profe}", 
-    texto_conf_alumno: "Genial Gracias!\nTe esperamos!\n\n🧩 Día y horario: {fecha_hora}\n🧩 Profe: {profe}\n📍 *Dirección:* Av. Cabildo 2970\n\nEl profe te va a estar escribiendo el mismo día!", 
+    texto_alumno: "📅 *Agenda de clase*\n🧩 {fecha_hora} con Profe {profe}\n✅ Inscripción: forms.gle/xxx\n💸 Valor: {valor}\n💳 Alias: {alias_profe}", 
+    texto_conf_alumno: "Genial Gracias!\nTe esperamos!\n\n🧩 Suscripción: {suscripcion} {emojiinstrumento} {instrumento}\n🧩 Día y horario: {fecha_hora}\n🧩 Profe: {profe}\n📍*Dirección:* Av. Cabildo 2970, Piso 1, Depto C.", 
     texto_conf_profe: "*✅ ENTREVISTA CONFIRMADA*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Clase: {suscripcion}\n\n*📰 INFO PARA LA ENTREVISTA:*\n{descripcion}\n\n*🕐 HISTORIAL DE CONTACTO:*\n{historial}", 
     texto_cancela_alumno: "*❗ PRE CHECK - ENTREVISTA*\n*❌ RESERVA CANCELADA*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Clase: {suscripcion}\n\n*🕐 HISTORIAL DE CONTACTO:*\n{historial}", 
     texto_prealta: "*⚠ PRE ALTA INICIADA*\n\n*👥 DATOS DE LA SUSCRIPCIÓN:*\n🔹 Suscripción: {suscripcion}\n🔹 Nombre de alumno: {nombre}\n🔹 Instrumento: {instrumento}\n🔹 Grupo: {grupo}\n🔹 Profesor: {profe}\n🔹 Inicio de clases: {fecha inicio clases}", 
@@ -102,4 +102,31 @@ export const configNodosFlujo = [
         const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
         return (st === 'alta efectiva' || st === 'alta ilegal' || st === 'alta finalizada') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5);
     }}
+];
+
+export const configNodosFlujoEvaluador = [
+    { 
+        id: 'Pendiente validación por profe', 
+        label: 'Validando con Evaluador', 
+        icon: '👨‍🏫', 
+        color: 'node-blue-2', 
+        hexColor: '#4a8cd2', 
+        vistaDestino: 'Inbox - Validar Evaluador', 
+        filterFn: (d) => {
+            const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+            return st === 'pendiente validacion por profe' || st === 'pendiente validacion por evaluador';
+        }
+    },
+    { 
+        id: 'Agenda confirmada', 
+        label: 'Entrevista Confirmada', 
+        icon: '✅', 
+        color: 'node-blue-4', 
+        hexColor: '#134b8c', 
+        vistaDestino: 'Inbox - Confirmadas', 
+        filterFn: (d) => {
+            const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+            return st === 'agenda confirmada' || st === 'entrevista confirmada';
+        }
+    }
 ];

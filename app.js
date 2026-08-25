@@ -8,7 +8,8 @@ import {
     firebaseConfig, 
     diasSemana, 
     defaultCfg, 
-    configNodosFlujo 
+    configNodosFlujo,
+    configNodosFlujoEvaluador
 } from "./src/config/constants.js";
 
 import { 
@@ -1704,30 +1705,156 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
 // NAVEGACIÓN PRINCIPAL: PESTAÑAS SEGMENTADAS Y BADGES EN VIVO
 // =======================================================================
 
-const moduloSubtabs = {
-    'Inbox': [
-        { vista: 'Inbox - Pendientes', label: 'Sin Agendar', icon: '⏳', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'pendiente procesar').length },
-        { vista: 'Inbox - En Validacion', label: 'En Espera de Validación', icon: '👨‍🏫', countFn: (alumnos) => alumnos.filter(d => {
-            const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-            return st === 'pendiente validacion por profe' || st === 'pendiente validacion por evaluador' || st === 'pendiente validacion por alumno';
-        }).length },
-        { vista: 'Inbox - Confirmadas', label: 'Confirmadas', icon: '✅', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'agenda confirmada').length },
-        { vista: 'Inbox - Suspendidas', label: 'Suspendidas', icon: '⏸️', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'agenda suspendida').length }
-    ],
-    'Altas': [
-        { vista: 'Altas - Pendientes', label: 'Pendientes', icon: '📝', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'pre-alta pendiente').length },
-        { vista: 'Altas - En Curso', label: 'En Curso', icon: '🚀', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'pre-alta iniciada').length },
-        { vista: 'Altas - Confirmadas', label: 'Confirmadas', icon: '⚠️', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5)).length },
-        { vista: 'Altas - Finalizadas', label: 'Finalizadas', icon: '🏆', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal' || d.estado_agenda === 'Alta Finalizada') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5)).length },
-        { vista: 'Altas - Suspendidas', label: 'Suspendidas', icon: '❌', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'alta suspendida').length }
-    ],
-    'Match': [
-        { vista: 'Match - Pendientes', label: 'Crear Grupos / Match', icon: '🔍', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'lista de espera').length },
-        { vista: 'Match - Solicitudes Profes', label: 'Solicitudes Profes', icon: '🔔', countFn: () => cachedSolicitudesVacantesCount, className: 'tab-badge-solicitudes' },
-        { vista: 'Match - En Validacion', label: 'Grupos en Validación', icon: '👥', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'validando grupo').length },
-        { vista: 'Ajustes Match', label: 'Reglas y Tolerancias', icon: '⚙️' }
-    ]
-};
+export function filtrarAlumnosEvaluador(alumnos) {
+    const u = window.usuarioActual;
+    if (!u) return alumnos;
+    const profId = u.profesor_id || '';
+    const profNom = (u.nombre || '').toLowerCase().trim();
+    const userNomPartes = profNom.split(/\s+/).filter(Boolean);
+
+    return alumnos.filter(al => {
+        if (profId && (al.reserva_profe_id === profId || al.profesor_id === profId)) return true;
+        
+        const alProfeNom = (al.reserva_profe_nombre || al.profesor_asignado || '').toLowerCase().trim();
+        if (profNom && alProfeNom) {
+            if (alProfeNom === profNom) return true;
+            if (userNomPartes.length > 0 && userNomPartes.some(p => p.length >= 3 && alProfeNom.includes(p))) return true;
+            if (alProfeNom.length >= 3 && profNom.includes(alProfeNom)) return true;
+        }
+        return false;
+    });
+}
+
+function getModuloSubtabs() {
+    const u = window.usuarioActual || {};
+    const rol = u.rol || 'admisiones';
+
+    let inboxTabs = [];
+    if (rol === 'evaluador') {
+        inboxTabs = [
+            { 
+                vista: 'Inbox - Validar Evaluador', 
+                label: 'Pendientes Validar Fecha', 
+                icon: '⏳', 
+                countFn: (alumnos) => filtrarAlumnosEvaluador(alumnos).filter(d => {
+                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                    return st === 'pendiente validacion por profe' || st === 'pendiente validacion por evaluador';
+                }).length 
+            },
+            { 
+                vista: 'Inbox - Finalizar Admision', 
+                label: 'Pendientes Finalizar Admisión', 
+                icon: '🏁', 
+                countFn: (alumnos) => filtrarAlumnosEvaluador(alumnos).filter(d => {
+                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                    return st === 'agenda confirmada' || st === 'entrevista confirmada';
+                }).length 
+            }
+        ];
+    } else if (rol === 'admisiones' || rol === 'admisor') {
+        inboxTabs = [
+            { 
+                vista: 'Inbox - Pendientes', 
+                label: 'Sin Agendar', 
+                icon: '⏳', 
+                countFn: (alumnos) => alumnos.filter(d => {
+                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                    return st === 'pendiente procesar' || st === 'sin agendar';
+                }).length 
+            },
+            { 
+                vista: 'Inbox - Validar Alumno', 
+                label: 'Validar por Alumno', 
+                icon: '🧑‍🎓', 
+                countFn: (alumnos) => alumnos.filter(d => {
+                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                    return st === 'pendiente validacion por alumno';
+                }).length 
+            },
+            { 
+                vista: 'Inbox - Altas Pendientes', 
+                label: 'Altas Pendientes de Acción', 
+                icon: '🚀', 
+                countFn: (alumnos) => alumnos.filter(d => {
+                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                    return st === 'pre-alta pendiente' || st === 'pre-alta iniciada' || ((st === 'alta efectiva' || st === 'alta ilegal') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5));
+                }).length 
+            }
+        ];
+    } else {
+        // Admin: Todos los subtabs
+        inboxTabs = [
+            { 
+                vista: 'Inbox - Pendientes', 
+                label: 'Sin Agendar', 
+                icon: '⏳', 
+                countFn: (alumnos) => alumnos.filter(d => {
+                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                    return st === 'pendiente procesar' || st === 'sin agendar';
+                }).length 
+            },
+            { 
+                vista: 'Inbox - Validar Evaluador', 
+                label: 'Validar Evaluador', 
+                icon: '👨‍🏫', 
+                countFn: (alumnos) => alumnos.filter(d => {
+                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                    return st === 'pendiente validacion por profe' || st === 'pendiente validacion por evaluador';
+                }).length 
+            },
+            { 
+                vista: 'Inbox - Validar Alumno', 
+                label: 'Validar Alumno', 
+                icon: '🧑‍🎓', 
+                countFn: (alumnos) => alumnos.filter(d => {
+                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                    return st === 'pendiente validacion por alumno';
+                }).length 
+            },
+            { 
+                vista: 'Inbox - Confirmadas', 
+                label: 'Confirmadas', 
+                icon: '✅', 
+                countFn: (alumnos) => alumnos.filter(d => {
+                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                    return st === 'agenda confirmada' || st === 'entrevista confirmada';
+                }).length 
+            },
+            { 
+                vista: 'Inbox - Altas Pendientes', 
+                label: 'Altas Pendientes', 
+                icon: '🚀', 
+                countFn: (alumnos) => alumnos.filter(d => {
+                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                    return st === 'pre-alta pendiente' || st === 'pre-alta iniciada' || ((st === 'alta efectiva' || st === 'alta ilegal') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5));
+                }).length 
+            },
+            { 
+                vista: 'Inbox - Suspendidas', 
+                label: 'Suspendidas', 
+                icon: '⏸️', 
+                countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() === 'agenda suspendida').length 
+            }
+        ];
+    }
+
+    return {
+        'Inbox': inboxTabs,
+        'Altas': [
+            { vista: 'Altas - Pendientes', label: 'Pendientes', icon: '📝', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'pre-alta pendiente').length },
+            { vista: 'Altas - En Curso', label: 'En Curso', icon: '🚀', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'pre-alta iniciada').length },
+            { vista: 'Altas - Confirmadas', label: 'Confirmadas', icon: '⚠️', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5)).length },
+            { vista: 'Altas - Finalizadas', label: 'Finalizadas', icon: '🏆', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal' || d.estado_agenda === 'Alta Finalizada') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5)).length },
+            { vista: 'Altas - Suspendidas', label: 'Suspendidas', icon: '❌', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'alta suspendida').length }
+        ],
+        'Match': [
+            { vista: 'Match - Pendientes', label: 'Crear Grupos / Match', icon: '🔍', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'lista de espera').length },
+            { vista: 'Match - Solicitudes Profes', label: 'Solicitudes Profes', icon: '🔔', countFn: () => cachedSolicitudesVacantesCount, className: 'tab-badge-solicitudes' },
+            { vista: 'Match - En Validacion', label: 'Grupos en Validación', icon: '👥', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'validando grupo').length },
+            { vista: 'Ajustes Match', label: 'Reglas y Tolerancias', icon: '⚙️' }
+        ]
+    };
+}
 
 let cachedAlumnosData = [];
 let cachedSolicitudesVacantesCount = 0;
@@ -1753,11 +1880,23 @@ function actualizarBadgesYNavegacion(allData) {
     const datos = cachedAlumnosData || [];
     refrescarConteoVacantes();
     
-    // Conteo Inbox (Alumnos pendientes de agendar primera entrevista)
-    const countInbox = datos.filter(d => {
-        const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-        return st === 'pendiente procesar' || st === 'sin agendar';
-    }).length;
+    const u = window.usuarioActual || {};
+    const rol = u.rol || 'admisiones';
+
+    // Conteo Inbox según rol
+    let countInbox = 0;
+    if (rol === 'evaluador') {
+        countInbox = filtrarAlumnosEvaluador(datos).filter(d => {
+            const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+            return st === 'pendiente validacion por profe' || st === 'pendiente validacion por evaluador' || st === 'agenda confirmada' || st === 'entrevista confirmada';
+        }).length;
+    } else {
+        countInbox = datos.filter(d => {
+            const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+            return st === 'pendiente procesar' || st === 'sin agendar';
+        }).length;
+    }
+
     const bInbox = document.getElementById('badge-inbox');
     if (bInbox) {
         bInbox.textContent = countInbox;
@@ -1803,13 +1942,14 @@ function renderSegmentedTabs(vista) {
     else if (vista.startsWith('Altas')) modulo = 'Altas';
     else if (vista.startsWith('Match') || vista === 'Ajustes Match') modulo = 'Match';
 
-    if (!modulo || !moduloSubtabs[modulo]) {
+    const subtabsDict = getModuloSubtabs();
+    if (!modulo || !subtabsDict[modulo]) {
         container.style.display = 'none';
         bar.innerHTML = '';
         return;
     }
 
-    const tabs = moduloSubtabs[modulo];
+    const tabs = subtabsDict[modulo];
     const datos = cachedAlumnosData || [];
 
     bar.innerHTML = tabs.map(tab => {
@@ -1848,22 +1988,27 @@ export function verificarPermisoModulo(moduloDestino) {
 
 export function configurarSidebarPorPermisos() {
     const usuario = window.usuarioActual || {};
-    const rol = usuario.rol || 'admisiones';
+    const rolesArr = Array.isArray(usuario.roles) && usuario.roles.length > 0 ? usuario.roles : [usuario.rol || 'admisiones'];
+    const rol = usuario.rol || rolesArr[0] || 'admisiones';
     const mods = usuario.modulos_habilitados || [];
+
+    const esAdmin = rolesArr.includes('admin');
+    const esProfesor = rolesArr.includes('profesor');
 
     const navProfe = document.getElementById('nav-item-portal-profe');
     if (navProfe) {
-        navProfe.style.display = (rol === 'profesor' || mods.includes('portal_profesor') || rol === 'admin') ? 'flex' : 'none';
+        navProfe.style.display = (esProfesor || mods.includes('portal_profesor') || esAdmin) ? 'flex' : 'none';
     }
 
     const bottomNavProfe = document.getElementById('bottom-nav-portal-profe');
     if (bottomNavProfe) {
-        bottomNavProfe.style.display = (rol === 'profesor' || mods.includes('portal_profesor') || rol === 'admin') ? 'flex' : 'none';
+        bottomNavProfe.style.display = (esProfesor || mods.includes('portal_profesor') || esAdmin) ? 'flex' : 'none';
     }
 
     const btnNuevoAlumno = document.getElementById('btn-nuevo-alumno');
     if (btnNuevoAlumno) {
-        btnNuevoAlumno.style.display = (rol === 'profesor') ? 'none' : 'block';
+        const puedeCrear = esAdmin || rolesArr.includes('admisiones') || rolesArr.includes('admisor');
+        btnNuevoAlumno.style.display = puedeCrear ? 'block' : 'none';
     }
 
     const modIdMap = {
@@ -1883,9 +2028,9 @@ export function configurarSidebarPorPermisos() {
         if (item.id === 'nav-item-portal-profe') return;
         
         let permitido = false;
-        if (rol === 'admin') {
+        if (esAdmin) {
             permitido = true;
-        } else if (rol === 'profesor') {
+        } else if (rolesArr.length === 1 && rolesArr[0] === 'profesor') {
             permitido = (mod === 'portal_profesor');
         } else {
             const idBuscado = modIdMap[mod] || mod.toLowerCase();
@@ -1907,9 +2052,9 @@ export function configurarSidebarPorPermisos() {
         if (!mod) return;
 
         let permitido = false;
-        if (rol === 'admin') {
+        if (esAdmin) {
             permitido = true;
-        } else if (rol === 'profesor') {
+        } else if (rolesArr.length === 1 && rolesArr[0] === 'profesor') {
             permitido = false;
         } else {
             const idBuscado = modIdMap[mod] || mod.toLowerCase();
@@ -1922,6 +2067,16 @@ export function configurarSidebarPorPermisos() {
 
 async function cargarVista(vista) {
     window.cargarVistaGlobal = cargarVista;
+
+    const usuario = window.usuarioActual || {};
+    const roles = Array.isArray(usuario.roles) && usuario.roles.length > 0 ? usuario.roles : [usuario.rol || 'admisiones'];
+    const esSoloEvaluador = roles.includes('evaluador') && !roles.includes('admin') && !roles.includes('admisiones') && !roles.includes('admisor');
+    
+    // Si un evaluador intenta acceder a Inbox genérico o a Inbox - Pendientes, redirigir a su vista primaria
+    if (esSoloEvaluador && (vista === 'Inbox' || vista === 'Inbox - Pendientes')) {
+        vista = 'Inbox - Validar Evaluador';
+    }
+
     estadoActualVista = vista; 
     
     let modulo = null;
@@ -1969,7 +2124,17 @@ async function cargarVista(vista) {
 
     const tituloEl = document.getElementById('vista-titulo');
     if (tituloEl) {
-        if (vista.includes('-')) {
+        const tituloMap = {
+            'Inbox - Validar Evaluador': '<span style="color:var(--text-muted); font-weight:500;">Inbox › </span><span style="color:var(--text-main); font-weight:700;">Pendientes Validar Fecha</span>',
+            'Inbox - Finalizar Admision': '<span style="color:var(--text-muted); font-weight:500;">Inbox › </span><span style="color:var(--text-main); font-weight:700;">Pendientes Finalizar Admisión</span>',
+            'Inbox - Validar Alumno': '<span style="color:var(--text-muted); font-weight:500;">Inbox › </span><span style="color:var(--text-main); font-weight:700;">Validar por Alumno</span>',
+            'Inbox - Altas Pendientes': '<span style="color:var(--text-muted); font-weight:500;">Inbox › </span><span style="color:var(--text-main); font-weight:700;">Altas Pendientes</span>',
+            'Inbox - Pendientes': '<span style="color:var(--text-muted); font-weight:500;">Inbox › </span><span style="color:var(--text-main); font-weight:700;">Sin Agendar</span>'
+        };
+
+        if (tituloMap[vista]) {
+            tituloEl.innerHTML = tituloMap[vista];
+        } else if (vista.includes('-')) {
             const partes = vista.split('-');
             const seccion = partes[0].trim();
             const subseccion = partes[1].trim();
@@ -1990,7 +2155,12 @@ async function cargarVista(vista) {
     const formWrapper = document.getElementById('form-alumno-wrapper'), cv = document.getElementById('controles-vista');
     if (formWrapper) { formWrapper.style.display = 'none'; document.getElementById('modal-alta-alumno').appendChild(formWrapper); }
     
-    document.getElementById('btn-carga-masiva').style.display = 'none'; document.getElementById('search-container-general').style.display = 'none'; document.getElementById('alarm-filters').style.display = 'none';
+    // Ocultar botones CSV de toda la app
+    const btnCSVEl = document.getElementById('btn-carga-masiva');
+    if (btnCSVEl) btnCSVEl.style.display = 'none';
+    
+    document.getElementById('search-container-general').style.display = 'none'; 
+    document.getElementById('alarm-filters').style.display = 'none';
     vResumen.style.display = 'none'; if(vResumenTime) vResumenTime.style.display = 'none'; contLista.style.display = 'none'; if(contKanban) contKanban.style.display = 'none'; contEstad.style.display = 'none'; cv.style.display = 'none';
     const contMatch = document.getElementById('match-pendientes-container'); if(contMatch) contMatch.style.display = 'none';
 
@@ -2001,14 +2171,6 @@ async function cargarVista(vista) {
         renderFiltrosChips(); 
         document.getElementById('search-container-general').style.display = 'block'; 
         mostrarSkeleton('lista-generica', 6);
-        
-        if (vista === 'Lista de Espera' || vista === 'Inbox - Pendientes') {
-            const btnCSV = document.getElementById('btn-carga-masiva');
-            if (btnCSV) {
-                btnCSV.style.display = 'inline-block';
-                btnCSV.textContent = (vista === 'Lista de Espera') ? '📥 Cargar CSV' : '📥 CSV';
-            }
-        }
 
         if (vista === 'Inbox - Confirmadas' || vista === 'Altas - Confirmadas') document.getElementById('alarm-filters').style.display = 'flex';
     }
@@ -2025,8 +2187,15 @@ async function cargarVista(vista) {
             actualizarBadgesYNavegacion(allData);
             renderSegmentedTabs(vista);
             
+            const roles = Array.isArray(window.usuarioActual?.roles) && window.usuarioActual.roles.length > 0
+                ? window.usuarioActual.roles
+                : [window.usuarioActual?.rol || 'admisiones'];
+            const esEvaluador = roles.includes('evaluador');
+            const esSoloEval = esEvaluador && !roles.includes('admin') && !roles.includes('admisiones') && !roles.includes('admisor');
+
             let urgencies = []; 
-            allData.forEach(al => { 
+            const poolUrgencias = esSoloEval ? filtrarAlumnosEvaluador(allData) : allData;
+            poolUrgencias.forEach(al => { 
                 let dateToEval = getFechaReferenciaAlumno(al);
                 if (dateToEval && !isNaN(dateToEval.getTime())) { 
                     let diffHs = (dateToEval - new Date()) / (1000 * 60 * 60); 
@@ -2051,12 +2220,20 @@ async function cargarVista(vista) {
             });
             document.getElementById('resumen-urgencias').innerHTML = urgencies.length > 0 ? urgencies.map(a => generarFilaAlumno(a, a.id, vista)).join('') : '<div style="color:var(--text-muted); padding:10px; font-weight:500;">No hay gestiones críticas a la vista.</div>';
             
-            renderTimelineUnificado('timeline-unificado', configNodosFlujo, allData, { generarBotonesPrincipalesVisibles, generarBotonesAccion });
+            let nodosDashboard = configNodosFlujo;
+            let datosDashboard = allData;
+            
+            if (esSoloEval) {
+                nodosDashboard = configNodosFlujoEvaluador;
+                datosDashboard = filtrarAlumnosEvaluador(allData);
+            }
+            
+            renderTimelineUnificado('timeline-unificado', nodosDashboard, datosDashboard, { generarBotonesPrincipalesVisibles, generarBotonesAccion });
             
             document.getElementById('dashboard-flow-chart-container').style.display = 'block';
-            let flowLabels = configNodosFlujo.map(n => n.label);
-            let flowData = configNodosFlujo.map(n => allData.filter(d => n.filterFn ? n.filterFn(d) : d.estado_agenda === n.id).length);
-            let phaseColors = configNodosFlujo.map(n => n.hexColor || '#1f5491');
+            let flowLabels = nodosDashboard.map(n => n.label);
+            let flowData = nodosDashboard.map(n => datosDashboard.filter(d => n.filterFn ? n.filterFn(d) : d.estado_agenda === n.id).length);
+            let phaseColors = nodosDashboard.map(n => n.hexColor || '#1f5491');
             
             if(chartFlowDashboardInst) chartFlowDashboardInst.destroy();
             chartFlowDashboardInst = new Chart(document.getElementById('chartFlowDashboard'), { 
@@ -2066,7 +2243,7 @@ async function cargarVista(vista) {
                     onClick: (evt, elements) => {
                         if (elements && elements.length > 0) {
                             const index = elements[0].index;
-                            const nodo = configNodosFlujo[index];
+                            const nodo = nodosDashboard[index];
                             if (nodo && nodo.vistaDestino) {
                                 cargarVista(nodo.vistaDestino);
                             }
@@ -2083,29 +2260,63 @@ async function cargarVista(vista) {
             });
             
         } catch(e) {}
-    } else if (vista === 'Inbox - Pendientes' || vista === 'Inbox - En Validacion' || vista === 'Altas - Pendientes' || vista === 'Altas - En Curso') {
-        const isSinAgendar = vista === 'Inbox - Pendientes';
-        const isEnValidacion = vista === 'Inbox - En Validacion';
+    } else if (vista.startsWith('Inbox') || vista === 'Altas - Pendientes' || vista === 'Altas - En Curso') {
         try {
             const qSnap = await getDocs(collection(db, "alumnos")); let allData = []; qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
             actualizarBadgesYNavegacion(allData);
             renderSegmentedTabs(vista);
             
+            const roles = Array.isArray(window.usuarioActual?.roles) && window.usuarioActual.roles.length > 0
+                ? window.usuarioActual.roles
+                : [window.usuarioActual?.rol || 'admisiones'];
+            const esEvaluador = roles.includes('evaluador');
+            const esSoloEval = esEvaluador && !roles.includes('admin') && !roles.includes('admisiones') && !roles.includes('admisor');
+            
             let dataFiltrada = [];
-            if (isSinAgendar) {
-                dataFiltrada = allData.filter(d => {
-                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-                    return st === 'pendiente procesar' || st === 'sin agendar';
+
+            if (vista === 'Inbox - Pendientes') {
+                if (esSoloEval) {
+                    dataFiltrada = [];
+                } else {
+                    dataFiltrada = allData.filter(d => {
+                        const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                        return st === 'pendiente procesar' || st === 'sin agendar';
+                    });
+                }
+            } else if (vista === 'Inbox - Validar Evaluador') {
+                const fuente = esEvaluador ? filtrarAlumnosEvaluador(allData) : allData;
+                dataFiltrada = fuente.filter(d => {
+                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                    return st === 'pendiente validacion por profe' || st === 'pendiente validacion por evaluador';
                 });
-            } else if (isEnValidacion) {
+            } else if (vista === 'Inbox - Validar Alumno') {
                 dataFiltrada = allData.filter(d => {
-                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                    return st === 'pendiente validacion por alumno';
+                });
+            } else if (vista === 'Inbox - Finalizar Admision' || vista === 'Inbox - Confirmadas') {
+                const fuente = esEvaluador ? filtrarAlumnosEvaluador(allData) : allData;
+                dataFiltrada = fuente.filter(d => {
+                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                    return st === 'agenda confirmada' || st === 'entrevista confirmada' || ['entrevista agendada', 'entrevista realizada', 'entrevista reprogramada'].includes(st);
+                });
+            } else if (vista === 'Inbox - Altas Pendientes') {
+                dataFiltrada = allData.filter(d => {
+                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                    return st === 'pre-alta pendiente' || st === 'pre-alta iniciada' || ((st === 'alta efectiva' || st === 'alta ilegal') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5));
+                });
+            } else if (vista === 'Inbox - En Validacion') {
+                const fuente = (rol === 'evaluador') ? filtrarAlumnosEvaluador(allData) : allData;
+                dataFiltrada = fuente.filter(d => {
+                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
                     return st === 'pendiente validacion por profe' || st === 'pendiente validacion por evaluador' || st === 'pendiente validacion por alumno';
                 });
+            } else if (vista === 'Inbox - Suspendidas') {
+                dataFiltrada = allData.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() === 'agenda suspendida');
             } else if (vista === 'Altas - Pendientes') {
-                dataFiltrada = allData.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'pre-alta pendiente');
+                dataFiltrada = allData.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() === 'pre-alta pendiente');
             } else if (vista === 'Altas - En Curso') {
-                dataFiltrada = allData.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'pre-alta iniciada');
+                dataFiltrada = allData.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() === 'pre-alta iniciada');
             }
             renderListaFilas('lista-generica', dataFiltrada, 'all', null);
         } catch(e) {}
@@ -2306,6 +2517,8 @@ document.getElementById('btn-logout').addEventListener('click', async () => { aw
 const ROLES_MODULOS_DEFAULT = {
     admin: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas', 'portal_profesor', 'configuracion', 'permisos'],
     admisiones: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas'],
+    admisor: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas'],
+    evaluador: ['dashboard', 'inbox'],
     profesor: ['portal_profesor'],
     personalizado: []
 };
@@ -2364,10 +2577,23 @@ onAuthStateChanged(auth, async (user) => {
                 return;
             }
 
-            const rol = usuarioEncontrado.rol || 'admisiones';
-            const modulos = Array.isArray(usuarioEncontrado.modulos_habilitados) && usuarioEncontrado.modulos_habilitados.length > 0
-                ? usuarioEncontrado.modulos_habilitados
-                : (ROLES_MODULOS_DEFAULT[rol] || []);
+            const rolesArr = Array.isArray(usuarioEncontrado.roles) && usuarioEncontrado.roles.length > 0
+                ? usuarioEncontrado.roles
+                : (usuarioEncontrado.rol ? [usuarioEncontrado.rol] : ['admisiones']);
+            
+            const rol = rolesArr[0] || 'admisiones';
+
+            let modulos = [];
+            if (Array.isArray(usuarioEncontrado.modulos_habilitados) && usuarioEncontrado.modulos_habilitados.length > 0) {
+                modulos = usuarioEncontrado.modulos_habilitados;
+            } else {
+                const modulosUnion = new Set();
+                rolesArr.forEach(r => {
+                    const m = ROLES_MODULOS_DEFAULT[r] || [];
+                    m.forEach(mod => modulosUnion.add(mod));
+                });
+                modulos = Array.from(modulosUnion);
+            }
 
             let nombreDocente = usuarioEncontrado.nombre;
             let profesorId = usuarioEncontrado.profesor_id || '';
@@ -2396,6 +2622,7 @@ onAuthStateChanged(auth, async (user) => {
                 ...usuarioEncontrado,
                 nombre: nombreDocente || usuarioEncontrado.nombre || user.displayName || user.email.split('@')[0],
                 profesor_id: profesorId,
+                roles: rolesArr,
                 rol,
                 modulos_habilitados: modulos
             };
@@ -3260,6 +3487,7 @@ document.addEventListener('click', async (e) => {
         let template = configApp[plantillaKey] || ''; 
         template = template.replace(/\{historial\}/gi, histText); 
         const iS = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || '')); 
+        const emojiInst = getEmojiInstrumento(iS, configApp, al);
         const dP = convertirHtmlATextoPlano(al.descripcion || ''); 
         const fAmiInicio = al.fecha_inicio_clases ? formatearFechaAmi(al.fecha_inicio_clases) : ''; 
         let opc = overrideOpciones || al.opciones_propuestas || []; 
@@ -3268,7 +3496,21 @@ document.addEventListener('click', async (e) => {
         if (opc.length > 1 && (fHora === 'Varias opciones' || !fHora)) { 
             fHora = '\n' + opcionesStr; 
         } 
-        const txt = reemplazarVariables(template, { fecha_hora: fHora, opciones: opcionesStr, nombre: al.nombre, edad: al.edad||'-', instrumento: iS, suscripcion: al.tipo_suscripcion || '', descripcion: dP, profe: targetProfeNom || '', valor: configApp.valor_clase || '', alias_profe: aliasP || '', grupo: al.grupo_asignado || '', 'fecha inicio clases': fAmiInicio }); 
+        const txt = reemplazarVariables(template, { 
+            fecha_hora: fHora, 
+            opciones: opcionesStr, 
+            nombre: al.nombre, 
+            edad: al.edad || '-', 
+            instrumento: iS, 
+            emojiinstrumento: emojiInst || '',
+            suscripcion: al.tipo_suscripcion || '', 
+            descripcion: dP, 
+            profe: targetProfeNom || '', 
+            valor: configApp.valor_clase || '', 
+            alias_profe: aliasP || '', 
+            grupo: al.grupo_asignado || '', 
+            'fecha inicio clases': fAmiInicio 
+        }); 
         return { al, txt }; 
     }
 
@@ -3434,8 +3676,12 @@ document.addEventListener('click', async (e) => {
     if (target.classList.contains('btn-cerrar-modal')) { document.getElementById(target.getAttribute('data-modal')).close(); return; }
     
     if (target.id === 'btn-nuevo-alumno') { 
-        if (window.usuarioActual && window.usuarioActual.rol === 'profesor') {
-            alert('⛔ No tienes permisos para crear nuevos alumnos en admisión.');
+        const roles = Array.isArray(window.usuarioActual?.roles) && window.usuarioActual.roles.length > 0
+            ? window.usuarioActual.roles
+            : [window.usuarioActual?.rol || 'admisiones'];
+        const puedeCrear = roles.includes('admin') || roles.includes('admisiones') || roles.includes('admisor');
+        if (!puedeCrear) {
+            alert('⛔ Solo los administradores y el equipo de admisión pueden crear nuevos alumnos.');
             return;
         }
         const wrap = document.getElementById('form-alumno-wrapper'); 

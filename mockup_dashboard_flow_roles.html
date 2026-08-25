@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mandala Admisión — Dashboard &amp; Flow por Roles</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Geist+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #fcfbf9;
+            --bg-sidebar: #ffffff;
+            --text-main: #1c1f22;
+            --text-muted: #8a9097;
+            --accent-teal: #007b8f;
+            --accent-teal-dark: #005f6e;
+            --accent-red: #c2563b;
+            --border-color: #ece6dc;
+            --item-bg: #ffffff;
+            --hover-bg: #f5f2eb;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.03);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* SIDEBAR */
+        aside {
+            width: 250px;
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px 14px;
+        }
+        .sidebar-brand {
+            font-size: 16px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-decoration: none;
+            margin-bottom: 4px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .nav-item:hover { background: var(--hover-bg); color: var(--text-main); }
+        .nav-item.active { background: var(--accent-teal); color: #ffffff; }
+
+        /* DEMO TOOLBAR */
+        .demo-bar {
+            background: #1e293b;
+            color: #ffffff;
+            padding: 8px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+            font-weight: 600;
+            border-bottom: 1px solid #334155;
+        }
+        .demo-roles {
+            display: flex;
+            gap: 8px;
+        }
+        .demo-role-btn {
+            background: #334155;
+            color: #ffffff;
+            border: 1px solid #475569;
+            padding: 4px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 11.5px;
+            font-weight: 700;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+        .demo-role-btn.active {
+            background: var(--accent-teal);
+            border-color: var(--accent-teal);
+        }
+
+        /* MAIN CONTENT */
+        .main-wrapper {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        main {
+            flex-grow: 1;
+            padding: 24px 32px;
+            overflow-y: auto;
+        }
+
+        .header-title { font-size: 22px; font-weight: 800; }
+        .header-subtitle { font-size: 12.5px; color: var(--text-muted); margin-top: 2px; }
+
+        /* FLOW SECTION CONTAINER */
+        .flow-section-card {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 20px 24px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-sm);
+        }
+        .flow-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+            border-bottom: 1px solid #f1f5f9;
+            padding-bottom: 10px;
+        }
+        .flow-header-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--text-main);
+        }
+
+        /* TIMELINE FLOW COMPONENT */
+        .timeline-wrapper {
+            position: relative;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 10px 10px 0 10px;
+            margin-bottom: 10px;
+        }
+        .timeline-line {
+            position: absolute;
+            top: 36px;
+            left: 30px;
+            right: 30px;
+            height: 3px;
+            background: #e2e8f0;
+            z-index: 1;
+        }
+        .timeline-node {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+            max-width: 100px;
+            text-align: center;
+        }
+        .timeline-node:hover {
+            transform: translateY(-2px);
+        }
+        .timeline-count {
+            position: absolute;
+            top: -6px;
+            right: calc(50% - 22px);
+            background: #0284c7;
+            color: #ffffff;
+            font-size: 10.5px;
+            font-weight: 800;
+            padding: 1px 6px;
+            border-radius: 10px;
+            border: 2px solid #ffffff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+            font-family: 'Geist Mono', monospace;
+            z-index: 4;
+        }
+        .timeline-circle {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 3px solid #0284c7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+            transition: all 0.2s ease;
+        }
+        .timeline-node.active .timeline-circle {
+            background: #0284c7;
+            border-color: #0284c7;
+            color: #ffffff;
+            box-shadow: 0 0 0 4px rgba(2,132,199,0.25);
+        }
+        .timeline-label {
+            font-size: 11.5px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-top: 8px;
+            line-height: 1.25;
+        }
+
+        /* NODE COLOR THEMES */
+        .timeline-node.blue .timeline-circle { border-color: #0284c7; }
+        .timeline-node.blue .timeline-count { background: #0284c7; }
+        .timeline-node.blue.active .timeline-circle { background: #0284c7; }
+
+        .timeline-node.amber .timeline-circle { border-color: #d97706; }
+        .timeline-node.amber .timeline-count { background: #d97706; }
+        .timeline-node.amber.active .timeline-circle { background: #d97706; }
+
+        .timeline-node.purple .timeline-circle { border-color: #7c3aed; }
+        .timeline-node.purple .timeline-count { background: #7c3aed; }
+        .timeline-node.purple.active .timeline-circle { background: #7c3aed; }
+
+        .timeline-node.green .timeline-circle { border-color: #16a34a; }
+        .timeline-node.green .timeline-count { background: #16a34a; }
+        .timeline-node.green.active .timeline-circle { background: #16a34a; }
+
+        /* TRAY DRAWER (CONTENIDO DESPLEGABLE DEL NODO) */
+        .timeline-tray-container {
+            margin-top: 14px;
+            animation: fadeInTray 0.2s ease-out;
+        }
+        @keyframes fadeInTray {
+            from { opacity: 0; transform: translateY(-6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .timeline-tray {
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 16px;
+            position: relative;
+        }
+        .timeline-tray::before {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: var(--arrow-pos, 50%);
+            width: 14px;
+            height: 14px;
+            background: #f8fafc;
+            border-left: 1px solid #cbd5e1;
+            border-top: 1px solid #cbd5e1;
+            transform: translateX(-50%) rotate(45deg);
+        }
+
+        /* STUDENT CARDS INSIDE TRAY */
+        .tray-student-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            box-shadow: var(--shadow-sm);
+        }
+        .btn-quick {
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 11.5px;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+            transition: 0.15s ease;
+        }
+        .btn-quick.primary { background: var(--accent-teal); color: #ffffff; }
+        .btn-quick.secondary { background: #ffffff; color: var(--text-main); border: 1px solid var(--border-color); }
+
+        /* STATS SUMMARY BELOW */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+        }
+        .kpi-card {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 14px 18px;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .kpi-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        .kpi-number { font-size: 18px; font-weight: 800; color: var(--text-main); }
+        .kpi-label { font-size: 11.5px; color: var(--text-muted); font-weight: 600; }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <aside>
+        <div>
+            <div class="sidebar-brand">
+                <span style="font-size:22px;">🌀</span>
+                <span>Mandala Admisión</span>
+            </div>
+
+            <nav>
+                <div class="nav-item active">
+                    <span>📊</span>
+                    <span>Dashboard &amp; Flow</span>
+                </div>
+                <div class="nav-item">
+                    <span>📥</span>
+                    <span>Inbox</span>
+                </div>
+                <div class="nav-item">
+                    <span>⏳</span>
+                    <span>Lista de Espera</span>
+                </div>
+                <div class="nav-item">
+                    <span>🧩</span>
+                    <span>Match &amp; Grupos</span>
+                </div>
+                <div class="nav-item">
+                    <span>🚀</span>
+                    <span>Altas Efectivas</span>
+                </div>
+            </nav>
+        </div>
+
+        <div style="background:var(--hover-bg); padding:10px 12px; border-radius:8px;">
+            <div id="user-display-name" style="font-weight:700; font-size:12.5px;">Pablo Bianchino</div>
+            <div id="user-display-role" style="font-size:10px; font-weight:700; color:var(--accent-teal); margin-top:2px;">Rol: Administrador</div>
+        </div>
+    </aside>
+
+    <div class="main-wrapper">
+        
+        <!-- DEMO TOOLBAR -->
+        <div class="demo-bar">
+            <span>🛠️ <strong>Simular Rol en Vivo:</strong> Observa cómo el Flow Timeline se acota y adapta automáticamente:</span>
+            <div class="demo-roles">
+                <button class="demo-role-btn active" onclick="cambiarRol('admin')">👑 Rol Administrador (9 Nodos Globales)</button>
+                <button class="demo-role-btn" onclick="cambiarRol('evaluador')">🎧 Rol Evaluador (2 Nodos Clave)</button>
+                <button class="demo-role-btn" onclick="cambiarRol('admisor')">📋 Rol Admisor (6 Nodos de Admisión)</button>
+            </div>
+        </div>
+
+        <main>
+            
+            <div style="margin-bottom:16px;">
+                <h1 class="header-title">Dashboard &amp; Flow de Alumnos</h1>
+                <p class="header-subtitle" id="dashboard-subtitle">Visualización interactiva del flujo de admisión y estado de los postulantes.</p>
+            </div>
+
+            <!-- TARJETA DEL FLOW TIMELINE INTERACTIVO -->
+            <div class="flow-section-card">
+                <div class="flow-header-row">
+                    <div class="flow-header-title">
+                        <span style="font-size:18px;">🌊</span>
+                        <span>Flow de Admisión</span>
+                        <span id="role-badge-tag" style="background:#f0fdfa; color:#0f766e; border:1px solid #99f6e4; font-size:11px; padding:2px 8px; border-radius:10px; font-weight:700;">Vista: Administrador Global</span>
+                    </div>
+                    <span style="font-size:12px; color:var(--text-muted);">💡 Haz clic en cualquier nodo para ver sus alumnos</span>
+                </div>
+
+                <!-- CONTENEDOR DEL TIMELINE DINÁMICO -->
+                <div class="timeline-wrapper" id="timeline-container">
+                    <div class="timeline-line"></div>
+                    <!-- Nodos inyectados por JS -->
+                </div>
+
+                <!-- TRAY DESPLEGABLE INFERIOR -->
+                <div class="timeline-tray-container" id="tray-container" style="display:none;">
+                    <div class="timeline-tray" id="tray-content">
+                        <!-- Alumnos del nodo activo -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- KPIS ADAPTADOS POR ROL -->
+            <div class="kpi-grid" id="kpi-container">
+                <!-- Inyectados por JS -->
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        // DEFINICIÓN MAESTRA DE NODOS CON DATOS FAKE
+        const todosLosNodos = [
+            { id: 'sin_agendar', label: 'Sin Agendar', icon: '⏳', color: 'blue', countGlobal: 3, countEvaluador: 0, 
+              alumnos: [{ nombre: 'Mateo Rossi (24a)', inst: 'Guitarra', susc: 'Ensamble', eval: 'Nacho', time: 'Hace 2h' }, { nombre: 'Camila Gómez (29a)', inst: 'Canto', susc: 'Grupal', eval: 'Belu', time: 'Hace 22h' }] },
+            
+            { id: 'validar_evaluador', label: 'Validando con Evaluador', icon: '🧑‍🏫', color: 'amber', countGlobal: 2, countEvaluador: 1, 
+              alumnos: [{ nombre: 'Lucas Benítez (31a)', inst: 'Batería', susc: 'Ensamble', eval: 'Nacho', time: 'Fecha prop: Jueves 18:30' }, { nombre: 'Martina Silva (22a)', inst: 'Piano', susc: 'Individual', eval: 'Feli', time: 'Fecha prop: Viernes 19:00' }] },
+            
+            { id: 'validar_alumno', label: 'Validando con Alumno', icon: '🧑‍🎓', color: 'amber', countGlobal: 1, countEvaluador: 0, 
+              alumnos: [{ nombre: 'Santiago Díaz (26a)', inst: 'Bajo', susc: 'Ensamble', eval: 'Nacho', time: 'Esperando confirmación WS' }] },
+            
+            { id: 'agenda_confirmada', label: 'Entrevista Confirmada', icon: '✅', color: 'blue', countGlobal: 2, countEvaluador: 1, 
+              alumnos: [{ nombre: 'Delfina Murature (21a)', inst: 'Guitarra/Canto', susc: 'Ensamble', eval: 'Nacho', time: '⚠️ Falta Informe' }, { nombre: 'Facundo Castro (27a)', inst: 'Batería', susc: 'Ensamble', eval: 'Feli', time: '📅 Mañana 19hs' }] },
+            
+            { id: 'espera', label: 'Lista de Espera', icon: '🛏️', color: 'amber', countGlobal: 33, countEvaluador: 0, 
+              alumnos: [{ nombre: '33 alumnos listos para armado de ensambles y clases', inst: 'Multi', susc: 'Varios', eval: '-', time: 'En espera' }] },
+            
+            { id: 'validando_grupo', label: 'Grupos en Validación', icon: '👥', color: 'purple', countGlobal: 4, countEvaluador: 0, 
+              alumnos: [{ nombre: 'Ensamble Martes 19:30hs (4 integrantes confirmando)', inst: 'Banda', susc: 'Ensamble', eval: 'Nacho', time: '3/4 Confirmaron' }] },
+            
+            { id: 'prealta_pendiente', label: 'Altas Pendientes', icon: '📝', color: 'green', countGlobal: 2, countEvaluador: 0, 
+              alumnos: [{ nombre: 'Gonzalo Pérez (28a)', inst: 'Canto', susc: 'Grupal', eval: 'Belu', time: 'Inicio: 02/09' }] },
+            
+            { id: 'prealta_iniciada', label: 'Altas en Curso', icon: '🚀', color: 'green', countGlobal: 1, countEvaluador: 0, 
+              alumnos: [{ nombre: 'Valeria Ríos (35a)', inst: 'Piano', susc: 'Individual', eval: 'Feli', time: 'Checklist 4/5' }] },
+            
+            { id: 'alta_efectiva', label: 'Altas Finalizadas', icon: '🏆', color: 'green', countGlobal: 8, countEvaluador: 0, 
+              alumnos: [{ nombre: '8 alumnos ingresados con éxito este mes', inst: 'Varios', susc: 'Varios', eval: '-', time: 'Activos' }] }
+        ];
+
+        let rolActual = 'admin';
+        let nodoActivoId = null;
+
+        function cambiarRol(rol) {
+            rolActual = rol;
+            document.querySelectorAll('.demo-role-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+
+            const uName = document.getElementById('user-display-name');
+            const uRole = document.getElementById('user-display-role');
+            const rBadge = document.getElementById('role-badge-tag');
+
+            if (rol === 'admin') {
+                uName.textContent = 'Pablo Bianchino';
+                uRole.textContent = 'Rol: Administrador';
+                rBadge.textContent = 'Vista: Administrador Global (9 Nodos)';
+            } else if (rol === 'evaluador') {
+                uName.textContent = 'Nacho (Docente Evaluador)';
+                uRole.textContent = 'Rol: Evaluador Musical';
+                rBadge.textContent = 'Vista: Evaluador (2 Nodos Clave)';
+            } else if (rol === 'admisor') {
+                uName.textContent = 'Coordinación Admisiones';
+                uRole.textContent = 'Rol: Admisor';
+                rBadge.textContent = 'Vista: Admisor (6 Nodos de Admisión)';
+            }
+
+            nodoActivoId = null;
+            document.getElementById('tray-container').style.display = 'none';
+            renderFlowTimeline();
+            renderKPIs();
+        }
+
+        function getNodosParaRol() {
+            if (rolActual === 'evaluador') {
+                // Exactamente como pidió Pablo: solo los 2 nodos de su responsabilidad
+                return [
+                    { ...todosLosNodos.find(n => n.id === 'validar_evaluador'), count: 1, alumnos: [{ nombre: 'Lucas Benítez (31a)', inst: 'Batería', susc: 'Ensamble', eval: 'Nacho', time: 'Fecha prop: Jueves 18:30' }] },
+                    { ...todosLosNodos.find(n => n.id === 'agenda_confirmada'), count: 1, alumnos: [{ nombre: 'Delfina Murature (21a)', inst: 'Guitarra/Canto', susc: 'Ensamble', eval: 'Nacho', time: '⚠️ Entrevista Realizada • Falta Informe' }] }
+                ];
+            } else if (rolActual === 'admisor') {
+                // Nodos de admisión y altas
+                return [
+                    todosLosNodos.find(n => n.id === 'sin_agendar'),
+                    todosLosNodos.find(n => n.id === 'validar_evaluador'),
+                    todosLosNodos.find(n => n.id === 'validar_alumno'),
+                    todosLosNodos.find(n => n.id === 'agenda_confirmada'),
+                    todosLosNodos.find(n => n.id === 'prealta_pendiente'),
+                    todosLosNodos.find(n => n.id === 'prealta_iniciada')
+                ].map(n => ({ ...n, count: n.countGlobal }));
+            } else {
+                // Admin: Todos los nodos
+                return todosLosNodos.map(n => ({ ...n, count: n.countGlobal }));
+            }
+        }
+
+        function renderFlowTimeline() {
+            const cont = document.getElementById('timeline-container');
+            const nodos = getNodosParaRol();
+
+            let html = '<div class="timeline-line"></div>';
+
+            nodos.forEach((n, idx) => {
+                const isActive = nodoActivoId === n.id;
+                html += `
+                    <div class="timeline-node ${n.color} ${isActive ? 'active' : ''}" onclick="toggleNodoTray('${n.id}', ${idx}, ${nodos.length})">
+                        <div class="timeline-count">${n.count}</div>
+                        <div class="timeline-circle">${n.icon}</div>
+                        <div class="timeline-label">${n.label}</div>
+                    </div>
+                `;
+            });
+
+            cont.innerHTML = html;
+        }
+
+        function toggleNodoTray(id, idx, totalNodos) {
+            const trayCont = document.getElementById('tray-container');
+            const trayContent = document.getElementById('tray-content');
+
+            if (nodoActivoId === id) {
+                nodoActivoId = null;
+                trayCont.style.display = 'none';
+                renderFlowTimeline();
+                return;
+            }
+
+            nodoActivoId = id;
+            renderFlowTimeline();
+
+            // Calcular posición de la flecha
+            let percentage = (idx / (totalNodos - 1)) * 100;
+            if (percentage < 8) percentage = 8;
+            if (percentage > 92) percentage = 92;
+            trayContent.style.setProperty('--arrow-pos', `${percentage}%`);
+
+            const nodos = getNodosParaRol();
+            const nodoData = nodos.find(n => n.id === id);
+
+            if (!nodoData || nodoData.alumnos.length === 0) {
+                trayContent.innerHTML = `<div style="text-align:center; padding:15px; color:var(--text-muted); font-size:12.5px;">No hay alumnos en esta etapa.</div>`;
+            } else {
+                trayContent.innerHTML = `
+                    <div style="font-size:12px; font-weight:800; color:var(--text-main); margin-bottom:8px; display:flex; justify-content:space-between;">
+                        <span>Alumnos en "${nodoData.label}" (${nodoData.alumnos.length})</span>
+                        <span style="color:var(--accent-teal); font-weight:600; cursor:pointer;" onclick="toggleNodoTray('${id}', 0, 1)">Cerrar ✕</span>
+                    </div>
+                    ${nodoData.alumnos.map(al => `
+                        <div class="tray-student-card">
+                            <div>
+                                <strong style="font-size:13px; color:#0f172a;">${al.nombre}</strong>
+                                <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">
+                                    🎸 ${al.inst} • 🧩 ${al.susc} • Evaluador: <strong style="color:var(--text-main);">${al.eval}</strong>
+                                </div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div style="font-size:11px; font-weight:700; color:#ea580c; margin-bottom:4px;">${al.time}</div>
+                                <div style="display:flex; gap:6px;">
+                                    ${rolActual === 'evaluador' && id === 'validar_evaluador' ? `<button class="btn-quick primary" onclick="alert('✅ Fecha validada por evaluador.')">✅ Aceptar Fecha</button>` : ''}
+                                    ${rolActual === 'evaluador' && id === 'agenda_confirmada' ? `<button class="btn-quick primary" onclick="alert('Abriendo formulario de Informe Pedagógico...')">📝 Cargar Informe</button>` : ''}
+                                    ${rolActual !== 'evaluador' ? `<button class="btn-quick primary" onclick="alert('Gestionando alumno...')">🔍 Gestionar</button>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                `;
+            }
+
+            trayCont.style.display = 'block';
+        }
+
+        function renderKPIs() {
+            const cont = document.getElementById('kpi-container');
+            if (rolActual === 'evaluador') {
+                cont.innerHTML = `
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background:#fff7ed; color:#ea580c;">⏳</div>
+                        <div><div class="kpi-number">1</div><div class="kpi-label">Fechas por Responder</div></div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background:#eff6ff; color:#2563eb;">📝</div>
+                        <div><div class="kpi-number">1</div><div class="kpi-label">Informes Pendientes</div></div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background:#f0fdf4; color:#166534;">🏆</div>
+                        <div><div class="kpi-number">8</div><div class="kpi-label">Evaluaciones Completadas</div></div>
+                    </div>
+                `;
+            } else if (rolActual === 'admisor') {
+                cont.innerHTML = `
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background:#f0fdfa; color:#0d9488;">📥</div>
+                        <div><div class="kpi-number">3</div><div class="kpi-label">Nuevos Sin Agendar</div></div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background:#eff6ff; color:#2563eb;">🗓️</div>
+                        <div><div class="kpi-number">5</div><div class="kpi-label">Entrevistas Coordinadas</div></div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background:#f0fdf4; color:#166534;">🚀</div>
+                        <div><div class="kpi-number">3</div><div class="kpi-label">Altas en Checklist</div></div>
+                    </div>
+                `;
+            } else {
+                cont.innerHTML = `
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background:#eff6ff; color:#2563eb;">👥</div>
+                        <div><div class="kpi-number">54</div><div class="kpi-label">Total Alumnos en Proceso</div></div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background:#fff7ed; color:#ea580c;">🛏️</div>
+                        <div><div class="kpi-number">33</div><div class="kpi-label">En Lista de Espera</div></div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background:#f0fdf4; color:#166534;">🏆</div>
+                        <div><div class="kpi-number">8</div><div class="kpi-label">Altas Finalizadas (Mes)</div></div>
+                    </div>
+                `;
+            }
+        }
+
+        // Inicializar
+        renderFlowTimeline();
+        renderKPIs();
+    </script>
+</body>
+</html>

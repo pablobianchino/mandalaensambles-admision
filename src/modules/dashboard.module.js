@@ -78,9 +78,9 @@ export function renderTimelineUnificado(containerId, configNodos, datos, callbac
                 });
 
                 let totalNodes = configNodos.length;
-                let percentage = (index / (totalNodes - 1)) * 100;
-                if (percentage < 5) percentage = 5;
-                if (percentage > 95) percentage = 95;
+                let percentage = totalNodes > 1 ? (index / (totalNodes - 1)) * 100 : 50;
+                if (percentage < 15) percentage = 15;
+                if (percentage > 85) percentage = 85;
                 trayContent.style.setProperty('--tray-arrow-pos', `${percentage}%`);
                 
                 if (nodeData.length === 0) {

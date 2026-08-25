@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mandala Admisión — Mockup Inbox Evaluador</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Geist+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #fcfbf9;
+            --bg-sidebar: #ffffff;
+            --text-main: #1c1f22;
+            --text-muted: #8a9097;
+            --accent-teal: #007b8f;
+            --accent-teal-dark: #005f6e;
+            --accent-red: #c2563b;
+            --border-color: #ece6dc;
+            --item-bg: #ffffff;
+            --hover-bg: #f5f2eb;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.03);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* SIDEBAR SIMULADO */
+        aside {
+            width: 260px;
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px 16px;
+        }
+        .sidebar-brand {
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 13.5px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: all 0.2s ease;
+            margin-bottom: 4px;
+            cursor: pointer;
+        }
+        .nav-link:hover { background: var(--hover-bg); color: var(--text-main); }
+        .nav-link.active { background: var(--accent-teal); color: #ffffff; }
+        .nav-badge {
+            margin-left: auto;
+            background: rgba(0,0,0,0.15);
+            padding: 2px 7px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .nav-link.active .nav-badge {
+            background: #ffffff;
+            color: var(--accent-teal);
+        }
+
+        .user-box {
+            background: var(--hover-bg);
+            border-radius: 10px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .user-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: #e0f2fe;
+            color: #0369a1;
+            font-weight: 800;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* MAIN CONTENT */
+        main {
+            flex-grow: 1;
+            padding: 28px 36px;
+            overflow-y: auto;
+        }
+        .top-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 16px;
+        }
+        .top-header h1 {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+        .top-header p {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* STATS CARDS */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px 20px;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .stat-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        .stat-icon.orange { background: #fff7ed; color: #ea580c; border: 1px solid #fed7aa; }
+        .stat-icon.blue { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+        .stat-icon.teal { background: #f0fdfa; color: #0d9488; border: 1px solid #99f6e4; }
+        .stat-number { font-size: 20px; font-weight: 800; color: var(--text-main); }
+        .stat-title { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+
+        /* SEGMENTED SUBTABS */
+        .segmented-tabs-bar {
+            display: inline-flex;
+            background: #e9e5de;
+            padding: 3px;
+            border-radius: 10px;
+            margin-bottom: 18px;
+            gap: 2px;
+        }
+        .subtab-btn {
+            padding: 6px 16px;
+            border-radius: 8px;
+            border: none;
+            background: transparent;
+            font-family: inherit;
+            font-size: 12.5px;
+            font-weight: 700;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .subtab-btn.active {
+            background: #ffffff;
+            color: var(--text-main);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+
+        /* STUDENT CARD FOR EVALUATOR */
+        .eval-card {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 12px;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            transition: all 0.2s ease;
+        }
+        .eval-card:hover {
+            box-shadow: var(--shadow-md);
+            border-color: #d9d2c5;
+        }
+        .eval-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .eval-student-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .eval-avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: #e0f2fe;
+            color: #0369a1;
+            font-size: 14px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .eval-name {
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--text-main);
+        }
+        .badge-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11.5px;
+            font-weight: 700;
+        }
+        .badge-pill.level { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+        .badge-pill.inst { background: #f0fdfa; color: #0f766e; border: 1px solid #99f6e4; }
+        .badge-pill.susc { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+
+        .eval-card-body {
+            display: grid;
+            grid-template-columns: 1.5fr 1.5fr 1fr;
+            gap: 14px;
+            background: var(--bg-main);
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            font-size: 12.5px;
+        }
+        .eval-info-block { display: flex; flex-direction: column; gap: 4px; }
+        .eval-info-label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+        .eval-card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding-top: 4px;
+        }
+        .btn-action {
+            padding: 7px 16px;
+            border-radius: 8px;
+            font-size: 12.5px;
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-action.primary { background: var(--accent-teal); color: #ffffff; }
+        .btn-action.primary:hover { background: var(--accent-teal-dark); }
+        .btn-action.success { background: #16a34a; color: #ffffff; }
+        .btn-action.success:hover { background: #15803d; }
+        .btn-action.neutral { background: #ffffff; color: var(--text-main); border: 1px solid var(--border-color); }
+        .btn-action.neutral:hover { background: var(--hover-bg); }
+        .btn-action.danger { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+
+        /* MODAL POPUP */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            backdrop-filter: blur(2px);
+        }
+        .modal-box {
+            background: #ffffff;
+            border-radius: 14px;
+            width: 580px;
+            max-width: 95%;
+            padding: 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            animation: modalFade 0.2s ease-out;
+        }
+        @keyframes modalFade { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+        
+        .tag-chip-choice {
+            padding: 4px 10px;
+            border-radius: 16px;
+            font-size: 11.5px;
+            font-weight: 600;
+            border: 1px solid var(--border-color);
+            background: #ffffff;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            user-select: none;
+        }
+        .tag-chip-choice.selected {
+            background: var(--accent-teal);
+            color: #ffffff;
+            border-color: var(--accent-teal);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <aside>
+        <div>
+            <div class="sidebar-brand">
+                <span style="font-size:22px;">🌀</span>
+                <span>Mandala Admisión</span>
+            </div>
+
+            <nav>
+                <div class="nav-link active">
+                    <span>📋</span>
+                    <span>Mi Inbox Evaluador</span>
+                    <span class="nav-badge">3</span>
+                </div>
+                <div class="nav-link">
+                    <span>🗓️</span>
+                    <span>Mis Entrevistas</span>
+                </div>
+                <div class="nav-link">
+                    <span>👥</span>
+                    <span>Mis Grupos</span>
+                </div>
+                <div class="nav-link">
+                    <span>📚</span>
+                    <span>Historial de Informes</span>
+                </div>
+            </nav>
+        </div>
+
+        <div class="user-box">
+            <div class="user-avatar">NA</div>
+            <div style="overflow:hidden;">
+                <div style="font-weight:800; font-size:13px;">Nacho (Evaluador)</div>
+                <div style="font-size:11px; color:var(--text-muted); text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">nacho.docente@mandalahouse.com</div>
+                <div style="font-size:10px; color:var(--accent-teal); font-weight:700; margin-top:2px;">Rol: Evaluador Musical</div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- CONTENIDO PRINCIPAL -->
+    <main>
+        
+        <!-- TOP HEADER -->
+        <div class="top-header">
+            <div>
+                <h1>Mi Panel de Evaluador</h1>
+                <p>Gestiona tus aprobaciones de fechas de entrevistas y completa los informes pedagógicos pendientes.</p>
+            </div>
+            <div style="text-align:right;">
+                <button class="btn-action neutral" onclick="alert('Refrescando tareas de evaluador...')">🔄 Actualizar</button>
+            </div>
+        </div>
+
+        <!-- STATS CARDS -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon orange">⏳</div>
+                <div>
+                    <div class="stat-number">2</div>
+                    <div class="stat-title">Fechas por Aprobar</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon blue">📝</div>
+                <div>
+                    <div class="stat-number">1</div>
+                    <div class="stat-title">Informes Pendientes</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon teal">✅</div>
+                <div>
+                    <div class="stat-number">8</div>
+                    <div class="stat-title">Entrevistas Completadas</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SUB-TABS SEGMENTADOS -->
+        <div class="segmented-tabs-bar">
+            <button class="subtab-btn active" onclick="mostrarSeccion('tab-fechas', this)">⏳ Fechas por Validar (2)</button>
+            <button class="subtab-btn" onclick="mostrarSeccion('tab-informes', this)">📝 Informes Pendientes (1)</button>
+            <button class="subtab-btn" onclick="mostrarSeccion('tab-agenda', this)">🗓️ Mi Agenda Semanal</button>
+        </div>
+
+        <!-- SECCIÓN 1: FECHAS POR APROBAR -->
+        <div id="tab-fechas">
+            
+            <!-- TARJETA 1: PENDIENTE VALIDACIÓN FECHA -->
+            <div class="eval-card">
+                <div class="eval-card-header">
+                    <div class="eval-student-info">
+                        <div class="eval-avatar">MR</div>
+                        <div>
+                            <div class="eval-name">Mateo Rossi <span style="font-size:12px; color:var(--text-muted); font-weight:normal;">(24 años)</span></div>
+                            <div style="display:flex; gap:6px; margin-top:3px;">
+                                <span class="badge-pill level">🌱 Nivel Postulado: Inicial I</span>
+                                <span class="badge-pill inst">🎸 Guitarra</span>
+                                <span class="badge-pill susc">🧩 Ensamble</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <span style="background:#fff7ed; color:#ea580c; border:1px solid #fed7aa; padding:4px 10px; border-radius:12px; font-size:11px; font-weight:700;">
+                            ⏳ Requiere tu confirmación de horario
+                        </span>
+                    </div>
+                </div>
+
+                <div class="eval-card-body">
+                    <div class="eval-info-block">
+                        <div class="eval-info-label">📅 Fecha y Horario Propuesto</div>
+                        <div style="font-weight:700; color:#0f172a; font-size:13px;">Jueves 28/08 • 18:30 hs</div>
+                        <div style="font-size:11px; color:#64748b;">Propuesto por: Pablo Bianchino (Coordinación)</div>
+                    </div>
+                    <div class="eval-info-block">
+                        <div class="eval-info-label">🎯 Interés del Postulante</div>
+                        <div style="color:#334155;">Toca guitarra hace 2 años, quiere sumarse a ensamble de Rock/Pop los días Martes o Jueves.</div>
+                    </div>
+                    <div class="eval-info-block">
+                        <div class="eval-info-label">📱 Teléfono / WhatsApp</div>
+                        <div style="font-weight:600; color:#0f766e;">+54 9 11 5849-2041</div>
+                        <div style="font-size:11px; color:#64748b;">Buenos Aires, ARG</div>
+                    </div>
+                </div>
+
+                <div class="eval-card-footer">
+                    <div style="font-size:11.5px; color:var(--text-muted);">
+                        ⏱️ Solicitud enviada hace 3 horas.
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        <button class="btn-action success" onclick="aprobarFecha('Mateo Rossi', 'Jueves 28/08 18:30 hs')">✅ Aceptar Fecha y Agendar</button>
+                        <button class="btn-action neutral" onclick="proponerOtroHorario('Mateo Rossi')">🔄 Proponer Otro Horario</button>
+                        <button class="btn-action danger" onclick="rechazarFecha('Mateo Rossi')">❌ No puedo</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TARJETA 2 -->
+            <div class="eval-card">
+                <div class="eval-card-header">
+                    <div class="eval-student-info">
+                        <div class="eval-avatar" style="background:#fef3c7; color:#b45309;">CG</div>
+                        <div>
+                            <div class="eval-name">Camila Gómez <span style="font-size:12px; color:var(--text-muted); font-weight:normal;">(29 años)</span></div>
+                            <div style="display:flex; gap:6px; margin-top:3px;">
+                                <span class="badge-pill level" style="background:#fefce8; color:#854d0e; border-color:#fef08a;">🌿 Nivel: Inicial II</span>
+                                <span class="badge-pill inst">🎤 Canto</span>
+                                <span class="badge-pill susc">👥 Grupal</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <span style="background:#fff7ed; color:#ea580c; border:1px solid #fed7aa; padding:4px 10px; border-radius:12px; font-size:11px; font-weight:700;">
+                            ⏳ Requiere tu confirmación de horario
+                        </span>
+                    </div>
+                </div>
+
+                <div class="eval-card-body">
+                    <div class="eval-info-block">
+                        <div class="eval-info-label">📅 Fecha y Horario Propuesto</div>
+                        <div style="font-weight:700; color:#0f172a; font-size:13px;">Viernes 29/08 • 19:00 hs</div>
+                        <div style="font-size:11px; color:#64748b;">Propuesto por: Pablo Bianchino</div>
+                    </div>
+                    <div class="eval-info-block">
+                        <div class="eval-info-label">🎯 Interés del Postulante</div>
+                        <div style="color:#334155;">Canta de oído, busca clases grupales para perder la timidez y técnica vocal.</div>
+                    </div>
+                    <div class="eval-info-block">
+                        <div class="eval-info-label">📱 Teléfono / WhatsApp</div>
+                        <div style="font-weight:600; color:#0f766e;">+54 9 11 3920-1188</div>
+                    </div>
+                </div>
+
+                <div class="eval-card-footer">
+                    <div style="font-size:11.5px; color:var(--text-muted);">
+                        ⏱️ Solicitud enviada hace 5 horas.
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        <button class="btn-action success" onclick="aprobarFecha('Camila Gómez', 'Viernes 29/08 19:00 hs')">✅ Aceptar Fecha y Agendar</button>
+                        <button class="btn-action neutral" onclick="proponerOtroHorario('Camila Gómez')">🔄 Proponer Otro Horario</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- SECCIÓN 2: INFORMES PENDIENTES -->
+        <div id="tab-informes" style="display:none;">
+            
+            <div class="eval-card">
+                <div class="eval-card-header">
+                    <div class="eval-student-info">
+                        <div class="eval-avatar" style="background:#f3e8ff; color:#7e22ce;">DM</div>
+                        <div>
+                            <div class="eval-name">Delfina Murature <span style="font-size:12px; color:var(--text-muted); font-weight:normal;">(21 años)</span></div>
+                            <div style="display:flex; gap:6px; margin-top:3px;">
+                                <span class="badge-pill inst">🎸 Guitarra &amp; 🎤 Canto</span>
+                                <span class="badge-pill susc">🧩 Ensamble</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <span style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:4px 10px; border-radius:12px; font-size:11px; font-weight:700;">
+                            🏁 Entrevista realizada • Falta Carga de Informe
+                        </span>
+                    </div>
+                </div>
+
+                <div class="eval-card-body">
+                    <div class="eval-info-block">
+                        <div class="eval-info-label">📅 Entrevista Realizada</div>
+                        <div style="font-weight:700; color:#0f172a;">Ayer 23/08 a las 18:00 hs</div>
+                    </div>
+                    <div class="eval-info-block">
+                        <div class="eval-info-label">🎯 Objetivo</div>
+                        <div>Cargar nivel pedagógico validado, perfil psicológico/musical y observaciones para habilitar el match.</div>
+                    </div>
+                    <div class="eval-info-block">
+                        <div class="eval-info-label">Estado</div>
+                        <div style="color:#ea580c; font-weight:700;">⚠️ Pendiente de Informe</div>
+                    </div>
+                </div>
+
+                <div class="eval-card-footer">
+                    <div style="font-size:11.5px; color:var(--text-muted);">
+                        Completar para que la coordinación pueda asignarla a un grupo compatible.
+                    </div>
+                    <div>
+                        <button class="btn-action primary" onclick="abrirModalInforme('Delfina Murature', '21')">📝 Completar Informe de Admisión</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- SECCIÓN 3: AGENDA -->
+        <div id="tab-agenda" style="display:none;">
+            <div style="background:#ffffff; border:1px solid var(--border-color); border-radius:12px; padding:20px; text-align:center; color:var(--text-muted);">
+                <div style="font-size:24px; margin-bottom:8px;">🗓️</div>
+                <div style="font-weight:700; font-size:15px; color:var(--text-main);">Mis Próximas Entrevistas Confirmadas</div>
+                <p style="font-size:12.5px; margin-top:4px;">Aquí el docente puede consultar su calendario semanal sincronizado en tiempo real con Google Calendar.</p>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- MODAL DE INFORME PEDAGÓGICO DE EVALUADOR -->
+    <div id="modal-informe" class="modal-overlay">
+        <div class="modal-box">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:10px;">
+                <h3 id="modal-alumno-titulo" style="font-size:16px; font-weight:800; color:var(--text-main);">Informe de Admisión: Delfina Murature</h3>
+                <button style="background:none; border:none; font-size:18px; cursor:pointer;" onclick="cerrarModalInforme()">✕</button>
+            </div>
+
+            <!-- Nivel Sugerido -->
+            <div>
+                <label style="font-size:12px; font-weight:700; color:var(--text-muted); display:block; margin-bottom:6px; text-transform:uppercase;">1. Nivel Pedagógico Determinado</label>
+                <select style="width:100%; padding:8px 12px; border-radius:8px; border:1px solid var(--border-color); font-family:inherit; font-size:13px;">
+                    <option value="Inicial I">🌱 Inicial I (Principiante / Primeros acordes)</option>
+                    <option value="Inicial II" selected>🌿 Inicial II (Cambios fluidos / Buen oído)</option>
+                    <option value="Intermedio">⚡ Intermedio (Soltura rítmica / Lectura básica)</option>
+                    <option value="Avanzado">🔥 Avanzado (Excelente timing / Improvisación)</option>
+                </select>
+            </div>
+
+            <!-- Perfil Psicológico / Musical -->
+            <div>
+                <label style="font-size:12px; font-weight:700; color:var(--text-muted); display:block; margin-bottom:6px; text-transform:uppercase;">2. Perfil Psicológico y Actitudinal (Tildar los que apliquen)</label>
+                <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                    <span class="tag-chip-choice selected" onclick="this.classList.toggle('selected')">🎵 Muy buen timing</span>
+                    <span class="tag-chip-choice selected" onclick="this.classList.toggle('selected')">🎸 Canta y toca a la vez</span>
+                    <span class="tag-chip-choice" onclick="this.classList.toggle('selected')">⚡ Comprometida con el estudio</span>
+                    <span class="tag-chip-choice selected" onclick="this.classList.toggle('selected')">👥 Muy sociable / Cooperativa</span>
+                    <span class="tag-chip-choice" onclick="this.classList.toggle('selected')">🎤 Voz afinada natural</span>
+                    <span class="tag-chip-choice" onclick="this.classList.toggle('selected')">🔥 Prefiere Rock / Pop nacional</span>
+                </div>
+            </div>
+
+            <!-- Observaciones del Evaluador -->
+            <div>
+                <label style="font-size:12px; font-weight:700; color:var(--text-muted); display:block; margin-bottom:6px; text-transform:uppercase;">3. Observaciones &amp; Sugerencia de Ensamble</label>
+                <textarea style="width:100%; height:90px; padding:10px; border-radius:8px; border:1px solid var(--border-color); font-family:inherit; font-size:12.5px; resize:none;" placeholder="Escribe las notas de la entrevista, estilo de música preferido, bandas de referencia, etc.">Delfina tiene muy buena predisposición. Puede integrarse como guitarrista rítmica o cantante en un ensamble Inicial II de Rock/Pop de edades 20 a 30 años. Disponibilidad preferente Martes o Jueves tarde.</textarea>
+            </div>
+
+            <!-- Botones Modal -->
+            <div style="display:flex; justify-content:flex-end; gap:8px; border-top:1px solid var(--border-color); padding-top:12px;">
+                <button class="btn-action neutral" onclick="cerrarModalInforme()">Cancelar</button>
+                <button class="btn-action success" onclick="guardarInforme()">💾 Guardar Informe &amp; Finalizar Admisión</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function mostrarSeccion(seccionId, btn) {
+            document.querySelectorAll('.subtab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            document.getElementById('tab-fechas').style.display = seccionId === 'tab-fechas' ? 'block' : 'none';
+            document.getElementById('tab-informes').style.display = seccionId === 'tab-informes' ? 'block' : 'none';
+            document.getElementById('tab-agenda').style.display = seccionId === 'tab-agenda' ? 'block' : 'none';
+        }
+
+        function aprobarFecha(nombre, fecha) {
+            alert(`✅ ¡Excelente!\nConfirmaste la fecha (${fecha}) para ${nombre}.\n\nSe notificará automáticamente a la coordinación y al alumno para el pago/asistencia.`);
+        }
+
+        function proponerOtroHorario(nombre) {
+            const nuevo = prompt(`Indica el horario alternativo que tienes libre para evaluar a ${nombre}:`, 'Miércoles 19:00 hs');
+            if (nuevo) {
+                alert(`🔄 Propuesta enviada a Coordinación:\n"${nuevo}".`);
+            }
+        }
+
+        function rechazarFecha(nombre) {
+            if (confirm(`¿Confirmas que no tienes disponibilidad para evaluar a ${nombre} en esta fecha?`)) {
+                alert(`Notificado a Coordinación para reasignar a otro evaluador.`);
+            }
+        }
+
+        function abrirModalInforme(nombre, edad) {
+            document.getElementById('modal-alumno-titulo').textContent = `Informe de Admisión: ${nombre} (${edad} años)`;
+            document.getElementById('modal-informe').style.display = 'flex';
+        }
+
+        function cerrarModalInforme() {
+            document.getElementById('modal-informe').style.display = 'none';
+        }
+
+        function guardarInforme() {
+            alert(`✅ Informe guardado con éxito.\n\n• Nivel y perfil psicológico registrados.\n• Alumno enviado a Lista de Espera listo para Match.`);
+            cerrarModalInforme();
+            document.getElementById('tab-informes').innerHTML = `
+                <div style="background:#ffffff; border:1px solid var(--border-color); border-radius:12px; padding:30px; text-align:center; color:var(--text-muted);">
+                    <div style="font-size:28px; margin-bottom:8px;">🎉</div>
+                    <div style="font-weight:800; font-size:16px; color:var(--text-main);">¡Estás al día!</div>
+                    <p style="font-size:13px; margin-top:4px;">No tienes más informes de admisión pendientes de carga.</p>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
