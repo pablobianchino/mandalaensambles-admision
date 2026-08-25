@@ -160,4 +160,66 @@ export function updateDispStateForDay(dId, isProfe = false) {
     }
 }
 
+export function poblarDisponibilidadMultiRango(disp = {}, esProfe = false, hApe = '09:00', hCie = '22:00') {
+    const prefix = esProfe ? 'disp-p-' : 'disp-';
+    const estadoPrefix = esProfe ? 'estado-p-' : 'estado-';
+    
+    diasSemana.forEach(dia => {
+        const dD = disp[dia.id] || [];
+        const rangosCont = document.getElementById(`rangos-${prefix}${dia.id}`);
+        const cA = document.getElementById(`${prefix}${dia.id}-all`);
+        const cN = document.getElementById(`${prefix}${dia.id}-none`);
+        const sE = document.getElementById(`${estadoPrefix}${dia.id}`);
+        
+        if (!rangosCont) return;
+        rangosCont.innerHTML = '';
+        if (cA) cA.checked = false;
+        if (cN) cN.checked = false;
+        if (sE) sE.textContent = "";
+        
+        if (dD.length === 0) {
+            if (cN) cN.checked = true;
+            rangosCont.innerHTML = crearFilaRangoHTML(dia.id, '', '', esProfe, 0);
+        } else if (dD.length === 1 && dD[0].inicio === hApe && dD[0].fin === hCie) {
+            if (cA) cA.checked = true;
+            rangosCont.innerHTML = crearFilaRangoHTML(dia.id, '', '', esProfe, 0);
+        } else {
+            dD.forEach((rango, idx) => {
+                rangosCont.innerHTML += crearFilaRangoHTML(dia.id, rango.inicio || '', rango.fin || '', esProfe, idx);
+            });
+        }
+        actualizarBotonesQuitarRango(dia.id, esProfe);
+        updateDispStateForDay(dia.id, esProfe);
+    });
+}
+
+export function extraerDisponibilidadMultiRango(esProfe = false, hApe = '09:00', hCie = '22:00') {
+    const prefix = esProfe ? 'disp-p-' : 'disp-';
+    const disp = {};
+    diasSemana.forEach(d => {
+        const cA = document.getElementById(`${prefix}${d.id}-all`)?.checked;
+        const cN = document.getElementById(`${prefix}${d.id}-none`)?.checked;
+        if (cN) {
+            disp[d.id] = [];
+        } else if (cA) {
+            disp[d.id] = [{ inicio: hApe, fin: hCie }];
+        } else {
+            const rangosCont = document.getElementById(`rangos-${prefix}${d.id}`);
+            const items = rangosCont ? rangosCont.querySelectorAll('.rango-item') : [];
+            const arr = [];
+            items.forEach(item => {
+                const i = item.querySelector('.rango-inicio')?.value || '';
+                const f = item.querySelector('.rango-fin')?.value || '';
+                if (i || f) {
+                    arr.push({ inicio: i || hApe, fin: f || hCie });
+                }
+            });
+            disp[d.id] = arr;
+        }
+    });
+    return disp;
+}
+
 window.updateDispStateForDay = updateDispStateForDay;
+window.poblarDisponibilidadMultiRango = poblarDisponibilidadMultiRango;
+window.extraerDisponibilidadMultiRango = extraerDisponibilidadMultiRango;

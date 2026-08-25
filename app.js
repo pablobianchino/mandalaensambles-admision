@@ -506,6 +506,7 @@ function syncSelectToChips(selectId, containerId) {
         container.appendChild(chip);
     });
 }
+window.syncSelectToChips = syncSelectToChips;
 
 async function conectarGoogle() { 
     try { await signInWithPopup(auth, provider); } catch (err) { alert("Error al intentar iniciar sesión."); } 

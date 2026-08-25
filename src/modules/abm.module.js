@@ -345,6 +345,58 @@ const ROLES_MODULOS = {
     personalizado: []
 };
 
+function renderChipsSelectLocal(selectId, containerId) {
+    if (typeof window.syncSelectToChips === 'function') {
+        window.syncSelectToChips(selectId, containerId);
+        return;
+    }
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    select.style.display = 'none'; 
+    let container = document.getElementById(containerId);
+    if (!container) {
+        container = document.createElement('div');
+        container.id = containerId;
+        container.style.display = 'flex';
+        container.style.flexWrap = 'wrap';
+        container.style.gap = '8px';
+        container.style.marginTop = '8px';
+        select.parentNode.insertBefore(container, select.nextSibling);
+    }
+    container.innerHTML = '';
+    Array.from(select.options).forEach(opt => {
+        if (!opt.value) return;
+        const chip = document.createElement('div');
+        chip.textContent = opt.text;
+        chip.style.padding = '6px 12px';
+        chip.style.border = '1px solid var(--border-color)';
+        chip.style.borderRadius = '20px';
+        chip.style.cursor = 'pointer';
+        chip.style.fontSize = '12.5px';
+        chip.style.fontWeight = '600';
+        chip.style.userSelect = 'none';
+        
+        const updateChipStyle = () => {
+            if (opt.selected) {
+                chip.style.background = 'var(--accent-teal)';
+                chip.style.color = 'white';
+                chip.style.borderColor = 'var(--accent-teal)';
+            } else {
+                chip.style.background = 'white';
+                chip.style.color = 'var(--text-muted)';
+                chip.style.borderColor = 'var(--border-color)';
+            }
+        };
+        updateChipStyle();
+        chip.addEventListener('click', () => {
+            opt.selected = !opt.selected;
+            updateChipStyle();
+            select.dispatchEvent(new Event('change'));
+        });
+        container.appendChild(chip);
+    });
+}
+
 export async function cargarABM(coleccion, titulo, cont) { 
     window.coleccionABMActual = coleccion; 
     window.tituloABMActual = titulo; 
@@ -407,15 +459,43 @@ export async function cargarABM(coleccion, titulo, cont) {
                         </div>
                     `;
                 });
+            } else if (coleccion === 'profesores') {
+                qS.forEach(d => { 
+                    const dt = d.data(); 
+                    const displayNom = dt.nombre || dt.email || d.id; 
+                    
+                    const skills = Array.isArray(dt.skills) ? dt.skills : [];
+                    const skillsBadges = skills.length > 0
+                        ? `<div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:5px;">${skills.map(s => `<span class="profile-tag-badge" style="background:#f0fdfa; color:#0f766e; border-color:#99f6e4; font-size:11px;">🎸 ${s}</span>`).join('')}</div>`
+                        : '<div style="font-size:11.5px; color:var(--text-muted); margin-top:3px;">Sin skills asignados</div>';
+                        
+                    let aptitudes = [];
+                    if (dt.entrevista) aptitudes.push('<span class="tag-chip" style="background:#e0f2fe; color:#0369a1; font-size:10.5px; padding:2px 6px;">🎧 Admisiones</span>');
+                    if (dt.grupales) aptitudes.push('<span class="tag-chip" style="background:#dcfce7; color:#15803d; font-size:10.5px; padding:2px 6px;">👥 Grupales</span>');
+                    if (dt.ensambles) aptitudes.push('<span class="tag-chip" style="background:#fef3c7; color:#b45309; font-size:10.5px; padding:2px 6px;">🎵 Ensambles</span>');
+                    const aptitudesHtml = aptitudes.length > 0 ? `<div style="display:flex; gap:4px; margin-top:2px;">${aptitudes.join('')}</div>` : '';
+
+                    const ex = `<div style="font-size:12px; color:var(--text-muted); margin-top:4px;">Calendario: <strong>${dt.correo_calendario || 'Sin asignar'}</strong> | Cel: <strong>${dt.celular || '-'}</strong> | Alias: <strong>${dt.alias_transferencia || '-'}</strong></div>`; 
+                    
+                    h += `
+                        <div class="row-item abm-row" style="padding:14px 18px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:8px; cursor:pointer;" onclick="window.abrirEdicionABM('${d.id}', '${coleccion}', '${displayNom}', '${dt.correo_calendario||''}', '${dt.celular||''}', '${dt.alias_transferencia||''}')">
+                            <div style="flex:1; min-width:240px;">
+                                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                    <strong style="color:var(--text-main); font-size:15px;">${displayNom}</strong>
+                                    ${aptitudesHtml}
+                                </div>
+                                ${skillsBadges}
+                                ${ex}
+                            </div>
+                            <button type="button" class="btn-row-action" title="Eliminar Profesor" onclick="event.stopPropagation(); window.eliminarABM('${d.id}', '${coleccion}')">🗑️</button>
+                        </div>
+                    `; 
+                }); 
             } else {
                 qS.forEach(d => { 
                     const dt = d.data(); 
                     const displayNom = dt.nombre || dt.email || d.id; 
-                    let ex = ''; 
-                    if (coleccion === 'profesores') { 
-                        ex = `<div style="font-size:12px; color:var(--text-muted); margin-top:2px;">Calendario: ${dt.correo_calendario || 'Sin asignar'} | Cel: ${dt.celular || '-'}</div>`; 
-                    } 
-                    h += `<div class="row-item abm-row" onclick="window.abrirEdicionABM('${d.id}', '${coleccion}', '${displayNom}', '${dt.correo_calendario||''}', '${dt.celular||''}', '${dt.alias_transferencia||''}')"><div><strong style="color:var(--text-main); font-size:15px;">${displayNom}</strong>${ex}</div><button class="btn-row-action" onclick="event.stopPropagation(); window.eliminarABM('${d.id}', '${coleccion}')">🗑️</button></div>`; 
+                    h += `<div class="row-item abm-row" onclick="window.abrirEdicionABM('${d.id}', '${coleccion}', '${displayNom}')"><div><strong style="color:var(--text-main); font-size:15px;">${displayNom}</strong></div><button class="btn-row-action" onclick="event.stopPropagation(); window.eliminarABM('${d.id}', '${coleccion}')">🗑️</button></div>`; 
                 }); 
             }
         } 
@@ -574,27 +654,24 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
                             Array.from(selSkills.options).forEach(opt => {
                                 opt.selected = skills.includes(opt.value);
                             });
-                            if (typeof syncSelectToChips === 'function') {
-                                syncSelectToChips('abm-edit-skills', 'chips-abm-edit-skills');
-                            }
+                            renderChipsSelectLocal('abm-edit-skills', 'chips-abm-edit-skills');
                         }
                     });
                 } else {
-                    if (typeof syncSelectToChips === 'function') {
-                        syncSelectToChips('abm-edit-skills', 'chips-abm-edit-skills');
-                    }
+                    renderChipsSelectLocal('abm-edit-skills', 'chips-abm-edit-skills');
                 }
             });
         }
 
-        if (typeof poblarDisponibilidadMultiRango === 'function') {
+        const poblarDispFn = callbacks?.poblarDisponibilidadMultiRango || window.poblarDisponibilidadMultiRango;
+        if (typeof poblarDispFn === 'function') {
             if (id) { 
                 getDoc(doc(db, "profesores", id)).then(snap => { 
-                    if(snap.exists()) poblarDisponibilidadMultiRango(snap.data().disponibilidad || {}, true); 
-                    else poblarDisponibilidadMultiRango({}, true); 
+                    if(snap.exists()) poblarDispFn(snap.data().disponibilidad || {}, true); 
+                    else poblarDispFn({}, true); 
                 }); 
             } else { 
-                poblarDisponibilidadMultiRango({}, true); 
+                poblarDispFn({}, true); 
             } 
         }
     } else { 
@@ -675,6 +752,10 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
         } else if (col === 'profesores') {
             const selSkills = document.getElementById('abm-edit-skills');
             const skillsArr = selSkills ? Array.from(selSkills.selectedOptions).map(o => o.value) : [];
+            let dispProfe = {};
+            if (typeof window.extraerDisponibilidadMultiRango === 'function') {
+                dispProfe = window.extraerDisponibilidadMultiRango(true);
+            }
             const dataProfe = {
                 nombre: nomVal,
                 correo_calendario: document.getElementById('abm-edit-correo')?.value || '',
@@ -683,7 +764,8 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
                 entrevista: !!document.getElementById('abm-edit-entrevista')?.checked,
                 grupales: !!document.getElementById('abm-edit-grupales')?.checked,
                 ensambles: !!document.getElementById('abm-edit-ensambles')?.checked,
-                skills: skillsArr
+                skills: skillsArr,
+                disponibilidad: dispProfe
             };
 
             if (id) {
