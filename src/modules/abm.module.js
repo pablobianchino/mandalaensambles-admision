@@ -349,6 +349,22 @@ const ROLES_MODULOS = {
     personalizado: []
 };
 
+function getEmojiParaInstrumento(inst) {
+    if (!inst) return '🎵';
+    const s = String(inst).toLowerCase();
+    if (s.includes('bat')) return '🥁';
+    if (s.includes('gui') || s.includes('electr')) return '🎸';
+    if (s.includes('cajón') || s.includes('cajon') || s.includes('perc')) return '📦';
+    if (s.includes('cant') || s.includes('voz') || s.includes('vocal') || s.includes('coro')) return '🎤';
+    if (s.includes('pian') || s.includes('tecl')) return '🎹';
+    if (s.includes('baj')) return '🎸';
+    if (s.includes('sax') || s.includes('vient')) return '🎷';
+    if (s.includes('tromp')) return '🎺';
+    if (s.includes('viol')) return '🎻';
+    if (s.includes('ukel') || s.includes('ucu')) return '🪕';
+    return '🎵';
+}
+
 function renderChipsSelectLocal(selectId, containerId) {
     if (typeof window.syncSelectToChips === 'function') {
         window.syncSelectToChips(selectId, containerId);
@@ -399,6 +415,92 @@ function renderChipsSelectLocal(selectId, containerId) {
         });
         container.appendChild(chip);
     });
+}
+
+function poblarDisponibilidadLocal(disp = {}, esProfe = false, hApe = '09:00', hCie = '22:00') {
+    if (typeof window.poblarDisponibilidadMultiRango === 'function') {
+        window.poblarDisponibilidadMultiRango(disp, esProfe, hApe, hCie);
+        return;
+    }
+    const prefix = esProfe ? 'disp-p-' : 'disp-';
+    const estadoPrefix = esProfe ? 'estado-p-' : 'estado-';
+    const dias = [
+        { id: 'L', nombre: 'Lunes' },
+        { id: 'M', nombre: 'Martes' },
+        { id: 'X', nombre: 'Miércoles' },
+        { id: 'J', nombre: 'Jueves' },
+        { id: 'V', nombre: 'Viernes' },
+        { id: 'S', nombre: 'Sábado' },
+        { id: 'D', nombre: 'Domingo' }
+    ];
+    dias.forEach(dia => {
+        const dD = disp[dia.id] || [];
+        const rangosCont = document.getElementById(`rangos-${prefix}${dia.id}`);
+        const cA = document.getElementById(`${prefix}${dia.id}-all`);
+        const cN = document.getElementById(`${prefix}${dia.id}-none`);
+        const sE = document.getElementById(`${estadoPrefix}${dia.id}`);
+        
+        if (!rangosCont) return;
+        rangosCont.innerHTML = '';
+        if (cA) cA.checked = false;
+        if (cN) cN.checked = false;
+        if (sE) sE.textContent = "";
+        
+        const filaRango = (ini = '', fin = '', idx = 0) => `
+            <div class="rango-item" style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                <input type="time" class="modern-input rango-inicio" value="${ini}" style="width:auto; padding:5px 8px; font-size:12.5px;">
+                <span style="font-size:12px; color:var(--text-muted);">a</span>
+                <input type="time" class="modern-input rango-fin" value="${fin}" style="width:auto; padding:5px 8px; font-size:12.5px;">
+                <button type="button" class="btn-quitar-rango" data-dia="${dia.id}" data-profe="${esProfe}" style="background:none; border:none; cursor:pointer; font-size:1em; padding:2px 4px; ${idx === 0 ? 'display:none;' : ''}">🗑️</button>
+            </div>
+        `;
+
+        if (dD.length === 0) {
+            if (cN) cN.checked = true;
+            rangosCont.innerHTML = filaRango('', '', 0);
+        } else if (dD.length === 1 && dD[0].inicio === hApe && dD[0].fin === hCie) {
+            if (cA) cA.checked = true;
+            rangosCont.innerHTML = filaRango('', '', 0);
+        } else {
+            dD.forEach((rango, idx) => {
+                rangosCont.innerHTML += filaRango(rango.inicio || '', rango.fin || '', idx);
+            });
+        }
+        if (typeof window.updateDispStateForDay === 'function') {
+            window.updateDispStateForDay(dia.id, esProfe);
+        }
+    });
+}
+
+function extraerDisponibilidadLocal(esProfe = false, hApe = '09:00', hCie = '22:00') {
+    if (typeof window.extraerDisponibilidadMultiRango === 'function') {
+        return window.extraerDisponibilidadMultiRango(esProfe, hApe, hCie);
+    }
+    const prefix = esProfe ? 'disp-p-' : 'disp-';
+    const dias = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+    const disp = {};
+    dias.forEach(d => {
+        const cA = document.getElementById(`${prefix}${d}-all`)?.checked;
+        const cN = document.getElementById(`${prefix}${d}-none`)?.checked;
+        if (cN) {
+            disp[d] = [];
+        } else if (cA) {
+            disp[d] = [{ inicio: hApe, fin: hCie }];
+        } else {
+            const rangosCont = document.getElementById(`rangos-${prefix}${d}`);
+            const items = rangosCont ? rangosCont.querySelectorAll('.rango-item') : [];
+            const arr = [];
+            items.forEach(item => {
+                const i = item.querySelector('.rango-inicio')?.value || '';
+                const f = item.querySelector('.rango-fin')?.value || '';
+                if (i || f) {
+                    arr.push({ inicio: i || hApe, fin: f || hCie });
+                }
+            });
+            disp[d] = arr;
+        }
+    });
+    return disp;
 }
 
 export async function cargarABM(coleccion, titulo, cont) { 
@@ -470,7 +572,7 @@ export async function cargarABM(coleccion, titulo, cont) {
                     
                     const skills = Array.isArray(dt.skills) ? dt.skills : [];
                     const skillsBadges = skills.length > 0
-                        ? `<div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:5px;">${skills.map(s => `<span class="profile-tag-badge" style="background:#f0fdfa; color:#0f766e; border-color:#99f6e4; font-size:11px;">🎸 ${s}</span>`).join('')}</div>`
+                        ? `<div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:5px;">${skills.map(s => `<span class="profile-tag-badge" style="background:#f0fdfa; color:#0f766e; border-color:#99f6e4; font-size:11px;">${getEmojiParaInstrumento(s)} ${s}</span>`).join('')}</div>`
                         : '<div style="font-size:11.5px; color:var(--text-muted); margin-top:3px;">Sin skills asignados</div>';
                         
                     let aptitudes = [];
@@ -479,7 +581,10 @@ export async function cargarABM(coleccion, titulo, cont) {
                     if (dt.ensambles) aptitudes.push('<span class="tag-chip" style="background:#fef3c7; color:#b45309; font-size:10.5px; padding:2px 6px;">🎵 Ensambles</span>');
                     const aptitudesHtml = aptitudes.length > 0 ? `<div style="display:flex; gap:4px; margin-top:2px;">${aptitudes.join('')}</div>` : '';
 
-                    const ex = `<div style="font-size:12px; color:var(--text-muted); margin-top:4px;">Calendario: <strong>${dt.correo_calendario || 'Sin asignar'}</strong> | Cel: <strong>${dt.celular || '-'}</strong> | Alias: <strong>${dt.alias_transferencia || '-'}</strong></div>`; 
+                    let detallesProfe = [];
+                    if (dt.celular) detallesProfe.push(`Cel: <strong>${dt.celular}</strong>`);
+                    if (dt.alias_transferencia) detallesProfe.push(`Alias: <strong>${dt.alias_transferencia}</strong>`);
+                    const ex = detallesProfe.length > 0 ? `<div style="font-size:12px; color:var(--text-muted); margin-top:4px;">${detallesProfe.join(' | ')}</div>` : '';
                     
                     h += `
                         <div class="row-item abm-row" style="padding:14px 18px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:8px; cursor:pointer;" onclick="window.abrirEdicionABM('${d.id}', '${coleccion}', '${displayNom}', '${dt.correo_calendario||''}', '${dt.celular||''}', '${dt.alias_transferencia||''}')">
@@ -662,7 +767,7 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
                 }
                 
                 // Cargar la disponibilidad individual de este profesor
-                poblarDisponibilidadMultiRango(pr.disponibilidad || {}, true);
+                poblarDisponibilidadLocal(pr.disponibilidad || {}, true);
             }
         } else {
             document.getElementById('abm-edit-correo').value = ''; 
@@ -675,7 +780,7 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
                 Array.from(selSkills.options).forEach(opt => opt.selected = false);
                 renderChipsSelectLocal('abm-edit-skills', 'chips-abm-edit-skills');
             }
-            poblarDisponibilidadMultiRango({}, true);
+            poblarDisponibilidadLocal({}, true);
         }
     } else { 
         if (divUser) divUser.style.display = 'none';
@@ -755,10 +860,7 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
         } else if (col === 'profesores') {
             const selSkills = document.getElementById('abm-edit-skills');
             const skillsArr = selSkills ? Array.from(selSkills.selectedOptions).map(o => o.value) : [];
-            let dispProfe = {};
-            if (typeof window.extraerDisponibilidadMultiRango === 'function') {
-                dispProfe = window.extraerDisponibilidadMultiRango(true);
-            }
+            const dispProfe = extraerDisponibilidadLocal(true);
             const dataProfe = {
                 nombre: nomVal,
                 correo_calendario: document.getElementById('abm-edit-correo')?.value || '',
