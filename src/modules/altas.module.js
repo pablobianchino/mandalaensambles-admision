@@ -383,10 +383,12 @@ export async function guardarPreAlta(btnTarget, callbacks = {}) {
     }
     
     document.getElementById('modal-iniciar-prealta')?.close();
-    alert(`✅ Pre-Alta iniciada para ${ids.length} alumno(s).\nEvento agendado en Google Calendar con formato 🚀 y texto copiado.`);
-
-    if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
+    ids.forEach(id => {
+        if (typeof window.removerFilaOptimista === 'function') window.removerFilaOptimista(id);
+    });
     if (typeof cargarVista === 'function') await cargarVista(estadoActualVista || 'Altas - En Curso');
+    if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
+    alert(`✅ Pre-Alta iniciada para ${ids.length} alumno(s).\nEvento agendado en Google Calendar con formato 🚀 y texto copiado.`);
 }
 
 // -----------------------------------------------------------------------

@@ -1451,19 +1451,25 @@ window.aprobarAlumnoIndividualPrealta = async function(alumnoId) {
         const al = alDoc.data();
         if (!(await window.confirmar('Aprobar alumno', 'El alumno pasará a Altas Pendientes.', 'Aprobar'))) return;
 
-        const hist = al.historial || [];
-        const fnHist = window.crearEntradaHistorial || ((txt, tipo) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema' }));
-        hist.push(fnHist(`Validación individual aprobada para ${al.grupo_asignado || 'clase'}. Pasa a Altas Pendientes.`, 'match'));
+        if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(`Aprobando a ${al.nombre}...`);
+        try {
+            const hist = al.historial || [];
+            const fnHist = window.crearEntradaHistorial || ((txt, tipo) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema' }));
+            hist.push(fnHist(`Validación individual aprobada para ${al.grupo_asignado || 'clase'}. Pasa a Altas Pendientes.`, 'match'));
 
-        await updateDoc(doc(db, "alumnos", alumnoId), {
-            estado_agenda: "Pre-alta Pendiente",
-            estado_validacion_alumno: "confirmado",
-            historial: hist
-        });
+            await updateDoc(doc(db, "alumnos", alumnoId), {
+                estado_agenda: "Pre-alta Pendiente",
+                estado_validacion_alumno: "confirmado",
+                historial: hist
+            });
 
-        alert(`✅ ${al.nombre} aprobado a Altas Pendientes.`);
-        const cont = document.getElementById('lista-generica');
-        if (cont) await renderMatchEnValidacion(cont);
+            if (typeof window.removerFilaOptimista === 'function') window.removerFilaOptimista(alumnoId);
+            const cont = document.getElementById('lista-generica');
+            if (cont) await renderMatchEnValidacion(cont);
+            alert(`✅ ${al.nombre} aprobado a Altas Pendientes.`);
+        } finally {
+            if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
+        }
     } catch(err) {
         alert('Error al aprobar alumno: ' + err.message);
     }
@@ -1476,20 +1482,26 @@ window.rechazarAlumnoGrupoYVolverEspera = async function(alumnoId) {
         const al = alDoc.data();
         if (!(await window.confirmar('Confirmar rechazo', 'El alumno volverá a Lista de Espera.', 'Confirmar rechazo'))) return;
 
-        const hist = al.historial || [];
-        const fnHist = window.crearEntradaHistorial || ((txt, tipo) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema' }));
-        hist.push(fnHist(`Propuesta de grupo "${al.grupo_asignado || ''}" rechazada/no disponible. Vuelve a Lista de Espera.`, 'match'));
+        if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(`Moviendo a ${al.nombre} a Espera...`);
+        try {
+            const hist = al.historial || [];
+            const fnHist = window.crearEntradaHistorial || ((txt, tipo) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema' }));
+            hist.push(fnHist(`Propuesta de grupo "${al.grupo_asignado || ''}" rechazada/no disponible. Vuelve a Lista de Espera.`, 'match'));
 
-        await updateDoc(doc(db, "alumnos", alumnoId), {
-            estado_agenda: "Lista de espera",
-            grupo_asignado: "",
-            estado_validacion_alumno: null,
-            historial: hist
-        });
+            await updateDoc(doc(db, "alumnos", alumnoId), {
+                estado_agenda: "Lista de espera",
+                grupo_asignado: "",
+                estado_validacion_alumno: null,
+                historial: hist
+            });
 
-        alert(`↩️ ${al.nombre} volvió a Lista de Espera.`);
-        const cont = document.getElementById('lista-generica');
-        if (cont) await renderMatchEnValidacion(cont);
+            if (typeof window.removerFilaOptimista === 'function') window.removerFilaOptimista(alumnoId);
+            const cont = document.getElementById('lista-generica');
+            if (cont) await renderMatchEnValidacion(cont);
+            alert(`↩️ ${al.nombre} volvió a Lista de Espera.`);
+        } finally {
+            if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
+        }
     } catch(err) {
         alert('Error al devolver alumno a lista de espera: ' + err.message);
     }
@@ -1497,6 +1509,7 @@ window.rechazarAlumnoGrupoYVolverEspera = async function(alumnoId) {
 
 window.desarmarGrupoValidacion = async function(nombreGrupo) {
     if (!(await window.confirmar('Desarmar grupo', 'Todos los integrantes volverán a Lista de Espera.', 'Desarmar'))) return;
+    if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(`Desarmando grupo "${nombreGrupo}"...`);
     try {
         const qSnap = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", "Validando Grupo")));
 
@@ -1514,11 +1527,13 @@ window.desarmarGrupoValidacion = async function(nombreGrupo) {
                 });
             }
         }
-        alert(`↩️ Grupo "${nombreGrupo}" desarmado. Alumnos retornaron a Lista de Espera.`);
         const cont = document.getElementById('lista-generica');
         if (cont) await renderMatchEnValidacion(cont);
+        alert(`↩️ Grupo "${nombreGrupo}" desarmado. Alumnos retornaron a Lista de Espera.`);
     } catch(err) {
         alert('Error al desarmar grupo: ' + err.message);
+    } finally {
+        if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
     }
 };
 

@@ -436,25 +436,66 @@ document.addEventListener('click', (e) => {
     }
 });
 
-function setBotonCargando(btn, cargando) {
-    if (!btn) return;
-    if (cargando) {
-        if (!btn.dataset.textoOriginal || btn.dataset.textoOriginal === '⏳ Procesando...') {
-            btn.dataset.textoOriginal = btn.innerHTML;
-        }
-        btn.innerHTML = '⏳ Procesando...';
-        btn.disabled = true;
-        btn.style.opacity = '0.7';
-        btn.style.pointerEvents = 'none';
-        btn.style.cursor = 'wait';
-    } else {
-        btn.innerHTML = btn.dataset.textoOriginal && btn.dataset.textoOriginal !== '⏳ Procesando...' ? btn.dataset.textoOriginal : 'Guardar';
-        btn.disabled = false;
-        btn.style.opacity = '1';
-        btn.style.pointerEvents = 'auto';
-        btn.style.cursor = 'pointer';
+let actionLoadingTimeout = null;
+
+export function mostrarIndicadorCarga(mensaje = 'Procesando acción en el sistema...') {
+    const loader = document.getElementById('global-action-loader');
+    const txt = document.getElementById('global-action-text');
+    if (txt) txt.textContent = mensaje;
+    if (loader) loader.style.display = 'flex';
+    document.body.classList.add('body-action-busy');
+    if (actionLoadingTimeout) clearTimeout(actionLoadingTimeout);
+    actionLoadingTimeout = setTimeout(() => {
+        ocultarIndicadorCarga();
+    }, 20000);
+}
+window.mostrarIndicadorCarga = mostrarIndicadorCarga;
+
+export function ocultarIndicadorCarga() {
+    if (actionLoadingTimeout) clearTimeout(actionLoadingTimeout);
+    const loader = document.getElementById('global-action-loader');
+    if (loader) loader.style.display = 'none';
+    document.body.classList.remove('body-action-busy');
+}
+window.ocultarIndicadorCarga = ocultarIndicadorCarga;
+
+export function removerFilaOptimista(id) {
+    if (!id) return;
+    const el = document.querySelector(`.row-item[data-id="${id}"]`);
+    if (el) {
+        el.style.transition = 'all 0.25s ease';
+        el.style.opacity = '0';
+        el.style.transform = 'scale(0.95)';
+        setTimeout(() => { if (el.parentNode) el.remove(); }, 250);
     }
 }
+window.removerFilaOptimista = removerFilaOptimista;
+
+function setBotonCargando(btn, cargando, textoCustom = null) {
+    if (cargando) {
+        mostrarIndicadorCarga(textoCustom || 'Procesando solicitud...');
+        if (btn) {
+            if (!btn.dataset.textoOriginal || btn.dataset.textoOriginal.includes('Procesando')) {
+                btn.dataset.textoOriginal = btn.innerHTML;
+            }
+            btn.innerHTML = `<span class="spinner-inline" style="width:13px; height:13px; border-width:2px; display:inline-block; vertical-align:middle; margin-right:6px;"></span> ${textoCustom || 'Procesando...'}`;
+            btn.disabled = true;
+            btn.style.opacity = '0.7';
+            btn.style.pointerEvents = 'none';
+            btn.style.cursor = 'wait';
+        }
+    } else {
+        ocultarIndicadorCarga();
+        if (btn) {
+            btn.innerHTML = btn.dataset.textoOriginal && !btn.dataset.textoOriginal.includes('Procesando') ? btn.dataset.textoOriginal : 'Guardar';
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.style.pointerEvents = 'auto';
+            btn.style.cursor = 'pointer';
+        }
+    }
+}
+window.setBotonCargando = setBotonCargando;
 
 function syncSelectToChips(selectId, containerId) {
     const select = document.getElementById(selectId);
@@ -1107,10 +1148,12 @@ document.getElementById('btn-bulk-cancelar').addEventListener('click', () => {
 document.getElementById('btn-bulk-suspender').addEventListener('click', async () => {
     const motivo = prompt("Motivo de suspensión para todos los seleccionados:");
     if (!motivo) return;
-    document.getElementById('btn-bulk-suspender').textContent = "Procesando...";
+    mostrarIndicadorCarga(`Suspendiendo ${selectedBulkIds.length} registros...`);
     const now = new Date(); const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
-    for (let id of selectedBulkIds) {
+    const idsToSuspend = [...selectedBulkIds];
+    for (let id of idsToSuspend) {
         try {
+            removerFilaOptimista(id);
             const al = (await getDoc(doc(db, "alumnos", id))).data();
             if (al.id_evento_reserva) await eliminarEventoSeguro(al);
             const hist = al.historial || []; hist.push({ id: Date.now(), texto: `Suspendido masivamente. Motivo: ${motivo}`, fecha: fechaStr });
@@ -1118,9 +1161,10 @@ document.getElementById('btn-bulk-suspender').addEventListener('click', async ()
         } catch(e) {}
     }
     selectedBulkIds = [];
-    document.getElementById('btn-bulk-suspender').textContent = "Suspender";
     actualizarBulkBar();
-    cargarVista(estadoActualVista);
+    await cargarVista(estadoActualVista);
+    ocultarIndicadorCarga();
+    alert("✅ Registros suspendidos correctamente.");
 });
 
 // =======================================================================
@@ -3447,7 +3491,7 @@ document.addEventListener('click', async (e) => {
             let data = await generarTextoConHistorial(alumnoIdActual, 'texto_opciones_multiples', 'Varias opciones', pId, pNom, opciones); 
             finalTxt = data.txt; 
         } 
-        setBotonCargando(target, true); 
+        setBotonCargando(target, true, 'Guardando propuesta de agenda...'); 
         try { 
             let updateData = { 
                 estado_agenda: "Pendiente validación por profe", 
@@ -3465,13 +3509,15 @@ document.addEventListener('click', async (e) => {
             } 
             await updateDoc(doc(db, "alumnos", alumnoIdActual), updateData); 
             await navigator.clipboard.writeText(finalTxt); 
-            alert("Texto copiado al portapapeles. Estado avanzado."); 
             document.getElementById('modal-agenda').close(); 
-            cargarVista(estadoActualVista); 
+            removerFilaOptimista(alumnoIdActual);
+            await cargarVista(estadoActualVista); 
+            alert("Texto copiado al portapapeles. Estado avanzado a Pendiente Validación."); 
         } catch(e) { 
             alert("❌ Error:\n\n" + e.message); 
-        } 
-        setBotonCargando(target, false); 
+        } finally {
+            setBotonCargando(target, false); 
+        }
         return; 
     }
     
@@ -3533,11 +3579,51 @@ document.addEventListener('click', async (e) => {
         document.getElementById('modal-validar-profe').showModal(); 
         return; 
     }
-    if (target.id === 'btn-confirmar-validacion-profe') { const id = document.getElementById('validar-profe-alumno-id').value, selectedRadio = document.querySelector('input[name="opt-valida-profe"]:checked'); if(!selectedRadio) return alert("Selecciona una opción."); const op = JSON.parse(selectedRadio.value), al = (await getDoc(doc(db, "alumnos", id))).data(); setBotonCargando(target, true); try { al.reserva_profe_id = op.profeId; al.reserva_profe_nombre = op.profeNombre; al.reserva_cal_id = op.calId; al.reserva_fecha_texto = op.fechaTexto; al.reserva_inicio = op.inicio; al.reserva_fin = op.fin; const titulos = construirTitulosEvento(al, 'reserva', configApp); const evRes = await crearEventoSeguro(al, titulos, op.inicio, op.fin); await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente validación por alumno", id_evento_reserva: evRes.id, calendario_evento_reserva: evRes.calendar, reserva_profe_id: op.profeId, reserva_profe_nombre: op.profeNombre, reserva_cal_id: op.calId, reserva_fecha_texto: op.fechaTexto, reserva_inicio: op.inicio, reserva_fin: op.fin, opciones_propuestas: null }); const dataText = await generarTextoConHistorial(id, 'texto_alumno'); await navigator.clipboard.writeText(dataText.txt); alert("Reserva en Calendar creada exitosamente.\n\nTexto copiado."); document.getElementById('modal-validar-profe').close(); cargarVista(estadoActualVista); } catch(e) { alert("❌ Error:\n\n" + e.message); } setBotonCargando(target, false); return; }
+    if (target.id === 'btn-confirmar-validacion-profe') {
+        const id = document.getElementById('validar-profe-alumno-id').value;
+        const selectedRadio = document.querySelector('input[name="opt-valida-profe"]:checked');
+        if (!selectedRadio) return alert("Selecciona una opción.");
+        const op = JSON.parse(selectedRadio.value);
+        const al = (await getDoc(doc(db, "alumnos", id))).data();
+        setBotonCargando(target, true, 'Creando evento en Calendar...');
+        try {
+            al.reserva_profe_id = op.profeId;
+            al.reserva_profe_nombre = op.profeNombre;
+            al.reserva_cal_id = op.calId;
+            al.reserva_fecha_texto = op.fechaTexto;
+            al.reserva_inicio = op.inicio;
+            al.reserva_fin = op.fin;
+            const titulos = construirTitulosEvento(al, 'reserva', configApp);
+            const evRes = await crearEventoSeguro(al, titulos, op.inicio, op.fin);
+            await updateDoc(doc(db, "alumnos", id), {
+                estado_agenda: "Pendiente validación por alumno",
+                id_evento_reserva: evRes.id,
+                calendario_evento_reserva: evRes.calendar,
+                reserva_profe_id: op.profeId,
+                reserva_profe_nombre: op.profeNombre,
+                reserva_cal_id: op.calId,
+                reserva_fecha_texto: op.fechaTexto,
+                reserva_inicio: op.inicio,
+                reserva_fin: op.fin,
+                opciones_propuestas: null
+            });
+            const dataText = await generarTextoConHistorial(id, 'texto_alumno');
+            await navigator.clipboard.writeText(dataText.txt);
+            document.getElementById('modal-validar-profe').close();
+            removerFilaOptimista(id);
+            await cargarVista(estadoActualVista);
+            alert("Reserva en Calendar creada exitosamente.\n\nTexto copiado.");
+        } catch(e) {
+            alert("❌ Error:\n\n" + e.message);
+        } finally {
+            setBotonCargando(target, false);
+        }
+        return;
+    }
     if (target.classList.contains('btn-confirmar-entrevista') || target.closest('.btn-confirmar-entrevista')) {
         const btn = target.classList.contains('btn-confirmar-entrevista') ? target : target.closest('.btn-confirmar-entrevista');
         const id = btn.getAttribute('data-id');
-        setBotonCargando(btn, true);
+        setBotonCargando(btn, true, 'Confirmando agenda en Calendar...');
         try {
             const alDoc = await getDoc(doc(db, "alumnos", id));
             if (!alDoc.exists()) {
@@ -3558,12 +3644,14 @@ document.addEventListener('click', async (e) => {
             const hist = al.historial || [];
             hist.push({ id: Date.now(), texto: "Agenda confirmada por alumno.", fecha: fechaStr });
             await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Agenda confirmada", historial: hist });
+            removerFilaOptimista(id);
+            await cargarVista(estadoActualVista);
             alert("✅ ¡Agenda Confirmada exitosamente! El alumno pasó a Confirmadas.");
-            cargarVista(estadoActualVista);
         } catch(e) {
             alert("❌ Error al confirmar agenda:\n\n" + e.message);
+        } finally {
+            setBotonCargando(btn, false);
         }
-        setBotonCargando(btn, false);
         return;
     }
     if (target.classList.contains('btn-reenviar-profe') || target.classList.contains('btn-enviar-conf-profe') || target.closest('.btn-reenviar-profe') || target.closest('.btn-enviar-conf-profe')) { 
@@ -3598,6 +3686,7 @@ document.addEventListener('click', async (e) => {
         if (motivo !== null) { 
             if (motivo.trim() === "") return alert("Debes ingresar motivo."); 
             const id = btn.getAttribute('data-id'); 
+            mostrarIndicadorCarga('Cancelando evento en Calendar...');
             try { 
                 const alDoc = await getDoc(doc(db, "alumnos", id)); 
                 const alData = alDoc.data(); 
@@ -3611,10 +3700,13 @@ document.addEventListener('click', async (e) => {
                     alert("Cancelada. Texto CANCELACIÓN copiado."); 
                 } 
                 await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente procesar", reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null, opciones_propuestas: null, historial: hist }); 
-                cargarVista(estadoActualVista); 
+                removerFilaOptimista(id);
+                await cargarVista(estadoActualVista); 
             } catch(e) { 
                 alert("❌ Error:\n\n" + e.message); 
-            } 
+            } finally {
+                ocultarIndicadorCarga();
+            }
         } 
         return; 
     }
@@ -3634,7 +3726,7 @@ document.addEventListener('click', async (e) => {
                 'question'
             );
             if (ok) {
-                setBotonCargando(btn, true);
+                setBotonCargando(btn, true, 'Pasando a Lista de Espera...');
                 const now = new Date();
                 const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
                 const hist = alData.historial || [];
@@ -3648,10 +3740,14 @@ document.addEventListener('click', async (e) => {
                     fecha_ingreso_espera: new Date().toISOString(),
                     historial: hist
                 });
-                cargarVista(estadoActualVista);
+                removerFilaOptimista(id);
+                await cargarVista(estadoActualVista);
+                alert(`✅ ${alData.nombre} pasó a Lista de Espera.`);
             }
         } catch(e) {
             alert("❌ Error al pasar a Lista de Espera: " + e.message);
+        } finally {
+            setBotonCargando(btn, false);
         }
         return;
     }
@@ -3678,7 +3774,7 @@ document.addEventListener('click', async (e) => {
         const id = document.getElementById('susp-alumno-id').value;
         const mtv = document.getElementById('susp-motivo').value; 
         if(!mtv) return alert("Seleccione motivo"); 
-        setBotonCargando(target, true); 
+        setBotonCargando(target, true, 'Guardando suspensión...'); 
         try { 
             const alDoc = await getDoc(doc(db, "alumnos", id));
             const al = alDoc.data(); 
@@ -3707,17 +3803,30 @@ document.addEventListener('click', async (e) => {
                 historial: hist 
             }); 
             document.getElementById('modal-suspender').close(); 
-            cargarVista(estadoActualVista); 
+            removerFilaOptimista(id);
+            await cargarVista(estadoActualVista); 
+            alert("Ficha suspendida correctamente.");
         } catch(err){ 
             alert("❌ Error:\n\n" + err.message); 
-        } 
-        setBotonCargando(target, false); 
+        } finally {
+            setBotonCargando(target, false); 
+        }
         return;
     }
     if (target.classList.contains('btn-recuperar-agenda') || target.closest('.btn-recuperar-agenda')) { 
         const btn = target.classList.contains('btn-recuperar-agenda') ? target : target.closest('.btn-recuperar-agenda');
-        await updateDoc(doc(db, "alumnos", btn.getAttribute('data-id')), { estado_agenda: "Pendiente procesar", motivo_suspension: null }); 
-        cargarVista(estadoActualVista); 
+        const id = btn.getAttribute('data-id');
+        setBotonCargando(btn, true, 'Recuperando ficha...');
+        try {
+            await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente procesar", motivo_suspension: null }); 
+            removerFilaOptimista(id);
+            await cargarVista(estadoActualVista); 
+            alert("Ficha recuperada exitosamente.");
+        } catch(e) {
+            alert("❌ Error al recuperar: " + e.message);
+        } finally {
+            setBotonCargando(btn, false);
+        }
         return; 
     }
     if (target.classList.contains('btn-cerrar-modal')) { document.getElementById(target.getAttribute('data-modal')).close(); return; }
@@ -3969,7 +4078,32 @@ document.getElementById('form-alumno').addEventListener('submit', async (e) => {
         disponibilidad: disp, 
         historial: historialActual 
     }; 
-    try { const id = document.getElementById('alumno-id').value; if (id) { await updateDoc(doc(db, "alumnos", id), data); } else { const esDirecto = document.getElementById('chk-ingreso-directo').checked; if (esDirecto) { data.estado_agenda = "Lista de espera"; const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`; data.historial.push({ id: Date.now(), texto: "Ingreso directo a Lista de Espera.", fecha: fechaStr }); } else { data.estado_agenda = "Pendiente procesar"; } await addDoc(collection(db, "alumnos"), data); } const wrap = document.getElementById('form-alumno-wrapper'); wrap.style.display='none'; document.body.appendChild(wrap); document.getElementById('modal-alta-alumno').close(); cargarVista(estadoActualVista); } catch(err) { alert("Error al guardar."); } setBotonCargando(btnSubmit, false);
+    try {
+        const id = document.getElementById('alumno-id').value;
+        if (id) {
+            await updateDoc(doc(db, "alumnos", id), data);
+        } else {
+            const esDirecto = document.getElementById('chk-ingreso-directo').checked;
+            if (esDirecto) {
+                data.estado_agenda = "Lista de espera";
+                const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+                data.historial.push({ id: Date.now(), texto: "Ingreso directo a Lista de Espera.", fecha: fechaStr });
+            } else {
+                data.estado_agenda = "Pendiente procesar";
+            }
+            await addDoc(collection(db, "alumnos"), data);
+        }
+        const wrap = document.getElementById('form-alumno-wrapper');
+        wrap.style.display = 'none';
+        document.body.appendChild(wrap);
+        document.getElementById('modal-alta-alumno').close();
+        await cargarVista(estadoActualVista);
+        alert("✅ Datos del alumno guardados correctamente.");
+    } catch(err) {
+        alert("❌ Error al guardar: " + err.message);
+    } finally {
+        setBotonCargando(btnSubmit, false);
+    }
 });
 
 // =======================================================================
@@ -4067,9 +4201,8 @@ if (btnConfirmarNuevaSusc) {
             
             await addDoc(collection(db, "alumnos"), nuevoAlumnoData);
             document.getElementById('modal-nueva-suscripcion').close();
-            
-            alert(`🎉 Nueva suscripción creada con éxito para ${al.nombre} (${nuevoInst}).\n\nQuedó disponible en Inbox - Sin Agendar.`);
-            cargarVista(estadoActualVista || 'Inbox - Pendientes');
+            await cargarVista(estadoActualVista || 'Inbox - Pendientes');
+            alert(`🎉 Nueva suscripción creada con éxito para ${al.nombre} (${nuevoInst}). Quedó disponible en Inbox › Sin Agendar.`);
         } catch(e) {
             alert("❌ Error al crear nueva suscripción: " + e.message);
         } finally {

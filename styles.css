@@ -1289,3 +1289,64 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
     border: 1px solid rgba(142, 68, 173, 0.25);
     color: #7d3c98;
 }
+
+/* =======================================================================
+   INDICADOR GLOBAL DE ACCIONES Y BLOQUEO ANTI-DOBLE CLIC
+   ======================================================================= */
+.global-action-loader {
+    position: fixed;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 999999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    animation: actionLoaderIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.global-action-card {
+    background: rgba(15, 23, 42, 0.94);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: #ffffff;
+    padding: 10px 22px;
+    border-radius: 30px;
+    font-size: 13.5px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    pointer-events: auto;
+}
+
+.spinner-inline {
+    width: 18px;
+    height: 18px;
+    border: 2.5px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #38bdf8;
+    border-radius: 50%;
+    animation: spinLoader 0.6s linear infinite;
+}
+
+@keyframes spinLoader {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes actionLoaderIn {
+    from { opacity: 0; transform: translate(-50%, -15px) scale(0.96); }
+    to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+
+/* Bloqueo sutil de clics mientras se procesa */
+body.body-action-busy button,
+body.body-action-busy .btn-action,
+body.body-action-busy .dropdown-menu-item,
+body.body-action-busy select,
+body.body-action-busy input[type="submit"] {
+    pointer-events: none !important;
+    cursor: wait !important;
+}
