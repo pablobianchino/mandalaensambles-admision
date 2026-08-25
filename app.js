@@ -674,6 +674,8 @@ const quillPopup = new Quill('#informe-popup-editor-container', { theme: 'snow',
 // Render inicial de contenedores de disponibilidad multi-rango
 renderContenedorDisponibilidad('contenedor-disponibilidad', false);
 renderContenedorDisponibilidad('contenedor-disponibilidad-profe', true);
+renderContenedorDisponibilidad('contenedor-disponibilidad-user-profe', true);
+renderContenedorDisponibilidad('contenedor-disponibilidad-mi-perfil', true);
 
 // Render y gestión de Perfil Psicológico / Emocional
 async function renderChipsPerfilPsicologico(containerId, seleccionados = []) {
@@ -4407,6 +4409,191 @@ if (btnConfirmarNuevaSusc) {
             alert("❌ Error al crear nueva suscripción: " + e.message);
         } finally {
             setBotonCargando(btnConfirmarNuevaSusc, false);
+        }
+    });
+}
+
+// =======================================================================
+// MÓDULO UNIVERSAL: MI PERFIL (TODOS LOS ROLES)
+// =======================================================================
+export async function abrirModalMiPerfil() {
+    const usuario = window.usuarioActual || {};
+    const email = usuario.email || '';
+    
+    document.getElementById('mi-perfil-email').value = email;
+    document.getElementById('mi-perfil-nombre').value = usuario.nombre || '';
+    document.getElementById('mi-perfil-celular').value = usuario.celular || '';
+    document.getElementById('mi-perfil-alias').value = usuario.alias_transferencia || '';
+
+    const rolesArr = Array.isArray(usuario.roles) && usuario.roles.length > 0 ? usuario.roles : [usuario.rol || 'admisor'];
+    const esDocente = rolesArr.includes('profesor') || rolesArr.includes('evaluador') || Boolean(usuario.profesor_id);
+
+    const secDocente = document.getElementById('mi-perfil-seccion-docente');
+    
+    if (esDocente) {
+        if (secDocente) secDocente.style.display = 'block';
+
+        let pDocData = null;
+        if (usuario.profesor_id) {
+            try {
+                const pSnap = await getDoc(doc(db, "profesores", usuario.profesor_id));
+                if (pSnap.exists()) pDocData = { id: pSnap.id, ...pSnap.data() };
+            } catch(e) {}
+        }
+
+        if (!pDocData && email) {
+            try {
+                const pSnap = await getDocs(collection(db, "profesores"));
+                pSnap.forEach(d => {
+                    const dt = d.data();
+                    if (dt.correo_calendario && dt.correo_calendario.toLowerCase() === email.toLowerCase()) {
+                        pDocData = { id: d.id, ...dt };
+                    }
+                });
+            } catch(e) {}
+        }
+
+        if (pDocData) {
+            if (!document.getElementById('mi-perfil-celular').value) {
+                document.getElementById('mi-perfil-celular').value = pDocData.celular || '';
+            }
+            if (!document.getElementById('mi-perfil-alias').value) {
+                document.getElementById('mi-perfil-alias').value = pDocData.alias_transferencia || '';
+            }
+            if (!document.getElementById('mi-perfil-nombre').value && pDocData.nombre) {
+                document.getElementById('mi-perfil-nombre').value = pDocData.nombre;
+            }
+
+            const badgesCont = document.getElementById('mi-perfil-skills-badges');
+            if (badgesCont) {
+                const skills = Array.isArray(pDocData.skills) ? pDocData.skills : [];
+                if (skills.length > 0) {
+                    badgesCont.innerHTML = skills.map(s => `
+                        <span class="profile-tag-badge" style="background:#f0fdfa; color:#0f766e; border-color:#99f6e4; font-size:12.5px; padding:4px 10px; font-weight:700;">
+                            ${getEmojiParaInstrumentoGlobal(s)} ${s}
+                        </span>
+                    `).join('');
+                } else {
+                    badgesCont.innerHTML = '<span style="color:var(--text-muted); font-size:12px; font-style:italic;">Sin instrumentos asignados.</span>';
+                }
+            }
+
+            poblarDisponibilidadMultiRango(pDocData.disponibilidad || {}, true);
+        } else {
+            poblarDisponibilidadMultiRango({}, true);
+        }
+    } else {
+        if (secDocente) secDocente.style.display = 'none';
+    }
+
+    const modal = document.getElementById('modal-mi-perfil');
+    if (modal) modal.showModal();
+}
+
+function getEmojiParaInstrumentoGlobal(inst) {
+    if (!inst) return '🎵';
+    const s = String(inst).toLowerCase();
+    if (s.includes('bat')) return '🥁';
+    if (s.includes('gui') || s.includes('electr')) return '🎸';
+    if (s.includes('cajón') || s.includes('cajon') || s.includes('perc')) return '📦';
+    if (s.includes('cant') || s.includes('voz') || s.includes('vocal') || s.includes('coro')) return '🎤';
+    if (s.includes('pian') || s.includes('tecl')) return '🎹';
+    if (s.includes('baj')) return '🎸';
+    if (s.includes('sax') || s.includes('vient')) return '🎷';
+    if (s.includes('tromp')) return '🎺';
+    if (s.includes('viol')) return '🎻';
+    if (s.includes('ukel') || s.includes('ucu')) return '🪕';
+    return '🎵';
+}
+
+window.abrirModalMiPerfilGlobal = abrirModalMiPerfil;
+
+const navMiPerfil = document.getElementById('nav-item-mi-perfil');
+if (navMiPerfil) {
+    navMiPerfil.addEventListener('click', abrirModalMiPerfil);
+}
+
+const btnGuardarMiPerfil = document.getElementById('btn-guardar-mi-perfil');
+if (btnGuardarMiPerfil) {
+    btnGuardarMiPerfil.addEventListener('click', async () => {
+        const usuario = window.usuarioActual;
+        if (!usuario || !usuario.id) return alert("Error: Sesión no válida.");
+
+        const nomVal = (document.getElementById('mi-perfil-nombre')?.value || '').trim();
+        const celVal = (document.getElementById('mi-perfil-celular')?.value || '').trim();
+        const aliasVal = (document.getElementById('mi-perfil-alias')?.value || '').trim();
+
+        if (!nomVal) return alert("Por favor ingresa tu nombre.");
+
+        setBotonCargando(btnGuardarMiPerfil, true);
+        try {
+            const userUpdate = {
+                nombre: nomVal,
+                celular: celVal,
+                alias_transferencia: aliasVal,
+                fecha_actualizacion: new Date().toISOString()
+            };
+
+            await updateDoc(doc(db, "usuarios_sistema", usuario.id), userUpdate);
+
+            // Actualizar objeto en memoria
+            window.usuarioActual.nombre = nomVal;
+            window.usuarioActual.celular = celVal;
+            window.usuarioActual.alias_transferencia = aliasVal;
+
+            const rolesArr = Array.isArray(usuario.roles) && usuario.roles.length > 0 ? usuario.roles : [usuario.rol || 'admisor'];
+            const esDocente = rolesArr.includes('profesor') || rolesArr.includes('evaluador') || Boolean(usuario.profesor_id);
+
+            if (esDocente) {
+                const dispProfe = extraerDisponibilidadMultiRango(true);
+                let profesorId = usuario.profesor_id;
+
+                if (!profesorId && usuario.email) {
+                    const pQ = await getDocs(collection(db, "profesores"));
+                    pQ.forEach(d => {
+                        const dt = d.data();
+                        if (dt.correo_calendario && dt.correo_calendario.toLowerCase() === usuario.email.toLowerCase()) {
+                            profesorId = d.id;
+                        }
+                    });
+                }
+
+                const dataProfeUpdate = {
+                    nombre: nomVal,
+                    celular: celVal,
+                    alias_transferencia: aliasVal,
+                    disponibilidad: dispProfe
+                };
+
+                if (profesorId) {
+                    await updateDoc(doc(db, "profesores", profesorId), dataProfeUpdate);
+                } else {
+                    const newP = await addDoc(collection(db, "profesores"), {
+                        ...dataProfeUpdate,
+                        correo_calendario: usuario.email,
+                        skills: []
+                    });
+                    profesorId = newP.id;
+                    await updateDoc(doc(db, "usuarios_sistema", usuario.id), { profesor_id: profesorId });
+                    window.usuarioActual.profesor_id = profesorId;
+                }
+            }
+
+            // Actualizar vista de usuario en Sidebar
+            const userInfoBox = document.getElementById('user-info');
+            if (userInfoBox) {
+                userInfoBox.innerHTML = `
+                    <div style="font-weight:700; color:var(--text-main); font-size:12.5px; margin-bottom:2px; word-break:break-word;">${nomVal}</div>
+                    <div style="font-size:11px; color:var(--text-muted); word-break:break-all; line-height:1.25;">${usuario.email}</div>
+                `;
+            }
+
+            document.getElementById('modal-mi-perfil')?.close();
+            alert("✅ Perfil actualizado correctamente.");
+        } catch(e) {
+            alert("❌ Error al guardar perfil: " + e.message);
+        } finally {
+            setBotonCargando(btnGuardarMiPerfil, false);
         }
     });
 }
