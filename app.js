@@ -2826,8 +2826,13 @@ onAuthStateChanged(auth, async (user) => {
             }
         }
 
-        if (userInfoBox && !document.getElementById('version-tag')) { 
-            userInfoBox.insertAdjacentHTML('afterend', `<div id="version-tag" style="font-size:0.85em; color:var(--accent-teal); margin-top:5px; font-weight:700; padding:0 10px;">${APP_VERSION}</div>`); 
+        if (userInfoBox) { 
+            let vTag = document.getElementById('version-tag');
+            if (!vTag) {
+                userInfoBox.insertAdjacentHTML('afterend', `<div id="version-tag" style="font-size:0.85em; color:var(--accent-teal); margin-top:5px; font-weight:700; padding:0 10px;">${APP_VERSION}</div>`);
+            } else {
+                vTag.textContent = APP_VERSION;
+            }
         }
 
         await cargarConfig(); 
