@@ -468,14 +468,14 @@ export async function renderPortalProfesor(cont, usuarioActual = {}, callbacks =
         const aptitudesDocenteHtml = aptitudesDocente.length > 0 ? `<div style="display:flex; gap:8px; flex-wrap:wrap;">${aptitudesDocente.join('')}</div>` : `<div style="color:var(--text-muted); font-size:13px; font-style:italic;">Sin aptitudes especiales marcadas.</div>`;
 
         cont.innerHTML = `
-            <div style="max-width:920px; width:100%; margin:0 auto; display:flex; flex-direction:column; gap:20px;">
+            <div style="max-width:920px; width:100%; margin:0 auto; display:flex; flex-direction:column; gap:16px;">
                 <!-- Header de bienvenida -->
-                <div style="background:white; border:1px solid var(--border-color); border-radius:14px; padding:22px 24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
+                <div style="background:white; border:1px solid var(--border-color); border-radius:14px; padding:20px 24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
                     <div>
-                        <h2 style="margin:0 0 4px 0; color:var(--text-main); font-size:1.5em; font-weight:800; display:flex; align-items:center; gap:8px;">
+                        <h2 style="margin:0 0 4px 0; color:var(--text-main); font-size:1.45em; font-weight:800; display:flex; align-items:center; gap:8px;">
                             <span>👨‍🏫 Portal Docente</span>
                         </h2>
-                        <div style="color:var(--text-muted); font-size:13.5px;">Bienvenido, <strong style="color:var(--text-main);">${profesorNombre}</strong>.</div>
+                        <div style="color:var(--text-muted); font-size:13px;">Bienvenido, <strong style="color:var(--text-main);">${profesorNombre}</strong>.</div>
                     </div>
                     <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                         <button type="button" id="btn-solicitar-vacante-general" class="btn-primary" style="padding:9px 16px; font-size:13px; display:flex; align-items:center; gap:6px;">
@@ -484,47 +484,73 @@ export async function renderPortalProfesor(cont, usuarioActual = {}, callbacks =
                     </div>
                 </div>
 
-                <!-- Banner Informativo Mi Perfil -->
-                <div style="background:rgba(0, 123, 143, 0.04); border:1px solid rgba(0, 123, 143, 0.18); border-radius:10px; padding:12px 18px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
-                    <div>
-                        <strong style="color:var(--text-main); font-size:13.5px;">💡 Tus datos personales y disponibilidad</strong>
-                        <div style="font-size:12.5px; color:var(--text-muted); margin-top:2px;">Para actualizar tu celular, alias o disponibilidad horaria semanal, puedes ingresar en <strong>👤 Mi Perfil</strong>.</div>
-                    </div>
-                    <button type="button" id="btn-portal-ir-mi-perfil" class="btn-action-neutral" style="padding:7px 14px; font-size:12.5px; font-weight:700; cursor:pointer;">
-                        👤 Abrir Mi Perfil
+                <!-- Tabs de Navegación del Portal Docente -->
+                <div style="display:flex; gap:10px; border-bottom:2px solid var(--border-color); padding-bottom:0;">
+                    <button type="button" id="tab-btn-portal-grupos" class="tab-portal-profe active" style="padding:10px 18px; border:none; background:transparent; font-size:14px; font-weight:700; color:var(--accent-teal); border-bottom:3px solid var(--accent-teal); cursor:pointer; display:flex; align-items:center; gap:8px;">
+                        <span>👥 Mis Grupos y Ensambles</span>
+                        <span style="font-size:11.5px; background:#e0f2fe; color:#0369a1; border-radius:10px; padding:1.5px 7px; font-weight:700;">${gruposKeys.length}</span>
+                    </button>
+                    <button type="button" id="tab-btn-portal-solicitudes" class="tab-portal-profe" style="padding:10px 18px; border:none; background:transparent; font-size:14px; font-weight:600; color:var(--text-muted); border-bottom:3px solid transparent; cursor:pointer; display:flex; align-items:center; gap:8px;">
+                        <span>🔔 Mis Solicitudes de Vacantes</span>
+                        <span style="font-size:11.5px; background:var(--hover-bg); border:1px solid var(--border-color); color:var(--text-muted); border-radius:10px; padding:1.5px 7px; font-weight:700;">${misSolicitudes.length}</span>
                     </button>
                 </div>
 
-                <!-- Mis Solicitudes Activas -->
-                <div style="background:white; border:1px solid var(--border-color); border-radius:14px; padding:22px; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
-                    <h3 style="margin:0 0 14px 0; color:var(--text-main); font-size:1.2em; display:flex; align-items:center; gap:8px;">
-                        <span>🔔 Mis Solicitudes de Vacantes</span>
-                        <span style="font-size:12px; background:var(--hover-bg); border:1px solid var(--border-color); border-radius:12px; padding:2px 8px; font-weight:700; color:var(--text-muted);">${misSolicitudes.length}</span>
-                    </h3>
-                    <div id="lista-mis-solicitudes">
-                        ${solicitudesHtml}
+                <!-- CONTENIDO TAB 1: GRUPOS Y ENSAMBLES -->
+                <div id="tab-content-portal-grupos" style="display:flex; flex-direction:column; gap:16px;">
+                    <div style="background:white; border:1px solid var(--border-color); border-radius:14px; padding:22px; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
+                        <div id="lista-mis-grupos">
+                            ${gruposHtml}
+                        </div>
                     </div>
                 </div>
 
-                <!-- Mis Grupos y Ensambles -->
-                <div style="background:white; border:1px solid var(--border-color); border-radius:14px; padding:22px; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
-                    <h3 style="margin:0 0 14px 0; color:var(--text-main); font-size:1.2em; display:flex; align-items:center; gap:8px;">
-                        <span>👥 Mis Grupos y Ensambles</span>
-                        <span style="font-size:12px; background:var(--hover-bg); border:1px solid var(--border-color); border-radius:12px; padding:2px 8px; font-weight:700; color:var(--text-muted);">${gruposKeys.length}</span>
-                    </h3>
-                    <div id="lista-mis-grupos">
-                        ${gruposHtml}
+                <!-- CONTENIDO TAB 2: SOLICITUDES DE VACANTES -->
+                <div id="tab-content-portal-solicitudes" style="display:none; flex-direction:column; gap:16px;">
+                    <div style="background:white; border:1px solid var(--border-color); border-radius:14px; padding:22px; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
+                        <div id="lista-mis-solicitudes">
+                            ${solicitudesHtml}
+                        </div>
                     </div>
                 </div>
             </div>
         `;
 
-        const btnIrMiPerfil = document.getElementById('btn-portal-ir-mi-perfil');
-        if (btnIrMiPerfil) {
-            btnIrMiPerfil.addEventListener('click', () => {
-                if (typeof window.abrirModalMiPerfilGlobal === 'function') {
-                    window.abrirModalMiPerfilGlobal();
-                }
+        // Control de Tabs del Portal Docente
+        const btnTabGrupos = document.getElementById('tab-btn-portal-grupos');
+        const btnTabSolicitudes = document.getElementById('tab-btn-portal-solicitudes');
+        const contentGrupos = document.getElementById('tab-content-portal-grupos');
+        const contentSolicitudes = document.getElementById('tab-content-portal-solicitudes');
+
+        if (btnTabGrupos && btnTabSolicitudes) {
+            btnTabGrupos.addEventListener('click', () => {
+                btnTabGrupos.classList.add('active');
+                btnTabGrupos.style.color = 'var(--accent-teal)';
+                btnTabGrupos.style.borderBottomColor = 'var(--accent-teal)';
+                btnTabGrupos.style.fontWeight = '700';
+
+                btnTabSolicitudes.classList.remove('active');
+                btnTabSolicitudes.style.color = 'var(--text-muted)';
+                btnTabSolicitudes.style.borderBottomColor = 'transparent';
+                btnTabSolicitudes.style.fontWeight = '600';
+
+                if (contentGrupos) contentGrupos.style.display = 'flex';
+                if (contentSolicitudes) contentSolicitudes.style.display = 'none';
+            });
+
+            btnTabSolicitudes.addEventListener('click', () => {
+                btnTabSolicitudes.classList.add('active');
+                btnTabSolicitudes.style.color = 'var(--accent-teal)';
+                btnTabSolicitudes.style.borderBottomColor = 'var(--accent-teal)';
+                btnTabSolicitudes.style.fontWeight = '700';
+
+                btnTabGrupos.classList.remove('active');
+                btnTabGrupos.style.color = 'var(--text-muted)';
+                btnTabGrupos.style.borderBottomColor = 'transparent';
+                btnTabGrupos.style.fontWeight = '600';
+
+                if (contentGrupos) contentGrupos.style.display = 'none';
+                if (contentSolicitudes) contentSolicitudes.style.display = 'flex';
             });
         }
 
