@@ -24,8 +24,7 @@ export function renderConfigHub(cont, callbacks = {}) {
         <div style="max-width:800px; width:100%; padding:20px;">
             <div style="background:var(--item-bg); border:1px solid var(--border-color); border-radius:12px; padding:20px; display:flex; align-items:center; gap:15px; margin-bottom:10px; cursor:pointer;" onclick="window.cargarVistaGlobal('Ajustes Generales')"><span style="font-size:1.5em; opacity:0.7;">⚙️</span><div><strong style="color:var(--text-main);">Ajustes Generales</strong><div style="font-size:12px; color:var(--text-muted);">Límites, calendarios y textos.</div></div></div>
             <div style="background:var(--item-bg); border:1px solid var(--border-color); border-radius:12px; padding:20px; display:flex; align-items:center; gap:15px; margin-bottom:10px; cursor:pointer;" onclick="window.cargarVistaGlobal('Ajustes Match')"><span style="font-size:1.5em; opacity:0.7;">🧩</span><div><strong style="color:var(--text-main);">Ajustes de Match</strong><div style="font-size:12px; color:var(--text-muted);">Límites de integrantes y reglas de edad para grupos.</div></div></div>
-            <div style="background:var(--item-bg); border:1px solid var(--border-color); border-radius:12px; padding:20px; display:flex; align-items:center; gap:15px; margin-bottom:10px; cursor:pointer;" onclick="window.cargarVistaGlobal('ABM-Usuarios')"><span style="font-size:1.5em; opacity:0.7;">🔐</span><div><strong style="color:var(--text-main);">Usuarios del Sistema</strong><div style="font-size:12px; color:var(--text-muted);">Administrar accesos.</div></div></div>
-            <div style="background:var(--item-bg); border:1px solid var(--border-color); border-radius:12px; padding:20px; display:flex; align-items:center; gap:15px; margin-bottom:10px; cursor:pointer;" onclick="window.cargarVistaGlobal('ABM-Profesores')"><span style="font-size:1.5em; opacity:0.7;">👥</span><div><strong style="color:var(--text-main);">Profesores</strong><div style="font-size:12px; color:var(--text-muted);">Alta y disponibilidad.</div></div></div>
+            <div style="background:var(--item-bg); border:1px solid var(--border-color); border-radius:12px; padding:20px; display:flex; align-items:center; gap:15px; margin-bottom:10px; cursor:pointer;" onclick="window.cargarVistaGlobal('ABM-Usuarios')"><span style="font-size:1.5em; opacity:0.7;">👥</span><div><strong style="color:var(--text-main);">Usuarios y Profesores</strong><div style="font-size:12px; color:var(--text-muted);">Administrar accesos, roles, docentes, disponibilidades y skills.</div></div></div>
             <div style="background:var(--item-bg); border:1px solid var(--border-color); border-radius:12px; padding:20px; display:flex; align-items:center; gap:15px; margin-bottom:10px; cursor:pointer;" onclick="window.cargarVistaGlobal('ABM-Instrumentos')"><span style="font-size:1.5em; opacity:0.7;">🎸</span><div><strong style="color:var(--text-main);">Instrumentos</strong></div></div>
             <div style="background:var(--item-bg); border:1px solid var(--border-color); border-radius:12px; padding:20px; display:flex; align-items:center; gap:15px; margin-bottom:10px; cursor:pointer;" onclick="window.cargarVistaGlobal('ABM-Suscripciones')"><span style="font-size:1.5em; opacity:0.7;">🎫</span><div><strong style="color:var(--text-main);">Suscripciones</strong></div></div>
         </div>`;
@@ -528,18 +527,24 @@ export async function cargarABM(coleccion, titulo, cont) {
             if (coleccion === 'usuarios_sistema') {
                 const profsSnap = await getDocs(collection(db, "profesores"));
                 const profsMap = {};
-                profsSnap.forEach(d => profsMap[d.id] = d.data().nombre || d.id);
+                const profsByEmail = {};
+                profsSnap.forEach(d => {
+                    const dt = d.data();
+                    profsMap[d.id] = { id: d.id, ...dt };
+                    if (dt.correo_calendario) profsByEmail[dt.correo_calendario.toLowerCase()] = { id: d.id, ...dt };
+                });
 
                 qS.forEach(d => {
                     const u = d.data();
-                    const rolesArr = Array.isArray(u.roles) && u.roles.length > 0 ? u.roles : (u.rol ? [u.rol] : ['admisiones']);
+                    const rolesArr = Array.isArray(u.roles) && u.roles.length > 0 ? u.roles : (u.rol ? [u.rol] : ['admisor']);
                     const esActivo = u.activo !== false;
                     const mods = Array.isArray(u.modulos_habilitados) ? u.modulos_habilitados : (ROLES_MODULOS[rolesArr[0]] || []);
+                    const pDoc = profsMap[u.profesor_id] || (u.email ? profsByEmail[u.email.toLowerCase()] : null);
                     
                     const badgesRoles = rolesArr.map(r => {
                         if (r === 'admin') return '<span class="profile-tag-badge" style="background:#fef5e7; color:#d35400; border-color:#fad7a0;">👑 Administrador</span>';
                         if (r === 'admisor' || r === 'admisiones') return '<span class="profile-tag-badge" style="background:#e8f4fd; color:#2980b9; border-color:#beddf3;">📥 Admisor</span>';
-                        if (r === 'coordinador_grupos' || r === 'coordinador') return '<span class="profile-tag-badge" style="background:#fef3c7; color:#92400e; border-color:#fde68a;">🧩 Coordinador</span>';
+                        if (r === 'coordinador_grupos' || r === 'coordinador') return '<span class="profile-tag-badge" style="background:#faf5ff; color:#6d28d9; border-color:#c4b5fd;">🧩 Coordinador</span>';
                         if (r === 'evaluador') return '<span class="profile-tag-badge" style="background:#f0fdfa; color:#0f766e; border-color:#99f6e4;">🎧 Evaluador</span>';
                         if (r === 'profesor') return '<span class="profile-tag-badge" style="background:#eafaf1; color:#27ae60; border-color:#a9dfbf;">👨‍🏫 Profesor</span>';
                         if (r === 'personalizado') return '<span class="profile-tag-badge" style="background:#f4ecf7; color:#8e44ad; border-color:#d2b4de;">🛠️ Personalizado</span>';
@@ -550,21 +555,64 @@ export async function cargarABM(coleccion, titulo, cont) {
                         ? '<span class="status-val-ok">🟢 Activo</span>'
                         : '<span class="status-val-reject">🔴 Inactivo</span>';
 
-                    const profeNom = u.profesor_id && profsMap[u.profesor_id] ? ` • Profe vinculado: <strong>${profsMap[u.profesor_id]}</strong>` : '';
+                    const esDocente = rolesArr.includes('profesor') || rolesArr.includes('evaluador') || !!pDoc;
+
+                    const celular = u.celular || pDoc?.celular || '';
+                    const alias = u.alias_transferencia || pDoc?.alias_transferencia || '';
+                    let detalles = [];
+                    if (celular) detalles.push(`📱 <strong>${celular}</strong>`);
+                    if (alias) detalles.push(`🏦 Alias: <strong>${alias}</strong>`);
+                    if (!esDocente) detalles.push(`<span style="opacity:0.85;">(${mods.length} módulos autorizados)</span>`);
+                    const detallesHtml = detalles.length > 0 
+                        ? `<div style="display:flex; align-items:center; gap:14px; font-size:12.5px; color:var(--text-muted); margin-top:5px; flex-wrap:wrap;">${detalles.join('<span style="opacity:0.4;">•</span>')}</div>` 
+                        : '';
+
+                    let aptitudesHtml = '';
+                    let skillsHtml = '';
+                    if (esDocente) {
+                        let aptitudes = [];
+                        if (pDoc?.entrevista || u.entrevista) aptitudes.push('<span class="tag-chip" style="background:#e0f2fe; color:#0369a1; font-size:11px; padding:2px 7px; font-weight:600;">🎧 Admisiones</span>');
+                        if (pDoc?.grupales || u.grupales) aptitudes.push('<span class="tag-chip" style="background:#dcfce7; color:#15803d; font-size:11px; padding:2px 7px; font-weight:600;">👥 Grupales</span>');
+                        if (pDoc?.ensambles || u.ensambles) aptitudes.push('<span class="tag-chip" style="background:#fef3c7; color:#b45309; font-size:11px; padding:2px 7px; font-weight:600;">🎵 Ensambles</span>');
+                        if (aptitudes.length > 0) {
+                            aptitudesHtml = `
+                                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:6px;">
+                                    <span style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">Aptitudes:</span>
+                                    ${aptitudes.join('')}
+                                </div>`;
+                        }
+
+                        const skills = pDoc?.skills || u.skills || [];
+                        if (skills.length > 0) {
+                            skillsHtml = `
+                                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:5px;">
+                                    <span style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">Instrumentos:</span>
+                                    ${skills.map(s => `<span class="profile-tag-badge" style="background:#f0fdfa; color:#0f766e; border-color:#99f6e4; font-size:11.5px; padding:2px 8px; font-weight:600;">${getEmojiParaInstrumento(s)} ${s}</span>`).join('')}
+                                </div>`;
+                        }
+                    }
+
+                    const displayNombre = u.nombre || pDoc?.nombre || u.email.split('@')[0];
 
                     h += `
-                        <div class="row-item abm-row" style="padding:16px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:10px; cursor:pointer;" onclick="window.abrirEdicionABM('${d.id}', 'usuarios_sistema', '${u.email}')">
+                        <div class="row-item abm-row" style="padding:15px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:10px; cursor:pointer;" onclick="window.abrirEdicionABM('${d.id}', 'usuarios_sistema', '${u.email}')">
                             <div style="flex:1; min-width:240px;">
+                                <!-- Nivel 1: Nombre, Correo, Roles del Sistema y Estado -->
                                 <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                                    <strong style="color:var(--text-main); font-size:15px;">${u.email}</strong>
+                                    <strong style="color:var(--text-main); font-size:15.5px;">${displayNombre}</strong>
+                                    <span style="color:var(--text-muted); font-size:13px; font-weight:500;">(${u.email})</span>
                                     ${badgesRoles}
                                     ${badgeActivo}
                                 </div>
-                                <div style="font-size:12.5px; color:var(--text-muted); margin-top:4px;">
-                                    ${u.nombre ? `<span>${u.nombre}</span>` : '<span>Sin nombre de referencia</span>'}
-                                    ${profeNom}
-                                    <span style="margin-left:8px; font-size:11.5px; color:var(--text-muted);">(${mods.length} módulos autorizados)</span>
-                                </div>
+
+                                <!-- Nivel 2: Información Personal (Celular y Alias CBU/CVU) -->
+                                ${detallesHtml}
+
+                                <!-- Nivel 3: Aptitudes Docentes -->
+                                ${aptitudesHtml}
+
+                                <!-- Nivel 4: Skills e Instrumentos -->
+                                ${skillsHtml}
                             </div>
                             <div style="display:flex; gap:8px; align-items:center;">
                                 <button type="button" class="btn-row-action" title="Revocar Acceso / Eliminar" onclick="event.stopPropagation(); window.eliminarABM('${d.id}', 'usuarios_sistema')">🗑️</button>
@@ -643,31 +691,32 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
         if (divUser) divUser.style.display = 'block';
         if (divProfe) divProfe.style.display = 'none';
 
-        // Cargar lista de profesores para vincular
-        const selProfLink = document.getElementById('abm-user-profesor-id');
-        if (selProfLink) {
-            selProfLink.innerHTML = '<option value="">Ninguno / No asociar a profesor</option>';
-            const pSnap = await getDocs(collection(db, "profesores"));
-            pSnap.forEach(d => {
-                const nom = d.data().nombre || d.id;
-                selProfLink.innerHTML += `<option value="${d.id}" data-nombre="${nom}">${nom}</option>`;
-            });
-
-            selProfLink.onchange = (e) => {
-                const opt = selProfLink.selectedOptions[0];
-                const profNombre = opt?.getAttribute('data-nombre') || '';
-                const inpNom = document.getElementById('abm-user-nombre');
-                if (profNombre && inpNom) {
-                    inpNom.value = profNombre;
-                }
-            };
+        // 1. Cargar catálogo de instrumentos en el select de skills del usuario
+        const selSkillsUser = document.getElementById('abm-user-skills');
+        if (selSkillsUser) {
+            selSkillsUser.innerHTML = '';
+            try {
+                const iSnap = await getDocs(collection(db, "instrumentos"));
+                iSnap.forEach(d => {
+                    const instNom = d.data().nombre;
+                    selSkillsUser.innerHTML += `<option value="${instNom}">${instNom}</option>`;
+                });
+            } catch(e) {}
         }
+
+        const toggleSeccionDocente = () => {
+            const rolesSeleccionados = [];
+            document.querySelectorAll('.chk-user-rol:checked').forEach(c => rolesSeleccionados.push(c.value));
+            const esDocente = rolesSeleccionados.includes('profesor') || rolesSeleccionados.includes('evaluador');
+            const secDoc = document.getElementById('abm-user-seccion-docente');
+            if (secDoc) secDoc.style.display = esDocente ? 'block' : 'none';
+        };
 
         const aplicarPlantillaRoles = () => {
             const rolesSeleccionados = [];
             document.querySelectorAll('.chk-user-rol:checked').forEach(c => rolesSeleccionados.push(c.value));
+            toggleSeccionDocente();
             
-            // Si no hay roles seleccionados, no pisar
             if (rolesSeleccionados.length === 0) return;
 
             const modulosUnion = new Set();
@@ -701,13 +750,14 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
                     const uData = uDoc.data();
                     document.getElementById('abm-edit-nombre').value = uData.email || '';
                     document.getElementById('abm-user-nombre').value = uData.nombre || '';
+                    document.getElementById('abm-user-celular').value = uData.celular || '';
+                    document.getElementById('abm-user-alias').value = uData.alias_transferencia || '';
                     
                     const rolesCargados = Array.isArray(uData.roles) && uData.roles.length > 0 ? uData.roles : (uData.rol ? [uData.rol] : ['admisor']);
                     document.querySelectorAll('.chk-user-rol').forEach(chk => {
                         chk.checked = rolesCargados.includes(chk.value) || (chk.value === 'admisor' && rolesCargados.includes('admisiones'));
                     });
 
-                    if (selProfLink) selProfLink.value = uData.profesor_id || '';
                     if (chkActivo) {
                         chkActivo.checked = uData.activo !== false;
                         if (lblActivo) {
@@ -720,13 +770,73 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
                     document.querySelectorAll('.chk-user-modulo').forEach(chk => {
                         chk.checked = uMods.includes(chk.value);
                     });
+
+                    // Cargar datos docentes si existen
+                    let pData = null;
+                    if (uData.profesor_id) {
+                        try {
+                            const pSnap = await getDoc(doc(db, "profesores", uData.profesor_id));
+                            if (pSnap.exists()) pData = pSnap.data();
+                        } catch(e) {}
+                    } else if (uData.email) {
+                        try {
+                            const pQ = await getDocs(collection(db, "profesores"));
+                            pQ.forEach(docP => {
+                                const dtP = docP.data();
+                                if (dtP.correo_calendario && dtP.correo_calendario.toLowerCase() === uData.email.toLowerCase()) {
+                                    pData = dtP;
+                                }
+                            });
+                        } catch(e) {}
+                    }
+
+                    if (pData) {
+                        if (!document.getElementById('abm-user-celular').value) document.getElementById('abm-user-celular').value = pData.celular || '';
+                        if (!document.getElementById('abm-user-alias').value) document.getElementById('abm-user-alias').value = pData.alias_transferencia || '';
+                        if (document.getElementById('abm-user-entrevista')) document.getElementById('abm-user-entrevista').checked = !!pData.entrevista;
+                        if (document.getElementById('abm-user-grupales')) document.getElementById('abm-user-grupales').checked = !!pData.grupales;
+                        if (document.getElementById('abm-user-ensambles')) document.getElementById('abm-user-ensambles').checked = !!pData.ensambles;
+
+                        const skillsP = Array.isArray(pData.skills) ? pData.skills : [];
+                        if (selSkillsUser) {
+                            Array.from(selSkillsUser.options).forEach(opt => {
+                                opt.selected = skillsP.includes(opt.value);
+                            });
+                        }
+                        poblarDisponibilidadLocal(pData.disponibilidad || {}, true);
+                    } else {
+                        if (document.getElementById('abm-user-entrevista')) document.getElementById('abm-user-entrevista').checked = false;
+                        if (document.getElementById('abm-user-grupales')) document.getElementById('abm-user-grupales').checked = false;
+                        if (document.getElementById('abm-user-ensambles')) document.getElementById('abm-user-ensambles').checked = false;
+                        poblarDisponibilidadLocal({}, true);
+                    }
+
+                    if (typeof syncSelectToChips === 'function') {
+                        syncSelectToChips('abm-user-skills', 'chips-abm-user-skills');
+                    } else if (typeof window.syncSelectToChips === 'function') {
+                        window.syncSelectToChips('abm-user-skills', 'chips-abm-user-skills');
+                    }
+
+                    toggleSeccionDocente();
                 }
             } catch(e) {}
         } else {
             document.getElementById('abm-user-nombre').value = '';
+            document.getElementById('abm-user-celular').value = '';
+            document.getElementById('abm-user-alias').value = '';
             document.querySelectorAll('.chk-user-rol').forEach(chk => {
                 chk.checked = chk.value === 'admisor';
             });
+            if (document.getElementById('abm-user-entrevista')) document.getElementById('abm-user-entrevista').checked = false;
+            if (document.getElementById('abm-user-grupales')) document.getElementById('abm-user-grupales').checked = false;
+            if (document.getElementById('abm-user-ensambles')) document.getElementById('abm-user-ensambles').checked = false;
+            if (selSkillsUser) Array.from(selSkillsUser.options).forEach(o => o.selected = false);
+            if (typeof syncSelectToChips === 'function') {
+                syncSelectToChips('abm-user-skills', 'chips-abm-user-skills');
+            } else if (typeof window.syncSelectToChips === 'function') {
+                window.syncSelectToChips('abm-user-skills', 'chips-abm-user-skills');
+            }
+            poblarDisponibilidadLocal({}, true);
             aplicarPlantillaRoles();
             if (chkActivo) {
                 chkActivo.checked = true;
@@ -735,7 +845,6 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
                     lblActivo.style.color = 'var(--accent-teal)';
                 }
             }
-            if (selProfLink) selProfLink.value = '';
         }
 
     } else if (col === 'profesores') { 
@@ -765,29 +874,33 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
                 document.getElementById('abm-edit-grupales').checked = !!pr.grupales;
                 document.getElementById('abm-edit-ensambles').checked = !!pr.ensambles;
                 
-                const skills = Array.isArray(pr.skills) ? pr.skills : [];
+                // Marcar en el select los skills guardados
+                const skillsGuardados = Array.isArray(pr.skills) ? pr.skills : [];
                 if (selSkills) {
                     Array.from(selSkills.options).forEach(opt => {
-                        opt.selected = skills.includes(opt.value);
+                        opt.selected = skillsGuardados.includes(opt.value);
                     });
-                    renderChipsSkillsProfe('abm-edit-skills', 'chips-abm-edit-skills');
                 }
                 
-                // Cargar la disponibilidad individual de este profesor
                 poblarDisponibilidadLocal(pr.disponibilidad || {}, true);
             }
         } else {
-            document.getElementById('abm-edit-correo').value = ''; 
-            document.getElementById('abm-edit-celular').value = ''; 
-            document.getElementById('abm-edit-alias').value = ''; 
-            document.getElementById('abm-edit-entrevista').checked = true;
+            document.getElementById('abm-edit-correo').value = cor || ''; 
+            document.getElementById('abm-edit-celular').value = cel || ''; 
+            document.getElementById('abm-edit-alias').value = ali || ''; 
+            document.getElementById('abm-edit-entrevista').checked = false;
             document.getElementById('abm-edit-grupales').checked = false;
             document.getElementById('abm-edit-ensambles').checked = false;
             if (selSkills) {
                 Array.from(selSkills.options).forEach(opt => opt.selected = false);
-                renderChipsSkillsProfe('abm-edit-skills', 'chips-abm-edit-skills');
             }
             poblarDisponibilidadLocal({}, true);
+        }
+
+        if (typeof syncSelectToChips === 'function') {
+            syncSelectToChips('abm-edit-skills', 'chips-abm-edit-skills');
+        } else if (typeof window.syncSelectToChips === 'function') {
+            window.syncSelectToChips('abm-edit-skills', 'chips-abm-edit-skills');
         }
     } else { 
         if (divUser) divUser.style.display = 'none';
@@ -813,17 +926,14 @@ export async function eliminarABM(id, col, callbacks = {}) {
     } 
 }
 
-// Handler de guardado de modal ABM
-document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async (e) => {
-    const btn = e.target;
-    const id = document.getElementById('abm-edit-id')?.value;
-    const col = document.getElementById('abm-edit-coleccion')?.value;
-    const nomVal = (document.getElementById('abm-edit-nombre')?.value || '').trim();
+// Handler de guardado de edición ABM
+document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-guardar-abm-edit');
+    const id = document.getElementById('abm-edit-id').value;
+    const col = document.getElementById('abm-edit-coleccion').value;
+    const nomVal = (document.getElementById('abm-edit-nombre').value || '').trim();
 
-    if (!nomVal) {
-        alert(col === 'usuarios_sistema' ? 'Debes ingresar un correo electrónico.' : 'Debes ingresar un nombre.');
-        return;
-    }
+    if (!nomVal) return alert('Por favor, completa el campo principal requerido.');
 
     btn.disabled = true;
     btn.textContent = 'Guardando...';
@@ -832,24 +942,83 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
         if (col === 'usuarios_sistema') {
             const email = nomVal.toLowerCase();
             const nombre = (document.getElementById('abm-user-nombre')?.value || '').trim();
+            const celular = (document.getElementById('abm-user-celular')?.value || '').trim();
+            const alias = (document.getElementById('abm-user-alias')?.value || '').trim();
             
             const rolesChecked = [];
             document.querySelectorAll('.chk-user-rol:checked').forEach(c => rolesChecked.push(c.value));
             if (rolesChecked.length === 0) rolesChecked.push('personalizado');
             const rolPrincipal = rolesChecked[0] || 'admisor';
 
-            const profesor_id = document.getElementById('abm-user-profesor-id')?.value || '';
             const activo = document.getElementById('abm-user-activo')?.checked !== false;
             
             const modulosChecked = [];
             document.querySelectorAll('.chk-user-modulo:checked').forEach(c => modulosChecked.push(c.value));
 
+            const esDocente = rolesChecked.includes('profesor') || rolesChecked.includes('evaluador');
+
+            let profesor_id = '';
+            if (id) {
+                try {
+                    const uDoc = await getDoc(doc(db, "usuarios_sistema", id));
+                    if (uDoc.exists()) profesor_id = uDoc.data().profesor_id || '';
+                } catch(e) {}
+            }
+
+            // Si es docente o ya tenía ficha de profesor, sincronizar en la colección profesores
+            if (esDocente || profesor_id) {
+                const selSkills = document.getElementById('abm-user-skills');
+                const skillsArr = selSkills ? Array.from(selSkills.selectedOptions).map(o => o.value) : [];
+                const dispProfe = extraerDisponibilidadLocal(true);
+                
+                const dataProfe = {
+                    nombre: nombre || email.split('@')[0],
+                    correo_calendario: email,
+                    celular: celular,
+                    alias_transferencia: alias,
+                    entrevista: Boolean(document.getElementById('abm-user-entrevista')?.checked),
+                    grupales: Boolean(document.getElementById('abm-user-grupales')?.checked),
+                    ensambles: Boolean(document.getElementById('abm-user-ensambles')?.checked),
+                    skills: skillsArr,
+                    disponibilidad: dispProfe
+                };
+
+                if (profesor_id) {
+                    try {
+                        await updateDoc(doc(db, "profesores", profesor_id), dataProfe);
+                    } catch(e) {
+                        const newProf = await addDoc(collection(db, "profesores"), dataProfe);
+                        profesor_id = newProf.id;
+                    }
+                } else {
+                    // Buscar si existía un profesor con el mismo email
+                    const pQ = await getDocs(collection(db, "profesores"));
+                    let profEncontradoId = null;
+                    pQ.forEach(docP => {
+                        const dtP = docP.data();
+                        if (dtP.correo_calendario && dtP.correo_calendario.toLowerCase() === email) {
+                            profEncontradoId = docP.id;
+                        }
+                    });
+
+                    if (profEncontradoId) {
+                        await updateDoc(doc(db, "profesores", profEncontradoId), dataProfe);
+                        profesor_id = profEncontradoId;
+                    } else {
+                        const newProf = await addDoc(collection(db, "profesores"), dataProfe);
+                        profesor_id = newProf.id;
+                    }
+                }
+            }
+
             const userData = {
                 email,
                 nombre: nombre || email.split('@')[0],
+                celular,
+                alias_transferencia: alias,
                 roles: rolesChecked,
                 rol: rolPrincipal,
-                profesor_id,
+                profesor_id: profesor_id || '',
                 activo,
                 modulos_habilitados: modulosChecked,
                 fecha_actualizacion: new Date().toISOString()
@@ -862,7 +1031,7 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
                 await addDoc(collection(db, "usuarios_sistema"), userData);
             }
 
-            alert(`✅ Permisos de "${email}" guardados correctamente.`);
+            alert(`✅ Usuario "${nombre || email}" guardado correctamente.`);
 
         } else if (col === 'profesores') {
             const selSkills = document.getElementById('abm-edit-skills');
