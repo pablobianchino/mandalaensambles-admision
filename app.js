@@ -945,7 +945,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
             ${al.nivel ? `<div style="font-size:11px; margin-top:2px;"><span class="match-student-tag nivel" style="font-size:10px; padding:2px 7px;">${al.nivel}</span></div>` : ''}
             ${tagsHtml}
             ${opcionesKanbanHtml}
-            <div class="priority-text ${info.claseTexto}">${info.txtTiempo}</div>
+            ${info.badgePillHtml ? `<div style="margin-top:6px;">${info.badgePillHtml}</div>` : (info.txtTiempo ? `<div class="priority-text ${info.claseTexto}">${info.txtTiempo}</div>` : '')}
             ${botonesVisibles ? `<div class="row-actions-group" style="margin-top:6px; justify-content:stretch;"><div class="row-quick-btns-col" style="width:100%;">${botonesVisibles}</div></div>` : ''}
             <div class="dropdown-menu-wrapper" id="menu-kanban-${id}" style="display:none; position:absolute; top:30px; right:10px;">
                 <div class="dropdown-menu">${botonesSecundarios}</div>
@@ -1028,13 +1028,22 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
         fechaMetaHtml = `<div style="font-size:11px; color:var(--text-muted); font-weight:600;">📅 ${al.horario_match || al.reserva_fecha_texto}</div>`;
     }
 
+    let rowBorderExtra = '';
+    if (info.nivelUrgencia === 'vencido') {
+        rowBorderExtra = 'border-left: 4.5px solid #ef4444 !important; background: #fffbfb;';
+    } else if (info.nivelUrgencia === 'urgente-24') {
+        rowBorderExtra = 'border-left: 4.5px solid #f97316 !important; background: #fffdfa;';
+    } else if (info.nivelUrgencia === 'urgente-48') {
+        rowBorderExtra = 'border-left: 4px solid #eab308 !important;';
+    }
+
     return `
         <div class="swipe-wrapper" data-id="${id}">
             <div class="swipe-bg-actions">
                 <button class="swipe-btn left btn-nota-rapida" data-id="${id}">📝 Nota</button>
                 <button class="swipe-btn right btn-row-actions-swipe" data-id="${id}">⋮ Acciones</button>
             </div>
-            <div class="row-item swipe-content btn-editar-alumno" data-id="${id}">
+            <div class="row-item swipe-content btn-editar-alumno" data-id="${id}" style="${rowBorderExtra}">
                 <div class="row-content-wrapper">
                     <div class="row-header">
                         <input type="checkbox" class="bulk-chk" data-id="${id}" onclick="event.stopPropagation(); window.toggleBulkSelection('${id}', this.checked)">
@@ -1054,7 +1063,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                         <div>${((estadoActualVista && (estadoActualVista.startsWith('Inbox') || estadoActualVista === 'Lista de Espera' || estadoActualVista === 'Dashboard')) || ['Pendiente procesar', 'Pendiente validación por profe', 'Pendiente validación por alumno', 'Agenda confirmada', 'Agenda suspendida', 'Lista de espera'].includes(al.estado_agenda)) ? 'Evaluador' : 'Profe'}: <strong style="color:var(--text-main);" title="${al.reserva_profe_nombre || ''}">${al.reserva_profe_nombre ? (al.reserva_profe_nombre.length > 25 ? al.reserva_profe_nombre.split(' ').slice(0, 3).join(' ') + '...' : al.reserva_profe_nombre) : '-'}</strong></div>
                         ${al.grupo_asignado ? `<div>Grupo: <strong style="color:var(--accent-teal);">${al.grupo_asignado}</strong></div>` : ''}
                         ${fechaMetaHtml}
-                        <div class="priority-text ${info.claseTexto}" style="margin-top:2px;">${info.txtTiempo}</div>
+                        ${info.badgePillHtml ? `<div style="margin-top:4px;">${info.badgePillHtml}</div>` : (info.txtTiempo ? `<div class="priority-text ${info.claseTexto}" style="margin-top:2px;">${info.txtTiempo}</div>` : '')}
                     </div>
                     ${menuAcciones}
                 </div>
@@ -1541,9 +1550,9 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
     if (filtroAlarmaActual !== 'Todos') {
         filtrados = filtrados.filter(al => {
             const info = getEstadoYBadgeLocal(al);
-            if (filtroAlarmaActual === 'Vencidos') return info.colorIndicador === 'ind-gray' && info.txtTiempo.includes('Vencida');
-            if (filtroAlarmaActual === 'Criticos') return info.colorIndicador === 'ind-red' || info.colorIndicador === 'ind-yellow';
-            if (filtroAlarmaActual === 'AlDia') return info.colorIndicador === 'ind-teal' || (info.colorIndicador === 'ind-gray' && !info.txtTiempo.includes('Vencida'));
+            if (filtroAlarmaActual === 'Vencidos') return info.nivelUrgencia === 'vencido';
+            if (filtroAlarmaActual === 'Criticos') return info.nivelUrgencia === 'urgente-24' || info.nivelUrgencia === 'urgente-48';
+            if (filtroAlarmaActual === 'AlDia') return info.nivelUrgencia === 'programado' || info.nivelUrgencia === 'normal';
             return true;
         });
     }
@@ -1768,6 +1777,154 @@ export function filtrarAlumnosEvaluador(alumnos) {
         }
         return false;
     });
+}
+
+// =======================================================================
+// PRIORIDADES / PRÓXIMOS A VENCER (DASHBOARD)
+// =======================================================================
+window.filtroPrioTabActual = window.filtroPrioTabActual || 'todos';
+
+window.setFiltroPrioridadDashboard = function(tipo) {
+    window.filtroPrioTabActual = tipo;
+    if (window.cachedPoolUrgenciasDashboard) {
+        renderDashboardPrioridades(window.cachedPoolUrgenciasDashboard, 'Dashboard');
+    }
+};
+
+function renderDashboardPrioridades(poolAlumnos, vista) {
+    window.cachedPoolUrgenciasDashboard = poolAlumnos;
+    const cont = document.getElementById('resumen-urgencias');
+    if (!cont) return;
+
+    let todasPrio = [];
+    poolAlumnos.forEach(al => {
+        let dateToEval = getFechaReferenciaAlumno(al);
+        if (dateToEval && !isNaN(dateToEval.getTime())) {
+            let diffHs = (dateToEval - new Date()) / (1000 * 60 * 60);
+            if (diffHs <= 48) {
+                const info = getEstadoYBadgeLocal(al);
+                todasPrio.push({ al, info, diffHs, dateToEval });
+            }
+        }
+    });
+
+    // Ordenar de mayor urgencia a menor: Vencidas más antiguas primero, luego las más próximas
+    todasPrio.sort((a, b) => a.dateToEval - b.dateToEval);
+
+    const vencidas = todasPrio.filter(p => p.diffHs < 0);
+    const urgentes24 = todasPrio.filter(p => p.diffHs >= 0 && p.diffHs <= 24);
+    const proximas48 = todasPrio.filter(p => p.diffHs > 24 && p.diffHs <= 48);
+
+    // Actualizar contadores en los botones
+    const elCntTodos = document.getElementById('cnt-prio-todos');
+    const elCntVenc = document.getElementById('cnt-prio-vencidos');
+    const elCntUrg = document.getElementById('cnt-prio-urgentes');
+    const elCntProx = document.getElementById('cnt-prio-proximos');
+    const elBadgeTot = document.getElementById('badge-total-urgencias');
+
+    if (elCntTodos) elCntTodos.textContent = todasPrio.length;
+    if (elCntVenc) elCntVenc.textContent = vencidas.length;
+    if (elCntUrg) elCntUrg.textContent = urgentes24.length;
+    if (elCntProx) elCntProx.textContent = proximas48.length;
+    if (elBadgeTot) elBadgeTot.textContent = todasPrio.length;
+
+    // Actualizar estilos activos de los botones de filtro
+    document.querySelectorAll('.btn-prio-filtro').forEach(btn => {
+        const prio = btn.getAttribute('data-prio');
+        const isActive = prio === window.filtroPrioTabActual;
+        if (isActive) {
+            btn.classList.add('active');
+            if (prio === 'todos') {
+                btn.style.background = 'var(--accent-teal)';
+                btn.style.color = '#fff';
+                btn.style.borderColor = 'var(--accent-teal)';
+            } else if (prio === 'vencidos') {
+                btn.style.background = '#ef4444';
+                btn.style.color = '#fff';
+                btn.style.borderColor = '#ef4444';
+            } else if (prio === 'urgentes') {
+                btn.style.background = '#f97316';
+                btn.style.color = '#fff';
+                btn.style.borderColor = '#f97316';
+            } else if (prio === 'proximos') {
+                btn.style.background = '#eab308';
+                btn.style.color = '#fff';
+                btn.style.borderColor = '#eab308';
+            }
+        } else {
+            btn.classList.remove('active');
+            btn.style.background = '#fff';
+            if (prio === 'todos') {
+                btn.style.color = 'var(--text-main)';
+                btn.style.borderColor = '#cbd5e1';
+            } else if (prio === 'vencidos') {
+                btn.style.color = '#b91c1c';
+                btn.style.borderColor = '#ef4444';
+            } else if (prio === 'urgentes') {
+                btn.style.color = '#c2410c';
+                btn.style.borderColor = '#f97316';
+            } else if (prio === 'proximos') {
+                btn.style.color = '#854d0e';
+                btn.style.borderColor = '#eab308';
+            }
+        }
+    });
+
+    if (todasPrio.length === 0) {
+        cont.innerHTML = '<div style="color:var(--text-muted); padding:16px; text-align:center; font-weight:600; background:#f8fafc; border-radius:10px; border:1px dashed #cbd5e1;">✨ ¡Al día! No hay entrevistas ni tareas urgentes o vencidas en las próximas 48 hs.</div>';
+        return;
+    }
+
+    let itemsAMostrar = [];
+    if (window.filtroPrioTabActual === 'vencidos') {
+        itemsAMostrar = vencidas;
+    } else if (window.filtroPrioTabActual === 'urgentes') {
+        itemsAMostrar = urgentes24;
+    } else if (window.filtroPrioTabActual === 'proximos') {
+        itemsAMostrar = proximas48;
+    } else {
+        itemsAMostrar = todasPrio;
+    }
+
+    if (itemsAMostrar.length === 0) {
+        cont.innerHTML = `<div style="color:var(--text-muted); padding:16px; text-align:center; font-weight:600; background:#fff; border-radius:10px; border:1px dashed #cbd5e1;">No hay registros en esta categoría de prioridad (${window.filtroPrioTabActual}).</div>`;
+        return;
+    }
+
+    let html = '';
+    if (window.filtroPrioTabActual === 'todos') {
+        if (vencidas.length > 0) {
+            html += `
+                <div style="display:flex; align-items:center; gap:8px; margin:4px 0 2px 0; font-size:12px; font-weight:800; color:#991b1b; text-transform:uppercase; letter-spacing:0.04em;">
+                    <span>⚠️ Vencidas — Requiere Acción Inmediata (${vencidas.length})</span>
+                    <div style="flex:1; height:1.5px; background:#fecaca;"></div>
+                </div>
+            `;
+            html += vencidas.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
+        }
+        if (urgentes24.length > 0) {
+            html += `
+                <div style="display:flex; align-items:center; gap:8px; margin:14px 0 2px 0; font-size:12px; font-weight:800; color:#9a3412; text-transform:uppercase; letter-spacing:0.04em;">
+                    <span>🔥 Próximas a Vencer — Menos de 24 hs (${urgentes24.length})</span>
+                    <div style="flex:1; height:1.5px; background:#fed7aa;"></div>
+                </div>
+            `;
+            html += urgentes24.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
+        }
+        if (proximas48.length > 0) {
+            html += `
+                <div style="display:flex; align-items:center; gap:8px; margin:14px 0 2px 0; font-size:12px; font-weight:800; color:#854d0e; text-transform:uppercase; letter-spacing:0.04em;">
+                    <span>⏳ Próximas 24 a 48 hs (${proximas48.length})</span>
+                    <div style="flex:1; height:1.5px; background:#fef08a;"></div>
+                </div>
+            `;
+            html += proximas48.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
+        }
+    } else {
+        html = itemsAMostrar.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
+    }
+
+    cont.innerHTML = html;
 }
 
 function getModuloSubtabs() {
@@ -2238,32 +2395,8 @@ async function cargarVista(vista) {
             const esEvaluador = roles.includes('evaluador');
             const esSoloEval = esEvaluador && !roles.includes('admin') && !roles.includes('admisiones') && !roles.includes('admisor');
 
-            let urgencies = []; 
             const poolUrgencias = esSoloEval ? filtrarAlumnosEvaluador(allData) : allData;
-            poolUrgencias.forEach(al => { 
-                let dateToEval = getFechaReferenciaAlumno(al);
-                if (dateToEval && !isNaN(dateToEval.getTime())) { 
-                    let diffHs = (dateToEval - new Date()) / (1000 * 60 * 60); 
-                    if (diffHs <= 48) urgencies.push(al); 
-                } 
-            });
-            
-            if (filtroAlarmaActual !== 'Todos') {
-                urgencies = urgencies.filter(al => {
-                    const info = getEstadoYBadgeLocal(al);
-                    if (filtroAlarmaActual === 'Vencidos') return info.colorIndicador === 'ind-gray' && info.txtTiempo.includes('Vencida');
-                    if (filtroAlarmaActual === 'Criticos') return info.colorIndicador === 'ind-red' || info.colorIndicador === 'ind-yellow';
-                    if (filtroAlarmaActual === 'AlDia') return info.colorIndicador === 'ind-teal' || (info.colorIndicador === 'ind-gray' && !info.txtTiempo.includes('Vencida'));
-                    return true;
-                });
-            }
-
-            urgencies.sort((a,b) => { 
-                const dA = getFechaReferenciaAlumno(a) || new Date(8640000000000000); 
-                const dB = getFechaReferenciaAlumno(b) || new Date(8640000000000000); 
-                return dA - dB; 
-            });
-            document.getElementById('resumen-urgencias').innerHTML = urgencies.length > 0 ? urgencies.map(a => generarFilaAlumno(a, a.id, vista)).join('') : '<div style="color:var(--text-muted); padding:10px; font-weight:500;">No hay gestiones críticas a la vista.</div>';
+            renderDashboardPrioridades(poolUrgencias, vista);
             
             let nodosDashboard = configNodosFlujo;
             let datosDashboard = allData;
@@ -3134,6 +3267,15 @@ document.addEventListener('click', async (e) => {
         document.getElementById('container-ingreso-directo').style.display = 'none'; 
         document.getElementById('modal-alta-alumno').showModal(); 
         return; 
+    }
+
+    if (target.classList.contains('btn-prio-filtro') || target.closest('.btn-prio-filtro')) {
+        const btn = target.classList.contains('btn-prio-filtro') ? target : target.closest('.btn-prio-filtro');
+        const prio = btn.getAttribute('data-prio');
+        if (prio) {
+            window.setFiltroPrioridadDashboard(prio);
+        }
+        return;
     }
 
     if (target.classList.contains('btn-nombre-agendar') || target.closest('.btn-nombre-agendar')) {

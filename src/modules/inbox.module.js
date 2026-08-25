@@ -67,25 +67,64 @@ export function getEstadoYBadge(al, getFechaReferenciaAlumno) {
         fechaCalculo = getFechaReferenciaAlumno(al);
     }
 
-    if (fechaCalculo) {
+    let badgePillHtml = '';
+    let nivelUrgencia = 'normal';
+    let diffHorasReal = null;
+
+    if (fechaCalculo && !isNaN(fechaCalculo.getTime())) {
         let diffHs = (fechaCalculo - new Date()) / (1000 * 60 * 60);
+        diffHorasReal = diffHs;
+
         if (diffHs < 0) { 
-            claseTexto = 'text-gray'; 
+            nivelUrgencia = 'vencido';
+            colorIndicador = 'ind-red';
+            claseTexto = 'text-red font-bold'; 
             let horas = Math.abs(Math.round(diffHs));
-            txtTiempo = horas > 24 ? `Vencida hace ${Math.round(horas/24)} d` : `Vencida hace ${horas} hs`;
+            let dias = Math.floor(horas / 24);
+            let txtVencido = dias >= 1 ? (dias === 1 ? `hace 1 día` : `hace ${dias} días`) : `hace ${horas} hs`;
+            txtTiempo = `⚠️ Vencida (${txtVencido})`;
+            badgePillHtml = `
+                <div class="pill-urgencia pill-vencida" style="background:#fee2e2; color:#991b1b; border:1.5px solid #ef4444; font-weight:800; padding:4px 10px; border-radius:18px; font-size:12px; display:inline-flex; align-items:center; gap:5px; box-shadow:0 1px 3px rgba(239,68,68,0.15);">
+                    <span style="font-size:13px;">⚠️</span> <span>VENCIDA (${txtVencido})</span>
+                </div>
+            `;
         } else if (diffHs <= 24) { 
-            claseTexto = 'text-red'; 
-            txtTiempo = `Faltan ${Math.round(diffHs)} hs`;
+            nivelUrgencia = 'urgente-24';
+            colorIndicador = 'ind-red';
+            claseTexto = 'text-red font-bold'; 
+            let hsRestantes = Math.round(diffHs);
+            txtTiempo = `🔥 Faltan ${hsRestantes} hs (Urgente hoy)`;
+            badgePillHtml = `
+                <div class="pill-urgencia pill-urgente-24" style="background:#ffedd5; color:#9a3412; border:1.5px solid #f97316; font-weight:800; padding:4px 10px; border-radius:18px; font-size:12px; display:inline-flex; align-items:center; gap:5px; box-shadow:0 1px 3px rgba(249,115,22,0.15);">
+                    <span style="font-size:13px;">🔥</span> <span>FALTAN ${hsRestantes} HS</span>
+                </div>
+            `;
         } else if (diffHs <= 48) { 
-            claseTexto = 'text-yellow'; 
-            txtTiempo = `Faltan ${Math.round(diffHs)} hs`;
+            nivelUrgencia = 'urgente-48';
+            colorIndicador = 'ind-yellow';
+            claseTexto = 'text-yellow font-bold'; 
+            let hsRestantes = Math.round(diffHs);
+            txtTiempo = `⏳ Faltan ${hsRestantes} hs (en 1-2 días)`;
+            badgePillHtml = `
+                <div class="pill-urgencia pill-urgente-48" style="background:#fef9c3; color:#854d0e; border:1.5px solid #eab308; font-weight:700; padding:4px 10px; border-radius:18px; font-size:12px; display:inline-flex; align-items:center; gap:5px; box-shadow:0 1px 3px rgba(234,179,8,0.12);">
+                    <span style="font-size:13px;">⏳</span> <span>FALTAN ${hsRestantes} HS</span>
+                </div>
+            `;
         } else { 
+            nivelUrgencia = 'programado';
+            colorIndicador = 'ind-teal';
             claseTexto = 'text-teal'; 
-            txtTiempo = `Faltan ${Math.round(diffHs/24)} d`;
+            let dias = Math.round(diffHs / 24);
+            txtTiempo = `📅 Faltan ${dias} día${dias > 1 ? 's' : ''}`;
+            badgePillHtml = `
+                <div class="pill-urgencia pill-programado" style="background:#f0fdf4; color:#166534; border:1px solid #86efac; font-weight:600; padding:3px 9px; border-radius:18px; font-size:11.5px; display:inline-flex; align-items:center; gap:5px;">
+                    <span style="font-size:12px;">📅</span> <span>Faltan ${dias} d</span>
+                </div>
+            `;
         }
     }
 
-    return { colorIndicador, colorBadge, claseTexto, txtTiempo, txtEstado };
+    return { colorIndicador, colorBadge, claseTexto, txtTiempo, txtEstado, badgePillHtml, nivelUrgencia, diffHorasReal };
 }
 
 export function generarBotonesPrincipalesVisibles(al, id) {

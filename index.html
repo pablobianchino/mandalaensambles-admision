@@ -172,8 +172,30 @@
             </div>
 
             <!-- VISTA RESUMEN (Parte 1: Prioridades) -->
-            <div id="vista-resumen" style="display:none; flex-direction:column; gap:20px; margin-bottom:10px;">
-                <div class="resumen-section-title" style="color:#c2563b; border-bottom-color:#c2563b;">🚨 Prioridades / Próximos a Vencer</div>
+            <div id="vista-resumen" style="display:none; flex-direction:column; gap:14px; margin-bottom:15px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; border-bottom:2px solid #e2e8f0; padding-bottom:10px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:1.3em;">🚨</span>
+                        <h2 style="margin:0; font-size:1.15em; font-weight:800; color:#b91c1c;">Prioridades / Próximos a Vencer</h2>
+                        <span id="badge-total-urgencias" style="background:#fee2e2; color:#b91c1c; font-size:11.5px; font-weight:800; padding:2px 9px; border-radius:14px; border:1px solid #fca5a5;">0</span>
+                    </div>
+                    
+                    <!-- Filtros Rápidos de Urgencia -->
+                    <div id="filtros-prioridades-container" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+                        <button type="button" class="btn-prio-filtro active" data-prio="todos" style="padding:5px 14px; border-radius:20px; font-size:12px; font-weight:700; border:1.5px solid var(--accent-teal); background:var(--accent-teal); color:#fff; cursor:pointer;">
+                            Todos (<span id="cnt-prio-todos">0</span>)
+                        </button>
+                        <button type="button" class="btn-prio-filtro" data-prio="vencidos" style="padding:5px 14px; border-radius:20px; font-size:12px; font-weight:700; border:1.5px solid #ef4444; background:#fff; color:#b91c1c; cursor:pointer;">
+                            ⚠️ Vencidas (<span id="cnt-prio-vencidos">0</span>)
+                        </button>
+                        <button type="button" class="btn-prio-filtro" data-prio="urgentes" style="padding:5px 14px; border-radius:20px; font-size:12px; font-weight:700; border:1.5px solid #f97316; background:#fff; color:#c2410c; cursor:pointer;">
+                            🔥 &lt; 24 hs (<span id="cnt-prio-urgentes">0</span>)
+                        </button>
+                        <button type="button" class="btn-prio-filtro" data-prio="proximos" style="padding:5px 14px; border-radius:20px; font-size:12px; font-weight:700; border:1.5px solid #eab308; background:#fff; color:#854d0e; cursor:pointer;">
+                            ⏳ 24 a 48 hs (<span id="cnt-prio-proximos">0</span>)
+                        </button>
+                    </div>
+                </div>
                 <div id="resumen-urgencias" class="lista-filas"></div>
             </div>
 
@@ -1109,12 +1131,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=4.21.0"></script>
+    <script type="module" src="app.js?v=4.22.0"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=4.21.0').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=4.22.0').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {
