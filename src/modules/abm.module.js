@@ -365,11 +365,7 @@ function getEmojiParaInstrumento(inst) {
     return '🎵';
 }
 
-function renderChipsSelectLocal(selectId, containerId) {
-    if (typeof window.syncSelectToChips === 'function') {
-        window.syncSelectToChips(selectId, containerId);
-        return;
-    }
+function renderChipsSkillsProfe(selectId, containerId) {
     const select = document.getElementById(selectId);
     if (!select) return;
     select.style.display = 'none'; 
@@ -377,42 +373,50 @@ function renderChipsSelectLocal(selectId, containerId) {
     if (!container) {
         container = document.createElement('div');
         container.id = containerId;
-        container.style.display = 'flex';
-        container.style.flexWrap = 'wrap';
-        container.style.gap = '8px';
-        container.style.marginTop = '8px';
         select.parentNode.insertBefore(container, select.nextSibling);
     }
+    container.style.cssText = 'display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; width: 100%;';
     container.innerHTML = '';
+    
     Array.from(select.options).forEach(opt => {
         if (!opt.value) return;
+        const emoji = getEmojiParaInstrumento(opt.value);
         const chip = document.createElement('div');
-        chip.textContent = opt.text;
-        chip.style.padding = '6px 12px';
-        chip.style.border = '1px solid var(--border-color)';
+        chip.className = 'skill-chip-toggle';
+        chip.innerHTML = `<span style="font-size:14px;">${emoji}</span> <span>${opt.text}</span>`;
+        chip.style.display = 'inline-flex';
+        chip.style.alignItems = 'center';
+        chip.style.gap = '6px';
+        chip.style.padding = '6px 14px';
         chip.style.borderRadius = '20px';
         chip.style.cursor = 'pointer';
-        chip.style.fontSize = '12.5px';
-        chip.style.fontWeight = '600';
+        chip.style.fontSize = '13px';
         chip.style.userSelect = 'none';
+        chip.style.transition = 'all 0.15s ease';
         
         const updateChipStyle = () => {
             if (opt.selected) {
-                chip.style.background = 'var(--accent-teal)';
-                chip.style.color = 'white';
-                chip.style.borderColor = 'var(--accent-teal)';
+                chip.style.background = '#e0f2fe';
+                chip.style.color = '#0369a1';
+                chip.style.border = '1.5px solid #38bdf8';
+                chip.style.boxShadow = '0 1px 3px rgba(3, 105, 161, 0.12)';
+                chip.style.fontWeight = '700';
             } else {
-                chip.style.background = 'white';
+                chip.style.background = '#f8fafc';
                 chip.style.color = 'var(--text-muted)';
-                chip.style.borderColor = 'var(--border-color)';
+                chip.style.border = '1px solid var(--border-color)';
+                chip.style.boxShadow = 'none';
+                chip.style.fontWeight = '500';
             }
         };
-        updateChipStyle();
+        
         chip.addEventListener('click', () => {
             opt.selected = !opt.selected;
             updateChipStyle();
             select.dispatchEvent(new Event('change'));
         });
+        
+        updateChipStyle();
         container.appendChild(chip);
     });
 }
@@ -763,7 +767,7 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
                     Array.from(selSkills.options).forEach(opt => {
                         opt.selected = skills.includes(opt.value);
                     });
-                    renderChipsSelectLocal('abm-edit-skills', 'chips-abm-edit-skills');
+                    renderChipsSkillsProfe('abm-edit-skills', 'chips-abm-edit-skills');
                 }
                 
                 // Cargar la disponibilidad individual de este profesor
@@ -778,7 +782,7 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
             document.getElementById('abm-edit-ensambles').checked = false;
             if (selSkills) {
                 Array.from(selSkills.options).forEach(opt => opt.selected = false);
-                renderChipsSelectLocal('abm-edit-skills', 'chips-abm-edit-skills');
+                renderChipsSkillsProfe('abm-edit-skills', 'chips-abm-edit-skills');
             }
             poblarDisponibilidadLocal({}, true);
         }
