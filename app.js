@@ -1828,46 +1828,11 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
     if (elCntProx) elCntProx.textContent = proximas48.length;
     if (elBadgeTot) elBadgeTot.textContent = todasPrio.length;
 
-    // Actualizar estilos activos de los botones de filtro
+    // Actualizar estados activos de los botones de filtro
     document.querySelectorAll('.btn-prio-filtro').forEach(btn => {
         const prio = btn.getAttribute('data-prio');
         const isActive = prio === window.filtroPrioTabActual;
-        if (isActive) {
-            btn.classList.add('active');
-            if (prio === 'todos') {
-                btn.style.background = 'var(--accent-teal)';
-                btn.style.color = '#fff';
-                btn.style.borderColor = 'var(--accent-teal)';
-            } else if (prio === 'vencidos') {
-                btn.style.background = '#ef4444';
-                btn.style.color = '#fff';
-                btn.style.borderColor = '#ef4444';
-            } else if (prio === 'urgentes') {
-                btn.style.background = '#f97316';
-                btn.style.color = '#fff';
-                btn.style.borderColor = '#f97316';
-            } else if (prio === 'proximos') {
-                btn.style.background = '#eab308';
-                btn.style.color = '#fff';
-                btn.style.borderColor = '#eab308';
-            }
-        } else {
-            btn.classList.remove('active');
-            btn.style.background = '#fff';
-            if (prio === 'todos') {
-                btn.style.color = 'var(--text-main)';
-                btn.style.borderColor = '#cbd5e1';
-            } else if (prio === 'vencidos') {
-                btn.style.color = '#b91c1c';
-                btn.style.borderColor = '#ef4444';
-            } else if (prio === 'urgentes') {
-                btn.style.color = '#c2410c';
-                btn.style.borderColor = '#f97316';
-            } else if (prio === 'proximos') {
-                btn.style.color = '#854d0e';
-                btn.style.borderColor = '#eab308';
-            }
-        }
+        btn.classList.toggle('active', isActive);
     });
 
     if (todasPrio.length === 0) {
@@ -2379,7 +2344,7 @@ async function cargarVista(vista) {
     
     if (vista === 'Dashboard') {
         document.getElementById('search-container-general').style.display = 'block'; vResumen.style.display = 'flex'; if(vResumenTime) vResumenTime.style.display = 'flex'; cv.style.display = 'none';
-        document.getElementById('alarm-filters').style.display = 'flex';
+        document.getElementById('alarm-filters').style.display = 'none';
         
         const trayContainer = document.getElementById('timeline-tray-container');
         if (trayContainer) trayContainer.style.display = 'none';
