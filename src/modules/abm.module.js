@@ -547,8 +547,8 @@ export async function cargarABM(coleccion, titulo, cont) {
                     }).join(' ');
 
                     const badgeActivo = esActivo 
-                        ? '<span class="status-val-ok" style="font-size:11px;">🟢 Activo</span>'
-                        : '<span class="status-val-reject" style="font-size:11px;">🔴 Inactivo</span>';
+                        ? '<span class="status-val-ok">🟢 Activo</span>'
+                        : '<span class="status-val-reject">🔴 Inactivo</span>';
 
                     const profeNom = u.profesor_id && profsMap[u.profesor_id] ? ` • Profe vinculado: <strong>${profsMap[u.profesor_id]}</strong>` : '';
 
