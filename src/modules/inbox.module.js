@@ -147,6 +147,7 @@ export function generarBotonesPrincipalesVisibles(al, id) {
         html += `<button type="button" class="row-quick-btn secondary btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
     } else if (est === 'agenda suspendida') {
         html += `<button type="button" class="row-quick-btn primary btn-recuperar-agenda" data-id="${id}">♻️ Recuperar Agenda</button>`;
+        html += `<button type="button" class="row-quick-btn secondary btn-copiar-aviso-cancelacion" data-id="${id}">💬 Avisar Cancelación a Profe</button>`;
     } else if (est === 'lista de espera') {
         html += `<button type="button" class="row-quick-btn primary btn-abrir-prealta" data-id="${id}">⚙️ Iniciar Pre-Alta</button>`;
     } else if (est === 'validando grupo') {
@@ -170,6 +171,7 @@ export function generarBotonesPrincipalesVisibles(al, id) {
         html += `<button type="button" class="row-quick-btn secondary btn-reenviar-alta" data-id="${id}">💬 Copiar texto Alta Conf.</button>`;
     } else if (est === 'alta suspendida' || est.includes('suspendida')) {
         html += `<button type="button" class="row-quick-btn primary btn-devolver-espera" data-id="${id}">♻️ Enviar a Espera</button>`;
+        html += `<button type="button" class="row-quick-btn secondary btn-copiar-aviso-cancelacion" data-id="${id}">💬 Avisar Cancelación a Profe</button>`;
     }
 
     return html;
@@ -210,6 +212,7 @@ export function generarBotonesAccion(al, id, esModal = false) {
             html += `<button type="button" class="btn-action-neutral btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
         } else if (est === 'agenda suspendida') {
             html += `<button type="button" class="btn-action-primary btn-recuperar-agenda" data-id="${id}">♻️ Recuperar Agenda</button>`;
+            html += `<button type="button" class="btn-action-neutral btn-copiar-aviso-cancelacion" data-id="${id}">💬 Avisar Cancelación a Profe</button>`;
             html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
         } else if (est === 'lista de espera') {
             html += `<button type="button" class="btn-action-primary btn-abrir-prealta" data-id="${id}">⚙️ Iniciar Pre-Alta</button>`;
@@ -243,6 +246,7 @@ export function generarBotonesAccion(al, id, esModal = false) {
             html += `<button type="button" class="btn-action-neutral btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
         } else if (est === 'alta suspendida' || est.includes('suspendida')) {
             html += `<button type="button" class="btn-action-primary btn-devolver-espera" data-id="${id}">♻️ Enviar a Espera</button>`;
+            html += `<button type="button" class="btn-action-neutral btn-copiar-aviso-cancelacion" data-id="${id}">💬 Avisar Cancelación a Profe</button>`;
             html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
         }
         return html;
@@ -269,6 +273,7 @@ export function generarBotonesAccion(al, id, esModal = false) {
         html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
         html += `<button type="button" class="dropdown-item btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
     } else if (est === 'agenda suspendida') {
+        html += `<button type="button" class="dropdown-item btn-copiar-aviso-cancelacion" data-id="${id}">💬 Avisar Cancelación a Profe</button>`;
         html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
     } else if (est === 'lista de espera') {
         html += `<button type="button" class="dropdown-item btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Agenda WS</button>`;
@@ -290,6 +295,7 @@ export function generarBotonesAccion(al, id, esModal = false) {
         html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
         html += `<button type="button" class="dropdown-item btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
     } else if (est === 'alta suspendida' || est.includes('suspendida')) {
+        html += `<button type="button" class="dropdown-item btn-copiar-aviso-cancelacion" data-id="${id}">💬 Avisar Cancelación a Profe</button>`;
         html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
     }
 

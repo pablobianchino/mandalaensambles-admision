@@ -3644,6 +3644,9 @@ document.addEventListener('click', async (e) => {
         } 
         let histText = formatearTextoHistorial(al.historial); 
         let template = configApp[plantillaKey] || ''; 
+        if (!template && plantillaKey === 'texto_cancela_alumno') {
+            template = "*🔴 PRE CHECK - ENTREVISTA*\n*❌ RESERVA CANCELADA*\n\n📅 *FECHA: {fecha_hora}*\n\n*📋 DATOS DEL ALUMNO:*\n👤 Nombre: {nombre}\n🎂 Edad: {edad}\n{emojiinstrumento} Instrumento: {instrumento}\n🧩 Clase: {suscripcion}\n\n*📝 HISTORIAL / MOTIVO:*\n{historial}";
+        }
         template = template.replace(/\{historial\}/gi, histText); 
         const iS = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || '')); 
         const emojiInst = getEmojiInstrumento(iS, configApp, al);
@@ -3651,7 +3654,7 @@ document.addEventListener('click', async (e) => {
         const fAmiInicio = al.fecha_inicio_clases ? formatearFechaAmi(al.fecha_inicio_clases) : ''; 
         let opc = overrideOpciones || al.opciones_propuestas || []; 
         let opcionesStr = opc.length > 0 ? opc.map(o => `${o.letra || '-'}- ${o.fechaTexto}`).join('\n') : ''; 
-        let fHora = overrideFecha || al.reserva_fecha_texto || ''; 
+        let fHora = overrideFecha || al.reserva_fecha_texto || al.reserva_fecha_texto_previo || ''; 
         if (opc.length > 1 && (fHora === 'Varias opciones' || !fHora)) { 
             fHora = '\n' + opcionesStr; 
         } 
@@ -3668,6 +3671,8 @@ document.addEventListener('click', async (e) => {
             valor: configApp.valor_clase || '', 
             alias_profe: aliasP || '', 
             grupo: al.grupo_asignado || '', 
+            motivo: al.motivo_suspension || '',
+            motivo_suspension: al.motivo_suspension || '',
             'fecha inicio clases': fAmiInicio 
         }); 
         return { al, txt }; 
@@ -3893,6 +3898,11 @@ document.addEventListener('click', async (e) => {
             const estadoActual = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
             const esDeAltaOEspera = ['lista de espera', 'pre-alta pendiente', 'pre-alta iniciada', 'alta efectiva', 'alta ilegal', 'alta finalizada'].includes(estadoActual);
             
+            const teniaReserva = !!(al.id_evento_reserva || al.id_evento_alta || al.reserva_profe_id || al.reserva_fecha_texto || al.fecha_inicio_clases);
+            const profPrevioId = al.reserva_profe_id || al.profesor_id || null;
+            const profPrevioNom = al.reserva_profe_nombre || al.profesor_asignado || null;
+            const fechaPrevTexto = al.reserva_fecha_texto || (al.fecha_inicio_clases ? formatearFechaAmi(al.fecha_inicio_clases) : null);
+
             if (al.id_evento_reserva) await eliminarEventoSeguro(al);
             if (al.id_evento_alta) await eliminarEventoAltaSeguro(al);
             
@@ -3904,6 +3914,9 @@ document.addEventListener('click', async (e) => {
             await updateDoc(doc(db, "alumnos", id), { 
                 estado_agenda: nuevoEstado, 
                 motivo_suspension: mtv, 
+                reserva_profe_id_previo: profPrevioId,
+                reserva_profe_nombre_previo: profPrevioNom,
+                reserva_fecha_texto_previo: fechaPrevTexto,
                 reserva_profe_id: null, 
                 reserva_profe_nombre: null, 
                 reserva_cal_id: null, 
@@ -3917,11 +3930,46 @@ document.addEventListener('click', async (e) => {
             document.getElementById('modal-suspender').close(); 
             removerFilaOptimista(id);
             await cargarVista(estadoActualVista); 
+
+            if (teniaReserva) {
+                try {
+                    const dataText = await generarTextoConHistorial(id, 'texto_cancela_alumno', fechaPrevTexto, profPrevioId, profPrevioNom);
+                    if (dataText && dataText.txt) {
+                        await navigator.clipboard.writeText(dataText.txt);
+                        alert(`🛑 Ficha suspendida correctamente.\n\n📅 Se canceló la reserva en Calendar y se copió al portapapeles el texto de cancelación para informar al profesor.`);
+                        return;
+                    }
+                } catch(errTxt) {
+                    console.warn("No se pudo generar texto de cancelación:", errTxt);
+                }
+            }
             alert("Ficha suspendida correctamente.");
         } catch(err){ 
             alert("❌ Error:\n\n" + err.message); 
-        } finally {
+        } finally { 
             setBotonCargando(target, false); 
+        }
+        return;
+    }
+
+    if (target.classList.contains('btn-copiar-aviso-cancelacion') || target.closest('.btn-copiar-aviso-cancelacion')) {
+        const btn = target.classList.contains('btn-copiar-aviso-cancelacion') ? target : target.closest('.btn-copiar-aviso-cancelacion');
+        const id = btn.getAttribute('data-id');
+        try {
+            const alDoc = await getDoc(doc(db, "alumnos", id));
+            if (!alDoc.exists()) return alert("Alumno no encontrado.");
+            const al = alDoc.data();
+            const profId = al.reserva_profe_id || al.reserva_profe_id_previo || al.profesor_id || null;
+            const profNom = al.reserva_profe_nombre || al.reserva_profe_nombre_previo || al.profesor_asignado || null;
+            const fechaTxt = al.reserva_fecha_texto || al.reserva_fecha_texto_previo || (al.fecha_inicio_clases ? formatearFechaAmi(al.fecha_inicio_clases) : null) || 'Fecha a coordinar';
+
+            const dataText = await generarTextoConHistorial(id, 'texto_cancela_alumno', fechaTxt, profId, profNom);
+            if (dataText && dataText.txt) {
+                await navigator.clipboard.writeText(dataText.txt);
+                alert(`📋 Texto de Cancelación copiado al portapapeles para enviar al profesor:\n\n${dataText.txt}`);
+            }
+        } catch(e) {
+            alert("Error al generar texto de aviso: " + e.message);
         }
         return;
     }
