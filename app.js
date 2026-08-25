@@ -442,19 +442,36 @@ export function mostrarIndicadorCarga(mensaje = 'Procesando acción en el sistem
     const loader = document.getElementById('global-action-loader');
     const txt = document.getElementById('global-action-text');
     if (txt) txt.textContent = mensaje;
-    if (loader) loader.style.display = 'flex';
+    if (loader) {
+        try {
+            if (typeof loader.showModal === 'function') {
+                if (!loader.open) loader.showModal();
+            } else {
+                loader.style.display = 'flex';
+            }
+        } catch(e) {
+            loader.style.display = 'flex';
+        }
+    }
     document.body.classList.add('body-action-busy');
     if (actionLoadingTimeout) clearTimeout(actionLoadingTimeout);
     actionLoadingTimeout = setTimeout(() => {
         ocultarIndicadorCarga();
-    }, 20000);
+    }, 25000);
 }
 window.mostrarIndicadorCarga = mostrarIndicadorCarga;
 
 export function ocultarIndicadorCarga() {
     if (actionLoadingTimeout) clearTimeout(actionLoadingTimeout);
     const loader = document.getElementById('global-action-loader');
-    if (loader) loader.style.display = 'none';
+    if (loader) {
+        try {
+            if (typeof loader.close === 'function' && loader.open) {
+                loader.close();
+            }
+        } catch(e) {}
+        loader.style.display = 'none';
+    }
     document.body.classList.remove('body-action-busy');
 }
 window.ocultarIndicadorCarga = ocultarIndicadorCarga;
