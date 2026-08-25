@@ -14,6 +14,11 @@ import {
     where
 } from "../config/firebase.js";
 import { getEventosCalendario } from "../services/calendar.service.js";
+import {
+    renderContenedorDisponibilidad,
+    poblarDisponibilidadMultiRango,
+    extraerDisponibilidadMultiRango
+} from "../ui/horarios.ui.js";
 
 let cachedProfesorDoc = null;
 let slotsLibresCache = [];
@@ -434,42 +439,236 @@ export async function renderPortalProfesor(cont, usuarioActual = {}, callbacks =
             }).join('');
         }
 
+        // Skills y Aptitudes del Profesor para la pestaña de datos personales
+        function getEmojiParaInstrumento(inst) {
+            if (!inst) return '🎵';
+            const s = String(inst).toLowerCase();
+            if (s.includes('bat')) return '🥁';
+            if (s.includes('gui') || s.includes('electr')) return '🎸';
+            if (s.includes('cajón') || s.includes('cajon') || s.includes('perc')) return '📦';
+            if (s.includes('cant') || s.includes('voz') || s.includes('vocal') || s.includes('coro')) return '🎤';
+            if (s.includes('pian') || s.includes('tecl')) return '🎹';
+            if (s.includes('baj')) return '🎸';
+            if (s.includes('sax') || s.includes('vient')) return '🎷';
+            if (s.includes('tromp')) return '🎺';
+            if (s.includes('viol')) return '🎻';
+            if (s.includes('ukel') || s.includes('ucu')) return '🪕';
+            return '🎵';
+        }
+
+        const skillsProfe = Array.isArray(profDocData?.skills) ? profDocData.skills : [];
+        const skillsProfeBadges = skillsProfe.length > 0
+            ? `<div style="display:flex; flex-wrap:wrap; gap:8px;">${skillsProfe.map(s => `<span class="profile-tag-badge" style="background:#f0fdfa; color:#0f766e; border-color:#99f6e4; font-size:13px; padding:6px 14px; font-weight:700;">${getEmojiParaInstrumento(s)} ${s}</span>`).join('')}</div>`
+            : `<div style="color:var(--text-muted); font-size:13px; font-style:italic;">Sin instrumentos asignados actualmente.</div>`;
+
+        let aptitudesDocente = [];
+        if (profDocData?.entrevista) aptitudesDocente.push('<span class="tag-chip" style="background:#e0f2fe; color:#0369a1; font-size:12px; padding:4px 10px; font-weight:700;">🎧 Admisiones</span>');
+        if (profDocData?.grupales) aptitudesDocente.push('<span class="tag-chip" style="background:#dcfce7; color:#15803d; font-size:12px; padding:4px 10px; font-weight:700;">👥 Clases Grupales</span>');
+        if (profDocData?.ensambles) aptitudesDocente.push('<span class="tag-chip" style="background:#fef3c7; color:#b45309; font-size:12px; padding:4px 10px; font-weight:700;">🎵 Ensambles</span>');
+        const aptitudesDocenteHtml = aptitudesDocente.length > 0 ? `<div style="display:flex; gap:8px; flex-wrap:wrap;">${aptitudesDocente.join('')}</div>` : `<div style="color:var(--text-muted); font-size:13px; font-style:italic;">Sin aptitudes especiales marcadas.</div>`;
+
         cont.innerHTML = `
-            <div style="max-width:900px; width:100%; margin:0 auto; display:flex; flex-direction:column; gap:25px;">
+            <div style="max-width:920px; width:100%; margin:0 auto; display:flex; flex-direction:column; gap:20px;">
                 <!-- Header de bienvenida -->
-                <div style="background:white; border:1px solid var(--border-color); border-radius:14px; padding:24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
+                <div style="background:white; border:1px solid var(--border-color); border-radius:14px; padding:22px 24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
                     <div>
-                        <h2 style="margin:0 0 5px 0; color:var(--text-main); font-size:1.5em; font-weight:800;">👨‍🏫 Portal Docente</h2>
-                        <div style="color:var(--text-muted); font-size:13.5px;">Bienvenido, <strong style="color:var(--text-main);">${profesorNombre}</strong>. Aquí puedes ver tus grupos activos y solicitar alumnos para completar vacantes o iniciar nuevas clases.</div>
+                        <h2 style="margin:0 0 4px 0; color:var(--text-main); font-size:1.5em; font-weight:800; display:flex; align-items:center; gap:8px;">
+                            <span>👨‍🏫 Portal Docente</span>
+                        </h2>
+                        <div style="color:var(--text-muted); font-size:13.5px;">Bienvenido, <strong style="color:var(--text-main);">${profesorNombre}</strong>.</div>
                     </div>
-                    <button type="button" id="btn-solicitar-vacante-general" class="btn-primary" style="padding:10px 18px; font-size:13.5px; display:flex; align-items:center; gap:6px;">
-                        ➕ Solicitar Alumno / Vacante
+                    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                        <button type="button" id="btn-solicitar-vacante-general" class="btn-primary" style="padding:9px 16px; font-size:13px; display:flex; align-items:center; gap:6px;">
+                            ➕ Solicitar Alumno / Vacante
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tabs de Navegación del Portal -->
+                <div style="display:flex; gap:8px; border-bottom:2px solid var(--border-color); padding-bottom:0;">
+                    <button type="button" id="tab-btn-portal-grupos" class="tab-portal-profe active" style="padding:10px 18px; border:none; background:transparent; font-size:14px; font-weight:700; color:var(--accent-teal); border-bottom:3px solid var(--accent-teal); cursor:pointer; display:flex; align-items:center; gap:6px;">
+                        👥 Mis Grupos y Solicitudes
+                    </button>
+                    <button type="button" id="tab-btn-portal-perfil" class="tab-portal-profe" style="padding:10px 18px; border:none; background:transparent; font-size:14px; font-weight:600; color:var(--text-muted); border-bottom:3px solid transparent; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                        👤 Mis Datos Personales y Disponibilidad
                     </button>
                 </div>
 
-                <!-- Mis Solicitudes Activas -->
-                <div style="background:white; border:1px solid var(--border-color); border-radius:14px; padding:22px; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
-                    <h3 style="margin:0 0 14px 0; color:var(--text-main); font-size:1.2em; display:flex; align-items:center; gap:8px;">
-                        <span>🔔 Mis Solicitudes de Vacantes</span>
-                        <span style="font-size:12px; background:var(--hover-bg); border:1px solid var(--border-color); border-radius:12px; padding:2px 8px; font-weight:700; color:var(--text-muted);">${misSolicitudes.length}</span>
-                    </h3>
-                    <div id="lista-mis-solicitudes">
-                        ${solicitudesHtml}
+                <!-- CONTENIDO TAB 1: GRUPOS Y SOLICITUDES -->
+                <div id="tab-content-portal-grupos" style="display:flex; flex-direction:column; gap:20px;">
+                    <!-- Mis Solicitudes Activas -->
+                    <div style="background:white; border:1px solid var(--border-color); border-radius:14px; padding:22px; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
+                        <h3 style="margin:0 0 14px 0; color:var(--text-main); font-size:1.2em; display:flex; align-items:center; gap:8px;">
+                            <span>🔔 Mis Solicitudes de Vacantes</span>
+                            <span style="font-size:12px; background:var(--hover-bg); border:1px solid var(--border-color); border-radius:12px; padding:2px 8px; font-weight:700; color:var(--text-muted);">${misSolicitudes.length}</span>
+                        </h3>
+                        <div id="lista-mis-solicitudes">
+                            ${solicitudesHtml}
+                        </div>
+                    </div>
+
+                    <!-- Mis Grupos y Ensambles -->
+                    <div style="background:white; border:1px solid var(--border-color); border-radius:14px; padding:22px; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
+                        <h3 style="margin:0 0 14px 0; color:var(--text-main); font-size:1.2em; display:flex; align-items:center; gap:8px;">
+                            <span>👥 Mis Grupos y Ensambles</span>
+                            <span style="font-size:12px; background:var(--hover-bg); border:1px solid var(--border-color); border-radius:12px; padding:2px 8px; font-weight:700; color:var(--text-muted);">${gruposKeys.length}</span>
+                        </h3>
+                        <div id="lista-mis-grupos">
+                            ${gruposHtml}
+                        </div>
                     </div>
                 </div>
 
-                <!-- Mis Grupos y Ensambles -->
-                <div style="background:white; border:1px solid var(--border-color); border-radius:14px; padding:22px; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
-                    <h3 style="margin:0 0 14px 0; color:var(--text-main); font-size:1.2em; display:flex; align-items:center; gap:8px;">
-                        <span>👥 Mis Grupos y Ensambles</span>
-                        <span style="font-size:12px; background:var(--hover-bg); border:1px solid var(--border-color); border-radius:12px; padding:2px 8px; font-weight:700; color:var(--text-muted);">${gruposKeys.length}</span>
-                    </h3>
-                    <div id="lista-mis-grupos">
-                        ${gruposHtml}
+                <!-- CONTENIDO TAB 2: MIS DATOS PERSONALES Y DISPONIBILIDAD -->
+                <div id="tab-content-portal-perfil" style="display:none; flex-direction:column; gap:20px;">
+                    <!-- Card 1: Contacto y Transferencia -->
+                    <div style="background:white; border:1px solid var(--border-color); border-radius:14px; padding:22px; box-shadow:0 2px 8px rgba(0,0,0,0.03); display:flex; flex-direction:column; gap:16px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:12px;">
+                            <div>
+                                <h3 style="margin:0; color:var(--text-main); font-size:1.2em; display:flex; align-items:center; gap:8px;">
+                                    <span>📱 Datos de Contacto y Cobro</span>
+                                </h3>
+                                <div style="font-size:12.5px; color:var(--text-muted); margin-top:2px;">Puedes editar tu número de WhatsApp y Alias para coordinar clases y transferencias de honorarios.</div>
+                            </div>
+                            <span class="status-val-ok" style="font-size:11px;">🟢 Docente Activo</span>
+                        </div>
+
+                        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:16px;">
+                            <div>
+                                <label style="font-weight:700; font-size:13px; margin-bottom:5px; display:block; color:var(--text-main);">Nombre del Docente:</label>
+                                <input type="text" class="modern-input" value="${profDocData?.nombre || profesorNombre}" disabled style="background:var(--hover-bg); cursor:not-allowed; opacity:0.85;">
+                            </div>
+                            <div>
+                                <label style="font-weight:700; font-size:13px; margin-bottom:5px; display:block; color:var(--text-main);">Email de Acceso:</label>
+                                <input type="text" class="modern-input" value="${usuarioActual?.email || profDocData?.correo_calendario || '-'}" disabled style="background:var(--hover-bg); cursor:not-allowed; opacity:0.85;">
+                            </div>
+                            <div>
+                                <label style="font-weight:700; font-size:13px; margin-bottom:5px; display:block; color:var(--text-main);">📱 Celular (WhatsApp de Contacto):</label>
+                                <input type="text" id="perfil-docente-celular" class="modern-input" value="${profDocData?.celular || ''}" placeholder="Ej: +54 9 11 1234-5678">
+                            </div>
+                            <div>
+                                <label style="font-weight:700; font-size:13px; margin-bottom:5px; display:block; color:var(--text-main);">🏦 Alias / CBU de Transferencia:</label>
+                                <input type="text" id="perfil-docente-alias" class="modern-input" value="${profDocData?.alias_transferencia || ''}" placeholder="Ej: tu.alias.mp">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card 2: Skills y Aptitudes Asignadas (Solo lectura para Docentes) -->
+                    <div style="background:white; border:1px solid var(--border-color); border-radius:14px; padding:22px; box-shadow:0 2px 8px rgba(0,0,0,0.03); display:flex; flex-direction:column; gap:16px;">
+                        <div>
+                            <h3 style="margin:0; color:var(--text-main); font-size:1.2em; display:flex; align-items:center; gap:8px;">
+                                <span>🎸 Mis Skills e Instrumentos Asignados</span>
+                            </h3>
+                            <div style="font-size:12.5px; color:var(--text-muted); margin-top:2px;">Instrumentos que estás habilitado a enseñar en el sistema:</div>
+                        </div>
+                        <div>
+                            ${skillsProfeBadges}
+                        </div>
+                        <div style="border-top:1px solid var(--border-color); padding-top:12px;">
+                            <label style="font-weight:700; font-size:13px; margin-bottom:6px; display:block; color:var(--text-main);">Aptitudes Docentes:</label>
+                            ${aptitudesDocenteHtml}
+                        </div>
+                        <div style="font-size:11.5px; color:var(--text-muted); background:var(--hover-bg); padding:10px 14px; border-radius:8px; border:1px solid var(--border-color); display:flex; align-items:center; gap:6px;">
+                            <span>🔒</span> <em>Nota: Los instrumentos y aptitudes asignadas son administrados institucionalmente. Si necesitas agregar una especialidad, comunícate con la dirección.</em>
+                        </div>
+                    </div>
+
+                    <!-- Card 3: Disponibilidad Semanal -->
+                    <div style="background:white; border:1px solid var(--border-color); border-radius:14px; padding:22px; box-shadow:0 2px 8px rgba(0,0,0,0.03); display:flex; flex-direction:column; gap:16px;">
+                        <div>
+                            <h3 style="margin:0; color:var(--text-main); font-size:1.2em; display:flex; align-items:center; gap:8px;">
+                                <span>📅 Mi Disponibilidad Semanal</span>
+                            </h3>
+                            <div style="font-size:12.5px; color:var(--text-muted); margin-top:2px;">Define y actualiza en qué días y franjas horarias estás disponible para dictar clases y ensambles:</div>
+                        </div>
+                        <div id="contenedor-disp-portal-profe" style="display:flex; flex-direction:column; gap:8px;"></div>
+                        <div style="display:flex; justify-content:flex-end; padding-top:10px; border-top:1px solid var(--border-color);">
+                            <button type="button" id="btn-guardar-perfil-docente" class="btn-primary" style="padding:12px 24px; font-size:14.5px; font-weight:700; display:flex; align-items:center; gap:8px;">
+                                💾 Guardar Mis Datos y Disponibilidad
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
         `;
+
+        // Inicializar contenedor de disponibilidad de Mi Perfil
+        renderContenedorDisponibilidad('contenedor-disp-portal-profe', true);
+        poblarDisponibilidadMultiRango(profDocData?.disponibilidad || {}, true);
+
+        // Control de Tabs del Portal
+        const btnTabGrupos = document.getElementById('tab-btn-portal-grupos');
+        const btnTabPerfil = document.getElementById('tab-btn-portal-perfil');
+        const contentGrupos = document.getElementById('tab-content-portal-grupos');
+        const contentPerfil = document.getElementById('tab-content-portal-perfil');
+
+        if (btnTabGrupos && btnTabPerfil) {
+            btnTabGrupos.addEventListener('click', () => {
+                btnTabGrupos.classList.add('active');
+                btnTabGrupos.style.color = 'var(--accent-teal)';
+                btnTabGrupos.style.borderBottomColor = 'var(--accent-teal)';
+                btnTabGrupos.style.fontWeight = '700';
+
+                btnTabPerfil.classList.remove('active');
+                btnTabPerfil.style.color = 'var(--text-muted)';
+                btnTabPerfil.style.borderBottomColor = 'transparent';
+                btnTabPerfil.style.fontWeight = '600';
+
+                if (contentGrupos) contentGrupos.style.display = 'flex';
+                if (contentPerfil) contentPerfil.style.display = 'none';
+            });
+
+            btnTabPerfil.addEventListener('click', () => {
+                btnTabPerfil.classList.add('active');
+                btnTabPerfil.style.color = 'var(--accent-teal)';
+                btnTabPerfil.style.borderBottomColor = 'var(--accent-teal)';
+                btnTabPerfil.style.fontWeight = '700';
+
+                btnTabGrupos.classList.remove('active');
+                btnTabGrupos.style.color = 'var(--text-muted)';
+                btnTabGrupos.style.borderBottomColor = 'transparent';
+                btnTabGrupos.style.fontWeight = '600';
+
+                if (contentGrupos) contentGrupos.style.display = 'none';
+                if (contentPerfil) contentPerfil.style.display = 'flex';
+            });
+        }
+
+        // Listener Guardar Perfil Docente
+        const btnGuardarPerfil = document.getElementById('btn-guardar-perfil-docente');
+        if (btnGuardarPerfil) {
+            btnGuardarPerfil.addEventListener('click', async () => {
+                if (!profesorId) {
+                    alert("No se encontró la ficha de profesor vinculada a tu usuario. Contacta a administración.");
+                    return;
+                }
+                const celVal = (document.getElementById('perfil-docente-celular')?.value || '').trim();
+                const aliasVal = (document.getElementById('perfil-docente-alias')?.value || '').trim();
+                const dispProfe = extraerDisponibilidadMultiRango(true);
+
+                if (typeof setBotonCargando === 'function') setBotonCargando(btnGuardarPerfil, true);
+
+                try {
+                    await updateDoc(doc(db, "profesores", profesorId), {
+                        celular: celVal,
+                        alias_transferencia: aliasVal,
+                        disponibilidad: dispProfe
+                    });
+
+                    if (cachedProfesorDoc) {
+                        cachedProfesorDoc.celular = celVal;
+                        cachedProfesorDoc.alias_transferencia = aliasVal;
+                        cachedProfesorDoc.disponibilidad = dispProfe;
+                    }
+
+                    alert("🎉 ¡Tus datos personales y disponibilidad han sido guardados con éxito!");
+                } catch(e) {
+                    alert("❌ Error al guardar datos: " + e.message);
+                } finally {
+                    if (typeof setBotonCargando === 'function') setBotonCargando(btnGuardarPerfil, false);
+                }
+            });
+        }
 
         // Listeners para abrir modal de solicitud de vacante
         const cargarSlotsLibresEnModal = async () => {
