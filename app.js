@@ -696,7 +696,7 @@ async function renderChipsPerfilPsicologico(containerId, seleccionados = []) {
 
     cont.innerHTML = opciones.map(op => {
         const isAct = selSet.has(op);
-        return `<span class="profile-tag-chip ${isAct ? 'active' : ''}" data-val="${op}">${op}</span>`;
+        return `<button type="button" class="profile-tag-chip ${isAct ? 'active' : ''}" data-val="${op}">${op}</button>`;
     }).join('');
 }
 
