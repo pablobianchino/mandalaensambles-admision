@@ -737,6 +737,15 @@ document.addEventListener('click', (e) => {
     }
 });
 
+window.toggleChecklistPill = function(contentId, iconId) {
+    const el = document.getElementById(contentId);
+    const ic = document.getElementById(iconId);
+    if (!el) return;
+    const isHidden = el.style.display === 'none' || !el.style.display;
+    el.style.display = isHidden ? 'flex' : 'none';
+    if (ic) ic.style.transform = isHidden ? 'rotate(90deg)' : 'rotate(0deg)';
+};
+
 export function crearEntradaHistorial(texto, tipo = 'sistema', autor = null) {
     const now = new Date();
     const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
@@ -1025,15 +1034,18 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
         const barColor = completados === 5 ? 'var(--accent-teal)' : (completados >= 3 ? '#e5a93d' : 'var(--accent-red)');
 
         checklistHtml = `
-            <div class="alta-checklist-wrapper" style="margin-top:10px; padding:10px 12px; background:var(--hover-bg); border-radius:10px; border:1px solid var(--border-color);" onclick="event.stopPropagation();">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:11.5px; font-weight:700; color:var(--text-main);">
-                    <span>📋 Checklist de Alta (${completados}/5)</span>
-                    <span style="color:${barColor};">${porcentaje}%</span>
+            <div class="alta-checklist-wrapper" style="margin-top:8px; padding:8px 12px; background:var(--hover-bg); border-radius:10px; border:1px solid var(--border-color);" onclick="event.stopPropagation();">
+                <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none;" onclick="window.toggleChecklistPill('chk-list-${id}', 'chk-icon-${id}')" title="Clic para ver o completar los pasos del checklist">
+                    <div style="display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:var(--text-main);">
+                        <span id="chk-icon-${id}" style="font-size:9px; color:#64748b; transition:transform 0.2s ease; display:inline-block;">▶</span>
+                        <span>📋 Checklist de Alta (${completados}/5)</span>
+                    </div>
+                    <span style="color:${barColor}; font-size:11.5px; font-weight:800;">${porcentaje}%</span>
                 </div>
-                <div style="width:100%; height:6px; background:#e9e5de; border-radius:4px; overflow:hidden; margin-bottom:8px;">
+                <div style="width:100%; height:5px; background:#e9e5de; border-radius:4px; overflow:hidden; margin-top:5px; cursor:pointer;" onclick="window.toggleChecklistPill('chk-list-${id}', 'chk-icon-${id}')">
                     <div style="width:${porcentaje}%; height:100%; background:${barColor}; transition:width 0.3s ease;"></div>
                 </div>
-                <div style="display:flex; flex-wrap:wrap; gap:8px 12px; font-size:11px; color:var(--text-muted);">
+                <div id="chk-list-${id}" class="checklist-items-collapsible" style="display:none; flex-wrap:wrap; gap:8px 12px; font-size:11px; color:var(--text-muted); margin-top:9px; padding-top:8px; border-top:1px dashed var(--border-color);">
                     ${checks.map((chk, idx) => `
                         <label style="display:inline-flex; align-items:center; gap:5px; margin:0; cursor:pointer; font-weight:600; text-transform:none; color:${chk ? 'var(--text-main)' : 'var(--text-muted)'};">
                             <input type="checkbox" class="chk-alta-paso" data-id="${id}" data-idx="${idx}" ${chk ? 'checked' : ''} style="accent-color:var(--accent-teal); width:15px; height:15px; cursor:pointer;">
