@@ -588,6 +588,50 @@ body {
 }
 
 /* =======================================================================
+   ACORDEONES DE CONFIGURACIÓN Y AJUSTES
+   ======================================================================= */
+.cfg-accordion-card {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.cfg-accordion-card:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+.cfg-accordion-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 18px;
+    background: var(--hover-bg);
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+}
+.cfg-accordion-header:hover {
+    background: #f1f5f9;
+}
+.cfg-accordion-arrow {
+    font-size: 11px;
+    color: #64748b;
+    font-weight: 700;
+    transition: transform 0.2s ease;
+}
+.cfg-accordion-body {
+    padding: 20px 22px;
+    border-top: 1px solid var(--border-color);
+    animation: fadeInAccordion 0.18s ease-out;
+}
+@keyframes fadeInAccordion {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* =======================================================================
    VISTA KANBAN (TABLERO)
    ======================================================================= */
 .kanban-board { display:flex; gap:15px; overflow-x:auto; padding-bottom:10px; align-items:flex-start; min-height: 60vh; }
