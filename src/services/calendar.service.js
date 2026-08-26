@@ -113,7 +113,7 @@ export function construirTitulosPrealtaYAlta(al, tipo, cfg) {
 
     let titulo = '';
     if (tipo === 'prealta') {
-        titulo = esInd ? `🚀${emojiInst} ${nombreAlumno}` : `🚀🧩 ${nombreGrupo}`;
+        titulo = esInd ? `❓${emojiInst} ${nombreAlumno}` : `❓🧩 ${nombreGrupo}`;
     } else {
         titulo = esInd ? `${emojiInst} ${nombreAlumno}` : `🧩 ${nombreGrupo}`;
     }
@@ -135,15 +135,21 @@ export function construirDescripcionEventoAlta(al, esGrupo = false, alumnosGrupo
 export async function getCalendarIdParaAlumno(al, cfg = defaultCfg) {
     if (al.calendario_evento_alta) return al.calendario_evento_alta;
     if (al.reserva_cal_id) return al.reserva_cal_id;
-    if (al.reserva_profe_id) { 
-        const pDoc = await getDoc(doc(db, "profesores", al.reserva_profe_id)); 
-        if (pDoc.exists() && pDoc.data().correo_calendario) return pDoc.data().correo_calendario; 
+    const pId = al.profesor_id || al.reserva_profe_id;
+    if (pId) { 
+        try {
+            const pDoc = await getDoc(doc(db, "profesores", pId)); 
+            if (pDoc.exists() && pDoc.data().correo_calendario) return pDoc.data().correo_calendario; 
+        } catch(e) {}
     }
-    if (al.reserva_profe_nombre) { 
-        const pQ = await getDocs(query(collection(db, "profesores"), where("nombre", "==", al.reserva_profe_nombre))); 
-        if (!pQ.empty && pQ.docs[0].data().correo_calendario) return pQ.docs[0].data().correo_calendario; 
+    const pNom = al.profesor_asignado || al.reserva_profe_nombre;
+    if (pNom) { 
+        try {
+            const pQ = await getDocs(query(collection(db, "profesores"), where("nombre", "==", pNom))); 
+            if (!pQ.empty && pQ.docs[0].data().correo_calendario) return pQ.docs[0].data().correo_calendario; 
+        } catch(e) {}
     }
-    return cfg.calendario_por_defecto || null;
+    return cfg.calendario_por_defecto || 'productora.mandalahouse@gmail.com';
 }
 
 export async function crearEventoSeguro(al, titulos, inicio, fin, cfg = defaultCfg) {
@@ -261,22 +267,39 @@ export async function sincronizarEventoAltaConfirmadaCalendar(al, esIndividual, 
         const desc = construirDescripcionEventoAlta(al, !esIndividual, otrosAlumnosDelGrupo);
         
         let targetEventId = al.id_evento_alta;
-        let targetCalId = al.calendario_evento_alta;
+        let targetCalId = al.calendario_evento_alta || await getCalendarIdParaAlumno(al, cfg);
 
         if (!targetEventId && !esIndividual && otrosAlumnosDelGrupo.length > 0) {
             const compConEv = otrosAlumnosDelGrupo.find(c => c.id_evento_alta);
             if (compConEv) {
                 targetEventId = compConEv.id_evento_alta;
-                targetCalId = compConEv.calendario_evento_alta;
+                targetCalId = compConEv.calendario_evento_alta || targetCalId;
             }
         }
 
         if (targetEventId && targetCalId) {
             await actualizarEventoCalendario(targetCalId, targetEventId, titulos.tituloProfe, desc);
+            return { id: targetEventId, calendar: targetCalId };
+        } else if (targetCalId && al.fecha_inicio_clases) {
+            const dStart = new Date(al.fecha_inicio_clases);
+            if (!isNaN(dStart.getTime())) {
+                const dEnd = new Date(dStart.getTime() + 60 * 60000);
+                const evRes = await crearEventoCalendario(targetCalId, titulos.tituloProfe, dStart.toISOString(), dEnd.toISOString(), desc);
+                if (evRes && evRes.id) {
+                    if (al.id) {
+                        await updateDoc(doc(db, "alumnos", al.id), {
+                            id_evento_alta: evRes.id,
+                            calendario_evento_alta: targetCalId
+                        });
+                    }
+                    return { id: evRes.id, calendar: targetCalId };
+                }
+            }
         }
     } catch(err) {
-        console.warn("No se pudo actualizar evento de alta confirmada en Google Calendar:", err);
+        console.warn("No se pudo actualizar/crear evento de alta confirmada en Google Calendar:", err);
     }
+    return null;
 }
 
 export async function eliminarEventoAltaSeguro(al, cfg = defaultCfg) {
@@ -314,4 +337,47 @@ export async function eliminarEventoAltaSeguro(al, cfg = defaultCfg) {
         }
     }
     return eliminado;
+}
+
+export async function reprogramarClaseCalendar({ al, esGrupo = false, alumnosGrupo = [], fIsoStart, fIsoEnd, duracionMinutos = 60, cfg = defaultCfg }) {
+    try {
+        const tipo = (al.estado_agenda === 'Pre-alta Iniciada') ? 'prealta' : 'confirmada';
+        const titulos = construirTitulosPrealtaYAlta(al, tipo, cfg);
+        const desc = construirDescripcionEventoAlta(al, esGrupo, alumnosGrupo);
+        
+        let evId = al.id_evento_alta;
+        let calId = al.calendario_evento_alta;
+
+        if (esGrupo && !evId && alumnosGrupo && alumnosGrupo.length > 0) {
+            const comp = alumnosGrupo.find(a => a.id_evento_alta);
+            if (comp) {
+                evId = comp.id_evento_alta;
+                calId = comp.calendario_evento_alta || calId;
+            }
+        }
+
+        if (!calId) {
+            calId = await getCalendarIdParaAlumno(al, cfg);
+        }
+
+        // Si existía un evento previo, lo eliminamos primero para no dejar eventos duplicados en horarios viejos
+        if (evId && calId) {
+            try {
+                await eliminarEventoCalendario(calId, evId);
+            } catch(e) {
+                console.warn("No se pudo eliminar evento previo en Calendar (puede no haber existido previamente):", e);
+            }
+        }
+
+        // Creamos el evento en la nueva fecha y horario solicitado
+        if (calId) {
+            const evRes = await crearEventoCalendario(calId, titulos.tituloProfe, fIsoStart, fIsoEnd, desc);
+            if (evRes && evRes.id) {
+                return { id: evRes.id, calendar: calId };
+            }
+        }
+    } catch(err) {
+        console.warn("Error en reprogramarClaseCalendar:", err);
+    }
+    return null;
 }
