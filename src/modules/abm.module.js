@@ -17,7 +17,8 @@ import {
 } from "../config/firebase.js";
 import {
     poblarDisponibilidadMultiRango,
-    extraerDisponibilidadMultiRango
+    extraerDisponibilidadMultiRango,
+    normalizarHora
 } from "../ui/horarios.ui.js";
 
 export function renderConfigHub(cont, callbacks = {}) {
@@ -325,8 +326,8 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
     document.getElementById('btn-guardar-cfg')?.addEventListener('click', async (e) => { 
         if (typeof setBotonCargando === 'function') setBotonCargando(e.target, true, 'Guardando ajustes...'); 
         const updatedData = { 
-            hora_apertura: document.getElementById('cfg-apertura')?.value || '09:00', 
-            hora_cierre: document.getElementById('cfg-cierre')?.value || '22:00', 
+            hora_apertura: normalizarHora(document.getElementById('cfg-apertura')?.value, '09:00'), 
+            hora_cierre: normalizarHora(document.getElementById('cfg-cierre')?.value, '22:00'), 
             cantidad_aulas: document.getElementById('cfg-aulas')?.value || '3', 
             cantidad_baterias: document.getElementById('cfg-bats')?.value || '2', 
             identificador_bateria: document.getElementById('cfg-idbat')?.value || '🥁', 
@@ -612,90 +613,18 @@ function renderChipsSkillsProfe(selectId, containerId) {
     });
 }
 
-function poblarDisponibilidadLocal(disp = {}, esProfe = false, hApe = '09:00', hCie = '22:00') {
+function poblarDisponibilidadLocal(disp = {}, containerRef = 'contenedor-disponibilidad-user-profe', hApe = '09:00', hCie = '22:00') {
     if (typeof window.poblarDisponibilidadMultiRango === 'function') {
-        window.poblarDisponibilidadMultiRango(disp, esProfe, hApe, hCie);
+        window.poblarDisponibilidadMultiRango(disp, containerRef, hApe, hCie);
         return;
     }
-    const prefix = esProfe ? 'disp-p-' : 'disp-';
-    const estadoPrefix = esProfe ? 'estado-p-' : 'estado-';
-    const dias = [
-        { id: 'L', nombre: 'Lunes' },
-        { id: 'M', nombre: 'Martes' },
-        { id: 'X', nombre: 'Miércoles' },
-        { id: 'J', nombre: 'Jueves' },
-        { id: 'V', nombre: 'Viernes' },
-        { id: 'S', nombre: 'Sábado' },
-        { id: 'D', nombre: 'Domingo' }
-    ];
-    dias.forEach(dia => {
-        const dD = disp[dia.id] || [];
-        const rangosCont = document.getElementById(`rangos-${prefix}${dia.id}`);
-        const cA = document.getElementById(`${prefix}${dia.id}-all`);
-        const cN = document.getElementById(`${prefix}${dia.id}-none`);
-        const sE = document.getElementById(`${estadoPrefix}${dia.id}`);
-        
-        if (!rangosCont) return;
-        rangosCont.innerHTML = '';
-        if (cA) cA.checked = false;
-        if (cN) cN.checked = false;
-        if (sE) sE.textContent = "";
-        
-        const filaRango = (ini = '', fin = '', idx = 0) => `
-            <div class="rango-item" style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
-                <input type="time" class="modern-input rango-inicio" value="${ini}" style="width:auto; padding:5px 8px; font-size:12.5px;">
-                <span style="font-size:12px; color:var(--text-muted);">a</span>
-                <input type="time" class="modern-input rango-fin" value="${fin}" style="width:auto; padding:5px 8px; font-size:12.5px;">
-                <button type="button" class="btn-quitar-rango" data-dia="${dia.id}" data-profe="${esProfe}" style="background:none; border:none; cursor:pointer; font-size:1em; padding:2px 4px; ${idx === 0 ? 'display:none;' : ''}">🗑️</button>
-            </div>
-        `;
-
-        if (dD.length === 0) {
-            if (cN) cN.checked = true;
-            rangosCont.innerHTML = filaRango('', '', 0);
-        } else if (dD.length === 1 && dD[0].inicio === hApe && dD[0].fin === hCie) {
-            if (cA) cA.checked = true;
-            rangosCont.innerHTML = filaRango('', '', 0);
-        } else {
-            dD.forEach((rango, idx) => {
-                rangosCont.innerHTML += filaRango(rango.inicio || '', rango.fin || '', idx);
-            });
-        }
-        if (typeof window.updateDispStateForDay === 'function') {
-            window.updateDispStateForDay(dia.id, esProfe);
-        }
-    });
 }
 
-function extraerDisponibilidadLocal(esProfe = false, hApe = '09:00', hCie = '22:00') {
+function extraerDisponibilidadLocal(containerRef = 'contenedor-disponibilidad-user-profe', hApe = '09:00', hCie = '22:00') {
     if (typeof window.extraerDisponibilidadMultiRango === 'function') {
-        return window.extraerDisponibilidadMultiRango(esProfe, hApe, hCie);
+        return window.extraerDisponibilidadMultiRango(containerRef, hApe, hCie);
     }
-    const prefix = esProfe ? 'disp-p-' : 'disp-';
-    const dias = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
-    const disp = {};
-    dias.forEach(d => {
-        const cA = document.getElementById(`${prefix}${d}-all`)?.checked;
-        const cN = document.getElementById(`${prefix}${d}-none`)?.checked;
-        if (cN) {
-            disp[d] = [];
-        } else if (cA) {
-            disp[d] = [{ inicio: hApe, fin: hCie }];
-        } else {
-            const rangosCont = document.getElementById(`rangos-${prefix}${d}`);
-            const items = rangosCont ? rangosCont.querySelectorAll('.rango-item') : [];
-            const arr = [];
-            items.forEach(item => {
-                const i = item.querySelector('.rango-inicio')?.value || '';
-                const f = item.querySelector('.rango-fin')?.value || '';
-                if (i || f) {
-                    arr.push({ inicio: i || hApe, fin: f || hCie });
-                }
-            });
-            disp[d] = arr;
-        }
-    });
-    return disp;
+    return {};
 }
 
 export async function cargarABM(coleccion, titulo, cont) { 
@@ -984,6 +913,7 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
                     if (pData) {
                         if (!document.getElementById('abm-user-celular').value) document.getElementById('abm-user-celular').value = pData.celular || '';
                         if (!document.getElementById('abm-user-alias').value) document.getElementById('abm-user-alias').value = pData.alias_transferencia || '';
+                        document.getElementById('abm-user-correo-calendario').value = pData.correo_calendario || uData.correo_calendario || uData.email || '';
                         if (document.getElementById('abm-user-entrevista')) document.getElementById('abm-user-entrevista').checked = !!pData.entrevista;
                         if (document.getElementById('abm-user-grupales')) document.getElementById('abm-user-grupales').checked = !!pData.grupales;
                         if (document.getElementById('abm-user-ensambles')) document.getElementById('abm-user-ensambles').checked = !!pData.ensambles;
@@ -994,12 +924,13 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
                                 opt.selected = skillsP.includes(opt.value);
                             });
                         }
-                        poblarDisponibilidadLocal(pData.disponibilidad || {}, true);
+                        poblarDisponibilidadLocal(pData.disponibilidad || {}, 'contenedor-disponibilidad-user-profe');
                     } else {
+                        document.getElementById('abm-user-correo-calendario').value = uData.correo_calendario || uData.email || '';
                         if (document.getElementById('abm-user-entrevista')) document.getElementById('abm-user-entrevista').checked = false;
                         if (document.getElementById('abm-user-grupales')) document.getElementById('abm-user-grupales').checked = false;
                         if (document.getElementById('abm-user-ensambles')) document.getElementById('abm-user-ensambles').checked = false;
-                        poblarDisponibilidadLocal({}, true);
+                        poblarDisponibilidadLocal({}, 'contenedor-disponibilidad-user-profe');
                     }
 
                     if (typeof syncSelectToChips === 'function') {
@@ -1015,6 +946,7 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
             document.getElementById('abm-user-nombre').value = '';
             document.getElementById('abm-user-celular').value = '';
             document.getElementById('abm-user-alias').value = '';
+            document.getElementById('abm-user-correo-calendario').value = '';
             document.querySelectorAll('.chk-user-rol').forEach(chk => {
                 chk.checked = chk.value === 'admisor';
             });
@@ -1027,7 +959,7 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
             } else if (typeof window.syncSelectToChips === 'function') {
                 window.syncSelectToChips('abm-user-skills', 'chips-abm-user-skills');
             }
-            poblarDisponibilidadLocal({}, true);
+            poblarDisponibilidadLocal({}, 'contenedor-disponibilidad-user-profe');
             aplicarPlantillaRoles();
             if (chkActivo) {
                 chkActivo.checked = true;
@@ -1073,7 +1005,7 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
                     });
                 }
                 
-                poblarDisponibilidadLocal(pr.disponibilidad || {}, true);
+                poblarDisponibilidadLocal(pr.disponibilidad || {}, 'contenedor-disponibilidad-profe');
             }
         } else {
             document.getElementById('abm-edit-correo').value = cor || ''; 
@@ -1085,7 +1017,7 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
             if (selSkills) {
                 Array.from(selSkills.options).forEach(opt => opt.selected = false);
             }
-            poblarDisponibilidadLocal({}, true);
+            poblarDisponibilidadLocal({}, 'contenedor-disponibilidad-profe');
         }
 
         if (typeof syncSelectToChips === 'function') {
@@ -1135,6 +1067,7 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
             const nombre = (document.getElementById('abm-user-nombre')?.value || '').trim();
             const celular = (document.getElementById('abm-user-celular')?.value || '').trim();
             const alias = (document.getElementById('abm-user-alias')?.value || '').trim();
+            const calIdVal = (document.getElementById('abm-user-correo-calendario')?.value || '').trim() || email;
             
             const rolesChecked = [];
             document.querySelectorAll('.chk-user-rol:checked').forEach(c => rolesChecked.push(c.value));
@@ -1160,13 +1093,14 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
             if (esDocente || profesor_id) {
                 const selSkills = document.getElementById('abm-user-skills');
                 const skillsArr = selSkills ? Array.from(selSkills.selectedOptions).map(o => o.value) : [];
-                const dispProfe = extraerDisponibilidadLocal(true);
+                const dispProfe = extraerDisponibilidadLocal('contenedor-disponibilidad-user-profe');
                 
                 const dataProfe = {
                     nombre: nombre || email.split('@')[0],
-                    correo_calendario: email,
+                    correo_calendario: calIdVal,
                     celular: celular,
                     alias_transferencia: alias,
+                    activo: activo,
                     entrevista: Boolean(document.getElementById('abm-user-entrevista')?.checked),
                     grupales: Boolean(document.getElementById('abm-user-grupales')?.checked),
                     ensambles: Boolean(document.getElementById('abm-user-ensambles')?.checked),
@@ -1182,12 +1116,12 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
                         profesor_id = newProf.id;
                     }
                 } else {
-                    // Buscar si existía un profesor con el mismo email
+                    // Buscar si existía un profesor con el mismo email o calendarId
                     const pQ = await getDocs(collection(db, "profesores"));
                     let profEncontradoId = null;
                     pQ.forEach(docP => {
                         const dtP = docP.data();
-                        if (dtP.correo_calendario && dtP.correo_calendario.toLowerCase() === email) {
+                        if ((dtP.correo_calendario && dtP.correo_calendario.toLowerCase() === email) || (dtP.correo_calendario && dtP.correo_calendario.toLowerCase() === calIdVal.toLowerCase())) {
                             profEncontradoId = docP.id;
                         }
                     });
@@ -1207,6 +1141,7 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
                 nombre: nombre || email.split('@')[0],
                 celular,
                 alias_transferencia: alias,
+                correo_calendario: calIdVal,
                 roles: rolesChecked,
                 rol: rolPrincipal,
                 profesor_id: profesor_id || '',
@@ -1227,12 +1162,13 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
         } else if (col === 'profesores') {
             const selSkills = document.getElementById('abm-edit-skills');
             const skillsArr = selSkills ? Array.from(selSkills.selectedOptions).map(o => o.value) : [];
-            const dispProfe = extraerDisponibilidadLocal(true);
+            const dispProfe = extraerDisponibilidadLocal('contenedor-disponibilidad-profe');
             const dataProfe = {
                 nombre: nomVal,
                 correo_calendario: document.getElementById('abm-edit-correo')?.value || '',
                 celular: document.getElementById('abm-edit-celular')?.value || '',
                 alias_transferencia: document.getElementById('abm-edit-alias')?.value || '',
+                activo: true,
                 entrevista: !!document.getElementById('abm-edit-entrevista')?.checked,
                 grupales: !!document.getElementById('abm-edit-grupales')?.checked,
                 ensambles: !!document.getElementById('abm-edit-ensambles')?.checked,
