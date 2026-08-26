@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=4.30.6">
+    <link rel="stylesheet" href="styles.css?v=4.34.1">
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
@@ -637,6 +637,21 @@
                 <div id="prealta-alumnos-container" style="display:flex; flex-direction:column; gap:8px; max-height:220px; overflow-y:auto; padding-right:4px;"></div>
             </div>
             
+            <!-- Selector Tipo de Ensamble (si la suscripción es grupal/ensamble) -->
+            <div id="prealta-campo-tipo-ensamble" style="display:none; margin-bottom:14px;">
+                <label style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:6px;">MODALIDAD DE ENSAMBLE</label>
+                <div style="display:flex; gap:16px; align-items:center; background:var(--hover-bg); padding:10px 14px; border-radius:8px; border:1px solid var(--border-color);">
+                    <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600; cursor:pointer; margin:0; text-transform:none; color:var(--text-main);">
+                        <input type="radio" name="prealta-tipo-ensamble" value="Ensamble" checked style="accent-color:var(--accent-teal);">
+                        🎸 Ensamble
+                    </label>
+                    <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600; cursor:pointer; margin:0; text-transform:none; color:var(--text-main);">
+                        <input type="radio" name="prealta-tipo-ensamble" value="Ensamble Mandalorian" style="accent-color:var(--accent-teal);">
+                        🎸 Ensamble Mandalorian
+                    </label>
+                </div>
+            </div>
+
             <div id="prealta-campo-grupo">
                 <label style="font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:6px;">GRUPO O TALLER
                     <input type="text" id="prealta-grupo" class="modern-input" placeholder="Ej: M18.00 Javi" required>
@@ -660,6 +675,46 @@
             <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px; padding-top:15px; border-top:1px solid var(--border-color);">
                 <button type="button" class="btn-cerrar-modal" data-modal="modal-iniciar-prealta" style="padding:10px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted);">Cancelar</button>
                 <button id="btn-guardar-prealta" class="btn-primary">Guardar y Avanzar</button>
+            </div>
+        </div>
+    </dialog>
+
+    <dialog id="modal-aviso-prealta-alumno" class="modern-modal auto-height-modal" style="max-width:560px;">
+        <div style="padding:24px;">
+            <div class="modal-drag-pill"></div>
+            <h3 style="margin:0 0 12px 0; color:var(--text-main); font-weight:700;">💬 Mensaje de Pre-Alta para Alumno</h3>
+            <input type="hidden" id="aviso-alumno-id">
+            
+            <!-- Resumen del alumno -->
+            <div id="aviso-prealta-info-box" style="background:var(--hover-bg); border:1px solid var(--border-color); border-radius:10px; padding:12px; font-size:12.5px; margin-bottom:16px; color:var(--text-main); line-height:1.45;">
+            </div>
+
+            <!-- Selector de Arancel -->
+            <div style="background:#f8fafc; border:1px solid var(--border-color); border-radius:10px; padding:14px; margin-bottom:16px;">
+                <label style="font-size:11.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:8px;">SELECCIÓN DE ARANCEL</label>
+                
+                <div id="aviso-arancel-opciones-container" style="display:flex; flex-direction:column; gap:8px;">
+                </div>
+
+                <div style="margin-top:12px; padding-top:10px; border-top:1px dashed var(--border-color); display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                    <label id="aviso-check-comunidad-label" style="display:flex; align-items:center; gap:7px; font-size:12px; font-weight:600; color:var(--text-main); cursor:pointer; margin:0; text-transform:none;">
+                        <input type="checkbox" id="chk-aviso-comunidad" style="width:16px; height:16px; accent-color:var(--accent-teal);">
+                        Valor Comunidad / Antiguos
+                    </label>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="font-size:12px; font-weight:700; color:var(--text-muted);">Monto:</span>
+                        <input type="text" id="aviso-arancel-monto-final" class="modern-input" style="width:120px; padding:5px 8px; font-size:13px; font-weight:700; color:var(--accent-teal); text-align:right;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vista previa del mensaje -->
+            <label style="font-size:11.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:6px;">VISTA PREVIA DEL MENSAJE DE WHATSAPP</label>
+            <textarea id="aviso-prealta-textarea-preview" class="modern-input" style="height:170px; font-family:inherit; font-size:12px; line-height:1.45; margin-bottom:15px;" readonly></textarea>
+
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button type="button" class="btn-cerrar-modal" data-modal="modal-aviso-prealta-alumno" style="padding:10px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted);">Cancelar</button>
+                <button id="btn-copiar-aviso-prealta-alumno-action" class="btn-primary" style="padding:10px 18px; font-weight:700;">📋 Copiar Mensaje al Portapapeles</button>
             </div>
         </div>
     </dialog>
@@ -1236,12 +1291,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=4.30.6"></script>
+    <script type="module" src="app.js?v=4.34.1"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=4.30.6').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=4.34.1').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {
