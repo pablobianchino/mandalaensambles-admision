@@ -95,43 +95,79 @@ export async function renderListaInstrumentosAlumnos(alumnosArr, cfg = defaultCf
 }
 
 // -----------------------------------------------------------------------
-// Refrescar profesores para pre-alta
+// Refrescar profesores para pre-alta según tipo (Ensamble vs Individual)
 // -----------------------------------------------------------------------
-export async function refrescarProfesoresPrealta(instrumentoSeleccionado, profeSeleccionadoId = '') {
+export async function refrescarProfesoresPrealta(tipoClase, instrumentoSeleccionado = '', profeSeleccionadoId = '') {
     const selectProfe = document.getElementById('prealta-profe-select');
     if (!selectProfe) return;
     selectProfe.innerHTML = '<option value="">Seleccionar profesor...</option>';
     try {
         const pSnap = await getDocs(collection(db, "profesores"));
-        pSnap.forEach(pDoc => {
-            const pr = { id: pDoc.id, ...pDoc.data() };
-            const profeSkills = pr.skills || [];
-            const ensenaInst = !instrumentoSeleccionado || profeSkills.length === 0 || profeSkills.some(s => s.toLowerCase() === instrumentoSeleccionado.toLowerCase());
-            if (ensenaInst) {
+        const profesores = [];
+        pSnap.forEach(pDoc => profesores.push({ id: pDoc.id, ...pDoc.data() }));
+        
+        profesores.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+
+        const esEnsamble = tipoClase === 'ensamble' || tipoClase === 'grupal';
+
+        profesores.forEach(pr => {
+            const profeSkills = Array.isArray(pr.skills) ? pr.skills : [];
+            let estaHabilitado = false;
+            let etiqueta = '';
+
+            if (esEnsamble) {
+                // Ensamble: profesores con aptitud 'ensambles' activa
+                estaHabilitado = pr.ensambles === true;
+                etiqueta = 'Ensamble';
+            } else {
+                // Clase individual: profesores con skill del instrumento seleccionado
+                if (instrumentoSeleccionado) {
+                    estaHabilitado = profeSkills.some(s => s.toLowerCase().trim() === instrumentoSeleccionado.toLowerCase().trim());
+                } else {
+                    estaHabilitado = profeSkills.length > 0;
+                }
+                etiqueta = profeSkills.join(', ') || 'Individual';
+            }
+
+            if (estaHabilitado) {
                 const opt = document.createElement('option');
                 opt.value = pr.id;
-                opt.textContent = `${pr.nombre} (${(pr.skills || []).join(', ') || 'General'})`;
+                opt.textContent = `${pr.nombre} (${etiqueta})`;
                 opt.dataset.nombre = pr.nombre;
                 opt.dataset.calId = pr.correo_calendario || '';
                 opt.dataset.disponibilidad = JSON.stringify(pr.disponibilidad || {});
-                if (pr.id === profeSeleccionadoId) opt.selected = true;
+                if (pr.id === profeSeleccionadoId || (pr.nombre && pr.nombre === profeSeleccionadoId)) {
+                    opt.selected = true;
+                }
                 selectProfe.appendChild(opt);
             }
         });
-    } catch(e) {}
+
+        if (selectProfe.options.length <= 1) {
+            const opt = document.createElement('option');
+            opt.value = "";
+            opt.disabled = true;
+            opt.textContent = esEnsamble
+                ? "⚠️ Ningún profesor tiene aptitud 'Ensamble' activa"
+                : `⚠️ Ningún profesor tiene el skill '${instrumentoSeleccionado}'`;
+            selectProfe.appendChild(opt);
+        }
+    } catch(e) {
+        console.error("Error al refrescar profesores de prealta:", e);
+    }
 }
 
 // -----------------------------------------------------------------------
 // Abrir Modal Pre-alta Individual / Edicion
 // -----------------------------------------------------------------------
-export async function abrirModalPrealta(id, esEdicionParam = false, cfg = defaultCfg) {
+export async function abrirModalPrealta(id, esEdicionParam = false, inicioPrev = null, grupoPrev = null, options = {}) {
     const alDoc = await getDoc(doc(db, "alumnos", id));
     const al = alDoc.exists() ? alDoc.data() : {};
     document.getElementById('prealta-alumno-id').value = id;
     
     const tipoSusc = detectarTipoSuscripcion(al.tipo_suscripcion || '');
     const esIndividual = tipoSusc === 'individual';
-    const esEdicion = esEdicionParam || al.estado_agenda === 'Pre-alta Iniciada';
+    const esEdicion = esEdicionParam || al.estado_agenda === 'Pre-alta Iniciada' || al.estado_agenda === 'Pre-alta iniciada';
     const vieneDeMatch = Boolean(al.horario_match || al.reserva_fecha_texto || al.reserva_profe_id);
 
     document.getElementById('titulo-prealta').textContent = `${esEdicion ? 'Editar' : 'Iniciar'} Pre-Alta — ${al.nombre || 'Alumno'}`;
@@ -147,12 +183,15 @@ export async function abrirModalPrealta(id, esEdicionParam = false, cfg = defaul
 
     const instsAlumno = Array.isArray(al.instrumento) ? al.instrumento : (al.instrumento ? [al.instrumento] : []);
     const instActual = al.instrumento_asignado || instsAlumno[0] || '';
+    const profeActualId = al.reserva_profe_id || al.profesor_id || '';
+
+    // El campo de profesor se muestra siempre
+    if (campoProfe) campoProfe.style.display = 'block';
 
     if (esIndividual) {
         if (campoInst) campoInst.style.display = 'block';
         if (wrapLista) wrapLista.style.display = 'none';
         if (campoGrupo) campoGrupo.style.display = 'none';
-        if (campoProfe) campoProfe.style.display = 'block';
 
         if (selInstPrealta) {
             selInstPrealta.innerHTML = '';
@@ -163,21 +202,22 @@ export async function abrirModalPrealta(id, esEdicionParam = false, cfg = defaul
             } else {
                 selInstPrealta.innerHTML = '<option value="">Sin instrumento especificado</option>';
             }
-            selInstPrealta.onchange = () => refrescarProfesoresPrealta(selInstPrealta.value, selectProfe.value);
+            selInstPrealta.onchange = () => refrescarProfesoresPrealta('individual', selInstPrealta.value, selectProfe.value);
         }
 
-        await refrescarProfesoresPrealta(instActual, al.reserva_profe_id || '');
+        await refrescarProfesoresPrealta('individual', instActual, profeActualId);
         document.getElementById('prealta-grupo').value = 'Clase Individual';
     } else {
         if (campoInst) campoInst.style.display = 'none';
         if (campoGrupo) campoGrupo.style.display = 'block';
-        if (campoProfe) campoProfe.style.display = 'none';
-        document.getElementById('prealta-grupo').value = al.grupo_asignado || '';
-        await renderListaInstrumentosAlumnos([{ id, ...al }], cfg);
+        document.getElementById('prealta-grupo').value = grupoPrev || al.grupo_asignado || '';
+        await renderListaInstrumentosAlumnos([{ id, ...al }], options.configApp || defaultCfg);
+        await refrescarProfesoresPrealta('ensamble', '', profeActualId);
     }
     
     let fVal = '';
-    if (al.fecha_inicio_clases) fVal = al.fecha_inicio_clases.substring(0, 16);
+    if (inicioPrev) fVal = inicioPrev.substring(0, 16);
+    else if (al.fecha_inicio_clases) fVal = al.fecha_inicio_clases.substring(0, 16);
     else if (al.fecha_sugerida_inicio) fVal = al.fecha_sugerida_inicio;
     else if (al.dia_match && al.horario_inicio_match) fVal = calcularProximaFechaDiaHora(al.dia_match, al.horario_inicio_match);
     document.getElementById('prealta-fecha-inicio').value = fVal;
@@ -185,11 +225,11 @@ export async function abrirModalPrealta(id, esEdicionParam = false, cfg = defaul
     const banner = document.getElementById('prealta-info-banner');
     banner.style.display = 'block';
     if (esEdicion) {
-        banner.innerHTML = `✏️ <strong>Modificar Pre-Alta de ${al.nombre}:</strong> Podés ajustar el día, la hora de la clase y el ${esIndividual ? 'profesor asignado' : 'grupo'}.`;
+        banner.innerHTML = `✏️ <strong>Modificar Pre-Alta de ${al.nombre}:</strong> Podés ajustar la fecha y hora de inicio, el profesor asignado y ${esIndividual ? 'el instrumento' : 'el grupo'}.`;
     } else if (vieneDeMatch) {
-        banner.innerHTML = `📅 <strong>Horario Match:</strong> ${al.horario_match || al.reserva_fecha_texto || '-'} • 👨‍🏫 <strong>Profesor:</strong> ${al.reserva_profe_nombre || '-'}`;
+        banner.innerHTML = `📅 <strong>Horario Match:</strong> ${al.horario_match || al.reserva_fecha_texto || '-'} • 👨‍🏫 <strong>Profesor Previo:</strong> ${al.reserva_profe_nombre || '-'}`;
     } else {
-        banner.innerHTML = `ℹ️ <strong>Pre-Alta Directa desde Lista de Espera:</strong> Alumno ${esIndividual ? 'Individual' : 'Grupal'} (${(al.instrumento || []).join(', ')}).`;
+        banner.innerHTML = `ℹ️ <strong>Pre-Alta Directa desde Lista de Espera:</strong> Alumno ${esIndividual ? 'Individual' : 'Ensamble/Grupal'} (${(al.instrumento || []).join(', ')}).`;
     }
     document.getElementById('modal-iniciar-prealta')?.showModal();
 }
@@ -208,6 +248,7 @@ export async function abrirModalPrealtaGrupal(ids, grupoNom = '', cfg = defaultC
     if (alumnosList.length === 0) return alert("No se encontraron datos de los alumnos.");
 
     const primerAl = alumnosList[0];
+    const profeActualId = primerAl.reserva_profe_id || primerAl.profesor_id || '';
 
     document.getElementById('prealta-alumno-id').value = ids.join(',');
     document.getElementById('titulo-prealta').textContent = `Iniciar Pre-Alta Grupal (${ids.length} alumnos)`;
@@ -217,11 +258,12 @@ export async function abrirModalPrealtaGrupal(ids, grupoNom = '', cfg = defaultC
     const campoInst = document.getElementById('prealta-campo-instrumento');
     if (campoInst) campoInst.style.display = 'none';
     if (campoGrupo) campoGrupo.style.display = 'block';
-    if (campoProfe) campoProfe.style.display = 'none';
+    if (campoProfe) campoProfe.style.display = 'block';
 
     document.getElementById('prealta-grupo').value = grupoNom || primerAl.grupo_asignado || '';
 
     await renderListaInstrumentosAlumnos(alumnosList, cfg);
+    await refrescarProfesoresPrealta('ensamble', '', profeActualId);
 
     let fVal = '';
     if (primerAl.fecha_inicio_clases) fVal = primerAl.fecha_inicio_clases.substring(0, 16);
