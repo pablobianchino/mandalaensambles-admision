@@ -161,7 +161,8 @@ let filtrosSeleccionados = {
 };
 let filtroAlarmaActual = 'Todos'; 
 let vistaModo = 'lista'; 
-let selectedBulkIds = [];
+window.selectedBulkIds = [];
+let selectedBulkIds = window.selectedBulkIds;
 let matchListenersAttached = false;
 
 let agrupadorNivel1 = 'ninguno';
@@ -1219,8 +1220,12 @@ function renderKanban(containerId, datos, vista) {
 }
 
 window.toggleBulkSelection = function(id, isChecked) {
-    if (isChecked && !selectedBulkIds.includes(id)) selectedBulkIds.push(id);
-    else if (!isChecked) selectedBulkIds = selectedBulkIds.filter(i => i !== id);
+    if (isChecked && !selectedBulkIds.includes(id)) {
+        selectedBulkIds.push(id);
+    } else if (!isChecked) {
+        const idx = selectedBulkIds.indexOf(id);
+        if (idx !== -1) selectedBulkIds.splice(idx, 1);
+    }
     actualizarBulkBar();
 }
 
@@ -1244,7 +1249,7 @@ function actualizarBulkBar() {
 }
 
 document.getElementById('btn-bulk-cancelar').addEventListener('click', () => {
-    selectedBulkIds = [];
+    selectedBulkIds.splice(0);
     document.querySelectorAll('.bulk-chk').forEach(c => c.checked = false);
     actualizarBulkBar();
 });
@@ -1264,7 +1269,7 @@ document.getElementById('btn-bulk-suspender').addEventListener('click', async ()
             await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Agenda suspendida", motivo_suspension: motivo, reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null, historial: hist });
         } catch(e) {}
     }
-    selectedBulkIds = [];
+    selectedBulkIds.splice(0);
     actualizarBulkBar();
     await cargarVista(estadoActualVista);
     ocultarIndicadorCarga();
@@ -1593,7 +1598,7 @@ if (btnEjecutarPropManual) {
             }
 
             document.getElementById('modal-nueva-propuesta-grupo').close();
-            selectedBulkIds = [];
+            selectedBulkIds.splice(0);
             document.querySelectorAll('.bulk-chk').forEach(c => c.checked = false);
             actualizarBulkBar();
 
