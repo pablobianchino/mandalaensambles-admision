@@ -1261,39 +1261,42 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
     gap: 8px;
     margin: 8px 0 16px 0;
 }
+button.profile-tag-chip,
 .profile-tag-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 7px 14px;
-    border-radius: 20px;
-    font-size: 13px;
-    font-weight: 600;
-    font-family: inherit;
-    background: #f1f5f9;
-    border: 1.5px solid #cbd5e1;
-    color: #1e293b;
-    cursor: pointer;
-    user-select: none;
-    transition: all 0.15s ease-in-out;
-    line-height: 1.2;
-    outline: none;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 7px 15px !important;
+    border-radius: 24px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    font-family: inherit !important;
+    background: #f8fafc !important;
+    border: 1.5px solid #cbd5e1 !important;
+    color: #334155 !important;
+    cursor: pointer !important;
+    user-select: none !important;
+    transition: all 0.15s ease-in-out !important;
+    line-height: 1.2 !important;
+    outline: none !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03) !important;
+    margin: 3px 2px !important;
 }
+button.profile-tag-chip:hover,
 .profile-tag-chip:hover {
-    border-color: var(--accent-teal);
-    background: #e0f2fe;
-    color: #0369a1;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+    border-color: #007b8f !important;
+    background: #e0f2fe !important;
+    color: #0369a1 !important;
+    transform: translateY(-1px) !important;
 }
+button.profile-tag-chip.active,
 .profile-tag-chip.active {
     background: #007b8f !important;
     border-color: #007b8f !important;
     color: #ffffff !important;
-    font-weight: 700;
-    box-shadow: 0 2px 8px rgba(0, 123, 143, 0.35);
-    transform: translateY(-1px);
+    font-weight: 700 !important;
+    box-shadow: 0 2px 8px rgba(0, 123, 143, 0.35) !important;
+    transform: translateY(-1px) !important;
 }
 .profile-tag-badge {
     display: inline-flex;
