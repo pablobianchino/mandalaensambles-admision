@@ -117,7 +117,9 @@ import {
     generarFilaExcelBD,
     generarFilaExcelFacturacion,
     copiarFilaExcelBD,
-    copiarFilaExcelFacturacion
+    copiarFilaExcelFacturacion,
+    abrirModalAvisoPrealtaAlumno,
+    copiarAvisoPrealtaAlumno
 } from "./src/modules/altas.module.js";
 
 import {
@@ -3432,6 +3434,21 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
+    // Botón Aviso WhatsApp Pre-Alta Alumno
+    if (target.classList.contains('btn-aviso-prealta-alumno') || target.closest('.btn-aviso-prealta-alumno')) {
+        const btn = target.classList.contains('btn-aviso-prealta-alumno') ? target : target.closest('.btn-aviso-prealta-alumno');
+        const id = btn.getAttribute('data-id');
+        await abrirModalAvisoPrealtaAlumno(id, configApp);
+        return;
+    }
+
+    // Botón Copiar Aviso Pre-Alta Alumno desde el Modal
+    if (target.id === 'btn-copiar-aviso-prealta-alumno-action' || target.closest('#btn-copiar-aviso-prealta-alumno-action')) {
+        const id = document.getElementById('aviso-alumno-id').value;
+        await copiarAvisoPrealtaAlumno(id);
+        return;
+    }
+
     // Botón Iniciar Pre-Alta Grupal / Masivo
     if (target.classList.contains('btn-iniciar-prealta-grupo') || target.id === 'btn-bulk-prealta') {
         const idsRaw = target.getAttribute('data-ids');
@@ -3515,16 +3532,45 @@ document.addEventListener('click', async (e) => {
         }
         return;
     }
-    if (target.classList.contains('btn-devolver-espera')) {
+    if (target.classList.contains('btn-devolver-espera') || target.closest('.btn-devolver-espera')) {
+        const btn = target.classList.contains('btn-devolver-espera') ? target : target.closest('.btn-devolver-espera');
+        const id = btn.getAttribute('data-id');
+        const alDoc = await getDoc(doc(db, "alumnos", id));
+        if (!alDoc.exists()) return alert("Alumno no encontrado.");
+        const al = alDoc.data();
+
+        const tieneEvento = Boolean(al.id_evento_alta || al.id_evento_reserva || al.reserva_id_evento || al.fecha_inicio_clases || al.horario_match || al.reserva_fecha_texto);
+        
+        if (tieneEvento) {
+            const horarioInfo = al.horario_match || al.reserva_fecha_texto || (al.fecha_inicio_clases ? formatearFechaAmi(al.fecha_inicio_clases) : 'Clase agendada');
+            const profeInfo = al.reserva_profe_nombre || al.profesor_asignado || '-';
+            const okCalendario = await window.confirmar(
+                `📅 Eliminar agenda de Google Calendar`,
+                `El alumno ${al.nombre} tiene una clase/agenda registrada:\n\n• Horario: ${horarioInfo}\n• Docente: ${profeInfo}\n\n¿Confirmás eliminar este evento de Google Calendar y devolver el alumno a Lista de Espera?`,
+                '🗑️ Eliminar Agenda y Continuar'
+            );
+            if (!okCalendario) return;
+        }
+
         const motivo = prompt("¿Motivo para devolver a Lista de Espera?");
         if (motivo !== null) {
             if (motivo.trim() === "") return alert("Debes ingresar un motivo.");
-            const id = target.getAttribute('data-id');
-            const alDoc = await getDoc(doc(db, "alumnos", id));
-            const al = alDoc.exists() ? alDoc.data() : {};
+            
+            mostrarIndicadorCarga('Eliminando evento en Google Calendar y actualizando estado...');
+            try {
+                if (al.id_evento_alta || al.fecha_inicio_clases || al.grupo_asignado) {
+                    await eliminarEventoAltaSeguro(al, configApp);
+                }
+                if (al.id_evento_reserva || al.reserva_id_evento) {
+                    await eliminarEventoSeguro(al, configApp);
+                }
+            } catch(calErr) {
+                console.warn("Aviso calendar al devolver a espera:", calErr);
+            }
+
             const hist = al.historial || [];
             hist.push(crearEntradaHistorial(`Devuelto a Lista de Espera desde ${al.estado_agenda || 'Altas'}. Motivo: ${motivo.trim()}`, 'alta'));
-            await eliminarEventoAltaSeguro(al);
+            
             await updateDoc(doc(db, "alumnos", id), {
                 estado_agenda: "Lista de espera",
                 grupo_asignado: null,
@@ -3539,26 +3585,59 @@ document.addEventListener('click', async (e) => {
                 fecha_inicio_clases: null,
                 id_evento_alta: null,
                 calendario_evento_alta: null,
+                id_evento_reserva: null,
+                calendario_evento_reserva: null,
                 checklist_alta: null,
                 historial: hist
             });
-            alert("✅ Alumno devuelto a Lista de Espera con motivo registrado en el historial.");
-            cargarVista(estadoActualVista);
+
+            ocultarIndicadorCarga();
+            alert("✅ Alumno devuelto a Lista de Espera.\nSe eliminó la agenda asociada en Google Calendar.");
+            await cargarVista(estadoActualVista);
         }
         return;
     }
-    if (target.classList.contains('btn-suspender-alta')) { 
+    if (target.classList.contains('btn-suspender-alta') || target.closest('.btn-suspender-alta')) { 
+        const btn = target.classList.contains('btn-suspender-alta') ? target : target.closest('.btn-suspender-alta');
+        const id = btn.getAttribute('data-id'); 
+        const alDoc = await getDoc(doc(db, "alumnos", id));
+        if (!alDoc.exists()) return alert("Alumno no encontrado.");
+        const al = alDoc.data();
+
+        const tieneEvento = Boolean(al.id_evento_alta || al.id_evento_reserva || al.reserva_id_evento || al.fecha_inicio_clases || al.horario_match || al.reserva_fecha_texto);
+        if (tieneEvento) {
+            const horarioInfo = al.horario_match || al.reserva_fecha_texto || (al.fecha_inicio_clases ? formatearFechaAmi(al.fecha_inicio_clases) : 'Clase agendada');
+            const profeInfo = al.reserva_profe_nombre || al.profesor_asignado || '-';
+            const okCalendario = await window.confirmar(
+                `📅 Eliminar agenda de Google Calendar`,
+                `El alumno ${al.nombre} tiene una clase/agenda registrada:\n\n• Horario: ${horarioInfo}\n• Docente: ${profeInfo}\n\n¿Confirmás eliminar este evento de Google Calendar y suspender el alta?`,
+                '🗑️ Eliminar Agenda y Suspender'
+            );
+            if (!okCalendario) return;
+        }
+
         const motivo = prompt("¿Motivo de Suspensión de Alta?"); 
         if (motivo !== null) { 
             if (motivo.trim() === "") return alert("Debes ingresar un motivo."); 
-            const id = target.getAttribute('data-id'); 
-            const alDoc = await getDoc(doc(db, "alumnos", id));
-            const al = alDoc.exists() ? alDoc.data() : {};
+            mostrarIndicadorCarga('Eliminando evento en Google Calendar y suspendiendo...');
+            try {
+                if (al.id_evento_alta) await eliminarEventoAltaSeguro(al, configApp);
+                if (al.id_evento_reserva) await eliminarEventoSeguro(al, configApp);
+            } catch(e) {}
+
             const hist = al.historial || []; 
             hist.push(crearEntradaHistorial(`Alta suspendida. Motivo: ${motivo.trim()}`, 'suspension')); 
-            await eliminarEventoAltaSeguro(al);
-            await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Alta Suspendida", historial: hist }); 
-            cargarVista(estadoActualVista); 
+            await updateDoc(doc(db, "alumnos", id), { 
+                estado_agenda: "Alta Suspendida", 
+                id_evento_alta: null,
+                calendario_evento_alta: null,
+                id_evento_reserva: null,
+                calendario_evento_reserva: null,
+                historial: hist 
+            }); 
+            ocultarIndicadorCarga();
+            alert("🛑 Alta suspendida correctamente y evento eliminado de Calendar.");
+            await cargarVista(estadoActualVista); 
         } 
         return; 
     }
@@ -3750,6 +3829,8 @@ document.addEventListener('click', async (e) => {
         const emojiInst = getEmojiInstrumento(iS, configApp, al);
         const dP = convertirHtmlATextoPlano(al.descripcion || ''); 
         const fAmiInicio = al.fecha_inicio_clases ? formatearFechaAmi(al.fecha_inicio_clases) : ''; 
+        const horarioCursada = al.horario_match || al.reserva_fecha_texto || fAmiInicio || '';
+        const valorArancel = al.valor_arancel || configApp.valor_clase || '';
         let opc = overrideOpciones || al.opciones_propuestas || []; 
         let opcionesStr = opc.length > 0 ? opc.map(o => `${o.letra || '-'}- ${o.fechaTexto}`).join('\n') : ''; 
         let fHora = overrideFecha || al.reserva_fecha_texto || al.reserva_fecha_texto_previo || ''; 
@@ -3767,6 +3848,9 @@ document.addEventListener('click', async (e) => {
             descripcion: dP, 
             profe: targetProfeNom || '', 
             valor: configApp.valor_clase || '', 
+            valor_arancel: valorArancel,
+            horario_cursada: horarioCursada,
+            fecha_inicio_clases: fAmiInicio || horarioCursada,
             alias_profe: aliasP || '', 
             grupo: al.grupo_asignado || '', 
             motivo: al.motivo_suspension || '',
@@ -3926,15 +4010,30 @@ document.addEventListener('click', async (e) => {
     }
     if (target.classList.contains('btn-cancelar-reserva') || target.closest('.btn-cancelar-reserva')) { 
         const btn = target.classList.contains('btn-cancelar-reserva') ? target : target.closest('.btn-cancelar-reserva');
-        const motivo = prompt("¿Estás seguro de cancelar? Se eliminará en Calendar.\nIngresa motivo para historial:"); 
+        const id = btn.getAttribute('data-id'); 
+        const alDoc = await getDoc(doc(db, "alumnos", id)); 
+        if (!alDoc.exists()) return alert("Alumno no encontrado.");
+        const alData = alDoc.data(); 
+
+        const tieneEvento = Boolean(alData.id_evento_reserva || alData.id_evento_alta || alData.reserva_fecha_texto);
+        if (tieneEvento) {
+            const horarioInfo = alData.reserva_fecha_texto || alData.horario_match || 'Reserva agendada';
+            const profeInfo = alData.reserva_profe_nombre || alData.profesor_asignado || '-';
+            const okCalendario = await window.confirmar(
+                `📅 Eliminar reserva de Google Calendar`,
+                `El alumno ${alData.nombre} tiene una entrevista agendada:\n\n• Horario: ${horarioInfo}\n• Docente: ${profeInfo}\n\n¿Confirmás eliminar este evento de Google Calendar y cancelar la reserva?`,
+                '🗑️ Eliminar Reserva y Cancelar'
+            );
+            if (!okCalendario) return;
+        }
+
+        const motivo = prompt("¿Ingresa motivo para historial:"); 
         if (motivo !== null) { 
             if (motivo.trim() === "") return alert("Debes ingresar motivo."); 
-            const id = btn.getAttribute('data-id'); 
             mostrarIndicadorCarga('Cancelando evento en Calendar...');
             try { 
-                const alDoc = await getDoc(doc(db, "alumnos", id)); 
-                const alData = alDoc.data(); 
-                if (alData.id_evento_reserva) await eliminarEventoSeguro(alData); 
+                if (alData.id_evento_reserva) await eliminarEventoSeguro(alData, configApp); 
+                if (alData.id_evento_alta) await eliminarEventoAltaSeguro(alData, configApp);
                 const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`; 
                 const hist = alData.historial || []; 
                 hist.push({ id: Date.now(), texto: `Reserva cancelada. Motivo: ${motivo.trim()}`, fecha: fechaStr }); 
@@ -3943,7 +4042,7 @@ document.addEventListener('click', async (e) => {
                     await navigator.clipboard.writeText(data.txt); 
                     alert("Cancelada. Texto CANCELACIÓN copiado."); 
                 } 
-                await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente procesar", reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null, opciones_propuestas: null, historial: hist }); 
+                await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente procesar", reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null, id_evento_alta: null, calendario_evento_alta: null, opciones_propuestas: null, historial: hist }); 
                 removerFilaOptimista(id);
                 await cargarVista(estadoActualVista); 
             } catch(e) { 
@@ -4033,8 +4132,20 @@ document.addEventListener('click', async (e) => {
             const profPrevioNom = al.reserva_profe_nombre || al.profesor_asignado || null;
             const fechaPrevTexto = al.reserva_fecha_texto || (al.fecha_inicio_clases ? formatearFechaAmi(al.fecha_inicio_clases) : null);
 
-            if (al.id_evento_reserva) await eliminarEventoSeguro(al);
-            if (al.id_evento_alta) await eliminarEventoAltaSeguro(al);
+            if (teniaReserva) {
+                const okEliminar = await window.confirmar(
+                    `📅 Eliminar agenda de Google Calendar`,
+                    `El alumno ${al.nombre} tiene una agenda registrada:\n\n• Horario: ${fechaPrevTexto || 'Clase agendada'}\n• Docente: ${profPrevioNom || 'Profesor'}\n\n¿Confirmás eliminar este evento de Google Calendar y suspender la ficha?`,
+                    '🗑️ Eliminar Agenda y Suspender'
+                );
+                if (!okEliminar) {
+                    setBotonCargando(target, false);
+                    return;
+                }
+            }
+
+            if (al.id_evento_reserva) await eliminarEventoSeguro(al, configApp);
+            if (al.id_evento_alta) await eliminarEventoAltaSeguro(al, configApp);
             
             const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
             const hist = al.historial || []; 
