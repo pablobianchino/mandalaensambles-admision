@@ -280,9 +280,38 @@ export async function sincronizarEventoAltaConfirmadaCalendar(al, esIndividual, 
 }
 
 export async function eliminarEventoAltaSeguro(al, cfg = defaultCfg) {
-    const evId = al.id_evento_alta;
-    const calId = al.calendario_evento_alta || await getCalendarIdParaAlumno(al, cfg);
-    if (evId && calId) {
-        try { await eliminarEventoCalendario(calId, evId); } catch(e) {}
+    let evId = al.id_evento_alta || al.id_evento_reserva || al.reserva_id_evento;
+    
+    // Si no tiene id directo y es grupal, buscar en otros miembros del grupo
+    if (!evId && al.grupo_asignado) {
+        try {
+            const grpSnap = await getDocs(query(collection(db, "alumnos"), where("grupo_asignado", "==", al.grupo_asignado)));
+            grpSnap.forEach(d => {
+                const data = d.data();
+                if (data.id_evento_alta && !evId) evId = data.id_evento_alta;
+            });
+        } catch(e) {}
     }
+
+    if (!evId) return false;
+
+    let calGrabado = al.calendario_evento_alta || al.calendario_evento_reserva || al.reserva_cal_id;
+    let primaryCalId = await getCalendarIdParaAlumno(al, cfg);
+    let fallbackCalId = cfg.calendario_por_defecto || 'productora.mandalahouse@gmail.com';
+    let candidatos = [];
+    if (calGrabado && !candidatos.includes(calGrabado)) candidatos.push(calGrabado);
+    if (primaryCalId && !candidatos.includes(primaryCalId)) candidatos.push(primaryCalId);
+    if (fallbackCalId && !candidatos.includes(fallbackCalId)) candidatos.push(fallbackCalId);
+
+    let eliminado = false;
+    for (const cal of candidatos) {
+        try {
+            await eliminarEventoCalendario(cal, evId);
+            eliminado = true;
+            break;
+        } catch(e) {
+            console.warn(`No se pudo eliminar evento ${evId} del calendario ${cal}:`, e.message);
+        }
+    }
+    return eliminado;
 }
