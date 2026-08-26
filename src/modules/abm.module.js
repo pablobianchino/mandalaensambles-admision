@@ -3,6 +3,7 @@
 // =======================================================================
 
 import { defaultCfg } from "../config/constants.js";
+import { formatearPrecioMoneda } from "./altas.module.js";
 import { 
     db, 
     collection, 
@@ -48,61 +49,236 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
         wrap.innerHTML = tagsList.map((tag, idx) => `
             <span style="display:inline-flex; align-items:center; gap:6px; padding:6px 12px; background:var(--hover-bg); border:1px solid var(--border-color); border-radius:20px; font-size:12.5px; font-weight:600; color:var(--text-main);">
                 ${tag}
-                <button type="button" class="btn-del-tag-cfg" data-idx="${idx}" style="background:none; border:none; color:var(--accent-red); cursor:pointer; font-weight:bold; padding:0 2px; font-size:14px;">✕</button>
+                <button type="button" class="btn-del-tag-cfg" data-idx="${idx}" style="background:none; border:none; color:var(--accent-red); cursor:pointer; font-weight:bold; padding:0 2px; font-size:14px;" title="Eliminar etiqueta">✕</button>
             </span>
         `).join('');
     };
 
     cont.innerHTML = `
-        <div style="margin-bottom:25px; font-size:0.9em; color:var(--text-muted);">
-            <span style="cursor:pointer; color:var(--accent-teal);" onclick="window.cargarVistaGlobal('Configuración')">Configuración</span> &gt; <strong style="color:var(--text-main);">Ajustes Generales</strong>
+        <div style="margin-bottom:20px; font-size:0.9em; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div>
+                <span style="cursor:pointer; color:var(--accent-teal);" onclick="window.cargarVistaGlobal('Configuración')">Configuración</span> &gt; <strong style="color:var(--text-main);">Ajustes Generales</strong>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <button type="button" id="btn-cfg-expand-all" style="padding:5px 12px; font-size:11.5px; border-radius:8px; border:1px solid var(--border-color); background:#fff; cursor:pointer; font-weight:600; color:var(--text-muted);">Expandir Todo</button>
+                <button type="button" id="btn-cfg-collapse-all" style="padding:5px 12px; font-size:11.5px; border-radius:8px; border:1px solid var(--border-color); background:#fff; cursor:pointer; font-weight:600; color:var(--text-muted);">Colapsar Todo</button>
+            </div>
         </div>
-        <div style="max-width:800px; padding:30px; background:white; border-radius:12px; border:1px solid var(--border-color);">
-            <h3 style="margin-top:0; color:var(--text-main); font-size:1.2em;">Límites de Calendario</h3>
-            <div style="display:flex; gap:15px; margin-bottom:25px; flex-wrap:wrap;">
-                <div style="flex:1; min-width:150px;"><label>Hora Apertura:<input type="time" id="cfg-apertura" class="modern-input" value="${currentCfg.hora_apertura||'09:00'}"></label></div>
-                <div style="flex:1; min-width:150px;"><label>Hora Cierre:<input type="time" id="cfg-cierre" class="modern-input" value="${currentCfg.hora_cierre||'22:00'}"></label></div>
-            </div>
-            <div style="display:flex; gap:15px; margin-bottom:25px; flex-wrap:wrap;">
-                <div style="flex:1; min-width:150px;"><label>Aulas totales:<input type="number" id="cfg-aulas" class="modern-input" value="${currentCfg.cantidad_aulas}"></label></div>
-                <div style="flex:1; min-width:150px;"><label>Baterías totales:<input type="number" id="cfg-bats" class="modern-input" value="${currentCfg.cantidad_baterias}"></label></div>
+
+        <div style="max-width:850px; display:flex; flex-direction:column; gap:15px;">
+
+            <!-- SECCIÓN 1: GENERALES -->
+            <div class="cfg-accordion-card">
+                <div class="cfg-accordion-header" data-target="cfg-sec-generales">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span style="font-size:1.2em;">⚙️</span>
+                        <span style="font-size:1.05em; font-weight:700; color:var(--text-main);">1. Generales</span>
+                    </div>
+                    <span class="cfg-accordion-arrow" id="arrow-cfg-sec-generales">▼</span>
+                </div>
+                <div id="cfg-sec-generales" class="cfg-accordion-body" style="display:block;">
+                    <h4 style="margin:0 0 12px 0; color:var(--text-main); font-size:0.95em; text-transform:uppercase; letter-spacing:0.04em;">Datos generales de la escuela</h4>
+                    <div style="display:flex; gap:15px; margin-bottom:18px; flex-wrap:wrap;">
+                        <div style="flex:1; min-width:140px;"><label style="font-size:12px; font-weight:600; color:var(--text-muted);">Hora Apertura:<input type="time" id="cfg-apertura" class="modern-input" value="${currentCfg.hora_apertura||'09:00'}"></label></div>
+                        <div style="flex:1; min-width:140px;"><label style="font-size:12px; font-weight:600; color:var(--text-muted);">Hora Cierre:<input type="time" id="cfg-cierre" class="modern-input" value="${currentCfg.hora_cierre||'22:00'}"></label></div>
+                        <div style="flex:1; min-width:140px;"><label style="font-size:12px; font-weight:600; color:var(--text-muted);">Aulas totales:<input type="number" id="cfg-aulas" class="modern-input" value="${currentCfg.cantidad_aulas||'3'}"></label></div>
+                        <div style="flex:1; min-width:140px;"><label style="font-size:12px; font-weight:600; color:var(--text-muted);">Baterías totales:<input type="number" id="cfg-bats" class="modern-input" value="${currentCfg.cantidad_baterias||'2'}"></label></div>
+                    </div>
+
+                    <div style="border-top:1px solid var(--border-color); padding-top:16px; margin-top:16px;">
+                        <h4 style="margin:0 0 6px 0; color:var(--text-main); font-size:0.95em; text-transform:uppercase; letter-spacing:0.04em;">🧠 Opciones de Perfil Psicológico / Emocional</h4>
+                        <p style="color:var(--text-muted); font-size:0.85em; margin:0 0 12px 0;">Etiquetas que el evaluador puede seleccionar al cargar el informe o finalizar la admisión.</p>
+                        <div id="cfg-tags-admin-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;"></div>
+                        <div style="display:flex; gap:10px; max-width:420px;">
+                            <input type="text" id="cfg-new-tag-input" class="modern-input" placeholder="Nueva etiqueta (ej: ⚡ Enérgico)...">
+                            <button type="button" id="btn-add-tag-cfg" class="btn-primary" style="white-space:nowrap; padding:0 16px;">+ Agregar</button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <h3 style="margin-top:0; color:var(--text-main); border-top:1px solid var(--border-color); padding-top:20px;">🧠 Opciones de Perfil Psicológico / Emocional</h3>
-            <p style="color:var(--text-muted); font-size:0.9em; margin-bottom:12px;">Etiquetas que el evaluador puede seleccionar al cargar el informe o finalizar la admisión.</p>
-            <div id="cfg-tags-admin-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:15px;"></div>
-            <div style="display:flex; gap:10px; margin-bottom:25px; max-width:400px;">
-                <input type="text" id="cfg-new-tag-input" class="modern-input" placeholder="Nueva etiqueta (ej: ⚡ Enérgico)...">
-                <button type="button" id="btn-add-tag-cfg" class="btn-primary" style="white-space:nowrap; padding:0 16px;">+ Agregar</button>
+            <!-- SECCIÓN 2: CALENDARIO -->
+            <div class="cfg-accordion-card">
+                <div class="cfg-accordion-header" data-target="cfg-sec-calendario">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span style="font-size:1.2em;">📅</span>
+                        <span style="font-size:1.05em; font-weight:700; color:var(--text-main);">2. Calendario</span>
+                    </div>
+                    <span class="cfg-accordion-arrow" id="arrow-cfg-sec-calendario">▶</span>
+                </div>
+                <div id="cfg-sec-calendario" class="cfg-accordion-body" style="display:none;">
+                    <h4 style="margin:0 0 12px 0; color:var(--text-main); font-size:0.95em; text-transform:uppercase; letter-spacing:0.04em;">Calendario y Emojis</h4>
+                    <label style="margin-bottom:15px; display:block; font-size:12px; font-weight:600; color:var(--text-muted);">Calendario por Defecto:
+                        <input type="email" id="cfg-cal-defecto" class="modern-input" value="${currentCfg.calendario_por_defecto||''}" placeholder="productora.mandalahouse@gmail.com">
+                    </label>
+                    <label style="font-size:12px; font-weight:600; color:var(--text-muted); display:block; margin-bottom:8px;">Emojis por Instrumento:</label>
+                    <div style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap;">
+                        <div style="width:75px;"><label style="font-size:11px;">Batería:<input type="text" id="cfg-idbat" class="modern-input" style="text-align:center;" value="${currentCfg.identificador_bateria||'🥁'}"></label></div>
+                        <div style="width:75px;"><label style="font-size:11px;">Guitarra:<input type="text" id="cfg-em-gui" class="modern-input" style="text-align:center;" value="${currentCfg.emoji_guitarra||'🎸'}"></label></div>
+                        <div style="width:75px;"><label style="font-size:11px;">Cajón:<input type="text" id="cfg-em-caj" class="modern-input" style="text-align:center;" value="${currentCfg.emoji_cajon||'📦'}"></label></div>
+                        <div style="width:75px;"><label style="font-size:11px;">Canto:<input type="text" id="cfg-em-can" class="modern-input" style="text-align:center;" value="${currentCfg.emoji_canto||'🎤'}"></label></div>
+                        <div style="width:75px;"><label style="font-size:11px;">Piano:<input type="text" id="cfg-em-pia" class="modern-input" style="text-align:center;" value="${currentCfg.emoji_piano||'🎹'}"></label></div>
+                        <div style="width:75px;"><label style="font-size:11px;">Bajo:<input type="text" id="cfg-em-baj" class="modern-input" style="text-align:center;" value="${currentCfg.emoji_bajo||'🎸'}"></label></div>
+                    </div>
+
+                    <div style="border-top:1px solid var(--border-color); padding-top:16px;">
+                        <label style="margin-bottom:14px; display:block; font-size:12px; font-weight:600; color:var(--text-muted);">Título para evento de reserva:
+                            <input type="text" id="cfg-evt-res" class="modern-input" value="${currentCfg.formato_evento_reserva||''}">
+                        </label>
+                        <label style="margin-bottom:5px; display:block; font-size:12px; font-weight:600; color:var(--text-muted);">Título para evento confirmado:
+                            <input type="text" id="cfg-evt-conf" class="modern-input" value="${currentCfg.formato_evento_confirmado||''}">
+                        </label>
+                    </div>
+                </div>
             </div>
 
-            <h3 style="margin-top:0; color:var(--text-main); border-top:1px solid var(--border-color); padding-top:20px;">Calendario y Emojis</h3>
-            <label style="margin-bottom:15px;">Calendario Defecto:<input type="email" id="cfg-cal-defecto" class="modern-input" value="${currentCfg.calendario_por_defecto||''}"></label>
-            <div style="display:flex; gap:10px; margin-bottom:25px; flex-wrap:wrap;">
-                <div style="width:80px;"><label>Batería:<input type="text" id="cfg-idbat" class="modern-input" value="${currentCfg.identificador_bateria||''}"></label></div>
-                <div style="width:80px;"><label>Guitarra:<input type="text" id="cfg-em-gui" class="modern-input" value="${currentCfg.emoji_guitarra||'🎸'}"></label></div>
-                <div style="width:80px;"><label>Cajón:<input type="text" id="cfg-em-caj" class="modern-input" value="${currentCfg.emoji_cajon||'📦'}"></label></div>
-                <div style="width:80px;"><label>Canto:<input type="text" id="cfg-em-can" class="modern-input" value="${currentCfg.emoji_canto||'🎤'}"></label></div>
-                <div style="width:80px;"><label>Piano:<input type="text" id="cfg-em-pia" class="modern-input" value="${currentCfg.emoji_piano||'🎹'}"></label></div>
-                <div style="width:80px;"><label>Bajo:<input type="text" id="cfg-em-baj" class="modern-input" value="${currentCfg.emoji_bajo||'🎸'}"></label></div>
+            <!-- SECCIÓN 3: ADMISIÓN (ENTREVISTAS) -->
+            <div class="cfg-accordion-card">
+                <div class="cfg-accordion-header" data-target="cfg-sec-admision-entrevistas">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span style="font-size:1.2em;">📋</span>
+                        <span style="font-size:1.05em; font-weight:700; color:var(--text-main);">3. Admisión (entrevistas)</span>
+                    </div>
+                    <span class="cfg-accordion-arrow" id="arrow-cfg-sec-admision-entrevistas">▶</span>
+                </div>
+                <div id="cfg-sec-admision-entrevistas" class="cfg-accordion-body" style="display:none;">
+                    <div style="display:flex; gap:15px; margin-bottom:15px; flex-wrap:wrap;">
+                        <div style="flex:2; min-width:200px;">
+                            <label style="font-size:12px; font-weight:600; color:var(--text-muted);">Nombre predefinido para agendar en WS:
+                                <input type="text" id="cfg-nombre-agendar" class="modern-input" value="${currentCfg.texto_nombre_agendar||''}">
+                            </label>
+                        </div>
+                        <div style="flex:1; min-width:140px;">
+                            <label style="font-size:12px; font-weight:600; color:var(--text-muted);">Valor de clase de admisión:
+                                <input type="text" id="cfg-valor" class="modern-input" value="${currentCfg.valor_clase||''}">
+                            </label>
+                        </div>
+                    </div>
+
+                    <label style="margin-bottom:14px; display:block; font-size:12px; font-weight:600; color:var(--text-muted);">Texto predefinido para Docente (múltiples fechas):
+                        <textarea id="cfg-txt-opt-mul" class="modern-input" style="height:150px; font-family:monospace; font-size:12px;">${currentCfg.texto_opciones_multiples || ''}</textarea>
+                    </label>
+                    <label style="margin-bottom:14px; display:block; font-size:12px; font-weight:600; color:var(--text-muted);">Texto predefinido para Docente (una opción de fecha):
+                        <textarea id="cfg-txt-p" class="modern-input" style="height:130px; font-family:monospace; font-size:12px;">${currentCfg.texto_profe || ''}</textarea>
+                    </label>
+                    <label style="margin-bottom:14px; display:block; font-size:12px; font-weight:600; color:var(--text-muted);">Texto de propuesta de reserva de agenda para Alumno:
+                        <textarea id="cfg-txt-alumno" class="modern-input" style="height:130px; font-family:monospace; font-size:12px;">${currentCfg.texto_alumno || ''}</textarea>
+                    </label>
+                    <label style="margin-bottom:14px; display:block; font-size:12px; font-weight:600; color:var(--text-muted);">Texto para confirmar reserva a Alumno:
+                        <textarea id="cfg-txt-conf-a" class="modern-input" style="height:130px; font-family:monospace; font-size:12px;">${currentCfg.texto_conf_alumno || ''}</textarea>
+                    </label>
+                    <label style="margin-bottom:5px; display:block; font-size:12px; font-weight:600; color:var(--text-muted);">Texto de cancelación de reserva/agenda para Docente:
+                        <textarea id="cfg-txt-cancela" class="modern-input" style="height:110px; font-family:monospace; font-size:12px;">${currentCfg.texto_cancela_alumno || ''}</textarea>
+                    </label>
+                </div>
             </div>
-            
-            <h3 style="margin-top:0; color:var(--text-main); border-top:1px solid var(--border-color); padding-top:20px;">Mensajes y Textos</h3>
-            <label style="margin-bottom:15px;">Valor de Clase (Monto): <input type="text" id="cfg-valor" class="modern-input" value="${currentCfg.valor_clase}"></label>
-            <label style="margin-bottom:15px;">Título Evento (Reserva): <input type="text" id="cfg-evt-res" class="modern-input" value="${currentCfg.formato_evento_reserva}"></label>
-            <label style="margin-bottom:15px;">Título Evento (Confirmado): <input type="text" id="cfg-evt-conf" class="modern-input" value="${currentCfg.formato_evento_confirmado}"></label>
-            <label style="margin-bottom:15px;">Nombre para Agendar (WS): <input type="text" id="cfg-nombre-agendar" class="modern-input" value="${currentCfg.texto_nombre_agendar}"></label>
-            <label style="margin-bottom:15px;">Texto Opciones Múltiples: <textarea id="cfg-txt-opt-mul" class="modern-input" style="height:200px;">${currentCfg.texto_opciones_multiples || ''}</textarea></label>
-            <label style="margin-bottom:15px;">Texto 1 Sola Opción: <textarea id="cfg-txt-p" class="modern-input" style="height:150px;">${currentCfg.texto_profe || ''}</textarea></label>
-            <label style="margin-bottom:15px;">Texto Propuesta Horario al Alumno (Validación por Alumno): <textarea id="cfg-txt-alumno" class="modern-input" style="height:150px;">${currentCfg.texto_alumno || ''}</textarea></label>
-            <label style="margin-bottom:15px;">Texto Confirmación Alumno: <textarea id="cfg-txt-conf-a" class="modern-input" style="height:150px;">${currentCfg.texto_conf_alumno || ''}</textarea></label>
-            <label style="margin-bottom:15px;">Texto Cancelación: <textarea id="cfg-txt-cancela" class="modern-input" style="height:100px;">${currentCfg.texto_cancela_alumno || ''}</textarea></label>
-            <label style="margin-bottom:15px;">Texto Pre-Alta: <textarea id="cfg-txt-prealta" class="modern-input" style="height:150px;">${currentCfg.texto_prealta || ''}</textarea></label>
-            <label style="margin-bottom:20px;">Texto Nueva Alta: <textarea id="cfg-txt-alta-conf" class="modern-input" style="height:150px;">${currentCfg.texto_alta_confirmada || ''}</textarea></label>
-            <button id="btn-guardar-cfg" class="btn-primary" style="width:100%;">Guardar Configuración</button>
+
+            <!-- SECCIÓN 4: ADMISIÓN (PRE-ALTA) -->
+            <div class="cfg-accordion-card">
+                <div class="cfg-accordion-header" data-target="cfg-sec-admision-prealta">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span style="font-size:1.2em;">🚀</span>
+                        <span style="font-size:1.05em; font-weight:700; color:var(--text-main);">4. Admisión (pre-alta)</span>
+                    </div>
+                    <span class="cfg-accordion-arrow" id="arrow-cfg-sec-admision-prealta">▶</span>
+                </div>
+                <div id="cfg-sec-admision-prealta" class="cfg-accordion-body" style="display:none;">
+                    <label style="margin-bottom:14px; display:block; font-size:12px; font-weight:600; color:var(--text-muted);">Texto de aviso de pre-alta iniciada para Docente:
+                        <textarea id="cfg-txt-prealta" class="modern-input" style="height:140px; font-family:monospace; font-size:12px;">${currentCfg.texto_prealta || ''}</textarea>
+                    </label>
+                    <label style="margin-bottom:14px; display:block; font-size:12px; font-weight:600; color:var(--text-muted);">Texto de aviso de pre-alta para Alumno:
+                        <textarea id="cfg-txt-prealta-alumno" class="modern-input" style="height:170px; font-family:monospace; font-size:12px;">${currentCfg.texto_prealta_alumno || ''}</textarea>
+                    </label>
+                    <label style="margin-bottom:5px; display:block; font-size:12px; font-weight:600; color:var(--text-muted);">Texto de aviso de pre-alta finalizada para docente:
+                        <textarea id="cfg-txt-alta-conf" class="modern-input" style="height:140px; font-family:monospace; font-size:12px;">${currentCfg.texto_alta_confirmada || ''}</textarea>
+                    </label>
+                </div>
+            </div>
+
+            <!-- SECCIÓN 5: ARANCELES -->
+            <div class="cfg-accordion-card">
+                <div class="cfg-accordion-header" data-target="cfg-sec-aranceles">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span style="font-size:1.2em;">💵</span>
+                        <span style="font-size:1.05em; font-weight:700; color:var(--text-main);">5. Aranceles</span>
+                    </div>
+                    <span class="cfg-accordion-arrow" id="arrow-cfg-sec-aranceles">▶</span>
+                </div>
+                <div id="cfg-sec-aranceles" class="cfg-accordion-body" style="display:none;">
+                    <p style="color:var(--text-muted); font-size:0.9em; margin:0 0 16px 0;">En esta sección se ingresará el valor del arancel de las clases para su posterior utilización en mensajes y altas.</p>
+                    
+                    <h4 style="margin:0 0 10px 0; color:var(--text-main); font-size:0.95em; text-transform:uppercase; letter-spacing:0.04em;">Clases Individuales</h4>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-bottom:20px;">
+                        <label style="font-size:12px; font-weight:600; color:var(--text-muted);">Clase suelta:
+                            <input type="text" id="cfg-arancel-ind-suelta" class="modern-input cfg-arancel-input" value="${formatearPrecioMoneda(currentCfg.arancel_individual_suelta)}" placeholder="Ej: $15.000">
+                        </label>
+                        <label style="font-size:12px; font-weight:600; color:var(--text-muted);">Quincenal:
+                            <input type="text" id="cfg-arancel-ind-quincenal" class="modern-input cfg-arancel-input" value="${formatearPrecioMoneda(currentCfg.arancel_individual_quincenal)}" placeholder="Ej: $25.000">
+                        </label>
+                        <label style="font-size:12px; font-weight:600; color:var(--text-muted);">Full Pack:
+                            <input type="text" id="cfg-arancel-ind-fullpack" class="modern-input cfg-arancel-input" value="${formatearPrecioMoneda(currentCfg.arancel_individual_fullpack)}" placeholder="Ej: $45.000">
+                        </label>
+                        <label style="font-size:12px; font-weight:600; color:var(--text-muted);">Full Pack (comunidad/antiguos):
+                            <input type="text" id="cfg-arancel-ind-fullpack-comunidad" class="modern-input cfg-arancel-input" value="${formatearPrecioMoneda(currentCfg.arancel_individual_fullpack_comunidad)}" placeholder="Ej: $40.000">
+                        </label>
+                    </div>
+
+                    <div style="border-top:1px solid var(--border-color); padding-top:16px;">
+                        <h4 style="margin:0 0 10px 0; color:var(--text-main); font-size:0.95em; text-transform:uppercase; letter-spacing:0.04em;">Ensamble y Clases Grupales</h4>
+                        <div style="background:var(--hover-bg); border:1px solid var(--border-color); border-radius:8px; padding:14px; margin-top:8px; margin-bottom:12px;">
+                            <strong style="font-size:13px; color:var(--text-main); display:block; margin-bottom:10px;">🎸 Ensamble</strong>
+                            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px;">
+                                <label style="font-size:12px; font-weight:600; color:var(--text-muted);">Valor:
+                                    <input type="text" id="cfg-arancel-ens-regular" class="modern-input cfg-arancel-input" value="${formatearPrecioMoneda(currentCfg.arancel_ensamble_regular)}" placeholder="Ej: $28.000">
+                                </label>
+                            </div>
+                        </div>
+                        <div style="background:var(--hover-bg); border:1px solid var(--border-color); border-radius:8px; padding:14px;">
+                            <strong style="font-size:13px; color:var(--text-main); display:block; margin-bottom:10px;">🎸 Ensamble Mandalorian</strong>
+                            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px;">
+                                <label style="font-size:12px; font-weight:600; color:var(--text-muted);">Valor actual:
+                                    <input type="text" id="cfg-arancel-ens-actual" class="modern-input cfg-arancel-input" value="${formatearPrecioMoneda(currentCfg.arancel_ensamble_actual)}" placeholder="Ej: $35.000">
+                                </label>
+                                <label style="font-size:12px; font-weight:600; color:var(--text-muted);">Valor comunidad/antiguos:
+                                    <input type="text" id="cfg-arancel-ens-comunidad" class="modern-input cfg-arancel-input" value="${formatearPrecioMoneda(currentCfg.arancel_ensamble_comunidad)}" placeholder="Ej: $30.000">
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BOTÓN GUARDAR GLOBAL -->
+            <div style="margin-top:10px;">
+                <button id="btn-guardar-cfg" class="btn-primary" style="width:100%; padding:14px; font-size:14px; font-weight:700;">💾 Guardar Ajustes Generales</button>
+            </div>
+
         </div>`; 
 
     renderTagsAdmin();
+
+    // Toggle de Acordeones
+    cont.querySelectorAll('.cfg-accordion-header').forEach(header => {
+        header.addEventListener('click', () => {
+            const targetId = header.getAttribute('data-target');
+            const body = document.getElementById(targetId);
+            const arrow = document.getElementById(`arrow-${targetId}`);
+            if (!body) return;
+            const isHidden = body.style.display === 'none';
+            body.style.display = isHidden ? 'block' : 'none';
+            if (arrow) arrow.textContent = isHidden ? '▼' : '▶';
+        });
+    });
+
+    // Botones Expandir / Colapsar Todo
+    document.getElementById('btn-cfg-expand-all')?.addEventListener('click', () => {
+        cont.querySelectorAll('.cfg-accordion-body').forEach(b => b.style.display = 'block');
+        cont.querySelectorAll('.cfg-accordion-arrow').forEach(a => a.textContent = '▼');
+    });
+    document.getElementById('btn-cfg-collapse-all')?.addEventListener('click', () => {
+        cont.querySelectorAll('.cfg-accordion-body').forEach(b => b.style.display = 'none');
+        cont.querySelectorAll('.cfg-accordion-arrow').forEach(a => a.textContent = '▶');
+    });
 
     const autoGuardarTags = async () => {
         try {
@@ -147,30 +323,38 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
     });
 
     document.getElementById('btn-guardar-cfg')?.addEventListener('click', async (e) => { 
-        if (typeof setBotonCargando === 'function') setBotonCargando(e.target, true); 
+        if (typeof setBotonCargando === 'function') setBotonCargando(e.target, true, 'Guardando ajustes...'); 
         const updatedData = { 
-            hora_apertura: document.getElementById('cfg-apertura').value, 
-            hora_cierre: document.getElementById('cfg-cierre').value, 
-            cantidad_aulas: document.getElementById('cfg-aulas').value, 
-            cantidad_baterias: document.getElementById('cfg-bats').value, 
-            identificador_bateria: document.getElementById('cfg-idbat').value, 
-            emoji_guitarra: document.getElementById('cfg-em-gui').value, 
-            emoji_cajon: document.getElementById('cfg-em-caj').value, 
-            emoji_canto: document.getElementById('cfg-em-can').value, 
-            emoji_piano: document.getElementById('cfg-em-pia').value, 
-            emoji_bajo: document.getElementById('cfg-em-baj').value, 
-            calendario_por_defecto: document.getElementById('cfg-cal-defecto').value, 
-            valor_clase: document.getElementById('cfg-valor').value, 
-            formato_evento_reserva: document.getElementById('cfg-evt-res').value, 
-            formato_evento_confirmado: document.getElementById('cfg-evt-conf').value, 
-            texto_nombre_agendar: document.getElementById('cfg-nombre-agendar').value, 
-            texto_opciones_multiples: document.getElementById('cfg-txt-opt-mul').value, 
-            texto_profe: document.getElementById('cfg-txt-p').value, 
-            texto_alumno: document.getElementById('cfg-txt-alumno').value,
-            texto_conf_alumno: document.getElementById('cfg-txt-conf-a').value, 
-            texto_cancela_alumno: document.getElementById('cfg-txt-cancela').value, 
-            texto_prealta: document.getElementById('cfg-txt-prealta').value, 
-            texto_alta_confirmada: document.getElementById('cfg-txt-alta-conf').value,
+            hora_apertura: document.getElementById('cfg-apertura')?.value || '09:00', 
+            hora_cierre: document.getElementById('cfg-cierre')?.value || '22:00', 
+            cantidad_aulas: document.getElementById('cfg-aulas')?.value || '3', 
+            cantidad_baterias: document.getElementById('cfg-bats')?.value || '2', 
+            identificador_bateria: document.getElementById('cfg-idbat')?.value || '🥁', 
+            emoji_guitarra: document.getElementById('cfg-em-gui')?.value || '🎸', 
+            emoji_cajon: document.getElementById('cfg-em-caj')?.value || '📦', 
+            emoji_canto: document.getElementById('cfg-em-can')?.value || '🎤', 
+            emoji_piano: document.getElementById('cfg-em-pia')?.value || '🎹', 
+            emoji_bajo: document.getElementById('cfg-em-baj')?.value || '🎸', 
+            calendario_por_defecto: document.getElementById('cfg-cal-defecto')?.value || '', 
+            valor_clase: document.getElementById('cfg-valor')?.value || '', 
+            formato_evento_reserva: document.getElementById('cfg-evt-res')?.value || '', 
+            formato_evento_confirmado: document.getElementById('cfg-evt-conf')?.value || '', 
+            texto_nombre_agendar: document.getElementById('cfg-nombre-agendar')?.value || '', 
+            texto_opciones_multiples: document.getElementById('cfg-txt-opt-mul')?.value || '', 
+            texto_profe: document.getElementById('cfg-txt-p')?.value || '', 
+            texto_alumno: document.getElementById('cfg-txt-alumno')?.value || '',
+            texto_conf_alumno: document.getElementById('cfg-txt-conf-a')?.value || '', 
+            texto_cancela_alumno: document.getElementById('cfg-txt-cancela')?.value || '', 
+            texto_prealta: document.getElementById('cfg-txt-prealta')?.value || '', 
+            texto_prealta_alumno: document.getElementById('cfg-txt-prealta-alumno')?.value || '',
+            texto_alta_confirmada: document.getElementById('cfg-txt-alta-conf')?.value || '',
+            arancel_individual_suelta: formatearPrecioMoneda(document.getElementById('cfg-arancel-ind-suelta')?.value || ''),
+            arancel_individual_quincenal: formatearPrecioMoneda(document.getElementById('cfg-arancel-ind-quincenal')?.value || ''),
+            arancel_individual_fullpack: formatearPrecioMoneda(document.getElementById('cfg-arancel-ind-fullpack')?.value || ''),
+            arancel_individual_fullpack_comunidad: formatearPrecioMoneda(document.getElementById('cfg-arancel-ind-fullpack-comunidad')?.value || ''),
+            arancel_ensamble_regular: formatearPrecioMoneda(document.getElementById('cfg-arancel-ens-regular')?.value || ''),
+            arancel_ensamble_actual: formatearPrecioMoneda(document.getElementById('cfg-arancel-ens-actual')?.value || ''),
+            arancel_ensamble_comunidad: formatearPrecioMoneda(document.getElementById('cfg-arancel-ens-comunidad')?.value || ''),
             perfil_psicologico_opciones: tagsList
         };
         await setDoc(doc(db, "configuracion", "general"), updatedData, { merge: true }); 
@@ -179,7 +363,14 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
         }
         if (typeof cargarConfig === 'function') await cargarConfig(); 
         if (typeof setBotonCargando === 'function') setBotonCargando(e.target, false); 
-        alert('Configuración guardada correctamente.'); 
+        alert('✅ Configuración guardada correctamente.'); 
+    }); 
+
+    // Auto-formateo en vivo de los inputs de aranceles
+    cont.querySelectorAll('.cfg-arancel-input').forEach(inp => {
+        inp.addEventListener('blur', () => {
+            if (inp.value) inp.value = formatearPrecioMoneda(inp.value);
+        });
     }); 
 }
 
