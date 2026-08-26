@@ -39,7 +39,12 @@ export async function cargarProfesoresMatch() {
     matchProfesores = [];
     try {
         const profSnap = await getDocs(collection(db, "profesores"));
-        profSnap.forEach(d => matchProfesores.push({ id: d.id, ...d.data() }));
+        profSnap.forEach(d => {
+            const data = d.data();
+            if (data.activo !== false && data.estado !== 'inactivo') {
+                matchProfesores.push({ id: d.id, ...data });
+            }
+        });
     } catch(e) {}
     filtrarProfesoresMatch();
 }
