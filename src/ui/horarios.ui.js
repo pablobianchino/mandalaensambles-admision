@@ -14,22 +14,15 @@ export function formatearChipHorario(rango, hApertura = '09:00', hCierre = '22:0
     let ini = (rango.inicio || '').trim();
     let fin = (rango.fin || '').trim();
 
-    // Caso 0: Todo el día
     if ((ini === hApertura || !ini) && (fin === hCierre || !fin)) {
         return 'Libre';
     }
-
-    // Caso 1: Desde la apertura (o sin inicio especificado) hasta X hora -> "18-"
     if ((ini === hApertura || !ini) && fin && fin < hCierre) {
         return `${limpiarHoraParaChip(fin)}-`;
     }
-
-    // Caso 2: Desde X hora hasta el cierre (o sin fin especificado) -> "18+"
     if (ini && (fin === hCierre || !fin || fin >= hCierre)) {
         return `${limpiarHoraParaChip(ini)}+`;
     }
-
-    // Caso 3: Franja acotada intermedia -> "14-17" o "18:30-20"
     return `${limpiarHoraParaChip(ini)}-${limpiarHoraParaChip(fin)}`;
 }
 
@@ -55,12 +48,14 @@ export function crearFilaRangoHTML(diaId, inicio = '', fin = '', esProfe = false
 export function renderContenedorDisponibilidad(containerId, esProfe = false) {
     const cont = document.getElementById(containerId);
     if (!cont) return;
-    const prefix = esProfe ? 'disp-p-' : 'disp-';
+    cont.classList.add('contenedor-disponibilidad-box');
     cont.innerHTML = '';
+    
     diasSemana.forEach(dia => {
         const diaRow = document.createElement('div');
         diaRow.className = 'dia-disponibilidad-row';
-        diaRow.id = `row-${prefix}${dia.id}`;
+        diaRow.setAttribute('data-dia', dia.id);
+        diaRow.setAttribute('data-profe', String(esProfe));
         diaRow.style.cssText = 'background:var(--hover-bg); border:1px solid var(--border-color); border-radius:8px; padding:8px 12px; margin-bottom:8px; display:flex; flex-direction:column; gap:4px;';
         
         diaRow.innerHTML = `
@@ -68,19 +63,19 @@ export function renderContenedorDisponibilidad(containerId, esProfe = false) {
                 <div style="display:flex; align-items:center; gap:8px;">
                     <strong style="min-width:75px; font-size:13px; color:var(--text-main);">${dia.nombre}:</strong>
                     <label style="font-weight:normal; margin:0; cursor:pointer; font-size:12px; display:flex; align-items:center; gap:4px; text-transform:none;">
-                        <input type="checkbox" id="${prefix}${dia.id}-all" class="chk-disp-all" data-dia="${dia.id}" data-profe="${esProfe}"> Todo el día
+                        <input type="checkbox" class="chk-disp-all" data-dia="${dia.id}" data-profe="${esProfe}"> Todo el día
                     </label>
                     <label style="font-weight:normal; margin:0; cursor:pointer; font-size:12px; display:flex; align-items:center; gap:4px; text-transform:none;">
-                        <input type="checkbox" id="${prefix}${dia.id}-none" class="chk-disp-none" data-dia="${dia.id}" data-profe="${esProfe}"> No disp.
+                        <input type="checkbox" class="chk-disp-none" data-dia="${dia.id}" data-profe="${esProfe}"> No disp.
                     </label>
                 </div>
                 <div style="display:flex; align-items:center; gap:6px; margin-left:auto;">
                     <button type="button" class="${esProfe ? 'btn-copy-disp-p' : 'btn-copy-disp'}" data-dia="${dia.id}" title="Copiar horario" style="background:none; border:none; cursor:pointer; font-size:1.1em;">📋</button>
                     <button type="button" class="${esProfe ? 'btn-paste-disp-p' : 'btn-paste-disp'}" data-dia="${dia.id}" title="Pegar horario" style="background:none; border:none; cursor:pointer; font-size:1.1em;">📥</button>
-                    <span id="${esProfe ? 'estado-p-' : 'estado-'}${dia.id}" class="estado-disp" style="width:75px; text-align:right; font-size:11.5px; font-weight:700;"></span>
+                    <span class="estado-disp" style="width:75px; text-align:right; font-size:11.5px; font-weight:700;"></span>
                 </div>
             </div>
-            <div id="rangos-${prefix}${dia.id}" class="rangos-list" style="display:flex; flex-direction:column; gap:2px; margin-top:4px;">
+            <div class="rangos-list" style="display:flex; flex-direction:column; gap:2px; margin-top:4px;">
                 ${crearFilaRangoHTML(dia.id, '', '', esProfe, 0)}
             </div>
             <div style="display:flex; justify-content:flex-start; margin-top:2px;">
@@ -91,12 +86,10 @@ export function renderContenedorDisponibilidad(containerId, esProfe = false) {
     });
 }
 
-export function actualizarBotonesQuitarRango(diaId, esProfe = false) {
-    const prefix = esProfe ? 'disp-p-' : 'disp-';
-    const container = document.getElementById(`rangos-${prefix}${diaId}`);
-    if (!container) return;
-    const items = container.querySelectorAll('.rango-item');
-    items.forEach((item) => {
+export function actualizarBotonesQuitarRangoEnFila(diaRow) {
+    if (!diaRow) return;
+    const items = diaRow.querySelectorAll('.rango-item');
+    items.forEach(item => {
         const btnDel = item.querySelector('.btn-quitar-rango');
         if (btnDel) {
             btnDel.style.display = items.length > 1 ? 'inline-block' : 'none';
@@ -104,50 +97,26 @@ export function actualizarBotonesQuitarRango(diaId, esProfe = false) {
     });
 }
 
-export function agregarRangoDia(diaId, inicio = '', fin = '', esProfe = false) {
-    const prefix = esProfe ? 'disp-p-' : 'disp-';
-    const container = document.getElementById(`rangos-${prefix}${diaId}`);
-    if (!container) return;
-    const count = container.querySelectorAll('.rango-item').length;
-    container.insertAdjacentHTML('beforeend', crearFilaRangoHTML(diaId, inicio, fin, esProfe, count));
-    actualizarBotonesQuitarRango(diaId, esProfe);
-    const chkAll = document.getElementById(`${prefix}${diaId}-all`);
-    const chkNone = document.getElementById(`${prefix}${diaId}-none`);
-    if (chkAll) chkAll.checked = false;
-    if (chkNone) chkNone.checked = false;
-    updateDispStateForDay(diaId, esProfe);
-}
+export function updateDispStateForRow(diaRow) {
+    if (!diaRow) return;
+    const chkAll = diaRow.querySelector('.chk-disp-all');
+    const chkNone = diaRow.querySelector('.chk-disp-none');
+    const spanE = diaRow.querySelector('.estado-disp');
+    const rangosList = diaRow.querySelector('.rangos-list');
+    const btnAgregar = diaRow.querySelector('.btn-agregar-rango');
+    if (!rangosList) return;
 
-export function quitarRangoDia(btnElement) {
-    const rangoItem = btnElement.closest('.rango-item');
-    const diaId = btnElement.getAttribute('data-dia');
-    const esProfe = btnElement.getAttribute('data-profe') === 'true';
-    if (rangoItem) {
-        rangoItem.remove();
-        actualizarBotonesQuitarRango(diaId, esProfe);
-        updateDispStateForDay(diaId, esProfe);
-    }
-}
+    const inputs = rangosList.querySelectorAll('input[type="time"]');
+    const btnsDel = rangosList.querySelectorAll('.btn-quitar-rango');
 
-export function updateDispStateForDay(dId, isProfe = false) {
-    const prefix = isProfe ? 'disp-p-' : 'disp-', estadoPrefix = isProfe ? 'estado-p-' : 'estado-';
-    const chkAll = document.getElementById(`${prefix}${dId}-all`), chkNone = document.getElementById(`${prefix}${dId}-none`);
-    const spanE = document.getElementById(`${estadoPrefix}${dId}`);
-    const rangosContainer = document.getElementById(`rangos-${prefix}${dId}`);
-    const btnAgregar = document.querySelector(`.btn-agregar-rango[data-dia="${dId}"][data-profe="${isProfe}"]`);
-    if (!chkAll || !rangosContainer) return;
-    
-    const inputs = rangosContainer.querySelectorAll('input[type="time"]');
-    const btnsDel = rangosContainer.querySelectorAll('.btn-quitar-rango');
-    
-    if (chkAll.checked) {
+    if (chkAll && chkAll.checked) {
         if (chkNone) chkNone.checked = false;
         inputs.forEach(inp => { inp.disabled = true; inp.value = ''; });
         btnsDel.forEach(b => b.disabled = true);
         if (btnAgregar) btnAgregar.style.display = 'none';
         if (spanE) { spanE.textContent = "Libre"; spanE.style.color = "var(--accent-teal)"; }
     } else if (chkNone && chkNone.checked) {
-        chkAll.checked = false;
+        if (chkAll) chkAll.checked = false;
         inputs.forEach(inp => { inp.disabled = true; inp.value = ''; });
         btnsDel.forEach(b => b.disabled = true);
         if (btnAgregar) btnAgregar.style.display = 'none';
@@ -160,58 +129,119 @@ export function updateDispStateForDay(dId, isProfe = false) {
     }
 }
 
-export function poblarDisponibilidadMultiRango(disp = {}, esProfe = false, hApe = '09:00', hCie = '22:00') {
-    const prefix = esProfe ? 'disp-p-' : 'disp-';
-    const estadoPrefix = esProfe ? 'estado-p-' : 'estado-';
-    
+export function resolverContenedorDisponibilidad(target) {
+    if (!target) return document.getElementById('contenedor-disponibilidad');
+    if (typeof target === 'string') return document.getElementById(target);
+    if (target instanceof HTMLElement) {
+        return target.classList.contains('contenedor-disponibilidad-box') ? target : target.closest('.contenedor-disponibilidad-box');
+    }
+    if (target === true) {
+        // Docente: chequear cuál modal está visible
+        const mUser = document.getElementById('modal-abm-edit');
+        if (mUser && mUser.open) {
+            const divUser = document.getElementById('div-abm-edit-usuario');
+            if (divUser && divUser.style.display !== 'none') return document.getElementById('contenedor-disponibilidad-user-profe');
+            return document.getElementById('contenedor-disponibilidad-profe');
+        }
+        const mPerf = document.getElementById('modal-mi-perfil');
+        if (mPerf && mPerf.open) return document.getElementById('contenedor-disponibilidad-mi-perfil');
+        return document.getElementById('contenedor-disponibilidad-user-profe') || document.getElementById('contenedor-disponibilidad-profe');
+    }
+    return document.getElementById('contenedor-disponibilidad');
+}
+
+export function poblarDisponibilidadMultiRango(disp = {}, containerRef = false, hApe = '09:00', hCie = '22:00', modoLectura = false) {
+    const cont = resolverContenedorDisponibilidad(containerRef);
+    if (!cont) return;
+
     diasSemana.forEach(dia => {
-        const dD = disp[dia.id] || [];
-        const rangosCont = document.getElementById(`rangos-${prefix}${dia.id}`);
-        const cA = document.getElementById(`${prefix}${dia.id}-all`);
-        const cN = document.getElementById(`${prefix}${dia.id}-none`);
-        const sE = document.getElementById(`${estadoPrefix}${dia.id}`);
-        
-        if (!rangosCont) return;
-        rangosCont.innerHTML = '';
+        const diaRow = cont.querySelector(`.dia-disponibilidad-row[data-dia="${dia.id}"]`);
+        if (!diaRow) return;
+
+        const dD = (disp && disp[dia.id]) || [];
+        const rangosList = diaRow.querySelector('.rangos-list');
+        const cA = diaRow.querySelector('.chk-disp-all');
+        const cN = diaRow.querySelector('.chk-disp-none');
+        const esProfe = diaRow.getAttribute('data-profe') === 'true';
+
+        if (rangosList) rangosList.innerHTML = '';
         if (cA) cA.checked = false;
         if (cN) cN.checked = false;
-        if (sE) sE.textContent = "";
-        
+
         if (dD.length === 0) {
             if (cN) cN.checked = true;
-            rangosCont.innerHTML = crearFilaRangoHTML(dia.id, '', '', esProfe, 0);
+            if (rangosList) rangosList.innerHTML = crearFilaRangoHTML(dia.id, '', '', esProfe, 0);
         } else if (dD.length === 1 && dD[0].inicio === hApe && dD[0].fin === hCie) {
             if (cA) cA.checked = true;
-            rangosCont.innerHTML = crearFilaRangoHTML(dia.id, '', '', esProfe, 0);
+            if (rangosList) rangosList.innerHTML = crearFilaRangoHTML(dia.id, '', '', esProfe, 0);
         } else {
             dD.forEach((rango, idx) => {
-                rangosCont.innerHTML += crearFilaRangoHTML(dia.id, rango.inicio || '', rango.fin || '', esProfe, idx);
+                if (rangosList) rangosList.innerHTML += crearFilaRangoHTML(dia.id, rango.inicio || '', rango.fin || '', esProfe, idx);
             });
         }
-        actualizarBotonesQuitarRango(dia.id, esProfe);
-        updateDispStateForDay(dia.id, esProfe);
+        actualizarBotonesQuitarRangoEnFila(diaRow);
+        updateDispStateForRow(diaRow);
+
+        if (modoLectura) {
+            diaRow.querySelectorAll('input, button, select').forEach(el => {
+                el.disabled = true;
+                if (el.tagName === 'BUTTON') el.style.display = 'none';
+            });
+        } else {
+            diaRow.querySelectorAll('input, select').forEach(el => el.disabled = false);
+        }
     });
 }
 
-export function extraerDisponibilidadMultiRango(esProfe = false, hApe = '09:00', hCie = '22:00') {
-    const prefix = esProfe ? 'disp-p-' : 'disp-';
+export function normalizarHora(val, defaultVal = '') {
+    if (!val && val !== 0) return defaultVal;
+    let s = String(val).trim().replace('.', ':');
+    if (!s || s === '--:--' || s === '--') return defaultVal;
+    if (s.includes(':')) {
+        const parts = s.split(':');
+        const h = parseInt(parts[0], 10);
+        if (isNaN(h)) return defaultVal;
+        const m = parseInt(parts[1], 10);
+        const mStr = isNaN(m) ? '00' : m.toString().padStart(2, '0');
+        return `${h.toString().padStart(2, '0')}:${mStr}`;
+    }
+    const n = parseInt(s, 10);
+    if (!isNaN(n) && n >= 0 && n <= 23) {
+        return `${n.toString().padStart(2, '0')}:00`;
+    }
+    return defaultVal;
+}
+
+export function extraerDisponibilidadMultiRango(containerRef = false, hApe = '09:00', hCie = '22:00') {
+    const cont = resolverContenedorDisponibilidad(containerRef);
+    if (!cont) return {};
+
     const disp = {};
     diasSemana.forEach(d => {
-        const cA = document.getElementById(`${prefix}${d.id}-all`)?.checked;
-        const cN = document.getElementById(`${prefix}${d.id}-none`)?.checked;
+        const diaRow = cont.querySelector(`.dia-disponibilidad-row[data-dia="${d.id}"]`);
+        if (!diaRow) {
+            disp[d.id] = [];
+            return;
+        }
+
+        const cA = diaRow.querySelector('.chk-disp-all')?.checked;
+        const cN = diaRow.querySelector('.chk-disp-none')?.checked;
+
         if (cN) {
             disp[d.id] = [];
         } else if (cA) {
-            disp[d.id] = [{ inicio: hApe, fin: hCie }];
+            disp[d.id] = [{ inicio: normalizarHora(hApe, '09:00'), fin: normalizarHora(hCie, '22:00') }];
         } else {
-            const rangosCont = document.getElementById(`rangos-${prefix}${d.id}`);
-            const items = rangosCont ? rangosCont.querySelectorAll('.rango-item') : [];
+            const rangosList = diaRow.querySelector('.rangos-list');
+            const items = rangosList ? rangosList.querySelectorAll('.rango-item') : [];
             const arr = [];
             items.forEach(item => {
-                const i = item.querySelector('.rango-inicio')?.value || '';
-                const f = item.querySelector('.rango-fin')?.value || '';
+                const rawI = item.querySelector('.rango-inicio')?.value || '';
+                const rawF = item.querySelector('.rango-fin')?.value || '';
+                const i = normalizarHora(rawI, '');
+                const f = normalizarHora(rawF, '');
                 if (i || f) {
-                    arr.push({ inicio: i || hApe, fin: f || hCie });
+                    arr.push({ inicio: i || normalizarHora(hApe, '09:00'), fin: f || normalizarHora(hCie, '22:00') });
                 }
             });
             disp[d.id] = arr;
@@ -220,6 +250,60 @@ export function extraerDisponibilidadMultiRango(esProfe = false, hApe = '09:00',
     return disp;
 }
 
-window.updateDispStateForDay = updateDispStateForDay;
+// Auto-completar :00 en cualquier input type="time" cuando se ingresa solo la hora
+export function inicializarAutocompletadoHorarios() {
+    if (window._autocompletadoHorariosInit) return;
+    window._autocompletadoHorariosInit = true;
+
+    const inputDigitsMap = new WeakMap();
+
+    document.addEventListener('keydown', (e) => {
+        const target = e.target;
+        if (!target || target.type !== 'time') return;
+
+        if (e.key >= '0' && e.key <= '9') {
+            let curr = inputDigitsMap.get(target) || '';
+            curr += e.key;
+            if (curr.length > 2) curr = e.key;
+            inputDigitsMap.set(target, curr);
+        } else if (e.key === 'Backspace' || e.key === 'Delete') {
+            inputDigitsMap.set(target, '');
+        } else if (e.key === 'Tab' || e.key === 'Enter') {
+            const digits = inputDigitsMap.get(target);
+            if (digits && digits.length > 0 && !target.value) {
+                let h = parseInt(digits, 10);
+                if (!isNaN(h) && h >= 0 && h <= 23) {
+                    target.value = `${h.toString().padStart(2, '0')}:00`;
+                    target.dispatchEvent(new Event('input', { bubbles: true }));
+                    target.dispatchEvent(new Event('change', { bubbles: true }));
+                    inputDigitsMap.set(target, '');
+                }
+            }
+        }
+    }, true);
+
+    document.addEventListener('focusout', (e) => {
+        const target = e.target;
+        if (!target || target.type !== 'time') return;
+
+        const digits = inputDigitsMap.get(target);
+        if (digits && digits.length > 0 && !target.value) {
+            let h = parseInt(digits, 10);
+            if (!isNaN(h) && h >= 0 && h <= 23) {
+                target.value = `${h.toString().padStart(2, '0')}:00`;
+                target.dispatchEvent(new Event('input', { bubbles: true }));
+                target.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+        inputDigitsMap.set(target, '');
+    }, true);
+}
+
+// Global helpers
 window.poblarDisponibilidadMultiRango = poblarDisponibilidadMultiRango;
 window.extraerDisponibilidadMultiRango = extraerDisponibilidadMultiRango;
+window.normalizarHora = normalizarHora;
+
+if (typeof document !== 'undefined') {
+    inicializarAutocompletadoHorarios();
+}
