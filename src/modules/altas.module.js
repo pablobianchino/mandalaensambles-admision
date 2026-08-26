@@ -158,7 +158,7 @@ export async function refrescarProfesoresPrealta(tipoClase, instrumentoSeleccion
 }
 
 // -----------------------------------------------------------------------
-// Abrir Modal Pre-alta Individual / Edicion
+// Abrir Modal Pre-alta Individual / Edicion / Modificar Alta
 // -----------------------------------------------------------------------
 export async function abrirModalPrealta(id, esEdicionParam = false, inicioPrev = null, grupoPrev = null, options = {}) {
     const alDoc = await getDoc(doc(db, "alumnos", id));
@@ -167,10 +167,14 @@ export async function abrirModalPrealta(id, esEdicionParam = false, inicioPrev =
     
     const tipoSusc = detectarTipoSuscripcion(al.tipo_suscripcion || '');
     const esIndividual = tipoSusc === 'individual';
-    const esEdicion = esEdicionParam || al.estado_agenda === 'Pre-alta Iniciada' || al.estado_agenda === 'Pre-alta iniciada';
+    const esAltaConfirmada = ['Alta Efectiva', 'Alta Ilegal', 'Alta Finalizada'].includes(al.estado_agenda);
+    const esEdicion = esEdicionParam || al.estado_agenda === 'Pre-alta Iniciada' || al.estado_agenda === 'Pre-alta iniciada' || esAltaConfirmada;
     const vieneDeMatch = Boolean(al.horario_match || al.reserva_fecha_texto || al.reserva_profe_id);
 
-    document.getElementById('titulo-prealta').textContent = `${esEdicion ? 'Editar' : 'Iniciar'} Pre-Alta — ${al.nombre || 'Alumno'}`;
+    const tituloTexto = esAltaConfirmada 
+        ? `Modificar Alta — ${al.nombre || 'Alumno'}`
+        : `${esEdicion ? 'Editar' : 'Iniciar'} Pre-Alta — ${al.nombre || 'Alumno'}`;
+    document.getElementById('titulo-prealta').textContent = tituloTexto;
     
     const campoGrupo = document.getElementById('prealta-campo-grupo');
     const campoProfe = document.getElementById('prealta-campo-profe');
@@ -192,6 +196,8 @@ export async function abrirModalPrealta(id, esEdicionParam = false, inicioPrev =
         if (campoInst) campoInst.style.display = 'block';
         if (wrapLista) wrapLista.style.display = 'none';
         if (campoGrupo) campoGrupo.style.display = 'none';
+        const campoTipoEns = document.getElementById('prealta-campo-tipo-ensamble');
+        if (campoTipoEns) campoTipoEns.style.display = 'none';
 
         if (selInstPrealta) {
             selInstPrealta.innerHTML = '';
@@ -210,6 +216,15 @@ export async function abrirModalPrealta(id, esEdicionParam = false, inicioPrev =
     } else {
         if (campoInst) campoInst.style.display = 'none';
         if (campoGrupo) campoGrupo.style.display = 'block';
+        const campoTipoEns = document.getElementById('prealta-campo-tipo-ensamble');
+        if (campoTipoEns) {
+            campoTipoEns.style.display = 'block';
+            const esMandalorian = (al.tipo_suscripcion || '').toLowerCase().includes('mandalorian') || al.tipo_ensamble === 'Ensamble Mandalorian';
+            const rMandalorian = document.querySelector('input[name="prealta-tipo-ensamble"][value="Ensamble Mandalorian"]');
+            const rEnsamble = document.querySelector('input[name="prealta-tipo-ensamble"][value="Ensamble"]');
+            if (esMandalorian && rMandalorian) rMandalorian.checked = true;
+            else if (rEnsamble) rEnsamble.checked = true;
+        }
         document.getElementById('prealta-grupo').value = grupoPrev || al.grupo_asignado || '';
         await renderListaInstrumentosAlumnos([{ id, ...al }], options.configApp || defaultCfg);
         await refrescarProfesoresPrealta('ensamble', '', profeActualId);
@@ -224,7 +239,9 @@ export async function abrirModalPrealta(id, esEdicionParam = false, inicioPrev =
 
     const banner = document.getElementById('prealta-info-banner');
     banner.style.display = 'block';
-    if (esEdicion) {
+    if (esAltaConfirmada) {
+        banner.innerHTML = `✏️ <strong>Modificar Alta de ${al.nombre} (${al.estado_agenda}):</strong> Podés forzar la edición del profesor, grupo y horario de inicio.`;
+    } else if (esEdicion) {
         banner.innerHTML = `✏️ <strong>Modificar Pre-Alta de ${al.nombre}:</strong> Podés ajustar la fecha y hora de inicio, el profesor asignado y ${esIndividual ? 'el instrumento' : 'el grupo'}.`;
     } else if (vieneDeMatch) {
         banner.innerHTML = `📅 <strong>Horario Match:</strong> ${al.horario_match || al.reserva_fecha_texto || '-'} • 👨‍🏫 <strong>Profesor Previo:</strong> ${al.reserva_profe_nombre || '-'}`;
@@ -282,8 +299,7 @@ export async function abrirModalPrealtaGrupal(ids, grupoNom = '', cfg = defaultC
 }
 
 // -----------------------------------------------------------------------
-// -----------------------------------------------------------------------
-// Guardar Pre-Alta (Procesa 1 o N alumnos)
+// Guardar Pre-Alta / Modificar Alta (Procesa 1 o N alumnos)
 // -----------------------------------------------------------------------
 export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
     let btnTarget = btnTargetOrOptions;
@@ -318,7 +334,7 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
         return alert("Por favor ingresa el nombre del grupo.");
     }
 
-    mostrarLoader('Guardando pre-alta y sincronizando calendario...');
+    mostrarLoader('Guardando cambios y sincronizando calendario...');
     if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, true, 'Guardando...');
 
     const dateObj = new Date(fIni);
@@ -346,14 +362,28 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
         });
         if (rangosAl.length > 0 && !cubreAl) {
             ocultarLoader();
-            const confirmarForzar = await window.confirmar('Disponibilidad no coincide', 'El alumno no tiene disponibilidad para el horario seleccionado. ¿Iniciar la Pre-Alta de todas formas?', 'Forzar Pre-Alta');
+            const confirmarForzar = await window.confirmar('Disponibilidad no coincide', 'El alumno no tiene disponibilidad para el horario seleccionado. ¿Guardar de todas formas?', 'Forzar y Guardar');
             if (!confirmarForzar) {
                 if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
                 return;
             }
-            mostrarLoader('Guardando pre-alta y sincronizando calendario...');
         }
     }
+
+    const fInicioTexto = `${mapaDiasCodigos[diaCodigo] || diaCodigo} ${dateObj.getDate()}/${dateObj.getMonth()+1} ${horaInicioStr} hs`;
+    const docNom = profeNombre || primerAl.reserva_profe_nombre || 'Docente';
+    const confAgenda = await window.confirmar(
+        `📅 Sincronizar agenda en Google Calendar`,
+        `Se creará o actualizará la clase en Google Calendar:\n\n• Alumnos: ${ids.length > 1 ? ids.length + ' alumnos' : (primerAl.nombre || 'Alumno')}\n• Modalidad: ${esIndividual ? 'Clase Individual' : (grp || 'Ensamble')}\n• Inicio: ${fInicioTexto}\n• Docente: ${docNom}\n\n¿Confirmás sincronizar en Google Calendar y guardar?`,
+        '📅 Sincronizar y Guardar'
+    );
+    if (!confAgenda) {
+        ocultarLoader();
+        if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
+        return;
+    }
+
+    mostrarLoader('Guardando cambios y sincronizando calendario...');
 
     const fIso = dateObj.toISOString();
     const dateObjEnd = new Date(dateObj.getTime() + durMin * 60000);
@@ -399,18 +429,33 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
             evSincronizado = await sincronizarEventoPrealtaCalendar(alParaSync, esIndividual, fIso, fIsoEnd, alumnosDelGrupo);
         }
 
+        const esAltaPrevia = ['Alta Efectiva', 'Alta Ilegal', 'Alta Finalizada'].includes(al.estado_agenda);
+        const estadoFinal = esAltaPrevia ? al.estado_agenda : "Pre-alta Iniciada";
+
+        let tipoEnsVal = al.tipo_suscripcion || 'Ensamble';
+        if (!esIndividual) {
+            const tipoEnsRadio = document.querySelector('input[name="prealta-tipo-ensamble"]:checked');
+            if (tipoEnsRadio) tipoEnsVal = tipoEnsRadio.value;
+        }
+
         const updates = {
-            estado_agenda: "Pre-alta Iniciada",
+            estado_agenda: estadoFinal,
             fecha_inicio_clases: fIso,
             grupo_asignado: finalGrupo,
             instrumento_asignado: instFinal,
             reserva_profe_id: finalProfeId,
             reserva_profe_nombre: finalProfeNombre,
+            profesor_asignado: finalProfeNombre,
             dia_match: diaCodigo,
             horario_inicio_match: horaInicioStr,
             horario_fin_match: horaFinStr,
             horario_match: `${mapaDiasCodigos[diaCodigo] || diaCodigo} ${horaInicioStr} a ${horaFinStr} hs`
         };
+
+        if (!esIndividual) {
+            updates.tipo_suscripcion = tipoEnsVal;
+            updates.tipo_ensamble = tipoEnsVal;
+        }
 
         if (evSincronizado) {
             updates.id_evento_alta = evSincronizado.id;
@@ -418,17 +463,18 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
         }
 
         if (!al.fecha_prealta) updates.fecha_prealta = new Date().toISOString();
-        if (!al.checklist_alta) updates.checklist_alta = [false, false, false, false, false];
+        if (!al.checklist_alta && !esAltaPrevia) updates.checklist_alta = [false, false, false, false, false];
         
         const hist = al.historial || [];
         const fnHist = window.crearEntradaHistorial || ((txt, tipo) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema' }));
-        hist.push(fnHist(`Pre-Alta guardada para "${finalGrupo}" con Profe ${finalProfeNombre || '-'} (Inicio: ${updates.horario_match}).`, 'alta'));
+        const accionDesc = esAltaPrevia ? 'Alta modificada' : 'Pre-Alta guardada';
+        hist.push(fnHist(`${accionDesc} para "${finalGrupo}" con Profe ${finalProfeNombre || '-'} (Inicio: ${updates.horario_match}).`, 'alta'));
         updates.historial = hist;
 
         await updateDoc(doc(db, "alumnos", id), updates);
 
         if (typeof generarTextoConHistorial === 'function') {
-            const dataText = await generarTextoConHistorial(id, 'texto_prealta', updates.horario_match, finalProfeId, finalProfeNombre);
+            const dataText = await generarTextoConHistorial(id, esAltaPrevia ? 'texto_alta_confirmada' : 'texto_prealta', updates.horario_match, finalProfeId, finalProfeNombre);
             textosCopiados.push(`--- ${al.nombre} ---\n${dataText.txt}`);
         }
     }
@@ -451,7 +497,7 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
 
     ocultarLoader();
     if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
-    alert(`✅ Pre-Alta guardada exitosamente para ${ids.length} alumno(s).\nEvento sincronizado en Google Calendar y texto copiado.`);
+    alert(`✅ Datos guardados exitosamente para ${ids.length} alumno(s).\nEvento sincronizado en Google Calendar y texto copiado.`);
 }
 
 // -----------------------------------------------------------------------
@@ -546,6 +592,270 @@ export async function copiarFilaExcelFacturacion(id) {
         alert(`💰 Fila para Facturacion copiada al portapapeles:\n\n${txt}`);
     } catch(err) {
         alert("Error al copiar fila para Facturacion: " + err.message);
+    }
+}
+
+export function formatearPrecioMoneda(val) {
+    if (!val && val !== 0) return '';
+    const str = String(val).trim();
+    const nums = str.replace(/[^\d]/g, '');
+    if (!nums) return str;
+    const n = parseInt(nums, 10);
+    if (isNaN(n)) return str;
+    return `$${n.toLocaleString('es-AR')}`;
+}
+
+// -----------------------------------------------------------------------
+// Abrir Modal de Aviso de Pre-Alta para Alumno (con selector de arancel)
+// -----------------------------------------------------------------------
+export async function abrirModalAvisoPrealtaAlumno(id, cfg = defaultCfg) {
+    const alDoc = await getDoc(doc(db, "alumnos", id));
+    if (!alDoc.exists()) return alert("Alumno no encontrado.");
+    const al = alDoc.data();
+
+    const infoBox = document.getElementById('aviso-prealta-info-box');
+    const opcContainer = document.getElementById('aviso-arancel-opciones-container');
+    const chkComunidad = document.getElementById('chk-aviso-comunidad');
+    const inputMonto = document.getElementById('aviso-arancel-monto-final');
+    const txtPreview = document.getElementById('aviso-prealta-textarea-preview');
+    const idInput = document.getElementById('aviso-alumno-id');
+
+    if (!infoBox || !opcContainer || !inputMonto || !txtPreview) return;
+
+    idInput.value = id;
+
+    // Obtener alias del profesor si existe
+    let aliasProfe = '';
+    const profeId = al.reserva_profe_id || al.profesor_id;
+    if (profeId) {
+        try {
+            const pDoc = await getDoc(doc(db, "profesores", profeId));
+            if (pDoc.exists()) aliasProfe = pDoc.data().alias_transferencia || '';
+        } catch(e) {}
+    }
+
+    const tipoSusc = detectarTipoSuscripcion(al.tipo_suscripcion || '');
+    const esIndividual = tipoSusc === 'individual';
+    const nombreAlumno = al.nombre || 'Alumno';
+    const nombreProfe = al.reserva_profe_nombre || al.profesor_asignado || '-';
+    
+    // Formatear cursada solo día y hora de inicio
+    let horarioCursada = '';
+    if (al.dia_match && al.horario_inicio_match) {
+        const mapaDias = { 'L': 'Lunes', 'M': 'Martes', 'X': 'Miércoles', 'J': 'Jueves', 'V': 'Viernes', 'S': 'Sábado', 'D': 'Domingo' };
+        const diaTxt = mapaDias[al.dia_match] || al.dia_match;
+        horarioCursada = `${diaTxt} ${al.horario_inicio_match} hs`;
+    } else if (al.horario_match) {
+        let txt = al.horario_match.replace(/\s+a\s+\d{1,2}:\d{2}(\s*hs)?/i, ' hs').replace(/\s+hs\s+hs/i, ' hs').trim();
+        if (!txt.endsWith('hs') && !txt.endsWith('hs.')) txt += ' hs';
+        horarioCursada = txt;
+    } else if (al.fecha_inicio_clases) {
+        const d = new Date(al.fecha_inicio_clases);
+        if (!isNaN(d.getTime())) {
+            const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+            horarioCursada = `${dias[d.getDay()]} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')} hs`;
+        }
+    } else {
+        horarioCursada = al.reserva_fecha_texto || '-';
+    }
+
+    let fAmiInicio = '';
+    if (al.fecha_inicio_clases) {
+        const d = new Date(al.fecha_inicio_clases);
+        if (!isNaN(d.getTime())) {
+            const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+            fAmiInicio = `${dias[d.getDay()]} ${d.getDate()}/${d.getMonth()+1} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')} hs`;
+        }
+    }
+    const fechaInicioEfectiva = fAmiInicio || horarioCursada;
+    const instNom = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || ''));
+    const suscripTexto = al.tipo_suscripcion ? `${al.tipo_suscripcion} (${instNom})` : (esIndividual ? `Clase Individual (${instNom})` : `Ensamble (${instNom})`);
+
+    const grupoNomAl = al.grupo_asignado || (esIndividual ? 'Clase Individual' : '');
+    const grupoHtml = grupoNomAl && !esIndividual ? ` • 👥 <strong>Grupo:</strong> ${grupoNomAl}` : '';
+
+    infoBox.innerHTML = `
+        <div style="font-weight:700; color:var(--text-main); font-size:13px; margin-bottom:4px;">
+            👤 ${nombreAlumno} ${al.edad ? `<span style="font-weight:500; color:var(--text-muted);">(${al.edad} años)</span>` : ''}
+        </div>
+        <div style="font-size:12px; color:var(--text-muted); display:flex; flex-direction:column; gap:2px;">
+            <div>🧩 <strong>Suscripción:</strong> ${suscripTexto}${grupoHtml}</div>
+            <div>📅 <strong>Cursada:</strong> ${horarioCursada} • 🚀 <strong>Inicio:</strong> ${fechaInicioEfectiva}</div>
+            <div>👨‍🏫 <strong>Docente:</strong> ${nombreProfe} • 💳 <strong>Alias:</strong> ${aliasProfe || '<em>Sin alias configurado</em>'}</div>
+        </div>
+    `;
+
+    // Renderizar opciones de arancel
+    const esMandalorianAl = (al.tipo_suscripcion || '').toLowerCase().includes('mandalorian') || al.tipo_ensamble === 'Ensamble Mandalorian';
+    const chkComunidadLabel = document.getElementById('aviso-check-comunidad-label');
+
+    if (esIndividual) {
+        opcContainer.innerHTML = `
+            <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; cursor:pointer; font-weight:600; text-transform:none; color:var(--text-main); margin:0;">
+                <input type="radio" name="opt-arancel-modalidad" value="suelta" style="accent-color:var(--accent-teal);">
+                Clase Suelta <span style="color:var(--accent-teal); margin-left:auto; font-weight:700;">${formatearPrecioMoneda(cfg.arancel_individual_suelta) || '$15.000'}</span>
+            </label>
+            <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; cursor:pointer; font-weight:600; text-transform:none; color:var(--text-main); margin:0;">
+                <input type="radio" name="opt-arancel-modalidad" value="quincenal" style="accent-color:var(--accent-teal);">
+                Quincenal <span style="color:var(--accent-teal); margin-left:auto; font-weight:700;">${formatearPrecioMoneda(cfg.arancel_individual_quincenal) || '$25.000'}</span>
+            </label>
+            <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; cursor:pointer; font-weight:600; text-transform:none; color:var(--text-main); margin:0;">
+                <input type="radio" name="opt-arancel-modalidad" value="fullpack" checked style="accent-color:var(--accent-teal);">
+                Full Pack (Mensual) <span id="label-monto-fullpack" style="color:var(--accent-teal); margin-left:auto; font-weight:700;">${formatearPrecioMoneda(cfg.arancel_individual_fullpack) || '$45.000'}</span>
+            </label>
+        `;
+    } else {
+        opcContainer.innerHTML = `
+            <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; cursor:pointer; font-weight:600; text-transform:none; color:var(--text-main); margin:0;">
+                <input type="radio" name="opt-arancel-modalidad" value="ensamble" ${!esMandalorianAl ? 'checked' : ''} style="accent-color:var(--accent-teal);">
+                🎸 Ensamble <span id="label-monto-ensamble-regular" style="color:var(--accent-teal); margin-left:auto; font-weight:700;">${formatearPrecioMoneda(cfg.arancel_ensamble_regular) || '$28.000'}</span>
+            </label>
+            <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; cursor:pointer; font-weight:600; text-transform:none; color:var(--text-main); margin:0;">
+                <input type="radio" name="opt-arancel-modalidad" value="ensamble_mandalorian" ${esMandalorianAl ? 'checked' : ''} style="accent-color:var(--accent-teal);">
+                🎸 Ensamble Mandalorian <span id="label-monto-ensamble" style="color:var(--accent-teal); margin-left:auto; font-weight:700;">${formatearPrecioMoneda(cfg.arancel_ensamble_actual) || '$35.000'}</span>
+            </label>
+        `;
+    }
+
+    chkComunidad.checked = false;
+
+    const renderizarTextoPreview = (monto, mod, esComunidad) => {
+        let template = cfg.texto_prealta_alumno || "Hola {nombre}! Cómo estás? 👋\n\nTe cuento que ya tenemos todo listo para que te sumes a Mandala Ensambles! 🤟\n\n🧩 Suscripción: {suscripcion}\n\n👥 Grupo: {grupo}\n\n🧩 Día y horario de cursada: {horario_cursada}\n\n🧩 Fecha de inicio de clases: {fecha_inicio_clases}\n\n🧩 Profe: {profe}\n\n🧩 Arancel: {valor_arancel}\n\n🧩 Alias a transferir: {alias_profe}";
+
+        const tieneInstrumentoEnTemplate = /\{instrumento\}/i.test(template);
+        const emojiInst = getEmojiInstrumento(instNom, cfg);
+
+        let suscripcionParaMsg = '';
+        if (esIndividual) {
+            suscripcionParaMsg = tieneInstrumentoEnTemplate ? 'Clase Individual' : `Clase Individual (${instNom || 'Instrumento'})`;
+        } else if (mod === 'ensamble') {
+            suscripcionParaMsg = tieneInstrumentoEnTemplate ? 'Ensamble' : `Ensamble (${instNom || 'Instrumento'})`;
+        } else {
+            suscripcionParaMsg = tieneInstrumentoEnTemplate ? 'Ensamble Mandalorian' : `Ensamble Mandalorian (${instNom || 'Instrumento'})`;
+        }
+
+        const variables = {
+            nombre: nombreAlumno,
+            edad: al.edad || '',
+            instrumento: instNom || '',
+            emojiinstrumento: emojiInst || '',
+            suscripcion: suscripcionParaMsg,
+            grupo: grupoNomAl,
+            horario_cursada: horarioCursada,
+            horario: horarioCursada,
+            fecha_hora: horarioCursada,
+            fecha_inicio_clases: fechaInicioEfectiva,
+            'fecha inicio clases': fechaInicioEfectiva,
+            profe: nombreProfe,
+            valor_arancel: monto,
+            arancel: monto,
+            valor: monto,
+            alias_profe: aliasProfe || '',
+            alias: aliasProfe || ''
+        };
+
+        let resText = template;
+        Object.keys(variables).forEach(k => {
+            const regex = new RegExp(`\\{${k}\\}`, 'gi');
+            resText = resText.replace(regex, variables[k]);
+        });
+
+        txtPreview.value = resText;
+    };
+
+    const actualizarMontoYPreview = () => {
+        let montoCalculado = '';
+        const esComunidad = chkComunidad.checked;
+        const rad = document.querySelector('input[name="opt-arancel-modalidad"]:checked');
+        const mod = rad ? rad.value : (esIndividual ? 'fullpack' : 'ensamble');
+
+        if (esIndividual) {
+            if (chkComunidadLabel) chkComunidadLabel.style.display = (mod === 'fullpack') ? 'flex' : 'none';
+            if (mod === 'suelta') {
+                montoCalculado = formatearPrecioMoneda(cfg.arancel_individual_suelta) || '$15.000';
+            } else if (mod === 'quincenal') {
+                montoCalculado = formatearPrecioMoneda(cfg.arancel_individual_quincenal) || '$25.000';
+            } else {
+                montoCalculado = esComunidad
+                    ? (formatearPrecioMoneda(cfg.arancel_individual_fullpack_comunidad) || formatearPrecioMoneda(cfg.arancel_individual_fullpack) || '$40.000')
+                    : (formatearPrecioMoneda(cfg.arancel_individual_fullpack) || '$45.000');
+            }
+        } else {
+            if (mod === 'ensamble') {
+                if (chkComunidadLabel) chkComunidadLabel.style.display = 'none';
+                montoCalculado = formatearPrecioMoneda(cfg.arancel_ensamble_regular) || '$28.000';
+            } else {
+                if (chkComunidadLabel) chkComunidadLabel.style.display = 'flex';
+                montoCalculado = esComunidad
+                    ? (formatearPrecioMoneda(cfg.arancel_ensamble_comunidad) || formatearPrecioMoneda(cfg.arancel_ensamble_actual) || '$30.000')
+                    : (formatearPrecioMoneda(cfg.arancel_ensamble_actual) || '$35.000');
+            }
+        }
+
+        const labelMandalorian = document.getElementById('label-monto-ensamble');
+        if (labelMandalorian) {
+            labelMandalorian.textContent = esComunidad
+                ? (formatearPrecioMoneda(cfg.arancel_ensamble_comunidad) || '$30.000')
+                : (formatearPrecioMoneda(cfg.arancel_ensamble_actual) || '$35.000');
+        }
+        const labelFullpack = document.getElementById('label-monto-fullpack');
+        if (labelFullpack) {
+            labelFullpack.textContent = esComunidad
+                ? (formatearPrecioMoneda(cfg.arancel_individual_fullpack_comunidad) || '$40.000')
+                : (formatearPrecioMoneda(cfg.arancel_individual_fullpack) || '$45.000');
+        }
+
+        inputMonto.value = montoCalculado;
+        renderizarTextoPreview(montoCalculado, mod, esComunidad);
+    };
+
+    // Eventos interactivos en el modal
+    opcContainer.querySelectorAll('input[name="opt-arancel-modalidad"]').forEach(r => {
+        r.addEventListener('change', actualizarMontoYPreview);
+    });
+    chkComunidad.onchange = actualizarMontoYPreview;
+    inputMonto.oninput = () => {
+        const rad = document.querySelector('input[name="opt-arancel-modalidad"]:checked');
+        const mod = rad ? rad.value : (esIndividual ? 'fullpack' : 'ensamble');
+        renderizarTextoPreview(inputMonto.value, mod, chkComunidad.checked);
+    };
+
+    actualizarMontoYPreview();
+    document.getElementById('modal-aviso-prealta-alumno')?.showModal();
+}
+
+// -----------------------------------------------------------------------
+// Copiar Mensaje de Pre-Alta para Alumno y Guardar en Historial
+// -----------------------------------------------------------------------
+export async function copiarAvisoPrealtaAlumno(id) {
+    const txtPreview = document.getElementById('aviso-prealta-textarea-preview');
+    const inputMonto = document.getElementById('aviso-arancel-monto-final');
+    if (!txtPreview || !txtPreview.value) return;
+
+    const textoFinal = txtPreview.value;
+    const monto = inputMonto ? inputMonto.value : '';
+
+    try {
+        await navigator.clipboard.writeText(textoFinal);
+
+        if (id) {
+            const alDoc = await getDoc(doc(db, "alumnos", id));
+            if (alDoc.exists()) {
+                const al = alDoc.data();
+                const hist = al.historial || [];
+                const fnHist = window.crearEntradaHistorial || ((txt, tipo) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema' }));
+                hist.push(fnHist(`Mensaje de aviso de Pre-Alta para Alumno generado y copiado al portapapeles${monto ? ` (Arancel: ${monto})` : ''}.`, 'alta'));
+                await updateDoc(doc(db, "alumnos", id), { 
+                    historial: hist,
+                    valor_arancel: monto || al.valor_arancel || ''
+                });
+            }
+        }
+
+        document.getElementById('modal-aviso-prealta-alumno')?.close();
+        alert("💬 ¡Mensaje de WhatsApp para el alumno copiado al portapapeles exitosamente!\n\n" + textoFinal);
+    } catch(err) {
+        alert("❌ Error al copiar mensaje: " + err.message);
     }
 }
 
