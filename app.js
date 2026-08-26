@@ -1864,6 +1864,31 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
         const prio = btn.getAttribute('data-prio');
         const isActive = prio === window.filtroPrioTabActual;
         btn.classList.toggle('active', isActive);
+        if (prio === 'todos') {
+            btn.style.background = isActive ? '#1e293b' : '#ffffff';
+            btn.style.color = isActive ? '#ffffff' : '#334155';
+            btn.style.borderColor = isActive ? '#1e293b' : '#cbd5e1';
+            btn.style.fontWeight = isActive ? '700' : '600';
+            btn.style.boxShadow = isActive ? '0 2px 6px rgba(30,41,59,0.25)' : '0 1px 2px rgba(0,0,0,0.03)';
+        } else if (prio === 'vencidos') {
+            btn.style.background = isActive ? '#fee2e2' : '#ffffff';
+            btn.style.color = isActive ? '#991b1b' : '#b91c1c';
+            btn.style.borderColor = isActive ? '#ef4444' : '#fecaca';
+            btn.style.fontWeight = isActive ? '700' : '600';
+            btn.style.boxShadow = isActive ? '0 2px 6px rgba(239,68,68,0.2)' : '0 1px 2px rgba(0,0,0,0.03)';
+        } else if (prio === 'urgentes') {
+            btn.style.background = isActive ? '#ffedd5' : '#ffffff';
+            btn.style.color = isActive ? '#9a3412' : '#c2410c';
+            btn.style.borderColor = isActive ? '#f97316' : '#fed7aa';
+            btn.style.fontWeight = isActive ? '700' : '600';
+            btn.style.boxShadow = isActive ? '0 2px 6px rgba(249,115,22,0.2)' : '0 1px 2px rgba(0,0,0,0.03)';
+        } else if (prio === 'proximos') {
+            btn.style.background = isActive ? '#fef9c3' : '#ffffff';
+            btn.style.color = isActive ? '#854d0e' : '#854d0e';
+            btn.style.borderColor = isActive ? '#eab308' : '#fef08a';
+            btn.style.fontWeight = isActive ? '700' : '600';
+            btn.style.boxShadow = isActive ? '0 2px 6px rgba(234,179,8,0.2)' : '0 1px 2px rgba(0,0,0,0.03)';
+        }
     });
 
     if (todasPrio.length === 0) {
@@ -3157,13 +3182,19 @@ document.addEventListener('click', async (e) => {
         const wrap = target.closest('.dropdown-menu-wrapper');
         if (wrap && wrap.id !== 'modal-acciones-dropdown') {
             wrap.classList.remove('show');
+            const pRow = wrap.closest('.row-item, .swipe-wrapper, .group-card-l1, .group-card-l2, .tray-chip');
+            if (pRow) pRow.classList.remove('has-open-dropdown');
         }
     }
 
     // Clic fuera de los dropdowns de acciones en filas (Desktop)
     if (!target.closest('.alumno-actions')) {
         document.querySelectorAll('.dropdown-menu-wrapper.show').forEach(d => {
-            if (d.id !== 'modal-acciones-dropdown') d.classList.remove('show');
+            if (d.id !== 'modal-acciones-dropdown') {
+                d.classList.remove('show');
+                const pRow = d.closest('.row-item, .swipe-wrapper, .group-card-l1, .group-card-l2, .tray-chip');
+                if (pRow) pRow.classList.remove('has-open-dropdown');
+            }
         });
     }
 
@@ -3237,12 +3268,19 @@ document.addEventListener('click', async (e) => {
             if (wrapper) {
                 const isShown = wrapper.classList.contains('show');
                 document.querySelectorAll('.dropdown-menu-wrapper.show').forEach(d => {
-                    if (d !== wrapper && d.id !== 'modal-acciones-dropdown') d.classList.remove('show');
+                    if (d !== wrapper && d.id !== 'modal-acciones-dropdown') {
+                        d.classList.remove('show');
+                        const pRow = d.closest('.row-item, .swipe-wrapper, .group-card-l1, .group-card-l2, .tray-chip');
+                        if (pRow) pRow.classList.remove('has-open-dropdown');
+                    }
                 });
+                const parentRow = wrapper.closest('.row-item, .swipe-wrapper, .group-card-l1, .group-card-l2, .tray-chip');
                 if (!isShown) {
                     wrapper.classList.add('show');
+                    if (parentRow) parentRow.classList.add('has-open-dropdown');
                 } else {
                     wrapper.classList.remove('show');
+                    if (parentRow) parentRow.classList.remove('has-open-dropdown');
                 }
             }
         }
@@ -3841,9 +3879,38 @@ document.addEventListener('click', async (e) => {
             const key = btn.classList.contains('btn-reenviar-alumno') ? 'texto_alumno' : 'texto_conf_alumno'; 
             const data = await generarTextoConHistorial(id, key); 
             await navigator.clipboard.writeText(data.txt); 
-            alert("Texto copiado."); 
-        } catch(e) {} 
+            alert("💬 Texto de WhatsApp copiado al portapapeles:\n\n" + data.txt); 
+        } catch(e) {
+            console.error("Error al copiar texto alumno:", e);
+            alert("❌ Error al copiar texto: " + e.message);
+        } 
         return; 
+    }
+    if (target.classList.contains('btn-reenviar-prealta') || target.closest('.btn-reenviar-prealta')) {
+        const btn = target.classList.contains('btn-reenviar-prealta') ? target : target.closest('.btn-reenviar-prealta');
+        try {
+            const id = btn.getAttribute('data-id');
+            const data = await generarTextoConHistorial(id, 'texto_prealta');
+            await navigator.clipboard.writeText(data.txt);
+            alert("💬 Mensaje de Pre-Alta copiado al portapapeles:\n\n" + data.txt);
+        } catch(e) {
+            console.error("Error al copiar texto prealta:", e);
+            alert("❌ Error al copiar texto de pre-alta: " + e.message);
+        }
+        return;
+    }
+    if (target.classList.contains('btn-reenviar-alta') || target.closest('.btn-reenviar-alta')) {
+        const btn = target.classList.contains('btn-reenviar-alta') ? target : target.closest('.btn-reenviar-alta');
+        try {
+            const id = btn.getAttribute('data-id');
+            const data = await generarTextoConHistorial(id, 'texto_alta_confirmada');
+            await navigator.clipboard.writeText(data.txt);
+            alert("💬 Mensaje de Alta Confirmada copiado al portapapeles:\n\n" + data.txt);
+        } catch(e) {
+            console.error("Error al copiar texto alta confirmada:", e);
+            alert("❌ Error al copiar texto de alta: " + e.message);
+        }
+        return;
     }
     if (target.classList.contains('btn-cancelar-reserva') || target.closest('.btn-cancelar-reserva')) { 
         const btn = target.classList.contains('btn-cancelar-reserva') ? target : target.closest('.btn-cancelar-reserva');
