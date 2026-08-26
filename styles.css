@@ -321,14 +321,23 @@ body {
 .group-card-l1 {
     border-radius: 12px;
     background: #ffffff;
-    overflow: hidden;
+    overflow: visible !important;
     border: 1px solid var(--border-color);
     box-shadow: 0 2px 8px rgba(0,0,0,0.02);
     margin-top: 14px;
     margin-bottom: 6px;
     transition: all 0.2s ease;
+    position: relative;
+    z-index: 1;
+}
+.group-card-l1:hover,
+.group-card-l1:has(.dropdown-menu-wrapper.show),
+.group-card-l1.has-open-dropdown {
+    z-index: 100 !important;
 }
 .group-banner-l1 {
+    border-top-left-radius: 11px;
+    border-top-right-radius: 11px;
     padding: 12px 18px;
     display: flex;
     justify-content: space-between;
@@ -346,6 +355,14 @@ body {
     padding: 10px 14px;
     margin-top: 6px;
     margin-bottom: 8px;
+    overflow: visible !important;
+    position: relative;
+    z-index: 1;
+}
+.group-card-l2:hover,
+.group-card-l2:has(.dropdown-menu-wrapper.show),
+.group-card-l2.has-open-dropdown {
+    z-index: 100 !important;
 }
 .badge-nivel {
     display: inline-flex;
@@ -527,23 +544,32 @@ body {
 /* =======================================================================
    MENÚ DESPLEGABLE DE ACCIONES (CLICK-TO-TOGGLE)
    ======================================================================= */
-.alumno-actions { position: relative; }
+.alumno-actions { position: relative; z-index: 1001; }
+.row-item:has(.dropdown-menu-wrapper.show),
+.swipe-wrapper:has(.dropdown-menu-wrapper.show),
+.row-item.has-open-dropdown,
+.swipe-wrapper.has-open-dropdown {
+    z-index: 1000 !important;
+    overflow: visible !important;
+}
 .dropdown-menu-wrapper { 
     display: none; position: absolute; top: 100%; right: 0; 
-    padding-top: 8px; z-index: 1000; min-width: 200px; 
+    padding-top: 6px; z-index: 10002 !important; min-width: 220px; 
 }
 .dropdown-menu-wrapper.show { 
     display: block !important; 
     animation: fadeInMenu 0.15s ease-out;
+    z-index: 10002 !important;
 }
 @keyframes fadeInMenu {
     from { opacity: 0; transform: translateY(-4px); }
     to { opacity: 1; transform: translateY(0); }
 }
 .dropdown-menu { 
-    background-color: var(--bg-sidebar); border: 1px solid var(--border-color); 
-    border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); 
-    display: flex; flex-direction: column; padding: 10px; gap: 6px; 
+    background-color: #ffffff; border: 1px solid var(--border-color); 
+    border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.06); 
+    display: flex; flex-direction: column; padding: 8px; gap: 6px; 
+    position: relative; z-index: 10003 !important;
 }
 .dropdown-item { 
     background: var(--accent-teal); color: #ffffff; border: none; 
@@ -1436,72 +1462,90 @@ body.body-action-busy input[type="submit"] {
 }
 
 /* Filtros de Prioridades unificados (Sutiles, Delicados y Prolijos) */
+button.btn-prio-filtro,
 .btn-prio-filtro {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 13px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 600;
-    font-family: inherit;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    color: var(--text-main);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 6px 14px !important;
+    border-radius: 24px !important;
+    font-size: 12.5px !important;
+    font-weight: 600 !important;
+    font-family: inherit !important;
+    background: #ffffff !important;
+    border: 1.5px solid #e2e8f0 !important;
+    color: #334155 !important;
+    cursor: pointer !important;
+    user-select: none !important;
+    transition: all 0.18s ease-in-out !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+    outline: none !important;
+    margin: 2px !important;
 }
 
+button.btn-prio-filtro:hover,
 .btn-prio-filtro:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.06);
+    transform: translateY(-1px) !important;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08) !important;
 }
 
+button.btn-prio-filtro:active,
 .btn-prio-filtro:active {
-    transform: translateY(0);
+    transform: translateY(0) !important;
 }
 
+button.btn-prio-filtro.prio-todos,
 .btn-prio-filtro.prio-todos {
-    border-color: #cbd5e1;
-    color: var(--text-main);
+    border-color: #cbd5e1 !important;
+    color: #334155 !important;
 }
+button.btn-prio-filtro.prio-todos.active,
 .btn-prio-filtro.prio-todos.active {
-    background: #1e293b;
-    color: #ffffff;
-    border-color: #1e293b;
-    font-weight: 700;
+    background: #1e293b !important;
+    color: #ffffff !important;
+    border-color: #1e293b !important;
+    font-weight: 700 !important;
+    box-shadow: 0 2px 6px rgba(30, 41, 59, 0.25) !important;
 }
 
+button.btn-prio-filtro.prio-vencidos,
 .btn-prio-filtro.prio-vencidos {
-    border-color: rgba(239, 68, 68, 0.3);
-    color: #b91c1c;
+    border-color: rgba(239, 68, 68, 0.4) !important;
+    color: #b91c1c !important;
 }
+button.btn-prio-filtro.prio-vencidos.active,
 .btn-prio-filtro.prio-vencidos.active {
-    background: #fee2e2;
-    color: #991b1b;
-    border-color: #ef4444;
-    font-weight: 700;
+    background: #fee2e2 !important;
+    color: #991b1b !important;
+    border-color: #ef4444 !important;
+    font-weight: 700 !important;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.2) !important;
 }
 
+button.btn-prio-filtro.prio-urgentes,
 .btn-prio-filtro.prio-urgentes {
-    border-color: rgba(249, 115, 22, 0.3);
-    color: #c2410c;
+    border-color: rgba(249, 115, 22, 0.4) !important;
+    color: #c2410c !important;
 }
+button.btn-prio-filtro.prio-urgentes.active,
 .btn-prio-filtro.prio-urgentes.active {
-    background: #ffedd5;
-    color: #9a3412;
-    border-color: #f97316;
-    font-weight: 700;
+    background: #ffedd5 !important;
+    color: #9a3412 !important;
+    border-color: #f97316 !important;
+    font-weight: 700 !important;
+    box-shadow: 0 2px 6px rgba(249, 115, 22, 0.2) !important;
 }
 
+button.btn-prio-filtro.prio-proximos,
 .btn-prio-filtro.prio-proximos {
-    border-color: rgba(234, 179, 8, 0.3);
-    color: #854d0e;
+    border-color: rgba(234, 179, 8, 0.4) !important;
+    color: #854d0e !important;
 }
+button.btn-prio-filtro.prio-proximos.active,
 .btn-prio-filtro.prio-proximos.active {
-    background: #fef9c3;
-    color: #854d0e;
-    border-color: #eab308;
-    font-weight: 700;
+    background: #fef9c3 !important;
+    color: #854d0e !important;
+    border-color: #eab308 !important;
+    font-weight: 700 !important;
+    box-shadow: 0 2px 6px rgba(234, 179, 8, 0.2) !important;
 }
