@@ -282,10 +282,19 @@ export async function abrirModalPrealtaGrupal(ids, grupoNom = '', cfg = defaultC
 }
 
 // -----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 // Guardar Pre-Alta (Procesa 1 o N alumnos)
 // -----------------------------------------------------------------------
-export async function guardarPreAlta(btnTarget, callbacks = {}) {
+export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
+    let btnTarget = btnTargetOrOptions;
+    let callbacks = maybeCallbacks;
+    if (btnTargetOrOptions && !btnTargetOrOptions.tagName && typeof btnTargetOrOptions === 'object') {
+        callbacks = btnTargetOrOptions;
+        btnTarget = document.getElementById('btn-guardar-prealta');
+    }
     const { setBotonCargando, cargarVista, generarTextoConHistorial, estadoActualVista } = callbacks;
+    const mostrarLoader = window.mostrarIndicadorCarga || ((txt) => {});
+    const ocultarLoader = window.ocultarIndicadorCarga || (() => {});
 
     const idsRaw = document.getElementById('prealta-alumno-id').value;
     const ids = idsRaw.split(',').filter(Boolean);
@@ -293,7 +302,7 @@ export async function guardarPreAlta(btnTarget, callbacks = {}) {
     const grp = document.getElementById('prealta-grupo').value.trim();
     const selProfe = document.getElementById('prealta-profe-select');
     const profeId = selProfe ? selProfe.value : '';
-    const profeNombre = selProfe && selProfe.selectedOptions[0] ? selProfe.selectedOptions[0].dataset.nombre : '';
+    const profeNombre = selProfe && selProfe.selectedOptions[0] && selProfe.selectedOptions[0].dataset ? (selProfe.selectedOptions[0].dataset.nombre || '') : '';
 
     if (!fIni) return alert("Por favor ingresa la fecha y hora de la primera clase.");
 
@@ -309,12 +318,14 @@ export async function guardarPreAlta(btnTarget, callbacks = {}) {
         return alert("Por favor ingresa el nombre del grupo.");
     }
 
-    if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, true);
+    mostrarLoader('Guardando pre-alta y sincronizando calendario...');
+    if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, true, 'Guardando...');
 
     const dateObj = new Date(fIni);
     if (isNaN(dateObj.getTime())) {
+        ocultarLoader();
         if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
-        return alert("Fecha y hora invalidas.");
+        return alert("Fecha y hora inválidas.");
     }
 
     const diasCodigos = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
@@ -334,11 +345,13 @@ export async function guardarPreAlta(btnTarget, callbacks = {}) {
             return slIni >= rIni && (slIni + durMin) <= rFin;
         });
         if (rangosAl.length > 0 && !cubreAl) {
-            const confirmarForzar = await window.confirmar('Disponibilidad no coincide', 'El alumno no tiene disponibilidad para el horario seleccionado. ?Iniciar la Pre-Alta de todas formas?', 'Forzar Pre-Alta');
+            ocultarLoader();
+            const confirmarForzar = await window.confirmar('Disponibilidad no coincide', 'El alumno no tiene disponibilidad para el horario seleccionado. ¿Iniciar la Pre-Alta de todas formas?', 'Forzar Pre-Alta');
             if (!confirmarForzar) {
                 if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
                 return;
             }
+            mostrarLoader('Guardando pre-alta y sincronizando calendario...');
         }
     }
 
@@ -409,7 +422,7 @@ export async function guardarPreAlta(btnTarget, callbacks = {}) {
         
         const hist = al.historial || [];
         const fnHist = window.crearEntradaHistorial || ((txt, tipo) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema' }));
-        hist.push(fnHist(`Pre-Alta iniciada para "${finalGrupo}" con Profe ${finalProfeNombre} (Inicio: ${updates.horario_match}).`, 'alta'));
+        hist.push(fnHist(`Pre-Alta guardada para "${finalGrupo}" con Profe ${finalProfeNombre || '-'} (Inicio: ${updates.horario_match}).`, 'alta'));
         updates.historial = hist;
 
         await updateDoc(doc(db, "alumnos", id), updates);
@@ -421,16 +434,24 @@ export async function guardarPreAlta(btnTarget, callbacks = {}) {
     }
 
     if (textosCopiados.length > 0) {
-        await navigator.clipboard.writeText(textosCopiados.join('\n\n'));
+        try {
+            await navigator.clipboard.writeText(textosCopiados.join('\n\n'));
+        } catch(clipErr) {}
     }
     
     document.getElementById('modal-iniciar-prealta')?.close();
-    ids.forEach(id => {
-        if (typeof window.removerFilaOptimista === 'function') window.removerFilaOptimista(id);
-    });
-    if (typeof cargarVista === 'function') await cargarVista(estadoActualVista || 'Altas - En Curso');
+
+    // Recargar vista reactivamente con los datos actualizados
+    const vistaDestino = estadoActualVista || window.estadoActualVista || 'Altas - En Curso';
+    if (typeof cargarVista === 'function') {
+        await cargarVista(vistaDestino);
+    } else if (typeof window.cargarVistaGlobal === 'function') {
+        await window.cargarVistaGlobal(vistaDestino);
+    }
+
+    ocultarLoader();
     if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
-    alert(`✅ Pre-Alta iniciada para ${ids.length} alumno(s).\nEvento agendado en Google Calendar con formato 🚀 y texto copiado.`);
+    alert(`✅ Pre-Alta guardada exitosamente para ${ids.length} alumno(s).\nEvento sincronizado en Google Calendar y texto copiado.`);
 }
 
 // -----------------------------------------------------------------------
