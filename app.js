@@ -696,7 +696,12 @@ async function renderChipsPerfilPsicologico(containerId, seleccionados = []) {
 
     cont.innerHTML = opciones.map(op => {
         const isAct = selSet.has(op);
-        return `<button type="button" class="profile-tag-chip ${isAct ? 'active' : ''}" data-val="${op}">${op}</button>`;
+        const bg = isAct ? '#007b8f' : '#f8fafc';
+        const bdr = isAct ? '#007b8f' : '#cbd5e1';
+        const clr = isAct ? '#ffffff' : '#334155';
+        const shd = isAct ? '0 2px 6px rgba(0,123,143,0.3)' : '0 1px 2px rgba(0,0,0,0.03)';
+        const fw = isAct ? '700' : '600';
+        return `<button type="button" class="profile-tag-chip ${isAct ? 'active' : ''}" data-val="${op}" style="display:inline-flex; align-items:center; gap:6px; padding:7px 15px; border-radius:24px; font-size:13px; font-weight:${fw}; cursor:pointer; user-select:none; transition:all 0.15s ease; outline:none; border:1.5px solid ${bdr}; background:${bg}; color:${clr}; box-shadow:${shd}; font-family:inherit; margin:3px 2px;">${op}</button>`;
     }).join('');
 }
 
@@ -712,6 +717,12 @@ document.addEventListener('click', (e) => {
     if (chip) {
         e.preventDefault();
         chip.classList.toggle('active');
+        const isNowActive = chip.classList.contains('active');
+        chip.style.backgroundColor = isNowActive ? '#007b8f' : '#f8fafc';
+        chip.style.borderColor = isNowActive ? '#007b8f' : '#cbd5e1';
+        chip.style.color = isNowActive ? '#ffffff' : '#334155';
+        chip.style.boxShadow = isNowActive ? '0 2px 6px rgba(0,123,143,0.3)' : '0 1px 2px rgba(0,0,0,0.03)';
+        chip.style.fontWeight = isNowActive ? '700' : '600';
         return;
     }
 
