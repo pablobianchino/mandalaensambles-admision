@@ -40,10 +40,12 @@ import {
     formatearDiaCompletoChips,
     crearFilaRangoHTML,
     renderContenedorDisponibilidad,
-    actualizarBotonesQuitarRango,
-    agregarRangoDia,
-    quitarRangoDia,
-    updateDispStateForDay
+    actualizarBotonesQuitarRangoEnFila,
+    updateDispStateForRow,
+    poblarDisponibilidadMultiRango,
+    extraerDisponibilidadMultiRango,
+    normalizarHora,
+    inicializarAutocompletadoHorarios
 } from "./src/ui/horarios.ui.js";
 
 import {
@@ -854,15 +856,39 @@ function formatearTextoHistorial(historialArr) {
 
 function chequearDisponibilidadExacta(inicioTestMs, finTestMs, eventosAPI, cantAulas, cantBat, esBateria, cfgEmoji) {
     let picosAulas = 0; let picosBateria = 0; let profesOcupados = new Set();
-    const eventosCruzados = eventosAPI.filter(ev => { if (!ev.start || !ev.start.dateTime) return false; const evS = new Date(ev.start.dateTime).getTime() + 60000; const evE = new Date(ev.end.dateTime).getTime() - 60000; return (inicioTestMs < evE && finTestMs > evS); });
+    const eventosCruzados = eventosAPI.filter(ev => { 
+        if (!ev.start || !ev.start.dateTime) return false; 
+        const evS = new Date(ev.start.dateTime).getTime() + 60000; 
+        const evE = new Date(ev.end.dateTime).getTime() - 60000; 
+        return (inicioTestMs < evE && finTestMs > evS); 
+    });
     if (eventosCruzados.length === 0) return { valido: true, profesOcupados: new Set() };
     const puntosDeTiempo = new Set([inicioTestMs, finTestMs]);
-    eventosCruzados.forEach(ev => { const i = new Date(ev.start.dateTime).getTime(), f = new Date(ev.end.dateTime).getTime(); if (i > inicioTestMs && i < finTestMs) puntosDeTiempo.add(i); if (f > inicioTestMs && f < finTestMs) puntosDeTiempo.add(f); });
+    eventosCruzados.forEach(ev => { 
+        const i = new Date(ev.start.dateTime).getTime(), f = new Date(ev.end.dateTime).getTime(); 
+        if (i > inicioTestMs && i < finTestMs) puntosDeTiempo.add(i); 
+        if (f > inicioTestMs && f < finTestMs) puntosDeTiempo.add(f); 
+    });
     const arrayPuntos = Array.from(puntosDeTiempo).sort((a,b) => a-b);
     for (let i = 0; i < arrayPuntos.length - 1; i++) {
-        const puntoMedioMs = arrayPuntos[i] + 1000; let simultaneosAulas = 0; let simultaneosBat = 0;
-        eventosCruzados.forEach(ev => { const evS = new Date(ev.start.dateTime).getTime(), evE = new Date(ev.end.dateTime).getTime(); if (puntoMedioMs >= evS && puntoMedioMs < evE) { simultaneosAulas++; profesOcupados.add(ev.profeId); if (ev.summary && ev.summary.toLowerCase().includes((cfgEmoji||'').toLowerCase())) simultaneosBat++; } });
-        if (simultaneosAulas > picosAulas) picosAulas = simultaneosAulas; if (simultaneosBat > picosBateria) picosBateria = simultaneosBat;
+        const puntoMedioMs = arrayPuntos[i] + 1000; 
+        const eventosContadosSet = new Set();
+        let simultaneosAulas = 0; 
+        let simultaneosBat = 0;
+        eventosCruzados.forEach(ev => { 
+            const evS = new Date(ev.start.dateTime).getTime(), evE = new Date(ev.end.dateTime).getTime(); 
+            if (puntoMedioMs >= evS && puntoMedioMs < evE) { 
+                if (ev.profeId) profesOcupados.add(ev.profeId); 
+                const evKey = ev.id || `${evS}_${evE}_${ev.summary}`;
+                if (!eventosContadosSet.has(evKey)) {
+                    eventosContadosSet.add(evKey);
+                    simultaneosAulas++;
+                    if (ev.summary && ev.summary.toLowerCase().includes((cfgEmoji||'').toLowerCase())) simultaneosBat++; 
+                }
+            } 
+        });
+        if (simultaneosAulas > picosAulas) picosAulas = simultaneosAulas; 
+        if (simultaneosBat > picosBateria) picosBateria = simultaneosBat;
     }
     return { valido: (picosAulas < cantAulas) && (esBateria ? picosBateria < cantBat : true), profesOcupados };
 }
@@ -871,8 +897,24 @@ function chequearProfeDisponible(pr, hIniB, finMs, lDia) {
     if (!pr.disponibilidad || !pr.disponibilidad[lDia] || pr.disponibilidad[lDia].length === 0) return false; 
     const slotStartMins = hIniB.getHours() * 60 + hIniB.getMinutes(); 
     let endH = new Date(finMs).getHours(), endM = new Date(finMs).getMinutes(); if (endH === 0 && endM === 0) endH = 24;
-    const slotEndMins = endH * 60 + endM; let disponible = false;
-    pr.disponibilidad[lDia].forEach(rango => { const pStartMins = parseInt(rango.inicio.split(':')[0])*60 + parseInt(rango.inicio.split(':')[1]), pEndMins = parseInt(rango.fin.split(':')[0])*60 + parseInt(rango.fin.split(':')[1]); if (slotStartMins >= pStartMins && slotEndMins <= pEndMins) { disponible = true; } });
+    const slotEndMins = endH * 60 + endM; 
+    let disponible = false;
+
+    pr.disponibilidad[lDia].forEach(rango => { 
+        if (!rango) return;
+        let iniStr = '', finStr = '';
+        if (typeof rango === 'string') {
+            const parts = rango.split(/[-a]/);
+            iniStr = normalizarHora(parts[0], '09:00');
+            finStr = normalizarHora(parts[1] || parts[0], '22:00');
+        } else {
+            iniStr = normalizarHora(rango.inicio, '09:00');
+            finStr = normalizarHora(rango.fin, '22:00');
+        }
+        const pStartMins = parseInt(iniStr.split(':')[0], 10)*60 + parseInt(iniStr.split(':')[1], 10);
+        const pEndMins = parseInt(finStr.split(':')[0], 10)*60 + parseInt(finStr.split(':')[1], 10); 
+        if (slotStartMins >= pStartMins && slotEndMins <= pEndMins) { disponible = true; } 
+    });
     return disponible;
 }
 
@@ -882,8 +924,12 @@ function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, todosLosProfes, pr
         const fEval = new Date(dStart); fEval.setDate(fEval.getDate() + i); const lDia = mapaDias[fEval.getDay()];
         if (dispAl[lDia] && dispAl[lDia].length > 0) {
             dispAl[lDia].forEach(rango => {
-                if (!rango.inicio || !rango.fin) return;
-                const hIniB = new Date(fEval); hIniB.setHours(parseInt(rango.inicio.split(':')[0]), parseInt(rango.inicio.split(':')[1]), 0, 0); const hFinR = new Date(fEval); hFinR.setHours(parseInt(rango.fin.split(':')[0]), parseInt(rango.fin.split(':')[1]), 0, 0);
+                if (!rango) return;
+                const iniNorm = normalizarHora(rango.inicio || (typeof rango === 'string' ? rango.split(/[-a]/)[0] : ''), '');
+                const finNorm = normalizarHora(rango.fin || (typeof rango === 'string' ? (rango.split(/[-a]/)[1] || rango.split(/[-a]/)[0]) : ''), '');
+                if (!iniNorm || !finNorm) return;
+                const hIniB = new Date(fEval); hIniB.setHours(parseInt(iniNorm.split(':')[0], 10), parseInt(iniNorm.split(':')[1], 10), 0, 0); 
+                const hFinR = new Date(fEval); hFinR.setHours(parseInt(finNorm.split(':')[0], 10), parseInt(finNorm.split(':')[1], 10), 0, 0);
                 if (hIniB < new Date()) { let curr = new Date(); curr.setMinutes(curr.getMinutes() + (30 - (curr.getMinutes() % 30)), 0, 0); hIniB.setTime(curr.getTime()); }
                 while (hIniB.getTime() + durMs <= hFinR.getTime()) {
                     const inMs = hIniB.getTime(), finMs = inMs + durMs, evalOverlap = chequearDisponibilidadExacta(inMs, finMs, eventosAPI, cantAulas, cantBat, esBateria, cfg.identificador_bateria);
@@ -892,7 +938,11 @@ function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, todosLosProfes, pr
                             if (profesFiltradosIDs.includes(pr.id) && !evalOverlap.profesOcupados.has(pr.id)) {
                                 if (chequearProfeDisponible(pr, hIniB, finMs, lDia)) {
                                     let pegado = false; const profeEvents = eventosAPI.filter(e => e.profeId === pr.id);
-                                    profeEvents.forEach(ev => { if(!ev.start || !ev.start.dateTime) return; const evS = new Date(ev.start.dateTime).getTime(), evE = new Date(ev.end.dateTime).getTime(); if (Math.abs(evE - inMs) <= 60000 || Math.abs(evS - finMs) <= 60000) pegado = true; });
+                                    profeEvents.forEach(ev => { 
+                                        if(!ev.start || !ev.start.dateTime) return; 
+                                        const evS = new Date(ev.start.dateTime).getTime(), evE = new Date(ev.end.dateTime).getTime(); 
+                                        if (Math.abs(evE - inMs) <= 5*60*1000 || Math.abs(evS - finMs) <= 5*60*1000) pegado = true; 
+                                    });
                                     opciones.push({ fechaTextoAmi: formatearFechaAmi(hIniB.toISOString()), profeId: pr.id, profeNombre: pr.nombre, calId: pr.calId, inicioData: formatoLocalISO(hIniB), finData: formatoLocalISO(new Date(finMs)), pegado: pegado });
                                 }
                             }
@@ -1351,7 +1401,12 @@ async function abrirModalNuevaPropuestaGrupoManual() {
         try {
             const qP = await getDocs(collection(db, "profesores"));
             let profesList = [];
-            qP.forEach(d => profesList.push({ id: d.id, ...d.data() }));
+            qP.forEach(d => {
+                const dt = d.data();
+                if (dt.activo !== false && dt.estado !== 'inactivo') {
+                    profesList.push({ id: d.id, ...dt });
+                }
+            });
             selProfe.innerHTML = '<option value="">Seleccionar profesor...</option>' + profesList.map(p => {
                 const skillsStr = (p.skills || []).join(', ');
                 return `<option value="${p.id}" data-nombre="${p.nombre}">${p.nombre} ${skillsStr ? `(${skillsStr})` : ''}</option>`;
@@ -2324,7 +2379,7 @@ async function cargarVista(vista) {
     else if (vista === 'Dashboard') modulo = 'Dashboard';
     else if (vista === 'Estadísticas') modulo = 'Estadísticas';
     else if (vista.startsWith('Configuración') || vista.startsWith('Ajustes') || vista.startsWith('ABM')) modulo = 'Configuración';
-    else if (vista === 'Mis Grupos & Solicitud de Alumnos') modulo = 'portal_profesor';
+    else if (vista === 'Mis Grupos & Solicitud de Alumnos' || vista === 'Mis Alumnos y Ensambles') modulo = 'portal_profesor';
 
     // Route Guard RBAC
     const modIdMap = {
@@ -2341,7 +2396,7 @@ async function cargarVista(vista) {
     if (modId && !verificarPermisoModulo(modId)) {
         alert(`⛔ No tienes permiso para acceder al módulo "${modulo || vista}".`);
         if (window.usuarioActual && window.usuarioActual.rol === 'profesor') {
-            return cargarVista('Mis Grupos & Solicitud de Alumnos');
+            return cargarVista('Mis Alumnos y Ensambles');
         }
         return cargarVista('Dashboard');
     }
@@ -2645,7 +2700,7 @@ async function cargarVista(vista) {
             renderSegmentedTabs(vista);
         } catch(e) {}
         await renderMatchConfirmados(contLista);
-    } else if (vista === 'Mis Grupos & Solicitud de Alumnos') {
+    } else if (vista === 'Mis Grupos & Solicitud de Alumnos' || vista === 'Mis Alumnos y Ensambles') {
         contLista.style.display = 'flex';
         await renderPortalProfesor(contLista, window.usuarioActual, { setBotonCargando });
     } else if (vista === 'Estadísticas') { contEstad.style.display = 'flex'; renderCharts({ cargarVista });
@@ -2891,7 +2946,7 @@ onAuthStateChanged(auth, async (user) => {
         configurarSidebarPorPermisos();
 
         if (window.usuarioActual.rol === 'profesor') {
-            cargarVista('Mis Grupos & Solicitud de Alumnos');
+            cargarVista('Mis Alumnos y Ensambles');
         } else {
             const mods = window.usuarioActual.modulos_habilitados || [];
             if (window.usuarioActual.rol === 'admin' || mods.includes('dashboard')) {
@@ -2981,12 +3036,27 @@ document.addEventListener('change', async (e) => {
                     texto: "Alta Finalizada: Todos los pasos del checklist completados. Ciclo de admisión cerrado.",
                     fecha: fechaStr
                 });
+
+                // Actualizar evento en Google Calendar al formato de alta confirmada (sin ❓)
+                try {
+                    const tipoSusc = (al.tipo_suscripcion || '').toLowerCase();
+                    const esInd = tipoSusc.includes('individual') || al.grupo_asignado === 'Clase Individual';
+                    let alumnosDelGrupo = [];
+                    if (!esInd && al.grupo_asignado) {
+                        const gSnap = await getDocs(query(collection(db, "alumnos"), where("grupo_asignado", "==", al.grupo_asignado)));
+                        gSnap.forEach(d => alumnosDelGrupo.push({ id: d.id, ...d.data() }));
+                    }
+                    await sincronizarEventoAltaConfirmadaCalendar({ id, ...al }, esInd, alumnosDelGrupo, configApp);
+                } catch(calErr) {
+                    console.warn("No se pudo actualizar evento al completar checklist:", calErr);
+                }
+
                 await updateDoc(docRef, { 
                     checklist_alta: checks,
                     fecha_alta_finalizada: new Date().toISOString(),
                     historial: hist
                 });
-                alert("🏆 ¡Felicitaciones! Checklist completo. El alumno pasó a Altas Finalizadas.");
+                alert("🏆 ¡Felicitaciones! Checklist completo. El alumno pasó a Altas Finalizadas y el evento en Calendar fue actualizado a Alta Confirmada.");
                 cargarVista(estadoActualVista);
             } else {
                 await updateDoc(docRef, { checklist_alta: checks });
@@ -2996,17 +3066,17 @@ document.addEventListener('change', async (e) => {
     }
 
     if (e.target.classList.contains('chk-disp-all') || e.target.classList.contains('chk-disp-none')) {
-        const diaId = e.target.getAttribute('data-dia');
-        const esProfe = e.target.getAttribute('data-profe') === 'true';
-        const prefix = esProfe ? 'disp-p-' : 'disp-';
-        if (e.target.classList.contains('chk-disp-all') && e.target.checked) {
-            const cN = document.getElementById(`${prefix}${diaId}-none`);
-            if (cN) cN.checked = false;
-        } else if (e.target.classList.contains('chk-disp-none') && e.target.checked) {
-            const cA = document.getElementById(`${prefix}${diaId}-all`);
-            if (cA) cA.checked = false;
+        const diaRow = e.target.closest('.dia-disponibilidad-row');
+        if (diaRow) {
+            const chkAll = diaRow.querySelector('.chk-disp-all');
+            const chkNone = diaRow.querySelector('.chk-disp-none');
+            if (e.target.classList.contains('chk-disp-all') && e.target.checked && chkNone) {
+                chkNone.checked = false;
+            } else if (e.target.classList.contains('chk-disp-none') && e.target.checked && chkAll) {
+                chkAll.checked = false;
+            }
+            updateDispStateForRow(diaRow);
         }
-        window.updateDispStateForDay(diaId, esProfe);
     }
 });
 
@@ -3048,115 +3118,93 @@ document.addEventListener('click', (e) => {
 document.addEventListener('click', async (e) => {
     const target = e.target;
     
-    // AGREGAR Y QUITAR RANGOS HORARIOS
+    // AGREGAR Y QUITAR RANGOS HORARIOS (SCOPED DIRECTO A LA FILA)
     if (target.classList.contains('btn-agregar-rango') || target.closest('.btn-agregar-rango')) {
         e.preventDefault();
-        const btn = target.classList.contains('btn-agregar-rango') ? target : target.closest('.btn-agregar-rango');
-        const diaId = btn.getAttribute('data-dia');
-        const esProfe = btn.getAttribute('data-profe') === 'true';
-        agregarRangoDia(diaId, '', '', esProfe);
+        const btn = target.closest('.btn-agregar-rango') || target;
+        const diaRow = btn.closest('.dia-disponibilidad-row');
+        if (diaRow) {
+            const diaId = diaRow.getAttribute('data-dia') || btn.getAttribute('data-dia');
+            const esProfe = diaRow.getAttribute('data-profe') === 'true';
+            const rangosList = diaRow.querySelector('.rangos-list');
+            if (rangosList) {
+                const count = rangosList.querySelectorAll('.rango-item').length;
+                rangosList.insertAdjacentHTML('beforeend', crearFilaRangoHTML(diaId, '', '', esProfe, count));
+                const chkAll = diaRow.querySelector('.chk-disp-all');
+                const chkNone = diaRow.querySelector('.chk-disp-none');
+                if (chkAll) chkAll.checked = false;
+                if (chkNone) chkNone.checked = false;
+                actualizarBotonesQuitarRangoEnFila(diaRow);
+                updateDispStateForRow(diaRow);
+            }
+        }
         return;
     }
     if (target.classList.contains('btn-quitar-rango') || target.closest('.btn-quitar-rango')) {
         e.preventDefault();
-        const btn = target.classList.contains('btn-quitar-rango') ? target : target.closest('.btn-quitar-rango');
-        quitarRangoDia(btn);
+        const btn = target.closest('.btn-quitar-rango') || target;
+        const diaRow = btn.closest('.dia-disponibilidad-row');
+        const rangoItem = btn.closest('.rango-item');
+        if (rangoItem && diaRow) {
+            rangoItem.remove();
+            actualizarBotonesQuitarRangoEnFila(diaRow);
+            updateDispStateForRow(diaRow);
+        }
         return;
     }
 
-    // FUNCION DE COPY/PASTE DISPONIBILIDAD (MULTI-RANGO)
-    if (target.classList.contains('btn-copy-disp') || target.closest('.btn-copy-disp')) {
+    // FUNCION DE COPY/PASTE DISPONIBILIDAD (SCOPED DIRECTO A LA FILA)
+    if (target.classList.contains('btn-copy-disp') || target.classList.contains('btn-copy-disp-p') || target.closest('.btn-copy-disp') || target.closest('.btn-copy-disp-p')) {
         e.preventDefault();
-        const btn = target.classList.contains('btn-copy-disp') ? target : target.closest('.btn-copy-disp');
-        const diaId = btn.getAttribute('data-dia');
-        const rangosCont = document.getElementById(`rangos-disp-${diaId}`);
-        const items = rangosCont ? rangosCont.querySelectorAll('.rango-item') : [];
-        const rangos = [];
-        items.forEach(item => {
-            rangos.push({
-                inicio: item.querySelector('.rango-inicio')?.value || '',
-                fin: item.querySelector('.rango-fin')?.value || ''
+        const btn = target.closest('.btn-copy-disp') || target.closest('.btn-copy-disp-p') || target;
+        const diaRow = btn.closest('.dia-disponibilidad-row');
+        if (diaRow) {
+            const rangosList = diaRow.querySelector('.rangos-list');
+            const items = rangosList ? rangosList.querySelectorAll('.rango-item') : [];
+            const rangos = [];
+            items.forEach(item => {
+                rangos.push({
+                    inicio: item.querySelector('.rango-inicio')?.value || '',
+                    fin: item.querySelector('.rango-fin')?.value || ''
+                });
             });
-        });
-        clipboardDisponibilidad = {
-            all: document.getElementById(`disp-${diaId}-all`)?.checked || false,
-            none: document.getElementById(`disp-${diaId}-none`)?.checked || false,
-            rangos: rangos
-        };
-        alert("📋 Horario del día copiado");
+            clipboardDisponibilidad = {
+                all: diaRow.querySelector('.chk-disp-all')?.checked || false,
+                none: diaRow.querySelector('.chk-disp-none')?.checked || false,
+                rangos: rangos
+            };
+            alert("📋 Horario del día copiado");
+        }
         return;
     }
-    if (target.classList.contains('btn-paste-disp') || target.closest('.btn-paste-disp')) {
+    if (target.classList.contains('btn-paste-disp') || target.classList.contains('btn-paste-disp-p') || target.closest('.btn-paste-disp') || target.closest('.btn-paste-disp-p')) {
         e.preventDefault();
         if (!clipboardDisponibilidad) return alert("No hay horario copiado.");
-        const btn = target.classList.contains('btn-paste-disp') ? target : target.closest('.btn-paste-disp');
-        const diaId = btn.getAttribute('data-dia');
-        const rangosCont = document.getElementById(`rangos-disp-${diaId}`);
-        if (!rangosCont) return;
-        
-        const cA = document.getElementById(`disp-${diaId}-all`);
-        const cN = document.getElementById(`disp-${diaId}-none`);
-        if (cA) cA.checked = clipboardDisponibilidad.all;
-        if (cN) cN.checked = clipboardDisponibilidad.none;
-        
-        rangosCont.innerHTML = '';
-        const rangos = clipboardDisponibilidad.rangos || [];
-        if (rangos.length === 0) {
-            rangosCont.innerHTML = crearFilaRangoHTML(diaId, '', '', false, 0);
-        } else {
-            rangos.forEach((r, idx) => {
-                rangosCont.innerHTML += crearFilaRangoHTML(diaId, r.inicio || '', r.fin || '', false, idx);
-            });
+        const btn = target.closest('.btn-paste-disp') || target.closest('.btn-paste-disp-p') || target;
+        const diaRow = btn.closest('.dia-disponibilidad-row');
+        if (diaRow) {
+            const diaId = diaRow.getAttribute('data-dia');
+            const esProfe = diaRow.getAttribute('data-profe') === 'true';
+            const chkAll = diaRow.querySelector('.chk-disp-all');
+            const chkNone = diaRow.querySelector('.chk-disp-none');
+            if (chkAll) chkAll.checked = clipboardDisponibilidad.all;
+            if (chkNone) chkNone.checked = clipboardDisponibilidad.none;
+
+            const rangosList = diaRow.querySelector('.rangos-list');
+            if (rangosList) {
+                rangosList.innerHTML = '';
+                const rangos = clipboardDisponibilidad.rangos || [];
+                if (rangos.length === 0) {
+                    rangosList.innerHTML = crearFilaRangoHTML(diaId, '', '', esProfe, 0);
+                } else {
+                    rangos.forEach((r, idx) => {
+                        rangosList.innerHTML += crearFilaRangoHTML(diaId, r.inicio || '', r.fin || '', esProfe, idx);
+                    });
+                }
+                actualizarBotonesQuitarRangoEnFila(diaRow);
+                updateDispStateForRow(diaRow);
+            }
         }
-        actualizarBotonesQuitarRango(diaId, false);
-        window.updateDispStateForDay(diaId, false);
-        return;
-    }
-    if (target.classList.contains('btn-copy-disp-p') || target.closest('.btn-copy-disp-p')) {
-        e.preventDefault();
-        const btn = target.classList.contains('btn-copy-disp-p') ? target : target.closest('.btn-copy-disp-p');
-        const diaId = btn.getAttribute('data-dia');
-        const rangosCont = document.getElementById(`rangos-disp-p-${diaId}`);
-        const items = rangosCont ? rangosCont.querySelectorAll('.rango-item') : [];
-        const rangos = [];
-        items.forEach(item => {
-            rangos.push({
-                inicio: item.querySelector('.rango-inicio')?.value || '',
-                fin: item.querySelector('.rango-fin')?.value || ''
-            });
-        });
-        clipboardDisponibilidadProfe = {
-            all: document.getElementById(`disp-p-${diaId}-all`)?.checked || false,
-            none: document.getElementById(`disp-p-${diaId}-none`)?.checked || false,
-            rangos: rangos
-        };
-        alert("📋 Horario del evaluador copiado");
-        return;
-    }
-    if (target.classList.contains('btn-paste-disp-p') || target.closest('.btn-paste-disp-p')) {
-        e.preventDefault();
-        if (!clipboardDisponibilidadProfe) return alert("No hay horario copiado.");
-        const btn = target.classList.contains('btn-paste-disp-p') ? target : target.closest('.btn-paste-disp-p');
-        const diaId = btn.getAttribute('data-dia');
-        const rangosCont = document.getElementById(`rangos-disp-p-${diaId}`);
-        if (!rangosCont) return;
-        
-        const cA = document.getElementById(`disp-p-${diaId}-all`);
-        const cN = document.getElementById(`disp-p-${diaId}-none`);
-        if (cA) cA.checked = clipboardDisponibilidadProfe.all;
-        if (cN) cN.checked = clipboardDisponibilidadProfe.none;
-        
-        rangosCont.innerHTML = '';
-        const rangos = clipboardDisponibilidadProfe.rangos || [];
-        if (rangos.length === 0) {
-            rangosCont.innerHTML = crearFilaRangoHTML(diaId, '', '', true, 0);
-        } else {
-            rangos.forEach((r, idx) => {
-                rangosCont.innerHTML += crearFilaRangoHTML(diaId, r.inicio || '', r.fin || '', true, idx);
-            });
-        }
-        actualizarBotonesQuitarRango(diaId, true);
-        window.updateDispStateForDay(diaId, true);
         return;
     }
 
@@ -3470,6 +3518,20 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
+    // Botón Copiar Fila para BD de Planilla / Facturación
+    if (target.classList.contains('btn-copiar-fila-excel-bd') || target.closest('.btn-copiar-fila-excel-bd')) {
+        const btn = target.classList.contains('btn-copiar-fila-excel-bd') ? target : target.closest('.btn-copiar-fila-excel-bd');
+        const id = btn.getAttribute('data-id');
+        await copiarFilaExcelBD(id);
+        return;
+    }
+    if (target.classList.contains('btn-copiar-fila-excel-fact') || target.closest('.btn-copiar-fila-excel-fact')) {
+        const btn = target.classList.contains('btn-copiar-fila-excel-fact') ? target : target.closest('.btn-copiar-fila-excel-fact');
+        const id = btn.getAttribute('data-id');
+        await copiarFilaExcelFacturacion(id);
+        return;
+    }
+
     // Guardar Pre-Alta (modal-iniciar-prealta)
     if (target.id === 'btn-guardar-prealta') {
         await guardarPreAlta({ setBotonCargando, cargarVista, generarTextoConHistorial, estadoActualVista });
@@ -3516,18 +3578,33 @@ document.addEventListener('click', async (e) => {
     // Acción directa: Finalizar Alta
     if (target.classList.contains('btn-finalizar-alta-directa')) {
         const id = target.getAttribute('data-id');
-        const ok = await window.confirmar('¿Finalizar Alta?', 'Se marcará el checklist completo y el ciclo de admisión quedará cerrado.', '🏁 Finalizar Alta', '✅');
+        const ok = await window.confirmar('¿Finalizar Alta?', 'Se marcará el checklist completo, se actualizará el evento en Google Calendar y el ciclo de admisión quedará cerrado.', '🏁 Finalizar Alta', '🏆');
         if (ok) {
             const alDoc = await getDoc(doc(db, "alumnos", id));
             const al = alDoc.exists() ? alDoc.data() : {};
             const hist = al.historial || [];
             hist.push(crearEntradaHistorial("Alta Finalizada: Todos los pasos del checklist confirmados. Ciclo de admisión cerrado con éxito.", 'alta'));
+
+            // Actualizar evento en Google Calendar al formato de alta confirmada (sin ❓)
+            try {
+                const tipoSusc = (al.tipo_suscripcion || '').toLowerCase();
+                const esInd = tipoSusc.includes('individual') || al.grupo_asignado === 'Clase Individual';
+                let alumnosDelGrupo = [];
+                if (!esInd && al.grupo_asignado) {
+                    const gSnap = await getDocs(query(collection(db, "alumnos"), where("grupo_asignado", "==", al.grupo_asignado)));
+                    gSnap.forEach(d => alumnosDelGrupo.push({ id: d.id, ...d.data() }));
+                }
+                await sincronizarEventoAltaConfirmadaCalendar({ id, ...al }, esInd, alumnosDelGrupo, configApp);
+            } catch(calErr) {
+                console.warn("No se pudo actualizar evento al finalizar alta:", calErr);
+            }
+
             await updateDoc(doc(db, "alumnos", id), {
                 checklist_alta: [true, true, true, true, true],
                 fecha_alta_finalizada: new Date().toISOString(),
                 historial: hist
             });
-            alert("🏁 Alta Finalizada con éxito. El registro pasó a Altas Finalizadas.");
+            alert("🏁 Alta Finalizada con éxito. El registro pasó a Altas Finalizadas y el evento en Calendar fue actualizado a Alta Confirmada.");
             cargarVista(estadoActualVista);
         }
         return;
@@ -3677,6 +3754,7 @@ document.addEventListener('click', async (e) => {
                     const pSnap = await getDocs(collection(db, "profesores"));
                     pSnap.forEach(p => {
                         const d = p.data();
+                        if (d.activo === false || d.estado === 'inactivo') return;
                         if (d.entrevista) {
                             const skills = d.skills || [];
                             const ensena = !instrumentoSeleccionado || skills.length === 0 || skills.some(s => s.toLowerCase() === instrumentoSeleccionado.toLowerCase());
@@ -3716,6 +3794,7 @@ document.addEventListener('click', async (e) => {
             const pS = await getDocs(collection(db, "profesores")), todosLosProfes = [], profesFiltradosIDs = []; 
             pS.forEach(p => { 
                 const d = p.data(); 
+                if (d.activo === false || d.estado === 'inactivo') return;
                 if(d.correo_calendario) { 
                     todosLosProfes.push({ id: p.id, nombre: d.nombre, calId: d.correo_calendario, disponibilidad: d.disponibilidad }); 
                     if (d.entrevista && (searchAll || fProfs.includes(p.id))) { 
@@ -3727,13 +3806,31 @@ document.addEventListener('click', async (e) => {
                 setBotonCargando(target, false); 
                 return resDiv.innerHTML = '<p>No hay profes seleccionados con este instrumento.</p>'; 
             } 
+            // Obtener eventos de Google Calendar deduplicando llamadas por calId único (incluyendo calendario general por defecto)
+            const calDefecto = configApp.calendario_por_defecto || 'productora.mandalahouse@gmail.com';
+            const calendariosUnicos = [...new Set([...todosLosProfes.map(p => p.calId), calDefecto].filter(Boolean))];
+            const eventosPorCalId = {};
+            for(const cId of calendariosUnicos) {
+                try {
+                    const data = await getEventosCalendario(cId, dS.toISOString(), dE.toISOString());
+                    eventosPorCalId[cId] = data.items || [];
+                } catch(e) {
+                    eventosPorCalId[cId] = [];
+                }
+            }
+
             let allEv = []; 
-            for(const pr of todosLosProfes) { 
-                try { 
-                    const data = await getEventosCalendario(pr.calId, dS.toISOString(), dE.toISOString()); 
-                    if(data.items) allEv = allEv.concat(data.items.map(ev => ({...ev, profeId: pr.id}))); 
-                } catch(e) {} 
-            } 
+            todosLosProfes.forEach(pr => {
+                const evs = eventosPorCalId[pr.calId] || [];
+                evs.forEach(ev => {
+                    allEv.push({ ...ev, profeId: pr.id });
+                });
+            });
+            if (eventosPorCalId[calDefecto]) {
+                eventosPorCalId[calDefecto].forEach(ev => {
+                    allEv.push({ ...ev, profeId: null });
+                });
+            }
             const opts = generarOpcionesAgenda(al.disponibilidad, allEv, esBat, todosLosProfes, profesFiltradosIDs, dS, dE, configApp); 
             if(opts.length===0) { 
                 resDiv.innerHTML='<p>No hay huecos libres en el rango seleccionado.</p>'; 
@@ -4008,8 +4105,8 @@ document.addEventListener('click', async (e) => {
         }
         return;
     }
-    if (target.classList.contains('btn-cancelar-reserva') || target.closest('.btn-cancelar-reserva')) { 
-        const btn = target.classList.contains('btn-cancelar-reserva') ? target : target.closest('.btn-cancelar-reserva');
+    if (target.classList.contains('btn-cancelar-reserva') || target.classList.contains('btn-cancelar-alumno') || target.closest('.btn-cancelar-reserva') || target.closest('.btn-cancelar-alumno')) { 
+        const btn = target.closest('.btn-cancelar-reserva') || target.closest('.btn-cancelar-alumno') || target;
         const id = btn.getAttribute('data-id'); 
         const alDoc = await getDoc(doc(db, "alumnos", id)); 
         if (!alDoc.exists()) return alert("Alumno no encontrado.");
@@ -4306,11 +4403,21 @@ window.editarAlumnoModalDirecto = async function(id) {
     wrap.style.display = 'block';
     document.getElementById('modal-alta-alumno').appendChild(wrap);
     document.getElementById('form-titulo').textContent = "Editar Alumno";
-    await llenarFormularioAlumno(id);
+    await llenarFormularioAlumno(id, false);
     document.getElementById('modal-alta-alumno').showModal();
 };
 
-async function llenarFormularioAlumno(id) { 
+window.abrirFichaAlumnoDocente = async function(id) {
+    const wrap = document.getElementById('form-alumno-wrapper');
+    if (!wrap) return;
+    wrap.style.display = 'block';
+    document.getElementById('modal-alta-alumno').appendChild(wrap);
+    document.getElementById('form-titulo').textContent = "Ficha del Alumno (Modo Lectura)";
+    await llenarFormularioAlumno(id, true);
+    document.getElementById('modal-alta-alumno').showModal();
+};
+
+async function llenarFormularioAlumno(id, modoLectura = false) { 
     document.getElementById('alumno-id').value = id; 
     const d = (await getDoc(doc(db, "alumnos", id))).data(); 
     document.getElementById('nombre').value = d.nombre; 
@@ -4351,7 +4458,8 @@ async function llenarFormularioAlumno(id) {
     const elAltaBox = document.getElementById('modal-seccion-alta-box');
     const elAltaProfe = document.getElementById('modal-alta-profe-val');
     const elAltaGrupo = document.getElementById('modal-alta-grupo-val');
-    const elAltaHorario = document.getElementById('modal-alta-horario-val');
+    const inpHora = document.getElementById('modal-alta-horario-input');
+    const inpIni = document.getElementById('modal-alta-inicio-input');
     
     const tieneDatosAlta = d.grupo_asignado || d.horario_match || d.fecha_inicio_clases || d.profesor_asignado || (['Pre-alta pendiente', 'Pre-alta iniciada', 'Alta Efectiva', 'Alta Ilegal', 'Alta Finalizada', 'Validando grupo'].includes(d.estado_agenda) && d.reserva_profe_nombre);
     
@@ -4359,31 +4467,51 @@ async function llenarFormularioAlumno(id) {
         elAltaBox.style.display = 'block';
         if (elAltaProfe) elAltaProfe.textContent = d.profesor_asignado || d.reserva_profe_nombre || '-';
         if (elAltaGrupo) elAltaGrupo.textContent = d.grupo_asignado || '-';
-        
-        let partesHorario = [];
-        if (d.horario_match) partesHorario.push(d.horario_match);
-        if (d.fecha_inicio_clases) {
-            try {
-                const f = new Date(d.fecha_inicio_clases);
-                if (!isNaN(f.getTime())) {
-                    const dia = f.getDate();
-                    const mes = f.getMonth() + 1;
-                    partesHorario.push(`Inicio: ${dia}/${mes}`);
-                }
-            } catch(e) {}
+        if (inpHora) inpHora.value = d.horario_match || d.reserva_fecha_texto || '';
+        if (inpIni) {
+            if (d.fecha_inicio_clases) {
+                try {
+                    const f = new Date(d.fecha_inicio_clases);
+                    inpIni.value = !isNaN(f.getTime()) ? formatoLocalISO(f).substring(0, 16) : '';
+                } catch(e) { inpIni.value = ''; }
+            } else {
+                inpIni.value = '';
+            }
         }
-        if (elAltaHorario) elAltaHorario.textContent = partesHorario.length > 0 ? partesHorario.join(' • ') : '-';
     } else if (elAltaBox) {
         elAltaBox.style.display = 'none';
+        if (inpHora) inpHora.value = '';
+        if (inpIni) inpIni.value = '';
     }
     
+    // Controles de Modo Lectura para Docentes vs Edición Admisor
+    const camposForm = ['nombre', 'celular', 'edad', 'nivel', 'tipo_suscripcion', 'modal-alta-horario-input', 'modal-alta-inicio-input'];
+    camposForm.forEach(cid => {
+        const el = document.getElementById(cid);
+        if (el) el.disabled = modoLectura;
+    });
+
+    const tabInformeBtn = document.querySelector('.tab-btn[data-target="tab-informe"]');
+    if (tabInformeBtn) tabInformeBtn.style.display = modoLectura ? 'none' : 'block';
+
+    const btnSubmit = document.getElementById('btn-submit-alumno');
+    if (btnSubmit) btnSubmit.style.display = modoLectura ? 'none' : 'block';
+    const contIngreso = document.getElementById('container-ingreso-directo');
+    if (contIngreso) contIngreso.style.display = modoLectura ? 'none' : 'flex';
+
     const estadosBloqueados = ['Pendiente procesar', 'Pendiente validación por profe', 'Pendiente validación por alumno'];
-    if (estadosBloqueados.includes(d.estado_agenda)) {
-        document.getElementById('aviso-informe-bloqueado').style.display = 'block';
+    if (modoLectura || estadosBloqueados.includes(d.estado_agenda)) {
+        if (!modoLectura) document.getElementById('aviso-informe-bloqueado').style.display = 'block';
         quillInforme.enable(false);
     } else {
         document.getElementById('aviso-informe-bloqueado').style.display = 'none';
         quillInforme.enable(true);
+    }
+
+    if (modoLectura) {
+        quill.enable(false);
+    } else {
+        quill.enable(true);
     }
     
     const info = getEstadoYBadgeLocal(d);
@@ -4392,50 +4520,32 @@ async function llenarFormularioAlumno(id) {
 
     const accionesCont = document.getElementById('modal-acciones-container');
     if (accionesCont) {
-        accionesCont.style.display = 'block';
-        accionesCont.innerHTML = `
-            <button type="button" id="btn-trigger-modal-acciones" style="background:var(--accent-teal); color:white; border:none; padding:7px 14px; border-radius:8px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">Acciones ▾</button>
-            <div class="dropdown-menu-wrapper" id="modal-acciones-dropdown" style="top:100%; left:0; right:auto; z-index:1200; min-width:220px;">
-                <div class="dropdown-menu">${generarBotonesAccion(d, id, true)}</div>
-            </div>
-        `;
+        if (modoLectura) {
+            accionesCont.style.display = 'none';
+        } else {
+            accionesCont.style.display = 'block';
+            accionesCont.innerHTML = `
+                <button type="button" id="btn-trigger-modal-acciones" style="background:var(--accent-teal); color:white; border:none; padding:7px 14px; border-radius:8px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">Acciones ▾</button>
+                <div class="dropdown-menu-wrapper" id="modal-acciones-dropdown" style="top:100%; left:0; right:auto; z-index:1200; min-width:220px;">
+                    <div class="dropdown-menu">${generarBotonesAccion(d, id, true)}</div>
+                </div>
+            `;
+        }
     }
 
     const btnNuevaSusc = document.getElementById('btn-modal-nueva-suscripcion');
     if (btnNuevaSusc) {
-        btnNuevaSusc.style.display = 'block';
+        btnNuevaSusc.style.display = (modoLectura || !id) ? 'none' : 'block';
         btnNuevaSusc.setAttribute('data-id', id);
     }
 
     const hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00'; 
-    diasSemana.forEach(dia => { 
-        const dD = (d.disponibilidad && d.disponibilidad[dia.id]) || [];
-        const rangosCont = document.getElementById(`rangos-disp-${dia.id}`);
-        const cA = document.getElementById(`disp-${dia.id}-all`);
-        const cN = document.getElementById(`disp-${dia.id}-none`);
-        const sE = document.getElementById(`estado-${dia.id}`);
-        
-        if (!rangosCont) return;
-        rangosCont.innerHTML = '';
-        if (cA) cA.checked = false;
-        if (cN) cN.checked = false;
-        if (sE) sE.textContent = "";
-        
-        if (dD.length === 0) {
-            if (cN) cN.checked = true;
-            rangosCont.innerHTML = crearFilaRangoHTML(dia.id, '', '', false, 0);
-        } else if (dD.length === 1 && dD[0].inicio === hApe && dD[0].fin === hCie) {
-            if (cA) cA.checked = true;
-            rangosCont.innerHTML = crearFilaRangoHTML(dia.id, '', '', false, 0);
-        } else {
-            dD.forEach((rango, idx) => {
-                rangosCont.innerHTML += crearFilaRangoHTML(dia.id, rango.inicio || '', rango.fin || '', false, idx);
-            });
-        }
-        actualizarBotonesQuitarRango(dia.id, false);
-        window.updateDispStateForDay(dia.id, false);
-    }); 
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); const tabBtns = document.querySelectorAll('.tab-btn'); if(tabBtns.length > 0) { tabBtns[0].classList.add('active'); } document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none'); if(document.getElementById('tab-datos')) document.getElementById('tab-datos').style.display = 'block';
+    poblarDisponibilidadMultiRango(d.disponibilidad || {}, 'contenedor-disponibilidad', hApe, hCie, modoLectura);
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); 
+    const tabBtns = document.querySelectorAll('.tab-btn'); 
+    if(tabBtns.length > 0) { tabBtns[0].classList.add('active'); } 
+    document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none'); 
+    if(document.getElementById('tab-datos')) document.getElementById('tab-datos').style.display = 'block';
 }
 
 document.getElementById('form-alumno').addEventListener('submit', async (e) => { 
@@ -4443,31 +4553,14 @@ document.getElementById('form-alumno').addEventListener('submit', async (e) => {
     const btnSubmit = e.target.querySelector('button[type="submit"]'); 
     setBotonCargando(btnSubmit, true);
     
-    const disp = {}, hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00'; 
-    diasSemana.forEach(d => { 
-        const cA = document.getElementById(`disp-${d.id}-all`)?.checked;
-        const cN = document.getElementById(`disp-${d.id}-none`)?.checked;
-        if (cN) {
-            disp[d.id] = [];
-        } else if (cA) {
-            disp[d.id] = [{ inicio: hApe, fin: hCie }];
-        } else {
-            const rangosCont = document.getElementById(`rangos-disp-${d.id}`);
-            const items = rangosCont ? rangosCont.querySelectorAll('.rango-item') : [];
-            const arr = [];
-            items.forEach(item => {
-                const i = item.querySelector('.rango-inicio')?.value || '';
-                const f = item.querySelector('.rango-fin')?.value || '';
-                if (i || f) {
-                    arr.push({ inicio: i || hApe, fin: f || hCie });
-                }
-            });
-            disp[d.id] = arr;
-        }
-    }); 
+    const hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00'; 
+    const disp = extraerDisponibilidadMultiRango('contenedor-disponibilidad', hApe, hCie); 
     
     const selInst = document.getElementById('instrumento'), instV = Array.from(selInst.selectedOptions).map(o=>o.value);
     const tagsPerfil = getPerfilPsicologicoSeleccionado('ficha-perfil-psicologico-chips');
+    const inpHora = document.getElementById('modal-alta-horario-input');
+    const inpIni = document.getElementById('modal-alta-inicio-input');
+
     const data = { 
         nombre: document.getElementById('nombre').value, 
         celular: document.getElementById('celular').value, 
@@ -4481,6 +4574,19 @@ document.getElementById('form-alumno').addEventListener('submit', async (e) => {
         disponibilidad: disp, 
         historial: historialActual 
     }; 
+
+    if (inpHora && inpHora.value.trim()) {
+        data.horario_match = inpHora.value.trim();
+    }
+    if (inpIni && inpIni.value) {
+        try {
+            const dIni = new Date(inpIni.value);
+            if (!isNaN(dIni.getTime())) {
+                data.fecha_inicio_clases = formatoLocalISO(dIni);
+            }
+        } catch(e) {}
+    }
+
     try {
         const id = document.getElementById('alumno-id').value;
         if (id) {
@@ -4679,9 +4785,9 @@ export async function abrirModalMiPerfil() {
                 }
             }
 
-            poblarDisponibilidadMultiRango(pDocData.disponibilidad || {}, true);
+            poblarDisponibilidadMultiRango(pDocData.disponibilidad || {}, 'contenedor-disponibilidad-mi-perfil');
         } else {
-            poblarDisponibilidadMultiRango({}, true);
+            poblarDisponibilidadMultiRango({}, 'contenedor-disponibilidad-mi-perfil');
         }
     } else {
         if (secDocente) secDocente.style.display = 'none';
@@ -4746,7 +4852,7 @@ if (btnGuardarMiPerfil) {
             const esDocente = rolesArr.includes('profesor') || rolesArr.includes('evaluador') || Boolean(usuario.profesor_id);
 
             if (esDocente) {
-                const dispProfe = extraerDisponibilidadMultiRango(true);
+                const dispProfe = extraerDisponibilidadMultiRango('contenedor-disponibilidad-mi-perfil');
                 let profesorId = usuario.profesor_id;
 
                 if (!profesorId && usuario.email) {
