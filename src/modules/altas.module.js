@@ -16,13 +16,21 @@ import {
 } from "../config/firebase.js";
 import { 
     detectarTipoSuscripcion, 
+    formatoLocalISO,
     sincronizarEventoPrealtaCalendar, 
     sincronizarEventoAltaConfirmadaCalendar, 
     eliminarEventoAltaSeguro 
 } from "../services/calendar.service.js";
 import { calcularProximaFechaDiaHora } from "./match.module.js";
 
-const mapaDiasCodigos = { 'D': 'Domingo', 'L': 'Lunes', 'M': 'Martes', 'X': 'Miercoles', 'J': 'Jueves', 'V': 'Viernes', 'S': 'Sabado' };
+const mapaDiasCodigos = { 'D': 'Domingo', 'L': 'Lunes', 'M': 'Martes', 'X': 'Miércoles', 'J': 'Jueves', 'V': 'Viernes', 'S': 'Sábado' };
+
+function isoToDatetimeLocal(isoStr) {
+    if (!isoStr) return '';
+    const d = new Date(isoStr);
+    if (isNaN(d.getTime())) return String(isoStr).substring(0, 16);
+    return formatoLocalISO(d).substring(0, 16);
+}
 
 function convertirHoraAMinutos(horaStr) {
     if (!horaStr) return 0;
@@ -104,7 +112,12 @@ export async function refrescarProfesoresPrealta(tipoClase, instrumentoSeleccion
     try {
         const pSnap = await getDocs(collection(db, "profesores"));
         const profesores = [];
-        pSnap.forEach(pDoc => profesores.push({ id: pDoc.id, ...pDoc.data() }));
+        pSnap.forEach(pDoc => {
+            const data = pDoc.data();
+            if (data.activo !== false && data.estado !== 'inactivo') {
+                profesores.push({ id: pDoc.id, ...data });
+            }
+        });
         
         profesores.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
 
@@ -231,9 +244,9 @@ export async function abrirModalPrealta(id, esEdicionParam = false, inicioPrev =
     }
     
     let fVal = '';
-    if (inicioPrev) fVal = inicioPrev.substring(0, 16);
-    else if (al.fecha_inicio_clases) fVal = al.fecha_inicio_clases.substring(0, 16);
-    else if (al.fecha_sugerida_inicio) fVal = al.fecha_sugerida_inicio;
+    if (inicioPrev) fVal = isoToDatetimeLocal(inicioPrev);
+    else if (al.fecha_inicio_clases) fVal = isoToDatetimeLocal(al.fecha_inicio_clases);
+    else if (al.fecha_sugerida_inicio) fVal = isoToDatetimeLocal(al.fecha_sugerida_inicio);
     else if (al.dia_match && al.horario_inicio_match) fVal = calcularProximaFechaDiaHora(al.dia_match, al.horario_inicio_match);
     document.getElementById('prealta-fecha-inicio').value = fVal;
 
@@ -283,8 +296,8 @@ export async function abrirModalPrealtaGrupal(ids, grupoNom = '', cfg = defaultC
     await refrescarProfesoresPrealta('ensamble', '', profeActualId);
 
     let fVal = '';
-    if (primerAl.fecha_inicio_clases) fVal = primerAl.fecha_inicio_clases.substring(0, 16);
-    else if (primerAl.fecha_sugerida_inicio) fVal = primerAl.fecha_sugerida_inicio;
+    if (primerAl.fecha_inicio_clases) fVal = isoToDatetimeLocal(primerAl.fecha_inicio_clases);
+    else if (primerAl.fecha_sugerida_inicio) fVal = isoToDatetimeLocal(primerAl.fecha_sugerida_inicio);
     else if (primerAl.dia_match && primerAl.horario_inicio_match) fVal = calcularProximaFechaDiaHora(primerAl.dia_match, primerAl.horario_inicio_match);
     document.getElementById('prealta-fecha-inicio').value = fVal;
 
@@ -367,7 +380,33 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
                 if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
                 return;
             }
+            mostrarLoader('Guardando cambios y sincronizando calendario...');
         }
+    }
+
+    // Validar disponibilidad del profesor seleccionado
+    if (profeId && selProfe && selProfe.selectedOptions[0] && selProfe.selectedOptions[0].dataset.disponibilidad) {
+        try {
+            const dispProfe = JSON.parse(selProfe.selectedOptions[0].dataset.disponibilidad);
+            if (dispProfe && dispProfe[diaCodigo]) {
+                const rangosProfe = dispProfe[diaCodigo];
+                const cubreProfe = rangosProfe.some(r => {
+                    const rIni = convertirHoraAMinutos(r.inicio || '09:00');
+                    const rFin = convertirHoraAMinutos(r.fin || '22:00');
+                    const slIni = dateObj.getHours() * 60 + dateObj.getMinutes();
+                    return slIni >= rIni && (slIni + durMin) <= rFin;
+                });
+                if (rangosProfe.length > 0 && !cubreProfe) {
+                    ocultarLoader();
+                    const confirmarForzarProfe = await window.confirmar('Horario fuera de rango del profesor', `El profesor ${profeNombre} no tiene disponibilidad configurada para ese día/horario. ¿Deseas continuar igualmente?`, 'Forzar y Asignar');
+                    if (!confirmarForzarProfe) {
+                        if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
+                        return;
+                    }
+                    mostrarLoader('Guardando cambios y sincronizando calendario...');
+                }
+            }
+        } catch(e) {}
     }
 
     const fInicioTexto = `${mapaDiasCodigos[diaCodigo] || diaCodigo} ${dateObj.getDate()}/${dateObj.getMonth()+1} ${horaInicioStr} hs`;
@@ -425,12 +464,18 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
             }
         }
 
-        if (!evSincronizado || esIndividual) {
-            evSincronizado = await sincronizarEventoPrealtaCalendar(alParaSync, esIndividual, fIso, fIsoEnd, alumnosDelGrupo);
-        }
-
         const esAltaPrevia = ['Alta Efectiva', 'Alta Ilegal', 'Alta Finalizada'].includes(al.estado_agenda);
         const estadoFinal = esAltaPrevia ? al.estado_agenda : "Pre-alta Iniciada";
+
+        if (!evSincronizado || esIndividual) {
+            if (esAltaPrevia) {
+                // Si el alta ya está confirmada, no debe llevar signo de pregunta ❓
+                evSincronizado = await sincronizarEventoAltaConfirmadaCalendar(alParaSync, esIndividual, alumnosDelGrupo);
+            } else {
+                // Pre-alta iniciada lleva el emoji ❓
+                evSincronizado = await sincronizarEventoPrealtaCalendar(alParaSync, esIndividual, fIso, fIsoEnd, alumnosDelGrupo);
+            }
+        }
 
         let tipoEnsVal = al.tipo_suscripcion || 'Ensamble';
         if (!esIndividual) {
@@ -537,21 +582,37 @@ export function formatearFechaInicioParaExcel(al) {
     return al.reserva_fecha_texto || "";
 }
 
+export function formatearDetalleAltaInicio(al) {
+    if (al.fecha_inicio_clases) {
+        const d = new Date(al.fecha_inicio_clases);
+        if (!isNaN(d.getTime())) {
+            const dia = d.getDate().toString().padStart(2, '0');
+            const mes = (d.getMonth() + 1).toString().padStart(2, '0');
+            return `ALTA: Inicia ${dia}/${mes}`;
+        }
+    }
+    return 'ALTA: Inicia a confirmar';
+}
+
 export function generarFilaExcelBD(al) {
     const instFinal = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento[0] : (al.instrumento || ''));
-    const pagoStr = al.estado_agenda === 'Alta Efectiva' ? 'SI' : (al.estado_agenda === 'Alta Ilegal' ? 'NO' : '');
     const fechaAlta = formatearFechaAltaParaExcel(al);
     const fechaInicio = formatearFechaInicioParaExcel(al);
 
     const cols = [
         al.nombre || '',
-        al.reserva_profe_nombre || '',
+        al.reserva_profe_nombre || al.profesor_asignado || '',
         '',
         al.grupo_asignado || 'Individual',
         al.nivel || '',
         instFinal,
         al.tipo_suscripcion || '',
-        pagoStr,
+        '',
+        'Alta',
+        '',
+        '',
+        '',
+        '',
         fechaAlta,
         fechaInicio
     ];
@@ -559,14 +620,18 @@ export function generarFilaExcelBD(al) {
 }
 
 export function generarFilaExcelFacturacion(al) {
+    const precio = formatearPrecioMoneda(al.precio_suscripcion) || al.precio_suscripcion || '';
+    const detalleAlta = formatearDetalleAltaInicio(al);
+
     const cols = [
         al.nombre || '',
-        al.celular || '',
-        al.email || '',
-        al.tipo_suscripcion || '',
-        al.precio_suscripcion || '',
-        al.metodo_pago || '',
-        formatearFechaAltaParaExcel(al)
+        al.reserva_profe_nombre || al.profesor_asignado || '',
+        al.grupo_asignado || 'Individual',
+        precio,
+        precio,
+        '',
+        '',
+        detalleAlta
     ];
     return cols.join('\t');
 }
@@ -577,7 +642,7 @@ export async function copiarFilaExcelBD(id) {
         if (!alDoc.exists()) return alert("Alumno no encontrado.");
         const txt = generarFilaExcelBD(alDoc.data());
         await navigator.clipboard.writeText(txt);
-        alert(`📋 Fila para BD de GoogleSheet copiada al portapapeles:\n\n${txt}`);
+        alert(`📋 Fila para BD copiada al portapapeles:\n\n${txt}`);
     } catch(err) {
         alert("Error al copiar fila para BD: " + err.message);
     }
@@ -589,9 +654,49 @@ export async function copiarFilaExcelFacturacion(id) {
         if (!alDoc.exists()) return alert("Alumno no encontrado.");
         const txt = generarFilaExcelFacturacion(alDoc.data());
         await navigator.clipboard.writeText(txt);
-        alert(`💰 Fila para Facturacion copiada al portapapeles:\n\n${txt}`);
+        alert(`💰 Fila para Facturación copiada al portapapeles:\n\n${txt}`);
     } catch(err) {
-        alert("Error al copiar fila para Facturacion: " + err.message);
+        alert("Error al copiar fila para Facturación: " + err.message);
+    }
+}
+
+export async function copiarSeleccionExcelBD() {
+    const ids = window.selectedBulkIds || [];
+    if (ids.length === 0) return alert("Seleccioná al menos un alumno para copiar.");
+    try {
+        const lineas = [];
+        for (const id of ids) {
+            const docSnap = await getDoc(doc(db, "alumnos", id));
+            if (docSnap.exists()) {
+                lineas.push(generarFilaExcelBD(docSnap.data()));
+            }
+        }
+        if (lineas.length === 0) return alert("No se encontraron datos de los alumnos seleccionados.");
+        const txt = lineas.join('\n');
+        await navigator.clipboard.writeText(txt);
+        alert(`📋 ${lineas.length} registro(s) para BD copiados al portapapeles.`);
+    } catch(err) {
+        alert("Error al copiar registros para BD: " + err.message);
+    }
+}
+
+export async function copiarSeleccionExcelFacturacion() {
+    const ids = window.selectedBulkIds || [];
+    if (ids.length === 0) return alert("Seleccioná al menos un alumno para copiar.");
+    try {
+        const lineas = [];
+        for (const id of ids) {
+            const docSnap = await getDoc(doc(db, "alumnos", id));
+            if (docSnap.exists()) {
+                lineas.push(generarFilaExcelFacturacion(docSnap.data()));
+            }
+        }
+        if (lineas.length === 0) return alert("No se encontraron datos de los alumnos seleccionados.");
+        const txt = lineas.join('\n');
+        await navigator.clipboard.writeText(txt);
+        alert(`💰 ${lineas.length} registro(s) de Facturación copiados al portapapeles.`);
+    } catch(err) {
+        alert("Error al copiar registros de Facturación: " + err.message);
     }
 }
 
@@ -864,3 +969,5 @@ window.generarFilaExcelBD = generarFilaExcelBD;
 window.generarFilaExcelFacturacion = generarFilaExcelFacturacion;
 window.copiarFilaExcelBD = copiarFilaExcelBD;
 window.copiarFilaExcelFacturacion = copiarFilaExcelFacturacion;
+window.copiarSeleccionExcelBD = copiarSeleccionExcelBD;
+window.copiarSeleccionExcelFacturacion = copiarSeleccionExcelFacturacion;
