@@ -1,5 +1,5 @@
 // =======================================================================
-// src/modules/profesor.module.js — Portal Docente y Solicitudes de Vacantes
+// src/modules/profesor.module.js — Portal Docente "Mis Alumnos y Ensambles"
 // =======================================================================
 
 import {
@@ -9,19 +9,51 @@ import {
     getDocs,
     getDoc,
     addDoc,
+    setDoc,
     updateDoc,
+    deleteDoc,
     query,
     where
 } from "../config/firebase.js";
-import { getEventosCalendario } from "../services/calendar.service.js";
+import { 
+    getEventosCalendario, 
+    reprogramarClaseCalendar,
+    eliminarEventoAltaSeguro,
+    eliminarEventoSeguro,
+    formatearFechaAmi,
+    formatoLocalISO
+} from "../services/calendar.service.js";
 import {
     renderContenedorDisponibilidad,
     poblarDisponibilidadMultiRango,
     extraerDisponibilidadMultiRango
 } from "../ui/horarios.ui.js";
 
+function isoToDatetimeLocal(isoStr) {
+    if (!isoStr) return '';
+    const d = new Date(isoStr);
+    if (isNaN(d.getTime())) return String(isoStr).substring(0, 16);
+    return formatoLocalISO(d).substring(0, 16);
+}
+
 let cachedProfesorDoc = null;
 let slotsLibresCache = [];
+
+export function getEmojiParaInstrumento(inst) {
+    if (!inst) return '🎵';
+    const s = (Array.isArray(inst) ? inst.join(' ') : String(inst)).toLowerCase();
+    if (s.includes('bat')) return '🥁';
+    if (s.includes('gui') || s.includes('electr')) return '🎸';
+    if (s.includes('cajón') || s.includes('cajon') || s.includes('perc')) return '📦';
+    if (s.includes('cant') || s.includes('voz') || s.includes('vocal') || s.includes('coro')) return '🎤';
+    if (s.includes('pian') || s.includes('tecl')) return '🎹';
+    if (s.includes('baj')) return '🎸';
+    if (s.includes('sax') || s.includes('vient')) return '🎷';
+    if (s.includes('tromp')) return '🎺';
+    if (s.includes('viol')) return '🎻';
+    if (s.includes('ukel') || s.includes('ucu')) return '🪕';
+    return '🎵';
+}
 
 /**
  * Calcula los huecos libres en la agenda del profesor entre Lunes y Sábado,
@@ -258,7 +290,7 @@ function obtenerInstrumentosSeleccionados() {
 }
 
 /**
- * Renderiza la vista principal del Portal del Profesor
+ * Renderiza la vista principal del Portal del Profesor "Mis Alumnos y Ensambles"
  */
 export async function renderPortalProfesor(cont, usuarioActual = {}, callbacks = {}) {
     const { setBotonCargando } = callbacks;
@@ -269,121 +301,227 @@ export async function renderPortalProfesor(cont, usuarioActual = {}, callbacks =
     `;
 
     try {
-        // 1. Obtener los datos del profesor logueado
         let profesorId = usuarioActual.profesor_id || '';
         let profesorNombre = usuarioActual.nombre || usuarioActual.email || 'Profesor';
         let profesorEmail = (usuarioActual.email || '').toLowerCase();
         let profDocData = null;
 
-        if (profesorId) {
-            try {
-                const pDoc = await getDoc(doc(db, "profesores", profesorId));
-                if (pDoc.exists()) {
-                    profDocData = { id: pDoc.id, ...pDoc.data() };
-                    if (profDocData.nombre) profesorNombre = profDocData.nombre;
+        const rolesUsuario = Array.isArray(usuarioActual.roles) && usuarioActual.roles.length > 0
+            ? usuarioActual.roles
+            : (usuarioActual.rol ? [usuarioActual.rol] : []);
+
+        const puedeCambiarDocente = rolesUsuario.some(r => ['admin', 'coordinador', 'coordinador_grupos', 'admisor', 'admisiones'].includes(String(r).toLowerCase())) ||
+            profesorEmail.includes('productora.mandalahouse') ||
+            profesorEmail.includes('pbianchino');
+
+        const [profsSnap, usersSnap] = await Promise.all([
+            getDocs(collection(db, "profesores")),
+            getDocs(collection(db, "usuarios_sistema"))
+        ]);
+
+        const emailPorProfeId = {};
+        const emailPorNombreDocente = {};
+        usersSnap.forEach(d => {
+            const u = d.data();
+            const uMail = (u.email || '').trim().toLowerCase();
+            if (uMail && !uMail.includes('@group.calendar.google.com')) {
+                if (u.profesor_id && (!emailPorProfeId[u.profesor_id] || u.activo !== false)) {
+                    emailPorProfeId[u.profesor_id] = uMail;
                 }
-            } catch(e) {}
-        } else {
-            const profsSnap = await getDocs(collection(db, "profesores"));
-            profsSnap.forEach(d => {
-                const data = d.data();
+                if (u.nombre) {
+                    emailPorNombreDocente[u.nombre.toLowerCase().trim()] = uMail;
+                }
+            }
+        });
+
+        const obtenerEmailHumanoDocente = (pDoc, defaultMail = '') => {
+            if (!pDoc) return defaultMail;
+            if (emailPorProfeId[pDoc.id]) return emailPorProfeId[pDoc.id];
+            if (pDoc.nombre && emailPorNombreDocente[pDoc.nombre.toLowerCase().trim()]) {
+                return emailPorNombreDocente[pDoc.nombre.toLowerCase().trim()];
+            }
+            if (pDoc.email && !pDoc.email.includes('@group.calendar.google.com')) return pDoc.email;
+            if (pDoc.correo && !pDoc.correo.includes('@group.calendar.google.com')) return pDoc.correo;
+            if (pDoc.correo_calendario && !pDoc.correo_calendario.includes('@group.calendar.google.com')) return pDoc.correo_calendario;
+            return defaultMail;
+        };
+
+        const todosLosProfes = [];
+        profsSnap.forEach(d => {
+            const data = d.data();
+            if (data.activo !== false && data.estado !== 'inactivo') {
+                todosLosProfes.push({ id: d.id, ...data });
+            }
+        });
+
+        const filtroProfeId = window.filtroDocentePortalId !== undefined ? window.filtroDocentePortalId : (profesorId || '');
+        let profeSeleccionado = todosLosProfes.find(p => p.id === filtroProfeId);
+        if (!profeSeleccionado && !puedeCambiarDocente && profesorId) {
+            profeSeleccionado = todosLosProfes.find(p => p.id === profesorId);
+        }
+
+        if (profeSeleccionado) {
+            profesorId = profeSeleccionado.id;
+            profesorNombre = profeSeleccionado.nombre || profesorNombre;
+            profesorEmail = obtenerEmailHumanoDocente(profeSeleccionado, profesorEmail);
+            profDocData = profeSeleccionado;
+        } else if (puedeCambiarDocente && !filtroProfeId) {
+            profesorNombre = "Todos los Profesores";
+            profesorEmail = "Vista Global";
+            profDocData = null;
+        } else if (!puedeCambiarDocente) {
+            todosLosProfes.forEach(data => {
                 if ((data.correo_calendario && data.correo_calendario.toLowerCase() === profesorEmail) ||
                     (data.nombre && data.nombre.toLowerCase() === (usuarioActual.nombre || '').toLowerCase())) {
-                    profesorId = d.id;
+                    profesorId = data.id;
                     profesorNombre = data.nombre || profesorNombre;
-                    profDocData = { id: d.id, ...data };
+                    profesorEmail = obtenerEmailHumanoDocente(data, profesorEmail);
+                    profDocData = data;
                 }
             });
         }
 
         cachedProfesorDoc = profDocData;
 
-        // 2. Obtener alumnos asignados al docente para armar la vista de "Mis Grupos"
+        // 2. Obtener alumnos asignados al docente con altas confirmadas o en curso
+        const estadosValidos = ['pre-alta iniciada', 'alta efectiva', 'alta ilegal', 'alta finalizada'];
         const alumnosSnap = await getDocs(collection(db, "alumnos"));
         const misAlumnos = [];
+
         alumnosSnap.forEach(d => {
             const al = { id: d.id, ...d.data() };
+            const estAl = (al.estado_agenda || '').toLowerCase().trim();
+            if (!estadosValidos.includes(estAl)) return;
+
             const profeAl = (al.profesor_asignado || al.reserva_profe_nombre || '').toLowerCase();
             const profeIdAl = al.profesor_id || al.reserva_profe_id || '';
             
-            const coincide = (profesorId && profeIdAl === profesorId) || 
-                             (profesorNombre && profeAl.includes(profesorNombre.toLowerCase())) ||
-                             (profesorEmail && profeAl.includes(profesorEmail));
+            let coincide = false;
+            if (profesorId) {
+                coincide = (profeIdAl === profesorId) || (profesorNombre && profeAl.includes(profesorNombre.toLowerCase()));
+            } else if (puedeCambiarDocente && !filtroProfeId) {
+                coincide = true;
+            } else {
+                coincide = (profesorEmail && profeAl.includes(profesorEmail));
+            }
 
-            if (coincide && al.grupo_asignado) {
+            if (coincide) {
                 misAlumnos.push(al);
             }
         });
 
-        // Agrupar alumnos por grupo
+        // 3. Separar en Ensambles/Grupos vs Clases Individuales
         const gruposMap = {};
+        const individualesList = [];
+
         misAlumnos.forEach(al => {
-            const grpNom = al.grupo_asignado || 'Sin Grupo';
-            if (!gruposMap[grpNom]) {
-                gruposMap[grpNom] = {
-                    nombre: grpNom,
-                    alumnos: [],
-                    horario: al.horario_match || al.reserva_fecha_texto || 'Horario no especificado',
-                    dia: al.dia_match || ''
-                };
+            const tipoSusc = (al.tipo_suscripcion || '').toLowerCase();
+            const grpNom = (al.grupo_asignado || '').trim();
+            const esIndividual = tipoSusc.includes('individual') || grpNom === 'Clase Individual' || (!grpNom && !tipoSusc.includes('ensamble') && !tipoSusc.includes('grupal'));
+
+            if (!esIndividual && grpNom) {
+                if (!gruposMap[grpNom]) {
+                    gruposMap[grpNom] = {
+                        nombre: grpNom,
+                        alumnos: [],
+                        horario: al.horario_match || al.reserva_fecha_texto || (al.fecha_inicio_clases ? formatearFechaAmi(al.fecha_inicio_clases) : 'Horario a confirmar'),
+                        dia: al.dia_match || '',
+                        fechaInicio: al.fecha_inicio_clases || '',
+                        estado: al.estado_agenda || 'Alta Efectiva'
+                    };
+                }
+                gruposMap[grpNom].alumnos.push(al);
+            } else {
+                individualesList.push(al);
             }
-            gruposMap[grpNom].alumnos.push(al);
         });
 
-        // 3. Obtener solicitudes de vacantes del profesor
+        // 4. Obtener solicitudes de vacantes del profesor
         const solicitudesSnap = await getDocs(collection(db, "solicitudes_vacantes"));
         const misSolicitudes = [];
         solicitudesSnap.forEach(d => {
             const sol = { id: d.id, ...d.data() };
-            if ((sol.profesorEmail && sol.profesorEmail.toLowerCase() === profesorEmail) ||
-                (sol.profesorId && sol.profesorId === profesorId)) {
+            if (profesorId) {
+                if (sol.profesorId === profesorId || (sol.profesorEmail && sol.profesorEmail.toLowerCase() === (profDocData?.correo_calendario || '').toLowerCase())) {
+                    misSolicitudes.push(sol);
+                }
+            } else if (puedeCambiarDocente && !filtroProfeId) {
                 misSolicitudes.push(sol);
             }
         });
         misSolicitudes.sort((a, b) => new Date(b.fechaCreacion || 0) - new Date(a.fechaCreacion || 0));
 
-        // 4. Renderizar la interfaz
-        let gruposHtml = '';
+        // 5. Renderizar Ensambles / Grupos
         const gruposKeys = Object.keys(gruposMap);
+        let gruposHtml = '';
         if (gruposKeys.length === 0) {
             gruposHtml = `
-                <div style="background:var(--item-bg); border:1px dashed var(--border-color); border-radius:12px; padding:30px; text-align:center; color:var(--text-muted);">
-                    <div style="font-size:2em; margin-bottom:8px;">👥</div>
-                    <div style="font-weight:700; font-size:15px; color:var(--text-main);">No tienes grupos activos asignados actualmente</div>
-                    <div style="font-size:13px; margin-top:4px;">Cuando el equipo de admisiones te asigne ensambles o clases grupales aparecerán aquí. También puedes solicitar abrir una nueva clase desde cero.</div>
+                <div style="background:var(--item-bg); border:1px dashed var(--border-color); border-radius:12px; padding:35px 20px; text-align:center; color:var(--text-muted); width:100%;">
+                    <div style="font-size:2.2em; margin-bottom:8px;">🎸</div>
+                    <div style="font-weight:700; font-size:15px; color:var(--text-main);">No hay ensambles activos asignados actualmente</div>
+                    <div style="font-size:13px; margin-top:4px;">Cuando el equipo de admisiones te asigne ensambles o grupos aparecerán aquí.</div>
                 </div>
             `;
         } else {
             gruposHtml = gruposKeys.map(grpKey => {
                 const grp = gruposMap[grpKey];
+                const repPuntual = grp.alumnos.find(a => a.reprogramacion_puntual)?.reprogramacion_puntual;
+                const badgeReprogPuntual = repPuntual ? `
+                    <div style="background:#fffbeb; border:1px solid #fef3c7; border-left:3px solid #f59e0b; padding:6px 12px; border-radius:6px; font-size:12px; color:#92400e; margin-top:6px; display:flex; align-items:center; gap:6px;">
+                        <span>🕒</span>
+                        <span><strong>Clase puntual reprogramada:</strong> Se cambió la fecha de <em>${repPuntual.fecha_original_texto}</em> a <strong>${repPuntual.fecha_nueva_texto}</strong>.</span>
+                    </div>
+                ` : '';
+
                 const integrantesHtml = grp.alumnos.map(al => {
-                    const instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || 'Sin inst.');
+                    const instStr = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || 'Sin inst.'));
+                    const emojiInst = getEmojiParaInstrumento(instStr);
+                    const tagPrealta = (al.estado_agenda === 'Pre-alta Iniciada') ? '<span class="status-val-pending" style="font-size:11px;">⏳ Pre-alta</span>' : '<span class="status-val-ok" style="font-size:11px;">✅ Activo</span>';
                     return `
-                        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:var(--hover-bg); border-radius:8px; border:1px solid var(--border-color);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:var(--hover-bg); border-radius:8px; border:1px solid var(--border-color); flex-wrap:wrap; gap:8px;">
                             <div>
-                                <strong style="color:var(--text-main); font-size:13.5px;">👤 ${al.nombre}</strong>
-                                <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">📱 ${al.celular || 'Sin celular'} • ${al.tipo_suscripcion || ''}</div>
+                                <strong style="color:var(--text-main); font-size:13.5px;">👤 ${al.nombre} ${al.edad ? `<span style="font-weight:500; color:var(--text-muted);">(${al.edad} años)</span>` : ''}</strong>
+                                <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">📱 ${al.celular || 'Sin celular'} • ${al.tipo_suscripcion || 'Ensamble'}</div>
                             </div>
-                            <div style="display:flex; gap:6px; align-items:center;">
-                                <span class="profile-tag-badge" style="background:rgba(0,123,143,0.1); color:var(--accent-teal); border-color:rgba(0,123,143,0.25);">${instStr}</span>
-                                ${al.nivel ? `<span class="profile-tag-badge" style="background:#f4ece1; color:#9c6500; border-color:#e2ceb1;">${al.nivel}</span>` : ''}
+                            <div style="display:flex; gap:6px; align-items:center; margin-left:auto;">
+                                ${tagPrealta}
+                                <span class="match-student-tag">${emojiInst} ${instStr}</span>
+                                ${al.nivel ? `<span class="match-student-tag nivel">${al.nivel}</span>` : ''}
+                                <button type="button" class="row-quick-btn secondary btn-ver-ficha-docente" data-id="${al.id}" style="font-size:11.5px; padding:3px 8px; margin-left:4px;" title="Ver ficha del alumno (Solo lectura)">
+                                    👁️ Ver Ficha
+                                </button>
                             </div>
                         </div>
                     `;
                 }).join('');
 
                 return `
-                    <div class="row-item" style="display:flex; flex-direction:column; gap:12px; padding:18px; margin-bottom:15px; border-left:4px solid var(--accent-teal);">
-                        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
+                    <div class="row-item" style="display:flex; flex-direction:column; gap:12px; padding:18px 20px; margin-bottom:12px; border-left:4px solid var(--accent-teal); width:100%;">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
                             <div>
-                                <h3 style="margin:0 0 4px 0; color:var(--text-main); font-size:16px;">🧩 ${grp.nombre}</h3>
-                                <div style="font-size:12.5px; color:var(--text-muted); font-weight:600;">📅 ${grp.horario} • 👥 ${grp.alumnos.length} Alumnos</div>
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <h3 style="margin:0; color:var(--text-main); font-size:16px;">🧩 ${grp.nombre}</h3>
+                                    <span class="status-val-ok" style="font-size:11px;">👥 ${grp.alumnos.length} Alumnos</span>
+                                </div>
+                                <div style="font-size:12.5px; color:var(--text-muted); font-weight:600; margin-top:4px;">
+                                    📅 Cursada: <strong>${grp.horario}</strong>
+                                    ${grp.fechaInicio ? ` • 🚀 Inicio: ${formatearFechaAmi(grp.fechaInicio)}` : ''}
+                                </div>
+                                ${badgeReprogPuntual}
                             </div>
-                            <button type="button" class="btn-primary btn-pedir-vacante-grupo" data-grupo="${grp.nombre}" data-horario="${grp.horario}" style="font-size:12px; padding:7px 14px;">
-                                ➕ Solicitar Alumno para este Grupo
-                            </button>
+                            <div class="row-actions-group" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-left:auto; flex-shrink:0;">
+                                <button type="button" class="row-quick-btn secondary btn-reprogramar-grupo-docente" data-grupo="${grp.nombre}" data-horario="${grp.horario}" data-inicio="${grp.fechaInicio || ''}" style="font-size:12px;">
+                                    📅 Reprogramar Ensamble
+                                </button>
+                                <button type="button" class="row-quick-btn danger btn-cancelar-grupo-docente" data-grupo="${grp.nombre}" style="font-size:12px;">
+                                    🛑 Cancelar Clase
+                                </button>
+                                <button type="button" class="row-quick-btn primary btn-pedir-vacante-grupo" data-grupo="${grp.nombre}" data-horario="${grp.horario}" style="font-size:12px;">
+                                    ➕ Pedir Vacante
+                                </button>
+                            </div>
                         </div>
-                        <div style="display:flex; flex-direction:column; gap:8px; margin-top:5px;">
+                        <div style="display:flex; flex-direction:column; gap:8px; margin-top:4px;">
                             ${integrantesHtml}
                         </div>
                     </div>
@@ -391,104 +529,154 @@ export async function renderPortalProfesor(cont, usuarioActual = {}, callbacks =
             }).join('');
         }
 
-        let solicitudesHtml = '';
-        if (misSolicitudes.length === 0) {
-            solicitudesHtml = `
-                <div style="color:var(--text-muted); font-size:13px; padding:15px 0;">
-                    No tienes solicitudes de vacantes activas en este momento.
+        // 6. Renderizar Clases Individuales
+        let individualesHtml = '';
+        if (individualesList.length === 0) {
+            individualesHtml = `
+                <div style="background:var(--item-bg); border:1px dashed var(--border-color); border-radius:12px; padding:35px 20px; text-align:center; color:var(--text-muted); width:100%;">
+                    <div style="font-size:2.2em; margin-bottom:8px;">👤</div>
+                    <div style="font-weight:700; font-size:15px; color:var(--text-main);">No hay alumnos individuales asignados actualmente</div>
+                    <div style="font-size:13px; margin-top:4px;">Cuando se confirmen altas individuales para tus instrumentos asignados aparecerán aquí.</div>
                 </div>
             `;
         } else {
-            solicitudesHtml = misSolicitudes.map(sol => {
-                let badgeEstado = '<span class="status-val-pending">⏳ Buscando candidatos</span>';
-                if (sol.estado === 'Cubierta') {
-                    badgeEstado = `<span class="status-val-ok">✅ Alumno Asignado ${sol.alumnoAsignadoNombre ? `(${sol.alumnoAsignadoNombre})` : ''}</span>`;
-                } else if (sol.estado === 'En Proceso') {
-                    badgeEstado = '<span class="status-val-pending" style="background:rgba(74,140,210,0.12); color:#256bbb; border-color:rgba(74,140,210,0.25);">🔄 En proceso de asignación</span>';
-                } else if (sol.estado === 'Cancelada') {
-                    badgeEstado = '<span class="status-val-reject">❌ Cancelada</span>';
-                }
+            individualesHtml = individualesList.map(al => {
+                const instStr = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || 'Sin inst.'));
+                const emojiInst = getEmojiParaInstrumento(instStr);
+                const horarioStr = al.horario_match || al.reserva_fecha_texto || (al.fecha_inicio_clases ? formatearFechaAmi(al.fecha_inicio_clases) : 'Horario a confirmar');
+                const tagEstado = (al.estado_agenda === 'Pre-alta Iniciada') ? '<span class="status-val-pending" style="font-size:11px;">⏳ Pre-alta</span>' : '<span class="status-val-ok" style="font-size:11px;">✅ Alta Confirmada</span>';
 
-                const badgeTipo = sol.esNuevoGrupo
-                    ? '<span class="profile-tag-badge" style="background:rgba(0,123,143,0.12); color:var(--accent-teal); border-color:rgba(0,123,143,0.3); font-size:10.5px;">✨ Nueva Clase de Cero</span>'
-                    : '<span class="profile-tag-badge" style="font-size:10.5px;">👥 Grupo Existente</span>';
-
-                const nivelesStr = sol.nivel || 'Cualquiera';
+                const repPuntual = al.reprogramacion_puntual;
+                const badgeReprogPuntual = repPuntual ? `
+                    <div style="background:#fffbeb; border:1px solid #fef3c7; border-left:3px solid #f59e0b; padding:4px 8px; border-radius:6px; font-size:11.5px; color:#92400e; margin-top:4px; display:inline-flex; align-items:center; gap:5px;">
+                        <span>🕒</span>
+                        <span><strong>Puntual:</strong> ${repPuntual.fecha_original_texto} ➔ <strong>${repPuntual.fecha_nueva_texto}</strong></span>
+                    </div>
+                ` : '';
 
                 return `
-                    <div style="background:white; border:1px solid var(--border-color); border-radius:10px; padding:14px 18px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-                        <div>
-                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                                ${badgeTipo}
-                                <strong style="color:var(--text-main); font-size:14px;">🎯 Vacante: ${sol.instrumento}</strong>
-                                <span class="profile-tag-badge" style="font-size:11px;">Niveles: ${nivelesStr}</span>
+                    <div class="row-item" style="border-left:4px solid #38bdf8; padding:12px 18px; margin-bottom:8px; width:100%;">
+                        <div class="row-content-wrapper" style="display:flex; width:100%; gap:15px; align-items:center; justify-content:space-between; flex-wrap:wrap;">
+                            
+                            <!-- COLUMNA IZQUIERDA: Nombre, Estado y Tags -->
+                            <div class="row-header" style="display:flex; align-items:center; gap:12px; flex:1; min-width:260px;">
+                                <div class="row-indicator" style="width:8px; height:8px; border-radius:50%; background:#38bdf8; flex-shrink:0;"></div>
+                                <div class="row-main-info" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:3px;">
+                                    <div class="row-name" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; text-align:left;">
+                                        <strong style="color:var(--text-main); font-size:14.5px;">👤 ${al.nombre}</strong>
+                                        ${al.edad ? `<span style="color:var(--text-muted); font-size:12.5px; font-weight:500;">(${al.edad} años)</span>` : ''}
+                                        ${tagEstado}
+                                    </div>
+                                    <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:2px;">
+                                        <span class="match-student-tag">${emojiInst} ${instStr}</span>
+                                        ${al.nivel ? `<span class="match-student-tag nivel">${al.nivel}</span>` : ''}
+                                        <span style="font-size:12px; color:var(--text-muted); margin-left:4px;">📱 ${al.celular || 'Sin celular'}</span>
+                                    </div>
+                                </div>
                             </div>
-                            <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">
-                                Grupo: <strong>${sol.grupoNombre}</strong> (${sol.horario || ''})
-                                ${sol.observaciones ? ` • <em>"${sol.observaciones}"</em>` : ''}
+
+                            <!-- COLUMNA DERECHA / META: Cursada e Inicio -->
+                            <div class="row-meta" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:3px; min-width:240px; font-size:12px; color:var(--text-muted);">
+                                <div>📅 Cursada: <strong style="color:var(--text-main); font-weight:600;">${horarioStr}</strong></div>
+                                ${al.fecha_inicio_clases ? `<div>🚀 Inicio: <strong style="color:var(--text-main); font-weight:600;">${formatearFechaAmi(al.fecha_inicio_clases)}</strong></div>` : ''}
+                                ${badgeReprogPuntual}
                             </div>
-                            <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">
-                                Solicitado el ${new Date(sol.fechaCreacion).toLocaleDateString()}
+
+                            <!-- COLUMNA ACCIONES: A la derecha -->
+                            <div class="row-actions-group" style="display:flex; gap:8px; align-items:center; flex-shrink:0; margin-left:auto;">
+                                <button type="button" class="row-quick-btn secondary btn-ver-ficha-docente" data-id="${al.id}" style="font-size:12px;" title="Ver ficha del alumno (Solo lectura)">
+                                    👁️ Ver Ficha
+                                </button>
+                                <button type="button" class="row-quick-btn secondary btn-reprogramar-ind-docente" data-id="${al.id}" data-nombre="${al.nombre}" data-horario="${horarioStr}" data-inicio="${al.fecha_inicio_clases || ''}" style="font-size:12px;">
+                                    📅 Reprogramar
+                                </button>
+                                <button type="button" class="row-quick-btn danger btn-cancelar-ind-docente" data-id="${al.id}" data-nombre="${al.nombre}" style="font-size:12px;">
+                                    🛑 Cancelar
+                                </button>
                             </div>
-                        </div>
-                        <div>
-                            ${badgeEstado}
+
                         </div>
                     </div>
                 `;
             }).join('');
         }
 
-        // Skills y Aptitudes del Profesor para la pestaña de datos personales
-        function getEmojiParaInstrumento(inst) {
-            if (!inst) return '🎵';
-            const s = String(inst).toLowerCase();
-            if (s.includes('bat')) return '🥁';
-            if (s.includes('gui') || s.includes('electr')) return '🎸';
-            if (s.includes('cajón') || s.includes('cajon') || s.includes('perc')) return '📦';
-            if (s.includes('cant') || s.includes('voz') || s.includes('vocal') || s.includes('coro')) return '🎤';
-            if (s.includes('pian') || s.includes('tecl')) return '🎹';
-            if (s.includes('baj')) return '🎸';
-            if (s.includes('sax') || s.includes('vient')) return '🎷';
-            if (s.includes('tromp')) return '🎺';
-            if (s.includes('viol')) return '🎻';
-            if (s.includes('ukel') || s.includes('ucu')) return '🪕';
-            return '🎵';
+        // 7. Renderizar Solicitudes de Vacantes
+        let solicitudesHtml = '';
+        if (misSolicitudes.length === 0) {
+            solicitudesHtml = `
+                <div style="background:var(--item-bg); border:1px dashed var(--border-color); border-radius:12px; padding:35px 20px; text-align:center; color:var(--text-muted); width:100%;">
+                    <div style="font-size:2.2em; margin-bottom:8px;">🔔</div>
+                    <div style="font-weight:700; font-size:15px; color:var(--text-main);">No tienes solicitudes de vacantes activas en este momento</div>
+                </div>
+            `;
+        } else {
+            solicitudesHtml = misSolicitudes.map(sol => {
+                let badgeEstado = '<span class="status-val-pending">⏳ Buscando</span>';
+                if (sol.estado === 'Cubierta') badgeEstado = `<span class="status-val-ok">✅ Asignado ${sol.alumnoAsignadoNombre ? `(${sol.alumnoAsignadoNombre})` : ''}</span>`;
+                else if (sol.estado === 'Cancelada') badgeEstado = '<span class="status-val-reject">❌ Cancelada</span>';
+
+                return `
+                    <div class="row-item" style="display:flex; justify-content:space-between; align-items:center; padding:14px 18px; margin-bottom:10px; flex-wrap:wrap; gap:10px; width:100%;">
+                        <div>
+                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                <strong style="color:var(--text-main); font-size:14px;">🎯 ${sol.instrumento}</strong>
+                                <span class="match-student-tag nivel" style="font-size:11px;">Niveles: ${sol.nivel || 'Cualquiera'}</span>
+                            </div>
+                            <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">
+                                Grupo: <strong>${sol.grupoNombre}</strong> • ${sol.horario}
+                            </div>
+                        </div>
+                        <div>${badgeEstado}</div>
+                    </div>
+                `;
+            }).join('');
         }
 
-        const skillsProfe = Array.isArray(profDocData?.skills) ? profDocData.skills : [];
-        const skillsProfeBadges = skillsProfe.length > 0
-            ? `<div style="display:flex; flex-wrap:wrap; gap:8px;">${skillsProfe.map(s => `<span class="profile-tag-badge" style="background:#f0fdfa; color:#0f766e; border-color:#99f6e4; font-size:13px; padding:6px 14px; font-weight:700;">${getEmojiParaInstrumento(s)} ${s}</span>`).join('')}</div>`
-            : `<div style="color:var(--text-muted); font-size:13px; font-style:italic;">Sin instrumentos asignados actualmente.</div>`;
-
-        let aptitudesDocente = [];
-        if (profDocData?.entrevista) aptitudesDocente.push('<span class="tag-chip" style="background:#e0f2fe; color:#0369a1; font-size:12px; padding:4px 10px; font-weight:700;">🎧 Admisiones</span>');
-        if (profDocData?.grupales) aptitudesDocente.push('<span class="tag-chip" style="background:#dcfce7; color:#15803d; font-size:12px; padding:4px 10px; font-weight:700;">👥 Clases Grupales</span>');
-        if (profDocData?.ensambles) aptitudesDocente.push('<span class="tag-chip" style="background:#fef3c7; color:#b45309; font-size:12px; padding:4px 10px; font-weight:700;">🎵 Ensambles</span>');
-        const aptitudesDocenteHtml = aptitudesDocente.length > 0 ? `<div style="display:flex; gap:8px; flex-wrap:wrap;">${aptitudesDocente.join('')}</div>` : `<div style="color:var(--text-muted); font-size:13px; font-style:italic;">Sin aptitudes especiales marcadas.</div>`;
-
+        // Renderizado del Contenedor General a Ancho Completo
         cont.innerHTML = `
-            <div style="max-width:920px; width:100%; margin:0 auto; display:flex; flex-direction:column; gap:16px;">
+            <div style="width:100%; display:flex; flex-direction:column; gap:16px;">
                 <!-- Header de bienvenida -->
-                <div style="background:white; border:1px solid var(--border-color); border-radius:14px; padding:20px 24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
+                <div style="background:white; border:1px solid var(--border-color); border-radius:14px; padding:18px 22px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
                     <div>
                         <h2 style="margin:0 0 4px 0; color:var(--text-main); font-size:1.45em; font-weight:800; display:flex; align-items:center; gap:8px;">
-                            <span>👨‍🏫 Portal Docente</span>
+                            <span>👨‍🏫 Mis Alumnos y Ensambles</span>
                         </h2>
-                        <div style="color:var(--text-muted); font-size:13px;">Bienvenido, <strong style="color:var(--text-main);">${profesorNombre}</strong>.</div>
+                        <div style="color:var(--text-muted); font-size:13px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                            <span>Docente: <strong style="color:var(--text-main);">${profesorNombre}</strong> (${profesorEmail}).</span>
+                            ${puedeCambiarDocente ? `
+                                <div style="display:inline-flex; align-items:center; gap:6px; margin-left:8px; background:var(--hover-bg); padding:3px 8px; border-radius:8px; border:1px solid var(--border-color);">
+                                    <span style="font-size:11px; font-weight:700; color:var(--accent-teal);">Ver Docente:</span>
+                                    <select id="select-filtro-docente-portal" style="border:none; background:transparent; font-size:12px; font-weight:700; color:var(--text-main); cursor:pointer; outline:none;">
+                                        <option value="" ${!filtroProfeId ? 'selected' : ''}>🌐 Todos los Profesores</option>
+                                        ${todosLosProfes.map(p => `<option value="${p.id}" ${p.id === filtroProfeId ? 'selected' : ''}>👨‍🏫 ${p.nombre}</option>`).join('')}
+                                    </select>
+                                </div>
+                            ` : ''}
+                        </div>
                     </div>
-                    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                        <button type="button" id="btn-solicitar-vacante-general" class="btn-primary" style="padding:9px 16px; font-size:13px; display:flex; align-items:center; gap:6px;">
-                            ➕ Solicitar Alumno / Vacante
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <button type="button" id="btn-solicitar-vacante-general" class="btn-primary" style="padding:8px 14px; font-size:12.5px; display:flex; align-items:center; gap:6px;">
+                            ➕ Solicitar Vacante
+                        </button>
+                        <button type="button" id="btn-crear-casos-prueba-docente" class="row-quick-btn secondary" style="font-size:11.5px; padding:7px 11px;">
+                            🧪 Crear Alumnos de Prueba
+                        </button>
+                        <button type="button" id="btn-limpiar-casos-prueba-docente" class="row-quick-btn danger" style="font-size:11.5px; padding:7px 11px;">
+                            🗑️ Limpiar Pruebas
                         </button>
                     </div>
                 </div>
 
                 <!-- Tabs de Navegación del Portal Docente -->
-                <div style="display:flex; gap:10px; border-bottom:2px solid var(--border-color); padding-bottom:0;">
+                <div style="display:flex; gap:10px; border-bottom:2px solid var(--border-color); padding-bottom:0; flex-wrap:wrap;">
                     <button type="button" id="tab-btn-portal-grupos" class="tab-portal-profe active" style="padding:10px 18px; border:none; background:transparent; font-size:14px; font-weight:700; color:var(--accent-teal); border-bottom:3px solid var(--accent-teal); cursor:pointer; display:flex; align-items:center; gap:8px;">
-                        <span>👥 Mis Grupos y Ensambles</span>
+                        <span>🎸 Mis Ensambles y Grupos</span>
                         <span style="font-size:11.5px; background:#e0f2fe; color:#0369a1; border-radius:10px; padding:1.5px 7px; font-weight:700;">${gruposKeys.length}</span>
+                    </button>
+                    <button type="button" id="tab-btn-portal-individuales" class="tab-portal-profe" style="padding:10px 18px; border:none; background:transparent; font-size:14px; font-weight:600; color:var(--text-muted); border-bottom:3px solid transparent; cursor:pointer; display:flex; align-items:center; gap:8px;">
+                        <span>👤 Mis Clases Individuales</span>
+                        <span style="font-size:11.5px; background:#f0fdf4; color:#15803d; border-radius:10px; padding:1.5px 7px; font-weight:700;">${individualesList.length}</span>
                     </button>
                     <button type="button" id="tab-btn-portal-solicitudes" class="tab-portal-profe" style="padding:10px 18px; border:none; background:transparent; font-size:14px; font-weight:600; color:var(--text-muted); border-bottom:3px solid transparent; cursor:pointer; display:flex; align-items:center; gap:8px;">
                         <span>🔔 Mis Solicitudes de Vacantes</span>
@@ -497,64 +685,323 @@ export async function renderPortalProfesor(cont, usuarioActual = {}, callbacks =
                 </div>
 
                 <!-- CONTENIDO TAB 1: GRUPOS Y ENSAMBLES -->
-                <div id="tab-content-portal-grupos" style="display:flex; flex-direction:column; gap:16px;">
-                    <div style="background:white; border:1px solid var(--border-color); border-radius:14px; padding:22px; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
-                        <div id="lista-mis-grupos">
-                            ${gruposHtml}
-                        </div>
-                    </div>
+                <div id="tab-content-portal-grupos" class="lista-filas" style="display:flex; flex-direction:column; gap:12px; width:100%;">
+                    ${gruposHtml}
                 </div>
 
-                <!-- CONTENIDO TAB 2: SOLICITUDES DE VACANTES -->
-                <div id="tab-content-portal-solicitudes" style="display:none; flex-direction:column; gap:16px;">
-                    <div style="background:white; border:1px solid var(--border-color); border-radius:14px; padding:22px; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
-                        <div id="lista-mis-solicitudes">
-                            ${solicitudesHtml}
-                        </div>
-                    </div>
+                <!-- CONTENIDO TAB 2: CLASES INDIVIDUALES -->
+                <div id="tab-content-portal-individuales" class="lista-filas" style="display:none; flex-direction:column; gap:10px; width:100%;">
+                    ${individualesHtml}
+                </div>
+
+                <!-- CONTENIDO TAB 3: SOLICITUDES DE VACANTES -->
+                <div id="tab-content-portal-solicitudes" class="lista-filas" style="display:none; flex-direction:column; gap:10px; width:100%;">
+                    ${solicitudesHtml}
                 </div>
             </div>
         `;
 
-        // Control de Tabs del Portal Docente
+        // 8. Control de Pestañas
         const btnTabGrupos = document.getElementById('tab-btn-portal-grupos');
+        const btnTabInd = document.getElementById('tab-btn-portal-individuales');
         const btnTabSolicitudes = document.getElementById('tab-btn-portal-solicitudes');
         const contentGrupos = document.getElementById('tab-content-portal-grupos');
+        const contentInd = document.getElementById('tab-content-portal-individuales');
         const contentSolicitudes = document.getElementById('tab-content-portal-solicitudes');
 
-        if (btnTabGrupos && btnTabSolicitudes) {
-            btnTabGrupos.addEventListener('click', () => {
-                btnTabGrupos.classList.add('active');
-                btnTabGrupos.style.color = 'var(--accent-teal)';
-                btnTabGrupos.style.borderBottomColor = 'var(--accent-teal)';
-                btnTabGrupos.style.fontWeight = '700';
-
-                btnTabSolicitudes.classList.remove('active');
-                btnTabSolicitudes.style.color = 'var(--text-muted)';
-                btnTabSolicitudes.style.borderBottomColor = 'transparent';
-                btnTabSolicitudes.style.fontWeight = '600';
-
-                if (contentGrupos) contentGrupos.style.display = 'flex';
-                if (contentSolicitudes) contentSolicitudes.style.display = 'none';
+        const activarTab = (tabActivo, contenidoActivo) => {
+            [btnTabGrupos, btnTabInd, btnTabSolicitudes].forEach(b => {
+                if (!b) return;
+                b.classList.remove('active');
+                b.style.color = 'var(--text-muted)';
+                b.style.borderBottomColor = 'transparent';
+                b.style.fontWeight = '600';
+            });
+            [contentGrupos, contentInd, contentSolicitudes].forEach(c => {
+                if (c) c.style.display = 'none';
             });
 
-            btnTabSolicitudes.addEventListener('click', () => {
-                btnTabSolicitudes.classList.add('active');
-                btnTabSolicitudes.style.color = 'var(--accent-teal)';
-                btnTabSolicitudes.style.borderBottomColor = 'var(--accent-teal)';
-                btnTabSolicitudes.style.fontWeight = '700';
+            if (tabActivo) {
+                tabActivo.classList.add('active');
+                tabActivo.style.color = 'var(--accent-teal)';
+                tabActivo.style.borderBottomColor = 'var(--accent-teal)';
+                tabActivo.style.fontWeight = '700';
+            }
+            if (contenidoActivo) contenidoActivo.style.display = 'flex';
+        };
 
-                btnTabGrupos.classList.remove('active');
-                btnTabGrupos.style.color = 'var(--text-muted)';
-                btnTabGrupos.style.borderBottomColor = 'transparent';
-                btnTabGrupos.style.fontWeight = '600';
+        if (btnTabGrupos) btnTabGrupos.addEventListener('click', () => {
+            window.tabActivoPortalDocente = 'grupos';
+            activarTab(btnTabGrupos, contentGrupos);
+        });
+        if (btnTabInd) btnTabInd.addEventListener('click', () => {
+            window.tabActivoPortalDocente = 'individuales';
+            activarTab(btnTabInd, contentInd);
+        });
+        if (btnTabSolicitudes) btnTabSolicitudes.addEventListener('click', () => {
+            window.tabActivoPortalDocente = 'solicitudes';
+            activarTab(btnTabSolicitudes, contentSolicitudes);
+        });
 
-                if (contentGrupos) contentGrupos.style.display = 'none';
-                if (contentSolicitudes) contentSolicitudes.style.display = 'flex';
-            });
+        // Restaurar pestaña activa guardada
+        if (window.tabActivoPortalDocente === 'individuales') {
+            activarTab(btnTabInd, contentInd);
+        } else if (window.tabActivoPortalDocente === 'solicitudes') {
+            activarTab(btnTabSolicitudes, contentSolicitudes);
+        } else {
+            activarTab(btnTabGrupos, contentGrupos);
         }
 
-        // Listeners para abrir modal de solicitud de vacante
+        document.getElementById('select-filtro-docente-portal')?.addEventListener('change', async (e) => {
+            window.filtroDocentePortalId = e.target.value;
+            await renderPortalProfesor(cont, usuarioActual, callbacks);
+        });
+
+        // 9. Listeners para Modal Reprogramar Docente
+        const abrirModalReprogramar = (tipo, data) => {
+            const modal = document.getElementById('modal-reprogramar-docente');
+            const infoBox = document.getElementById('reprog-info-box');
+            const inputId = document.getElementById('reprog-alumno-id');
+            const inputGrupo = document.getElementById('reprog-grupo-nombre');
+            const inputEsGrupo = document.getElementById('reprog-es-grupo');
+            const inputFecha = document.getElementById('reprog-fecha-inicio');
+            const selDur = document.getElementById('reprog-duracion');
+
+            if (!modal || !infoBox) return;
+
+            if (tipo === 'grupo') {
+                window.tabActivoPortalDocente = 'grupos';
+                inputEsGrupo.value = '1';
+                inputGrupo.value = data.grupo;
+                inputId.value = '';
+                infoBox.innerHTML = `
+                    <div style="font-weight:700; color:var(--text-main);">🧩 Ensamble: ${data.grupo}</div>
+                    <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">Cursada actual: <strong>${data.horario || 'No especificada'}</strong></div>
+                `;
+            } else {
+                window.tabActivoPortalDocente = 'individuales';
+                inputEsGrupo.value = '0';
+                inputId.value = data.id;
+                inputGrupo.value = '';
+                infoBox.innerHTML = `
+                    <div style="font-weight:700; color:var(--text-main);">👤 Alumno: ${data.nombre}</div>
+                    <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">Cursada actual: <strong>${data.horario || 'No especificada'}</strong></div>
+                `;
+            }
+
+            if (data.inicio) {
+                inputFecha.value = isoToDatetimeLocal(data.inicio);
+            } else {
+                const now = new Date();
+                now.setHours(now.getHours() + 24, 0, 0, 0);
+                inputFecha.value = isoToDatetimeLocal(now);
+            }
+
+            if (selDur) selDur.value = "60";
+            modal.showModal();
+        };
+
+        cont.querySelectorAll('.btn-reprogramar-grupo-docente').forEach(b => {
+            b.addEventListener('click', () => {
+                abrirModalReprogramar('grupo', {
+                    grupo: b.getAttribute('data-grupo'),
+                    horario: b.getAttribute('data-horario'),
+                    inicio: b.getAttribute('data-inicio')
+                });
+            });
+        });
+
+        cont.querySelectorAll('.btn-reprogramar-ind-docente').forEach(b => {
+            b.addEventListener('click', () => {
+                abrirModalReprogramar('individual', {
+                    id: b.getAttribute('data-id'),
+                    nombre: b.getAttribute('data-nombre'),
+                    horario: b.getAttribute('data-horario'),
+                    inicio: b.getAttribute('data-inicio')
+                });
+            });
+        });
+
+        // 10. Listeners para Modal Cancelar Docente
+        const abrirModalCancelar = (tipo, data) => {
+            const modal = document.getElementById('modal-cancelar-docente');
+            const infoBox = document.getElementById('canc-info-box');
+            const inputId = document.getElementById('canc-alumno-id');
+            const inputGrupo = document.getElementById('canc-grupo-nombre');
+            const inputEsGrupo = document.getElementById('canc-es-grupo');
+            const inputMotivo = document.getElementById('canc-docente-motivo');
+
+            if (!modal || !infoBox) return;
+
+            if (inputMotivo) inputMotivo.value = '';
+
+            if (tipo === 'grupo') {
+                window.tabActivoPortalDocente = 'grupos';
+                inputEsGrupo.value = '1';
+                inputGrupo.value = data.grupo;
+                inputId.value = '';
+                infoBox.innerHTML = `
+                    <div style="font-weight:700; color:var(--accent-red);">🧩 Ensamble: ${data.grupo}</div>
+                    <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">Se cancelará o eliminará el evento asociado en Google Calendar.</div>
+                `;
+            } else {
+                window.tabActivoPortalDocente = 'individuales';
+                inputEsGrupo.value = '0';
+                inputId.value = data.id;
+                inputGrupo.value = '';
+                infoBox.innerHTML = `
+                    <div style="font-weight:700; color:var(--accent-red);">👤 Alumno: ${data.nombre}</div>
+                    <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">Se cancelará o eliminará la clase de Google Calendar.</div>
+                `;
+            }
+            modal.showModal();
+        };
+
+        cont.querySelectorAll('.btn-cancelar-grupo-docente').forEach(b => {
+            b.addEventListener('click', () => {
+                abrirModalCancelar('grupo', { grupo: b.getAttribute('data-grupo') });
+            });
+        });
+
+        cont.querySelectorAll('.btn-cancelar-ind-docente').forEach(b => {
+            b.addEventListener('click', () => {
+                abrirModalCancelar('individual', { id: b.getAttribute('data-id'), nombre: b.getAttribute('data-nombre') });
+            });
+        });
+
+        // 11. Botones de Casos de Prueba (para productora.mandalahouse@gmail.com)
+        document.getElementById('btn-crear-casos-prueba-docente')?.addEventListener('click', async () => {
+            if (window.mostrarIndicadorCarga) window.mostrarIndicadorCarga('Creando alumnos de prueba...');
+            try {
+                const pId = profesorId || 'pablo_docente_test';
+                const pNom = profesorNombre || 'Pablo Bianchino';
+
+                const alumnosPrueba = [
+                    {
+                        nombre: "[TEST] Lucas Benítez",
+                        edad: "24",
+                        celular: "+54 9 11 4444-1111",
+                        instrumento: ["Canto"],
+                        instrumento_asignado: "Canto",
+                        tipo_suscripcion: "Ensamble",
+                        grupo_asignado: "[TEST] Ensamble Rock 90s",
+                        profesor_id: pId,
+                        profesor_asignado: pNom,
+                        reserva_profe_id: pId,
+                        reserva_profe_nombre: pNom,
+                        estado_agenda: "Alta Efectiva",
+                        dia_match: "L",
+                        horario_inicio_match: "19:00",
+                        horario_fin_match: "20:00",
+                        horario_match: "Lunes 19:00 hs",
+                        fecha_inicio_clases: new Date(Date.now() + 86400000).toISOString(),
+                        es_prueba_docente: true
+                    },
+                    {
+                        nombre: "[TEST] Camila Navarro",
+                        edad: "27",
+                        celular: "+54 9 11 4444-2222",
+                        instrumento: ["Guitarra"],
+                        instrumento_asignado: "Guitarra",
+                        tipo_suscripcion: "Ensamble",
+                        grupo_asignado: "[TEST] Ensamble Rock 90s",
+                        profesor_id: pId,
+                        profesor_asignado: pNom,
+                        reserva_profe_id: pId,
+                        reserva_profe_nombre: pNom,
+                        estado_agenda: "Alta Efectiva",
+                        dia_match: "L",
+                        horario_inicio_match: "19:00",
+                        horario_fin_match: "20:00",
+                        horario_match: "Lunes 19:00 hs",
+                        fecha_inicio_clases: new Date(Date.now() + 86400000).toISOString(),
+                        es_prueba_docente: true
+                    },
+                    {
+                        nombre: "[TEST] Martín Gómez",
+                        edad: "31",
+                        celular: "+54 9 11 4444-3333",
+                        instrumento: ["Batería"],
+                        instrumento_asignado: "Batería",
+                        tipo_suscripcion: "Clase Individual",
+                        grupo_asignado: "Clase Individual",
+                        profesor_id: pId,
+                        profesor_asignado: pNom,
+                        reserva_profe_id: pId,
+                        reserva_profe_nombre: pNom,
+                        estado_agenda: "Alta Efectiva",
+                        dia_match: "X",
+                        horario_inicio_match: "18:00",
+                        horario_fin_match: "19:00",
+                        horario_match: "Miércoles 18:00 hs",
+                        fecha_inicio_clases: new Date(Date.now() + 172800000).toISOString(),
+                        es_prueba_docente: true
+                    },
+                    {
+                        nombre: "[TEST] Sofía Herrera",
+                        edad: "22",
+                        celular: "+54 9 11 4444-4444",
+                        instrumento: ["Piano"],
+                        instrumento_asignado: "Piano",
+                        tipo_suscripcion: "Clase Individual",
+                        grupo_asignado: "Clase Individual",
+                        profesor_id: pId,
+                        profesor_asignado: pNom,
+                        reserva_profe_id: pId,
+                        reserva_profe_nombre: pNom,
+                        estado_agenda: "Pre-alta Iniciada",
+                        dia_match: "J",
+                        horario_inicio_match: "17:00",
+                        horario_fin_match: "18:00",
+                        horario_match: "Jueves 17:00 hs",
+                        fecha_inicio_clases: new Date(Date.now() + 259200000).toISOString(),
+                        es_prueba_docente: true
+                    }
+                ];
+
+                for (const al of alumnosPrueba) {
+                    await addDoc(collection(db, "alumnos"), al);
+                }
+
+                if (window.ocultarIndicadorCarga) window.ocultarIndicadorCarga();
+                alert("✅ 4 casos de prueba creados (1 Ensamble con 2 alumnos, 1 Individual Activo, 1 Individual Pre-Alta).");
+                await renderPortalProfesor(cont, usuarioActual, callbacks);
+            } catch(e) {
+                if (window.ocultarIndicadorCarga) window.ocultarIndicadorCarga();
+                alert("❌ Error al crear pruebas: " + e.message);
+            }
+        });
+
+        document.getElementById('btn-limpiar-casos-prueba-docente')?.addEventListener('click', async () => {
+            const ok = await window.confirmar(
+                "🗑️ Eliminar Alumnos de Prueba",
+                "¿Confirmás eliminar todos los registros marcados como [TEST] creados para pruebas?",
+                "Eliminar Pruebas",
+                "⚠️"
+            );
+            if (!ok) return;
+
+            if (window.mostrarIndicadorCarga) window.mostrarIndicadorCarga('Eliminando datos de prueba...');
+            try {
+                const snap = await getDocs(collection(db, "alumnos"));
+                let count = 0;
+                for (const d of snap.docs) {
+                    const data = d.data();
+                    if (data.es_prueba_docente || (data.nombre && data.nombre.includes('[TEST]')) || (data.grupo_asignado && data.grupo_asignado.includes('[TEST]'))) {
+                        await deleteDoc(doc(db, "alumnos", d.id));
+                        count++;
+                    }
+                }
+                if (window.ocultarIndicadorCarga) window.ocultarIndicadorCarga();
+                alert(`🗑️ ${count} registro(s) de prueba eliminados correctamente.`);
+                await renderPortalProfesor(cont, usuarioActual, callbacks);
+            } catch(e) {
+                if (window.ocultarIndicadorCarga) window.ocultarIndicadorCarga();
+                alert("❌ Error al limpiar pruebas: " + e.message);
+            }
+        });
+
+        // 12. Modal Solicitud de Vacante
         const cargarSlotsLibresEnModal = async () => {
             const selSlot = document.getElementById('sol-vac-slot-libre');
             if (!selSlot) return;
@@ -580,10 +1027,6 @@ export async function renderPortalProfesor(cont, usuarioActual = {}, callbacks =
             const modal = document.getElementById('modal-solicitar-vacante');
             if (!modal) return;
 
-            setupNivelesChipsListeners();
-            resetNivelesChips();
-            await poblarInstrumentosChips();
-
             const rExistente = document.getElementById('sol-vac-modo-existente');
             const rNuevo = document.getElementById('sol-vac-modo-nuevo');
             const secExistente = document.getElementById('sol-vac-sec-existente');
@@ -598,178 +1041,220 @@ export async function renderPortalProfesor(cont, usuarioActual = {}, callbacks =
                 if (rExistente) rExistente.checked = true;
                 if (secExistente) secExistente.style.display = 'block';
                 if (secNuevo) secNuevo.style.display = 'none';
-            }
 
-            // Población de grupos
-            const selGrupo = document.getElementById('sol-vac-grupo');
-            if (selGrupo) {
-                selGrupo.innerHTML = '<option value="">Selecciona un grupo...</option>';
-                gruposKeys.forEach(k => {
-                    selGrupo.innerHTML += `<option value="${k}" ${k === grupoPre ? 'selected' : ''}>${k} (${gruposMap[k].horario})</option>`;
-                });
-                if (grupoPre && !gruposKeys.includes(grupoPre)) {
-                    selGrupo.innerHTML += `<option value="${grupoPre}" selected>${grupoPre}</option>`;
+                const selGrp = document.getElementById('sol-vac-grupo');
+                if (selGrp) {
+                    selGrp.innerHTML = '<option value="">-- Selecciona un Grupo --</option>';
+                    gruposKeys.forEach(gk => {
+                        const sel = (gk === grupoPre) ? 'selected' : '';
+                        selGrp.innerHTML += `<option value="${gk}" ${sel}>${gk}</option>`;
+                    });
                 }
-
-                selGrupo.onchange = () => {
-                    const selVal = selGrupo.value;
-                    if (selVal && gruposMap[selVal]) {
-                        document.getElementById('sol-vac-horario').value = gruposMap[selVal].horario || '';
-                        document.getElementById('sol-vac-dia').value = gruposMap[selVal].dia || '';
-                    } else {
-                        document.getElementById('sol-vac-horario').value = '';
-                        document.getElementById('sol-vac-dia').value = '';
-                    }
-                };
+                const inpH = document.getElementById('sol-vac-horario');
+                if (inpH) inpH.value = horarioPre || (gruposMap[grupoPre]?.horario || '');
             }
 
-            document.getElementById('sol-vac-horario').value = horarioPre || (grupoPre && gruposMap[grupoPre] ? gruposMap[grupoPre].horario : '');
-            document.getElementById('sol-vac-profe-id').value = profesorId;
-            document.getElementById('sol-vac-profe-nombre').value = profesorNombre;
-            document.getElementById('sol-vac-profe-email').value = profesorEmail;
-            document.getElementById('sol-vac-obs').value = '';
-            document.getElementById('sol-vac-nuevo-nombre').value = '';
-
-            // Listeners de los radio buttons
-            if (rExistente) {
-                rExistente.onchange = () => {
-                    secExistente.style.display = 'block';
-                    secNuevo.style.display = 'none';
-                };
-            }
-            if (rNuevo) {
-                rNuevo.onchange = async () => {
-                    secExistente.style.display = 'none';
-                    secNuevo.style.display = 'block';
-                    if (slotsLibresCache.length === 0) {
-                        await cargarSlotsLibresEnModal();
-                    }
-                };
-            }
-
-            // Listener del select de slots libres
-            const selSlot = document.getElementById('sol-vac-slot-libre');
-            if (selSlot) {
-                selSlot.onchange = () => {
-                    const idx = selSlot.value;
-                    if (idx !== '' && slotsLibresCache[idx]) {
-                        const s = slotsLibresCache[idx];
-                        document.getElementById('sol-vac-dia').value = s.dia;
-                        const sugerenciaNombre = `${s.dia}${s.horaInicio.replace(':','.')} ${profesorNombre.split(' ')[0]} (Nuevo Grupo)`;
-                        document.getElementById('sol-vac-nuevo-nombre').value = sugerenciaNombre;
-                    }
-                };
-            }
-
-            // Listener botón recargar slots
-            const btnRecargarSlots = document.getElementById('btn-recargar-slots-docente');
-            if (btnRecargarSlots) {
-                btnRecargarSlots.onclick = () => cargarSlotsLibresEnModal();
-            }
+            document.getElementById('sol-vac-profe-id').value = profesorId || '';
+            document.getElementById('sol-vac-profe-nombre').value = profesorNombre || '';
+            document.getElementById('sol-vac-profe-email').value = profesorEmail || '';
 
             modal.showModal();
         };
 
         document.getElementById('btn-solicitar-vacante-general')?.addEventListener('click', () => abrirModalSolicitud());
 
-        cont.querySelectorAll('.btn-pedir-vacante-grupo').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const grp = btn.getAttribute('data-grupo');
-                const hor = btn.getAttribute('data-horario');
-                abrirModalSolicitud(grp, hor, false);
-            });
-        });
-
     } catch (err) {
         cont.innerHTML = `<div style="color:var(--accent-red); padding:30px; text-align:center; font-weight:700;">Error al cargar el portal docente: ${err.message}</div>`;
     }
 }
 
-// Handler de envío de solicitud de vacante
-document.getElementById('btn-guardar-solicitar-vacante')?.addEventListener('click', async (e) => {
-    const btn = e.target;
-    const esModoNuevo = document.getElementById('sol-vac-modo-nuevo')?.checked || false;
+// -----------------------------------------------------------------------
+// Handlers Globales de Reprogramación y Cancelación del Portal Docente
+// -----------------------------------------------------------------------
 
-    let grupo = '';
-    let horario = '';
-    let dia = document.getElementById('sol-vac-dia')?.value || '';
+document.getElementById('btn-confirmar-reprogramar-docente')?.addEventListener('click', async () => {
+    const esGrupo = document.getElementById('reprog-es-grupo')?.value === '1';
+    const idAlumno = document.getElementById('reprog-alumno-id')?.value;
+    const nombreGrupo = document.getElementById('reprog-grupo-nombre')?.value;
+    const fechaIniVal = document.getElementById('reprog-fecha-inicio')?.value;
+    const durMin = parseInt(document.getElementById('reprog-duracion')?.value || '60', 10);
+    const alcance = document.querySelector('input[name="reprog-alcance"]:checked')?.value || 'puntual';
 
-    if (esModoNuevo) {
-        const slotIdx = document.getElementById('sol-vac-slot-libre')?.value;
-        if (slotIdx === '' || !slotsLibresCache[slotIdx]) {
-            alert('Debes seleccionar un horario libre de tu agenda para iniciar la nueva clase.');
-            return;
-        }
-        const s = slotsLibresCache[slotIdx];
-        horario = s.horarioTexto || s.texto;
-        dia = s.dia;
-        grupo = (document.getElementById('sol-vac-nuevo-nombre')?.value || '').trim() || `${s.dia}${s.horaInicio.replace(':','.')} Nueva Clase`;
-    } else {
-        grupo = (document.getElementById('sol-vac-grupo')?.value || '').trim();
-        horario = (document.getElementById('sol-vac-horario')?.value || '').trim();
-        if (!grupo) {
-            alert('Debes seleccionar un grupo o ensamble existente.');
-            return;
-        }
-    }
+    if (!fechaIniVal) return alert("Selecciona la nueva fecha y hora de inicio.");
 
-    const instrumentos = obtenerInstrumentosSeleccionados();
-    if (instrumentos.length === 0) {
-        alert('Debes seleccionar al menos un instrumento requerido para la vacante.');
-        return;
-    }
+    const dStart = new Date(fechaIniVal);
+    if (isNaN(dStart.getTime())) return alert("Fecha y hora inválidas.");
+    const dEnd = new Date(dStart.getTime() + durMin * 60000);
 
-    const niveles = obtenerNivelesSeleccionados();
-    const obs = (document.getElementById('sol-vac-obs')?.value || '').trim();
-    const profeId = document.getElementById('sol-vac-profe-id')?.value || '';
-    const profeNombre = document.getElementById('sol-vac-profe-nombre')?.value || 'Profesor';
-    const profeEmail = (document.getElementById('sol-vac-profe-email')?.value || '').toLowerCase();
+    const fIsoStart = formatoLocalISO(dStart);
+    const fIsoEnd = formatoLocalISO(dEnd);
 
-    btn.disabled = true;
-    btn.textContent = 'Enviando...';
+    const diasNombres = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const diasCodigos = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+    const diaCod = diasCodigos[dStart.getDay()];
+    const diaNom = diasNombres[dStart.getDay()];
+    const hIniStr = `${dStart.getHours().toString().padStart(2,'0')}:${dStart.getMinutes().toString().padStart(2,'0')}`;
+    const hFinStr = `${dEnd.getHours().toString().padStart(2,'0')}:${dEnd.getMinutes().toString().padStart(2,'0')}`;
+    const nuevoHorarioTexto = `${diaNom} ${hIniStr} hs`;
 
-    // Determinar día de la semana si aún no está fijado
-    if (!dia) {
-        const hLower = (horario + ' ' + grupo).toLowerCase();
-        if (hLower.includes('lunes') || /^[lL]\d/.test(grupo)) dia = 'L';
-        else if (hLower.includes('martes') || /^[mM]\d/.test(grupo)) dia = 'M';
-        else if (hLower.includes('miércoles') || hLower.includes('miercoles') || /^[xX]\d/.test(grupo)) dia = 'X';
-        else if (hLower.includes('jueves') || /^[jJ]\d/.test(grupo)) dia = 'J';
-        else if (hLower.includes('viernes') || /^[vV]\d/.test(grupo)) dia = 'V';
-        else if (hLower.includes('sábado') || hLower.includes('sabado') || /^[sS]\d/.test(grupo)) dia = 'S';
-    }
+    const ok = await window.confirmar(
+        "📅 Sincronizar Reprogramación con Google Calendar",
+        `Se actualizará la clase en Google Calendar:\n\n• Destino: ${esGrupo ? 'Ensamble ' + nombreGrupo : 'Alumno Individual'}\n• Nueva Fecha/Hora: ${diaNom} ${dStart.getDate()}/${dStart.getMonth()+1} de ${hIniStr} a ${hFinStr} hs (${durMin} min)\n• Alcance: ${alcance === 'recurrente' ? '🔄 Actualizar cursada habitual permanente' : '🕒 Solo esta fecha puntual'}\n\n¿Confirmás sincronizar y guardar?`,
+        "Sincronizar y Guardar",
+        "📅"
+    );
+    if (!ok) return;
 
+    if (window.mostrarIndicadorCarga) window.mostrarIndicadorCarga('Sincronizando evento en Google Calendar...');
     try {
-        const solData = {
-            grupoNombre: grupo,
-            horario: horario,
-            dia: dia,
-            esNuevoGrupo: esModoNuevo,
-            profesorId: profeId,
-            profesorNombre: profeNombre,
-            profesorEmail: profeEmail,
-            instrumentos: instrumentos,
-            instrumento: instrumentos.join(', '),
-            nivel: niveles.join(', '),
-            niveles: niveles,
-            cantidadVacantes: 1,
-            observaciones: obs,
-            estado: 'Pendiente',
-            alumnoAsignadoId: null,
-            alumnoAsignadoNombre: null,
-            fechaCreacion: new Date().toISOString()
-        };
-
-        await addDoc(collection(db, "solicitudes_vacantes"), solData);
-        alert(`✅ ¡Solicitud para ${instrumentos.join(', ')} (${niveles.join(', ')}) enviada con éxito!`);
-        document.getElementById('modal-solicitar-vacante')?.close();
-        if (window.cargarVistaGlobal) {
-            window.cargarVistaGlobal('Mis Grupos & Solicitud de Alumnos');
+        let alumnosAfectados = [];
+        if (esGrupo && nombreGrupo) {
+            const snap = await getDocs(query(collection(db, "alumnos"), where("grupo_asignado", "==", nombreGrupo)));
+            snap.forEach(d => alumnosAfectados.push({ id: d.id, ...d.data() }));
+        } else if (idAlumno) {
+            const aDoc = await getDoc(doc(db, "alumnos", idAlumno));
+            if (aDoc.exists()) alumnosAfectados.push({ id: aDoc.id, ...aDoc.data() });
         }
-    } catch(err) {
-        alert('Error al enviar solicitud: ' + err.message);
-    }
 
-    btn.disabled = false;
-    btn.textContent = 'Enviar Solicitud';
+        if (alumnosAfectados.length === 0) throw new Error("No se encontraron alumnos para reprogramar.");
+
+        const primerAl = alumnosAfectados[0];
+        const resCal = await reprogramarClaseCalendar({
+            al: primerAl,
+            esGrupo: esGrupo,
+            alumnosGrupo: alumnosAfectados,
+            fIsoStart: fIsoStart,
+            fIsoEnd: fIsoEnd,
+            duracionMinutos: durMin
+        });
+
+        for (const al of alumnosAfectados) {
+            const hist = al.historial || [];
+            const horarioAnterior = al.horario_match || `${al.dia_match || ''} ${al.horario_inicio_match || ''}`.trim() || 'Horario previo';
+
+            const updates = {
+                historial: hist
+            };
+
+            if (alcance === 'recurrente') {
+                // Modificación permanente de la cursada
+                updates.dia_match = diaCod;
+                updates.horario_inicio_match = hIniStr;
+                updates.horario_fin_match = hFinStr;
+                updates.horario_match = `${diaNom} ${hIniStr} a ${hFinStr} hs`;
+                updates.reprogramacion_puntual = null; // Se limpia cualquier cambio puntual previo
+
+                hist.push({
+                    id: Date.now(),
+                    fecha: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    texto: `📅 Reprogramación permanente de cursada: Nueva cursada habitual ${diaNom} ${hIniStr} a ${hFinStr} hs (${durMin} min). Cursada previa: ${horarioAnterior}`
+                });
+            } else {
+                // Modificación puntual de una clase
+                const fechaTextoOriginal = al.fecha_inicio_clases ? formatearFechaAmi(al.fecha_inicio_clases) : horarioAnterior;
+                const fechaTextoNueva = `${diaNom} ${dStart.getDate()}/${dStart.getMonth()+1} ${hIniStr} hs`;
+
+                updates.reprogramacion_puntual = {
+                    fecha_original_texto: fechaTextoOriginal,
+                    fecha_nueva_texto: fechaTextoNueva,
+                    fecha_nueva_iso: fIsoStart,
+                    fecha_nueva_fin_iso: fIsoEnd,
+                    duracion_minutos: durMin,
+                    timestamp: Date.now()
+                };
+
+                hist.push({
+                    id: Date.now(),
+                    fecha: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    texto: `🕒 Reprogramación puntual de clase: Se cambió la fecha de la clase del ${fechaTextoOriginal} al ${fechaTextoNueva} (${durMin} min)`
+                });
+            }
+
+            // Solo fijar fecha_inicio_clases si el alumno NO tenía fecha previa, para conservar intacto el inicio fijado por el admisor
+            if (!al.fecha_inicio_clases) {
+                updates.fecha_inicio_clases = fIsoStart;
+            }
+
+            if (resCal) {
+                updates.id_evento_alta = resCal.id;
+                updates.calendario_evento_alta = resCal.calendar;
+            }
+
+            await updateDoc(doc(db, "alumnos", al.id), updates);
+        }
+
+        if (window.ocultarIndicadorCarga) window.ocultarIndicadorCarga();
+        document.getElementById('modal-reprogramar-docente')?.close();
+        alert(`✅ Clase reprogramada con éxito en Google Calendar (${diaNom} ${hIniStr} hs).`);
+        if (window.cargarVistaGlobal) window.cargarVistaGlobal('Mis Alumnos y Ensambles');
+    } catch(e) {
+        if (window.ocultarIndicadorCarga) window.ocultarIndicadorCarga();
+        alert("❌ Error al reprogramar: " + e.message);
+    }
+});
+
+document.getElementById('btn-confirmar-cancelar-docente')?.addEventListener('click', async () => {
+    const esGrupo = document.getElementById('canc-es-grupo')?.value === '1';
+    const idAlumno = document.getElementById('canc-alumno-id')?.value;
+    const nombreGrupo = document.getElementById('canc-grupo-nombre')?.value;
+    const alcance = document.querySelector('input[name="canc-alcance"]:checked')?.value || 'puntual';
+    const motivo = (document.getElementById('canc-docente-motivo')?.value || '').trim() || 'Cancelado por el docente';
+
+    const ok = await window.confirmar(
+        "🛑 Eliminar Evento en Google Calendar",
+        `¿Confirmás eliminar la clase de Google Calendar?\n\n• Destino: ${esGrupo ? 'Ensamble ' + nombreGrupo : 'Alumno Individual'}\n• Alcance: ${alcance === 'serie' ? '⚠️ Este y todos los eventos siguientes' : '🗓️ Solo el evento puntual'}\n• Motivo: ${motivo}`,
+        "Eliminar de Calendar",
+        "🗑️"
+    );
+    if (!ok) return;
+
+    if (window.mostrarIndicadorCarga) window.mostrarIndicadorCarga('Eliminando clase en Google Calendar...');
+    try {
+        let alumnosAfectados = [];
+        if (esGrupo && nombreGrupo) {
+            const snap = await getDocs(query(collection(db, "alumnos"), where("grupo_asignado", "==", nombreGrupo)));
+            snap.forEach(d => alumnosAfectados.push({ id: d.id, ...d.data() }));
+        } else if (idAlumno) {
+            const aDoc = await getDoc(doc(db, "alumnos", idAlumno));
+            if (aDoc.exists()) alumnosAfectados.push({ id: aDoc.id, ...aDoc.data() });
+        }
+
+        for (const al of alumnosAfectados) {
+            await eliminarEventoAltaSeguro(al);
+            const hist = al.historial || [];
+            hist.push({
+                id: Date.now(),
+                fecha: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString(),
+                texto: `Clase cancelada/eliminada en Calendar por Docente. Alcance: ${alcance}. Motivo: ${motivo}`
+            });
+
+            const updates = { historial: hist };
+            if (alcance === 'serie') {
+                updates.id_evento_alta = null;
+                updates.calendario_evento_alta = null;
+            }
+            await updateDoc(doc(db, "alumnos", al.id), updates);
+        }
+
+        if (window.ocultarIndicadorCarga) window.ocultarIndicadorCarga();
+        document.getElementById('modal-cancelar-docente')?.close();
+        alert("🛑 Evento cancelado/eliminado correctamente en Google Calendar.");
+        if (window.cargarVistaGlobal) window.cargarVistaGlobal('Mis Alumnos y Ensambles');
+    } catch(e) {
+        if (window.ocultarIndicadorCarga) window.ocultarIndicadorCarga();
+        alert("❌ Error al cancelar evento: " + e.message);
+    }
+});
+
+// Listener global para ver ficha del alumno en modo lectura desde el portal docente
+document.addEventListener('click', (e) => {
+    const btnVer = e.target.closest('.btn-ver-ficha-docente');
+    if (btnVer) {
+        e.preventDefault();
+        e.stopPropagation();
+        const id = btnVer.getAttribute('data-id');
+        if (id && window.abrirFichaAlumnoDocente) {
+            window.abrirFichaAlumnoDocente(id);
+        }
+    }
 });
