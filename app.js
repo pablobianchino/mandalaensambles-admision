@@ -1035,12 +1035,12 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
 
         checklistHtml = `
             <div class="alta-checklist-wrapper" style="margin-top:8px; padding:8px 12px; background:var(--hover-bg); border-radius:10px; border:1px solid var(--border-color);" onclick="event.stopPropagation();">
-                <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none;" onclick="window.toggleChecklistPill('chk-list-${id}', 'chk-icon-${id}')" title="Clic para ver o completar los pasos del checklist">
+                <div style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:12px; cursor:pointer; user-select:none;" onclick="window.toggleChecklistPill('chk-list-${id}', 'chk-icon-${id}')" title="Clic para ver o completar los pasos del checklist">
                     <div style="display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:var(--text-main);">
                         <span id="chk-icon-${id}" style="font-size:9px; color:#64748b; transition:transform 0.2s ease; display:inline-block;">▶</span>
                         <span>📋 Checklist de Alta (${completados}/5)</span>
                     </div>
-                    <span style="color:${barColor}; font-size:11.5px; font-weight:800;">${porcentaje}%</span>
+                    <span style="color:${barColor}; font-size:11.5px; font-weight:800; margin-left:auto; padding-left:16px; white-space:nowrap;">${porcentaje}%</span>
                 </div>
                 <div style="width:100%; height:5px; background:#e9e5de; border-radius:4px; overflow:hidden; margin-top:5px; cursor:pointer;" onclick="window.toggleChecklistPill('chk-list-${id}', 'chk-icon-${id}')">
                     <div style="width:${porcentaje}%; height:100%; background:${barColor}; transition:width 0.3s ease;"></div>
