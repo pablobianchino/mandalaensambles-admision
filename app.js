@@ -161,7 +161,8 @@ let agrupadorActual = 'ninguno';
 let filtrosSeleccionados = {
     instrumentos: new Set(),
     niveles: new Set(),
-    suscripciones: new Set()
+    suscripciones: new Set(),
+    evaluadores: new Set()
 };
 let filtroAlarmaActual = 'Todos'; 
 let vistaModo = 'lista'; 
@@ -221,7 +222,8 @@ function renderFiltrosChips() {
 
     const totalFiltrosActivos = filtrosSeleccionados.instrumentos.size + 
                                 filtrosSeleccionados.niveles.size + 
-                                filtrosSeleccionados.suscripciones.size;
+                                filtrosSeleccionados.suscripciones.size +
+                                (filtrosSeleccionados.evaluadores ? filtrosSeleccionados.evaluadores.size : 0);
 
     const instrumentos = [
         { id: 'Canto', label: '🎤 Canto' },
@@ -244,6 +246,21 @@ function renderFiltrosChips() {
         { id: 'Clases Grupales', label: '👥 Grupal' },
         { id: 'Clase Individual', label: '👤 Individual' }
     ];
+
+    // Obtener evaluadores presentes dinámicamente según el pool actual
+    const evalMap = new Map();
+    (cachedAlumnosData || []).forEach(al => {
+        const est = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        const nom = (al.reserva_profe_nombre || al.profesor_asignado || '').trim();
+        if (nom) {
+            if (estadoActualVista === 'Lista de Espera') {
+                if (est === 'lista de espera') evalMap.set(nom, (evalMap.get(nom) || 0) + 1);
+            } else {
+                evalMap.set(nom, (evalMap.get(nom) || 0) + 1);
+            }
+        }
+    });
+    const evaluadoresPresentes = Array.from(evalMap.keys()).sort();
 
     // Badges en pantalla: solo los filtros seleccionados
     let activeBadgesHtml = '';
@@ -275,6 +292,16 @@ function renderFiltrosChips() {
             </span>`;
     });
 
+    if (filtrosSeleccionados.evaluadores) {
+        filtrosSeleccionados.evaluadores.forEach(val => {
+            activeBadgesHtml += `
+                <span class="active-filter-badge tag-eval" style="background:#e0f2fe; color:#0369a1; border-color:#bae6fd;">
+                    <span>🧑‍🏫 ${val}</span>
+                    <button type="button" class="btn-remove-filter" data-type="evaluador" data-val="${val}" title="Quitar filtro">✕</button>
+                </span>`;
+        });
+    }
+
     if (totalFiltrosActivos > 0) {
         activeBadgesHtml += `
             <button type="button" id="btn-limpiar-todos-filtros" style="background:none; border:none; color:#ef4444; font-size:12px; font-weight:600; cursor:pointer; padding:3px 6px; text-decoration:underline; font-family:inherit;">Limpiar todo</button>
@@ -299,6 +326,18 @@ function renderFiltrosChips() {
                         <span style="font-size:13px; font-weight:800; color:var(--text-main); text-transform:uppercase; letter-spacing:0.04em;">Filtrar Alumnos</span>
                         <button type="button" id="btn-cerrar-filtros-popover" style="background:none; border:none; cursor:pointer; font-size:14px; color:var(--text-muted); font-weight:700; padding:2px 6px;">✕</button>
                     </div>
+
+                    ${evaluadoresPresentes.length > 0 ? `
+                    <!-- Sección Evaluadores -->
+                    <div style="margin-bottom:12px;">
+                        <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;">Evaluador / Docente (${evaluadoresPresentes.length})</div>
+                        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                            ${evaluadoresPresentes.map(ev => `
+                                <button type="button" class="filter-chip ${filtrosSeleccionados.evaluadores.has(ev) ? 'active active-eval' : ''}" data-type="evaluador" data-val="${ev}">🧑‍🏫 ${ev} <span style="font-size:10.5px; opacity:0.8;">(${evalMap.get(ev)})</span></button>
+                            `).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
 
                     <!-- Sección Instrumentos -->
                     <div style="margin-bottom:12px;">
@@ -398,6 +437,9 @@ function renderFiltrosChips() {
             } else if (type === 'suscripcion') {
                 if (filtrosSeleccionados.suscripciones.has(val)) filtrosSeleccionados.suscripciones.delete(val);
                 else filtrosSeleccionados.suscripciones.add(val);
+            } else if (type === 'evaluador') {
+                if (filtrosSeleccionados.evaluadores.has(val)) filtrosSeleccionados.evaluadores.delete(val);
+                else filtrosSeleccionados.evaluadores.add(val);
             }
 
             renderFiltrosChips();
@@ -415,6 +457,7 @@ function renderFiltrosChips() {
             if (type === 'instrumento') filtrosSeleccionados.instrumentos.delete(val);
             else if (type === 'nivel') filtrosSeleccionados.niveles.delete(val);
             else if (type === 'suscripcion') filtrosSeleccionados.suscripciones.delete(val);
+            else if (type === 'evaluador') filtrosSeleccionados.evaluadores.delete(val);
 
             renderFiltrosChips();
             cargarVista(estadoActualVista);
@@ -427,6 +470,7 @@ function renderFiltrosChips() {
         filtrosSeleccionados.instrumentos.clear();
         filtrosSeleccionados.niveles.clear();
         filtrosSeleccionados.suscripciones.clear();
+        if (filtrosSeleccionados.evaluadores) filtrosSeleccionados.evaluadores.clear();
         renderFiltrosChips();
         cargarVista(estadoActualVista);
     };
@@ -1274,18 +1318,34 @@ window.toggleBulkSelection = function(id, isChecked) {
 function actualizarBulkBar() {
     const bar = document.getElementById('bulk-actions-bar');
     const btnProp = document.getElementById('btn-bulk-propuesta-grupo');
+    const btnDevolver = document.getElementById('btn-bulk-devolver-espera');
     const btnBD = document.getElementById('btn-bulk-copiar-bd');
     const btnFact = document.getElementById('btn-bulk-copiar-fact');
     const btnAuditCal = document.getElementById('btn-bulk-auditar-cal');
     if (selectedBulkIds.length > 0) {
         document.getElementById('bulk-count').textContent = `${selectedBulkIds.length} seleccionados`;
         bar.style.display = 'flex';
+
+        const u = window.usuarioActual || {};
+        const rolesArr = Array.isArray(u.roles) && u.roles.length > 0 ? u.roles : [u.rol || ''];
+        const puedeArmarGrupos = rolesArr.includes('admin') || rolesArr.includes('coordinador_grupos');
+
+        // Nueva Propuesta de Grupo: SOLO para Coordinador de Grupos y Administrador
         if (btnProp) {
-            btnProp.style.display = (estadoActualVista === 'Lista de Espera' || selectedBulkIds.length >= 2) ? 'inline-block' : 'none';
+            const vistaApta = (estadoActualVista === 'Lista de Espera' || selectedBulkIds.length >= 2);
+            btnProp.style.display = (puedeArmarGrupos && vistaApta) ? 'inline-block' : 'none';
         }
-        const esAltas = estadoActualVista && estadoActualVista.startsWith('Altas');
-        if (btnBD) btnBD.style.display = esAltas ? 'inline-block' : 'none';
-        if (btnFact) btnFact.style.display = esAltas ? 'inline-block' : 'none';
+        
+        // Devolver a Espera masivo disponible en vistas de Altas o Match
+        if (btnDevolver) {
+            const puedeDevolver = ['Altas - Pendientes', 'Altas - En Curso', 'Altas - Suspendidas', 'Match - En Validacion'].includes(estadoActualVista);
+            btnDevolver.style.display = puedeDevolver ? 'inline-block' : 'none';
+        }
+
+        // Generar registro BD / Facturación SOLO en Altas Confirmadas o Finalizadas
+        const esAltasEfectivas = estadoActualVista === 'Altas - Confirmadas' || estadoActualVista === 'Altas - Finalizadas';
+        if (btnBD) btnBD.style.display = esAltasEfectivas ? 'inline-block' : 'none';
+        if (btnFact) btnFact.style.display = esAltasEfectivas ? 'inline-block' : 'none';
 
         if (btnAuditCal) {
             const u = window.usuarioActual || {};
@@ -1303,6 +1363,57 @@ document.getElementById('btn-bulk-cancelar').addEventListener('click', () => {
     document.querySelectorAll('.bulk-chk').forEach(c => c.checked = false);
     actualizarBulkBar();
 });
+
+const btnBulkDevolver = document.getElementById('btn-bulk-devolver-espera');
+if (btnBulkDevolver) {
+    btnBulkDevolver.addEventListener('click', async () => {
+        const motivo = prompt(`¿Motivo para devolver a Lista de Espera a los ${selectedBulkIds.length} alumnos seleccionados?`);
+        if (!motivo) return;
+        mostrarIndicadorCarga(`Devolviendo ${selectedBulkIds.length} alumnos a Lista de Espera...`);
+        const idsToProcess = [...selectedBulkIds];
+        for (let id of idsToProcess) {
+            try {
+                removerFilaOptimista(id);
+                const alDoc = await getDoc(doc(db, "alumnos", id));
+                if (!alDoc.exists()) continue;
+                const al = alDoc.data();
+
+                // Eliminar de calendar solo si efectivamente tiene ID de evento
+                if (al.id_evento_alta) await eliminarEventoAltaSeguro(al, configApp);
+                if (al.id_evento_reserva) await eliminarEventoSeguro(al, configApp);
+
+                const hist = al.historial || [];
+                hist.push(crearEntradaHistorial(`Devuelto masivamente a Lista de Espera desde ${estadoActualVista}. Motivo: ${motivo.trim()}`, 'estado'));
+                
+                await updateDoc(doc(db, "alumnos", id), {
+                    estado_agenda: "Lista de espera",
+                    grupo_asignado: null,
+                    horario_match: null,
+                    dia_match: null,
+                    horario_inicio_match: null,
+                    horario_fin_match: null,
+                    profesor_id: null,
+                    profesor_asignado: null,
+                    fecha_sugerida_inicio: null,
+                    fecha_inicio_clases: null,
+                    id_evento_alta: null,
+                    calendario_evento_alta: null,
+                    id_evento_reserva: null,
+                    calendario_evento_reserva: null,
+                    checklist_alta: null,
+                    historial: hist
+                });
+            } catch(e) {
+                console.error("Error al devolver masivo a espera:", e);
+            }
+        }
+        selectedBulkIds.splice(0);
+        actualizarBulkBar();
+        await cargarVista(estadoActualVista);
+        ocultarIndicadorCarga();
+        alert("✅ Alumnos devueltos a Lista de Espera correctamente.");
+    });
+}
 
 document.getElementById('btn-bulk-suspender').addEventListener('click', async () => {
     const motivo = prompt("Motivo de suspensión para todos los seleccionados:");
@@ -1633,6 +1744,13 @@ if (btnBulkCopiarFact) btnBulkCopiarFact.addEventListener('click', window.copiar
 const btnBulkProp = document.getElementById('btn-bulk-propuesta-grupo');
 if (btnBulkProp) {
     btnBulkProp.addEventListener('click', async () => {
+        const u = window.usuarioActual || {};
+        const rolesArr = Array.isArray(u.roles) && u.roles.length > 0 ? u.roles : [u.rol || ''];
+        const puedeArmarGrupos = rolesArr.includes('admin') || rolesArr.includes('coordinador_grupos');
+        if (!puedeArmarGrupos) {
+            alert('Solo el Coordinador de Grupos y Administrador pueden armar propuestas de grupo.');
+            return;
+        }
         if (selectedBulkIds.length < 2) {
             alert('Por favor seleccioná al menos 2 alumnos para armar una propuesta de grupo.');
             return;
@@ -1989,6 +2107,14 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
                 if (sLow.includes('indiv')) return suscAl.includes('indiv');
                 return suscAl.includes(sLow);
             });
+        });
+    }
+
+    // Filtro multi-select de evaluadores
+    if (filtrosSeleccionados.evaluadores && filtrosSeleccionados.evaluadores.size > 0) {
+        filtrados = filtrados.filter(al => {
+            const profeAl = (al.reserva_profe_nombre || al.profesor_asignado || '').toLowerCase().trim();
+            return Array.from(filtrosSeleccionados.evaluadores).some(selEv => profeAl.includes(selEv.toLowerCase().trim()));
         });
     }
 
@@ -2370,18 +2496,9 @@ function getModuloSubtabs() {
     if (rol === 'evaluador') {
         inboxTabs = [
             { 
-                vista: 'Inbox - Validar Evaluador', 
-                label: 'Pendientes Validar Fecha', 
-                icon: '⏳', 
-                countFn: (alumnos) => filtrarAlumnosEvaluador(alumnos).filter(d => {
-                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-                    return st === 'pendiente validacion por profe' || st === 'pendiente validacion por evaluador';
-                }).length 
-            },
-            { 
-                vista: 'Inbox - Finalizar Admision', 
-                label: 'Pendientes Finalizar Admisión', 
-                icon: '🏁', 
+                vista: 'Inbox - Confirmadas', 
+                label: 'Entrevistas Confirmadas', 
+                icon: '✅', 
                 countFn: (alumnos) => filtrarAlumnosEvaluador(alumnos).filter(d => {
                     const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
                     return st === 'agenda confirmada' || st === 'entrevista confirmada';
@@ -2587,6 +2704,11 @@ function renderSegmentedTabs(vista) {
     }
 
     const tabs = subtabsDict[modulo];
+    if (!tabs || tabs.length <= 1) {
+        container.style.display = 'none';
+        bar.innerHTML = '';
+        return;
+    }
     const datos = cachedAlumnosData || [];
 
     bar.innerHTML = tabs.map(tab => {
@@ -2731,8 +2853,6 @@ export function ejecutarBusquedaGlobal(queryStr, allData = null) {
         const profe = (al.reserva_profe_nombre || al.profesor_asignado || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         const grupo = (al.grupo_asignado || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         const susc = (al.tipo_suscripcion || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        const est = (al.estado_agenda || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
         const matchNombre = nombre.includes(q);
         const matchCel = qNum.length >= 3 && celular.includes(qNum);
         const matchInst = instNorm.includes(q);
@@ -2769,9 +2889,9 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
     const roles = Array.isArray(usuario.roles) && usuario.roles.length > 0 ? usuario.roles : [usuario.rol || 'admisiones'];
     const esSoloEvaluador = roles.includes('evaluador') && !roles.includes('admin') && !roles.includes('admisiones') && !roles.includes('admisor');
     
-    // Si un evaluador intenta acceder a Inbox genérico o a Inbox - Pendientes, redirigir a su vista primaria
-    if (esSoloEvaluador && (vista === 'Inbox' || vista === 'Inbox - Pendientes')) {
-        vista = 'Inbox - Validar Evaluador';
+    // Si un evaluador exclusivo intenta acceder a Inbox, redirigir a Entrevistas Confirmadas
+    if (esSoloEvaluador && (vista.startsWith('Inbox') && vista !== 'Inbox - Confirmadas')) {
+        vista = 'Inbox - Confirmadas';
     }
 
     estadoActualVista = vista; 
@@ -2821,6 +2941,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
     const tituloEl = document.getElementById('vista-titulo');
     if (tituloEl) {
         const tituloMap = {
+            'Inbox - Confirmadas': '<span style="color:var(--text-muted); font-weight:500;">Inbox › </span><span style="color:var(--text-main); font-weight:700;">Entrevistas Confirmadas</span>',
             'Inbox - Validar Evaluador': '<span style="color:var(--text-muted); font-weight:500;">Inbox › </span><span style="color:var(--text-main); font-weight:700;">Pendientes Validar Fecha</span>',
             'Inbox - Finalizar Admision': '<span style="color:var(--text-muted); font-weight:500;">Inbox › </span><span style="color:var(--text-main); font-weight:700;">Pendientes Finalizar Admisión</span>',
             'Inbox - Validar Alumno': '<span style="color:var(--text-muted); font-weight:500;">Inbox › </span><span style="color:var(--text-main); font-weight:700;">Validar por Alumno</span>',
@@ -2842,7 +2963,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
     
     document.querySelectorAll('.bottom-nav-item').forEach(el => el.classList.remove('active'));
     let bottomVista = vista;
-    if (vista.startsWith('Inbox')) bottomVista = 'Inbox - Pendientes';
+    if (vista.startsWith('Inbox')) bottomVista = esSoloEvaluador ? 'Inbox - Confirmadas' : 'Inbox - Pendientes';
     if (vista.startsWith('Altas')) bottomVista = 'Altas - Pendientes';
     const bottomMatch = document.querySelector(`.bottom-nav-item[data-vista="${bottomVista}"]`);
     if(bottomMatch) bottomMatch.classList.add('active');
@@ -2896,17 +3017,13 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
     }
     
     if (vista === 'Dashboard') {
-        document.getElementById('search-container-general').style.display = 'block'; vResumen.style.display = 'flex'; if(vResumenTime) vResumenTime.style.display = 'flex'; cv.style.display = 'none';
+        document.getElementById('search-container-general').style.display = 'block'; vResumen.style.display = 'flex'; cv.style.display = 'none';
         document.getElementById('alarm-filters').style.display = 'none';
         
         const trayContainer = document.getElementById('timeline-tray-container');
         if (trayContainer) trayContainer.style.display = 'none';
 
         try {
-            const qSnap = await getDocs(collection(db, "alumnos")); let allData = []; qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
-            actualizarBadgesYNavegacion(allData);
-            renderSegmentedTabs(vista);
-            
             const roles = Array.isArray(window.usuarioActual?.roles) && window.usuarioActual.roles.length > 0
                 ? window.usuarioActual.roles
                 : [window.usuarioActual?.rol || 'admisor'];
@@ -2917,7 +3034,10 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
 
             let poolUrgencias = allData;
             if (esSoloEval) {
-                poolUrgencias = filtrarAlumnosEvaluador(allData);
+                poolUrgencias = filtrarAlumnosEvaluador(allData).filter(d => {
+                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                    return st === 'agenda confirmada' || st === 'entrevista confirmada';
+                });
             } else if (esSoloCoordinador) {
                 poolUrgencias = allData.filter(d => {
                     const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
@@ -2926,50 +3046,55 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
             }
             renderDashboardPrioridades(poolUrgencias, vista);
             
-            let nodosDashboard = configNodosFlujo;
-            let datosDashboard = allData;
-            
             if (esSoloEval) {
-                nodosDashboard = configNodosFlujoEvaluador;
-                datosDashboard = filtrarAlumnosEvaluador(allData);
-            } else if (esSoloCoordinador) {
-                nodosDashboard = configNodosFlujoCoordinador;
-                datosDashboard = allData.filter(d => {
-                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-                    return ['lista de espera', 'validando grupo', 'pre-alta pendiente', 'pre-alta iniciada', 'alta efectiva', 'alta ilegal', 'alta finalizada'].includes(st);
+                if (vResumenTime) vResumenTime.style.display = 'none';
+                const chartBox = document.getElementById('dashboard-flow-chart-container');
+                if (chartBox) chartBox.style.display = 'none';
+            } else {
+                if (vResumenTime) vResumenTime.style.display = 'flex';
+                let nodosDashboard = configNodosFlujo;
+                let datosDashboard = allData;
+                
+                if (esSoloCoordinador) {
+                    nodosDashboard = configNodosFlujoCoordinador;
+                    datosDashboard = allData.filter(d => {
+                        const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                        return ['lista de espera', 'validando grupo', 'pre-alta pendiente', 'pre-alta iniciada', 'alta efectiva', 'alta ilegal', 'alta finalizada'].includes(st);
+                    });
+                }
+                
+                renderTimelineUnificado('timeline-unificado', nodosDashboard, datosDashboard, { generarBotonesPrincipalesVisibles, generarBotonesAccion });
+                
+                const chartBox = document.getElementById('dashboard-flow-chart-container');
+                if (chartBox) chartBox.style.display = 'block';
+                let flowLabels = nodosDashboard.map(n => n.label);
+                let flowData = nodosDashboard.map(n => datosDashboard.filter(d => n.filterFn ? n.filterFn(d) : d.estado_agenda === n.id).length);
+                let phaseColors = nodosDashboard.map(n => n.hexColor || '#1f5491');
+                
+                if(chartFlowDashboardInst) chartFlowDashboardInst.destroy();
+                chartFlowDashboardInst = new Chart(document.getElementById('chartFlowDashboard'), { 
+                    type: 'bar', 
+                    data: { labels: flowLabels, datasets: [{ label: 'Alumnos', data: flowData, backgroundColor: phaseColors, borderRadius: 6 }] },
+                    options: { 
+                        onClick: (evt, elements) => {
+                            if (elements && elements.length > 0) {
+                                const index = elements[0].index;
+                                const nodo = nodosDashboard[index];
+                                if (nodo && nodo.vistaDestino) {
+                                    cargarVista(nodo.vistaDestino);
+                                }
+                            }
+                        },
+                        onHover: (event, chartElement) => {
+                            if (event.native && event.native.target) {
+                                event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                            }
+                        },
+                        plugins: { title: { display: false }, legend: { display: false } }, 
+                        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } 
+                    } 
                 });
             }
-            
-            renderTimelineUnificado('timeline-unificado', nodosDashboard, datosDashboard, { generarBotonesPrincipalesVisibles, generarBotonesAccion });
-            
-            document.getElementById('dashboard-flow-chart-container').style.display = 'block';
-            let flowLabels = nodosDashboard.map(n => n.label);
-            let flowData = nodosDashboard.map(n => datosDashboard.filter(d => n.filterFn ? n.filterFn(d) : d.estado_agenda === n.id).length);
-            let phaseColors = nodosDashboard.map(n => n.hexColor || '#1f5491');
-            
-            if(chartFlowDashboardInst) chartFlowDashboardInst.destroy();
-            chartFlowDashboardInst = new Chart(document.getElementById('chartFlowDashboard'), { 
-                type: 'bar', 
-                data: { labels: flowLabels, datasets: [{ label: 'Alumnos', data: flowData, backgroundColor: phaseColors, borderRadius: 6 }] },
-                options: { 
-                    onClick: (evt, elements) => {
-                        if (elements && elements.length > 0) {
-                            const index = elements[0].index;
-                            const nodo = nodosDashboard[index];
-                            if (nodo && nodo.vistaDestino) {
-                                cargarVista(nodo.vistaDestino);
-                            }
-                        }
-                    },
-                    onHover: (event, chartElement) => {
-                        if (event.native && event.native.target) {
-                            event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
-                        }
-                    },
-                    plugins: { title: { display: false }, legend: { display: false } }, 
-                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } 
-                }
-            });
             
         } catch(e) {}
     } else if (vista.startsWith('Inbox') || vista === 'Altas - Pendientes' || vista === 'Altas - En Curso') {
@@ -3002,7 +3127,8 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
                     return st === 'pendiente validacion por profe' || st === 'pendiente validacion por evaluador';
                 });
             } else if (vista === 'Inbox - Validar Alumno') {
-                dataFiltrada = allData.filter(d => {
+                const fuente = esEvaluador ? filtrarAlumnosEvaluador(allData) : allData;
+                dataFiltrada = fuente.filter(d => {
                     const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
                     return st === 'pendiente validacion por alumno';
                 });
@@ -3231,7 +3357,7 @@ const ROLES_MODULOS_DEFAULT = {
     admisor: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas'],
     admisiones: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas'],
     coordinador_grupos: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas'],
-    evaluador: ['dashboard', 'inbox'],
+    evaluador: ['dashboard', 'inbox', 'espera'],
     profesor: ['portal_profesor'],
     personalizado: []
 };
@@ -3297,16 +3423,15 @@ onAuthStateChanged(auth, async (user) => {
             const rol = rolesArr[0] || 'admisiones';
 
             let modulos = [];
+            const modulosUnion = new Set();
+            rolesArr.forEach(r => {
+                const m = ROLES_MODULOS_DEFAULT[r] || [];
+                m.forEach(mod => modulosUnion.add(mod));
+            });
             if (Array.isArray(usuarioEncontrado.modulos_habilitados) && usuarioEncontrado.modulos_habilitados.length > 0) {
-                modulos = usuarioEncontrado.modulos_habilitados;
-            } else {
-                const modulosUnion = new Set();
-                rolesArr.forEach(r => {
-                    const m = ROLES_MODULOS_DEFAULT[r] || [];
-                    m.forEach(mod => modulosUnion.add(mod));
-                });
-                modulos = Array.from(modulosUnion);
+                usuarioEncontrado.modulos_habilitados.forEach(m => modulosUnion.add(m));
             }
+            modulos = Array.from(modulosUnion);
 
             let nombreDocente = usuarioEncontrado.nombre;
             let profesorId = usuarioEncontrado.profesor_id || '';
@@ -3900,16 +4025,54 @@ document.addEventListener('click', async (e) => {
         return;
     }
     
+    if (target.classList.contains('tab-btn-informe') || target.closest('.tab-btn-informe')) {
+        const btn = target.classList.contains('tab-btn-informe') ? target : target.closest('.tab-btn-informe');
+        const targetId = btn.getAttribute('data-target');
+        document.querySelectorAll('.tab-btn-informe').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        document.querySelectorAll('.tab-inf-content').forEach(c => c.style.display = 'none');
+        const targetContent = document.getElementById(targetId);
+        if (targetContent) targetContent.style.display = 'block';
+        return;
+    }
+
     if (target.classList.contains('btn-admision-finalizada') || target.closest('.btn-admision-finalizada')) { 
         const btn = target.classList.contains('btn-admision-finalizada') ? target : target.closest('.btn-admision-finalizada');
         const id = btn.getAttribute('data-id'); 
         document.getElementById('informe-final-alumno-id').value = id;
         try {
-            const al = (await getDoc(doc(db, "alumnos", id))).data();
+            const alDoc = await getDoc(doc(db, "alumnos", id));
+            if (!alDoc.exists()) return alert("Alumno no encontrado.");
+            const al = alDoc.data();
+
+            // Subtítulo del alumno en la modal
+            const sub = document.getElementById('informe-alumno-subtitulo');
+            if (sub) {
+                const instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || '-');
+                sub.textContent = `${al.nombre} (${al.edad || '?'} años) • ${instStr} • ${al.tipo_suscripcion || '-'}`;
+            }
+
+            // Resetear pestaña activa a Informe
+            document.querySelectorAll('.tab-btn-informe').forEach((b, idx) => {
+                b.classList.toggle('active', idx === 0);
+            });
+            document.querySelectorAll('.tab-inf-content').forEach((c, idx) => {
+                c.style.display = idx === 0 ? 'block' : 'none';
+            });
+
             quillPopup.root.innerHTML = al.informe_admision || '';
             renderChipsPerfilPsicologico('informe-perfil-psicologico-chips', al.perfil_psicologico || []);
+
+            // Renderizar y poblar la disponibilidad de horarios del alumno
+            renderContenedorDisponibilidad('informe-disp-container', false);
+            poblarDisponibilidadMultiRango(al.disponibilidad || {}, 'informe-disp-container');
+
             document.getElementById('modal-informe-admision').showModal();
-        } catch(e) {}
+        } catch(e) {
+            console.error("Error al abrir informe admisión:", e);
+            alert("Error: " + e.message);
+        }
         return; 
     }
     
@@ -3920,7 +4083,7 @@ document.addEventListener('click', async (e) => {
 
         // VALIDACIONES OBLIGATORIAS
         if (!plainInfo) {
-            alert("⚠️ Es obligatorio escribir el diagnóstico o informe de la evaluación para finalizar la admisión.");
+            alert("⚠️ Es obligatorio escribir el diagnóstico o informe técnico de nivelación para finalizar la admisión.");
             return;
         }
 
@@ -3935,17 +4098,31 @@ document.addEventListener('click', async (e) => {
         try {
             const alDoc = await getDoc(doc(db, "alumnos", id));
             const al = alDoc.exists() ? alDoc.data() : {};
+            
+            // Extraer disponibilidad actualizada
+            const nuevaDisp = extraerDisponibilidadMultiRango('informe-disp-container');
+            const dispPreviaStr = JSON.stringify(al.disponibilidad || {});
+            const dispNuevaStr = JSON.stringify(nuevaDisp || {});
+            const cambioDisp = dispPreviaStr !== dispNuevaStr && Object.keys(nuevaDisp || {}).length > 0;
+
             const hist = al.historial || [];
             const tagsTxt = ` [Perfil Emocional: ${tags.join(', ')}]`;
-            hist.push(crearEntradaHistorial(`Admisión Finalizada. Diagnóstico e informe registrados.${tagsTxt} Alumno pasó a Lista de Espera.`, 'informe'));
-            await updateDoc(doc(db, "alumnos", id), { 
+            const dispTxt = cambioDisp ? ' • Disponibilidad horaria actualizada.' : '';
+            hist.push(crearEntradaHistorial(`Admisión Finalizada. Diagnóstico e informe registrados.${tagsTxt}${dispTxt} Alumno pasó a Lista de Espera.`, 'informe'));
+            
+            const updatePayload = { 
                 estado_agenda: "Lista de espera",
                 informe_admision: informeTexto,
                 perfil_psicologico: tags,
                 historial: hist
-            });
+            };
+            if (cambioDisp) {
+                updatePayload.disponibilidad = nuevaDisp;
+            }
+
+            await updateDoc(doc(db, "alumnos", id), updatePayload);
             document.getElementById('modal-informe-admision').close();
-            alert("Admisión Finalizada exitosamente. Alumno en Lista de Espera.");
+            alert("Admisión Finalizada exitosamente. Alumno derivado a Lista de Espera.");
             cargarVista(estadoActualVista);
         } catch(err) {
             alert("Error al guardar: " + err.message);
@@ -4106,7 +4283,7 @@ document.addEventListener('click', async (e) => {
         if (!alDoc.exists()) return alert("Alumno no encontrado.");
         const al = alDoc.data();
 
-        const tieneEvento = Boolean(al.id_evento_alta || al.id_evento_reserva || al.reserva_id_evento || al.fecha_inicio_clases || al.horario_match || al.reserva_fecha_texto);
+        const tieneEvento = Boolean(al.id_evento_alta || al.id_evento_reserva || al.reserva_id_evento);
         
         if (tieneEvento) {
             const horarioInfo = al.horario_match || al.reserva_fecha_texto || (al.fecha_inicio_clases ? formatearFechaAmi(al.fecha_inicio_clases) : 'Clase agendada');
@@ -4123,16 +4300,14 @@ document.addEventListener('click', async (e) => {
         if (motivo !== null) {
             if (motivo.trim() === "") return alert("Debes ingresar un motivo.");
             
-            mostrarIndicadorCarga('Eliminando evento en Google Calendar y actualizando estado...');
-            try {
-                if (al.id_evento_alta || al.fecha_inicio_clases || al.grupo_asignado) {
-                    await eliminarEventoAltaSeguro(al, configApp);
+            if (tieneEvento) {
+                mostrarIndicadorCarga('Eliminando evento en Google Calendar y actualizando estado...');
+                try {
+                    if (al.id_evento_alta) await eliminarEventoAltaSeguro(al, configApp);
+                    if (al.id_evento_reserva || al.reserva_id_evento) await eliminarEventoSeguro(al, configApp);
+                } catch(calErr) {
+                    console.warn("Aviso calendar al devolver a espera:", calErr);
                 }
-                if (al.id_evento_reserva || al.reserva_id_evento) {
-                    await eliminarEventoSeguro(al, configApp);
-                }
-            } catch(calErr) {
-                console.warn("Aviso calendar al devolver a espera:", calErr);
             }
 
             const hist = al.historial || [];
@@ -4158,8 +4333,8 @@ document.addEventListener('click', async (e) => {
                 historial: hist
             });
 
-            ocultarIndicadorCarga();
-            alert("✅ Alumno devuelto a Lista de Espera.\nSe eliminó la agenda asociada en Google Calendar.");
+            if (tieneEvento) ocultarIndicadorCarga();
+            alert(tieneEvento ? "✅ Alumno devuelto a Lista de Espera.\nSe eliminó la agenda asociada en Google Calendar." : "✅ Alumno devuelto a Lista de Espera.");
             await cargarVista(estadoActualVista);
         }
         return;
@@ -4171,7 +4346,7 @@ document.addEventListener('click', async (e) => {
         if (!alDoc.exists()) return alert("Alumno no encontrado.");
         const al = alDoc.data();
 
-        const tieneEvento = Boolean(al.id_evento_alta || al.id_evento_reserva || al.reserva_id_evento || al.fecha_inicio_clases || al.horario_match || al.reserva_fecha_texto);
+        const tieneEvento = Boolean(al.id_evento_alta || al.id_evento_reserva || al.reserva_id_evento);
         if (tieneEvento) {
             const horarioInfo = al.horario_match || al.reserva_fecha_texto || (al.fecha_inicio_clases ? formatearFechaAmi(al.fecha_inicio_clases) : 'Clase agendada');
             const profeInfo = al.reserva_profe_nombre || al.profesor_asignado || '-';
@@ -4186,11 +4361,13 @@ document.addEventListener('click', async (e) => {
         const motivo = prompt("¿Motivo de Suspensión de Alta?"); 
         if (motivo !== null) { 
             if (motivo.trim() === "") return alert("Debes ingresar un motivo."); 
-            mostrarIndicadorCarga('Eliminando evento en Google Calendar y suspendiendo...');
-            try {
-                if (al.id_evento_alta) await eliminarEventoAltaSeguro(al, configApp);
-                if (al.id_evento_reserva) await eliminarEventoSeguro(al, configApp);
-            } catch(e) {}
+            if (tieneEvento) {
+                mostrarIndicadorCarga('Eliminando evento en Google Calendar y suspendiendo...');
+                try {
+                    if (al.id_evento_alta) await eliminarEventoAltaSeguro(al, configApp);
+                    if (al.id_evento_reserva || al.reserva_id_evento) await eliminarEventoSeguro(al, configApp);
+                } catch(e) {}
+            }
 
             const hist = al.historial || []; 
             hist.push(crearEntradaHistorial(`Alta suspendida. Motivo: ${motivo.trim()}`, 'suspension')); 
@@ -4455,11 +4632,17 @@ document.addEventListener('click', async (e) => {
         container.innerHTML = ''; 
         if (al.opciones_propuestas && al.opciones_propuestas.length > 0) { 
             al.opciones_propuestas.forEach((op, index) => { 
-                container.innerHTML += `<label style="display:flex; gap:8px; margin-bottom:8px; cursor:pointer;"><input type="radio" name="opt-valida-profe" value='${JSON.stringify(op)}' ${index===0?'checked':''}> ${op.letra ? op.letra+'- ' : ''}${op.fechaTexto}</label>`; 
+                const fullOp = {
+                    ...op,
+                    profeId: op.profeId || al.reserva_profe_id || '',
+                    profeNombre: op.profeNombre || al.reserva_profe_nombre || '',
+                    calId: op.calId || al.reserva_cal_id || ''
+                };
+                container.innerHTML += `<label style="display:flex; gap:8px; margin-bottom:8px; cursor:pointer;"><input type="radio" name="opt-valida-profe" value='${JSON.stringify(fullOp)}' ${index===0?'checked':''}> ${op.letra ? op.letra+'- ' : ''}${op.fechaTexto}</label>`; 
             }); 
         } else { 
-            const op = { inicio: al.reserva_inicio, fin: al.reserva_fin, fechaTexto: al.reserva_fecha_texto, calId: al.reserva_cal_id, profeId: al.reserva_profe_id, profeNombre: al.reserva_profe_nombre }; 
-            container.innerHTML = `<label style="display:flex; gap:8px; margin-bottom:8px; cursor:pointer;"><input type="radio" name="opt-valida-profe" value='${JSON.stringify(op)}' checked> ${op.fechaTexto}</label>`; 
+            const op = { inicio: al.reserva_inicio || '', fin: al.reserva_fin || '', fechaTexto: al.reserva_fecha_texto || '', calId: al.reserva_cal_id || '', profeId: al.reserva_profe_id || '', profeNombre: al.reserva_profe_nombre || '' }; 
+            container.innerHTML = `<label style="display:flex; gap:8px; margin-bottom:8px; cursor:pointer;"><input type="radio" name="opt-valida-profe" value='${JSON.stringify(op)}' checked> ${op.fechaTexto || 'Horario a coordinar'}</label>`; 
         } 
         document.getElementById('validar-profe-alumno-id').value = id; 
         document.getElementById('modal-validar-profe').showModal(); 
@@ -4473,35 +4656,45 @@ document.addEventListener('click', async (e) => {
         const al = (await getDoc(doc(db, "alumnos", id))).data();
         setBotonCargando(target, true, 'Creando evento en Calendar...');
         try {
-            al.reserva_profe_id = op.profeId;
-            al.reserva_profe_nombre = op.profeNombre;
-            al.reserva_cal_id = op.calId;
-            al.reserva_fecha_texto = op.fechaTexto;
-            al.reserva_inicio = op.inicio;
-            al.reserva_fin = op.fin;
+            const finalProfeId = op.profeId || al.reserva_profe_id || '';
+            const finalProfeNombre = op.profeNombre || al.reserva_profe_nombre || '';
+            const finalCalId = op.calId || al.reserva_cal_id || '';
+            const finalFechaTexto = op.fechaTexto || al.reserva_fecha_texto || '';
+            const finalInicio = op.inicio || al.reserva_inicio || null;
+            const finalFin = op.fin || al.reserva_fin || null;
+
+            al.reserva_profe_id = finalProfeId;
+            al.reserva_profe_nombre = finalProfeNombre;
+            al.reserva_cal_id = finalCalId;
+            al.reserva_fecha_texto = finalFechaTexto;
+            al.reserva_inicio = finalInicio;
+            al.reserva_fin = finalFin;
+
             const titulos = construirTitulosEvento(al, 'reserva', configApp);
-            const evRes = await crearEventoSeguro(al, titulos, op.inicio, op.fin);
+            const evRes = await crearEventoSeguro(al, titulos, finalInicio, finalFin);
             const hist = al.historial || [];
-            hist.push(crearEntradaHistorial(`Horario validado por evaluador/a ${op.profeNombre}. Propuesta enviada al alumno por WhatsApp (${op.fechaTexto}).`, 'agenda'));
+            hist.push(crearEntradaHistorial(`Horario validado por evaluador/a ${finalProfeNombre}. Propuesta enviada al alumno por WhatsApp (${finalFechaTexto}).`, 'agenda'));
+            
             await updateDoc(doc(db, "alumnos", id), {
                 estado_agenda: "Pendiente validación por alumno",
-                id_evento_reserva: evRes.id,
-                calendario_evento_reserva: evRes.calendar,
-                reserva_profe_id: op.profeId,
-                reserva_profe_nombre: op.profeNombre,
-                reserva_cal_id: op.calId,
-                reserva_fecha_texto: op.fechaTexto,
-                reserva_inicio: op.inicio,
-                reserva_fin: op.fin,
+                id_evento_reserva: evRes ? (evRes.id || null) : null,
+                calendario_evento_reserva: evRes ? (evRes.calendar || null) : null,
+                reserva_profe_id: finalProfeId,
+                reserva_profe_nombre: finalProfeNombre,
+                reserva_cal_id: finalCalId,
+                reserva_fecha_texto: finalFechaTexto,
+                reserva_inicio: finalInicio,
+                reserva_fin: finalFin,
                 opciones_propuestas: null,
                 historial: hist
             });
             const dataText = await generarTextoConHistorial(id, 'texto_alumno');
-            await navigator.clipboard.writeText(dataText.txt);
+            if (dataText && dataText.txt) {
+                await navigator.clipboard.writeText(dataText.txt);
+            }
             document.getElementById('modal-validar-profe').close();
             removerFilaOptimista(id);
             await cargarVista(estadoActualVista);
-            alert("Reserva en Calendar creada exitosamente.\n\nTexto copiado.");
         } catch(e) {
             alert("❌ Error:\n\n" + e.message);
         } finally {
@@ -5406,4 +5599,189 @@ if (btnGuardarMiPerfil) {
         }
     });
 }
+
+// =======================================================================
+// GENERADOR DE CASOS DE PRUEBA (TEST ENVIRONMENT)
+// =======================================================================
+export async function generarCasosPruebaEvaluador(email = 'pablobianchino@gmail.com') {
+    try {
+        const uSnap = await getDocs(collection(db, "usuarios_sistema"));
+        let targetUser = null;
+        let targetId = null;
+        uSnap.forEach(d => {
+            const data = d.data();
+            if ((data.email || '').toLowerCase().trim() === email.toLowerCase().trim()) {
+                targetUser = data;
+                targetId = d.id;
+            }
+        });
+
+        if (targetId) {
+            const rolesArr = Array.isArray(targetUser?.roles) ? targetUser.roles : [targetUser?.rol || 'evaluador'];
+            const modUnion = new Set(targetUser?.modulos_habilitados || []);
+            rolesArr.forEach(r => (ROLES_MODULOS_DEFAULT[r] || []).forEach(m => modUnion.add(m)));
+            modUnion.add('espera');
+            await updateDoc(doc(db, "usuarios_sistema", targetId), {
+                modulos_habilitados: Array.from(modUnion)
+            });
+            if (window.usuarioActual && (window.usuarioActual.id === targetId || window.usuarioActual.email === email)) {
+                window.usuarioActual.modulos_habilitados = Array.from(modUnion);
+                configurarSidebarPorPermisos();
+            }
+        }
+
+        const profId = targetUser?.profesor_id || targetId || 'prof-pablo';
+        const profNombre = targetUser?.nombre || 'Pablo Bianchino';
+        const profCalId = targetUser?.correo_calendario || targetUser?.email || email;
+        const ahoraStr = new Date().toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' });
+
+        const ahora = new Date();
+        const fVencida = new Date(ahora.getTime() - 52 * 3600 * 1000);
+        const fUrgente = new Date(ahora.getTime() - 28 * 3600 * 1000);
+        const fHoy = new Date(ahora.getTime() + 2 * 3600 * 1000);
+        const fFutura = new Date(ahora.getTime() + 72 * 3600 * 1000);
+
+        const casos = [
+            {
+                nombre: '[TEST] Lucas Bianchi (🔴 Vencida - 48hs)',
+                celular: '+5491133445566',
+                email: 'lucas.test@mandalahouse.com',
+                edad: 28,
+                instrumento: ['Guitarra'],
+                nivel: 'Inicial I',
+                tipo_suscripcion: 'Ensamble',
+                estado_agenda: 'Agenda confirmada',
+                reserva_profe_id: profId,
+                reserva_profe_nombre: profNombre,
+                reserva_cal_id: profCalId,
+                reserva_fecha_texto: 'Hace 2 días (Vencida)',
+                reserva_inicio: fVencida.toISOString(),
+                reserva_fin: new Date(fVencida.getTime() + 45 * 60000).toISOString(),
+                historial: [`[${ahoraStr}] Entrevista realizada hace más de 48 hs. Pendiente urgente de cargar Informe Post-Entrevista.`],
+                es_caso_prueba: true,
+                fecha_creacion: new Date().toISOString()
+            },
+            {
+                nombre: '[TEST] Clara Gómez (🟠 Próxima a vencer - 24 a 48hs)',
+                celular: '+5491144556677',
+                email: 'clara.test@mandalahouse.com',
+                edad: 24,
+                instrumento: ['Canto'],
+                nivel: 'Inicial II',
+                tipo_suscripcion: 'Clases Grupales',
+                estado_agenda: 'Agenda confirmada',
+                reserva_profe_id: profId,
+                reserva_profe_nombre: profNombre,
+                reserva_cal_id: profCalId,
+                reserva_fecha_texto: 'Ayer (24 a 48 hs)',
+                reserva_inicio: fUrgente.toISOString(),
+                reserva_fin: new Date(fUrgente.getTime() + 45 * 60000).toISOString(),
+                historial: [`[${ahoraStr}] Entrevista realizada ayer. Pendiente de cargar Informe Post-Entrevista.`],
+                es_caso_prueba: true,
+                fecha_creacion: new Date().toISOString()
+            },
+            {
+                nombre: '[TEST] Mateo Benítez (🟡 Entrevista Hoy)',
+                celular: '+5491155667788',
+                email: 'mateo.test@mandalahouse.com',
+                edad: 32,
+                instrumento: ['Batería'],
+                nivel: 'Inicial I',
+                tipo_suscripcion: 'Ensamble',
+                estado_agenda: 'Agenda confirmada',
+                reserva_profe_id: profId,
+                reserva_profe_nombre: profNombre,
+                reserva_cal_id: profCalId,
+                reserva_fecha_texto: 'Hoy ' + fHoy.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) + ' hs',
+                reserva_inicio: fHoy.toISOString(),
+                reserva_fin: new Date(fHoy.getTime() + 45 * 60000).toISOString(),
+                historial: [`[${ahoraStr}] Entrevista confirmada para el día de hoy.`],
+                es_caso_prueba: true,
+                fecha_creacion: new Date().toISOString()
+            },
+            {
+                nombre: '[TEST] Sofía Rossi (🟢 Futura - Al Día)',
+                celular: '+5491166778899',
+                email: 'sofia.test@mandalahouse.com',
+                edad: 21,
+                instrumento: ['Piano'],
+                nivel: 'Inicial I',
+                tipo_suscripcion: 'Clases Individuales',
+                estado_agenda: 'Agenda confirmada',
+                reserva_profe_id: profId,
+                reserva_profe_nombre: profNombre,
+                reserva_cal_id: profCalId,
+                reserva_fecha_texto: fFutura.toLocaleString('es-AR', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' hs',
+                reserva_inicio: fFutura.toISOString(),
+                reserva_fin: new Date(fFutura.getTime() + 45 * 60000).toISOString(),
+                historial: [`[${ahoraStr}] Entrevista confirmada con antelación (+48 hs).`],
+                es_caso_prueba: true,
+                fecha_creacion: new Date().toISOString()
+            },
+            {
+                nombre: '[TEST] Julián Gómez (🛋️ Lista de Espera)',
+                celular: '+5491177889900',
+                email: 'julian.test@mandalahouse.com',
+                edad: 26,
+                instrumento: ['Bajo'],
+                nivel: 'Inicial II',
+                tipo_suscripcion: 'Ensamble',
+                estado_agenda: 'Lista de espera',
+                reserva_profe_id: profId,
+                reserva_profe_nombre: profNombre,
+                profesor_asignado: profNombre,
+                profesor_id: profId,
+                historial: [`[${ahoraStr}] Alumno derivado a Lista de Espera evaluado por ${profNombre}.`],
+                es_caso_prueba: true,
+                fecha_creacion: new Date().toISOString()
+            }
+        ];
+
+        let creados = 0;
+        for (const caso of casos) {
+            await addDoc(collection(db, "alumnos"), caso);
+            creados++;
+        }
+
+        if (typeof mostrarToast === 'function') {
+            mostrarToast(`✅ Se crearon ${creados} alumnos de prueba para ${profNombre}`, 'success');
+        } else {
+            alert(`✅ Se crearon ${creados} alumnos de prueba para ${profNombre}`);
+        }
+        if (typeof cargarVista === 'function') cargarVista(estadoActualVista);
+        return true;
+    } catch(err) {
+        console.error("Error al generar casos de prueba:", err);
+        if (typeof mostrarToast === 'function') mostrarToast("❌ Error al crear casos: " + err.message, "error");
+        return false;
+    }
+}
+window.generarCasosPruebaEvaluador = generarCasosPruebaEvaluador;
+
+export async function limpiarCasosPrueba() {
+    try {
+        const qSnap = await getDocs(collection(db, "alumnos"));
+        let borrados = 0;
+        for (const d of qSnap.docs) {
+            const data = d.data();
+            if (data.es_caso_prueba || (data.nombre && data.nombre.startsWith('[TEST]'))) {
+                await deleteDoc(doc(db, "alumnos", d.id));
+                borrados++;
+            }
+        }
+        if (typeof mostrarToast === 'function') {
+            mostrarToast(`🗑️ Se eliminaron ${borrados} alumnos de prueba [TEST]`, 'info');
+        } else {
+            alert(`🗑️ Se eliminaron ${borrados} alumnos de prueba [TEST]`);
+        }
+        if (typeof cargarVista === 'function') cargarVista(estadoActualVista);
+        return true;
+    } catch(err) {
+        console.error("Error al limpiar casos de prueba:", err);
+        if (typeof mostrarToast === 'function') mostrarToast("❌ Error al limpiar casos: " + err.message, "error");
+        return false;
+    }
+}
+window.limpiarCasosPrueba = limpiarCasosPrueba;
+
 
