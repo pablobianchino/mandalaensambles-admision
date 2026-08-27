@@ -433,23 +433,79 @@ body {
 
 .abm-row { flex-direction: row !important; align-items: center !important; justify-content: space-between !important; gap: 15px !important; }
 
-.row-content-wrapper { display: flex; width: 100%; gap: 15px; align-items: center; justify-content: space-between; }
-.row-header { display: flex; align-items: center; gap: 12px; flex-grow: 1; min-width: 200px; }
+.row-content-wrapper { 
+    display: flex; 
+    width: 100%; 
+    gap: 16px; 
+    align-items: center; 
+    justify-content: space-between; 
+}
+.row-header { 
+    display: flex; 
+    align-items: center; 
+    gap: 12px; 
+    flex: 1 1 240px; 
+    min-width: 220px; 
+}
 .bulk-chk { width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent-teal); margin: 0; flex-shrink:0; }
 .row-indicator { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 
-.row-main-info { display:flex; flex-direction:column; gap:2px; }
-.row-name { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 14.5px; font-weight: 700; color: var(--text-main); }
+.row-main-info { display:flex; flex-direction:column; gap:2px; min-width: 0; }
+.row-name { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 14.5px; font-weight: 700; color: var(--text-main); }
 .row-sub { font-size: 12.5px; color: var(--text-muted); display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
 
-.row-disp-grid { display: flex; gap: 4px; align-items:center; }
-.disp-box { min-width: 44px; padding: 4px 3px; height: auto; min-height: 42px; border-radius: 6px; background: #f3efe7; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 700; color: var(--text-light); transition: 0.2s; }
+.col-status-wrapper {
+    flex: 0 0 170px;
+    width: 170px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.row-disp-grid-wrapper {
+    flex: 0 0 270px;
+    width: 270px;
+    display: flex;
+    justify-content: center;
+}
+.row-disp-grid { 
+    display: grid; 
+    grid-template-columns: repeat(6, 41px); 
+    gap: 4px; 
+    align-items: center; 
+}
+.disp-box { 
+    width: 41px; 
+    padding: 3px 2px; 
+    height: auto; 
+    min-height: 42px; 
+    border-radius: 6px; 
+    background: #f3efe7; 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center; 
+    font-weight: 700; 
+    color: var(--text-light); 
+    transition: 0.2s; 
+}
 .disp-box.active { background: #e4f2f4; color: var(--accent-teal); }
 .disp-day { font-size: 10px; font-family: 'Hanken Grotesk'; margin-bottom:1px; }
-.disp-time { font-family: 'Geist Mono', monospace; font-size: 9.5px; font-weight:600; text-align: center; letter-spacing: -0.02em; line-height: 1.15; word-break: break-word; }
+.disp-time { font-family: 'Geist Mono', monospace; font-size: 9px; font-weight: 700; text-align: center; letter-spacing: -0.02em; line-height: 1.15; word-break: break-word; }
 
-.row-meta { display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:3px; min-width:130px; font-size:12px; color:var(--text-muted); }
-.row-meta strong { color: var(--text-main); font-weight:600; }
+.row-meta { 
+    display: flex; 
+    flex-direction: column; 
+    align-items: flex-start; 
+    text-align: left; 
+    gap: 3px; 
+    flex: 0 0 175px; 
+    width: 175px; 
+    min-width: 175px; 
+    font-size: 11.5px; 
+    color: var(--text-muted); 
+}
+.row-meta strong { color: var(--text-main); font-weight: 700; }
 
 .btn-row-action { 
     background: #ffffff; 
@@ -477,6 +533,9 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
+    flex: 0 0 175px;
+    width: 175px;
+    min-width: 175px;
     flex-wrap: nowrap;
     justify-content: flex-end;
 }
@@ -925,7 +984,18 @@ body {
 /* =======================================================================
    BADGES DE ESTADO Y TEXTOS DE PRIORIDAD
    ======================================================================= */
-.status-badge { display: inline-flex; align-items: center; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+.status-badge { 
+    display: inline-flex; 
+    align-items: center; 
+    height: 22px;
+    padding: 0 8px; 
+    border-radius: 5px; 
+    font-size: 10px; 
+    font-weight: 800; 
+    text-transform: uppercase; 
+    letter-spacing: 0.03em; 
+    white-space: nowrap;
+}
 
 /* Badges con Paleta Coordinada del Flow */
 .bg-blue-1 { background: rgba(116, 169, 216, 0.22); color: #205586; }
@@ -957,11 +1027,51 @@ body {
 .bg-blue { background: rgba(31, 84, 145, 0.15); color: var(--accent-blue); }
 .bg-gray { background: rgba(138, 144, 151, 0.15); color: var(--text-muted); }
 
-.priority-text { font-size: 11.5px; font-weight: 700; }
+.priority-text { font-size: 11px; font-weight: 700; }
 .text-red { color: var(--accent-red); }
 .text-yellow { color: #d99a29; } 
 .text-teal { color: var(--accent-teal); }
 .text-gray { color: var(--text-muted); text-decoration: line-through; }
+
+/* =======================================================================
+   ETIQUETAS DE PRIORIDAD Y ALARMAS NORMALIZADAS
+   ======================================================================= */
+.pill-urgencia {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    height: 24px;
+    padding: 0 10px;
+    border-radius: 12px;
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    box-sizing: border-box;
+    margin-top: 3px;
+}
+.pill-urgencia.pill-vencida {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #ef4444;
+}
+.pill-urgencia.pill-urgente-24 {
+    background: #ffedd5;
+    color: #9a3412;
+    border: 1px solid #f97316;
+}
+.pill-urgencia.pill-urgente-48 {
+    background: #fef9c3;
+    color: #854d0e;
+    border: 1px solid #eab308;
+}
+.pill-urgencia.pill-programado {
+    background: #f0fdf4;
+    color: #166534;
+    border: 1px solid #86efac;
+}
 
 /* =======================================================================
    FORMULARIOS Y MODALES (UI MODERNA)
@@ -1186,14 +1296,16 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
     .swipe-btn.right { background: var(--accent-red); }
     
     .row-content-wrapper { flex-direction: column; align-items: flex-start; gap: 12px; position: relative; }
-    .row-header { width: 100%; align-items: flex-start; padding-right: 30px; box-sizing: border-box; }
+    .row-header { width: 100%; flex: 1 1 100%; align-items: flex-start; padding-right: 30px; box-sizing: border-box; }
     .row-main-info { width: 100%; min-width: 0; word-break: break-word; }
     
-    .row-disp-grid { width: 100%; justify-content: flex-start; flex-wrap: nowrap !important; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; gap: 8px; padding-bottom: 4px; }
+    .col-status-wrapper { width: 100%; flex: 1 1 100%; }
+    .row-disp-grid-wrapper { width: 100%; flex: 1 1 100%; justify-content: flex-start; }
+    .row-disp-grid { width: 100%; justify-content: flex-start; flex-wrap: nowrap !important; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; gap: 8px; padding-bottom: 4px; display: flex; }
     .row-disp-grid::-webkit-scrollbar { display: none; }
     .disp-box { flex: 0 0 auto; min-width: 55px; } 
-    .row-meta { align-items: flex-start; text-align: left; margin-top: 4px; width: 100%; padding-top: 10px; border-top: 1px dashed var(--border-color); }
-    .row-actions-group { width: 100%; justify-content: flex-start; gap: 8px; margin-top: 4px; padding-top: 8px; border-top: 1px dashed var(--border-color); }
+    .row-meta { align-items: flex-start; text-align: left; margin-top: 4px; width: 100%; flex: 1 1 100%; padding-top: 10px; border-top: 1px dashed var(--border-color); }
+    .row-actions-group { width: 100%; flex: 1 1 100%; justify-content: flex-start; gap: 8px; margin-top: 4px; padding-top: 8px; border-top: 1px dashed var(--border-color); }
     .row-quick-btn { flex: 1; min-width: 120px; justify-content: center; padding: 8px 10px; font-size: 12px; }
 
     
