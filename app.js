@@ -1115,7 +1115,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
         </div>`;
     }
 
-    let dispHtml = '<div class="row-disp-grid">';
+    let dispHtml = '<div class="row-disp-grid-wrapper"><div class="row-disp-grid">';
     diasSemana.forEach(d => {
         const rangos = al.disponibilidad && al.disponibilidad[d.id];
         const tiene = Array.isArray(rangos) && rangos.length > 0;
@@ -1123,7 +1123,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
         const esActivo = tiene && txt !== '-';
         dispHtml += `<div class="disp-box ${esActivo ? 'active' : ''}"><div class="disp-day">${d.id}</div><div class="disp-time">${txt}</div></div>`;
     });
-    dispHtml += '</div>';
+    dispHtml += '</div></div>';
 
     const tieneSecundarios = botonesSecundarios && botonesSecundarios.trim().length > 0;
     let menuAcciones = `
@@ -1215,27 +1215,38 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
             </div>
             <div class="row-item swipe-content btn-editar-alumno" data-id="${id}" style="${rowBorderExtra}">
                 <div class="row-content-wrapper">
+                    <!-- Columna 1: Alumno y Datos -->
                     <div class="row-header">
                         <input type="checkbox" class="bulk-chk" data-id="${id}" onclick="event.stopPropagation(); window.toggleBulkSelection('${id}', this.checked)">
                         <div class="row-indicator ${info.colorIndicador}"></div>
                         <div class="row-main-info" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:2px;">
                             <div class="row-name" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; text-align:left;">
-                                <span style="font-weight:700; color:var(--text-main); font-size:14px;">${al.nombre}</span>
+                                <span style="font-weight:700; color:var(--text-main); font-size:14.5px;">${al.nombre}</span>
                                 <button type="button" class="btn-nota-rapida-directo" data-id="${id}" onclick="event.stopPropagation(); window.abrirNotaRapidaDirecta('${id}', '${(al.nombre || '').replace(/'/g, "\\'")}');" title="Agregar nota rápida al historial" style="background:none; border:none; cursor:pointer; font-size:13px; padding:1px 4px; border-radius:4px; opacity:0.65; vertical-align:middle; line-height:1; transition:opacity 0.2s, background 0.2s;" onmouseover="this.style.opacity='1'; this.style.background='rgba(0,0,0,0.06)';" onmouseout="this.style.opacity='0.65'; this.style.background='none';">📝</button>
-                                ${(estadoActualVista === 'Lista de Espera' && al.estado_agenda === 'Lista de espera') ? '' : `<span class="status-badge ${info.colorBadge}">${info.txtEstado}</span>`}
                             </div>
                             ${filaDatosHtml}
                             ${tagsHtml}
                         </div>
                     </div>
+
+                    <!-- Columna 2: Estado del Alumno (Columna Dedicada Fija) -->
+                    <div class="col-status-wrapper">
+                        ${(estadoActualVista === 'Lista de Espera' && al.estado_agenda === 'Lista de espera') ? '' : `<span class="status-badge ${info.colorBadge}">${info.txtEstado}</span>`}
+                    </div>
+
+                    <!-- Columna 3: Grilla Semanal Fija -->
                     ${dispHtml}
                     ${checklistHtml}
+
+                    <!-- Columna 4: Meta & Agenda / Prioridad -->
                     <div class="row-meta">
                         <div>${((estadoActualVista && (estadoActualVista.startsWith('Inbox') || estadoActualVista === 'Lista de Espera' || estadoActualVista === 'Dashboard')) || ['Pendiente procesar', 'Pendiente validación por profe', 'Pendiente validación por alumno', 'Agenda confirmada', 'Agenda suspendida', 'Lista de espera'].includes(al.estado_agenda)) ? 'Evaluador' : 'Profe'}: <strong style="color:var(--text-main);" title="${al.reserva_profe_nombre || ''}">${al.reserva_profe_nombre ? (al.reserva_profe_nombre.length > 25 ? al.reserva_profe_nombre.split(' ').slice(0, 3).join(' ') + '...' : al.reserva_profe_nombre) : '-'}</strong></div>
                         ${al.grupo_asignado ? `<div>Grupo: <strong style="color:var(--accent-teal);">${al.grupo_asignado}</strong></div>` : ''}
                         ${fechaMetaHtml}
-                        ${info.badgePillHtml ? `<div style="margin-top:4px;">${info.badgePillHtml}</div>` : (info.txtTiempo ? `<div class="priority-text ${info.claseTexto}" style="margin-top:2px;">${info.txtTiempo}</div>` : '')}
+                        ${info.badgePillHtml ? info.badgePillHtml : (info.txtTiempo ? `<div class="priority-text ${info.claseTexto}" style="margin-top:2px;">${info.txtTiempo}</div>` : '')}
                     </div>
+
+                    <!-- Columna 5: Botones de Acción -->
                     ${menuAcciones}
                 </div>
             </div>
