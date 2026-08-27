@@ -2,7 +2,7 @@
 // src/config/constants.js — Constantes globales del sistema
 // =======================================================================
 
-export const APP_VERSION = "v5.5.0";
+export const APP_VERSION = "v5.8.1";
 export const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 export const firebaseConfig = {
@@ -150,6 +150,18 @@ export const configNodosFlujoEvaluador = [
         filterFn: (d) => {
             const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
             return st === 'pendiente validacion por profe' || st === 'pendiente validacion por evaluador';
+        }
+    },
+    { 
+        id: 'Pendiente validación por alumno', 
+        label: 'Validando con Alumno', 
+        icon: '🧑‍🎓', 
+        color: 'node-blue-3', 
+        hexColor: '#256bbb', 
+        vistaDestino: 'Inbox - Validar Alumno', 
+        filterFn: (d) => {
+            const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+            return st === 'pendiente validacion por alumno';
         }
     },
     { 
