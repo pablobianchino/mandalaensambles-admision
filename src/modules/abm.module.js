@@ -387,36 +387,36 @@ export function renderConfigMatch(cont, configApp = defaultCfg, callbacks = {}) 
     let rowsHtml = reglasEdad.map((r, idx) => `
         <tr data-index="${idx}" style="border-bottom:1px solid var(--border-color);">
             <td style="padding:10px 8px;">
-                <input type="number" class="modern-input cfg-regla-desde" value="${r.desde}" min="13" max="99" style="width:80px; padding:6px 8px;"> anos
+                <input type="number" class="modern-input cfg-regla-desde" value="${r.desde}" min="13" max="99" style="width:80px; padding:6px 8px;"> años
             </td>
             <td style="padding:10px 8px;">
-                <input type="number" class="modern-input cfg-regla-min" value="${r.rango_min}" min="-30" max="0" style="width:70px; padding:6px 8px;"> anos
+                <input type="number" class="modern-input cfg-regla-min" value="${r.rango_min}" min="-30" max="0" style="width:70px; padding:6px 8px;"> años
             </td>
             <td style="padding:10px 8px;">
-                <input type="number" class="modern-input cfg-regla-max" value="${r.rango_max}" min="0" max="30" style="width:70px; padding:6px 8px;"> anos
+                <input type="number" class="modern-input cfg-regla-max" value="${r.rango_max}" min="0" max="30" style="width:70px; padding:6px 8px;"> años
             </td>
             <td style="padding:10px 8px; text-align:center;">
-                <button type="button" class="btn-borrar-regla-edad" style="background:none; border:none; cursor:pointer; color:var(--accent-red); font-size:1.1em;" title="Eliminar regla">🗑️ï¸</button>
+                <button type="button" class="btn-borrar-regla-edad" style="background:none; border:none; cursor:pointer; color:var(--accent-red); font-size:1.1em;" title="Eliminar regla">🗑️</button>
             </td>
         </tr>
     `).join('');
 
     cont.innerHTML = `
         <div style="margin-bottom:25px; font-size:0.9em; color:var(--text-muted);">
-            <span style="cursor:pointer; color:var(--accent-teal);" onclick="window.cargarVistaGlobal('Configuracion')">Configuracion</span> &gt; <strong style="color:var(--text-main);">Ajustes de Match</strong>
+            <span style="cursor:pointer; color:var(--accent-teal);" onclick="window.cargarVistaGlobal('Configuración')">Configuración</span> &gt; <strong style="color:var(--text-main);">Ajustes de Match</strong>
         </div>
         <div style="max-width:800px; padding:30px; background:white; border-radius:12px; border:1px solid var(--border-color); display:flex; flex-direction:column; gap:25px;">
             <div>
-                <h3 style="margin-top:0; color:var(--text-main); font-size:1.2em; margin-bottom:6px;">👥 Tamano de Grupos</h3>
-                <p style="color:var(--text-muted); font-size:0.9em; margin:0 0 15px 0;">Cantidad minima y maxima de integrantes permitidos por ensamble/grupo.</p>
+                <h3 style="margin-top:0; color:var(--text-main); font-size:1.2em; margin-bottom:6px;">👥 Tamaño de Grupos</h3>
+                <p style="color:var(--text-muted); font-size:0.9em; margin:0 0 15px 0;">Cantidad mínima y máxima de integrantes permitidos por ensamble/grupo.</p>
                 <div style="display:flex; gap:15px; flex-wrap:wrap;">
                     <div style="flex:1; min-width:140px;">
-                        <label>Minimo de Integrantes:
+                        <label>Mínimo de Integrantes:
                             <input type="number" id="cfg-grupo-min" class="modern-input" min="2" max="10" value="${minInt}">
                         </label>
                     </div>
                     <div style="flex:1; min-width:140px;">
-                        <label>Maximo de Integrantes:
+                        <label>Máximo de Integrantes:
                             <input type="number" id="cfg-grupo-max" class="modern-input" min="2" max="12" value="${maxInt}">
                         </label>
                     </div>
@@ -435,10 +435,10 @@ export function renderConfigMatch(cont, configApp = defaultCfg, callbacks = {}) 
             <div style="border-top:1px solid var(--border-color); padding-top:20px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                     <div>
-                        <h3 style="margin:0; color:var(--text-main); font-size:1.2em;">📊 Reglas de Tolerancia de Edad (Adultos)</h3>
-                        <p style="color:var(--text-muted); font-size:0.9em; margin:4px 0 0 0;">Define cuanto margen de diferencia en anos se tolera para armar un grupo.</p>
+                        <h3 style="margin-top:0; color:var(--text-main); font-size:1.2em;">📊 Reglas de Tolerancia de Edad (Adultos)</h3>
+                        <p style="color:var(--text-muted); font-size:0.9em; margin:4px 0 0 0;">Define cuánto margen de diferencia en años se tolera para armar un grupo.</p>
                     </div>
-                    <button type="button" id="btn-agregar-regla-edad" class="filter-chip active" style="font-family:inherit; cursor:pointer;">ï¼‹ Agregar Tramo</button>
+                    <button type="button" id="btn-agregar-regla-edad" class="filter-chip active" style="font-family:inherit; cursor:pointer;">➕ Agregar Tramo</button>
                 </div>
 
                 <div style="overflow-x:auto;">
@@ -446,9 +446,9 @@ export function renderConfigMatch(cont, configApp = defaultCfg, callbacks = {}) 
                         <thead>
                             <tr style="background:var(--hover-bg); border-bottom:2px solid var(--border-color); color:var(--text-muted);">
                                 <th style="padding:10px 8px;">Desde Edad</th>
-                                <th style="padding:10px 8px;">Rango Min. (-anos)</th>
-                                <th style="padding:10px 8px;">Rango Max. (+anos)</th>
-                                <th style="padding:10px 8px; width:40px; text-align:center;">Accion</th>
+                                <th style="padding:10px 8px;">Rango Mín. (-años)</th>
+                                <th style="padding:10px 8px;">Rango Máx. (+años)</th>
+                                <th style="padding:10px 8px; width:40px; text-align:center;">Acción</th>
                             </tr>
                         </thead>
                         <tbody id="tabla-reglas-edad-body">
@@ -458,7 +458,7 @@ export function renderConfigMatch(cont, configApp = defaultCfg, callbacks = {}) 
                 </div>
             </div>
 
-            <button id="btn-guardar-cfg-match" class="btn-primary" style="width:100%; padding:12px; font-size:14px; margin-top:10px;">Guardar Configuracion de Match</button>
+            <button id="btn-guardar-cfg-match" class="btn-primary" style="width:100%; padding:12px; font-size:14px; margin-top:10px;">Guardar Configuración de Match</button>
         </div>
     `;
 
@@ -475,16 +475,16 @@ export function renderConfigMatch(cont, configApp = defaultCfg, callbacks = {}) 
         tr.style.borderBottom = '1px solid var(--border-color)';
         tr.innerHTML = `
             <td style="padding:10px 8px;">
-                <input type="number" class="modern-input cfg-regla-desde" value="20" min="13" max="99" style="width:80px; padding:6px 8px;"> anos
+                <input type="number" class="modern-input cfg-regla-desde" value="20" min="13" max="99" style="width:80px; padding:6px 8px;"> años
             </td>
             <td style="padding:10px 8px;">
-                <input type="number" class="modern-input cfg-regla-min" value="-5" min="-30" max="0" style="width:70px; padding:6px 8px;"> anos
+                <input type="number" class="modern-input cfg-regla-min" value="-5" min="-30" max="0" style="width:70px; padding:6px 8px;"> años
             </td>
             <td style="padding:10px 8px;">
-                <input type="number" class="modern-input cfg-regla-max" value="8" min="0" max="30" style="width:70px; padding:6px 8px;"> anos
+                <input type="number" class="modern-input cfg-regla-max" value="8" min="0" max="30" style="width:70px; padding:6px 8px;"> años
             </td>
             <td style="padding:10px 8px; text-align:center;">
-                <button type="button" class="btn-borrar-regla-edad" style="background:none; border:none; cursor:pointer; color:var(--accent-red); font-size:1.1em;" title="Eliminar regla">🗑️ï¸</button>
+                <button type="button" class="btn-borrar-regla-edad" style="background:none; border:none; cursor:pointer; color:var(--accent-red); font-size:1.1em;" title="Eliminar regla">🗑️</button>
             </td>
         `;
         tr.querySelector('.btn-borrar-regla-edad').addEventListener('click', () => tr.remove());
