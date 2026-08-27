@@ -374,7 +374,8 @@
         <!-- BARRA FLOTANTE DE ACCIONES MASIVAS -->
         <div id="bulk-actions-bar" style="display:none;">
             <span id="bulk-count">0 seleccionados</span>
-            <button id="btn-bulk-propuesta-grupo" class="btn-primary" style="padding:6px 14px; font-size:12.5px; display:none;">➕ Nueva Propuesta de Grupo</button>
+            <button id="btn-bulk-propuesta-grupo" class="btn-primary" style="padding:6px 14px; font-size:12.5px; display:none;">✨ Nueva Propuesta de Grupo</button>
+            <button id="btn-bulk-auditar-cal" style="padding:6px 12px; font-size:12px; font-weight:700; border-radius:6px; background:#fff; border:1px solid var(--border-color); color:var(--text-main); cursor:pointer; display:none;">🔍 Auditar Calendar</button>
             <button id="btn-bulk-copiar-bd" style="padding:6px 12px; font-size:12px; font-weight:700; border-radius:6px; background:#fff; border:1px solid var(--border-color); color:var(--text-main); cursor:pointer; display:none;">📋 Generar registro BD</button>
             <button id="btn-bulk-copiar-fact" style="padding:6px 12px; font-size:12px; font-weight:700; border-radius:6px; background:#fff; border:1px solid var(--border-color); color:var(--text-main); cursor:pointer; display:none;">💰 Generar registro Facturación</button>
             <button id="btn-bulk-suspender">Suspender</button>
@@ -503,6 +504,18 @@
                             </div>
                         </div>
                     </div>
+
+                    <div id="modal-cal-audit-box" style="display:none; margin-top:14px; padding:10px 14px; background:var(--hover-bg); border:1px solid var(--border-color); border-radius:8px; align-items:center; justify-content:space-between; flex-wrap:nowrap; gap:10px;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:12px; font-weight:700; color:var(--text-main);">Sincronización con calendario:</span>
+                            <span id="badge-modal-cal-status" class="badge" style="background:#e2e8f0; color:#475569; font-size:11.5px; font-weight:700; white-space:nowrap;">⚪ Sin verificar</span>
+                        </div>
+                        <div style="display:flex; gap:8px;">
+                            <button type="button" id="btn-modal-auditar-cal" class="btn-icon-square" title="Auditar sincronización con calendario">
+                                <span id="icon-modal-auditar-spin">🔍</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="tab-disp" class="tab-content" style="display:none;">
@@ -511,9 +524,19 @@
 
                 <div id="tab-historial" class="tab-content" style="display:none;">
                     <label>Detalle / Info para Entrevista</label>
-                    <div id="editor-container" style="height: 120px; background:white; border-radius:8px; margin-bottom:20px;"></div>
-                    <label>Historial de Notas</label>
-                    <div id="lista-historial" style="display:flex; flex-direction:column; gap:10px; max-height:200px; overflow-y:auto;"></div>
+                    <div id="editor-container" style="height: 120px; background:white; border-radius:8px; margin-bottom:15px;"></div>
+                    
+                    <!-- Nueva Nota Rápida dentro del Modal de Edición -->
+                    <div style="background:var(--hover-bg); border:1px solid var(--border-color); border-radius:8px; padding:12px; margin-bottom:15px;">
+                        <label style="font-size:11.5px; font-weight:700; color:var(--text-main); margin-bottom:6px; display:block;">➕ Agregar Nota al Historial</label>
+                        <div style="display:flex; gap:8px;">
+                            <input type="text" id="input-nueva-nota-modal" class="modern-input" placeholder="Escribir una nota para el historial..." style="flex:1; font-size:12.5px;" onkeydown="if(event.key==='Enter'){event.preventDefault(); document.getElementById('btn-agregar-nota-modal').click();}">
+                            <button type="button" id="btn-agregar-nota-modal" class="btn-primary" style="padding:6px 14px; font-size:12px; white-space:nowrap; cursor:pointer;">Guardar Nota</button>
+                        </div>
+                    </div>
+
+                    <label>Historial de Notas y Movimientos</label>
+                    <div id="lista-historial" style="display:flex; flex-direction:column; gap:10px; max-height:220px; overflow-y:auto;"></div>
                 </div>
 
                 <div id="tab-informe" class="tab-content" style="display:none;">
@@ -542,7 +565,7 @@
                         Ingreso a Lista de Espera directo
                     </label>
                     <div style="display:flex; gap:10px; align-items:center; width:100%;">
-                        <button type="button" id="btn-modal-nueva-suscripcion" class="btn-secondary" style="display:none; flex:1; padding:10px; font-weight:700; font-size:12px;">➕ Nueva Suscripción</button>
+                        <button type="button" id="btn-modal-nueva-suscripcion" class="btn-secondary" style="display:none; flex:1;">➕ Nueva Suscripción</button>
                         <button type="submit" id="btn-submit-alumno" class="btn-primary" style="flex:2;">Guardar Alumno</button>
                     </div>
                 </div>
@@ -720,6 +743,61 @@
                 <button type="button" class="btn-cerrar-modal" data-modal="modal-aviso-prealta-alumno" style="padding:10px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted);">Cancelar</button>
                 <button id="btn-copiar-aviso-prealta-alumno-action" class="btn-primary" style="padding:10px 18px; font-weight:700;">📋 Copiar Mensaje al Portapapeles</button>
             </div>
+        </div>
+    </dialog>
+
+    <!-- MODAL DE DISCREPANCIA / RESOLUCIÓN DE CALENDAR -->
+    <dialog id="modal-discrepancia-calendar" class="modern-modal" style="max-width:520px; width:92%; border-radius:12px; padding:0; overflow:hidden;">
+        <div style="background:var(--card-bg, #fff); padding:20px 24px; border-bottom:1px solid var(--border-color);">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0; font-size:16px; font-weight:800; display:flex; align-items:center; gap:8px;">
+                    <span id="modal-disc-icon">⚠️</span> <span id="modal-disc-titulo">Discrepancia en Google Calendar</span>
+                </h3>
+                <button type="button" id="btn-close-modal-disc" style="background:none; border:none; font-size:18px; cursor:pointer; color:var(--text-muted);">✕</button>
+            </div>
+            <p id="modal-disc-subtitulo" style="margin:6px 0 0 0; font-size:12px; color:var(--text-muted);">
+                Se detectó una diferencia entre los datos del sistema y el calendario.
+            </p>
+        </div>
+
+        <div style="padding:20px 24px; display:flex; flex-direction:column; gap:14px; font-size:13px;">
+            <input type="hidden" id="modal-disc-alumno-id">
+            <input type="hidden" id="modal-disc-cal-fecha-iso">
+            <input type="hidden" id="modal-disc-cal-evento-id">
+
+            <div id="modal-disc-alumno-info" style="background:var(--hover-bg); padding:10px 14px; border-radius:8px; font-weight:600;">
+                Alumno: <span id="modal-disc-alumno-nombre" style="font-weight:700; color:var(--text-main);">-</span>
+            </div>
+
+            <div id="modal-disc-comparacion-box" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <div style="background:rgba(0, 123, 143, 0.06); border:1px solid rgba(0, 123, 143, 0.2); border-radius:8px; padding:10px 12px;">
+                    <div style="font-size:11px; font-weight:700; color:var(--accent-teal); margin-bottom:4px;">💻 En el Sistema:</div>
+                    <div id="modal-disc-fecha-sistema" style="font-weight:600; font-size:12px; color:var(--text-main);">-</div>
+                </div>
+                <div style="background:rgba(234, 88, 12, 0.06); border:1px solid rgba(234, 88, 12, 0.2); border-radius:8px; padding:10px 12px;">
+                    <div style="font-size:11px; font-weight:700; color:#ea580c; margin-bottom:4px;">📅 En Google Calendar:</div>
+                    <div id="modal-disc-fecha-calendar" style="font-weight:600; font-size:12px; color:var(--text-main);">-</div>
+                </div>
+            </div>
+
+            <div id="modal-disc-mensaje-detalle" style="font-size:12px; color:var(--text-muted); line-height:1.4;">
+                ¿Qué acción deseas realizar para corregir o alinear la información?
+            </div>
+        </div>
+
+        <div style="padding:14px 24px; background:var(--hover-bg); border-top:1px solid var(--border-color); display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px;">
+            <button type="button" id="btn-modal-disc-cancelar" class="btn btn-secondary" style="font-size:12px; padding:8px 14px;">
+                ✖️ Mantener como está
+            </button>
+            <button type="button" id="btn-modal-disc-recrear" class="btn btn-primary" style="font-size:12px; padding:8px 14px; display:none; background:#0284c7;">
+                ➕ Recrear en Calendar
+            </button>
+            <button type="button" id="btn-modal-disc-traer-cal" class="btn btn-primary" style="font-size:12px; padding:8px 14px; display:none; background:#059669;">
+                📥 Traer horario de Calendar
+            </button>
+            <button type="button" id="btn-modal-disc-forzar-cal" class="btn btn-primary" style="font-size:12px; padding:8px 14px; display:none; background:#7c3aed;">
+                📤 Forzar horario a Calendar
+            </button>
         </div>
     </dialog>
 
@@ -1396,12 +1474,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=5.2.5"></script>
+    <script type="module" src="app.js?v=5.4.0"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=5.2.5').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=5.4.0').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {
