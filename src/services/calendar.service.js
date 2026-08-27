@@ -3,7 +3,7 @@
 // =======================================================================
 
 import { SCRIPT_URL, defaultCfg } from "../config/constants.js";
-import { db, doc, getDoc, collection, getDocs, query, where } from "../config/firebase.js";
+import { db, doc, getDoc, collection, getDocs, query, where, updateDoc } from "../config/firebase.js";
 
 export function getEmojiInstrumento(instrumentoInput, cfg, al = null) {
     let instRef = '';
@@ -380,4 +380,316 @@ export async function reprogramarClaseCalendar({ al, esGrupo = false, alumnosGru
         console.warn("Error en reprogramarClaseCalendar:", err);
     }
     return null;
+}
+
+// -----------------------------------------------------------------------
+// AUDITORÍA Y RESINCRONIZACIÓN DE CALENDAR (BAJO DEMANDA)
+// -----------------------------------------------------------------------
+
+export async function verificarEstadoEventoCalendar(al, cfg = defaultCfg) {
+    if (!al) return { estado: 'ERROR', mensaje: 'Datos de alumno no provistos.' };
+    
+    const evId = al.id_evento_alta || al.id_evento_reserva || al.reserva_id_evento;
+    const calId = al.calendario_evento_alta || al.calendario_evento_reserva || await getCalendarIdParaAlumno(al, cfg);
+    const fechaRef = al.fecha_inicio_clases || al.reserva_inicio || al.reserva_fecha_texto;
+
+    if (!calId) {
+        return {
+            estado: 'SIN_CALENDARIO',
+            mensaje: 'No se encontró un calendario de Google asociado (profe o Mandala).',
+            calId: null,
+            evId
+        };
+    }
+
+    if (!evId && !fechaRef) {
+        return {
+            estado: 'SIN_EVENTO',
+            mensaje: 'El alumno no tiene evento ni fecha agendada en el sistema.',
+            calId,
+            evId: null
+        };
+    }
+
+    // Definir ventana de búsqueda (+- 60 días alrededor de la fecha de referencia)
+    let tMin, tMax;
+    if (fechaRef) {
+        const dRef = new Date(fechaRef);
+        if (!isNaN(dRef.getTime())) {
+            tMin = new Date(dRef.getTime() - 45 * 86400000).toISOString();
+            tMax = new Date(dRef.getTime() + 60 * 86400000).toISOString();
+        }
+    }
+    if (!tMin) {
+        const now = Date.now();
+        tMin = new Date(now - 30 * 86400000).toISOString();
+        tMax = new Date(now + 90 * 86400000).toISOString();
+    }
+
+    try {
+        const data = await getEventosCalendario(calId, tMin, tMax);
+        const items = (data && Array.isArray(data.items)) ? data.items : [];
+
+        // 1. Buscar coincidencia exacta por Event ID
+        let evFound = evId ? items.find(item => item.id === evId) : null;
+
+        // 2. Si no se encontró por ID, buscar coincidencia por nombre de alumno en el título
+        if (!evFound && al.nombre) {
+            const nomL = al.nombre.trim().toLowerCase();
+            evFound = items.find(item => item.summary && item.summary.toLowerCase().includes(nomL));
+        }
+
+        if (!evFound) {
+            return {
+                estado: 'NO_EXISTE',
+                mensaje: 'El evento no fue encontrado en Google Calendar (posiblemente fue eliminado).',
+                calId,
+                evId,
+                fechaSistema: fechaRef
+            };
+        }
+
+        // Obtener fecha de inicio en Calendar
+        const evStartIso = evFound.start?.dateTime || evFound.start?.date;
+        if (!evStartIso) {
+            return {
+                estado: 'DESFASAJE_HORARIO',
+                mensaje: 'El evento existe pero no tiene hora de inicio válida.',
+                calId,
+                evId: evFound.id,
+                evento: evFound,
+                fechaSistema: fechaRef,
+                fechaCalendar: null
+            };
+        }
+
+        // Comparar fecha de Calendar vs Sistema
+        if (fechaRef) {
+            const dSis = new Date(fechaRef);
+            const dCal = new Date(evStartIso);
+            if (!isNaN(dSis.getTime()) && !isNaN(dCal.getTime())) {
+                const diffMinutos = Math.abs(dSis.getTime() - dCal.getTime()) / 60000;
+                // Si la diferencia es menor a 2 minutos consideramos coincidencia exacta
+                if (diffMinutos <= 2) {
+                    return {
+                        estado: 'OK',
+                        mensaje: 'El evento está sincronizado correctamente con Google Calendar.',
+                        calId,
+                        evId: evFound.id,
+                        evento: evFound,
+                        fechaSistema: fechaRef,
+                        fechaCalendar: evStartIso
+                    };
+                } else {
+                    return {
+                        estado: 'DESFASAJE_HORARIO',
+                        mensaje: 'Se detectó una discrepancia de horario entre el Sistema y Google Calendar.',
+                        calId,
+                        evId: evFound.id,
+                        evento: evFound,
+                        fechaSistema: fechaRef,
+                        fechaCalendar: evStartIso
+                    };
+                }
+            }
+        }
+
+        return {
+            estado: 'OK',
+            mensaje: 'El evento fue localizado en Google Calendar.',
+            calId,
+            evId: evFound.id,
+            evento: evFound,
+            fechaSistema: fechaRef,
+            fechaCalendar: evStartIso
+        };
+
+    } catch (err) {
+        return {
+            estado: 'ERROR',
+            mensaje: 'Error de conexión al consultar Google Calendar: ' + err.message,
+            calId,
+            evId
+        };
+    }
+}
+
+export function esEstadoEntrevista(estado) {
+    const est = (estado || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    return [
+        'pendiente procesar',
+        'pendiente validacion por profe',
+        'pendiente validacion por evaluador',
+        'pendiente validacion por alumno',
+        'agenda confirmada',
+        'agenda suspendida'
+    ].includes(est);
+}
+
+export async function recrearEventoFaltanteCalendar(al, cfg = defaultCfg) {
+    if (!al) throw new Error("Datos de alumno requeridos.");
+    const esEntrevista = esEstadoEntrevista(al.estado_agenda);
+    
+    let titulos, desc, targetCalId, evIdField, calIdField;
+    let dStart = null;
+
+    if (esEntrevista) {
+        const tipo = (al.estado_agenda === 'Agenda confirmada') ? 'confirmada' : 'reserva';
+        titulos = construirTitulosEvento(al, tipo, cfg);
+        desc = al.descripcion || '';
+        targetCalId = al.reserva_cal_id || al.calendario_evento_reserva || await getCalendarIdParaAlumno(al, cfg);
+        evIdField = 'id_evento_reserva';
+        calIdField = 'calendario_evento_reserva';
+        if (al.reserva_inicio) dStart = new Date(al.reserva_inicio);
+        else if (al.fecha_inicio_clases) dStart = new Date(al.fecha_inicio_clases);
+    } else {
+        const tipo = (al.estado_agenda === 'Pre-alta Iniciada' || al.estado_agenda === 'Pre-alta Pendiente') ? 'prealta' : 'confirmada';
+        titulos = construirTitulosPrealtaYAlta(al, tipo, cfg);
+        desc = construirDescripcionEventoAlta(al, detectarTipoSuscripcion(al.tipo_suscripcion || '') !== 'individual');
+        targetCalId = al.calendario_evento_alta || await getCalendarIdParaAlumno(al, cfg);
+        evIdField = 'id_evento_alta';
+        calIdField = 'calendario_evento_alta';
+        if (al.fecha_inicio_clases) dStart = new Date(al.fecha_inicio_clases);
+        else if (al.reserva_inicio) dStart = new Date(al.reserva_inicio);
+    }
+    
+    if (!targetCalId) targetCalId = cfg.calendario_por_defecto || 'productora.mandalahouse@gmail.com';
+
+    if (!dStart || isNaN(dStart.getTime())) {
+        throw new Error("El alumno no tiene una fecha/hora de inicio válida para agendar el evento.");
+    }
+
+    const duracion = esEntrevista ? 30 : 60;
+    const dEnd = new Date(dStart.getTime() + duracion * 60000);
+    const tituloUsar = (targetCalId === cfg.calendario_por_defecto && titulos.tituloDefecto) ? titulos.tituloDefecto : titulos.tituloProfe;
+    const evRes = await crearEventoCalendario(targetCalId, tituloUsar, dStart.toISOString(), dEnd.toISOString(), desc);
+    
+    if (evRes && evRes.id) {
+        const hist = al.historial || [];
+        const fnHist = window.crearEntradaHistorial || ((txt, t) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: t || 'sistema' }));
+        const fechaHoraLog = `${dStart.getDate().toString().padStart(2, '0')}/${(dStart.getMonth() + 1).toString().padStart(2, '0')}/${dStart.getFullYear()} ${dStart.getHours().toString().padStart(2, '0')}:${dStart.getMinutes().toString().padStart(2, '0')} hs`;
+        hist.push(fnHist(`Evento de Google Calendar recreado tras auditoría para ${fechaHoraLog} (ID: ${evRes.id}, Cal: ${targetCalId}).`, 'sistema'));
+
+        if (al.id) {
+            const up = {
+                [evIdField]: evRes.id,
+                [calIdField]: targetCalId,
+                historial: hist
+            };
+            await updateDoc(doc(db, "alumnos", al.id), up);
+        }
+        return { id: evRes.id, calendar: targetCalId };
+    }
+    throw new Error("Google Calendar no devolvió un ID de evento al recrear.");
+}
+
+export async function alinearEventoHaciaCalendar(al, cfg = defaultCfg) {
+    if (!al) throw new Error("Datos de alumno requeridos.");
+    const esEntrevista = esEstadoEntrevista(al.estado_agenda);
+
+    let titulos, desc, targetCalId, targetEvId, evIdField, calIdField;
+    let dStart = null;
+
+    if (esEntrevista) {
+        const tipo = (al.estado_agenda === 'Agenda confirmada') ? 'confirmada' : 'reserva';
+        titulos = construirTitulosEvento(al, tipo, cfg);
+        desc = al.descripcion || '';
+        targetCalId = al.reserva_cal_id || al.calendario_evento_reserva || await getCalendarIdParaAlumno(al, cfg);
+        targetEvId = al.id_evento_reserva || al.reserva_id_evento;
+        evIdField = 'id_evento_reserva';
+        calIdField = 'calendario_evento_reserva';
+        if (al.reserva_inicio) dStart = new Date(al.reserva_inicio);
+        else if (al.fecha_inicio_clases) dStart = new Date(al.fecha_inicio_clases);
+    } else {
+        const tipo = (al.estado_agenda === 'Pre-alta Iniciada' || al.estado_agenda === 'Pre-alta Pendiente') ? 'prealta' : 'confirmada';
+        titulos = construirTitulosPrealtaYAlta(al, tipo, cfg);
+        desc = construirDescripcionEventoAlta(al, detectarTipoSuscripcion(al.tipo_suscripcion || '') !== 'individual');
+        targetCalId = al.calendario_evento_alta || await getCalendarIdParaAlumno(al, cfg);
+        targetEvId = al.id_evento_alta;
+        evIdField = 'id_evento_alta';
+        calIdField = 'calendario_evento_alta';
+        if (al.fecha_inicio_clases) dStart = new Date(al.fecha_inicio_clases);
+        else if (al.reserva_inicio) dStart = new Date(al.reserva_inicio);
+    }
+
+    if (!targetCalId) targetCalId = cfg.calendario_por_defecto || 'productora.mandalahouse@gmail.com';
+
+    if (!dStart || isNaN(dStart.getTime())) {
+        throw new Error("El alumno no tiene fecha de inicio válida en el sistema.");
+    }
+
+    const duracion = esEntrevista ? 30 : 60;
+    const dEnd = new Date(dStart.getTime() + duracion * 60000);
+
+    // Si existía evento anterior lo borramos para no duplicar
+    if (targetEvId && targetCalId) {
+        try {
+            await eliminarEventoCalendario(targetCalId, targetEvId);
+        } catch(e) {
+            console.warn("No se pudo eliminar evento previo:", e);
+        }
+    }
+
+    // Creamos en la fecha oficial de Firestore
+    const tituloUsar = (targetCalId === cfg.calendario_por_defecto && titulos.tituloDefecto) ? titulos.tituloDefecto : titulos.tituloProfe;
+    const evRes = await crearEventoCalendario(targetCalId, tituloUsar, dStart.toISOString(), dEnd.toISOString(), desc);
+    if (evRes && evRes.id) {
+        const hist = al.historial || [];
+        const fnHist = window.crearEntradaHistorial || ((txt, t) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: t || 'sistema' }));
+        const fechaHoraLog = `${dStart.getDate().toString().padStart(2, '0')}/${(dStart.getMonth() + 1).toString().padStart(2, '0')}/${dStart.getFullYear()} ${dStart.getHours().toString().padStart(2, '0')}:${dStart.getMinutes().toString().padStart(2, '0')} hs`;
+        hist.push(fnHist(`Google Calendar alineado con el Sistema: movido a ${fechaHoraLog} (ID: ${evRes.id}).`, 'sistema'));
+
+        if (al.id) {
+            const up = {
+                [evIdField]: evRes.id,
+                [calIdField]: targetCalId,
+                historial: hist
+            };
+            await updateDoc(doc(db, "alumnos", al.id), up);
+        }
+        return { id: evRes.id, calendar: targetCalId };
+    }
+    throw new Error("No se pudo alinear el evento en Google Calendar.");
+}
+
+export async function alinearSistemaDesdeCalendar(al, fechaCalendarIso, eventoCalId = null, cfg = defaultCfg) {
+    if (!al || !al.id) throw new Error("Alumno inválido.");
+    const dCal = new Date(fechaCalendarIso);
+    if (isNaN(dCal.getTime())) throw new Error("Fecha de Calendar no válida.");
+
+    const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const diaMatchNom = diasSemana[dCal.getDay()];
+    const diaCodigos = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+    const diaMatchCod = diaCodigos[dCal.getDay()];
+
+    const esEntrevista = esEstadoEntrevista(al.estado_agenda);
+    const duracion = esEntrevista ? 30 : 60;
+    const hIni = dCal.getHours().toString().padStart(2, '0') + ':' + dCal.getMinutes().toString().padStart(2, '0');
+    const dFin = new Date(dCal.getTime() + duracion * 60000);
+    const hFin = dFin.getHours().toString().padStart(2, '0') + ':' + dFin.getMinutes().toString().padStart(2, '0');
+    const horarioMatchTexto = `${diaMatchNom} ${hIni} a ${hFin} hs`;
+    const fechaHoraLog = `${dCal.getDate().toString().padStart(2, '0')}/${(dCal.getMonth() + 1).toString().padStart(2, '0')}/${dCal.getFullYear()} ${hIni} hs`;
+
+    const hist = al.historial || [];
+    const fnHist = window.crearEntradaHistorial || ((txt, t) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: t || 'sistema' }));
+    hist.push(fnHist(`Sistema alineado desde Google Calendar: horario actualizado a ${horarioMatchTexto} (${fechaHoraLog}).`, 'sistema'));
+
+    let updatePayload = { historial: hist };
+
+    if (esEntrevista) {
+        updatePayload.reserva_inicio = dCal.toISOString();
+        updatePayload.reserva_fin = dFin.toISOString();
+        updatePayload.reserva_fecha_texto = `${diaMatchNom.toLowerCase()} ${dCal.getDate()}/${dCal.getMonth() + 1} ${hIni}hs`;
+        if (eventoCalId) updatePayload.id_evento_reserva = eventoCalId;
+    } else {
+        updatePayload.fecha_inicio_clases = dCal.toISOString();
+        updatePayload.dia_match = diaMatchCod;
+        updatePayload.horario_inicio_match = hIni;
+        updatePayload.horario_fin_match = hFin;
+        updatePayload.horario_match = horarioMatchTexto;
+        if (eventoCalId) updatePayload.id_evento_alta = eventoCalId;
+    }
+
+    await updateDoc(doc(db, "alumnos", al.id), updatePayload);
+    return updatePayload;
 }
