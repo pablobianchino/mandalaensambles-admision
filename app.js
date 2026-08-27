@@ -68,7 +68,11 @@ import {
     eliminarEventoSeguro,
     sincronizarEventoPrealtaCalendar,
     sincronizarEventoAltaConfirmadaCalendar,
-    eliminarEventoAltaSeguro
+    eliminarEventoAltaSeguro,
+    verificarEstadoEventoCalendar,
+    recrearEventoFaltanteCalendar,
+    alinearEventoHaciaCalendar,
+    alinearSistemaDesdeCalendar
 } from "./src/services/calendar.service.js";
 
 import {
@@ -494,27 +498,29 @@ export function removerFilaOptimista(id) {
 }
 window.removerFilaOptimista = removerFilaOptimista;
 
-function setBotonCargando(btn, cargando, textoCustom = null) {
+export function setBotonCargando(btn, cargando, textoCustom = null) {
+    if (!btn) return;
     if (cargando) {
-        mostrarIndicadorCarga(textoCustom || 'Procesando solicitud...');
-        if (btn) {
-            if (!btn.dataset.textoOriginal || btn.dataset.textoOriginal.includes('Procesando')) {
-                btn.dataset.textoOriginal = btn.innerHTML;
-            }
-            btn.innerHTML = `<span class="spinner-inline" style="width:13px; height:13px; border-width:2px; display:inline-block; vertical-align:middle; margin-right:6px;"></span> ${textoCustom || 'Procesando...'}`;
-            btn.disabled = true;
-            btn.style.opacity = '0.7';
-            btn.style.pointerEvents = 'none';
-            btn.style.cursor = 'wait';
+        if (!btn.dataset.textoOriginal) {
+            btn.dataset.textoOriginal = btn.innerHTML;
+        }
+        btn.classList.add('loading');
+        btn.disabled = true;
+        
+        const isIconOnly = btn.classList.contains('btn-icon-square') || btn.classList.contains('btn-icon-fila') || btn.classList.contains('btn-auditar-cal-fila');
+        if (isIconOnly) {
+            btn.innerHTML = `<svg class="spinner-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle><path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"></path></svg>`;
+        } else {
+            const txt = textoCustom || (btn.dataset.textoOriginal ? btn.dataset.textoOriginal.replace(/<[^>]*>/g, '').trim() : 'Procesando...');
+            const shortTxt = txt.length > 20 ? txt.substring(0, 18) + '...' : txt;
+            btn.innerHTML = `<svg class="spinner-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle><path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"></path></svg> <span>${shortTxt}</span>`;
         }
     } else {
-        ocultarIndicadorCarga();
-        if (btn) {
-            btn.innerHTML = btn.dataset.textoOriginal && !btn.dataset.textoOriginal.includes('Procesando') ? btn.dataset.textoOriginal : 'Guardar';
-            btn.disabled = false;
-            btn.style.opacity = '1';
-            btn.style.pointerEvents = 'auto';
-            btn.style.cursor = 'pointer';
+        btn.classList.remove('loading');
+        btn.disabled = false;
+        if (btn.dataset.textoOriginal) {
+            btn.innerHTML = btn.dataset.textoOriginal;
+            delete btn.dataset.textoOriginal;
         }
     }
 }
@@ -575,6 +581,11 @@ window.syncSelectToChips = syncSelectToChips;
 async function conectarGoogle() { 
     try { await signInWithPopup(auth, provider); } catch (err) { alert("Error al intentar iniciar sesión."); } 
 }
+
+export function mostrarToast(msg, tipo = '') {
+    window.alert(msg, tipo);
+}
+window.mostrarToast = mostrarToast;
 
 window.alert = function(msg, tipo = '') {
     const openModal = document.querySelector('dialog[open]');
@@ -667,7 +678,8 @@ function mostrarSkeleton(containerId = 'lista-generica', cantidad = 5) {
 let alumnoIdActual = null;
 let estadoActualVista = 'Dashboard';
 window.tituloABMActual = '';
-let configApp = {};
+window.configApp = {};
+let configApp = window.configApp;
 let chartFlowInst = null, chartEntrevistasInst = null, chartAltasInst = null, chartFlowDashboardInst = null;
 let clipboardDisponibilidad = null, clipboardDisponibilidadProfe = null; 
 let historialActual = []; 
@@ -689,7 +701,7 @@ async function renderChipsPerfilPsicologico(containerId, seleccionados = []) {
     try {
         const snap = await getDoc(doc(db, "configuracion", "general"));
         if (snap.exists()) {
-            configApp = { ...defaultCfg, ...snap.data() };
+            Object.assign(configApp, { ...defaultCfg, ...snap.data() });
         }
     } catch(e) {}
 
@@ -753,7 +765,13 @@ window.toggleChecklistPill = function(contentId, iconId) {
 
 export function crearEntradaHistorial(texto, tipo = 'sistema', autor = null) {
     const now = new Date();
-    const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+    const dia = now.getDate();
+    const mes = now.getMonth() + 1;
+    const anio = now.getFullYear();
+    const hora = now.getHours().toString().padStart(2, '0');
+    const min = now.getMinutes().toString().padStart(2, '0');
+    const fechaStr = `${dia}/${mes}/${anio} ${hora}:${min}`;
+    
     let nombreAutor = autor;
     if (!nombreAutor) {
         if (window.usuarioActual) {
@@ -762,10 +780,16 @@ export function crearEntradaHistorial(texto, tipo = 'sistema', autor = null) {
             nombreAutor = 'Sistema';
         }
     }
+    
+    let textoFinal = (texto || '').trim();
+    if (!textoFinal.startsWith('[')) {
+        textoFinal = `[${fechaStr}] ${textoFinal}`;
+    }
+    
     return {
         id: Date.now() + Math.floor(Math.random() * 1000),
         fecha: fechaStr,
-        texto: texto,
+        texto: textoFinal,
         autor: nombreAutor,
         tipo: tipo
     };
@@ -805,16 +829,16 @@ function renderHistorial() {
         const autorHtml = nota.autor ? `<span style="color:var(--text-muted); font-size:11px; font-weight:500;">👤 ${nota.autor}</span>` : '';
 
         container.innerHTML += `
-            <div style="background:var(--hover-bg); border:1px solid var(--border-color); padding:12px; border-radius:8px; position:relative; display:flex; flex-direction:column; gap:6px;">
+            <div style="background:var(--hover-bg); border:1px solid var(--border-color); padding:10px 12px; border-radius:8px; position:relative; display:flex; flex-direction:column; gap:4px;">
                 <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding-right:50px;">
-                    <span style="font-size:11px; color:var(--text-muted); font-weight:600;">🕒 ${nota.fecha}</span>
+                    <span style="font-size:11px; color:var(--text-muted); font-weight:600;">🕒 ${nota.fecha || ''}</span>
                     ${autorHtml ? '<span style="opacity:0.4;">•</span>' + autorHtml : ''}
                     ${badgeTipoHtml}
                 </div>
-                <div style="font-size:13px; color:var(--text-main); line-height:1.4;">${textoLimpio}</div>
-                <div style="position:absolute; top:10px; right:10px; display:flex; gap:5px;">
-                    <button type="button" class="btn-editar-nota" data-id="${nota.id}" style="background:transparent; border:none; cursor:pointer; font-size:1.1em;" title="Editar">✏️</button>
-                    <button type="button" class="btn-eliminar-nota" data-id="${nota.id}" style="background:transparent; border:none; cursor:pointer; font-size:1.1em;" title="Eliminar">❌</button>
+                <div style="font-size:12.5px; color:var(--text-main); line-height:1.4;">${textoLimpio}</div>
+                <div style="position:absolute; top:8px; right:8px; display:flex; gap:5px;">
+                    <button type="button" class="btn-editar-nota" data-id="${nota.id}" style="background:transparent; border:none; cursor:pointer; font-size:1.05em; padding:2px;" title="Editar">✏️</button>
+                    <button type="button" class="btn-eliminar-nota" data-id="${nota.id}" style="background:transparent; border:none; cursor:pointer; font-size:1.05em; padding:2px;" title="Eliminar">❌</button>
                 </div>
             </div>`;
     });
@@ -822,7 +846,8 @@ function renderHistorial() {
 
 async function cargarConfig() { 
     const docSnap = await getDoc(doc(db, "configuracion", "general")); 
-    configApp = docSnap.exists() ? { ...defaultCfg, ...docSnap.data() } : defaultCfg; 
+    const nuevaCfg = docSnap.exists() ? { ...defaultCfg, ...docSnap.data() } : defaultCfg;
+    Object.assign(configApp, nuevaCfg);
 }
 
 export function convertirHtmlATextoPlano(html) {
@@ -1120,8 +1145,13 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                 </div>
             </div>
         `;
-    } else if (al.horario_match || al.reserva_fecha_texto) {
-        fechaMetaHtml = `<div style="font-size:11px; color:var(--text-muted); font-weight:600;">📅 ${al.horario_match || al.reserva_fecha_texto}</div>`;
+    } else if (al.horario_match || al.reserva_fecha_texto || al.fecha_inicio_clases) {
+        const fechaTxt = al.horario_match || al.reserva_fecha_texto || (al.fecha_inicio_clases ? formatearFechaAmi(al.fecha_inicio_clases) : '');
+        const tieneEv = Boolean(al.id_evento_alta || al.id_evento_reserva || al.reserva_id_evento || al.fecha_inicio_clases || al.horario_match);
+        const syncBadge = tieneEv 
+            ? `<button type="button" class="btn-auditar-cal-fila" data-id="${id}" onclick="event.stopPropagation(); window.auditarCalendarioAlumnoFila('${id}', this);" title="Verificar sincronización con Google Calendar" style="background:none; border:none; cursor:pointer; font-size:12px; padding:1px 4px; border-radius:4px; line-height:1; vertical-align:middle; transition:transform 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.06)'" onmouseout="this.style.background='none'"><span class="icon-spin-fila">🔄</span></button>` 
+            : '';
+        fechaMetaHtml = `<div style="font-size:11px; color:var(--text-muted); font-weight:600; display:flex; align-items:center; gap:4px; flex-wrap:wrap;"><span>📅 ${fechaTxt}</span>${syncBadge}</div>`;
     }
 
     let rowBorderExtra = '';
@@ -1145,8 +1175,9 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                         <input type="checkbox" class="bulk-chk" data-id="${id}" onclick="event.stopPropagation(); window.toggleBulkSelection('${id}', this.checked)">
                         <div class="row-indicator ${info.colorIndicador}"></div>
                         <div class="row-main-info" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:2px;">
-                            <div class="row-name" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; text-align:left;">
+                            <div class="row-name" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; text-align:left;">
                                 <span style="font-weight:700; color:var(--text-main); font-size:14px;">${al.nombre}</span>
+                                <button type="button" class="btn-nota-rapida-directo" data-id="${id}" onclick="event.stopPropagation(); window.abrirNotaRapidaDirecta('${id}', '${(al.nombre || '').replace(/'/g, "\\'")}');" title="Agregar nota rápida al historial" style="background:none; border:none; cursor:pointer; font-size:13px; padding:1px 4px; border-radius:4px; opacity:0.65; vertical-align:middle; line-height:1; transition:opacity 0.2s, background 0.2s;" onmouseover="this.style.opacity='1'; this.style.background='rgba(0,0,0,0.06)';" onmouseout="this.style.opacity='0.65'; this.style.background='none';">📝</button>
                                 ${al.estado_agenda === 'Lista de espera' ? '' : `<span class="status-badge ${info.colorBadge}">${info.txtEstado}</span>`}
                             </div>
                             ${filaDatosHtml}
@@ -1167,6 +1198,17 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
         </div>
     `;
 }
+
+window.abrirNotaRapidaDirecta = function(id, nombre) {
+    const elId = document.getElementById('nota-rapida-id');
+    const elNom = document.getElementById('nota-rapida-alumno-nombre');
+    const elTxt = document.getElementById('nota-rapida-texto');
+    const modal = document.getElementById('modal-nota-rapida');
+    if (elId) elId.value = id;
+    if (elNom) elNom.textContent = nombre ? `Alumno: ${nombre}` : '';
+    if (elTxt) elTxt.value = '';
+    if (modal) modal.showModal();
+};
 
 window.dragKanban = function(ev, id) { ev.dataTransfer.setData("text", id); }
 window.allowDropKanban = function(ev) { ev.preventDefault(); }
@@ -1234,6 +1276,7 @@ function actualizarBulkBar() {
     const btnProp = document.getElementById('btn-bulk-propuesta-grupo');
     const btnBD = document.getElementById('btn-bulk-copiar-bd');
     const btnFact = document.getElementById('btn-bulk-copiar-fact');
+    const btnAuditCal = document.getElementById('btn-bulk-auditar-cal');
     if (selectedBulkIds.length > 0) {
         document.getElementById('bulk-count').textContent = `${selectedBulkIds.length} seleccionados`;
         bar.style.display = 'flex';
@@ -1243,6 +1286,13 @@ function actualizarBulkBar() {
         const esAltas = estadoActualVista && estadoActualVista.startsWith('Altas');
         if (btnBD) btnBD.style.display = esAltas ? 'inline-block' : 'none';
         if (btnFact) btnFact.style.display = esAltas ? 'inline-block' : 'none';
+
+        if (btnAuditCal) {
+            const u = window.usuarioActual || {};
+            const r = (u.rol || '').toLowerCase();
+            const esAdminOAdmisor = r === 'admin' || r === 'admisor' || r === 'admisiones' || (Array.isArray(u.roles) && (u.roles.includes('admin') || u.roles.includes('admisor')));
+            btnAuditCal.style.display = esAdminOAdmisor ? 'inline-block' : 'none';
+        }
     } else {
         bar.style.display = 'none';
     }
@@ -1265,7 +1315,8 @@ document.getElementById('btn-bulk-suspender').addEventListener('click', async ()
             removerFilaOptimista(id);
             const al = (await getDoc(doc(db, "alumnos", id))).data();
             if (al.id_evento_reserva) await eliminarEventoSeguro(al);
-            const hist = al.historial || []; hist.push({ id: Date.now(), texto: `Suspendido masivamente. Motivo: ${motivo}`, fecha: fechaStr });
+            const hist = al.historial || [];
+            hist.push(crearEntradaHistorial(`Alumno suspendido masivamente. Motivo: ${motivo.trim()}. Cupos y eventos liberados.`, 'suspension'));
             await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Agenda suspendida", motivo_suspension: motivo, reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null, historial: hist });
         } catch(e) {}
     }
@@ -1275,6 +1326,295 @@ document.getElementById('btn-bulk-suspender').addEventListener('click', async ()
     ocultarIndicadorCarga();
     alert("✅ Registros suspendidos correctamente.");
 });
+
+// =======================================================================
+// AUDITORÍA Y RESINCRONIZACIÓN CON GOOGLE CALENDAR
+// =======================================================================
+
+let alumnoAuditoriaActual = null;
+let botonFilaAuditoriaActual = null;
+
+window.auditarCalendarioAlumnoFila = async function(id, btnEl) {
+    if (!id) return;
+    if (btnEl) setBotonCargando(btnEl, true);
+
+    try {
+        const alDoc = await getDoc(doc(db, "alumnos", id));
+        if (!alDoc.exists()) {
+            if (btnEl) setBotonCargando(btnEl, false);
+            return mostrarToast("Alumno no encontrado.", "error");
+        }
+        const al = { id, ...alDoc.data() };
+        alumnoAuditoriaActual = al;
+        botonFilaAuditoriaActual = btnEl;
+
+        const res = await verificarEstadoEventoCalendar(al, configApp);
+        if (btnEl) setBotonCargando(btnEl, false);
+
+        if (res.estado === 'OK') {
+            if (btnEl) {
+                btnEl.innerHTML = '<span style="color:#059669; font-weight:800;">🟢</span>';
+                btnEl.title = "Sincronizado OK con Google Calendar";
+            }
+            mostrarToast("✅ Sincronizado: " + (al.nombre || 'Alumno') + " coincide con Google Calendar.");
+        } else if (res.estado === 'NO_EXISTE' || res.estado === 'DESFASAJE_HORARIO') {
+            if (btnEl) {
+                btnEl.innerHTML = '<span style="color:#d97706; font-weight:800;">🟡</span>';
+                btnEl.title = "Desfasaje detectado con Google Calendar";
+            }
+            window.abrirModalDiscrepanciaCalendar(al, res, btnEl);
+        } else {
+            if (btnEl) {
+                btnEl.innerHTML = '<span style="color:#64748b;">⚪</span>';
+                btnEl.title = res.mensaje || "Sin datos de calendario";
+            }
+            mostrarToast("ℹ️ " + (res.mensaje || "Sin datos de calendario."));
+        }
+    } catch(err) {
+        if (btnEl) setBotonCargando(btnEl, false);
+        mostrarToast("❌ Error al auditar calendario: " + err.message, "error");
+    }
+};
+
+window.auditarCalendarioAlumno = async function(id) {
+    const btnFila = document.querySelector(`.btn-auditar-cal-fila[data-id="${id}"]`);
+    await window.auditarCalendarioAlumnoFila(id, btnFila);
+};
+
+window.abrirModalDiscrepanciaCalendar = function(al, resAudit, btnEl = null) {
+    const modal = document.getElementById('modal-discrepancia-calendar');
+    if (!modal) return;
+
+    alumnoAuditoriaActual = al;
+    botonFilaAuditoriaActual = btnEl;
+
+    document.getElementById('modal-disc-alumno-id').value = al.id;
+    document.getElementById('modal-disc-alumno-nombre').textContent = al.nombre || 'Alumno';
+    document.getElementById('modal-disc-cal-fecha-iso').value = resAudit.fechaCalendar || '';
+    document.getElementById('modal-disc-cal-evento-id').value = resAudit.evId || '';
+
+    // Formatear fechas
+    let fechaSisTxt = '-';
+    if (al.fecha_inicio_clases) {
+        fechaSisTxt = formatearFechaAmi(al.fecha_inicio_clases);
+    } else if (al.horario_match || al.reserva_fecha_texto) {
+        fechaSisTxt = al.horario_match || al.reserva_fecha_texto;
+    }
+    document.getElementById('modal-disc-fecha-sistema').textContent = fechaSisTxt;
+
+    let fechaCalTxt = 'No existe / Eliminado';
+    if (resAudit.fechaCalendar) {
+        fechaCalTxt = formatearFechaAmi(resAudit.fechaCalendar);
+    }
+    document.getElementById('modal-disc-fecha-calendar').textContent = fechaCalTxt;
+
+    const btnRecrear = document.getElementById('btn-modal-disc-recrear');
+    const btnTraerCal = document.getElementById('btn-modal-disc-traer-cal');
+    const btnForzarCal = document.getElementById('btn-modal-disc-forzar-cal');
+
+    if (resAudit.estado === 'NO_EXISTE') {
+        document.getElementById('modal-disc-icon').textContent = '🔴';
+        document.getElementById('modal-disc-titulo').textContent = 'Evento no encontrado en Google Calendar';
+        document.getElementById('modal-disc-subtitulo').textContent = 'El evento fue eliminado en Google Calendar o nunca llegó a crearse.';
+        document.getElementById('modal-disc-mensaje-detalle').textContent = 'Podes recrear el evento en Google Calendar usando la fecha y hora oficial del sistema, o mantener el registro como está.';
+        if (btnRecrear) btnRecrear.style.display = 'inline-block';
+        if (btnTraerCal) btnTraerCal.style.display = 'none';
+        if (btnForzarCal) btnForzarCal.style.display = 'none';
+    } else if (resAudit.estado === 'DESFASAJE_HORARIO') {
+        document.getElementById('modal-disc-icon').textContent = '⚠️';
+        document.getElementById('modal-disc-titulo').textContent = 'Desfasaje de Horario con Google Calendar';
+        document.getElementById('modal-disc-subtitulo').textContent = 'El horario del evento en Calendar difiere del registrado en la App.';
+        document.getElementById('modal-disc-mensaje-detalle').textContent = '¿Deseas actualizar el horario en la app trayendo el de Calendar, o forzar a Calendar a volver al horario del sistema?';
+        if (btnRecrear) btnRecrear.style.display = 'none';
+        if (btnTraerCal) btnTraerCal.style.display = 'inline-block';
+        if (btnForzarCal) btnForzarCal.style.display = 'inline-block';
+    }
+
+    modal.showModal();
+};
+
+// Handlers de botones del modal de discrepancias
+document.getElementById('btn-close-modal-disc')?.addEventListener('click', () => {
+    document.getElementById('modal-discrepancia-calendar')?.close();
+    if (botonFilaAuditoriaActual) {
+        botonFilaAuditoriaActual.innerHTML = '<span style="color:#d97706; font-weight:800;">🟡</span>';
+    }
+});
+
+document.getElementById('btn-modal-disc-cancelar')?.addEventListener('click', () => {
+    document.getElementById('modal-discrepancia-calendar')?.close();
+    if (botonFilaAuditoriaActual) {
+        botonFilaAuditoriaActual.innerHTML = '<span style="color:#d97706; font-weight:800;">🟡</span>';
+    }
+    mostrarToast("ℹ️ Registro mantenido con advertencia de desincronización (🟡).");
+});
+
+document.getElementById('btn-modal-disc-recrear')?.addEventListener('click', async () => {
+    if (!alumnoAuditoriaActual) return;
+    mostrarIndicadorCarga("Recreando evento en Google Calendar...");
+    try {
+        await recrearEventoFaltanteCalendar(alumnoAuditoriaActual, configApp);
+        document.getElementById('modal-discrepancia-calendar')?.close();
+        if (botonFilaAuditoriaActual) {
+            botonFilaAuditoriaActual.innerHTML = '<span style="color:#059669; font-weight:800;">🟢</span>';
+        }
+        ocultarIndicadorCarga();
+        mostrarToast("✅ Evento recreado y sincronizado exitosamente en Google Calendar.");
+        await cargarVista(estadoActualVista);
+    } catch(err) {
+        ocultarIndicadorCarga();
+        alert("Error al recrear evento: " + err.message);
+    }
+});
+
+document.getElementById('btn-modal-disc-traer-cal')?.addEventListener('click', async () => {
+    if (!alumnoAuditoriaActual) return;
+    const fCalIso = document.getElementById('modal-disc-cal-fecha-iso').value;
+    const evId = document.getElementById('modal-disc-cal-evento-id').value;
+    if (!fCalIso) return alert("Fecha de Calendar no disponible.");
+
+    mostrarIndicadorCarga("Alineando Sistema desde Google Calendar...");
+    try {
+        await alinearSistemaDesdeCalendar(alumnoAuditoriaActual, fCalIso, evId, configApp);
+        document.getElementById('modal-discrepancia-calendar')?.close();
+        if (botonFilaAuditoriaActual) {
+            botonFilaAuditoriaActual.innerHTML = '<span style="color:#059669; font-weight:800;">🟢</span>';
+        }
+        ocultarIndicadorCarga();
+        mostrarToast("✅ Sistema actualizado con el nuevo horario de Google Calendar.");
+        await cargarVista(estadoActualVista);
+    } catch(err) {
+        ocultarIndicadorCarga();
+        alert("Error al alinear sistema: " + err.message);
+    }
+});
+
+document.getElementById('btn-modal-disc-forzar-cal')?.addEventListener('click', async () => {
+    if (!alumnoAuditoriaActual) return;
+    mostrarIndicadorCarga("Alineando Google Calendar con el Sistema...");
+    try {
+        await alinearEventoHaciaCalendar(alumnoAuditoriaActual, configApp);
+        document.getElementById('modal-discrepancia-calendar')?.close();
+        if (botonFilaAuditoriaActual) {
+            botonFilaAuditoriaActual.innerHTML = '<span style="color:#059669; font-weight:800;">🟢</span>';
+        }
+        ocultarIndicadorCarga();
+        mostrarToast("✅ Google Calendar alineado con el horario oficial del Sistema.");
+        await cargarVista(estadoActualVista);
+    } catch(err) {
+        ocultarIndicadorCarga();
+        alert("Error al forzar horario en Calendar: " + err.message);
+    }
+});
+
+// Botón de auditoría individual dentro del Modal de Edición Alumno
+document.getElementById('btn-modal-auditar-cal')?.addEventListener('click', async () => {
+    const id = document.getElementById('alumno-id')?.value;
+    if (!id) return;
+    const btn = document.getElementById('btn-modal-auditar-cal');
+    const badge = document.getElementById('badge-modal-cal-status');
+    if (btn) setBotonCargando(btn, true);
+
+    try {
+        const alDoc = await getDoc(doc(db, "alumnos", id));
+        if (!alDoc.exists()) {
+            if (btn) setBotonCargando(btn, false);
+            return mostrarToast("Alumno no encontrado.", "error");
+        }
+        const al = { id, ...alDoc.data() };
+        const res = await verificarEstadoEventoCalendar(al, configApp);
+        if (btn) setBotonCargando(btn, false);
+
+        if (res.estado === 'OK') {
+            if (badge) {
+                badge.textContent = '🟢 Sincronizado OK';
+                badge.style.background = '#dcfce7';
+                badge.style.color = '#166534';
+            }
+            mostrarToast("✅ Sincronizado correctamente con Google Calendar.");
+        } else if (res.estado === 'NO_EXISTE') {
+            if (badge) {
+                badge.textContent = '🔴 No existe en Calendar';
+                badge.style.background = '#fee2e2';
+                badge.style.color = '#991b1b';
+            }
+            window.abrirModalDiscrepanciaCalendar(al, res);
+        } else if (res.estado === 'DESFASAJE_HORARIO') {
+            if (badge) {
+                badge.textContent = '🟡 Horario Desfasado';
+                badge.style.background = '#fef3c7';
+                badge.style.color = '#92400e';
+            }
+            window.abrirModalDiscrepanciaCalendar(al, res);
+        } else {
+            if (badge) {
+                badge.textContent = '⚪ ' + (res.mensaje || 'Sin datos');
+                badge.style.background = '#e2e8f0';
+                badge.style.color = '#475569';
+            }
+            mostrarToast("ℹ️ " + (res.mensaje || "Sin datos."));
+        }
+    } catch(e) {
+        if (btn) setBotonCargando(btn, false);
+        mostrarToast("❌ Error al verificar: " + e.message, "error");
+    }
+});
+
+// Botón de auditoría masiva de seleccionados
+const btnBulkAuditarCal = document.getElementById('btn-bulk-auditar-cal');
+if (btnBulkAuditarCal) {
+    btnBulkAuditarCal.addEventListener('click', async () => {
+        const ids = [...selectedBulkIds];
+        if (ids.length === 0) return alert("Seleccioná al menos un alumno para auditar.");
+
+        const u = window.usuarioActual || {};
+        const r = (u.rol || '').toLowerCase();
+        const esAdminOAdmisor = r === 'admin' || r === 'admisor' || r === 'admisiones' || (Array.isArray(u.roles) && (u.roles.includes('admin') || u.roles.includes('admisor')));
+        if (!esAdminOAdmisor) {
+            return alert("⛔ Esta acción solo puede ser ejecutada por un Admisor o Administrador.");
+        }
+
+        mostrarIndicadorCarga(`Iniciando auditoría de ${ids.length} alumno(s)...`);
+        let okCount = 0, noExisteCount = 0, desfasajeCount = 0, sinCalCount = 0;
+
+        for (let i = 0; i < ids.length; i++) {
+            const id = ids[i];
+            mostrarIndicadorCarga(`Auditando alumno ${i + 1} de ${ids.length}...`);
+            try {
+                const alDoc = await getDoc(doc(db, "alumnos", id));
+                if (alDoc.exists()) {
+                    const al = { id, ...alDoc.data() };
+                    const res = await verificarEstadoEventoCalendar(al, configApp);
+                    const btnFila = document.querySelector(`.btn-auditar-cal-fila[data-id="${id}"]`);
+
+                    if (res.estado === 'OK') {
+                        okCount++;
+                        if (btnFila) btnFila.innerHTML = '<span style="color:#059669; font-weight:800;">🟢</span>';
+                    } else if (res.estado === 'NO_EXISTE') {
+                        noExisteCount++;
+                        if (btnFila) btnFila.innerHTML = '<span style="color:#ef4444; font-weight:800;">🔴</span>';
+                    } else if (res.estado === 'DESFASAJE_HORARIO') {
+                        desfasajeCount++;
+                        if (btnFila) btnFila.innerHTML = '<span style="color:#d97706; font-weight:800;">🟡</span>';
+                    } else {
+                        sinCalCount++;
+                        if (btnFila) btnFila.innerHTML = '<span style="color:#64748b;">⚪</span>';
+                    }
+                }
+            } catch(e) {
+                console.warn(`Error auditando alumno ${id}:`, e);
+            }
+        }
+
+        ocultarIndicadorCarga();
+        alert(`🔍 Resumen de Auditoría de Google Calendar (${ids.length} revisados):\n\n` +
+              `• 🟢 Sincronizados OK: ${okCount}\n` +
+              `• 🔴 No encontrados / Borrados: ${noExisteCount}\n` +
+              `• 🟡 Horarios desfasados: ${desfasajeCount}\n` +
+              `• ⚪ Sin evento / Sin calendario: ${sinCalCount}\n\n` +
+              `Los registros con alertas quedaron identificados en la lista con su icono correspondiente.`);
+    });
+}
 
 // =======================================================================
 // EXPORTACIÓN Y COPIADO PARA EXCEL / GOOGLE SHEETS (BD Y FACTURACIÓN)
@@ -3375,7 +3715,52 @@ document.addEventListener('click', async (e) => {
         document.getElementById('modal-nota-rapida').showModal(); 
         return; 
     }
-    if (target.id === 'btn-guardar-nota-rapida') { const id = document.getElementById('nota-rapida-id').value, texto = document.getElementById('nota-rapida-texto').value; if (!texto.trim()) return alert("La nota no puede estar vacía."); setBotonCargando(target, true); try { const alDoc = await getDoc(doc(db, "alumnos", id)); if (alDoc.exists()) { const alData = alDoc.data(), hist = alData.historial || []; const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`; hist.push({ id: Date.now(), texto: texto.trim(), fecha: fechaStr }); await updateDoc(doc(db, "alumnos", id), { historial: hist }); document.getElementById('modal-nota-rapida').close(); cargarVista(estadoActualVista); } } catch(e) {} setBotonCargando(target, false); return; }
+    if (target.id === 'btn-guardar-nota-rapida') {
+        const id = document.getElementById('nota-rapida-id').value;
+        const texto = document.getElementById('nota-rapida-texto').value;
+        if (!texto.trim()) return alert("La nota no puede estar vacía.");
+        setBotonCargando(target, true);
+        try {
+            const alDoc = await getDoc(doc(db, "alumnos", id));
+            if (alDoc.exists()) {
+                const alData = alDoc.data();
+                const hist = alData.historial || [];
+                const nuevaEntrada = crearEntradaHistorial(texto.trim(), 'nota');
+                hist.push(nuevaEntrada);
+                await updateDoc(doc(db, "alumnos", id), { historial: hist });
+                document.getElementById('modal-nota-rapida').close();
+                mostrarToast('Nota guardada correctamente en el historial.', 'success');
+                cargarVista(estadoActualVista);
+            }
+        } catch(e) {
+            alert("Error al guardar la nota: " + e.message);
+        } finally {
+            setBotonCargando(target, false);
+        }
+        return;
+    }
+
+    if (target.id === 'btn-agregar-nota-modal') {
+        const inputNota = document.getElementById('input-nueva-nota-modal');
+        const id = document.getElementById('alumno-id')?.value;
+        const texto = (inputNota?.value || '').trim();
+        if (!texto) return alert("Por favor escribí una nota antes de agregar.");
+        
+        const nuevaEntrada = crearEntradaHistorial(texto, 'nota');
+        historialActual.push(nuevaEntrada);
+        renderHistorial();
+        inputNota.value = '';
+
+        if (id) {
+            try {
+                await updateDoc(doc(db, "alumnos", id), { historial: historialActual });
+                mostrarToast('Nota agregada al historial.', 'success');
+            } catch(e) {
+                console.warn("No se pudo guardar la nota en Firestore:", e);
+            }
+        }
+        return;
+    }
 
     // EDICIÓN DE ALUMNO: Se asegura que el clic no haya sido en una acción o checkbox
     const rowInfo = target.closest('.btn-editar-alumno');
@@ -3534,6 +3919,14 @@ document.addEventListener('click', async (e) => {
         const btn = target.classList.contains('btn-copiar-fila-excel-fact') ? target : target.closest('.btn-copiar-fila-excel-fact');
         const id = btn.getAttribute('data-id');
         await copiarFilaExcelFacturacion(id);
+        return;
+    }
+
+    // Botón Auditar Calendar desde Menú ⋮
+    if (target.classList.contains('btn-auditar-cal-directo') || target.closest('.btn-auditar-cal-directo')) {
+        const btn = target.classList.contains('btn-auditar-cal-directo') ? target : target.closest('.btn-auditar-cal-directo');
+        const id = btn.getAttribute('data-id');
+        await window.auditarCalendarioAlumno(id);
         return;
     }
 
@@ -3996,6 +4389,8 @@ document.addEventListener('click', async (e) => {
             al.reserva_fin = op.fin;
             const titulos = construirTitulosEvento(al, 'reserva', configApp);
             const evRes = await crearEventoSeguro(al, titulos, op.inicio, op.fin);
+            const hist = al.historial || [];
+            hist.push(crearEntradaHistorial(`Horario validado por evaluador/a ${op.profeNombre}. Propuesta enviada al alumno por WhatsApp (${op.fechaTexto}).`, 'agenda'));
             await updateDoc(doc(db, "alumnos", id), {
                 estado_agenda: "Pendiente validación por alumno",
                 id_evento_reserva: evRes.id,
@@ -4006,7 +4401,8 @@ document.addEventListener('click', async (e) => {
                 reserva_fecha_texto: op.fechaTexto,
                 reserva_inicio: op.inicio,
                 reserva_fin: op.fin,
-                opciones_propuestas: null
+                opciones_propuestas: null,
+                historial: hist
             });
             const dataText = await generarTextoConHistorial(id, 'texto_alumno');
             await navigator.clipboard.writeText(dataText.txt);
@@ -4041,9 +4437,8 @@ document.addEventListener('click', async (e) => {
                     console.warn("Aviso: No se pudo actualizar el evento en Google Calendar:", calErr);
                 }
             }
-            const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
             const hist = al.historial || [];
-            hist.push({ id: Date.now(), texto: "Agenda confirmada por alumno.", fecha: fechaStr });
+            hist.push(crearEntradaHistorial(`Entrevista confirmada con el alumno para el ${al.reserva_fecha_texto || ''} con ${al.reserva_profe_nombre || 'Evaluador'}.`, 'agenda'));
             await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Agenda confirmada", historial: hist });
             removerFilaOptimista(id);
             await cargarVista(estadoActualVista);
@@ -4136,9 +4531,8 @@ document.addEventListener('click', async (e) => {
             try { 
                 if (alData.id_evento_reserva) await eliminarEventoSeguro(alData, configApp); 
                 if (alData.id_evento_alta) await eliminarEventoAltaSeguro(alData, configApp);
-                const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`; 
                 const hist = alData.historial || []; 
-                hist.push({ id: Date.now(), texto: `Reserva cancelada. Motivo: ${motivo.trim()}`, fecha: fechaStr }); 
+                hist.push(crearEntradaHistorial(`Entrevista cancelada. Motivo: ${motivo.trim()}. Evento liberado en Google Calendar.`, 'suspension')); 
                 const data = await generarTextoConHistorial(id, 'texto_cancela_alumno'); 
                 if (data.al.estado_agenda === 'Pendiente validación por alumno' || data.al.estado_agenda === 'Agenda confirmada') { 
                     await navigator.clipboard.writeText(data.txt); 
@@ -4172,16 +4566,10 @@ document.addEventListener('click', async (e) => {
             );
             if (ok) {
                 setBotonCargando(btn, true, 'Pasando a Lista de Espera...');
-                const now = new Date();
-                const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
                 const hist = alData.historial || [];
-                hist.push({
-                    id: Date.now(),
-                    texto: 'Derivado directamente a Lista de Espera sin entrevista previa.',
-                    fecha: fechaStr
-                });
+                hist.push(crearEntradaHistorial('Derivado directamente a Lista de Espera sin entrevista previa.', 'sistema'));
                 await updateDoc(doc(db, "alumnos", id), {
-                    estado_agenda: 'Lista de Espera',
+                    estado_agenda: 'Lista de espera',
                     fecha_ingreso_espera: new Date().toISOString(),
                     historial: hist
                 });
@@ -4249,10 +4637,9 @@ document.addEventListener('click', async (e) => {
             if (al.id_evento_reserva) await eliminarEventoSeguro(al, configApp);
             if (al.id_evento_alta) await eliminarEventoAltaSeguro(al, configApp);
             
-            const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
             const hist = al.historial || []; 
             const motivoCompleto = det ? `${mtv} (Detalle: ${det})` : mtv;
-            hist.push({ id: Date.now(), texto: `Suspendido. Motivo: ${motivoCompleto}`, fecha: fechaStr }); 
+            hist.push(crearEntradaHistorial(`Alumno suspendido. Motivo: ${motivoCompleto}. Eventos y cupos liberados.`, 'suspension')); 
             
             const nuevoEstado = esDeAltaOEspera ? "Alta suspendida" : "Agenda suspendida";
             await updateDoc(doc(db, "alumnos", id), { 
@@ -4488,6 +4875,24 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
         if (inpHora) inpHora.value = '';
         if (inpIni) inpIni.value = '';
     }
+
+    // Estado de Auditoría de Calendar en el Modal (Oculto para Docentes/Profesores)
+    const elCalAuditBox = document.getElementById('modal-cal-audit-box');
+    const badgeCalStatus = document.getElementById('badge-modal-cal-status');
+    const tieneEventoCalendar = Boolean(d.id_evento_alta || d.id_evento_reserva || d.fecha_inicio_clases || d.horario_match || d.reserva_fecha_texto);
+    
+    const u = window.usuarioActual || {};
+    const r = (u.rol || '').toLowerCase();
+    const esDocenteOModoLectura = modoLectura || r === 'docente' || r === 'profesor' || (Array.isArray(u.roles) && (u.roles.includes('docente') || u.roles.includes('profesor')) && !u.roles.includes('admin') && !u.roles.includes('admisor'));
+
+    if (elCalAuditBox) {
+        elCalAuditBox.style.display = (!esDocenteOModoLectura && tieneEventoCalendar) ? 'flex' : 'none';
+        if (badgeCalStatus) {
+            badgeCalStatus.textContent = '⚪ Sin verificar';
+            badgeCalStatus.style.background = '#e2e8f0';
+            badgeCalStatus.style.color = '#475569';
+        }
+    }
     
     // Controles de Modo Lectura para Docentes vs Edición Admisor
     const camposForm = ['nombre', 'celular', 'edad', 'nivel', 'tipo_suscripcion', 'modal-alta-horario-input', 'modal-alta-inicio-input'];
@@ -4600,10 +5005,10 @@ document.getElementById('form-alumno').addEventListener('submit', async (e) => {
             const esDirecto = document.getElementById('chk-ingreso-directo').checked;
             if (esDirecto) {
                 data.estado_agenda = "Lista de espera";
-                const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
-                data.historial.push({ id: Date.now(), texto: "Ingreso directo a Lista de Espera.", fecha: fechaStr });
+                data.historial.push(crearEntradaHistorial("Ingreso directo a Lista de Espera sin entrevista previa.", 'sistema'));
             } else {
                 data.estado_agenda = "Pendiente procesar";
+                data.historial.push(crearEntradaHistorial("Nuevo alumno registrado en bandeja de admisión.", 'sistema'));
             }
             await addDoc(collection(db, "alumnos"), data);
         }
