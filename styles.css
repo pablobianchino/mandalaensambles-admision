@@ -230,6 +230,7 @@ body {
 .filter-chip.active { background: var(--accent-teal); color: white; border-color: var(--accent-teal); box-shadow: 0 2px 5px rgba(0,123,143,0.25); }
 .filter-chip.active.active-nivel { background: #16a34a; border-color: #16a34a; box-shadow: 0 2px 5px rgba(22,163,74,0.25); }
 .filter-chip.active.active-susc { background: #2563eb; border-color: #2563eb; box-shadow: 0 2px 5px rgba(37,99,235,0.25); }
+.filter-chip.active.active-eval { background: #0284c7; border-color: #0284c7; box-shadow: 0 2px 5px rgba(2,132,199,0.25); }
 .filter-alarm { background: white; }
 .filter-alarm.active { background: var(--hover-bg); color: var(--text-main) !important; border-color: var(--text-main) !important; }
 
