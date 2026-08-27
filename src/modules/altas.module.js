@@ -512,8 +512,10 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
         
         const hist = al.historial || [];
         const fnHist = window.crearEntradaHistorial || ((txt, tipo) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema' }));
-        const accionDesc = esAltaPrevia ? 'Alta modificada' : 'Pre-Alta guardada';
-        hist.push(fnHist(`${accionDesc} para "${finalGrupo}" con Profe ${finalProfeNombre || '-'} (Inicio: ${updates.horario_match}).`, 'alta'));
+        const accionDesc = esAltaPrevia 
+            ? `Datos de cursada actualizados: ${updates.horario_match} con Profe ${finalProfeNombre || '-'}.`
+            : `Pre-Alta iniciada para "${finalGrupo}" con Profe ${finalProfeNombre || '-'} (Inicio: ${updates.horario_match}). Evento sincronizado en Calendar.`;
+        hist.push(fnHist(accionDesc, 'alta'));
         updates.historial = hist;
 
         await updateDoc(doc(db, "alumnos", id), updates);
@@ -584,14 +586,52 @@ export function formatearFechaInicioParaExcel(al) {
 
 export function formatearDetalleAltaInicio(al) {
     if (al.fecha_inicio_clases) {
-        const d = new Date(al.fecha_inicio_clases);
+        let d;
+        // Soporte para Firestore Timestamp y strings ISO
+        if (typeof al.fecha_inicio_clases.toDate === 'function') {
+            d = al.fecha_inicio_clases.toDate();
+        } else {
+            d = new Date(al.fecha_inicio_clases);
+        }
         if (!isNaN(d.getTime())) {
             const dia = d.getDate().toString().padStart(2, '0');
             const mes = (d.getMonth() + 1).toString().padStart(2, '0');
-            return `ALTA: Inicia ${dia}/${mes}`;
+            return `ALTA: Inicio ${dia}/${mes}`;
         }
     }
-    return 'ALTA: Inicia a confirmar';
+    if (al.dia_match) {
+        return `ALTA: Inicio ${al.dia_match}`;
+    }
+    return 'ALTA: Inicio a confirmar';
+}
+
+function resolverPrecioSuscripcion(al) {
+    // 1. Precio guardado directamente en el alumno
+    const precioGuardado = al.precio_suscripcion || al.valor_arancel || al.arancel || '';
+    if (precioGuardado && String(precioGuardado).replace(/[^\d]/g, '').length > 0) {
+        return formatearPrecioMoneda(precioGuardado);
+    }
+    // 2. Resolver desde window.configApp según tipo_suscripcion
+    const cfg = window.configApp || {};
+    const tipo = (al.tipo_suscripcion || '').toLowerCase();
+    const esComunidad = !!(al.es_comunidad || al.comunidad);
+    let valor = '';
+    if (tipo.includes('individual') || tipo.includes('clase')) {
+        if (tipo.includes('suelta') || tipo.includes('puntual')) {
+            valor = cfg.arancel_individual_suelta;
+        } else if (tipo.includes('quincenal')) {
+            valor = cfg.arancel_individual_quincenal;
+        } else {
+            valor = esComunidad
+                ? (cfg.arancel_individual_fullpack_comunidad || cfg.arancel_individual_fullpack)
+                : cfg.arancel_individual_fullpack;
+        }
+    } else if (tipo.includes('ensamble') || tipo.includes('grupo')) {
+        valor = esComunidad
+            ? cfg.arancel_ensamble_comunidad
+            : (cfg.arancel_ensamble_regular || cfg.arancel_ensamble_actual);
+    }
+    return valor ? formatearPrecioMoneda(valor) : '';
 }
 
 export function generarFilaExcelBD(al) {
@@ -600,38 +640,40 @@ export function generarFilaExcelBD(al) {
     const fechaInicio = formatearFechaInicioParaExcel(al);
 
     const cols = [
-        al.nombre || '',
-        al.reserva_profe_nombre || al.profesor_asignado || '',
-        '',
-        al.grupo_asignado || 'Individual',
-        al.nivel || '',
-        instFinal,
-        al.tipo_suscripcion || '',
-        '',
-        'Alta',
-        '',
-        '',
-        '',
-        '',
-        fechaAlta,
-        fechaInicio
+        al.nombre || '',          // 1
+        al.reserva_profe_nombre || al.profesor_asignado || '', // 2
+        '',                       // 3 vacío
+        al.grupo_asignado || 'Individual', // 4
+        al.nivel || '',           // 5
+        instFinal,                // 6
+        al.tipo_suscripcion || '', // 7
+        '',                       // 8 vacío
+        'Alta',                   // 9
+        '',                       // 10 vacío
+        '',                       // 11 vacío
+        '',                       // 12 vacío
+        '',                       // 13 vacío
+        fechaAlta,                // 14 fecha de alta
+        '',                       // 15 vacío (NUEVO)
+        fechaInicio               // 16 fecha y horario de inicio
     ];
     return cols.join('\t');
 }
 
 export function generarFilaExcelFacturacion(al) {
-    const precio = formatearPrecioMoneda(al.precio_suscripcion) || al.precio_suscripcion || '';
+    const precio = resolverPrecioSuscripcion(al);
     const detalleAlta = formatearDetalleAltaInicio(al);
 
     const cols = [
-        al.nombre || '',
-        al.reserva_profe_nombre || al.profesor_asignado || '',
-        al.grupo_asignado || 'Individual',
-        precio,
-        precio,
-        '',
-        '',
-        detalleAlta
+        al.nombre || '',          // 1
+        al.reserva_profe_nombre || al.profesor_asignado || '', // 2
+        al.grupo_asignado || 'Individual', // 3
+        precio,                   // 4 cuota esperada
+        precio,                   // 5 valor de pago
+        '',                       // 6 vacío
+        '',                       // 7 vacío
+        '',                       // 8 vacío (NUEVO)
+        detalleAlta               // 9 ALTA: Inicio DD/MM
     ];
     return cols.join('\t');
 }
@@ -949,7 +991,7 @@ export async function copiarAvisoPrealtaAlumno(id) {
                 const al = alDoc.data();
                 const hist = al.historial || [];
                 const fnHist = window.crearEntradaHistorial || ((txt, tipo) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema' }));
-                hist.push(fnHist(`Mensaje de aviso de Pre-Alta para Alumno generado y copiado al portapapeles${monto ? ` (Arancel: ${monto})` : ''}.`, 'alta'));
+                hist.push(fnHist(`Mensaje de Pre-Alta enviado al alumno por WhatsApp (Arancel: ${monto || al.valor_arancel || '-'}).`, 'alta'));
                 await updateDoc(doc(db, "alumnos", id), { 
                     historial: hist,
                     valor_arancel: monto || al.valor_arancel || ''
