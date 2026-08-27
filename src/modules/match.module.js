@@ -57,22 +57,26 @@ export function adaptarFormularioPorSuscripcion(nombreSusc) {
     const cantWrapper = document.getElementById('match-cantidad-wrapper');
     const nivelWrapper = document.getElementById('match-nivel-wrapper');
 
+    const instWrapper = document.getElementById('match-instrumento-wrapper');
     if (tipo === 'individual') {
         if (opcGrupales) opcGrupales.style.display = 'none';
         if (cantoWrapper) cantoWrapper.style.display = 'none';
         if (cantWrapper) cantWrapper.style.display = 'none';
         if (nivelWrapper) nivelWrapper.style.display = 'none';
+        if (instWrapper) instWrapper.style.display = 'block';
     } else if (tipo === 'grupal') {
         if (opcGrupales) opcGrupales.style.display = 'flex';
         if (cantoWrapper) cantoWrapper.style.display = 'block';
         const esCanto = document.getElementById('match-chk-canto')?.checked || false;
         if (excluirWrapper) excluirWrapper.style.display = esCanto ? 'none' : 'block';
+        if (instWrapper) instWrapper.style.display = esCanto ? 'none' : 'block';
         if (cantWrapper) cantWrapper.style.display = 'block';
         if (nivelWrapper) nivelWrapper.style.display = 'block';
     } else if (tipo === 'ensamble') {
         if (opcGrupales) opcGrupales.style.display = 'flex';
         if (cantoWrapper) cantoWrapper.style.display = 'none';
         if (excluirWrapper) excluirWrapper.style.display = 'block';
+        if (instWrapper) instWrapper.style.display = 'block';
         if (cantWrapper) cantWrapper.style.display = 'block';
         if (nivelWrapper) nivelWrapper.style.display = 'block';
     }
@@ -144,6 +148,8 @@ export function initMatchFormListeners(cfgMin = 2, cfgMax = 6, callbacks = {}) {
         const esCanto = document.getElementById('match-chk-canto').checked;
         const excWrapper = document.getElementById('match-excluir-wrapper');
         if (excWrapper) excWrapper.style.display = esCanto ? 'none' : 'block';
+        const instWrapper = document.getElementById('match-instrumento-wrapper');
+        if (instWrapper) instWrapper.style.display = esCanto ? 'none' : 'block';
         filtrarProfesoresMatch();
     });
 
