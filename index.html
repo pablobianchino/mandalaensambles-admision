@@ -91,6 +91,10 @@
             <div style="margin-top: auto; padding-top: 15px; border-top: 1px solid #ece6dc; display:flex; flex-direction:column; gap:8px;">
                 <li class="nav-item-small" data-vista="Configuración" data-modulo="Configuración"><span class="nav-icon">⚙️</span> Configuración</li>
                 <li id="nav-item-mi-perfil" class="nav-item-small" style="cursor:pointer;"><span class="nav-icon">👤</span> Mi Perfil</li>
+                <div style="display:flex; gap:6px; margin:2px 0;">
+                    <button type="button" id="btn-quick-test-evaluador" onclick="window.generarCasosPruebaEvaluador(window.usuarioActual?.email || 'pablobianchino@gmail.com')" class="btn-app btn-secondary" style="font-size:11px; height:28px; padding:0 8px; flex:1; justify-content:center;" title="Crear 3 alumnos [TEST] para probar flujo Evaluador">🧪 Casos Test</button>
+                    <button type="button" id="btn-quick-test-clean" onclick="window.limpiarCasosPrueba()" class="btn-app btn-secondary" style="font-size:11px; height:28px; padding:0 8px; justify-content:center;" title="Eliminar todos los alumnos [TEST]">🗑️</button>
+                </div>
                 <div id="user-info" style="font-size: 0.8em; color: #8a9097; word-break: break-all; padding: 0 10px;"></div>
                 <button id="btn-logout" class="btn-logout">Cerrar sesión</button>
             </div>
@@ -388,6 +392,7 @@
         <div id="bulk-actions-bar" style="display:none;">
             <span id="bulk-count">0 seleccionados</span>
             <button id="btn-bulk-propuesta-grupo" class="btn-primary" style="padding:6px 14px; font-size:12.5px; display:none;">✨ Nueva Propuesta de Grupo</button>
+            <button id="btn-bulk-devolver-espera" style="padding:6px 12px; font-size:12px; font-weight:700; border-radius:6px; background:#fff; border:1px solid var(--border-color); color:#0369a1; cursor:pointer; display:none;">🛋️ Devolver a Espera</button>
             <button id="btn-bulk-auditar-cal" style="padding:6px 12px; font-size:12px; font-weight:700; border-radius:6px; background:#fff; border:1px solid var(--border-color); color:var(--text-main); cursor:pointer; display:none;">🔍 Auditar Calendar</button>
             <button id="btn-bulk-copiar-bd" style="padding:6px 12px; font-size:12px; font-weight:700; border-radius:6px; background:#fff; border:1px solid var(--border-color); color:var(--text-main); cursor:pointer; display:none;">📋 Generar registro BD</button>
             <button id="btn-bulk-copiar-fact" style="padding:6px 12px; font-size:12px; font-weight:700; border-radius:6px; background:#fff; border:1px solid var(--border-color); color:var(--text-main); cursor:pointer; display:none;">💰 Generar registro Facturación</button>
@@ -600,16 +605,61 @@
         </div>
     </dialog>
 
-    <dialog id="modal-informe-admision" class="modern-modal" style="width: 90%; max-width: 500px;">
-        <div style="padding:24px;">
+    <dialog id="modal-informe-admision" class="modern-modal" style="width: 95%; max-width: 680px;">
+        <div style="padding: 24px;">
             <div class="modal-drag-pill"></div>
-            <h3 style="margin:0 0 10px 0; color:var(--text-main);">Finalizar Admisión</h3>
-            <p style="color:var(--text-muted); font-size:0.95em; margin-bottom:15px;">Ingresá un resumen o informe de nivelación antes de pasar al alumno a la Lista de Espera.</p>
+            
+            <!-- HEADER -->
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
+                <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                    <h2 style="margin:0; font-size:1.4em; font-weight:700; color:#1c1f22;">Finalizar Admisión</h2>
+                    <span id="informe-status-badge" class="status-badge bg-blue" style="font-size:11px;">ENTREVISTA CONFIRMADA</span>
+                </div>
+                <button type="button" class="btn-cerrar-modal" data-modal="modal-informe-admision" style="background:transparent; border:none; cursor:pointer; font-size:1.5em; color:#9a9388; line-height:1;">&times;</button>
+            </div>
+
+            <!-- SUBTÍTULO CON DATOS DEL ALUMNO -->
+            <div id="informe-alumno-subtitulo" style="font-size:13px; color:var(--text-muted); font-weight:600; margin-bottom:15px;">-</div>
+
+            <!-- TABS CON EL MISMO ESTILO EXACTO DE TAB-BTN -->
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border-color); margin-bottom: 20px; padding-bottom: 5px; position:relative;">
+                <div class="tabs-container" style="display:flex; gap:15px; border-bottom:none; margin-bottom:0; overflow-x:auto; flex-grow:1; align-items:center;">
+                    <button type="button" class="tab-btn tab-btn-informe active" data-target="tab-inf-evaluacion">📝 Informe</button>
+                    <button type="button" class="tab-btn tab-btn-informe" data-target="tab-inf-disponibilidad">🕒 Horarios</button>
+                </div>
+            </div>
+
             <input type="hidden" id="informe-final-alumno-id">
-            <div id="informe-popup-editor-container" style="height: 150px; background:white; border-radius:8px; margin-bottom:15px;"></div>
-            <label style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:6px;">🧠 Perfil Psicológico / Emocional</label>
-            <div id="informe-perfil-psicologico-chips" class="profile-tags-wrapper" style="margin-bottom:20px;"></div>
-            <div style="display:flex; gap:10px; justify-content:flex-end;">
+
+            <!-- TAB 1: INFORME & EVALUACIÓN -->
+            <div id="tab-inf-evaluacion" class="tab-inf-content" style="display:block;">
+                <div style="margin-bottom:16px;">
+                    <label style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:6px;">
+                        Diagnóstico / Informe Técnico de Nivelación <span style="color:#ef4444;">*</span>
+                    </label>
+                    <div id="informe-popup-editor-container" style="height: 150px; background:white; border-radius:8px; border:1px solid var(--border-color);"></div>
+                </div>
+
+                <div style="margin-bottom:20px;">
+                    <label style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:8px;">
+                        🧠 Perfil Psicológico / Emocional <span style="color:#ef4444;">*</span>
+                    </label>
+                    <div id="informe-perfil-psicologico-chips" class="profile-tags-wrapper"></div>
+                </div>
+            </div>
+
+            <!-- TAB 2: DISPONIBILIDAD DE HORARIOS -->
+            <div id="tab-inf-disponibilidad" class="tab-inf-content" style="display:none;">
+                <div style="background:var(--hover-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:12.5px; color:var(--text-muted); line-height:1.4;">
+                    💡 <strong>Opcional:</strong> Si el alumno indicó nuevos días u horarios durante la entrevista, podés actualizar su disponibilidad aquí antes de enviarlo a Lista de Espera.
+                </div>
+                <div id="informe-disp-container" style="max-height: 48vh; overflow-y: auto; padding-right: 4px;">
+                    <!-- Se inyecta dinámicamente -->
+                </div>
+            </div>
+
+            <!-- BOTONES DE ACCIÓN -->
+            <div style="display:flex; gap:10px; justify-content:flex-end; border-top:1px solid var(--border-color); padding-top:16px; margin-top:15px;">
                 <button type="button" class="btn-cerrar-modal" data-modal="modal-informe-admision" style="padding:10px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted);">Cancelar</button>
                 <button id="btn-guardar-informe-final" class="btn-primary">Guardar y Enviar a Espera</button>
             </div>
@@ -1487,12 +1537,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=5.5.0"></script>
+    <script type="module" src="app.js?v=5.8.1"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=5.5.0').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=5.8.1').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {
