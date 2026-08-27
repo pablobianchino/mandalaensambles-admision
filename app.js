@@ -1178,7 +1178,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                             <div class="row-name" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; text-align:left;">
                                 <span style="font-weight:700; color:var(--text-main); font-size:14px;">${al.nombre}</span>
                                 <button type="button" class="btn-nota-rapida-directo" data-id="${id}" onclick="event.stopPropagation(); window.abrirNotaRapidaDirecta('${id}', '${(al.nombre || '').replace(/'/g, "\\'")}');" title="Agregar nota rápida al historial" style="background:none; border:none; cursor:pointer; font-size:13px; padding:1px 4px; border-radius:4px; opacity:0.65; vertical-align:middle; line-height:1; transition:opacity 0.2s, background 0.2s;" onmouseover="this.style.opacity='1'; this.style.background='rgba(0,0,0,0.06)';" onmouseout="this.style.opacity='0.65'; this.style.background='none';">📝</button>
-                                ${al.estado_agenda === 'Lista de espera' ? '' : `<span class="status-badge ${info.colorBadge}">${info.txtEstado}</span>`}
+                                ${(estadoActualVista === 'Lista de Espera' && al.estado_agenda === 'Lista de espera') ? '' : `<span class="status-badge ${info.colorBadge}">${info.txtEstado}</span>`}
                             </div>
                             ${filaDatosHtml}
                             ${tagsHtml}
@@ -2702,7 +2702,67 @@ export function configurarSidebarPorPermisos() {
     });
 }
 
-async function cargarVista(vista) {
+// =======================================================================
+// BÚSQUEDA GLOBAL UNIVERSAL
+// =======================================================================
+let ultimosAlumnosCargados = [];
+
+export function ejecutarBusquedaGlobal(queryStr, allData = null) {
+    const data = allData || ultimosAlumnosCargados || [];
+    const contBusqueda = document.getElementById('seccion-busqueda-global');
+    const listaResultados = document.getElementById('lista-busqueda-global');
+    const titResultados = document.getElementById('busqueda-global-titulo');
+    const badgeContador = document.getElementById('busqueda-global-contador');
+    if (!contBusqueda || !listaResultados) return false;
+
+    const q = (queryStr || '').trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (!q) {
+        contBusqueda.style.display = 'none';
+        listaResultados.innerHTML = '';
+        return false;
+    }
+
+    const coincidencias = data.filter(al => {
+        const nombre = (al.nombre || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const celular = (al.celular || '').replace(/\D/g, '');
+        const qNum = q.replace(/\D/g, '');
+        const insts = Array.isArray(al.instrumento) ? al.instrumento.join(' ') : (al.instrumento || '');
+        const instNorm = insts.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const profe = (al.reserva_profe_nombre || al.profesor_asignado || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const grupo = (al.grupo_asignado || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const susc = (al.tipo_suscripcion || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const est = (al.estado_agenda || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+        const matchNombre = nombre.includes(q);
+        const matchCel = qNum.length >= 3 && celular.includes(qNum);
+        const matchInst = instNorm.includes(q);
+        const matchProfe = profe.includes(q);
+        const matchGrupo = grupo.includes(q);
+        const matchSusc = susc.includes(q);
+        const matchEst = est.includes(q);
+
+        return matchNombre || matchCel || matchInst || matchProfe || matchGrupo || matchSusc || matchEst;
+    });
+
+    contBusqueda.style.display = 'flex';
+    if (titResultados) titResultados.textContent = `Resultados para "${queryStr.trim()}"`;
+    if (badgeContador) badgeContador.textContent = `${coincidencias.length} encontrado${coincidencias.length === 1 ? '' : 's'}`;
+
+    if (coincidencias.length === 0) {
+        listaResultados.innerHTML = `
+            <div style="color:var(--text-muted); text-align:center; padding:30px 20px; font-weight:500; background:var(--bg-sidebar); border-radius:12px; border:1px dashed var(--border-color); margin:10px 0; width:100%; box-sizing:border-box;">
+                <div style="font-size:15px; font-weight:700; color:var(--text-main); margin-bottom:4px;">No se encontraron coincidencias</div>
+                <div style="font-size:12px; color:var(--text-muted);">No hay ningún alumno en el sistema que coincida con "${queryStr.trim()}".</div>
+            </div>`;
+    } else {
+        listaResultados.innerHTML = coincidencias.map(al => generarFilaAlumno(al, al.id, 'Busqueda')).join('');
+    }
+
+    return true;
+}
+window.ejecutarBusquedaGlobal = ejecutarBusquedaGlobal;
+
+export async function cargarVista(vista = 'Inbox - Pendientes') {
     window.cargarVistaGlobal = cargarVista;
 
     const usuario = window.usuarioActual || {};
@@ -2756,7 +2816,6 @@ async function cargarVista(vista) {
         }
     });
 
-    // Renderizar subtabs superiores correspondientes al módulo
     renderSegmentedTabs(vista);
 
     const tituloEl = document.getElementById('vista-titulo');
@@ -2796,10 +2855,34 @@ async function cargarVista(vista) {
     const btnCSVEl = document.getElementById('btn-carga-masiva');
     if (btnCSVEl) btnCSVEl.style.display = 'none';
     
-    document.getElementById('search-container-general').style.display = 'none'; 
+    document.getElementById('search-container-general').style.display = 'block'; 
     document.getElementById('alarm-filters').style.display = 'none';
     vResumen.style.display = 'none'; if(vResumenTime) vResumenTime.style.display = 'none'; contLista.style.display = 'none'; if(contKanban) contKanban.style.display = 'none'; contEstad.style.display = 'none'; cv.style.display = 'none';
     const contMatch = document.getElementById('match-pendientes-container'); if(contMatch) contMatch.style.display = 'none';
+
+    // Obtener datos globales de alumnos
+    let allData = [];
+    try {
+        const qSnap = await getDocs(collection(db, "alumnos"));
+        qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
+        ultimosAlumnosCargados = allData;
+        actualizarBadgesYNavegacion(allData);
+    } catch(e) {
+        console.error("Error al cargar alumnos:", e);
+        allData = ultimosAlumnosCargados || [];
+    }
+
+    // Comprobar si hay búsqueda global activa
+    const queryStr = (document.getElementById('input-buscador-general')?.value || '').trim();
+    const contBusqueda = document.getElementById('seccion-busqueda-global');
+    if (queryStr.length > 0) {
+        const busquedaActiva = ejecutarBusquedaGlobal(queryStr, allData);
+        if (busquedaActiva) {
+            return;
+        }
+    } else {
+        if (contBusqueda) contBusqueda.style.display = 'none';
+    }
 
     const esVistaConLista = vista.startsWith('Inbox') || vista.startsWith('Altas') || vista === 'Lista de Espera';
 
@@ -3337,10 +3420,22 @@ onAuthStateChanged(auth, async (user) => {
     } 
 });
 
-// Buscador general con debounce (250ms) y botón para limpiar
+// Buscador general con debounce (200ms) y botón para limpiar
 let searchDebounceTimer = null;
 const inputBuscadorGeneral = document.getElementById('input-buscador-general');
 const btnLimpiarBuscador = document.getElementById('btn-limpiar-buscador');
+const btnCerrarBusquedaGlobal = document.getElementById('btn-cerrar-busqueda-global');
+
+const limpiarYRestaurarBusqueda = () => {
+    if (inputBuscadorGeneral) {
+        inputBuscadorGeneral.value = '';
+        inputBuscadorGeneral.focus();
+    }
+    if (btnLimpiarBuscador) btnLimpiarBuscador.style.display = 'none';
+    const contBusqueda = document.getElementById('seccion-busqueda-global');
+    if (contBusqueda) contBusqueda.style.display = 'none';
+    cargarVista(estadoActualVista);
+};
 
 if (inputBuscadorGeneral) {
     inputBuscadorGeneral.addEventListener('input', (e) => {
@@ -3351,19 +3446,16 @@ if (inputBuscadorGeneral) {
         clearTimeout(searchDebounceTimer);
         searchDebounceTimer = setTimeout(() => {
             cargarVista(estadoActualVista);
-        }, 250);
+        }, 200);
     });
 }
 
 if (btnLimpiarBuscador) {
-    btnLimpiarBuscador.addEventListener('click', () => {
-        if (inputBuscadorGeneral) {
-            inputBuscadorGeneral.value = '';
-            btnLimpiarBuscador.style.display = 'none';
-            inputBuscadorGeneral.focus();
-            cargarVista(estadoActualVista);
-        }
-    });
+    btnLimpiarBuscador.addEventListener('click', limpiarYRestaurarBusqueda);
+}
+
+if (btnCerrarBusquedaGlobal) {
+    btnCerrarBusquedaGlobal.addEventListener('click', limpiarYRestaurarBusqueda);
 }
 
 document.addEventListener('change', async (e) => {
