@@ -191,21 +191,22 @@ export function generarBotonesAccion(al, id, esModal = false) {
             html += `<button type="button" class="btn-action-neutral btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
         } else if (est === 'pendiente validacion por profe' || est === 'pendiente validacion por evaluador') {
             html += `<button type="button" class="btn-action-primary btn-validado-profe-popup" data-id="${id}">✅ Validado por Evaluador</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
+            html += `<button type="button" class="btn-action-neutral btn-buscar-agenda" data-id="${id}">🗓️ Re-Agendar</button>`;
             html += `<button type="button" class="btn-action-neutral btn-reenviar-profe" data-id="${id}">💬 Reenviar WhatsApp Evaluador</button>`;
             html += `<button type="button" class="btn-action-neutral btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Agenda WS</button>`;
             html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
             html += `<button type="button" class="btn-action-neutral btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
         } else if (est === 'pendiente validacion por alumno') {
             html += `<button type="button" class="btn-action-primary btn-confirmar-entrevista" data-id="${id}">✅ Confirmar Agenda</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
+            html += `<button type="button" class="btn-action-neutral btn-buscar-agenda" data-id="${id}">🗓️ Re-Agendar</button>`;
             html += `<button type="button" class="btn-action-neutral btn-reenviar-alumno" data-id="${id}">💬 Reenviar WhatsApp Alumno</button>`;
             html += `<button type="button" class="btn-action-neutral btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Agenda WS</button>`;
             html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
             html += `<button type="button" class="btn-action-neutral btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
         } else if (est === 'agenda confirmada') {
             html += `<button type="button" class="btn-action-primary btn-admision-finalizada" data-id="${id}">🏁 Admisión Finalizada</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
+            html += `<button type="button" class="btn-action-neutral btn-buscar-agenda" data-id="${id}">🗓️ Re-Agendar</button>`;
+            html += `<button type="button" class="btn-action-neutral btn-auditar-cal-directo" data-id="${id}">🔍 Auditar calendario</button>`;
             html += `<button type="button" class="btn-action-neutral btn-cancelar-alumno" data-id="${id}">❌ Alumno Cancela</button>`;
             html += `<button type="button" class="btn-action-neutral btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Agenda WS</button>`;
             html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
@@ -273,6 +274,7 @@ export function generarBotonesAccion(al, id, esModal = false) {
         html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
         html += `<button type="button" class="dropdown-item btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
     } else if (est === 'agenda confirmada') {
+        html += `<button type="button" class="dropdown-item btn-auditar-cal-directo" data-id="${id}">🔍 Auditar calendario</button>`;
         html += `<button type="button" class="dropdown-item btn-cancelar-reserva" data-id="${id}">❌ Cancelar Reserva</button>`;
         html += `<button type="button" class="dropdown-item btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Agenda WS</button>`;
         html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
@@ -291,12 +293,14 @@ export function generarBotonesAccion(al, id, esModal = false) {
         html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
         html += `<button type="button" class="dropdown-item btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
     } else if (est === 'pre-alta iniciada') {
+        html += `<button type="button" class="dropdown-item btn-auditar-cal-directo" data-id="${id}">🔍 Auditar Calendar</button>`;
         html += `<button type="button" class="dropdown-item btn-aviso-prealta-alumno" data-id="${id}">💬 WhatsApp Pre-Alta Alumno</button>`;
         html += `<button type="button" class="dropdown-item btn-reenviar-prealta" data-id="${id}">💬 WhatsApp Pre-Alta Docente</button>`;
         html += `<button type="button" class="dropdown-item btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
         html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
         html += `<button type="button" class="dropdown-item btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
     } else if (est === 'alta efectiva' || est === 'alta ilegal' || est === 'alta finalizada') {
+        html += `<button type="button" class="dropdown-item btn-auditar-cal-directo" data-id="${id}">🔍 Auditar Calendar</button>`;
         html += `<button type="button" class="dropdown-item btn-copiar-fila-excel-bd" data-id="${id}">📋 Copiar Registro BD</button>`;
         html += `<button type="button" class="dropdown-item btn-copiar-fila-excel-fact" data-id="${id}">💰 Copiar Facturación</button>`;
         html += `<button type="button" class="dropdown-item btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${al.grupo_asignado||''}">✏️ Editar Alta</button>`;
