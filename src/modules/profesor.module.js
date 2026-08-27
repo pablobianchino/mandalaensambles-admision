@@ -577,7 +577,7 @@ export async function renderPortalProfesor(cont, usuarioActual = {}, callbacks =
 
                             <!-- COLUMNA DERECHA / META: Cursada e Inicio -->
                             <div class="row-meta" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:3px; min-width:240px; font-size:12px; color:var(--text-muted);">
-                                <div>📅 Cursada: <strong style="color:var(--text-main); font-weight:600;">${horarioStr}</strong></div>
+                                <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;"><span>📅 Cursada: <strong style="color:var(--text-main); font-weight:600;">${horarioStr}</strong></span><button type="button" class="btn-auditar-cal-fila" data-id="${al.id}" onclick="event.stopPropagation(); window.auditarCalendarioAlumnoFila('${al.id}', this);" title="Verificar sincronización con Google Calendar" style="background:none; border:none; cursor:pointer; font-size:12px; padding:1px 4px; border-radius:4px; line-height:1; vertical-align:middle; transition:transform 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.06)'" onmouseout="this.style.background='none'"><span class="icon-spin-fila">🔄</span></button></div>
                                 ${al.fecha_inicio_clases ? `<div>🚀 Inicio: <strong style="color:var(--text-main); font-weight:600;">${formatearFechaAmi(al.fecha_inicio_clases)}</strong></div>` : ''}
                                 ${badgeReprogPuntual}
                             </div>
