@@ -536,7 +536,7 @@ const ROLES_MODULOS = {
     admisor: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas'],
     admisiones: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas'],
     coordinador_grupos: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas'],
-    evaluador: ['dashboard', 'inbox'],
+    evaluador: ['dashboard', 'inbox', 'espera'],
     profesor: ['portal_profesor'],
     personalizado: []
 };
