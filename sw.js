@@ -1,4 +1,4 @@
-const CACHE_NAME = "mandala-app-v5.8.3";
+const CACHE_NAME = "mandala-app-v5.8.7";
 
 self.addEventListener('install', (event) => {
     self.skipWaiting();
@@ -9,9 +9,7 @@ self.addEventListener('activate', (event) => {
         caches.keys().then((keys) => {
             return Promise.all(
                 keys.map((key) => {
-                    if (key !== CACHE_NAME) {
-                        return caches.delete(key);
-                    }
+                    return caches.delete(key);
                 })
             );
         }).then(() => self.clients.claim())
