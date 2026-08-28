@@ -2341,22 +2341,78 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
 // NAVEGACIÓN PRINCIPAL: PESTAÑAS SEGMENTADAS Y BADGES EN VIVO
 // =======================================================================
 
+export function debeFiltrarPorEvaluador() {
+    const u = window.usuarioActual || {};
+    const roles = Array.isArray(u.roles) && u.roles.length > 0 ? u.roles : [u.rol || 'admisiones'];
+    const esAdmin = roles.includes('admin') || u.rol === 'admin' || u.email?.toLowerCase() === 'productora.mandalahouse@gmail.com';
+    const esAdmisor = roles.includes('admisiones') || roles.includes('admisor') || u.rol === 'admisiones' || u.rol === 'admisor';
+    const modo = window.modoRolActivo;
+
+    // Si explícitamente activó el modo evaluador en el selector
+    if (modo === 'evaluador') return true;
+
+    // Si no es admin ni admisor, NUNCA puede ver los alumnos de otros evaluadores
+    if (!esAdmin && !esAdmisor) {
+        return true;
+    }
+
+    // Si es admin o admisor pero está en un modo específico que no sea multi ni admin
+    if (modo && modo !== 'admin' && modo !== 'multi') {
+        return true;
+    }
+
+    return false;
+}
+window.debeFiltrarPorEvaluador = debeFiltrarPorEvaluador;
+
+export function esModoEvaluadorActivo() {
+    return debeFiltrarPorEvaluador();
+}
+window.esModoEvaluadorActivo = esModoEvaluadorActivo;
+
 export function filtrarAlumnosEvaluador(alumnos) {
     const u = window.usuarioActual;
     if (!u) return alumnos;
-    const profId = u.profesor_id || '';
-    const profNom = (u.nombre || '').toLowerCase().trim();
-    const userNomPartes = profNom.split(/\s+/).filter(Boolean);
+    
+    const userEmail = (u.email || '').toLowerCase().trim();
+    const userCalId = (u.correo_calendario || u.email || '').toLowerCase().trim();
+    const userId = u.id || '';
+    const userProfId = u.profesor_id || '';
+    
+    const norm = (txt) => (txt || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    const userNom = norm(u.nombre || '');
 
     return alumnos.filter(al => {
-        if (profId && (al.reserva_profe_id === profId || al.profesor_id === profId)) return true;
-        
-        const alProfeNom = (al.reserva_profe_nombre || al.profesor_asignado || '').toLowerCase().trim();
-        if (profNom && alProfeNom) {
-            if (alProfeNom === profNom) return true;
-            if (userNomPartes.length > 0 && userNomPartes.some(p => p.length >= 3 && alProfeNom.includes(p))) return true;
-            if (alProfeNom.length >= 3 && profNom.includes(alProfeNom)) return true;
+        const alReservaNom = norm(al.reserva_profe_nombre || al.profesor_asignado || '');
+        const alReservaId = al.reserva_profe_id || al.profesor_id || '';
+        const alCalId = (al.reserva_cal_id || '').toLowerCase().trim();
+        const alOwner = (al.test_owner || '').toLowerCase().trim();
+
+        // 1. REGLA ESTRICTA DE EVALUADOR ASIGNADO:
+        // Si el alumno tiene nombre de evaluador asignado, DEBE coincidir exactamente con el nombre del usuario
+        if (alReservaNom && userNom) {
+            return alReservaNom === userNom;
         }
+
+        // 2. Coincidencia por ID de Profesor / Evaluador
+        if (alReservaId) {
+            if (userProfId && alReservaId === userProfId) return true;
+            if (userId && alReservaId === userId) return true;
+            return false;
+        }
+
+        // 3. Coincidencia por Correo de Calendario de Reserva
+        if (alCalId) {
+            if (userEmail && alCalId === userEmail) return true;
+            if (userCalId && alCalId === userCalId) return true;
+            return false;
+        }
+
+        // 4. Coincidencia por Test Owner
+        if (alOwner && userEmail && alOwner === userEmail) {
+            return true;
+        }
+
         return false;
     });
 }
@@ -2501,10 +2557,11 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
 
 function getModuloSubtabs() {
     const u = window.usuarioActual || {};
+    const esEval = esModoEvaluadorActivo();
     const rol = u.rol || 'admisiones';
 
     let inboxTabs = [];
-    if (rol === 'evaluador') {
+    if (esEval) {
         inboxTabs = [
             { 
                 vista: 'Inbox - Confirmadas', 
@@ -2646,11 +2703,11 @@ function actualizarBadgesYNavegacion(allData) {
     refrescarConteoVacantes();
     
     const u = window.usuarioActual || {};
-    const rol = u.rol || 'admisiones';
+    const esEval = esModoEvaluadorActivo();
 
     // Conteo Inbox según rol
     let countInbox = 0;
-    if (rol === 'evaluador') {
+    if (esEval) {
         countInbox = filtrarAlumnosEvaluador(datos).filter(d => {
             const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
             return st === 'pendiente validacion por profe' || st === 'pendiente validacion por evaluador' || st === 'agenda confirmada' || st === 'entrevista confirmada';
@@ -2751,34 +2808,277 @@ function renderSegmentedTabs(vista) {
 
 export function verificarPermisoModulo(moduloDestino) {
     if (!window.usuarioActual) return true;
-    if (window.usuarioActual.rol === 'admin') return true;
-    const mods = window.usuarioActual.modulos_habilitados || [];
+    const mods = obtenerModulosPermitidosModoActivo();
     return mods.includes(moduloDestino);
 }
 
-export function configurarSidebarPorPermisos() {
+export function obtenerIniciales(nombre) {
+    if (!nombre) return 'U';
+    const partes = nombre.trim().split(/\s+/);
+    if (partes.length === 1) return partes[0].substring(0, 2).toUpperCase();
+    return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+}
+
+export function obtenerRolesDisponibles(usuario) {
+    if (!usuario) return ['evaluador'];
+    const rolesSet = new Set();
+    const rolesArr = Array.isArray(usuario.roles) && usuario.roles.length > 0 ? usuario.roles : [usuario.rol || 'admisiones'];
+    
+    // Si es administrador o admin, puede ver todo o simular cualquier rol
+    if (rolesArr.includes('admin') || usuario.rol === 'admin' || usuario.email?.toLowerCase() === 'productora.mandalahouse@gmail.com') {
+        return ['multi', 'admin', 'coordinador_grupos', 'evaluador', 'profesor'];
+    }
+
+    rolesArr.forEach(r => {
+        if (r === 'docente') rolesSet.add('profesor');
+        else rolesSet.add(r);
+    });
+
+    if (usuario.profesor_id) {
+        rolesSet.add('profesor');
+    }
+
+    const res = Array.from(rolesSet);
+    if (res.length > 1 && !res.includes('multi')) {
+        res.unshift('multi');
+    }
+    return res;
+}
+
+export function obtenerModulosPermitidosModoActivo() {
+    const modo = window.modoRolActivo || 'multi';
     const usuario = window.usuarioActual || {};
     const rolesArr = Array.isArray(usuario.roles) && usuario.roles.length > 0 ? usuario.roles : [usuario.rol || 'admisiones'];
-    const rol = usuario.rol || rolesArr[0] || 'admisiones';
-    const mods = usuario.modulos_habilitados || [];
 
-    const esAdmin = rolesArr.includes('admin');
-    const esProfesor = rolesArr.includes('profesor');
+    if (modo === 'evaluador') {
+        return ['dashboard', 'inbox', 'espera'];
+    } else if (modo === 'profesor' || modo === 'docente') {
+        return ['portal_profesor'];
+    } else if (modo === 'coordinador_grupos' || modo === 'coordinador') {
+        return ['dashboard', 'espera', 'match', 'match_etapa4', 'altas'];
+    } else if (modo === 'admin') {
+        return ['dashboard', 'portal_profesor', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas', 'configuracion'];
+    } else {
+        // modo multi: unión de todos los módulos habilitados del usuario
+        if (rolesArr.includes('admin') || usuario.email?.toLowerCase() === 'productora.mandalahouse@gmail.com') {
+            return ['dashboard', 'portal_profesor', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas', 'configuracion'];
+        }
+        const setMods = new Set();
+        rolesArr.forEach(r => {
+            const m = ROLES_MODULOS_DEFAULT[r] || [];
+            m.forEach(mod => setMods.add(mod));
+        });
+        if (usuario.profesor_id) setMods.add('portal_profesor');
+        if (Array.isArray(usuario.modulos_habilitados)) {
+            usuario.modulos_habilitados.forEach(m => setMods.add(m));
+        }
+        return Array.from(setMods);
+    }
+}
+
+export function cambiarModoRol(nuevoModo) {
+    window.modoRolActivo = nuevoModo;
+    try {
+        localStorage.setItem('mandala_modo_rol', nuevoModo);
+    } catch(e) {}
+
+    configurarHeaderUsuarioYRoles();
+    configurarSidebarPorPermisos();
+
+    // Redirigir a vista adecuada si la actual no está disponible en este rol
+    const vistaActual = estadoActualVista;
+    const modsPermitidos = obtenerModulosPermitidosModoActivo();
+
+    if (nuevoModo === 'profesor') {
+        cargarVista('Mis Alumnos y Ensambles');
+    } else if (nuevoModo === 'evaluador' && (vistaActual.startsWith('Match') || vistaActual.startsWith('Altas') || vistaActual === 'Configuración' || vistaActual === 'Mis Alumnos y Ensambles' || vistaActual === 'Estadísticas')) {
+        cargarVista('Dashboard');
+    } else if (nuevoModo === 'coordinador_grupos' && (vistaActual === 'Mis Alumnos y Ensambles' || vistaActual === 'Configuración')) {
+        cargarVista('Dashboard');
+    } else {
+        cargarVista(vistaActual);
+    }
+
+    const popover = document.getElementById('profile-popover');
+    if (popover) popover.classList.remove('show');
+}
+window.cambiarModoRol = cambiarModoRol;
+
+export function configurarHeaderUsuarioYRoles() {
+    const u = window.usuarioActual;
+    if (!u) return;
+
+    const nombre = u.nombre || u.email.split('@')[0];
+    const email = u.email || '';
+    const iniciales = obtenerIniciales(nombre);
+    const rolesDisponibles = obtenerRolesDisponibles(u);
+
+    if (!window.modoRolActivo) {
+        let guardado = null;
+        try { guardado = localStorage.getItem('mandala_modo_rol'); } catch(e) {}
+        if (guardado && rolesDisponibles.includes(guardado)) {
+            window.modoRolActivo = guardado;
+        } else {
+            window.modoRolActivo = rolesDisponibles.length > 1 ? (rolesDisponibles.includes('evaluador') ? 'evaluador' : rolesDisponibles[0]) : (rolesDisponibles[0] || 'evaluador');
+        }
+    }
+
+    const labelsRol = {
+        multi: '🌐 Vista Global Multi-Rol',
+        evaluador: '📝 Evaluador',
+        coordinador_grupos: '👥 Coordinador de Grupos',
+        profesor: '🎸 Docente / Profesor',
+        admin: '👑 Administrador',
+        admisiones: '📋 Admisiones'
+    };
+
+    const labelsRolBadge = {
+        multi: '🌐 Multi-Rol ▾',
+        evaluador: '📝 Evaluador ▾',
+        coordinador_grupos: '👥 Coordinador ▾',
+        profesor: '🎸 Docente ▾',
+        admin: '👑 Admin ▾',
+        admisiones: '📋 Admisor ▾'
+    };
+
+    const isSingleRole = rolesDisponibles.length <= 1;
+
+    // Header Widget
+    const elName = document.getElementById('widget-user-name');
+    const elBadge = document.getElementById('widget-role-badge');
+    const elAvatar = document.getElementById('widget-user-avatar');
+
+    if (elName) elName.textContent = nombre;
+    if (elAvatar) elAvatar.textContent = iniciales;
+    if (elBadge) {
+        elBadge.textContent = isSingleRole 
+            ? (labelsRol[rolesDisponibles[0]] || rolesDisponibles[0] || 'Usuario')
+            : (labelsRolBadge[window.modoRolActivo] || window.modoRolActivo);
+    }
+
+    // Popover Header
+    const popAvatar = document.getElementById('popover-avatar');
+    const popName = document.getElementById('popover-name');
+    const popEmail = document.getElementById('popover-email');
+    if (popAvatar) popAvatar.textContent = iniciales;
+    if (popName) popName.textContent = nombre;
+    if (popEmail) popEmail.textContent = email;
+
+    // Popover Role Section
+    const roleSec = document.getElementById('popover-role-section');
+    const rolesCount = document.getElementById('popover-roles-count');
+    const roleOptionsCont = document.getElementById('popover-role-options');
+
+    if (roleSec) {
+        if (isSingleRole) {
+            roleSec.style.display = 'none';
+        } else {
+            roleSec.style.display = 'flex';
+            if (rolesCount) rolesCount.textContent = `${rolesDisponibles.filter(r => r !== 'multi').length} ROLES`;
+            if (roleOptionsCont) {
+                roleOptionsCont.innerHTML = rolesDisponibles.map(r => `
+                    <div class="role-option-item ${window.modoRolActivo === r ? 'selected' : ''}" onclick="window.cambiarModoRol('${r}')">
+                        <span>${labelsRol[r] || r}</span>
+                    </div>
+                `).join('');
+            }
+        }
+    }
+
+    // Popover links
+    const linkConfig = document.getElementById('popover-link-config');
+    if (linkConfig) {
+        const esAdmin = u.rol === 'admin' || (Array.isArray(u.roles) && u.roles.includes('admin')) || u.email?.toLowerCase() === 'productora.mandalahouse@gmail.com';
+        linkConfig.style.display = (esAdmin && (window.modoRolActivo === 'admin' || window.modoRolActivo === 'multi')) ? 'flex' : 'none';
+    }
+
+    // Version label in sidebar
+    const vLabel = document.getElementById('sidebar-version-label');
+    if (vLabel) vLabel.textContent = APP_VERSION;
+}
+
+// =======================================================================
+// AUTO-UPDATE & DETECCIÓN DE NUEVA VERSIÓN EN TIEMPO REAL
+// =======================================================================
+let versionCheckTimer = null;
+let versionActualizando = false;
+
+export async function chequearActualizacionVersion() {
+    if (versionActualizando) return;
+    try {
+        const res = await fetch(`version.json?t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        const versionRemota = data.version;
+
+        if (versionRemota && versionRemota !== APP_VERSION) {
+            versionActualizando = true;
+            console.log(`[Auto-Update] Nueva versión detectada: ${versionRemota} (Versión local: ${APP_VERSION})`);
+            
+            if (typeof mostrarToast === 'function') {
+                mostrarToast(`✨ Nueva versión disponible (${versionRemota}). Actualizando...`, 'info');
+            }
+
+            // Limpieza de todos los Service Worker caches
+            if ('caches' in window) {
+                try {
+                    const keys = await caches.keys();
+                    await Promise.all(keys.map(k => caches.delete(k)));
+                } catch(e) {}
+            }
+
+            setTimeout(() => {
+                window.location.reload(true);
+            }, 1200);
+        }
+    } catch(e) {
+        // Silencioso en caso de estar offline o sin red
+    }
+}
+window.chequearActualizacionVersion = chequearActualizacionVersion;
+
+export function iniciarVerificadorVersion() {
+    // Chequeo inicial liviano tras 3 segundos de login
+    setTimeout(chequearActualizacionVersion, 3000);
+
+    // Chequeo reactivo al volver a enfocar la app (Web o Celular)
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            chequearActualizacionVersion();
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.getRegistration().then(reg => reg?.update());
+            }
+        }
+    });
+
+    // Chequeo periódico en segundo plano cada 15 minutos
+    if (!versionCheckTimer) {
+        versionCheckTimer = setInterval(chequearActualizacionVersion, 15 * 60 * 1000);
+    }
+}
+window.iniciarVerificadorVersion = iniciarVerificadorVersion;
+
+export function configurarSidebarPorPermisos() {
+    const usuario = window.usuarioActual || {};
+    const mods = obtenerModulosPermitidosModoActivo();
+    const modo = window.modoRolActivo || 'multi';
+
+    const esAdminActivo = modo === 'admin' || modo === 'multi';
 
     const navProfe = document.getElementById('nav-item-portal-profe');
     if (navProfe) {
-        navProfe.style.display = (esProfesor || mods.includes('portal_profesor') || esAdmin) ? 'flex' : 'none';
+        navProfe.style.display = mods.includes('portal_profesor') ? 'flex' : 'none';
     }
 
     const bottomNavProfe = document.getElementById('bottom-nav-portal-profe');
     if (bottomNavProfe) {
-        bottomNavProfe.style.display = (esProfesor || mods.includes('portal_profesor') || esAdmin) ? 'flex' : 'none';
+        bottomNavProfe.style.display = mods.includes('portal_profesor') ? 'flex' : 'none';
     }
 
     const btnNuevoAlumno = document.getElementById('btn-nuevo-alumno');
     if (btnNuevoAlumno) {
-        const puedeCrear = esAdmin || rolesArr.includes('admisiones') || rolesArr.includes('admisor');
-        btnNuevoAlumno.style.display = puedeCrear ? 'block' : 'none';
+        const puedeCrear = esAdminActivo || mods.includes('admisiones') || modo === 'admisor';
+        btnNuevoAlumno.style.display = (modo === 'evaluador' || modo === 'profesor') ? 'none' : (puedeCrear ? 'block' : 'none');
     }
 
     const modIdMap = {
@@ -2791,26 +3091,18 @@ export function configurarSidebarPorPermisos() {
         'Configuración': 'configuracion'
     };
 
-    // Sidebar items (Escritorio / Menú Desplegable)
+    // Sidebar items
     document.querySelectorAll('#sidebar .nav-item, #sidebar .nav-item-small').forEach(item => {
         const mod = item.getAttribute('data-modulo');
         if (!mod) return;
         if (item.id === 'nav-item-portal-profe') return;
-        
-        let permitido = false;
-        if (esAdmin) {
-            permitido = true;
-        } else if (rolesArr.length === 1 && rolesArr[0] === 'profesor') {
-            permitido = (mod === 'portal_profesor');
-        } else {
-            const idBuscado = modIdMap[mod] || mod.toLowerCase();
-            permitido = mods.includes(idBuscado);
-        }
 
+        const idBuscado = modIdMap[mod] || mod.toLowerCase();
+        const permitido = mods.includes(idBuscado);
         item.style.display = permitido ? 'flex' : 'none';
     });
 
-    // Bottom nav items (Barra inferior Móvil)
+    // Bottom nav items
     document.querySelectorAll('#bottom-nav .bottom-nav-item').forEach(item => {
         if (item.id === 'btn-bottom-menu') {
             item.style.display = 'flex';
@@ -2821,16 +3113,8 @@ export function configurarSidebarPorPermisos() {
         const mod = item.getAttribute('data-modulo');
         if (!mod) return;
 
-        let permitido = false;
-        if (esAdmin) {
-            permitido = true;
-        } else if (rolesArr.length === 1 && rolesArr[0] === 'profesor') {
-            permitido = false;
-        } else {
-            const idBuscado = modIdMap[mod] || mod.toLowerCase();
-            permitido = mods.includes(idBuscado);
-        }
-
+        const idBuscado = modIdMap[mod] || mod.toLowerCase();
+        const permitido = mods.includes(idBuscado);
         item.style.display = permitido ? 'flex' : 'none';
     });
 }
@@ -3038,10 +3322,9 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
             const roles = Array.isArray(window.usuarioActual?.roles) && window.usuarioActual.roles.length > 0
                 ? window.usuarioActual.roles
                 : [window.usuarioActual?.rol || 'admisor'];
-            const esEvaluador = roles.includes('evaluador');
-            const esSoloEval = esEvaluador && !roles.includes('admin') && !roles.includes('admisiones') && !roles.includes('admisor') && !roles.includes('coordinador_grupos');
-            const esCoordinador = roles.includes('coordinador_grupos') || roles.includes('coordinador');
-            const esSoloCoordinador = esCoordinador && !roles.includes('admin') && !roles.includes('admisiones') && !roles.includes('admisor');
+            const esSoloEval = esModoEvaluadorActivo();
+            const esCoordinador = roles.includes('coordinador_grupos') || roles.includes('coordinador') || window.modoRolActivo === 'coordinador_grupos';
+            const esSoloCoordinador = esCoordinador && !roles.includes('admin') && window.modoRolActivo !== 'multi' && window.modoRolActivo !== 'admin';
 
             let poolUrgencias = allData;
             if (esSoloEval) {
@@ -3108,18 +3391,13 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
             }
             
         } catch(e) {}
-    } else if (vista.startsWith('Inbox') || vista === 'Altas - Pendientes' || vista === 'Altas - En Curso') {
+    } else if (vista.startsWith('Inbox') || vista.startsWith('Altas')) {
         try {
             const qSnap = await getDocs(collection(db, "alumnos")); let allData = []; qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
             actualizarBadgesYNavegacion(allData);
             renderSegmentedTabs(vista);
             
-            const roles = Array.isArray(window.usuarioActual?.roles) && window.usuarioActual.roles.length > 0
-                ? window.usuarioActual.roles
-                : [window.usuarioActual?.rol || 'admisiones'];
-            const esEvaluador = roles.includes('evaluador');
-            const esSoloEval = esEvaluador && !roles.includes('admin') && !roles.includes('admisiones') && !roles.includes('admisor');
-            
+            const esSoloEval = esModoEvaluadorActivo();
             let dataFiltrada = [];
 
             if (vista === 'Inbox - Pendientes') {
@@ -3132,19 +3410,19 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
                     });
                 }
             } else if (vista === 'Inbox - Validar Evaluador') {
-                const fuente = esEvaluador ? filtrarAlumnosEvaluador(allData) : allData;
+                const fuente = esSoloEval ? filtrarAlumnosEvaluador(allData) : allData;
                 dataFiltrada = fuente.filter(d => {
                     const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
                     return st === 'pendiente validacion por profe' || st === 'pendiente validacion por evaluador';
                 });
             } else if (vista === 'Inbox - Validar Alumno') {
-                const fuente = esEvaluador ? filtrarAlumnosEvaluador(allData) : allData;
+                const fuente = esSoloEval ? filtrarAlumnosEvaluador(allData) : allData;
                 dataFiltrada = fuente.filter(d => {
                     const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
                     return st === 'pendiente validacion por alumno';
                 });
             } else if (vista === 'Inbox - Finalizar Admision' || vista === 'Inbox - Confirmadas') {
-                const fuente = esEvaluador ? filtrarAlumnosEvaluador(allData) : allData;
+                const fuente = esSoloEval ? filtrarAlumnosEvaluador(allData) : allData;
                 dataFiltrada = fuente.filter(d => {
                     const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
                     return st === 'agenda confirmada' || st === 'entrevista confirmada' || ['entrevista agendada', 'entrevista realizada', 'entrevista reprogramada'].includes(st);
@@ -3155,7 +3433,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
                     return st === 'pre-alta pendiente' || st === 'pre-alta iniciada' || ((st === 'alta efectiva' || st === 'alta ilegal') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5));
                 });
             } else if (vista === 'Inbox - En Validacion') {
-                const fuente = (rol === 'evaluador') ? filtrarAlumnosEvaluador(allData) : allData;
+                const fuente = esSoloEval ? filtrarAlumnosEvaluador(allData) : allData;
                 dataFiltrada = fuente.filter(d => {
                     const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
                     return st === 'pendiente validacion por profe' || st === 'pendiente validacion por evaluador' || st === 'pendiente validacion por alumno';
@@ -3166,6 +3444,18 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
                 dataFiltrada = allData.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() === 'pre-alta pendiente');
             } else if (vista === 'Altas - En Curso') {
                 dataFiltrada = allData.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() === 'pre-alta iniciada');
+            } else if (vista === 'Altas - Confirmadas') {
+                dataFiltrada = allData.filter(d => {
+                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                    return (st === 'alta efectiva' || st === 'alta ilegal') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5);
+                });
+            } else if (vista === 'Altas - Finalizadas') {
+                dataFiltrada = allData.filter(d => {
+                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                    return (st === 'alta efectiva' || st === 'alta ilegal' || st === 'alta finalizada') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5);
+                });
+            } else if (vista === 'Altas - Suspendidas') {
+                dataFiltrada = allData.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() === 'alta suspendida');
             }
             renderListaFilas('lista-generica', dataFiltrada, 'all', null);
         } catch(e) {}
@@ -3184,50 +3474,6 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
             actualizarBadgesYNavegacion(allData);
             renderSegmentedTabs(vista);
             let dataFiltrada = allData.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'lista de espera');
-            renderListaFilas('lista-generica', dataFiltrada, 'all', null);
-        } catch(e) {}
-    } else if (vista === 'Inbox - Confirmadas' || vista === 'Altas - Confirmadas') {
-        try {
-            const qSnap = await getDocs(collection(db, "alumnos")); let allData = []; qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
-            actualizarBadgesYNavegacion(allData);
-            renderSegmentedTabs(vista);
-            
-            let dataFiltrada = [];
-            if (vista === 'Inbox - Confirmadas') {
-                dataFiltrada = allData.filter(d => {
-                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-                    return st === 'agenda confirmada' || ['entrevista agendada', 'entrevista realizada', 'entrevista reprogramada'].includes(st);
-                });
-            } else if (vista === 'Altas - Confirmadas') {
-                dataFiltrada = allData.filter(d => {
-                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-                    return (st === 'alta efectiva' || st === 'alta ilegal') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5);
-                });
-            }
-            renderListaFilas('lista-generica', dataFiltrada, 'all', null);
-        } catch(e) {}
-    } else if (vista === 'Altas - Finalizadas') {
-        try {
-            const qSnap = await getDocs(collection(db, "alumnos")); let allData = []; qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
-            actualizarBadgesYNavegacion(allData);
-            renderSegmentedTabs(vista);
-            let dataFiltrada = allData.filter(d => {
-                const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-                return (st === 'alta efectiva' || st === 'alta ilegal' || st === 'alta finalizada') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5);
-            });
-            renderListaFilas('lista-generica', dataFiltrada, 'all', null);
-        } catch(e) {}
-    } else if (vista === 'Inbox - Suspendidas' || vista === 'Altas - Suspendidas') {
-        try {
-            const qSnap = await getDocs(collection(db, "alumnos")); let allData = []; qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
-            actualizarBadgesYNavegacion(allData);
-            renderSegmentedTabs(vista);
-            
-            const targetState = vista === 'Inbox - Suspendidas' ? 'agenda suspendida' : 'alta suspendida';
-            let dataFiltrada = allData.filter(d => {
-                const normState = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-                return normState === targetState;
-            });
             renderListaFilas('lista-generica', dataFiltrada, 'all', null);
         } catch(e) {}
     } else if (vista === 'Match - Pendientes') {
@@ -3360,7 +3606,7 @@ async function renderMatchConfirmados(cont) {
 // ================================================================
 
 const btnLogin = document.getElementById('btn-login'); if (btnLogin) btnLogin.addEventListener('click', conectarGoogle);
-document.getElementById('btn-logout').addEventListener('click', async () => { await signOut(auth); window.location.reload(); });
+const btnLogout = document.getElementById('btn-logout'); if (btnLogout) btnLogout.addEventListener('click', async () => { await signOut(auth); window.location.reload(); });
 
 
 const ROLES_MODULOS_DEFAULT = {
@@ -3482,38 +3728,17 @@ onAuthStateChanged(auth, async (user) => {
 
         document.getElementById('login-container').style.display = 'none'; 
         document.getElementById('app-container').style.display = 'flex'; 
-        
-        const userInfoBox = document.getElementById('user-info'); 
-        if (userInfoBox && window.usuarioActual) {
-            if (window.usuarioActual.nombre) {
-                userInfoBox.innerHTML = `
-                    <div style="font-weight:700; color:var(--text-main); font-size:12.5px; margin-bottom:2px; word-break:break-word;">${window.usuarioActual.nombre}</div>
-                    <div style="font-size:11px; color:var(--text-muted); word-break:break-all; line-height:1.25;">${window.usuarioActual.email}</div>
-                `;
-            } else {
-                userInfoBox.innerHTML = `
-                    <div style="font-size:11.5px; color:var(--text-main); word-break:break-all;">${window.usuarioActual.email}</div>
-                `;
-            }
-        }
-
-        if (userInfoBox) { 
-            let vTag = document.getElementById('version-tag');
-            if (!vTag) {
-                userInfoBox.insertAdjacentHTML('afterend', `<div id="version-tag" style="font-size:0.85em; color:var(--accent-teal); margin-top:5px; font-weight:700; padding:0 10px;">${APP_VERSION}</div>`);
-            } else {
-                vTag.textContent = APP_VERSION;
-            }
-        }
 
         await cargarConfig(); 
+        configurarHeaderUsuarioYRoles();
         configurarSidebarPorPermisos();
 
-        if (window.usuarioActual.rol === 'profesor') {
+        const modo = window.modoRolActivo || 'multi';
+        if (modo === 'profesor' || window.usuarioActual.rol === 'profesor') {
             cargarVista('Mis Alumnos y Ensambles');
         } else {
-            const mods = window.usuarioActual.modulos_habilitados || [];
-            if (window.usuarioActual.rol === 'admin' || mods.includes('dashboard')) {
+            const mods = obtenerModulosPermitidosModoActivo();
+            if (mods.includes('dashboard')) {
                 cargarVista('Dashboard');
             } else if (mods.includes('inbox')) {
                 cargarVista('Inbox - Pendientes');
@@ -3532,6 +3757,51 @@ onAuthStateChanged(auth, async (user) => {
             }
         }
         
+        // Listener del Popover de Perfil Google-Style
+        const userTopBtn = document.getElementById('user-top-btn');
+        const profilePopover = document.getElementById('profile-popover');
+        if (userTopBtn && profilePopover) {
+            userTopBtn.onclick = (e) => {
+                e.stopPropagation();
+                profilePopover.classList.toggle('show');
+            };
+        }
+
+        const popoverMiPerfil = document.getElementById('popover-link-mi-perfil');
+        if (popoverMiPerfil) {
+            popoverMiPerfil.onclick = (e) => {
+                e.stopPropagation();
+                if (profilePopover) profilePopover.classList.remove('show');
+                if (typeof abrirModalMiPerfil === 'function') abrirModalMiPerfil();
+            };
+        }
+
+        const popoverConfig = document.getElementById('popover-link-config');
+        if (popoverConfig) {
+            popoverConfig.onclick = (e) => {
+                e.stopPropagation();
+                if (profilePopover) profilePopover.classList.remove('show');
+                cargarVista('Configuración');
+            };
+        }
+
+        const btnPopoverLogout = document.getElementById('btn-popover-logout');
+        if (btnPopoverLogout) {
+            btnPopoverLogout.onclick = async (e) => {
+                e.stopPropagation();
+                await signOut(auth);
+                window.location.reload();
+            };
+        }
+
+        document.addEventListener('click', (e) => {
+            if (profilePopover && profilePopover.classList.contains('show')) {
+                if (userTopBtn && !userTopBtn.contains(e.target) && !profilePopover.contains(e.target)) {
+                    profilePopover.classList.remove('show');
+                }
+            }
+        });
+        
         const btnMobileMenu = document.getElementById('btn-mobile-menu');
         const btnCerrarMenuMobile = document.getElementById('btn-cerrar-menu-mobile');
         const sidebar = document.getElementById('sidebar');
@@ -3549,6 +3819,9 @@ onAuthStateChanged(auth, async (user) => {
         }
         if(btnCerrarMenuMobile) btnCerrarMenuMobile.addEventListener('click', () => { sidebar.classList.remove('active'); overlay.style.display = 'none'; });
         if(overlay) overlay.addEventListener('click', () => { sidebar.classList.remove('active'); overlay.style.display = 'none'; });
+
+        // Iniciar detector de actualizaciones automáticas en tiempo real
+        iniciarVerificadorVersion();
 
     } else { 
         document.getElementById('login-container').style.display = 'flex'; 
@@ -5056,9 +5329,11 @@ document.addEventListener('click', async (e) => {
             const sE = document.getElementById(`estado-${d.id}`);
             if (cA) cA.checked = false;
             if (cN) cN.checked = false;
-            if (sE) sE.textContent = "";
-            actualizarBotonesQuitarRango(d.id, false);
-            window.updateDispStateForDay(d.id, false);
+            const diaRow = document.querySelector(`.dia-row[data-dia="${d.id}"]`);
+            if (diaRow) {
+                actualizarBotonesQuitarRangoEnFila(diaRow);
+                updateDispStateForRow(diaRow);
+            }
         }); 
         document.getElementById('chk-ingreso-directo').checked = false; 
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); 
@@ -5612,16 +5887,27 @@ if (btnGuardarMiPerfil) {
 }
 
 // =======================================================================
-// GENERADOR DE CASOS DE PRUEBA (TEST ENVIRONMENT)
+// GENERADOR DE CASOS DE PRUEBA (TEST ENVIRONMENT AISLADO POR USUARIO)
 // =======================================================================
-export async function generarCasosPruebaEvaluador(email = 'pablobianchino@gmail.com') {
+export const USUARIOS_TEST_PERMITIDOS = [
+    'belutorrentsmdl@gmail.com',
+    'nfchelli@gmail.com',
+    'ggkerpel@gmail.com',
+    'pablobianchino@gmail.com',
+    'productora.mandalahouse@gmail.com'
+];
+
+export async function generarCasosPruebaEvaluador(emailOverride = null) {
     try {
+        const uActual = window.usuarioActual || {};
+        const email = (emailOverride || uActual.email || 'pablobianchino@gmail.com').toLowerCase().trim();
+
         const uSnap = await getDocs(collection(db, "usuarios_sistema"));
         let targetUser = null;
         let targetId = null;
         uSnap.forEach(d => {
             const data = d.data();
-            if ((data.email || '').toLowerCase().trim() === email.toLowerCase().trim()) {
+            if ((data.email || '').toLowerCase().trim() === email) {
                 targetUser = data;
                 targetId = d.id;
             }
@@ -5641,8 +5927,8 @@ export async function generarCasosPruebaEvaluador(email = 'pablobianchino@gmail.
             }
         }
 
-        const profId = targetUser?.profesor_id || targetId || 'prof-pablo';
-        const profNombre = targetUser?.nombre || 'Pablo Bianchino';
+        const profId = targetUser?.profesor_id || targetId || 'prof-' + email.split('@')[0];
+        const profNombre = targetUser?.nombre || uActual.nombre || email.split('@')[0];
         const profCalId = targetUser?.correo_calendario || targetUser?.email || email;
         const ahoraStr = new Date().toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' });
 
@@ -5654,9 +5940,9 @@ export async function generarCasosPruebaEvaluador(email = 'pablobianchino@gmail.
 
         const casos = [
             {
-                nombre: '[TEST] Lucas Bianchi (🔴 Vencida - 48hs)',
+                nombre: `[TEST] Lucas Bianchi (🔴 Vencida - 48hs)`,
                 celular: '+5491133445566',
-                email: 'lucas.test@mandalahouse.com',
+                email: `lucas.test.${email.split('@')[0]}@mandalahouse.com`,
                 edad: 28,
                 instrumento: ['Guitarra'],
                 nivel: 'Inicial I',
@@ -5668,14 +5954,15 @@ export async function generarCasosPruebaEvaluador(email = 'pablobianchino@gmail.
                 reserva_fecha_texto: 'Hace 2 días (Vencida)',
                 reserva_inicio: fVencida.toISOString(),
                 reserva_fin: new Date(fVencida.getTime() + 45 * 60000).toISOString(),
-                historial: [`[${ahoraStr}] Entrevista realizada hace más de 48 hs. Pendiente urgente de cargar Informe Post-Entrevista.`],
+                historial: [`[${ahoraStr}] Entrevista realizada hace más de 48 hs para ${profNombre}. Pendiente urgente de cargar Informe Post-Entrevista.`],
                 es_caso_prueba: true,
+                test_owner: email,
                 fecha_creacion: new Date().toISOString()
             },
             {
-                nombre: '[TEST] Clara Gómez (🟠 Próxima a vencer - 24 a 48hs)',
+                nombre: `[TEST] Clara Gómez (🟠 Próxima a vencer - 24 a 48hs)`,
                 celular: '+5491144556677',
-                email: 'clara.test@mandalahouse.com',
+                email: `clara.test.${email.split('@')[0]}@mandalahouse.com`,
                 edad: 24,
                 instrumento: ['Canto'],
                 nivel: 'Inicial II',
@@ -5687,14 +5974,15 @@ export async function generarCasosPruebaEvaluador(email = 'pablobianchino@gmail.
                 reserva_fecha_texto: 'Ayer (24 a 48 hs)',
                 reserva_inicio: fUrgente.toISOString(),
                 reserva_fin: new Date(fUrgente.getTime() + 45 * 60000).toISOString(),
-                historial: [`[${ahoraStr}] Entrevista realizada ayer. Pendiente de cargar Informe Post-Entrevista.`],
+                historial: [`[${ahoraStr}] Entrevista realizada ayer con ${profNombre}. Pendiente de cargar Informe Post-Entrevista.`],
                 es_caso_prueba: true,
+                test_owner: email,
                 fecha_creacion: new Date().toISOString()
             },
             {
-                nombre: '[TEST] Mateo Benítez (🟡 Entrevista Hoy)',
+                nombre: `[TEST] Mateo Benítez (🟡 Entrevista Hoy)`,
                 celular: '+5491155667788',
-                email: 'mateo.test@mandalahouse.com',
+                email: `mateo.test.${email.split('@')[0]}@mandalahouse.com`,
                 edad: 32,
                 instrumento: ['Batería'],
                 nivel: 'Inicial I',
@@ -5706,14 +5994,15 @@ export async function generarCasosPruebaEvaluador(email = 'pablobianchino@gmail.
                 reserva_fecha_texto: 'Hoy ' + fHoy.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) + ' hs',
                 reserva_inicio: fHoy.toISOString(),
                 reserva_fin: new Date(fHoy.getTime() + 45 * 60000).toISOString(),
-                historial: [`[${ahoraStr}] Entrevista confirmada para el día de hoy.`],
+                historial: [`[${ahoraStr}] Entrevista confirmada para el día de hoy con ${profNombre}.`],
                 es_caso_prueba: true,
+                test_owner: email,
                 fecha_creacion: new Date().toISOString()
             },
             {
-                nombre: '[TEST] Sofía Rossi (🟢 Futura - Al Día)',
+                nombre: `[TEST] Sofía Rossi (🟢 Futura - Al Día)`,
                 celular: '+5491166778899',
-                email: 'sofia.test@mandalahouse.com',
+                email: `sofia.test.${email.split('@')[0]}@mandalahouse.com`,
                 edad: 21,
                 instrumento: ['Piano'],
                 nivel: 'Inicial I',
@@ -5725,14 +6014,15 @@ export async function generarCasosPruebaEvaluador(email = 'pablobianchino@gmail.
                 reserva_fecha_texto: fFutura.toLocaleString('es-AR', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' hs',
                 reserva_inicio: fFutura.toISOString(),
                 reserva_fin: new Date(fFutura.getTime() + 45 * 60000).toISOString(),
-                historial: [`[${ahoraStr}] Entrevista confirmada con antelación (+48 hs).`],
+                historial: [`[${ahoraStr}] Entrevista confirmada con antelación (+48 hs) con ${profNombre}.`],
                 es_caso_prueba: true,
+                test_owner: email,
                 fecha_creacion: new Date().toISOString()
             },
             {
-                nombre: '[TEST] Julián Gómez (🛋️ Lista de Espera)',
+                nombre: `[TEST] Julián Gómez (🛋️ Lista de Espera)`,
                 celular: '+5491177889900',
-                email: 'julian.test@mandalahouse.com',
+                email: `julian.test.${email.split('@')[0]}@mandalahouse.com`,
                 edad: 26,
                 instrumento: ['Bajo'],
                 nivel: 'Inicial II',
@@ -5744,6 +6034,7 @@ export async function generarCasosPruebaEvaluador(email = 'pablobianchino@gmail.
                 profesor_id: profId,
                 historial: [`[${ahoraStr}] Alumno derivado a Lista de Espera evaluado por ${profNombre}.`],
                 es_caso_prueba: true,
+                test_owner: email,
                 fecha_creacion: new Date().toISOString()
             }
         ];
@@ -5755,9 +6046,9 @@ export async function generarCasosPruebaEvaluador(email = 'pablobianchino@gmail.
         }
 
         if (typeof mostrarToast === 'function') {
-            mostrarToast(`✅ Se crearon ${creados} alumnos de prueba para ${profNombre}`, 'success');
+            mostrarToast(`✅ Se crearon ${creados} casos de prueba propios para ${profNombre}`, 'success');
         } else {
-            alert(`✅ Se crearon ${creados} alumnos de prueba para ${profNombre}`);
+            alert(`✅ Se crearon ${creados} casos de prueba propios para ${profNombre}`);
         }
         if (typeof cargarVista === 'function') cargarVista(estadoActualVista);
         return true;
@@ -5771,19 +6062,29 @@ window.generarCasosPruebaEvaluador = generarCasosPruebaEvaluador;
 
 export async function limpiarCasosPrueba() {
     try {
+        const uActual = window.usuarioActual || {};
+        const email = (uActual.email || '').toLowerCase().trim();
+
         const qSnap = await getDocs(collection(db, "alumnos"));
         let borrados = 0;
         for (const d of qSnap.docs) {
             const data = d.data();
             if (data.es_caso_prueba || (data.nombre && data.nombre.startsWith('[TEST]'))) {
-                await deleteDoc(doc(db, "alumnos", d.id));
-                borrados++;
+                // Solo borrar si pertenece al usuario logueado o si es admin y no tiene owner asignado
+                const owner = (data.test_owner || '').toLowerCase().trim();
+                const calId = (data.reserva_cal_id || '').toLowerCase().trim();
+                const esPropio = (owner && owner === email) || (calId && calId === email) || (!owner && (email === 'pablobianchino@gmail.com' || email === 'productora.mandalahouse@gmail.com'));
+
+                if (esPropio) {
+                    await deleteDoc(doc(db, "alumnos", d.id));
+                    borrados++;
+                }
             }
         }
         if (typeof mostrarToast === 'function') {
-            mostrarToast(`🗑️ Se eliminaron ${borrados} alumnos de prueba [TEST]`, 'info');
+            mostrarToast(`🗑️ Se eliminaron ${borrados} alumnos de prueba de ${uActual.nombre || email}`, 'info');
         } else {
-            alert(`🗑️ Se eliminaron ${borrados} alumnos de prueba [TEST]`);
+            alert(`🗑️ Se eliminaron ${borrados} alumnos de prueba de ${uActual.nombre || email}`);
         }
         if (typeof cargarVista === 'function') cargarVista(estadoActualVista);
         return true;
