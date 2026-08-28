@@ -455,11 +455,12 @@ body {
 .row-sub { font-size: 12.5px; color: var(--text-muted); display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
 
 .col-status-wrapper {
-    flex: 0 0 170px;
-    width: 170px;
+    flex: 0 0 195px;
+    min-width: 195px;
     display: flex;
     align-items: center;
     justify-content: flex-start;
+    padding-right: 8px;
 }
 
 .row-disp-grid-wrapper {
@@ -987,14 +988,18 @@ body {
 .status-badge { 
     display: inline-flex; 
     align-items: center; 
-    height: 22px;
-    padding: 0 8px; 
+    justify-content: center;
+    min-height: 22px;
+    padding: 3px 8px; 
     border-radius: 5px; 
     font-size: 10px; 
     font-weight: 800; 
     text-transform: uppercase; 
     letter-spacing: 0.03em; 
-    white-space: nowrap;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.25;
+    max-width: 100%;
 }
 
 /* Badges con Paleta Coordinada del Flow */
@@ -1663,6 +1668,7 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
     border-radius: 12px;
     font-size: 11px;
     font-weight: 700;
+}
 .status-val-ok,
 .status-val-pending,
 .status-val-reject {
@@ -2243,3 +2249,146 @@ button.btn-prio-filtro.prio-proximos.active,
         max-width: 320px;
     }
 }
+
+/* =======================================================================
+   ESTILOS - FORMULARIO FINALIZAR ADMISIÓN / ENTREVISTA
+   ======================================================================= */
+.inf-student-banner {
+    background: var(--hover-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.inf-banner-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.inf-banner-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.inf-accordion-card {
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    overflow: hidden;
+    background: #ffffff;
+    margin-bottom: 12px;
+    transition: box-shadow 0.2s;
+}
+
+.inf-accordion-card:hover {
+    box-shadow: var(--shadow-sm);
+}
+
+.inf-accordion-header {
+    background: #fdfdfd;
+    padding: 11px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 1px solid var(--border-color);
+    transition: background 0.15s;
+}
+
+.inf-accordion-header:hover {
+    background: rgba(0, 123, 143, 0.03);
+}
+
+.inf-accordion-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.inf-step-badge {
+    background: var(--accent-teal);
+    color: #ffffff;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.inf-accordion-body {
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.inf-check-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    background: var(--hover-bg);
+    padding: 9px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: background 0.15s;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+}
+
+.inf-check-card:hover {
+    background: #ebe6dc;
+}
+
+.inf-check-card input[type="checkbox"] {
+    width: 17px;
+    height: 17px;
+    accent-color: var(--accent-teal);
+    cursor: pointer;
+    margin-top: 2px;
+}
+
+.inf-check-card-label {
+    flex: 1;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-main);
+    line-height: 1.35;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+}
+
+#inf-motivacion-editor, #inf-diagnostico-editor {
+    font-family: inherit;
+    font-size: 13px;
+    background: #fff;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+.ql-toolbar.ql-snow {
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-color: var(--border-color) !important;
+    background: #faf8f5;
+    padding: 6px 8px !important;
+}
+
+.ql-container.ql-snow {
+    border-color: var(--border-color) !important;
+}
+
