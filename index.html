@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mandala Ensambles - Admisión</title>
     
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
     <link rel="icon" href="logo.png" type="image/png">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#fbfaf8">
@@ -14,7 +18,228 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=5.0.0">
+    <link rel="stylesheet" href="styles.css?v=5.8.7">
+
+    <style>
+        /* Estilos Críticos de Widget de Perfil y Popover Google-Style */
+        .user-top-widget {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #ffffff;
+            border: 1px solid var(--border-color, #e2ded4);
+            padding: 4px 6px 4px 12px;
+            border-radius: 24px;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+            position: relative;
+        }
+        .user-top-widget:hover {
+            border-color: var(--accent-teal, #007b8f);
+            box-shadow: 0 2px 8px rgba(0, 123, 143, 0.15);
+        }
+        .user-widget-info {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            text-align: right;
+            line-height: 1.2;
+        }
+        .widget-user-name {
+            font-size: 12.5px;
+            font-weight: 800;
+            color: var(--text-main, #2b2b2b);
+            max-width: 140px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .widget-role-badge {
+            font-size: 9.5px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: var(--accent-teal, #007b8f);
+        }
+        .user-avatar-circle {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #007b8f, #0284c7);
+            color: #ffffff;
+            font-weight: 800;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #ffffff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+            flex-shrink: 0;
+        }
+        .google-profile-popover {
+            display: none !important;
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 330px;
+            background: #ffffff;
+            border: 1px solid var(--border-color, #e2ded4);
+            border-radius: 18px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+            z-index: 9999;
+            overflow: hidden;
+        }
+        .google-profile-popover.show {
+            display: flex !important;
+            flex-direction: column;
+        }
+        .popover-header {
+            background: var(--hover-bg, #f9f6f0);
+            padding: 18px 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color, #e2ded4);
+        }
+        .popover-avatar-big {
+            width: 54px;
+            height: 54px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #007b8f, #0284c7);
+            color: #ffffff;
+            font-weight: 800;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+        }
+        .popover-name {
+            font-size: 14.5px;
+            font-weight: 800;
+            color: var(--text-main, #2b2b2b);
+        }
+        .popover-email {
+            font-size: 11.5px;
+            color: var(--text-muted, #666666);
+            margin-top: 2px;
+            word-break: break-all;
+        }
+        .popover-body {
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .role-switch-section {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .role-switch-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 10.5px;
+            font-weight: 800;
+            color: var(--text-muted, #666666);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .role-options-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .role-option-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 7px 9px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-main, #2b2b2b);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .role-option-item:hover {
+            border-color: var(--accent-teal, #007b8f);
+            background: #f0fdfa;
+        }
+        .role-option-item.selected {
+            background: #e4f2f4;
+            border-color: var(--accent-teal, #007b8f);
+            color: var(--accent-teal, #007b8f);
+        }
+        .role-option-item.selected::after {
+            content: '✓';
+            font-weight: 900;
+            font-size: 13px;
+            color: var(--accent-teal, #007b8f);
+        }
+        .popover-links {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .popover-link-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: var(--text-main, #2b2b2b);
+            cursor: pointer;
+            transition: 0.15s;
+        }
+        .popover-link-item:hover {
+            background: var(--hover-bg, #f9f6f0);
+        }
+        .popover-footer {
+            padding: 10px 16px 14px 16px;
+            background: #ffffff;
+            display: flex;
+            justify-content: center;
+        }
+        .btn-popover-logout {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            padding: 7px 14px;
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: 0.15s;
+        }
+        .btn-popover-logout:hover {
+            background: #fca5a5;
+        }
+        @media (max-width: 850px) {
+            .widget-user-name { display: none; }
+            .user-top-widget { padding: 3px 4px 3px 8px; }
+            .google-profile-popover { right: -10px; width: calc(100vw - 30px); max-width: 320px; }
+        }
+    </style>
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
@@ -89,40 +314,89 @@
             </ul>
 
             <div style="margin-top: auto; padding-top: 15px; border-top: 1px solid #ece6dc; display:flex; flex-direction:column; gap:8px;">
-                <li class="nav-item-small" data-vista="Configuración" data-modulo="Configuración"><span class="nav-icon">⚙️</span> Configuración</li>
-                <li id="nav-item-mi-perfil" class="nav-item-small" style="cursor:pointer;"><span class="nav-icon">👤</span> Mi Perfil</li>
                 <div style="display:flex; gap:6px; margin:2px 0;">
-                    <button type="button" id="btn-quick-test-evaluador" onclick="window.generarCasosPruebaEvaluador(window.usuarioActual?.email || 'pablobianchino@gmail.com')" class="btn-app btn-secondary" style="font-size:11px; height:28px; padding:0 8px; flex:1; justify-content:center;" title="Crear 3 alumnos [TEST] para probar flujo Evaluador">🧪 Casos Test</button>
-                    <button type="button" id="btn-quick-test-clean" onclick="window.limpiarCasosPrueba()" class="btn-app btn-secondary" style="font-size:11px; height:28px; padding:0 8px; justify-content:center;" title="Eliminar todos los alumnos [TEST]">🗑️</button>
+                    <button type="button" id="btn-quick-test-evaluador" onclick="window.generarCasosPruebaEvaluador()" class="btn-app btn-secondary" style="font-size:11px; height:28px; padding:0 8px; flex:1; justify-content:center;" title="Crear casos de prueba [TEST] propios para evaluar el flujo">🧪 Casos Test</button>
+                    <button type="button" id="btn-quick-test-clean" onclick="window.limpiarCasosPrueba()" class="btn-app btn-secondary" style="font-size:11px; height:28px; padding:0 8px; justify-content:center;" title="Eliminar mis alumnos de prueba [TEST]">🗑️</button>
                 </div>
-                <div id="user-info" style="font-size: 0.8em; color: #8a9097; word-break: break-all; padding: 0 10px;"></div>
-                <button id="btn-logout" class="btn-logout">Cerrar sesión</button>
+                <div id="sidebar-version-label" style="font-size: 11px; color: var(--text-light); text-align: left; font-weight: 600; padding: 2px 6px;">v5.8.7</div>
             </div>
         </aside>
 
         <!-- CONTENIDO PRINCIPAL -->
         <main id="main-content">
-            <div id="header-acciones-vista" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+            <div id="header-acciones-vista" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:12px; position:relative;">
                 <div style="display:flex; align-items:center; gap:10px;">
                     <button id="btn-mobile-menu" class="btn-toggle-sidebar" style="background:var(--item-bg); border:1px solid var(--border-color); border-radius:8px; font-size:1.25em; cursor:pointer; padding:4px 10px; color:var(--text-main); display:inline-flex; align-items:center; justify-content:center; transition:0.2s;" title="Mostrar / Ocultar panel lateral">☰</button>
                     <h1 id="vista-titulo" style="margin:0; font-size:1.6em; color:#1c1f22; font-weight:700; letter-spacing:-0.02em;">Dashboard</h1>
                 </div>
-                <div style="display:flex; flex-direction:column; gap:8px; flex-grow:1; max-width:400px;">
-                    <div style="display:flex; gap:10px; width:100%;">
-                        <div id="search-container-general" style="display:none; position:relative; flex-grow:1;">
-                            <span style="position:absolute; left:12px; top:10px; font-size:0.9em; color:#b3aa9a;">🔍</span>
-                            <input type="text" id="input-buscador-general" placeholder="Buscar alumno..." style="width:100%; padding:9px 30px 9px 32px; border:1px solid #ece6dc; border-radius:10px; outline:none; background:#ffffff; font-family:inherit; box-sizing:border-box;">
-                            <button type="button" id="btn-limpiar-buscador" style="display:none; position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; color:#8a9097; font-size:14px; cursor:pointer; padding:4px 6px; border-radius:50%; line-height:1;" title="Limpiar búsqueda">✕</button>
+
+                <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:flex-end; flex:1;">
+                    <div style="display:flex; flex-direction:column; gap:8px; max-width:380px; width:100%;">
+                        <div style="display:flex; gap:10px; width:100%;">
+                            <div id="search-container-general" style="display:none; position:relative; flex-grow:1;">
+                                <span style="position:absolute; left:12px; top:10px; font-size:0.9em; color:#b3aa9a;">🔍</span>
+                                <input type="text" id="input-buscador-general" placeholder="Buscar alumno..." style="width:100%; padding:9px 30px 9px 32px; border:1px solid #ece6dc; border-radius:10px; outline:none; background:#ffffff; font-family:inherit; box-sizing:border-box;">
+                                <button type="button" id="btn-limpiar-buscador" style="display:none; position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; color:#8a9097; font-size:14px; cursor:pointer; padding:4px 6px; border-radius:50%; line-height:1;" title="Limpiar búsqueda">✕</button>
+                            </div>
+                            <button id="btn-carga-masiva" style="display:none; background:var(--hover-bg); color:var(--text-main); border:1px solid var(--border-color); border-radius:8px; padding:0 14px; cursor:pointer; font-weight:700; font-size:12.5px; font-family:inherit; white-space:nowrap; transition:0.2s;" title="Carga masiva de alumnos mediante archivo CSV">📥 Cargar CSV</button>
+                            <input type="file" id="input-csv" accept=".csv" style="display:none;">
                         </div>
-                        <button id="btn-carga-masiva" style="display:none; background:var(--hover-bg); color:var(--text-main); border:1px solid var(--border-color); border-radius:8px; padding:0 14px; cursor:pointer; font-weight:700; font-size:12.5px; font-family:inherit; white-space:nowrap; transition:0.2s;" title="Carga masiva de alumnos mediante archivo CSV">📥 Cargar CSV</button>
-                        <input type="file" id="input-csv" accept=".csv" style="display:none;">
+                        <!-- Filtros rápidos de Alarma -->
+                        <div id="alarm-filters" style="display:none; gap:6px; flex-wrap:wrap;">
+                            <button class="filter-chip filter-alarm active" data-val="Todos">Todos</button>
+                            <button class="filter-chip filter-alarm" data-val="Vencidos" style="color:var(--accent-red); border-color:rgba(194,86,59,0.2);">🔴 Vencidos</button>
+                            <button class="filter-chip filter-alarm" data-val="Criticos" style="color:#d99a29; border-color:rgba(229,169,61,0.2);">🟠 Críticos</button>
+                            <button class="filter-chip filter-alarm" data-val="AlDia" style="color:var(--accent-teal); border-color:rgba(0,123,143,0.2);">🟢 Al día</button>
+                        </div>
                     </div>
-                    <!-- Filtros rápidos de Alarma -->
-                    <div id="alarm-filters" style="display:none; gap:6px; flex-wrap:wrap;">
-                        <button class="filter-chip filter-alarm active" data-val="Todos">Todos</button>
-                        <button class="filter-chip filter-alarm" data-val="Vencidos" style="color:var(--accent-red); border-color:rgba(194,86,59,0.2);">🔴 Vencidos</button>
-                        <button class="filter-chip filter-alarm" data-val="Criticos" style="color:#d99a29; border-color:rgba(229,169,61,0.2);">🟠 Críticos</button>
-                        <button class="filter-chip filter-alarm" data-val="AlDia" style="color:var(--accent-teal); border-color:rgba(0,123,143,0.2);">🟢 Al día</button>
+
+                    <!-- WIDGET DE USUARIO GOOGLE-STYLE -->
+                    <div id="user-header-widget-wrapper" style="position:relative;">
+                        <div class="user-top-widget" id="user-top-btn" title="Opciones de perfil y roles">
+                            <div class="user-widget-info">
+                                <div class="widget-user-name" id="widget-user-name">Usuario</div>
+                                <div class="widget-role-badge" id="widget-role-badge">Cargando...</div>
+                            </div>
+                            <div class="user-avatar-circle" id="widget-user-avatar">PB</div>
+                        </div>
+
+                        <!-- POPOVER FLOTANTE (GOOGLE ACCOUNT STYLE) -->
+                        <div class="google-profile-popover" id="profile-popover">
+                            <div class="popover-header">
+                                <div class="popover-avatar-big" id="popover-avatar">PB</div>
+                                <div class="popover-name" id="popover-name">Usuario</div>
+                                <div class="popover-email" id="popover-email">usuario@mandalahouse.com</div>
+                            </div>
+
+                            <div class="popover-body">
+                                <!-- SELECTOR DE ROL ACTIVO (SOLO MULTI-ROL) -->
+                                <div class="role-switch-section" id="popover-role-section" style="display:none;">
+                                    <div class="role-switch-header">
+                                        <span>Ver Plataforma como:</span>
+                                        <span id="popover-roles-count" style="color:var(--accent-teal); font-weight:800;">ROLES</span>
+                                    </div>
+                                    <div class="role-options-grid" id="popover-role-options">
+                                        <!-- Inyectado por JS -->
+                                    </div>
+                                </div>
+
+                                <!-- ACCESOS RÁPIDOS -->
+                                <div class="popover-links">
+                                    <div class="popover-link-item" id="popover-link-mi-perfil">
+                                        <span>👤</span> <span>Mi Perfil (Disponibilidad y Datos)</span>
+                                    </div>
+                                    <div class="popover-link-item" id="popover-link-config" style="display:none;">
+                                        <span>⚙️</span> <span>Configuración del Sistema</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="popover-footer">
+                                <button class="btn-popover-logout" id="btn-popover-logout">
+                                    <span>🚪</span> <span>Cerrar sesión</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1537,12 +1811,19 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=5.8.3"></script>
+    <script type="module" src="app.js?v=5.8.7"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
+            let refreshing = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (!refreshing) {
+                    refreshing = true;
+                    window.location.reload();
+                }
+            });
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=5.8.3').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=5.8.7').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {
