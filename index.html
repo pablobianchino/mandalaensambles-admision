@@ -18,7 +18,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=5.8.7">
+    <link rel="stylesheet" href="styles.css?v=5.8.14">
 
     <style>
         /* Estilos Críticos de Widget de Perfil y Popover Google-Style */
@@ -318,7 +318,7 @@
                     <button type="button" id="btn-quick-test-evaluador" onclick="window.generarCasosPruebaEvaluador()" class="btn-app btn-secondary" style="font-size:11px; height:28px; padding:0 8px; flex:1; justify-content:center;" title="Crear casos de prueba [TEST] propios para evaluar el flujo">🧪 Casos Test</button>
                     <button type="button" id="btn-quick-test-clean" onclick="window.limpiarCasosPrueba()" class="btn-app btn-secondary" style="font-size:11px; height:28px; padding:0 8px; justify-content:center;" title="Eliminar mis alumnos de prueba [TEST]">🗑️</button>
                 </div>
-                <div id="sidebar-version-label" style="font-size: 11px; color: var(--text-light); text-align: left; font-weight: 600; padding: 2px 6px;">v5.8.7</div>
+                <div id="sidebar-version-label" style="font-size: 11px; color: var(--text-light); text-align: left; font-weight: 600; padding: 2px 6px;">v5.8.14</div>
             </div>
         </aside>
 
@@ -742,10 +742,10 @@
             
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border-color); margin-bottom: 20px; padding-bottom: 5px; position:relative;">
                 <div class="tabs-container" style="display:flex; gap:15px; border-bottom:none; margin-bottom:0; overflow-x:auto; flex-grow:1; align-items:center;">
-                    <button type="button" class="tab-btn active" data-target="tab-datos">📝 Datos</button>
-                    <button type="button" class="tab-btn" data-target="tab-disp">🕒 Horarios</button>
+                    <button type="button" class="tab-btn active" data-target="tab-datos">👤 Perfil</button>
+                    <button type="button" class="tab-btn" data-target="tab-disp">⏰ Disponibilidad</button>
                     <button type="button" class="tab-btn" data-target="tab-historial">📚 Historial</button>
-                    <button type="button" class="tab-btn" data-target="tab-informe">📝 Informe</button>
+                    <button type="button" class="tab-btn" data-target="tab-informe">📝 Informe de Admisión</button>
                 </div>
             </div>
 
@@ -845,10 +845,21 @@
                     <div id="aviso-informe-bloqueado" style="display:none; background:var(--hover-bg); color:var(--accent-red); padding:10px; border-radius:8px; margin-bottom:15px; font-weight:600; font-size:13px;">
                         ⚠️ El informe de admisión solo se puede completar una vez que la entrevista esté confirmada.
                     </div>
-                    <label>Informe Post-Entrevista / Nivelación</label>
-                    <div id="informe-editor-container" style="height: 180px; background:white; border-radius:8px; margin-bottom:15px;"></div>
-                    <label style="margin-top:10px; display:block;">🧠 Perfil Psicológico / Emocional</label>
-                    <div id="ficha-perfil-psicologico-chips" class="profile-tags-wrapper"></div>
+                    
+                    <div id="ficha-informe-entrevista-structured" style="display:flex; flex-direction:column; gap:10px; margin-bottom:15px;"></div>
+
+                    <div id="ficha-informe-btn-edit-wrapper" style="display:none; justify-content:flex-end; margin-bottom:12px;">
+                        <button type="button" id="btn-editar-informe-desde-ficha" class="btn-app btn-secondary" style="font-size:12px; font-weight:700; color:var(--accent-teal); border-color:var(--accent-teal); display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
+                            ✏️ Editar / Actualizar Informe de Entrevista
+                        </button>
+                    </div>
+
+                    <div id="ficha-informe-legacy-wrapper" style="display:none;">
+                        <label>Informe Post-Entrevista / Nivelación</label>
+                        <div id="informe-editor-container" style="height: 140px; background:white; border-radius:8px; margin-bottom:15px;"></div>
+                        <label style="margin-top:5px; display:block;">🧠 Perfil Psicológico / Emocional</label>
+                        <div id="ficha-perfil-psicologico-chips" class="profile-tags-wrapper"></div>
+                    </div>
                 </div>
 
                 <div style="display:flex; flex-direction:column; gap:12px; border-top:1px solid var(--border-color); padding-top:15px; margin-top:10px;">
@@ -879,63 +890,223 @@
         </div>
     </dialog>
 
-    <dialog id="modal-informe-admision" class="modern-modal" style="width: 95%; max-width: 680px;">
-        <div style="padding: 24px;">
+    <dialog id="modal-informe-admision" class="modern-modal" style="width: 95%; max-width: 780px;">
+        <div style="padding: 24px; max-height: 88vh; overflow-y: auto; display: flex; flex-direction: column;">
             <div class="modal-drag-pill"></div>
             
             <!-- HEADER -->
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
-                <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-                    <h2 style="margin:0; font-size:1.4em; font-weight:700; color:#1c1f22;">Finalizar Admisión</h2>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px; border-bottom:1px solid var(--border-color); padding-bottom:12px;">
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <span style="font-size:1.4em;">📝</span>
+                    <h2 style="margin:0; font-size:1.35em; font-weight:800; color:var(--text-main);">Informe y Finalización de Admisión</h2>
                     <span id="informe-status-badge" class="status-badge bg-blue" style="font-size:11px;">ENTREVISTA CONFIRMADA</span>
                 </div>
                 <button type="button" class="btn-cerrar-modal" data-modal="modal-informe-admision" style="background:transparent; border:none; cursor:pointer; font-size:1.5em; color:#9a9388; line-height:1;">&times;</button>
             </div>
 
-            <!-- SUBTÍTULO CON DATOS DEL ALUMNO -->
-            <div id="informe-alumno-subtitulo" style="font-size:13px; color:var(--text-muted); font-weight:600; margin-bottom:15px;">-</div>
-
-            <!-- TABS CON EL MISMO ESTILO EXACTO DE TAB-BTN -->
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border-color); margin-bottom: 20px; padding-bottom: 5px; position:relative;">
-                <div class="tabs-container" style="display:flex; gap:15px; border-bottom:none; margin-bottom:0; overflow-x:auto; flex-grow:1; align-items:center;">
-                    <button type="button" class="tab-btn tab-btn-informe active" data-target="tab-inf-evaluacion">📝 Informe</button>
-                    <button type="button" class="tab-btn tab-btn-informe" data-target="tab-inf-disponibilidad">🕒 Horarios</button>
-                </div>
-            </div>
-
+            <!-- CAJA FECHA Y EVALUADOR SUPERIOR -->
             <input type="hidden" id="informe-final-alumno-id">
-
-            <!-- TAB 1: INFORME & EVALUACIÓN -->
-            <div id="tab-inf-evaluacion" class="tab-inf-content" style="display:block;">
-                <div style="margin-bottom:16px;">
-                    <label style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:6px;">
-                        Diagnóstico / Informe Técnico de Nivelación <span style="color:#ef4444;">*</span>
-                    </label>
-                    <div id="informe-popup-editor-container" style="height: 150px; background:white; border-radius:8px; border:1px solid var(--border-color);"></div>
+            <div style="background:var(--hover-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; margin-bottom:14px; display:flex; flex-wrap:wrap; gap:12px 24px; align-items:center;">
+                <div>
+                    <span style="font-size:10.5px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">📅 Fecha y Hora de Entrevista</span>
+                    <div id="inf-modal-fecha-val" style="font-size:13px; font-weight:700; color:var(--text-main); margin-top:2px;">-</div>
                 </div>
-
-                <div style="margin-bottom:20px;">
-                    <label style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:8px;">
-                        🧠 Perfil Psicológico / Emocional <span style="color:#ef4444;">*</span>
-                    </label>
-                    <div id="informe-perfil-psicologico-chips" class="profile-tags-wrapper"></div>
+                <div>
+                    <span style="font-size:10.5px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">👨‍🏫 Evaluador a Cargo</span>
+                    <div id="inf-modal-evaluador-val" style="font-size:13px; font-weight:700; color:var(--accent-teal); margin-top:2px;">-</div>
                 </div>
             </div>
 
-            <!-- TAB 2: DISPONIBILIDAD DE HORARIOS -->
-            <div id="tab-inf-disponibilidad" class="tab-inf-content" style="display:none;">
-                <div style="background:var(--hover-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:12.5px; color:var(--text-muted); line-height:1.4;">
-                    💡 <strong>Opcional:</strong> Si el alumno indicó nuevos días u horarios durante la entrevista, podés actualizar su disponibilidad aquí antes de enviarlo a Lista de Espera.
+            <!-- HERO DATA PRE-CARGADA Y EDITABLE -->
+            <div class="inf-student-banner">
+                <div style="grid-column: 1 / -1; display:flex; justify-content:flex-start; align-items:center; border-bottom: 1px dashed var(--border-color); padding-bottom:6px; margin-bottom:4px;">
+                    <span style="font-size:12px; font-weight:800; color:var(--text-main); display:flex; align-items:center; gap:6px;">
+                        👤 Datos del Alumno
+                    </span>
                 </div>
-                <div id="informe-disp-container" style="max-height: 48vh; overflow-y: auto; padding-right: 4px;">
-                    <!-- Se inyecta dinámicamente -->
+
+                <div class="inf-banner-item">
+                    <label class="inf-banner-label">Alumno</label>
+                    <input type="text" id="inf-nombre" class="modern-input" style="padding:5px 8px; font-size:12.5px; height:32px; font-weight:700; background:#fff;">
                 </div>
+                <div class="inf-banner-item" style="max-width:90px;">
+                    <label class="inf-banner-label">Edad</label>
+                    <input type="number" id="inf-edad" class="modern-input" style="padding:5px 8px; font-size:12.5px; height:32px; font-weight:700; background:#fff;">
+                </div>
+                <div class="inf-banner-item">
+                    <label class="inf-banner-label">Profesión (Opcional)</label>
+                    <input type="text" id="inf-profesion" class="modern-input" placeholder="Ej: Diseñador, Médico..." style="padding:5px 8px; font-size:12.5px; height:32px; background:#fff;">
+                </div>
+                <div class="inf-banner-item">
+                    <label class="inf-banner-label">Suscripción</label>
+                    <select id="inf-suscripcion" class="modern-input" style="padding:5px 8px; font-size:12px; height:32px; font-weight:600; background:#fff;"></select>
+                </div>
+                <div class="inf-banner-item">
+                    <label class="inf-banner-label" style="color:var(--accent-teal);">Nivel Asignado <span style="color:#ef4444;">*</span></label>
+                    <select id="inf-nivel" class="modern-input" required style="padding:5px 8px; font-size:12.5px; height:32px; font-weight:800; border-color:var(--accent-teal); background:#f0fdfa;">
+                        <option value="">Seleccionar nivel...</option>
+                        <option value="Inicial I">Inicial I</option>
+                        <option value="Inicial II">Inicial II</option>
+                        <option value="Intermedio">Intermedio</option>
+                        <option value="Avanzado">Avanzado</option>
+                    </select>
+                </div>
+
+                <div class="inf-banner-item" style="grid-column: 1 / -1; margin-top:2px;">
+                    <label class="inf-banner-label">Instrumento(s) <span style="color:#ef4444;">*</span></label>
+                    <select id="inf-instrumento" multiple style="display:none;"></select>
+                    <div id="chips-inf-instrumentos" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:4px;"></div>
+                </div>
+            </div>
+
+            <!-- SECCIONES DESPLEGABLES (ACORDEÓN - OPCIÓN A) -->
+            <div style="display:flex; flex-direction:column; gap:8px;">
+
+                <!-- BLOQUE 1: MOTIVACIÓN Y EXPECTATIVAS -->
+                <div class="inf-accordion-card" id="inf-sec-1">
+                    <div class="inf-accordion-header" onclick="window.toggleInfAccordion('inf-sec-1')">
+                        <div class="inf-accordion-title">
+                            <span class="inf-step-badge">1</span>
+                            <span>Motivación, Intereses y Expectativas</span>
+                        </div>
+                        <span id="inf-chevron-1" class="inf-chevron" style="font-size:11px; color:#64748b;">▲</span>
+                    </div>
+                    <div id="inf-body-1" class="inf-accordion-body">
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            <label style="font-size:12px; font-weight:700; color:var(--text-main);">¿Por qué y para qué viene? ¿Qué busca llevarse? <span style="color:#ef4444;">*</span></label>
+                            <div id="inf-motivacion-editor" style="height: 100px; background:#fff; border-radius:8px;"></div>
+                        </div>
+
+                        <label class="inf-check-card" style="margin-top:6px;">
+                            <input type="checkbox" id="inf-chk-propuesta">
+                            <div class="inf-check-card-label">
+                                <div style="font-weight:700; color:var(--text-main); margin-bottom:3px; font-size:12.5px;">Propuesta Mandala Charlada</div>
+                                <div style="font-size:11.5px; color:var(--text-muted); line-height:1.4;">
+                                    Formato grupal para aprender en proceso, repertorio democrático / apertura de estilos y versiones creativas propias.
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- BLOQUE 2: EVALUACIÓN TÉCNICA & PLASTICIDAD -->
+                <div class="inf-accordion-card" id="inf-sec-2">
+                    <div class="inf-accordion-header" onclick="window.toggleInfAccordion('inf-sec-2')">
+                        <div class="inf-accordion-title">
+                            <span class="inf-step-badge">2</span>
+                            <span>Evaluación Técnica y Plasticidad (Tocar algo)</span>
+                        </div>
+                        <span id="inf-chevron-2" class="inf-chevron" style="font-size:11px; color:#64748b;">▲</span>
+                    </div>
+                    <div id="inf-body-2" class="inf-accordion-body">
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            <label style="font-size:12px; font-weight:700; color:var(--text-main);">Diagnóstico de Ejecución & Plasticidad <span style="color:#ef4444;">*</span></label>
+                            <div id="inf-diagnostico-editor" style="height: 110px; background:#fff; border-radius:8px;"></div>
+                            <span style="font-size:11px; color:var(--text-muted); margin-top:4px;">Anotá cómo responde a consignas espontáneas y capacidad de seguir el pulso/armonía.</span>
+                        </div>
+
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            <label style="font-size:12px; font-weight:700; color:var(--text-main);">Zona de Confort / Artistas & Estilos Referentes <span style="color:#ef4444;">*</span></label>
+                            <input type="text" id="inf-artistas" class="modern-input" style="font-size:12.5px;" placeholder="Ej: Spinetta, Red Hot Chili Peppers, Charly, Daft Punk (pedir artistas, no canciones)">
+                            <span style="font-size:11px; color:var(--text-muted);">Anotar artistas para definir su perfil estético y encontrar compatibilidad en el match.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BLOQUE 3: PREGUNTAS CLAVE & REQUISITOS -->
+                <div class="inf-accordion-card" id="inf-sec-3">
+                    <div class="inf-accordion-header" onclick="window.toggleInfAccordion('inf-sec-3')">
+                        <div class="inf-accordion-title">
+                            <span class="inf-step-badge">3</span>
+                            <span>Preguntas Clave, Requisitos y Cierre</span>
+                        </div>
+                        <span id="inf-chevron-3" class="inf-chevron" style="font-size:11px; color:#64748b;">▲</span>
+                    </div>
+                    <div id="inf-body-3" class="inf-accordion-body">
+                        <div id="inf-preguntas-condicionales-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:12px;">
+                            <div id="inf-card-cantante" style="background:#fffbeb; padding:12px 14px; border-radius:8px; border:1px solid #fde68a; display:none; flex-direction:column; gap:6px;">
+                                <label style="font-size:12px; font-weight:700; color:#92400e; display:block;">🎤 COMPARTIR VOCES</label>
+                                <select id="inf-cantante-voces" class="modern-input" style="font-size:12.5px; min-height:42px; padding:6px 10px; line-height:1.35; background:#fff; width:100%;">
+                                    <option value="">Seleccionar opción...</option>
+                                    <option value="compartir">Dispuesto a compartir con otro cantante y armar voces</option>
+                                    <option value="solo">Prefiere cantar solo/a</option>
+                                    <option value="ambos">Abierto a ambas opciones</option>
+                                </select>
+                            </div>
+
+                            <div id="inf-card-tonalidades" style="background:#eff6ff; padding:12px 14px; border-radius:8px; border:1px solid #bfdbfe; display:none; flex-direction:column; gap:6px;">
+                                <label style="font-size:12px; font-weight:700; color:#1e40af; display:block;">🎼 TONALIDADES</label>
+                                <select id="inf-cambio-tonalidades" class="modern-input" style="font-size:12.5px; min-height:42px; padding:6px 10px; line-height:1.35; background:#fff; width:100%;">
+                                    <option value="">Seleccionar opción...</option>
+                                    <option value="sabe_dispuesto">Sabe transportar y está 100% dispuesto</option>
+                                    <option value="dispuesto_aprender">Está dispuesto a aprender en el proceso</option>
+                                    <option value="prefiere_original">Prefiere tocar únicamente en tonalidad original</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style="display:flex; flex-direction:column; gap:10px; margin-top:4px;">
+                            <label class="inf-check-card">
+                                <input type="checkbox" id="inf-chk-requisitos">
+                                <div class="inf-check-card-label">
+                                    <div style="font-weight:700; color:var(--text-main); margin-bottom:4px; font-size:12.5px;">Requisitos Explicados y Aceptados</div>
+                                    <div style="font-size:11.5px; color:var(--text-muted); line-height:1.45; display:flex; flex-direction:column; gap:2px;">
+                                        <div>1. Asistencia y puntualidad</div>
+                                        <div>2. Objetivos semanales</div>
+                                        <div>3. Buena química grupal, soporte mutuo y responder mensajes</div>
+                                    </div>
+                                </div>
+                            </label>
+
+                            <label class="inf-check-card">
+                                <input type="checkbox" id="inf-chk-cierre">
+                                <div class="inf-check-card-label">
+                                    <div style="font-weight:700; color:var(--text-main); margin-bottom:4px; font-size:12.5px;">Cierre y Lista de Espera</div>
+                                    <div style="font-size:11.5px; color:var(--text-muted); line-height:1.45;">
+                                        Se transmitió que queda en lista de espera para el cruce óptimo de grupo y horarios.
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BLOQUE 4: DISPONIBILIDAD HORARIA -->
+                <div class="inf-accordion-card" id="inf-sec-4">
+                    <div class="inf-accordion-header" onclick="window.toggleInfAccordion('inf-sec-4')">
+                        <div class="inf-accordion-title">
+                            <span class="inf-step-badge">4</span>
+                            <span>Disponibilidad Horaria</span>
+                        </div>
+                        <span id="inf-chevron-4" class="inf-chevron" style="font-size:11px; color:#64748b;">▲</span>
+                    </div>
+                    <div id="inf-body-4" class="inf-accordion-body">
+                        <div id="informe-disp-container" style="max-height: 260px; overflow-y: auto; padding-right: 4px; border:1px solid var(--border-color); border-radius:8px; padding:10px; background:#fdfdfd;">
+                            <!-- Se inyecta dinámicamente -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BLOQUE 5: PERFIL EMOCIONAL -->
+                <div class="inf-accordion-card" id="inf-sec-5">
+                    <div class="inf-accordion-header" onclick="window.toggleInfAccordion('inf-sec-5')">
+                        <div class="inf-accordion-title">
+                            <span class="inf-step-badge">5</span>
+                            <span>Perfil Emocional</span>
+                        </div>
+                        <span id="inf-chevron-5" class="inf-chevron" style="font-size:11px; color:#64748b;">▲</span>
+                    </div>
+                    <div id="inf-body-5" class="inf-accordion-body">
+                        <div id="informe-perfil-psicologico-chips" class="profile-tags-wrapper"></div>
+                    </div>
+                </div>
+
             </div>
 
             <!-- BOTONES DE ACCIÓN -->
-            <div style="display:flex; gap:10px; justify-content:flex-end; border-top:1px solid var(--border-color); padding-top:16px; margin-top:15px;">
+            <div style="display:flex; gap:10px; justify-content:flex-end; border-top:1px solid var(--border-color); padding-top:16px; margin-top:15px; position:sticky; bottom:0; background:#fff; z-index:10;">
                 <button type="button" class="btn-cerrar-modal" data-modal="modal-informe-admision" style="padding:10px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted);">Cancelar</button>
-                <button id="btn-guardar-informe-final" class="btn-primary">Guardar y Enviar a Espera</button>
+                <button id="btn-guardar-informe-final" class="btn-primary" style="padding:10px 20px; font-size:13.5px; font-weight:700;">✅ Guardar y Derivar a Lista de Espera</button>
             </div>
         </div>
     </dialog>
@@ -1811,7 +1982,7 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=5.8.7"></script>
+    <script type="module" src="app.js?v=5.8.14"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
@@ -1823,7 +1994,7 @@
                 }
             });
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=5.8.7').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=5.8.14').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {
