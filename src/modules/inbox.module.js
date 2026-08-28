@@ -128,7 +128,7 @@ export function generarBotonesPrincipalesVisibles(al, id) {
         html += `<button type="button" class="row-quick-btn primary btn-confirmar-entrevista" data-id="${id}">✅ Confirmar Agenda</button>`;
         html += `<button type="button" class="row-quick-btn secondary btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
     } else if (est === 'agenda confirmada') {
-        html += `<button type="button" class="row-quick-btn primary btn-admision-finalizada" data-id="${id}">🏁 Admisión Finalizada</button>`;
+        html += `<button type="button" class="row-quick-btn primary btn-admision-finalizada" data-id="${id}">🏁 Finalizar Admisión</button>`;
         html += `<button type="button" class="row-quick-btn secondary btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
     } else if (est === 'agenda suspendida') {
         html += `<button type="button" class="row-quick-btn primary btn-recuperar-agenda" data-id="${id}">♻️ Recuperar Agenda</button>`;
@@ -189,7 +189,7 @@ export function generarBotonesAccion(al, id, esModal = false) {
             html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
             html += `<button type="button" class="btn-action-neutral btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
         } else if (est === 'agenda confirmada') {
-            html += `<button type="button" class="btn-action-primary btn-admision-finalizada" data-id="${id}">🏁 Admisión Finalizada</button>`;
+            html += `<button type="button" class="btn-action-primary btn-admision-finalizada" data-id="${id}">🏁 Finalizar Admisión</button>`;
             html += `<button type="button" class="btn-action-neutral btn-buscar-agenda" data-id="${id}">🗓️ Re-Agendar</button>`;
             html += `<button type="button" class="btn-action-neutral btn-auditar-cal-directo" data-id="${id}">🔍 Auditar calendario</button>`;
             html += `<button type="button" class="btn-action-neutral btn-cancelar-alumno" data-id="${id}">❌ Alumno Cancela</button>`;
