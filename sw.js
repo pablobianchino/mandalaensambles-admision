@@ -1,4 +1,4 @@
-const CACHE_NAME = "mandala-app-v5.9.16";
+const CACHE_NAME = "mandala-app-v5.9.17";
 
 self.addEventListener('install', (event) => {
     self.skipWaiting();
@@ -6,46 +6,58 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
     event.waitUntil(
-        caches.keys().then((keys) => {
-            return Promise.all(
-                keys.map((key) => {
-                    return caches.delete(key);
-                })
-            );
-        }).then(() => self.clients.claim())
+        Promise.all([
+            clients.claim(),
+            caches.keys().then((keys) => {
+                return Promise.all(
+                    keys.map((key) => {
+                        if (key !== CACHE_NAME) {
+                            console.log(`[ServiceWorker] Eliminando caché obsoleta: ${key}`);
+                            return caches.delete(key);
+                        }
+                    })
+                );
+            })
+        ])
     );
 });
 
 self.addEventListener('fetch', (event) => {
-    // Only handle GET and http/https requests
-    if (event.request.method !== 'GET' || !event.request.url.startsWith('http')) {
-        return;
-    }
-
-    // Bypass Firestore, Google Auth, Calendar, and Google Script APIs
     const url = new URL(event.request.url);
-    if (url.hostname.includes('firestore') || 
-        url.hostname.includes('googleapis') || 
-        url.hostname.includes('google.com') || 
-        url.hostname.includes('gstatic.com') ||
-        url.hostname.includes('script.google')) {
+
+    // Bypass estricto de caché para APIs, Firebase y Google Calendar
+    if (
+        event.request.method !== 'GET' ||
+        url.origin.includes('firestore.googleapis.com') ||
+        url.origin.includes('googleapis.com') ||
+        url.origin.includes('script.google.com') ||
+        url.pathname.includes('/api/')
+    ) {
         return;
     }
 
+    // Network-First para version.json
+    if (url.pathname.endsWith('version.json')) {
+        event.respondWith(
+            fetch(event.request).catch(() => caches.match(event.request))
+        );
+        return;
+    }
+
+    // Stale-While-Revalidate para recursos estáticos
     event.respondWith(
-        fetch(event.request).catch(async () => {
-            try {
-                const cachedResponse = await caches.match(event.request);
-                if (cachedResponse) {
-                    return cachedResponse;
+        caches.match(event.request).then((cachedResponse) => {
+            const fetchPromise = fetch(event.request).then((networkResponse) => {
+                if (networkResponse && networkResponse.status === 200) {
+                    const responseClone = networkResponse.clone();
+                    caches.open(CACHE_NAME).then((cache) => {
+                        cache.put(event.request, responseClone);
+                    });
                 }
-            } catch (err) {}
-            
-            return new Response('Offline or resource unavailable', {
-                status: 503,
-                statusText: 'Service Unavailable',
-                headers: new Headers({ 'Content-Type': 'text/plain; charset=utf-8' })
-            });
+                return networkResponse;
+            }).catch(() => cachedResponse);
+
+            return cachedResponse || fetchPromise;
         })
     );
 });
@@ -56,18 +68,32 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
 
-    const targetUrl = event.notification.data?.url || '/';
+    const notifData = event.notification.data || {};
+    const targetUrl = notifData.url || '/';
+    const fichaId = notifData.alumnoId || (targetUrl.includes('verFicha=') ? targetUrl.split('verFicha=')[1].split('&')[0] : null);
+
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+            // 1. Si la app ya está abierta (en primer plano o segundo plano en celular/PC)
             for (const client of clientList) {
                 if ('focus' in client) {
                     client.focus();
+                    // Envía mensaje directo a la app para abrir la ficha de inmediato sin recarga
+                    if (fichaId) {
+                        client.postMessage({
+                            type: 'ABRIR_FICHA_NOTIFICACION',
+                            fichaId: fichaId,
+                            url: targetUrl,
+                            action: event.action
+                        });
+                    }
                     if ('navigate' in client && targetUrl !== '/' && !client.url.includes(targetUrl)) {
-                        client.navigate(targetUrl);
+                        try { client.navigate(targetUrl); } catch(eNav) {}
                     }
                     return;
                 }
             }
+            // 2. Si la app estaba completamente cerrada, abrir ventana limpia con la URL de destino
             if (clients.openWindow) {
                 return clients.openWindow(targetUrl);
             }
