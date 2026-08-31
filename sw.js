@@ -1,4 +1,4 @@
-const CACHE_NAME = "mandala-app-v5.9.12";
+const CACHE_NAME = "mandala-app-v5.9.13";
 
 self.addEventListener('install', (event) => {
     self.skipWaiting();
@@ -56,21 +56,15 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
 
-    if (event.action === 'whatsapp') {
-        const tel = event.notification.data?.telefono || '5491123456789';
-        const txt = encodeURIComponent(event.notification.data?.mensaje || 'Hola! Te contacto de Mandala por la entrevista de admisión.');
-        event.waitUntil(
-            clients.openWindow(`https://wa.me/${tel}?text=${txt}`)
-        );
-        return;
-    }
-
     const targetUrl = event.notification.data?.url || '/';
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
             for (const client of clientList) {
                 if ('focus' in client) {
                     client.focus();
+                    if ('navigate' in client && targetUrl !== '/' && !client.url.includes(targetUrl)) {
+                        client.navigate(targetUrl);
+                    }
                     return;
                 }
             }
@@ -79,6 +73,30 @@ self.addEventListener('notificationclick', (event) => {
             }
         })
     );
+});
+
+self.addEventListener('push', (event) => {
+    let payload = { title: 'Mandala Admisión', body: 'Novedades del día' };
+    if (event.data) {
+        try {
+            payload = event.data.json();
+        } catch(e) {
+            payload.body = event.data.text();
+        }
+    }
+    const options = {
+        body: payload.body || '',
+        icon: 'logo.png',
+        badge: 'logo.png',
+        tag: payload.tag || 'mandala-alerta-09hs',
+        renotify: true,
+        vibrate: [200, 100, 200],
+        data: payload.data || { url: '/' },
+        actions: [
+            { action: 'ver_ficha', title: '👁️ Ver Ficha' }
+        ]
+    };
+    event.waitUntil(self.registration.showNotification(payload.title || 'Mandala Admisión', options));
 });
 
 self.addEventListener('message', (event) => {
