@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=5.9.17">
+    <link rel="stylesheet" href="styles.css?v=5.9.18">
 
     <style>
         /* Estilos Críticos de Widget de Perfil y Popover Google-Style */
@@ -241,7 +241,22 @@
             .user-top-widget { padding: 3px 4px 3px 8px; }
             .google-profile-popover { right: -10px; width: calc(100vw - 30px); max-width: 320px; }
         }
+        /* Anti-flicker de sesión para celulares y PWAs */
+        html.user-has-session #login-container {
+            display: none !important;
+        }
+        html.user-has-session #app-container {
+            display: flex !important;
+        }
     </style>
+    <script>
+        // Si el usuario ya tenía sesión activa, ocultar la pantalla de login desde el primer milisegundo
+        try {
+            if (localStorage.getItem('mandala_has_session') === 'true') {
+                document.documentElement.classList.add('user-has-session');
+            }
+        } catch(e) {}
+    </script>
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
@@ -324,7 +339,7 @@
                     <button type="button" id="btn-quick-test-notif" onclick="window.abrirModalTestNotificacion()" class="btn-app btn-secondary" style="font-size:11px; height:28px; padding:0 8px; flex:1; justify-content:center; color:var(--accent-teal); border-color:var(--accent-teal); background:rgba(0,123,143,0.05); font-weight:700;" title="Probar notificación push de entrevista en celular o PC">🔔 Test Notificación</button>
                     <a href="guia-evaluadores.html" target="_blank" class="btn-app btn-secondary" style="font-size:11px; height:28px; padding:0 8px; justify-content:center; text-decoration:none; display:inline-flex; align-items:center;" title="Abrir Guía Paso a Paso para Evaluadores">📖 Guía</a>
                 </div>
-                <div id="sidebar-version-label" style="font-size: 11px; color: var(--text-light); text-align: left; font-weight: 600; padding: 2px 6px;">v5.9.17</div>
+                <div id="sidebar-version-label" style="font-size: 11px; color: var(--text-light); text-align: left; font-weight: 600; padding: 2px 6px;">v5.9.18</div>
             </div>
         </aside>
 
@@ -2129,12 +2144,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=5.9.17"></script>
+    <script type="module" src="app.js?v=5.9.18"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=5.9.17').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=5.9.18').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {
