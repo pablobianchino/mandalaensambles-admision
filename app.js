@@ -11,7 +11,7 @@ import {
     configNodosFlujo,
     configNodosFlujoEvaluador,
     configNodosFlujoCoordinador
-} from "./src/config/constants.js";
+} from "./src/config/constants.js?v=5.9.10";
 
 import { 
     app, 
@@ -73,7 +73,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js";
+} from "./src/services/calendar.service.js?v=5.9.10";
 
 import {
     matchCantidadActual,
@@ -106,7 +106,7 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js";
+} from "./src/modules/match.module.js?v=5.9.10";
 
 import {
     renderPortalProfesor
@@ -122,11 +122,13 @@ import {
     formatearFechaInicioParaExcel,
     generarFilaExcelBD,
     generarFilaExcelFacturacion,
+    generarFilaExcelFacturacionAdmision,
     copiarFilaExcelBD,
     copiarFilaExcelFacturacion,
+    copiarFilaExcelFacturacionAdmision,
     abrirModalAvisoPrealtaAlumno,
     copiarAvisoPrealtaAlumno
-} from "./src/modules/altas.module.js";
+} from "./src/modules/altas.module.js?v=5.9.10";
 
 import {
     renderTimelineUnificado,
@@ -162,7 +164,10 @@ let filtrosSeleccionados = {
     instrumentos: new Set(),
     niveles: new Set(),
     suscripciones: new Set(),
-    evaluadores: new Set()
+    evaluadores: new Set(),
+    edadMin: null,
+    edadMax: null,
+    gruposEtarios: new Set()
 };
 let filtroAlarmaActual = 'Todos'; 
 let vistaModo = 'lista'; 
@@ -220,10 +225,14 @@ function renderFiltrosChips() {
     const cont = document.getElementById('filtros-chips');
     if (!cont) return;
 
+    const tieneFiltroEdad = (filtrosSeleccionados.edadMin !== null && filtrosSeleccionados.edadMin !== '') || 
+                            (filtrosSeleccionados.edadMax !== null && filtrosSeleccionados.edadMax !== '');
     const totalFiltrosActivos = filtrosSeleccionados.instrumentos.size + 
                                 filtrosSeleccionados.niveles.size + 
                                 filtrosSeleccionados.suscripciones.size +
-                                (filtrosSeleccionados.evaluadores ? filtrosSeleccionados.evaluadores.size : 0);
+                                (filtrosSeleccionados.evaluadores ? filtrosSeleccionados.evaluadores.size : 0) +
+                                (filtrosSeleccionados.gruposEtarios ? filtrosSeleccionados.gruposEtarios.size : 0) +
+                                (tieneFiltroEdad ? 1 : 0);
 
     const instrumentos = [
         { id: 'Canto', label: '🎤 Canto' },
@@ -245,6 +254,13 @@ function renderFiltrosChips() {
         { id: 'Ensamble', label: '🧩 Ensamble' },
         { id: 'Clases Grupales', label: '👥 Grupal' },
         { id: 'Clase Individual', label: '👤 Individual' }
+    ];
+
+    const etapasEtariasConfig = [
+        { id: 'ninos', label: '🧒 Niños (≤13)' },
+        { id: 'adolescentes', label: '🧑 Adolescentes (14-19)' },
+        { id: 'adultos', label: '👨 Adultos (20-59)' },
+        { id: 'adultos_mayores', label: '👴 Mayores (60+)' }
     ];
 
     // Obtener evaluadores presentes dinámicamente según el pool actual
@@ -302,6 +318,27 @@ function renderFiltrosChips() {
         });
     }
 
+    if (filtrosSeleccionados.gruposEtarios) {
+        filtrosSeleccionados.gruposEtarios.forEach(val => {
+            const item = etapasEtariasConfig.find(e => e.id === val) || { label: val };
+            activeBadgesHtml += `
+                <span class="active-filter-badge tag-edad" style="background:#fef3c7; color:#92400e; border-color:#fde68a;">
+                    <span>${item.label}</span>
+                    <button type="button" class="btn-remove-filter" data-type="grupoEtario" data-val="${val}" title="Quitar filtro">✕</button>
+                </span>`;
+        });
+    }
+
+    if (tieneFiltroEdad) {
+        const minTxt = filtrosSeleccionados.edadMin !== null && filtrosSeleccionados.edadMin !== '' ? `${filtrosSeleccionados.edadMin}a` : '0a';
+        const maxTxt = filtrosSeleccionados.edadMax !== null && filtrosSeleccionados.edadMax !== '' ? `${filtrosSeleccionados.edadMax}a` : '99a';
+        activeBadgesHtml += `
+            <span class="active-filter-badge tag-edad" style="background:#fef3c7; color:#92400e; border-color:#fde68a;">
+                <span>🎂 Edad: ${minTxt} - ${maxTxt}</span>
+                <button type="button" class="btn-remove-filter" data-type="edadRango" title="Quitar filtro">✕</button>
+            </span>`;
+    }
+
     if (totalFiltrosActivos > 0) {
         activeBadgesHtml += `
             <button type="button" id="btn-limpiar-todos-filtros" style="background:none; border:none; color:#ef4444; font-size:12px; font-weight:600; cursor:pointer; padding:3px 6px; text-decoration:underline; font-family:inherit;">Limpiar todo</button>
@@ -320,7 +357,7 @@ function renderFiltrosChips() {
                 </button>
 
                 <!-- Panel Popover Flotante -->
-                <div id="dropdown-filtros-panel" class="dropdown-filtros-menu" style="display:${filtrosPopoverAbierto ? 'block' : 'none'}; position:absolute; top:calc(100% + 8px); left:0; z-index:1100; background:#ffffff; border:1px solid var(--border-color); border-radius:14px; box-shadow:0 10px 30px rgba(0,0,0,0.12); padding:16px 18px; width:340px; box-sizing:border-box;">
+                <div id="dropdown-filtros-panel" class="dropdown-filtros-menu" style="display:${filtrosPopoverAbierto ? 'block' : 'none'}; position:absolute; top:calc(100% + 8px); left:0; z-index:1100; background:#ffffff; border:1px solid var(--border-color); border-radius:14px; box-shadow:0 10px 30px rgba(0,0,0,0.12); padding:16px 18px; width:340px; box-sizing:border-box; max-height:480px; overflow-y:auto;">
                     
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:8px;">
                         <span style="font-size:13px; font-weight:800; color:var(--text-main); text-transform:uppercase; letter-spacing:0.04em;">Filtrar Alumnos</span>
@@ -330,7 +367,7 @@ function renderFiltrosChips() {
                     ${evaluadoresPresentes.length > 0 ? `
                     <!-- Sección Evaluadores -->
                     <div style="margin-bottom:12px;">
-                        <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;">Evaluador / Docente (${evaluadoresPresentes.length})</div>
+                        <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;">EVALUADOR (${evaluadoresPresentes.length})</div>
                         <div style="display:flex; flex-wrap:wrap; gap:6px;">
                             ${evaluadoresPresentes.map(ev => `
                                 <button type="button" class="filter-chip ${filtrosSeleccionados.evaluadores.has(ev) ? 'active active-eval' : ''}" data-type="evaluador" data-val="${ev}">🧑‍🏫 ${ev} <span style="font-size:10.5px; opacity:0.8;">(${evalMap.get(ev)})</span></button>
@@ -338,6 +375,23 @@ function renderFiltrosChips() {
                         </div>
                     </div>
                     ` : ''}
+
+                    <!-- Sección Rango de Edad -->
+                    <div style="margin-bottom:12px;">
+                        <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;">RANGO DE EDAD</div>
+                        <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">
+                            <input type="number" id="filtro-edad-min-popover" class="modern-input" placeholder="Min" min="1" max="99" value="${filtrosSeleccionados.edadMin !== null ? filtrosSeleccionados.edadMin : ''}" style="width:65px; height:28px; font-size:12px; padding:2px 6px; text-align:center;">
+                            <span style="font-size:11.5px; color:var(--text-muted);">a</span>
+                            <input type="number" id="filtro-edad-max-popover" class="modern-input" placeholder="Max" min="1" max="99" value="${filtrosSeleccionados.edadMax !== null ? filtrosSeleccionados.edadMax : ''}" style="width:65px; height:28px; font-size:12px; padding:2px 6px; text-align:center;">
+                            <span style="font-size:11px; color:var(--text-muted);">años</span>
+                            <button type="button" id="btn-aplicar-edad-rango" class="btn-app btn-secondary" style="height:28px; font-size:11px; padding:0 8px; margin-left:auto;">OK</button>
+                        </div>
+                        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                            ${etapasEtariasConfig.map(e => `
+                                <button type="button" class="filter-chip ${filtrosSeleccionados.gruposEtarios?.has(e.id) ? 'active active-nivel' : ''}" data-type="grupoEtario" data-val="${e.id}">${e.label}</button>
+                            `).join('')}
+                        </div>
+                    </div>
 
                     <!-- Sección Instrumentos -->
                     <div style="margin-bottom:12px;">
@@ -421,6 +475,20 @@ function renderFiltrosChips() {
         });
     }
 
+    // Botón aplicar rango de edad manual
+    const btnAplicarEdad = document.getElementById('btn-aplicar-edad-rango');
+    if (btnAplicarEdad) {
+        btnAplicarEdad.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const minVal = document.getElementById('filtro-edad-min-popover')?.value.trim();
+            const maxVal = document.getElementById('filtro-edad-max-popover')?.value.trim();
+            filtrosSeleccionados.edadMin = minVal ? parseInt(minVal, 10) : null;
+            filtrosSeleccionados.edadMax = maxVal ? parseInt(maxVal, 10) : null;
+            renderFiltrosChips();
+            cargarVista(estadoActualVista);
+        });
+    }
+
     // Toggle chip individual dentro del popover
     cont.querySelectorAll('.dropdown-filtros-menu .filter-chip').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -440,6 +508,10 @@ function renderFiltrosChips() {
             } else if (type === 'evaluador') {
                 if (filtrosSeleccionados.evaluadores.has(val)) filtrosSeleccionados.evaluadores.delete(val);
                 else filtrosSeleccionados.evaluadores.add(val);
+            } else if (type === 'grupoEtario') {
+                if (!filtrosSeleccionados.gruposEtarios) filtrosSeleccionados.gruposEtarios = new Set();
+                if (filtrosSeleccionados.gruposEtarios.has(val)) filtrosSeleccionados.gruposEtarios.delete(val);
+                else filtrosSeleccionados.gruposEtarios.add(val);
             }
 
             renderFiltrosChips();
@@ -458,6 +530,11 @@ function renderFiltrosChips() {
             else if (type === 'nivel') filtrosSeleccionados.niveles.delete(val);
             else if (type === 'suscripcion') filtrosSeleccionados.suscripciones.delete(val);
             else if (type === 'evaluador') filtrosSeleccionados.evaluadores.delete(val);
+            else if (type === 'grupoEtario') filtrosSeleccionados.gruposEtarios?.delete(val);
+            else if (type === 'edadRango') {
+                filtrosSeleccionados.edadMin = null;
+                filtrosSeleccionados.edadMax = null;
+            }
 
             renderFiltrosChips();
             cargarVista(estadoActualVista);
@@ -471,6 +548,9 @@ function renderFiltrosChips() {
         filtrosSeleccionados.niveles.clear();
         filtrosSeleccionados.suscripciones.clear();
         if (filtrosSeleccionados.evaluadores) filtrosSeleccionados.evaluadores.clear();
+        if (filtrosSeleccionados.gruposEtarios) filtrosSeleccionados.gruposEtarios.clear();
+        filtrosSeleccionados.edadMin = null;
+        filtrosSeleccionados.edadMax = null;
         renderFiltrosChips();
         cargarVista(estadoActualVista);
     };
@@ -675,7 +755,7 @@ window.alert = function(msg, tipo = '') {
 // ================================================================
 // MODAL DE CONFIRMACIÓN CUSTOM — Punto 6 (reemplaza confirm() nativo)
 // ================================================================
-window.confirmar = function(titulo, descripcion = '', textoBoton = 'Confirmar', icono = '⚠️') {
+window.confirmar = function(titulo, descripcion = '', textoBoton = 'Confirmar', icono = '⚠️', textoCancelar = 'Cancelar') {
     return new Promise((resolve) => {
         const modal = document.getElementById('modal-confirmar-accion');
         if (!modal) { resolve(window._originalConfirm ? window._originalConfirm(titulo) : false); return; }
@@ -683,6 +763,7 @@ window.confirmar = function(titulo, descripcion = '', textoBoton = 'Confirmar', 
         document.getElementById('confirmar-titulo').textContent = titulo;
         document.getElementById('confirmar-descripcion').textContent = descripcion;
         document.getElementById('confirmar-btn-ok').textContent = textoBoton;
+        document.getElementById('confirmar-btn-cancelar').textContent = textoCancelar;
         document.getElementById('confirmar-icon').textContent = icono;
 
         const btnOk = document.getElementById('confirmar-btn-ok');
@@ -988,8 +1069,11 @@ function formatearTextoHistorial(historialArr) {
     if (!historialArr || historialArr.length === 0) return 'Sin registros previos.';
     const sorted = [...historialArr].sort((a, b) => a.id - b.id);
     return sorted.map(h => {
-        let t = convertirHtmlATextoPlano(h.texto || '');
-        return `[${h.fecha}] ${t}`;
+        let t = convertirHtmlATextoPlano(h.texto || '').trim();
+        const matchFechaTexto = t.match(/^\[(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}(?:\s+\d{1,2}:\d{2})?)\]/);
+        t = t.replace(/^(?:\[\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}(?:\s+\d{1,2}:\d{2})?\]\s*)+/, '').trim();
+        const fStr = (h.fecha || (matchFechaTexto ? matchFechaTexto[1] : '')).trim();
+        return fStr ? `[${fStr}] ${t}` : t;
     }).filter(Boolean).join('\n');
 }
 
@@ -1209,16 +1293,52 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
         </div>
     `;
 
+    let checklistAdmisionHtml = '';
+    const esPendienteAlumno = (al.estado_agenda || '').toLowerCase() === 'pendiente validacion por alumno';
+    if (esPendienteAlumno || al.checklist_admision) {
+        const checksAdm = al.checklist_admision || [false, false];
+        const pasosAdm = [
+            '1. Clase de admisión abonada',
+            '2. Carga de formulario completa'
+        ];
+        const completadosAdm = checksAdm.filter(Boolean).length;
+        const porcentajeAdm = Math.round((completadosAdm / 2) * 100);
+        const barColorAdm = completadosAdm === 2 ? 'var(--accent-teal)' : (completadosAdm === 1 ? '#e5a93d' : 'var(--accent-red)');
+
+        checklistAdmisionHtml = `
+            <div id="chk-adm-wrapper-${id}" class="admision-checklist-wrapper" style="margin-top:8px; padding:8px 12px; background:var(--hover-bg); border-radius:10px; border:1px solid var(--border-color);" onclick="event.stopPropagation();">
+                <div style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:12px; cursor:pointer; user-select:none;" onclick="window.toggleChecklistPill('chk-adm-list-${id}', 'chk-adm-icon-${id}')" title="Clic para ver o completar los requisitos de admisión">
+                    <div style="display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:var(--text-main);">
+                        <span id="chk-adm-icon-${id}" style="font-size:9px; color:#64748b; transition:transform 0.2s ease; display:inline-block;">▶</span>
+                        <span id="chk-adm-title-${id}">📋 Requisitos de Admisión (${completadosAdm}/2)</span>
+                    </div>
+                    <span id="chk-adm-pct-${id}" style="color:${barColorAdm}; font-size:11.5px; font-weight:800; margin-left:auto; padding-left:16px; white-space:nowrap;">${porcentajeAdm}%</span>
+                </div>
+                <div style="width:100%; height:5px; background:#e9e5de; border-radius:4px; overflow:hidden; margin-top:5px; cursor:pointer;" onclick="window.toggleChecklistPill('chk-adm-list-${id}', 'chk-adm-icon-${id}')">
+                    <div id="chk-adm-bar-${id}" style="width:${porcentajeAdm}%; height:100%; background:${barColorAdm}; transition:width 0.3s ease, background 0.3s ease;"></div>
+                </div>
+                <div id="chk-adm-list-${id}" class="checklist-items-collapsible" style="display:none; flex-wrap:wrap; gap:8px 12px; font-size:11px; color:var(--text-muted); margin-top:9px; padding-top:8px; border-top:1px dashed var(--border-color);">
+                    ${checksAdm.map((chk, idx) => `
+                        <label style="display:inline-flex; align-items:center; gap:5px; margin:0; cursor:pointer; font-weight:600; text-transform:none; color:${chk ? 'var(--text-main)' : 'var(--text-muted)'};">
+                            <input type="checkbox" class="chk-admision-paso" data-id="${id}" data-idx="${idx}" ${chk ? 'checked' : ''} style="accent-color:var(--accent-teal); width:15px; height:15px; cursor:pointer;">
+                            <span style="${chk ? 'text-decoration:none;' : ''}">${pasosAdm[idx] || `Paso ${idx+1}`}</span>
+                        </label>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
     let checklistHtml = '';
     const esAltaConfirmadaOFinalizada = al.estado_agenda === 'Alta Efectiva' || al.estado_agenda === 'Alta Ilegal' || al.estado_agenda === 'Alta Finalizada';
     if (esAltaConfirmadaOFinalizada || al.checklist_alta) {
         const checks = al.checklist_alta || [false, false, false, false, false];
         const pasostitulos = [
-            '1. Notificar Alumno',
-            '2. Pago y Formulario',
-            '3. Carga en Sistema',
-            '4. Notificar Profe',
-            '5. Grupo WhatsApp'
+            '1. Suscripción abonada',
+            '2. Carga en Sistema',
+            '3. Profesor notificado',
+            '4. Bienvenida a alumno',
+            '5. Alumno en grupo WhatsApp'
         ];
         const completados = checks.filter(Boolean).length;
         const porcentaje = Math.round((completados / 5) * 100);
@@ -1314,6 +1434,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
 
                     <!-- Columna 3: Grilla Semanal Fija -->
                     ${dispHtml}
+                    ${checklistAdmisionHtml}
                     ${checklistHtml}
 
                     <!-- Columna 4: Meta & Agenda / Prioridad -->
@@ -1840,11 +1961,15 @@ if (btnBulkProp) {
             alert('Solo el Coordinador de Grupos y Administrador pueden armar propuestas de grupo.');
             return;
         }
+        if (window.matchAlumnosSeleccionados && window.matchAlumnosSeleccionados.size >= 2) {
+            selectedBulkIds = Array.from(window.matchAlumnosSeleccionados);
+            window.selectedBulkIds = selectedBulkIds;
+        }
         if (selectedBulkIds.length < 2) {
             alert('Por favor seleccioná al menos 2 alumnos para armar una propuesta de grupo.');
             return;
         }
-        await abrirModalNuevaPropuestaGrupoManual();
+        await abrirModalPrealtaGrupal(selectedBulkIds);
     });
 }
 
@@ -2010,13 +2135,14 @@ function actualizarSugerenciaNombreGrupoManual() {
     const selProfe = document.getElementById('propuesta-manual-profe');
     const dia = document.getElementById('propuesta-manual-dia')?.value || 'J';
     const horaIni = document.getElementById('propuesta-manual-hora-inicio')?.value || '19:30';
-    const horaStr = horaIni.replace(':', '.');
+    const [h, m] = horaIni.split(':');
+    const mmStr = (!m || parseInt(m, 10) === 0) ? '' : `.${m}`;
     const profeNombre = selProfe?.selectedOptions[0]?.getAttribute('data-nombre') || '';
     const primerNombreProfe = profeNombre.split(' ')[0] || 'Profe';
 
     const inputNom = document.getElementById('propuesta-manual-nombre');
     if (inputNom && (!inputNom.value || inputNom.dataset.autogenerado === 'true')) {
-        inputNom.value = `${dia}${horaStr} ${primerNombreProfe}`;
+        inputNom.value = `${dia}${parseInt(h, 10)}${mmStr} ${primerNombreProfe}`;
         inputNom.dataset.autogenerado = 'true';
     }
 }
@@ -2204,6 +2330,37 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
         filtrados = filtrados.filter(al => {
             const profeAl = (al.reserva_profe_nombre || al.profesor_asignado || '').toLowerCase().trim();
             return Array.from(filtrosSeleccionados.evaluadores).some(selEv => profeAl.includes(selEv.toLowerCase().trim()));
+        });
+    }
+
+    // Filtro por rango de edad manual min / max
+    if (filtrosSeleccionados.edadMin !== null && filtrosSeleccionados.edadMin !== '') {
+        const minE = Number(filtrosSeleccionados.edadMin);
+        filtrados = filtrados.filter(al => {
+            const e = typeof al.edad === 'number' ? al.edad : Number(al.edad);
+            return !isNaN(e) && e >= minE;
+        });
+    }
+    if (filtrosSeleccionados.edadMax !== null && filtrosSeleccionados.edadMax !== '') {
+        const maxE = Number(filtrosSeleccionados.edadMax);
+        filtrados = filtrados.filter(al => {
+            const e = typeof al.edad === 'number' ? al.edad : Number(al.edad);
+            return !isNaN(e) && e <= maxE;
+        });
+    }
+
+    // Filtro por etapas etarias predefinidas (Reglas: Niños <=13, Adolescentes 14-19, Adultos 20-59, Mayores 60+)
+    if (filtrosSeleccionados.gruposEtarios && filtrosSeleccionados.gruposEtarios.size > 0) {
+        filtrados = filtrados.filter(al => {
+            const e = typeof al.edad === 'number' ? al.edad : Number(al.edad);
+            if (isNaN(e) || e <= 0) return false;
+            return Array.from(filtrosSeleccionados.gruposEtarios).some(g => {
+                if (g === 'ninos') return e <= 13;
+                if (g === 'adolescentes') return e >= 14 && e <= 19;
+                if (g === 'adultos') return e >= 20 && e <= 59;
+                if (g === 'adultos_mayores') return e >= 60;
+                return false;
+            });
         });
     }
 
@@ -2753,7 +2910,7 @@ function getModuloSubtabs() {
             { vista: 'Altas - Suspendidas', label: 'Suspendidas', icon: '❌', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'alta suspendida').length }
         ],
         'Match': [
-            { vista: 'Match - Pendientes', label: 'Crear Grupos / Match', icon: '🔍', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'lista de espera').length },
+            { vista: 'Match - Pendientes', label: 'Armar Grupos y Clases', icon: '🔍', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'lista de espera').length },
             { vista: 'Match - Solicitudes Profes', label: 'Solicitudes Profes', icon: '🔔', countFn: () => cachedSolicitudesVacantesCount, className: 'tab-badge-solicitudes' },
             { vista: 'Match - En Validacion', label: 'Grupos en Validación', icon: '👥', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'validando grupo').length },
             { vista: 'Ajustes Match', label: 'Reglas y Tolerancias', icon: '⚙️' }
@@ -3102,6 +3259,14 @@ export async function chequearActualizacionVersion() {
         const versionRemota = data.version;
 
         if (versionRemota && versionRemota !== APP_VERSION) {
+            // Protección contra bucle infinito de recarga
+            const recargaPrevia = sessionStorage.getItem('last_auto_reloaded_version');
+            if (recargaPrevia === versionRemota) {
+                console.warn(`[Auto-Update] Ya se realizó una recarga para ${versionRemota} en esta sesión. Se omite bucle.`);
+                return;
+            }
+            sessionStorage.setItem('last_auto_reloaded_version', versionRemota);
+
             versionActualizando = true;
             console.log(`[Auto-Update] Nueva versión detectada: ${versionRemota} (Versión local: ${APP_VERSION})`);
             
@@ -3120,6 +3285,8 @@ export async function chequearActualizacionVersion() {
             setTimeout(() => {
                 window.location.reload(true);
             }, 1200);
+        } else if (versionRemota === APP_VERSION) {
+            sessionStorage.removeItem('last_auto_reloaded_version');
         }
     } catch(e) {
         // Silencioso en caso de estar offline o sin red
@@ -3366,9 +3533,13 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
     const formWrapper = document.getElementById('form-alumno-wrapper'), cv = document.getElementById('controles-vista');
     if (formWrapper) { formWrapper.style.display = 'none'; document.getElementById('modal-alta-alumno').appendChild(formWrapper); }
     
-    // Ocultar botones CSV de toda la app
+    // Ocultar botones CSV de toda la app y resetear barra bulk flotante
     const btnCSVEl = document.getElementById('btn-carga-masiva');
     if (btnCSVEl) btnCSVEl.style.display = 'none';
+    selectedBulkIds = [];
+    window.selectedBulkIds = [];
+    const barBulkGlobal = document.getElementById('bulk-actions-bar');
+    if (barBulkGlobal) barBulkGlobal.style.display = 'none';
     
     document.getElementById('search-container-general').style.display = 'block'; 
     document.getElementById('alarm-filters').style.display = 'none';
@@ -3439,40 +3610,47 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
             }
             renderDashboardPrioridades(poolUrgencias, vista);
             
-            // 1. Timeline / Flow (Visible para todos los roles con su alcance correspondiente)
-            if (vResumenTime) vResumenTime.style.display = 'flex';
-            let nodosTimeline = configNodosFlujo;
-            let datosTimeline = allData;
-            
-            if (esSoloCoordinador) {
-                nodosTimeline = configNodosFlujoCoordinador;
-                datosTimeline = allData.filter(d => {
-                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-                    return ['lista de espera', 'validando grupo', 'pre-alta pendiente', 'pre-alta iniciada', 'alta efectiva', 'alta ilegal', 'alta finalizada'].includes(st);
-                });
-            } else if (esSoloEval) {
-                nodosTimeline = configNodosFlujoEvaluador;
-                datosTimeline = filtrarAlumnosEvaluador(allData);
-            }
-            
-            renderTimelineUnificado('timeline-unificado', nodosTimeline, datosTimeline, { generarBotonesPrincipalesVisibles, generarBotonesAccion });
-            
-            // 2. Gráfico del Dashboard (Visible para todos los roles)
-            const chartBox = document.getElementById('dashboard-flow-chart-container');
-            if (chartBox) chartBox.style.display = 'block';
-
-            // Coordinador de Grupos ve el gráfico con toda la línea al igual que un administrador
-            let nodosGrafico = configNodosFlujo;
-            let datosGrafico = allData;
-
+            // 1. Timeline / Flow (Oculto solo y únicamente para Evaluadores)
             if (esSoloEval) {
-                nodosGrafico = configNodosFlujoEvaluador;
-                datosGrafico = filtrarAlumnosEvaluador(allData);
+                if (vResumenTime) vResumenTime.style.display = 'none';
+            } else {
+                if (vResumenTime) vResumenTime.style.display = 'flex';
+                let nodosTimeline = configNodosFlujo;
+                let datosTimeline = allData;
+                
+                if (esSoloCoordinador) {
+                    nodosTimeline = configNodosFlujoCoordinador;
+                    datosTimeline = allData.filter(d => {
+                        const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                        return ['lista de espera', 'validando grupo', 'pre-alta pendiente', 'pre-alta iniciada', 'alta efectiva', 'alta ilegal', 'alta finalizada'].includes(st);
+                    });
+                }
+                
+                renderTimelineUnificado('timeline-unificado', nodosTimeline, datosTimeline, { generarBotonesPrincipalesVisibles, generarBotonesAccion });
             }
             
-            let flowLabels = nodosGrafico.map(n => n.label);
-            let flowData = nodosGrafico.map(n => datosGrafico.filter(d => n.filterFn ? n.filterFn(d) : d.estado_agenda === n.id).length);
-            let phaseColors = nodosGrafico.map(n => n.hexColor || '#1f5491');
+            // 2. Gráfico del Dashboard (Oculto para Evaluadores; Coordinador ve desde Lista de Espera)
+            const chartBox = document.getElementById('dashboard-flow-chart-container');
+            if (esSoloEval) {
+                if (chartBox) chartBox.style.display = 'none';
+                if (chartFlowDashboardInst) { chartFlowDashboardInst.destroy(); chartFlowDashboardInst = null; }
+            } else {
+                if (chartBox) chartBox.style.display = 'block';
+
+                let nodosGrafico = configNodosFlujo;
+                let datosGrafico = allData;
+
+                if (esSoloCoordinador) {
+                    nodosGrafico = configNodosFlujoCoordinador;
+                    datosGrafico = allData.filter(d => {
+                        const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                        return ['lista de espera', 'validando grupo', 'pre-alta pendiente', 'pre-alta iniciada', 'alta efectiva', 'alta ilegal', 'alta finalizada'].includes(st);
+                    });
+                }
+                
+                let flowLabels = nodosGrafico.map(n => n.label);
+                let flowData = nodosGrafico.map(n => datosGrafico.filter(d => n.filterFn ? n.filterFn(d) : d.estado_agenda === n.id).length);
+                let phaseColors = nodosGrafico.map(n => n.hexColor || '#1f5491');
             
             if(chartFlowDashboardInst) chartFlowDashboardInst.destroy();
             chartFlowDashboardInst = new Chart(document.getElementById('chartFlowDashboard'), { 
@@ -3497,7 +3675,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
                     scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } 
                 } 
             });
-            
+            }
         } catch(e) {}
     } else if (vista.startsWith('Inbox') || vista.startsWith('Altas')) {
         try {
@@ -3630,7 +3808,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
 }
 
 async function renderMatchPendientes() {
-    document.getElementById('vista-titulo').innerHTML = '<span style="color:var(--text-muted); font-weight:500;">Match › </span><span style="color:var(--text-main); font-weight:700;">Pendientes</span>';
+    document.getElementById('vista-titulo').innerHTML = '<span style="color:var(--text-muted); font-weight:500;">Match › </span><span style="color:var(--text-main); font-weight:700;">Armar Grupos y Clases</span>';
     document.getElementById('controles-vista').style.display = 'none';
     document.getElementById('search-container-general').style.display = 'none';
     // Mostrar container del módulo
@@ -3976,6 +4154,54 @@ if (btnCerrarBusquedaGlobal) {
 }
 
 document.addEventListener('change', async (e) => {
+    if(e.target.classList.contains('chk-admision-paso')) {
+        const id = e.target.getAttribute('data-id'), idx = parseInt(e.target.getAttribute('data-idx'), 10);
+        try {
+            const docRef = doc(db, "alumnos", id), alDoc = await getDoc(docRef), al = alDoc.data();
+            let checks = al.checklist_admision || [false, false]; 
+            checks[idx] = e.target.checked;
+            
+            const completados = checks.filter(Boolean).length;
+            const porcentaje = Math.round((completados / 2) * 100);
+            const barColor = completados === 2 ? 'var(--accent-teal)' : (completados === 1 ? '#e5a93d' : 'var(--accent-red)');
+
+            const elTitle = document.getElementById(`chk-adm-title-${id}`);
+            const elPct = document.getElementById(`chk-adm-pct-${id}`);
+            const elBar = document.getElementById(`chk-adm-bar-${id}`);
+            if (elTitle) elTitle.textContent = `📋 Requisitos de Admisión (${completados}/2)`;
+            if (elPct) {
+                elPct.textContent = `${porcentaje}%`;
+                elPct.style.color = barColor;
+            }
+            if (elBar) {
+                elBar.style.width = `${porcentaje}%`;
+                elBar.style.background = barColor;
+            }
+            
+            const labelPadre = e.target.closest('label');
+            if (labelPadre) {
+                labelPadre.style.color = e.target.checked ? 'var(--text-main)' : 'var(--text-muted)';
+            }
+
+            if (Array.isArray(cachedAlumnosData)) {
+                const item = cachedAlumnosData.find(x => x.id === id);
+                if (item) item.checklist_admision = checks;
+            }
+            if (Array.isArray(ultimosAlumnosCargados)) {
+                const item = ultimosAlumnosCargados.find(x => x.id === id);
+                if (item) item.checklist_admision = checks;
+            }
+            await updateDoc(docRef, { checklist_admision: checks });
+            if (completados === 2) {
+                mostrarToast("🎉 ¡Requisitos de Admisión completos! Listo para confirmar agenda.", "success");
+            } else {
+                mostrarToast(`✓ Requisito ${e.target.checked ? 'marcado' : 'desmarcado'} (${completados}/2)`, "info");
+            }
+        } catch(err) {
+            console.error("Error al actualizar checklist admisión:", err);
+        }
+        return;
+    }
     if(e.target.classList.contains('chk-alta-paso')) {
         const id = e.target.getAttribute('data-id'), idx = parseInt(e.target.getAttribute('data-idx'), 10);
         try {
@@ -4046,11 +4272,11 @@ document.addEventListener('change', async (e) => {
                     fecha_alta_finalizada: new Date().toISOString(),
                     historial: hist
                 });
-                alert("🏆 ¡Felicitaciones! Checklist completo. El alumno pasó a Altas Finalizadas y el evento en Calendar fue actualizado a Alta Confirmada.");
+                mostrarToast("🏆 ¡Felicitaciones! Checklist completo. El alumno pasó a Altas Finalizadas.", "success");
                 cargarVista(estadoActualVista);
             } else {
-                // Guardado silencioso sin recargar la lista
                 await updateDoc(docRef, { checklist_alta: checks });
+                mostrarToast(`✓ Paso ${e.target.checked ? 'marcado' : 'desmarcado'} (${completados}/5)`, "info");
             }
         } catch(err) {
             console.error("Error al actualizar checklist:", err);
@@ -4448,7 +4674,7 @@ document.addEventListener('click', async (e) => {
                 suscripcion: al.tipo_suscripcion || '' 
             }).replace(/\s+/g, ' ').trim();
             await navigator.clipboard.writeText(txt);
-            alert("📋 Formato de contacto para WhatsApp copiado al portapapeles:\n\n" + txt);
+            mostrarToast("📋 Formato de contacto para WhatsApp copiado al portapapeles", "success");
         } catch(e) {
             alert("Error al copiar: " + e.message);
         }
@@ -4772,7 +4998,7 @@ document.addEventListener('click', async (e) => {
         const esEdicion = target.classList.contains('btn-editar-prealta');
         const inicioPrev = target.getAttribute('data-inicio');
         const grupoPrev = target.getAttribute('data-grupo');
-        await abrirModalPrealta(id, esEdicion, inicioPrev, grupoPrev, { configApp, setBotonCargando });
+        await abrirModalPrealta(id, grupoPrev || '', inicioPrev || '', { configApp, setBotonCargando, esEdicion });
         return;
     }
 
@@ -4826,6 +5052,14 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
+    // Botón Copiar Facturación Admisión (13 columnas para Google Sheets)
+    if (target.classList.contains('btn-copiar-facturacion-admision') || target.closest('.btn-copiar-facturacion-admision')) {
+        const btn = target.classList.contains('btn-copiar-facturacion-admision') ? target : target.closest('.btn-copiar-facturacion-admision');
+        const id = btn.getAttribute('data-id');
+        await copiarFilaExcelFacturacionAdmision(id, configApp);
+        return;
+    }
+
     // Botón Auditar Calendar desde Menú ⋮
     if (target.classList.contains('btn-auditar-cal-directo') || target.closest('.btn-auditar-cal-directo')) {
         const btn = target.classList.contains('btn-auditar-cal-directo') ? target : target.closest('.btn-auditar-cal-directo');
@@ -4843,6 +5077,14 @@ document.addEventListener('click', async (e) => {
     // Botón Confirmar Alta (Abre modal)
     if (target.classList.contains('btn-abrir-confirmar-alta')) {
         const id = target.getAttribute('data-id');
+        const alDoc = await getDoc(doc(db, "alumnos", id));
+        if (alDoc.exists()) {
+            const al = alDoc.data();
+            const checksAlta = al.checklist_alta || [false, false, false, false, false];
+            if (!checksAlta[0]) {
+                return alert('⚠️ No se puede confirmar el alta:\n\nEl punto "1. Suscripción abonada" no está tildado en el checklist.\n\nPor favor verificá que el alumno haya abonado su suscripción antes de confirmar el alta.');
+            }
+        }
         document.getElementById('conf-alta-alumno-id').value = id;
         document.getElementById('modal-confirmar-alta').showModal();
         return;
@@ -4850,13 +5092,17 @@ document.addEventListener('click', async (e) => {
     // Guardar Confirmación de Alta
     if (target.id === 'btn-guardar-confirmacion-alta') {
         const id = document.getElementById('conf-alta-alumno-id').value, est = document.querySelector('input[name="opt-tipo-alta"]:checked').value;
-        setBotonCargando(target, true);
         const alDoc = await getDoc(doc(db, "alumnos", id));
         const al = alDoc.exists() ? alDoc.data() : {};
+        const checksAlta = al.checklist_alta || [false, false, false, false, false];
+        if (!checksAlta[0]) {
+            return alert('⚠️ No se puede confirmar el alta:\n\nEl punto "1. Suscripción abonada" no está tildado en el checklist.\n\nPor favor verificá que el alumno haya abonado su suscripción antes de confirmar el alta.');
+        }
+        setBotonCargando(target, true);
         const tipoSusc = detectarTipoSuscripcion(al.tipo_suscripcion || '');
         const esIndividual = tipoSusc === 'individual';
 
-        // Actualizar título en Calendar a Alta Confirmada (remueve el cohete 🚀)
+        // Actualizar título en Calendar a Alta Confirmada (remueve el cohete 🚀 y ❓)
         let alumnosDelGrupo = [];
         if (!esIndividual && al.grupo_asignado) {
             try {
@@ -4864,11 +5110,16 @@ document.addEventListener('click', async (e) => {
                 grpSnap.forEach(d => alumnosDelGrupo.push({ id: d.id, ...d.data() }));
             } catch(e) {}
         }
-        await sincronizarEventoAltaConfirmadaCalendar(al, esIndividual, alumnosDelGrupo);
+        const evSync = await sincronizarEventoAltaConfirmadaCalendar({ id, ...al }, esIndividual, alumnosDelGrupo, configApp);
 
         const hist = al.historial || [];
         hist.push(crearEntradaHistorial(`Alta confirmada y efectiva (${est}) en el grupo/clase "${al.grupo_asignado || '-'}".`, 'alta'));
-        await updateDoc(doc(db, "alumnos", id), { estado_agenda: est, historial: hist });
+        const updatesAlta = { estado_agenda: est, historial: hist };
+        if (evSync && evSync.id) {
+            updatesAlta.id_evento_alta = evSync.id;
+            updatesAlta.calendario_evento_alta = evSync.calendar;
+        }
+        await updateDoc(doc(db, "alumnos", id), updatesAlta);
         const dataText = await generarTextoConHistorial(id, 'texto_alta_confirmada');
         await navigator.clipboard.writeText(dataText.txt);
         document.getElementById('modal-confirmar-alta').close();
@@ -4896,16 +5147,20 @@ document.addEventListener('click', async (e) => {
                     const gSnap = await getDocs(query(collection(db, "alumnos"), where("grupo_asignado", "==", al.grupo_asignado)));
                     gSnap.forEach(d => alumnosDelGrupo.push({ id: d.id, ...d.data() }));
                 }
-                await sincronizarEventoAltaConfirmadaCalendar({ id, ...al }, esInd, alumnosDelGrupo, configApp);
+                const evFin = await sincronizarEventoAltaConfirmadaCalendar({ id, ...al }, esInd, alumnosDelGrupo, configApp);
+                const updatesFin = {
+                    checklist_alta: [true, true, true, true, true],
+                    fecha_alta_finalizada: new Date().toISOString(),
+                    historial: hist
+                };
+                if (evFin && evFin.id) {
+                    updatesFin.id_evento_alta = evFin.id;
+                    updatesFin.calendario_evento_alta = evFin.calendar;
+                }
+                await updateDoc(doc(db, "alumnos", id), updatesFin);
             } catch(calErr) {
                 console.warn("No se pudo actualizar evento al finalizar alta:", calErr);
             }
-
-            await updateDoc(doc(db, "alumnos", id), {
-                checklist_alta: [true, true, true, true, true],
-                fecha_alta_finalizada: new Date().toISOString(),
-                historial: hist
-            });
             alert("🏁 Alta Finalizada con éxito. El registro pasó a Altas Finalizadas y el evento en Calendar fue actualizado a Alta Confirmada.");
             cargarVista(estadoActualVista);
         }
@@ -5033,6 +5288,14 @@ document.addEventListener('click', async (e) => {
         try { 
             const alDoc = await getDoc(doc(db, "alumnos", alumnoIdActual));
             const al = alDoc.exists() ? alDoc.data() : {};
+
+            // Aviso preventivo si el alumno no tiene disponibilidad horaria cargada en su ficha
+            const disp = al.disponibilidad || {};
+            const tieneDisp = Object.values(disp).some(arr => Array.isArray(arr) && arr.length > 0);
+            if (!tieneDisp) {
+                mostrarToast("ℹ️ El alumno no tiene disponibilidad horaria cargada en su ficha. Mostrando todos los turnos disponibles.", "warning");
+            }
+
             const insts = Array.isArray(al.instrumento) ? al.instrumento : (al.instrumento ? [al.instrumento] : []);
             const wrapInst = document.getElementById('agenda-instrumento-wrapper');
             const selInst = document.getElementById('agenda-instrumento-select');
@@ -5340,14 +5603,23 @@ document.addEventListener('click', async (e) => {
     if (target.classList.contains('btn-confirmar-entrevista') || target.closest('.btn-confirmar-entrevista')) {
         const btn = target.classList.contains('btn-confirmar-entrevista') ? target : target.closest('.btn-confirmar-entrevista');
         const id = btn.getAttribute('data-id');
-        setBotonCargando(btn, true, 'Confirmando agenda en Calendar...');
         try {
             const alDoc = await getDoc(doc(db, "alumnos", id));
             if (!alDoc.exists()) {
-                setBotonCargando(btn, false);
                 return alert("Alumno no encontrado.");
             }
             const al = alDoc.data();
+
+            // VALIDACIÓN CHECKLIST DE ADMISIÓN
+            const checksAdm = al.checklist_admision || [false, false];
+            const pendientesAdm = [];
+            if (!checksAdm[0]) pendientesAdm.push('1. Clase de admisión abonada');
+            if (!checksAdm[1]) pendientesAdm.push('2. Carga de formulario completa');
+            if (pendientesAdm.length > 0) {
+                return alert(`⚠️ No se puede confirmar la agenda:\n\nTiene los siguientes requisitos pendientes en el checklist:\n• ${pendientesAdm.join('\n• ')}\n\nPor favor tildá estos puntos antes de confirmar.`);
+            }
+
+            setBotonCargando(btn, true, 'Confirmando agenda en Calendar...');
             const descP = convertirHtmlATextoPlano(al.descripcion || '');
             const titulos = construirTitulosEvento(al, 'confirmado', configApp);
             if (al.id_evento_reserva) {
@@ -5362,7 +5634,15 @@ document.addEventListener('click', async (e) => {
             await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Agenda confirmada", historial: hist });
             removerFilaOptimista(id);
             await cargarVista(estadoActualVista);
-            alert("✅ ¡Agenda Confirmada exitosamente! El alumno pasó a Confirmadas.");
+
+            // Generar y copiar automáticamente registro de facturación de admisión (13 columnas)
+            const txtFact = generarFilaExcelFacturacionAdmision(al, configApp);
+            let avisoFact = "";
+            try {
+                await navigator.clipboard.writeText(txtFact);
+                avisoFact = "\n\n💰 ¡Fila de Facturación copiada automáticamente al portapapeles!";
+            } catch(e) {}
+            alert("✅ ¡Agenda Confirmada exitosamente! El alumno pasó a Confirmadas." + avisoFact);
         } catch(e) {
             alert("❌ Error al confirmar agenda:\n\n" + e.message);
         } finally {
@@ -5381,7 +5661,7 @@ document.addEventListener('click', async (e) => {
             } 
             const data = await generarTextoConHistorial(id, key); 
             await navigator.clipboard.writeText(data.txt); 
-            alert("Texto copiado."); 
+            mostrarToast("💬 Texto para Evaluador/Docente copiado al portapapeles", "success"); 
         } catch(e) {} 
         return; 
     }
@@ -5392,7 +5672,7 @@ document.addEventListener('click', async (e) => {
             const key = btn.classList.contains('btn-reenviar-alumno') ? 'texto_alumno' : 'texto_conf_alumno'; 
             const data = await generarTextoConHistorial(id, key); 
             await navigator.clipboard.writeText(data.txt); 
-            alert("💬 Texto de WhatsApp copiado al portapapeles:\n\n" + data.txt); 
+            mostrarToast("💬 Texto de WhatsApp para el alumno copiado al portapapeles", "success"); 
         } catch(e) {
             console.error("Error al copiar texto alumno:", e);
             alert("❌ Error al copiar texto: " + e.message);
@@ -5405,7 +5685,7 @@ document.addEventListener('click', async (e) => {
             const id = btn.getAttribute('data-id');
             const data = await generarTextoConHistorial(id, 'texto_prealta');
             await navigator.clipboard.writeText(data.txt);
-            alert("💬 Mensaje de Pre-Alta copiado al portapapeles:\n\n" + data.txt);
+            mostrarToast("💬 Mensaje de Pre-Alta copiado al portapapeles", "success");
         } catch(e) {
             console.error("Error al copiar texto prealta:", e);
             alert("❌ Error al copiar texto de pre-alta: " + e.message);
@@ -5418,7 +5698,7 @@ document.addEventListener('click', async (e) => {
             const id = btn.getAttribute('data-id');
             const data = await generarTextoConHistorial(id, 'texto_alta_confirmada');
             await navigator.clipboard.writeText(data.txt);
-            alert("💬 Mensaje de Alta Confirmada copiado al portapapeles:\n\n" + data.txt);
+            mostrarToast("💬 Mensaje de Alta Confirmada copiado al portapapeles", "success");
         } catch(e) {
             console.error("Error al copiar texto alta confirmada:", e);
             alert("❌ Error al copiar texto de alta: " + e.message);
@@ -5618,7 +5898,7 @@ document.addEventListener('click', async (e) => {
             const dataText = await generarTextoConHistorial(id, 'texto_cancela_alumno', fechaTxt, profId, profNom);
             if (dataText && dataText.txt) {
                 await navigator.clipboard.writeText(dataText.txt);
-                alert(`📋 Texto de Cancelación copiado al portapapeles para enviar al profesor:\n\n${dataText.txt}`);
+                mostrarToast("💬 Texto de Cancelación copiado al portapapeles", "success");
             }
         } catch(e) {
             alert("Error al generar texto de aviso: " + e.message);
@@ -5641,7 +5921,22 @@ document.addEventListener('click', async (e) => {
         }
         return; 
     }
-    if (target.classList.contains('btn-cerrar-modal')) { document.getElementById(target.getAttribute('data-modal')).close(); return; }
+    if (target.classList.contains('btn-cerrar-modal')) { 
+        const mId = target.getAttribute('data-modal');
+        const dlg = document.getElementById(mId);
+        if (dlg) {
+            dlg.close();
+            if (mId === 'modal-iniciar-prealta') {
+                const warnCont = document.getElementById('prealta-match-warnings-container');
+                if (warnCont) warnCont.style.display = 'none';
+                const warnList = document.getElementById('prealta-match-warnings-list');
+                if (warnList) warnList.innerHTML = '';
+                const alertVal = document.getElementById('prealta-alerta-validacion');
+                if (alertVal) alertVal.style.display = 'none';
+            }
+        }
+        return; 
+    }
     
     if (target.id === 'btn-nuevo-alumno') { 
         const roles = Array.isArray(window.usuarioActual?.roles) && window.usuarioActual.roles.length > 0
@@ -5721,6 +6016,15 @@ window.editarAlumnoModalDirecto = async function(id) {
     document.getElementById('form-titulo').textContent = "Editar Alumno";
     await llenarFormularioAlumno(id, false);
     document.getElementById('modal-alta-alumno').showModal();
+};
+
+window.abrirModalPrealta = async function(id, esEdicion = false, inicioPrev = null, grupoPrev = null, options = {}) {
+    const opts = (typeof options === 'object' && options !== null) ? options : {};
+    await abrirModalPrealta(id, grupoPrev || '', inicioPrev || '', { configApp, setBotonCargando, esEdicion: Boolean(esEdicion), ...opts });
+};
+
+window.abrirModalPrealtaGrupal = async function(ids, grupoNom = '', cfg = null) {
+    await abrirModalPrealtaGrupal(ids, grupoNom, cfg || configApp);
 };
 
 window.abrirFichaAlumnoDocente = async function(id) {
@@ -5868,6 +6172,188 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
     const elEvalInf = document.getElementById('modal-informe-evaluador-val');
     if (elFechaInf) elFechaInf.textContent = fechaEntrevistaTxt;
     if (elEvalInf) elEvalInf.textContent = evaluadorTxt;
+
+    // Configuración de Corrección de Entrevista (Solo para Administrador)
+    const uActual = window.usuarioActual || {};
+    const rolesUser = Array.isArray(uActual.roles) && uActual.roles.length > 0
+        ? uActual.roles
+        : [uActual.rol || 'admisor'];
+    const esAdmin = rolesUser.includes('admin') || uActual.rol === 'admin' || uActual.email?.toLowerCase() === 'productora.mandalahouse@gmail.com' || window.modoRolActivo === 'admin';
+
+    const btnCorregirEntrevista = document.getElementById('btn-corregir-entrevista-admin');
+    const boxViewEntrevista = document.getElementById('modal-informe-entrevista-view');
+    const boxEditEntrevista = document.getElementById('modal-informe-entrevista-edit');
+
+    if (boxViewEntrevista) boxViewEntrevista.style.display = 'flex';
+    if (boxEditEntrevista) boxEditEntrevista.style.display = 'none';
+
+    if (btnCorregirEntrevista) {
+        btnCorregirEntrevista.style.display = (!modoLectura && esAdmin) ? 'inline-flex' : 'none';
+        btnCorregirEntrevista.onclick = async () => {
+            const inpFecha = document.getElementById('modal-informe-fecha-edit-input');
+            const selEval = document.getElementById('modal-informe-evaluador-select');
+            const inpCustomEval = document.getElementById('modal-informe-evaluador-custom-input');
+
+            if (inpFecha) inpFecha.value = (d.reserva_fecha_texto && d.reserva_fecha_texto !== '-') ? d.reserva_fecha_texto : (fechaEntrevistaTxt !== '-' ? fechaEntrevistaTxt : '');
+            
+            // Cargar lista de evaluadores / docentes en el select
+            if (selEval) {
+                selEval.innerHTML = '<option value="">Seleccionar evaluador...</option>';
+                try {
+                    const pSnap = await getDocs(collection(db, "profesores"));
+                    const nombresVistos = new Set();
+                    pSnap.forEach(p => {
+                        const pData = p.data();
+                        if (pData.activo !== false && pData.nombre && !nombresVistos.has(pData.nombre.trim())) {
+                            nombresVistos.add(pData.nombre.trim());
+                            const opt = document.createElement('option');
+                            opt.value = pData.nombre.trim();
+                            opt.dataset.profeId = p.id;
+                            opt.textContent = pData.nombre.trim() + (pData.entrevista ? ' (Evaluador)' : '');
+                            selEval.appendChild(opt);
+                        }
+                    });
+                } catch(e) {
+                    console.error("Error cargando profesores:", e);
+                }
+
+                // Preseleccionar si existe coincidencia
+                const evalActual = (d.reserva_profe_nombre || '').trim();
+                let matchEncontrado = false;
+                Array.from(selEval.options).forEach(opt => {
+                    if (opt.value && opt.value.toLowerCase() === evalActual.toLowerCase()) {
+                        opt.selected = true;
+                        matchEncontrado = true;
+                    }
+                });
+
+                if (!matchEncontrado && evalActual) {
+                    if (inpCustomEval) {
+                        inpCustomEval.value = evalActual;
+                        inpCustomEval.style.display = 'block';
+                        selEval.style.display = 'none';
+                    }
+                } else {
+                    if (inpCustomEval) {
+                        inpCustomEval.value = '';
+                        inpCustomEval.style.display = 'none';
+                        selEval.style.display = 'block';
+                    }
+                }
+            }
+
+            if (boxViewEntrevista) boxViewEntrevista.style.display = 'none';
+            if (boxEditEntrevista) boxEditEntrevista.style.display = 'flex';
+        };
+    }
+
+    const btnCancelCorregir = document.getElementById('btn-cancelar-entrevista-admin');
+    if (btnCancelCorregir) {
+        btnCancelCorregir.onclick = () => {
+            if (boxEditEntrevista) boxEditEntrevista.style.display = 'none';
+            if (boxViewEntrevista) boxViewEntrevista.style.display = 'flex';
+        };
+    }
+
+    const btnToggleCustom = document.getElementById('btn-toggle-evaluador-custom');
+    if (btnToggleCustom) {
+        btnToggleCustom.onclick = () => {
+            const selEval = document.getElementById('modal-informe-evaluador-select');
+            const inpCustom = document.getElementById('modal-informe-evaluador-custom-input');
+            if (selEval && inpCustom) {
+                if (selEval.style.display === 'none') {
+                    selEval.style.display = 'block';
+                    inpCustom.style.display = 'none';
+                } else {
+                    selEval.style.display = 'none';
+                    inpCustom.style.display = 'block';
+                    inpCustom.focus();
+                }
+            }
+        };
+    }
+
+    const btnSaveCorregir = document.getElementById('btn-guardar-entrevista-admin');
+    if (btnSaveCorregir) {
+        btnSaveCorregir.onclick = async () => {
+            const inpFecha = document.getElementById('modal-informe-fecha-edit-input');
+            const selEval = document.getElementById('modal-informe-evaluador-select');
+            const inpCustom = document.getElementById('modal-informe-evaluador-custom-input');
+
+            const nuevaFecha = inpFecha ? inpFecha.value.trim() : '';
+            let nuevoEvaluador = '';
+            let nuevoEvaluadorId = '';
+
+            if (selEval && selEval.style.display !== 'none') {
+                nuevoEvaluador = selEval.value.trim();
+                const selOpt = selEval.selectedOptions[0];
+                if (selOpt && selOpt.dataset.profeId) nuevoEvaluadorId = selOpt.dataset.profeId;
+            } else if (inpCustom && inpCustom.style.display !== 'none') {
+                nuevoEvaluador = inpCustom.value.trim();
+            }
+
+            if (!nuevaFecha && !nuevoEvaluador) {
+                alert("⚠️ Por favor ingresa al menos un dato (fecha o evaluador).");
+                return;
+            }
+
+            try {
+                btnSaveCorregir.disabled = true;
+                btnSaveCorregir.textContent = 'Guardando...';
+
+                const updates = {};
+                if (nuevaFecha) updates.reserva_fecha_texto = nuevaFecha;
+                if (nuevoEvaluador) {
+                    updates.reserva_profe_nombre = nuevoEvaluador;
+                    if (nuevoEvaluadorId) {
+                        updates.reserva_profe_id = nuevoEvaluadorId;
+                        updates.profesor_id = nuevoEvaluadorId;
+                    }
+                }
+
+                // Actualizar dentro de informe_entrevista si ya existe
+                if (d.informe_entrevista) {
+                    if (nuevoEvaluador) updates['informe_entrevista.evaluador_nombre'] = nuevoEvaluador;
+                    if (nuevoEvaluadorId) updates['informe_entrevista.evaluador_id'] = nuevoEvaluadorId;
+                }
+
+                const ahoraStr = new Date().toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' });
+                const adminNom = window.usuarioActual?.nombre || 'Admin';
+                const entradaHistorial = `[${ahoraStr}] Datos de entrevista corregidos por Admin (${adminNom}): Fecha "${nuevaFecha || '-'}", Evaluador "${nuevoEvaluador || '-'}"`;
+                
+                updates.historial = [entradaHistorial, ...(d.historial || [])];
+
+                await updateDoc(doc(db, "alumnos", id), updates);
+
+                // Actualizar en DOM
+                if (elFechaInf && nuevaFecha) elFechaInf.textContent = nuevaFecha;
+                if (elEvalInf && nuevoEvaluador) elEvalInf.textContent = nuevoEvaluador;
+
+                // Actualizar objeto en memoria
+                d.reserva_fecha_texto = nuevaFecha;
+                d.reserva_profe_nombre = nuevoEvaluador;
+
+                if (boxEditEntrevista) boxEditEntrevista.style.display = 'none';
+                if (boxViewEntrevista) boxViewEntrevista.style.display = 'flex';
+
+                if (typeof mostrarToast === 'function') {
+                    mostrarToast("✅ Datos de entrevista corregidos correctamente", "success");
+                } else {
+                    alert("✅ Datos de entrevista corregidos correctamente");
+                }
+
+                if (typeof cargarVista === 'function') {
+                    cargarVista(estadoActualVista);
+                }
+            } catch(err) {
+                console.error("Error al guardar corrección de entrevista:", err);
+                alert("❌ Error al guardar: " + err.message);
+            } finally {
+                btnSaveCorregir.disabled = false;
+                btnSaveCorregir.textContent = '💾 Guardar Corrección';
+            }
+        };
+    }
 
     // 2. Datos de Suscripción de Alta en Tab Datos
     const elAltaBox = document.getElementById('modal-seccion-alta-box');
@@ -6550,5 +7036,7 @@ export async function limpiarCasosPrueba() {
     }
 }
 window.limpiarCasosPrueba = limpiarCasosPrueba;
+window.copiarFilaExcelFacturacionAdmision = copiarFilaExcelFacturacionAdmision;
+window.generarFilaExcelFacturacionAdmision = generarFilaExcelFacturacionAdmision;
 
 
