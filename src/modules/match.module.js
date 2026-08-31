@@ -15,11 +15,38 @@ import {
     query, 
     where 
 } from "../config/firebase.js";
-import { detectarTipoSuscripcion } from "../services/calendar.service.js";
+import { detectarTipoSuscripcion } from "../services/calendar.service.js?v=5.9.10";
 
 export let matchCantidadActual = 4;
 export let matchGruposSugeridos = [];
 export let matchProfesores = [];
+export let matchModoBusqueda = 'grupos'; // 'grupos' | 'alumnos'
+export let matchAlumnosSeleccionados = new Set();
+
+export function normalizarHoraLocal(str, fallback = '09:00') {
+    if (!str || typeof str !== 'string') return fallback;
+    const s = str.trim().replace('.', ':');
+    const match = s.match(/^(\d{1,2}):(\d{2})/);
+    if (match) {
+        const hh = match[1].padStart(2, '0');
+        const mm = match[2];
+        return `${hh}:${mm}`;
+    }
+    const numMatch = s.match(/^(\d{1,2})$/);
+    if (numMatch) {
+        const hh = numMatch[1].padStart(2, '0');
+        return `${hh}:00`;
+    }
+    return fallback;
+}
+
+export function formatearHoraParaNombreGrupo(horaStr) {
+    if (!horaStr) return '';
+    const partes = horaStr.split(':');
+    const h = parseInt(partes[0], 10);
+    const m = partes[1] ? parseInt(partes[1], 10) : 0;
+    return (m === 0) ? `${h}` : `${h}.${partes[1]}`;
+}
 
 export function setMatchCantidadActual(val) {
     matchCantidadActual = val;
@@ -31,6 +58,10 @@ export function setMatchGruposSugeridos(val) {
 
 export function setMatchProfesores(val) {
     matchProfesores = val;
+}
+
+export function setMatchModoBusqueda(val) {
+    matchModoBusqueda = val;
 }
 
 export async function cargarProfesoresMatch() {
@@ -87,6 +118,14 @@ export function filtrarProfesoresMatch() {
     const susc = document.getElementById('match-suscripcion')?.value || '';
     const tipo = detectarTipoSuscripcion(susc);
     const esCanto = tipo === 'grupal' && (document.getElementById('match-chk-canto')?.checked || false);
+    const instFiltro = (document.getElementById('match-instrumento-filtro')?.value || '').trim().toLowerCase();
+    
+    // Días y Horarios seleccionados en el formulario
+    const diasMap = { 'lunes': 'L', 'martes': 'M', 'miercoles': 'X', 'jueves': 'J', 'viernes': 'V', 'sabado': 'S' };
+    const diasSeleccionados = Array.from(document.querySelectorAll('.match-day-pill.active')).map(p => diasMap[p.dataset.dia] || p.dataset.dia);
+    const horaDesde = document.getElementById('match-hora-desde')?.value || null;
+    const horaHasta = document.getElementById('match-hora-hasta')?.value || null;
+
     const selProfe = document.getElementById('match-profe');
     if (!selProfe) return;
     const valActual = selProfe.value;
@@ -94,10 +133,55 @@ export function filtrarProfesoresMatch() {
     selProfe.innerHTML = '<option value="">Cualquier profesor disponible</option>';
 
     const profesFiltrados = matchProfesores.filter(pr => {
-        if (tipo === 'individual') return true;
-        if (esCanto) return (pr.skills || []).some(s => s.toLowerCase().includes('canto') || s.toLowerCase().includes('voz'));
-        if (tipo === 'ensamble') return pr.ensambles === true;
-        return pr.grupales === true || pr.ensambles === true;
+        const skills = (pr.skills || []).map(s => s.toLowerCase().trim());
+
+        // 1. Aptitud por Suscripción
+        if (tipo === 'ensamble' && pr.ensambles !== true) return false;
+        if (tipo === 'grupal' && !pr.grupales && !pr.ensambles) return false;
+
+        // 2. Skills por Instrumento Objetivo / Canto
+        if (esCanto) {
+            const tieneCanto = skills.some(s => s.includes('canto') || s.includes('voz'));
+            if (!tieneCanto) return false;
+        } else if (instFiltro) {
+            const tieneInst = skills.some(s => s.includes(instFiltro));
+            if (!tieneInst) return false;
+        }
+
+        // 3. Disponibilidad en Días y Horarios seleccionados
+        if (diasSeleccionados.length > 0 || (horaDesde && horaHasta)) {
+            const dispPr = pr.disponibilidad || {};
+            const diasAEval = diasSeleccionados.length > 0 ? diasSeleccionados : ['L', 'M', 'X', 'J', 'V', 'S'];
+            let tieneHueco = false;
+
+            for (let dia of diasAEval) {
+                const rangos = dispPr[dia] || [];
+                for (let r of rangos) {
+                    if (!r) continue;
+                    let rIni = normalizarHoraLocal(typeof r === 'object' ? r.inicio : (typeof r === 'string' ? r.split(/[-a]/)[0] : '09:00'), '09:00');
+                    let rFin = normalizarHoraLocal(typeof r === 'object' ? r.fin : (typeof r === 'string' ? (r.split(/[-a]/)[1] || r.split(/[-a]/)[0]) : '22:00'), '22:00');
+
+                    let pStart = convertirHoraAMinutos(rIni);
+                    let pEnd = convertirHoraAMinutos(rFin);
+
+                    let fStart = horaDesde ? convertirHoraAMinutos(horaDesde) : pStart;
+                    let fEnd = horaHasta ? convertirHoraAMinutos(horaHasta) : pEnd;
+
+                    const overlapStart = Math.max(pStart, fStart);
+                    const overlapEnd = Math.min(pEnd, fEnd);
+
+                    if (overlapEnd - overlapStart >= 60) {
+                        tieneHueco = true;
+                        break;
+                    }
+                }
+                if (tieneHueco) break;
+            }
+
+            if (!tieneHueco) return false;
+        }
+
+        return true;
     });
 
     profesFiltrados.forEach(pr => {
@@ -112,7 +196,9 @@ export function filtrarProfesoresMatch() {
         selProfe.appendChild(opt);
     });
 
-    if (valActual) selProfe.value = valActual;
+    if (valActual && profesFiltrados.some(p => p.id === valActual)) {
+        selProfe.value = valActual;
+    }
     mostrarSkillsProfe();
 }
 
@@ -138,6 +224,50 @@ export function initMatchFormListeners(cfgMin = 2, cfgMax = 6, callbacks = {}) {
         document.getElementById('match-criterios-panel')?.classList.toggle('collapsed');
     });
 
+    // Segmented control: Buscar Grupos vs Buscar Alumnos
+    const btnModoGrupos = document.getElementById('match-tab-modo-grupos');
+    const btnModoAlumnos = document.getElementById('match-tab-modo-alumnos');
+    const cantWrapper = document.getElementById('match-cantidad-wrapper');
+    const btnBuscar = document.getElementById('match-btn-buscar');
+
+    const actualizarModoBusquedaUI = () => {
+        if (matchModoBusqueda === 'grupos') {
+            if (btnModoGrupos) {
+                btnModoGrupos.className = 'btn-app btn-primary';
+                btnModoGrupos.style.cssText = 'height:32px; font-size:12px; font-weight:700; padding:0 14px; border-radius:7px; cursor:pointer; background:var(--accent-teal); color:#ffffff; border:1px solid var(--accent-teal);';
+            }
+            if (btnModoAlumnos) {
+                btnModoAlumnos.className = 'btn-app btn-secondary';
+                btnModoAlumnos.style.cssText = 'height:32px; font-size:12px; font-weight:700; padding:0 14px; border-radius:7px; cursor:pointer; background:transparent; color:var(--text-main); border:1px solid transparent;';
+            }
+            if (btnBuscar) btnBuscar.innerHTML = '🔍 Buscar Matches';
+        } else {
+            if (btnModoAlumnos) {
+                btnModoAlumnos.className = 'btn-app btn-primary';
+                btnModoAlumnos.style.cssText = 'height:32px; font-size:12px; font-weight:700; padding:0 14px; border-radius:7px; cursor:pointer; background:var(--accent-teal); color:#ffffff; border:1px solid var(--accent-teal);';
+            }
+            if (btnModoGrupos) {
+                btnModoGrupos.className = 'btn-app btn-secondary';
+                btnModoGrupos.style.cssText = 'height:32px; font-size:12px; font-weight:700; padding:0 14px; border-radius:7px; cursor:pointer; background:transparent; color:var(--text-main); border:1px solid transparent;';
+            }
+            if (btnBuscar) btnBuscar.innerHTML = '🔍 Buscar Alumnos';
+        }
+    };
+
+    if (btnModoGrupos) {
+        btnModoGrupos.addEventListener('click', () => {
+            matchModoBusqueda = 'grupos';
+            actualizarModoBusquedaUI();
+        });
+    }
+
+    if (btnModoAlumnos) {
+        btnModoAlumnos.addEventListener('click', () => {
+            matchModoBusqueda = 'alumnos';
+            actualizarModoBusquedaUI();
+        });
+    }
+
     // Cambio de Suscripcion
     document.getElementById('match-suscripcion')?.addEventListener('change', (e) => {
         adaptarFormularioPorSuscripcion(e.target.value);
@@ -153,12 +283,20 @@ export function initMatchFormListeners(cfgMin = 2, cfgMax = 6, callbacks = {}) {
         filtrarProfesoresMatch();
     });
 
+    // Filtros dinámicos de profesores por instrumento y horarios
+    document.getElementById('match-instrumento-filtro')?.addEventListener('change', filtrarProfesoresMatch);
+    document.getElementById('match-hora-desde')?.addEventListener('input', filtrarProfesoresMatch);
+    document.getElementById('match-hora-hasta')?.addEventListener('input', filtrarProfesoresMatch);
+
     // Cambio de profesor
     document.getElementById('match-profe')?.addEventListener('change', mostrarSkillsProfe);
 
     // Pills de dias
     document.querySelectorAll('.match-day-pill').forEach(pill => {
-        pill.addEventListener('click', () => pill.classList.toggle('active'));
+        pill.addEventListener('click', () => {
+            pill.classList.toggle('active');
+            filtrarProfesoresMatch();
+        });
     });
 
     // Stepper cantidad
@@ -185,8 +323,25 @@ export function initMatchFormListeners(cfgMin = 2, cfgMax = 6, callbacks = {}) {
     // Limpiar formulario
     document.getElementById('match-btn-limpiar')?.addEventListener('click', () => resetMatchForm(syncSelectToChips));
 
-    // Buscar matches
-    document.getElementById('match-btn-buscar')?.addEventListener('click', () => ejecutarBusquedaMatch(setBotonCargando));
+    // Botón armar grupo con alumnos seleccionados (desde modo Buscar Alumnos)
+    document.getElementById('btn-match-armar-grupo-seleccionados')?.addEventListener('click', () => {
+        const ids = Array.from(matchAlumnosSeleccionados);
+        if (ids.length < 2) {
+            return alert("Por favor selecciona al menos 2 alumnos para armar un grupo.");
+        }
+        if (window.abrirModalPrealtaGrupal) {
+            window.abrirModalPrealtaGrupal(ids, '', callbacks.configApp || defaultCfg);
+        }
+    });
+
+    // Buscar matches o alumnos según el selector activo
+    document.getElementById('match-btn-buscar')?.addEventListener('click', () => {
+        if (matchModoBusqueda === 'alumnos') {
+            ejecutarBusquedaAlumnosMatch(setBotonCargando);
+        } else {
+            ejecutarBusquedaMatch(setBotonCargando);
+        }
+    });
 
     // Confirmar desde modal de confirmacion
     document.getElementById('btn-ejecutar-confirmar-match')?.addEventListener('click', () => ejecutarConfirmarMatch(setBotonCargando, cargarVista));
@@ -466,6 +621,325 @@ export function generarCombinaciones(arr, k) {
     return res;
 }
 
+// -----------------------------------------------------------------------
+// Búsqueda de Alumnos Candidatos (Perfiles Sueltos en Lista de Espera)
+// -----------------------------------------------------------------------
+export async function ejecutarBusquedaAlumnosMatch(setBotonCargandoFn) {
+    const btnBuscar = document.getElementById('match-btn-buscar');
+    if (typeof setBotonCargandoFn === 'function') setBotonCargandoFn(btnBuscar, true);
+
+    const susc = document.getElementById('match-suscripcion')?.value || '';
+    const selExcluir = document.getElementById('match-excluir-instrumentos');
+    const excluirInsts = selExcluir ? Array.from(selExcluir.selectedOptions).map(o => o.value) : [];
+    const edadDesde = parseInt(document.getElementById('match-edad-desde')?.value) || null;
+    const edadHasta = parseInt(document.getElementById('match-edad-hasta')?.value) || null;
+    const nivelesSeleccionados = Array.from(document.querySelectorAll('input[name="match-nivel"]:checked')).map(cb => cb.value);
+
+    const diasMap = { 'lunes': 'L', 'martes': 'M', 'miercoles': 'X', 'jueves': 'J', 'viernes': 'V', 'sabado': 'S' };
+    const diasSeleccionados = Array.from(document.querySelectorAll('.match-day-pill.active')).map(p => diasMap[p.dataset.dia] || p.dataset.dia);
+
+    const horaDesde = document.getElementById('match-hora-desde')?.value || null;
+    const horaHasta = document.getElementById('match-hora-hasta')?.value || null;
+    const instFiltro = (document.getElementById('match-instrumento-filtro')?.value || '').trim().toLowerCase();
+    const esCanto = document.getElementById('match-chk-canto')?.checked || false;
+
+    const profeIdSeleccionado = document.getElementById('match-profe')?.value || '';
+    const profeSeleccionado = profeIdSeleccionado ? matchProfesores.find(p => p.id === profeIdSeleccionado) : null;
+
+    const resSec = document.getElementById('match-resultados');
+    const grid = document.getElementById('match-resultados-grid');
+    const noRes = document.getElementById('match-sin-resultados');
+    const badge = document.getElementById('match-resultados-badge');
+    const tituloRes = document.getElementById('match-resultados-titulo');
+    const bulkBar = document.getElementById('match-alumnos-bulk-bar');
+
+    if (resSec) resSec.style.display = 'flex';
+    if (grid) grid.innerHTML = '';
+    if (badge) badge.style.display = 'none';
+    if (bulkBar) bulkBar.style.display = 'none';
+    if (tituloRes) {
+        tituloRes.textContent = profeSeleccionado 
+            ? `Alumnos Asignables a ${profeSeleccionado.nombre}` 
+            : 'Alumnos Candidatos Encontrados';
+    }
+    if (noRes) { noRes.style.display = 'block'; noRes.textContent = '🔄 Buscando perfiles de alumnos en lista de espera...'; }
+
+    try {
+        const qSnap = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", "Lista de espera")));
+        let candidatos = [];
+
+        qSnap.forEach(d => {
+            const al = { id: d.id, ...d.data() };
+            if (susc && al.tipo_suscripcion !== susc) return;
+
+            const hayRangoEdad = edadDesde !== null || edadHasta !== null;
+            if (hayRangoEdad) {
+                const e = parseInt(al.edad, 10);
+                if (isNaN(e) || e <= 0) return;
+                if (edadDesde !== null && e < edadDesde) return;
+                if (edadHasta !== null && e > edadHasta) return;
+            }
+
+            if (nivelesSeleccionados.length > 0 && al.nivel && !nivelesSeleccionados.includes(al.nivel)) return;
+
+            const insts = Array.isArray(al.instrumento) ? al.instrumento : (al.instrumento ? [al.instrumento] : []);
+
+            if (instFiltro) {
+                const tieneInst = insts.some(i => (i || '').toLowerCase().trim().includes(instFiltro));
+                if (!tieneInst) return;
+            }
+
+            if (esCanto) {
+                const tieneCanto = insts.some(i => (i || '').toLowerCase().includes('canto') || (i || '').toLowerCase().includes('voz'));
+                if (!tieneCanto) return;
+            }
+
+            if (excluirInsts.length > 0) {
+                const disponibles = insts.filter(i => !excluirInsts.includes(i));
+                if (disponibles.length === 0) return;
+            }
+
+            // 1. Si se seleccionó un profesor, validar aptitud por suscripción, skills y disponibilidad
+            if (profeSeleccionado) {
+                const tipoAl = detectarTipoSuscripcion(al.tipo_suscripcion || '');
+                if (tipoAl === 'ensamble' && profeSeleccionado.ensambles !== true) return;
+                if (tipoAl === 'grupal' && !profeSeleccionado.grupales && !profeSeleccionado.ensambles) return;
+
+                const profeSkills = (profeSeleccionado.skills || []).map(s => s.toLowerCase().trim());
+                if (insts.length > 0) {
+                    const cubreInst = insts.some(i => {
+                        const iNorm = (i || '').toLowerCase().trim();
+                        if (iNorm.includes('canto') || iNorm.includes('voz')) {
+                            return profeSkills.some(s => s.includes('canto') || s.includes('voz'));
+                        }
+                        return profeSkills.some(s => s.includes(iNorm));
+                    });
+                    if (!cubreInst) return;
+                }
+
+                // La disponibilidad del profesor actúa como filtro directo de disponibilidad para el alumno
+                const dispProfe = profeSeleccionado.disponibilidad || {};
+                const dispAl = al.disponibilidad || {};
+                let coincideConProfe = false;
+
+                const diasAEvalProfe = diasSeleccionados.length > 0 ? diasSeleccionados : ['L', 'M', 'X', 'J', 'V', 'S'];
+                for (let dia of diasAEvalProfe) {
+                    const rangosProfe = dispProfe[dia] || [];
+                    const rangosAl = dispAl[dia] || [];
+                    if (rangosProfe.length === 0 || rangosAl.length === 0) continue;
+
+                    for (let rp of rangosProfe) {
+                        if (!rp) continue;
+                        let rpIni = normalizarHoraLocal(typeof rp === 'object' ? rp.inicio : (typeof rp === 'string' ? rp.split(/[-a]/)[0] : '09:00'), '09:00');
+                        let rpFin = normalizarHoraLocal(typeof rp === 'object' ? rp.fin : (typeof rp === 'string' ? (rp.split(/[-a]/)[1] || rp.split(/[-a]/)[0]) : '22:00'), '22:00');
+                        let pStart = convertirHoraAMinutos(rpIni);
+                        let pEnd = convertirHoraAMinutos(rpFin);
+
+                        if (horaDesde) pStart = Math.max(pStart, convertirHoraAMinutos(horaDesde));
+                        if (horaHasta) pEnd = Math.min(pEnd, convertirHoraAMinutos(horaHasta));
+                        if (pEnd - pStart < 60) continue;
+
+                        for (let ra of rangosAl) {
+                            if (!ra) continue;
+                            let raIni = normalizarHoraLocal(typeof ra === 'object' ? ra.inicio : (typeof ra === 'string' ? ra.split(/[-a]/)[0] : '09:00'), '09:00');
+                            let raFin = normalizarHoraLocal(typeof ra === 'object' ? ra.fin : (typeof ra === 'string' ? (ra.split(/[-a]/)[1] || ra.split(/[-a]/)[0]) : '22:00'), '22:00');
+                            let aStart = convertirHoraAMinutos(raIni);
+                            let aEnd = convertirHoraAMinutos(raFin);
+
+                            const overlapStart = Math.max(pStart, aStart);
+                            const overlapEnd = Math.min(pEnd, aEnd);
+
+                            if (overlapEnd - overlapStart >= 60) {
+                                coincideConProfe = true;
+                                break;
+                            }
+                        }
+                        if (coincideConProfe) break;
+                    }
+                    if (coincideConProfe) break;
+                }
+
+                if (!coincideConProfe) return;
+                al.profeMatchAsignado = profeSeleccionado;
+            } else {
+                // Si no hay profesor seleccionado, aplicar filtro general de días y horarios si se marcaron
+                if (diasSeleccionados.length > 0 || (horaDesde && horaHasta)) {
+                    const dispAl = al.disponibilidad || {};
+                    let tieneCoincidencia = false;
+
+                    const diasAEval = diasSeleccionados.length > 0 ? diasSeleccionados : ['L', 'M', 'X', 'J', 'V', 'S'];
+                    for (let dia of diasAEval) {
+                        const rangosDia = dispAl[dia] || [];
+                        for (let r of rangosDia) {
+                            if (!r) continue;
+                            let rIni = normalizarHoraLocal(typeof r === 'object' ? r.inicio : (typeof r === 'string' ? r.split(/[-a]/)[0] : '09:00'), '09:00');
+                            let rFin = normalizarHoraLocal(typeof r === 'object' ? r.fin : (typeof r === 'string' ? (r.split(/[-a]/)[1] || r.split(/[-a]/)[0]) : '22:00'), '22:00');
+                            
+                            let alIniMins = convertirHoraAMinutos(rIni);
+                            let alFinMins = convertirHoraAMinutos(rFin);
+
+                            let filtroIniMins = horaDesde ? convertirHoraAMinutos(horaDesde) : alIniMins;
+                            let filtroFinMins = horaHasta ? convertirHoraAMinutos(horaHasta) : alFinMins;
+
+                            const overlapStart = Math.max(alIniMins, filtroIniMins);
+                            const overlapEnd = Math.min(alFinMins, filtroFinMins);
+
+                            if (overlapEnd - overlapStart >= 60) {
+                                tieneCoincidencia = true;
+                                break;
+                            }
+                        }
+                        if (tieneCoincidencia) break;
+                    }
+
+                    if (!tieneCoincidencia) return;
+                }
+            }
+
+            candidatos.push(al);
+        });
+
+        if (candidatos.length === 0) {
+            if (noRes) noRes.textContent = profeSeleccionado
+                ? `No se encontraron alumnos en Lista de Espera asignables a ${profeSeleccionado.nombre} con coincidencia horaria y de instrumento.`
+                : 'No se encontraron alumnos en Lista de Espera que coincidan con los criterios seleccionados.';
+            if (typeof setBotonCargandoFn === 'function') setBotonCargandoFn(btnBuscar, false);
+            return;
+        }
+
+        if (noRes) noRes.style.display = 'none';
+        if (badge) {
+            badge.textContent = `${candidatos.length} alumnos candidatos`;
+            badge.style.display = 'inline-block';
+        }
+
+        renderResultadosAlumnosMatch(candidatos);
+
+    } catch(err) {
+        console.error("Error en búsqueda de alumnos:", err);
+        if (noRes) noRes.textContent = 'Error al realizar la búsqueda: ' + err.message;
+    } finally {
+        if (typeof setBotonCargandoFn === 'function') setBotonCargandoFn(btnBuscar, false);
+    }
+}
+
+export function renderResultadosAlumnosMatch(candidatos = []) {
+    const grid = document.getElementById('match-resultados-grid');
+    const noRes = document.getElementById('match-sin-resultados');
+    const badge = document.getElementById('match-resultados-badge');
+    const bulkBar = document.getElementById('match-alumnos-bulk-bar');
+    const countEl = document.getElementById('match-alumnos-selected-count');
+
+    if (!grid || !noRes || !badge) return;
+
+    if (candidatos.length === 0) {
+        grid.innerHTML = '';
+        noRes.style.display = 'block';
+        noRes.textContent = 'No se encontraron alumnos compatibles con los filtros seleccionados.';
+        badge.style.display = 'none';
+        if (bulkBar) bulkBar.style.display = 'none';
+        return;
+    }
+
+    noRes.style.display = 'none';
+    badge.style.display = 'inline-flex';
+    badge.textContent = `${candidatos.length} alumnos encontrados`;
+    matchAlumnosSeleccionados.clear();
+    window.matchAlumnosSeleccionados = matchAlumnosSeleccionados;
+    window.selectedBulkIds = [];
+    const globalBarInit = document.getElementById('bulk-actions-bar');
+    if (globalBarInit) globalBarInit.style.display = 'none';
+
+    const actualizarContadorBulk = () => {
+        // Asegurar que la barra global inferior no interfiera ni quede flotando
+        const globalBar = document.getElementById('bulk-actions-bar');
+        if (globalBar) globalBar.style.display = 'none';
+
+        // Sincronizar selección global
+        window.selectedBulkIds = Array.from(matchAlumnosSeleccionados);
+
+        if (matchAlumnosSeleccionados.size > 0) {
+            if (bulkBar) bulkBar.style.display = 'flex';
+            if (countEl) countEl.textContent = `${matchAlumnosSeleccionados.size} alumno${matchAlumnosSeleccionados.size > 1 ? 's' : ''} seleccionado${matchAlumnosSeleccionados.size > 1 ? 's' : ''}`;
+        } else {
+            if (bulkBar) bulkBar.style.display = 'none';
+        }
+    };
+
+    grid.innerHTML = candidatos.map(al => {
+        const insts = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || 'Sin inst.');
+        const susc = al.tipo_suscripcion || 'Sin suscripción';
+        const nivel = al.nivel || 'Inicial I';
+        const edad = al.edad ? `${al.edad} años` : 'Edad s/d';
+        const evalTxt = al.reserva_profe_nombre || al.profesor_asignado || '';
+
+        // Resumen de disponibilidad
+        const disp = al.disponibilidad || {};
+        const diasConDisp = Object.keys(disp).filter(k => Array.isArray(disp[k]) && disp[k].length > 0);
+        const dispResumen = diasConDisp.length > 0 
+            ? diasConDisp.map(d => `${d}: ${disp[d].map(r => typeof r === 'string' ? r : `${r.inicio || '09:00'}-${r.fin || '22:00'}`).join(', ')}`).join(' • ')
+            : 'Sin franjas registradas';
+
+        const matchProfeTag = al.profeMatchAsignado
+            ? `<span class="match-chip" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px;">🧑‍🏫 Match Profe: ${al.profeMatchAsignado.nombre}</span>`
+            : '';
+
+        return `
+            <div class="match-card" style="display:flex; flex-direction:column; justify-content:space-between; padding:16px; border-radius:12px; border:1px solid var(--border-color); background:#ffffff; box-shadow:0 2px 8px rgba(0,0,0,0.04); position:relative;">
+                <div>
+                    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:10px;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <input type="checkbox" class="match-alumno-chk" data-id="${al.id}" style="width:18px; height:18px; cursor:pointer; accent-color:var(--accent-teal);">
+                            <div>
+                                <div style="font-weight:800; font-size:15px; color:var(--text-main); cursor:pointer;" onclick="window.editarAlumnoModalDirecto('${al.id}')">${al.nombre}</div>
+                                <div style="font-size:12px; color:var(--text-muted);">${edad} • 📚 ${nivel}</div>
+                            </div>
+                        </div>
+                        <span class="status-badge" style="background:#e0f2fe; color:#0369a1; font-size:11px; font-weight:700;">${susc}</span>
+                    </div>
+
+                    <div style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:10px;">
+                        <span class="match-chip chip-inst" style="background:rgba(0,123,143,0.08); color:var(--accent-teal); border:1px solid rgba(0,123,143,0.2); font-size:11px; font-weight:600; padding:2px 8px; border-radius:6px;">🎸 ${insts}</span>
+                        ${matchProfeTag}
+                        ${evalTxt ? `<span class="match-chip" style="background:#f1f5f9; color:#475569; font-size:11px; padding:2px 8px; border-radius:6px;">🧑‍🏫 Eval: ${evalTxt}</span>` : ''}
+                    </div>
+
+                    <div style="background:#f8fafc; border-radius:8px; padding:8px 10px; font-size:11.5px; color:var(--text-muted); margin-bottom:12px;">
+                        <div style="font-weight:700; color:var(--text-main); margin-bottom:2px;">🕒 Disponibilidad Declarada:</div>
+                        <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${dispResumen}">${dispResumen}</div>
+                    </div>
+                </div>
+
+                <div style="display:flex; align-items:center; justify-content:space-between; border-top:1px solid #f1f5f9; padding-top:10px; gap:8px;">
+                    <button type="button" class="btn-app btn-secondary" onclick="window.editarAlumnoModalDirecto('${al.id}')" style="font-size:11.5px; padding:4px 10px; height:30px;">👁️ Ver Ficha</button>
+                    <button type="button" class="btn-app btn-primary btn-iniciar-prealta-al" data-id="${al.id}" data-profe-id="${al.profeMatchAsignado ? al.profeMatchAsignado.id : ''}" style="font-size:11.5px; padding:4px 12px; height:30px; background:var(--accent-teal);">🚀 Iniciar Pre-Alta</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // Event listeners para checkboxes y botones
+    grid.querySelectorAll('.match-alumno-chk').forEach(chk => {
+        chk.addEventListener('change', (e) => {
+            const id = chk.getAttribute('data-id');
+            if (chk.checked) matchAlumnosSeleccionados.add(id);
+            else matchAlumnosSeleccionados.delete(id);
+            actualizarContadorBulk();
+        });
+    });
+
+    grid.querySelectorAll('.btn-iniciar-prealta-al').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = btn.getAttribute('data-id');
+            const profeId = btn.getAttribute('data-profe-id') || '';
+            if (window.abrirModalPrealta) {
+                window.abrirModalPrealta(id, false, null, null, { profeIdSugerido: profeId });
+            }
+        });
+    });
+}
+
 export async function ejecutarBusquedaMatch(setBotonCargandoFn) {
     const susc = document.getElementById('match-suscripcion')?.value;
     if (!susc) {
@@ -515,8 +989,13 @@ export async function ejecutarBusquedaMatch(setBotonCargandoFn) {
             const al = { id: d.id, ...d.data() };
             if (al.tipo_suscripcion !== susc) return;
 
-            if (edadDesde !== null && al.edad && al.edad < edadDesde) return;
-            if (edadHasta !== null && al.edad && al.edad > edadHasta) return;
+            const hayRangoEdad = edadDesde !== null || edadHasta !== null;
+            if (hayRangoEdad) {
+                const e = parseInt(al.edad, 10);
+                if (isNaN(e) || e <= 0) return;
+                if (edadDesde !== null && e < edadDesde) return;
+                if (edadHasta !== null && e > edadHasta) return;
+            }
 
             if (esGrupal && nivelesSeleccionados.length > 0 && al.nivel && !nivelesSeleccionados.includes(al.nivel)) return;
 
@@ -576,7 +1055,7 @@ export async function ejecutarBusquedaMatch(setBotonCargandoFn) {
                     const huecos = buscarHuecosComunes([al], pr, diasSeleccionados, horaDesde, horaHasta);
                     huecos.forEach(slot => {
                         const { porcentaje, desglose } = calcularScoreCompatibilidad([al], pr, slot, false, false);
-                        const horaCorta = slot.inicio.replace(':', '.');
+                        const horaCorta = formatearHoraParaNombreGrupo(slot.inicio);
                         const nombreSugerido = `${slot.diaId}${horaCorta} ${pr.nombre.split(' ')[0]}`;
 
                         const alConInst = { ...al, instrumento_asignado: instElegido };
@@ -612,7 +1091,10 @@ export async function ejecutarBusquedaMatch(setBotonCargandoFn) {
                     if (!sonNivelesCompatibles(nivelesGrupo)) continue;
 
                     const edadesGrupo = grupoAlumnos.map(a => a.edad);
-                    if (!sonEdadesCompatibles(edadesGrupo, configActiva)) continue;
+                    const hayRangoDefinido = edadDesde !== null || edadHasta !== null;
+                    if (!hayRangoDefinido) {
+                        if (!sonEdadesCompatibles(edadesGrupo, configActiva)) continue;
+                    }
 
                     if (!esCanto) {
                         const instDistintos = new Set();
@@ -627,7 +1109,7 @@ export async function ejecutarBusquedaMatch(setBotonCargandoFn) {
                         const huecos = buscarHuecosComunes(grupoAlumnos, pr, diasSeleccionados, horaDesde, horaHasta);
                         huecos.forEach(slot => {
                             const { porcentaje, desglose } = calcularScoreCompatibilidad(grupoAlumnos, pr, slot, esCanto, true);
-                            const horaCorta = slot.inicio.replace(':', '.');
+                            const horaCorta = formatearHoraParaNombreGrupo(slot.inicio);
                             const nombreSugerido = `${slot.diaId}${horaCorta} ${pr.nombre.split(' ')[0]}`;
 
                             sugerencias.push({
@@ -913,6 +1395,38 @@ export async function ejecutarConfirmarMatch(setBotonCargandoFn, cargarVistaFn) 
     const diaId = grupo.slot?.diaId || 'M';
     const horaInicio = grupo.slot?.inicio || '18:00';
     const fechaSugerida = calcularProximaFechaDiaHora(diaId, horaInicio);
+
+    // Validación estricta en Google Calendar antes de confirmar el grupo/clase
+    const tieneBateria = (grupo.alumnos || []).some(al => {
+        const insts = Array.isArray(al.instrumento) ? al.instrumento : [al.instrumento || ''];
+        return insts.some(i => (i || '').toLowerCase().includes('bat')) || (al.instrumento_asignado || '').toLowerCase().includes('bat');
+    });
+
+    if (fechaSugerida) {
+        const dStart = new Date(fechaSugerida);
+        const dEnd = new Date(dStart.getTime() + 60 * 60000);
+        try {
+            const valCal = await validarConflictoCalendarEnVivo({
+                inicioISO: dStart.toISOString(),
+                finISO: dEnd.toISOString(),
+                profeId: grupo.profeId || '',
+                profeNombre: grupo.profeNombre || '',
+                profeCalId: grupo.correoCalendario || '',
+                esBateria: tieneBateria,
+                configApp: defaultCfg
+            });
+
+            if (!valCal.valido) {
+                const forzarConflicto = confirm(`⚠️ Conflicto detectado en Google Calendar:\n\n• ${valCal.motivo}\n\n¿Deseas confirmar la propuesta de todas formas?`);
+                if (!forzarConflicto) {
+                    if (typeof setBotonCargandoFn === 'function') setBotonCargandoFn(btnConfirm, false);
+                    return;
+                }
+            }
+        } catch(errVal) {
+            console.warn("No se pudo verificar conflicto con Google Calendar:", errVal);
+        }
+    }
 
     try {
         for (const al of grupo.alumnos) {
