@@ -15,7 +15,7 @@ import {
     query, 
     where 
 } from "../config/firebase.js";
-import { detectarTipoSuscripcion } from "../services/calendar.service.js?v=5.9.10";
+import { detectarTipoSuscripcion } from "../services/calendar.service.js?v=5.9.12";
 
 export let matchCantidadActual = 4;
 export let matchGruposSugeridos = [];
