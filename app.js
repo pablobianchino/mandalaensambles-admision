@@ -11,7 +11,7 @@ import {
     configNodosFlujo,
     configNodosFlujoEvaluador,
     configNodosFlujoCoordinador
-} from "./src/config/constants.js?v=5.9.17";
+} from "./src/config/constants.js?v=5.9.18";
 
 import { 
     app, 
@@ -73,7 +73,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=5.9.17";
+} from "./src/services/calendar.service.js?v=5.9.18";
 
 import {
     matchCantidadActual,
@@ -106,7 +106,7 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=5.9.17";
+} from "./src/modules/match.module.js?v=5.9.18";
 
 import {
     renderPortalProfesor
@@ -128,7 +128,7 @@ import {
     copiarFilaExcelFacturacionAdmision,
     abrirModalAvisoPrealtaAlumno,
     copiarAvisoPrealtaAlumno
-} from "./src/modules/altas.module.js?v=5.9.17";
+} from "./src/modules/altas.module.js?v=5.9.18";
 
 import {
     renderTimelineUnificado,
@@ -4028,6 +4028,10 @@ onAuthStateChanged(auth, async (user) => {
 
         document.getElementById('login-container').style.display = 'none'; 
         document.getElementById('app-container').style.display = 'flex'; 
+        try {
+            localStorage.setItem('mandala_has_session', 'true');
+            document.documentElement.classList.add('user-has-session');
+        } catch(e) {}
 
         await cargarConfig(); 
         configurarHeaderUsuarioYRoles();
@@ -4062,6 +4066,7 @@ onAuthStateChanged(auth, async (user) => {
             const urlParams = new URLSearchParams(window.location.search);
             const fichaId = urlParams.get('verFicha') || urlParams.get('alumnoId');
             if (fichaId) {
+                window.history.replaceState({}, document.title, window.location.pathname);
                 setTimeout(() => {
                     if (fichaId.startsWith('test-')) {
                         if (typeof window.abrirFichaSimuladaTest === 'function') {
@@ -4070,7 +4075,7 @@ onAuthStateChanged(auth, async (user) => {
                     } else if (typeof window.editarAlumnoModalDirecto === 'function') {
                         window.editarAlumnoModalDirecto(fichaId);
                     }
-                }, 800);
+                }, 600);
             }
         } catch(eUrl) {}
 
@@ -4089,11 +4094,31 @@ onAuthStateChanged(auth, async (user) => {
                             } else if (typeof window.editarAlumnoModalDirecto === 'function') {
                                 window.editarAlumnoModalDirecto(fId);
                             }
-                        }, 300);
+                        }, 200);
                     }
                 }
             });
         }
+
+        // Listener reactivo al enfocar la app (cuando el celular vuelve al primer plano tras tocar la notificación)
+        window.addEventListener('focus', () => {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const fId = urlParams.get('verFicha') || urlParams.get('alumnoId');
+                if (fId) {
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    setTimeout(() => {
+                        if (fId.startsWith('test-')) {
+                            if (typeof window.abrirFichaSimuladaTest === 'function') {
+                                window.abrirFichaSimuladaTest(fId);
+                            }
+                        } else if (typeof window.editarAlumnoModalDirecto === 'function') {
+                            window.editarAlumnoModalDirecto(fId);
+                        }
+                    }, 200);
+                }
+            } catch(e) {}
+        });
 
         // Verificación diaria de alertas a las 09:00 hs
         setTimeout(() => {
@@ -4169,6 +4194,10 @@ onAuthStateChanged(auth, async (user) => {
         iniciarVerificadorVersion();
 
     } else { 
+        try {
+            localStorage.removeItem('mandala_has_session');
+            document.documentElement.classList.remove('user-has-session');
+        } catch(e) {}
         document.getElementById('login-container').style.display = 'flex'; 
         document.getElementById('app-container').style.display = 'none'; 
     } 
@@ -6062,16 +6091,27 @@ async function cargarSelectsAlumnos() {
 }
 
 window.abrirFichaSimuladaTest = function(testId) {
+    const modal = document.getElementById('modal-alta-alumno');
     const wrap = document.getElementById('form-alumno-wrapper');
-    if (!wrap) return;
+    if (!wrap || !modal) return;
+    
     wrap.style.display = 'block';
-    document.getElementById('modal-alta-alumno').appendChild(wrap);
+    if (!modal.contains(wrap)) modal.appendChild(wrap);
 
     const esAdmisor = testId === 'test-sofia-admisor';
     document.getElementById('form-titulo').textContent = esAdmisor 
         ? "⚠️ Ficha Simulada de Prueba: Sofía Gómez (Vencimiento)" 
         : "📅 Ficha Simulada de Prueba: Mateo Barrios (Entrevista 18hs)";
     
+    // Activar pestaña principal de datos
+    document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    const tabDatos = document.getElementById('tab-datos');
+    if (tabDatos) tabDatos.style.display = 'block';
+    const btnTabDatos = document.querySelector('.tab-btn[data-target="tab-datos"]');
+    if (btnTabDatos) btnTabDatos.classList.add('active');
+
+    // Llenar campos simulados
     document.getElementById('alumno-id').value = testId;
     document.getElementById('alumno-nombre').value = esAdmisor ? "Sofía Gómez" : "Mateo Barrios";
     document.getElementById('alumno-email').value = esAdmisor ? "sofia.gomez@test.com" : "mateo.barrios@test.com";
@@ -6085,18 +6125,49 @@ window.abrirFichaSimuladaTest = function(testId) {
     const contDirecto = document.getElementById('container-ingreso-directo');
     if (contDirecto) contDirecto.style.display = 'none';
 
+    // Cerrar cualquier otro diálogo abierto para evitar superposición
+    document.querySelectorAll('dialog[open]').forEach(d => {
+        if (d !== modal) {
+            try { d.close(); } catch(e) {}
+        }
+    });
+
+    if (!modal.open) {
+        try {
+            modal.showModal();
+        } catch(errShow) {
+            modal.setAttribute('open', '');
+        }
+    }
+
     mostrarToast(`🔔 Ficha simulada abierta: ${esAdmisor ? 'Sofía Gómez' : 'Mateo Barrios'}`, 'info');
-    document.getElementById('modal-alta-alumno').showModal();
 };
 
 window.editarAlumnoModalDirecto = async function(id) {
+    const modal = document.getElementById('modal-alta-alumno');
     const wrap = document.getElementById('form-alumno-wrapper');
-    if (!wrap) return;
+    if (!wrap || !modal) return;
     wrap.style.display = 'block';
-    document.getElementById('modal-alta-alumno').appendChild(wrap);
+    if (!modal.contains(wrap)) modal.appendChild(wrap);
     document.getElementById('form-titulo').textContent = "Editar Alumno";
+    document.getElementById('alumno-id').value = id;
+
+    // Cerrar cualquier otro diálogo abierto
+    document.querySelectorAll('dialog[open]').forEach(d => {
+        if (d !== modal) {
+            try { d.close(); } catch(e) {}
+        }
+    });
+
     await llenarFormularioAlumno(id, false);
-    document.getElementById('modal-alta-alumno').showModal();
+    document.getElementById('container-ingreso-directo').style.display = 'none';
+    if (!modal.open) {
+        try {
+            modal.showModal();
+        } catch(errShow) {
+            modal.setAttribute('open', '');
+        }
+    }
 };
 
 window.abrirModalPrealta = async function(id, esEdicion = false, inicioPrev = null, grupoPrev = null, options = {}) {
