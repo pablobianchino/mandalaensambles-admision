@@ -11,7 +11,7 @@ import {
     configNodosFlujo,
     configNodosFlujoEvaluador,
     configNodosFlujoCoordinador
-} from "./src/config/constants.js?v=5.9.15";
+} from "./src/config/constants.js?v=5.9.16";
 
 import { 
     app, 
@@ -73,7 +73,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=5.9.15";
+} from "./src/services/calendar.service.js?v=5.9.16";
 
 import {
     matchCantidadActual,
@@ -106,7 +106,7 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=5.9.15";
+} from "./src/modules/match.module.js?v=5.9.16";
 
 import {
     renderPortalProfesor
@@ -128,7 +128,7 @@ import {
     copiarFilaExcelFacturacionAdmision,
     abrirModalAvisoPrealtaAlumno,
     copiarAvisoPrealtaAlumno
-} from "./src/modules/altas.module.js?v=5.9.15";
+} from "./src/modules/altas.module.js?v=5.9.16";
 
 import {
     renderTimelineUnificado,
@@ -936,11 +936,21 @@ document.addEventListener('click', (e) => {
     }
 });
 
-window.toggleChecklistPill = function(contentId, iconId) {
-    const el = document.getElementById(contentId);
-    const ic = document.getElementById(iconId);
+window.toggleChecklistPill = function(triggerEl, iconIdParam) {
+    let el = null;
+    let ic = null;
+    if (typeof triggerEl === 'string') {
+        el = document.getElementById(triggerEl);
+        ic = document.getElementById(iconIdParam);
+    } else if (triggerEl && triggerEl.nodeType) {
+        const wrapper = triggerEl.closest('.alta-checklist-wrapper, .admision-checklist-wrapper');
+        if (wrapper) {
+            el = wrapper.querySelector('.checklist-items-collapsible');
+            ic = wrapper.querySelector('[id^="chk-icon-"], [id^="chk-adm-icon-"]');
+        }
+    }
     if (!el) {
-        console.warn("⚠️ toggleChecklistPill: No se encontró elemento con ID:", contentId);
+        console.warn("⚠️ toggleChecklistPill: No se encontró contenido desplegable");
         return;
     }
     const isHidden = el.style.display === 'none' || !el.style.display;
@@ -1297,7 +1307,8 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
     `;
 
     let checklistAdmisionHtml = '';
-    const esPendienteAlumno = (al.estado_agenda || '').toLowerCase() === 'pendiente validacion por alumno';
+    const rawEstadoAdm = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    const esPendienteAlumno = rawEstadoAdm === 'pendiente validacion por alumno';
     if (esPendienteAlumno || al.checklist_admision) {
         const checksAdm = al.checklist_admision || [false, false];
         const pasosAdm = [
@@ -1309,7 +1320,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
         const barColorAdm = completadosAdm === 2 ? 'var(--accent-teal)' : (completadosAdm === 1 ? '#e5a93d' : 'var(--accent-red)');
 
         checklistAdmisionHtml = `
-            <div id="chk-adm-wrapper-${id}" class="admision-checklist-wrapper" style="margin-top:4px; margin-bottom:4px; padding:8px 12px; background:var(--hover-bg); border-radius:10px; border:1px solid var(--border-color); cursor:pointer; min-width:215px; user-select:none;" onclick="event.stopPropagation(); window.toggleChecklistPill('chk-adm-list-${id}', 'chk-adm-icon-${id}')" title="Clic para ver o completar los requisitos de admisión">
+            <div id="chk-adm-wrapper-${id}" class="admision-checklist-wrapper" style="margin-top:4px; margin-bottom:4px; padding:8px 12px; background:var(--hover-bg); border-radius:10px; border:1px solid var(--border-color); cursor:pointer; min-width:215px; user-select:none;" onclick="event.stopPropagation(); window.toggleChecklistPill(this);" title="Clic para ver o completar los requisitos de admisión">
                 <div style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:12px;">
                     <div style="display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:var(--text-main);">
                         <span id="chk-adm-icon-${id}" style="font-size:9px; color:#64748b; transition:transform 0.2s ease; display:inline-block;">▶</span>
@@ -1348,7 +1359,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
         const barColor = completados === 5 ? 'var(--accent-teal)' : (completados >= 3 ? '#e5a93d' : 'var(--accent-red)');
 
         checklistHtml = `
-            <div id="chk-wrapper-${id}" class="alta-checklist-wrapper" style="margin-top:4px; margin-bottom:4px; padding:8px 12px; background:var(--hover-bg); border-radius:10px; border:1px solid var(--border-color); cursor:pointer; min-width:215px; user-select:none;" onclick="event.stopPropagation(); window.toggleChecklistPill('chk-list-${id}', 'chk-icon-${id}')" title="Clic para ver o completar los pasos del checklist">
+            <div id="chk-wrapper-${id}" class="alta-checklist-wrapper" style="margin-top:4px; margin-bottom:4px; padding:8px 12px; background:var(--hover-bg); border-radius:10px; border:1px solid var(--border-color); cursor:pointer; min-width:215px; user-select:none;" onclick="event.stopPropagation(); window.toggleChecklistPill(this);" title="Clic para ver o completar los pasos del checklist">
                 <div style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:12px;">
                     <div style="display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:var(--text-main);">
                         <span id="chk-icon-${id}" style="font-size:9px; color:#64748b; transition:transform 0.2s ease; display:inline-block;">▶</span>
@@ -4192,18 +4203,15 @@ document.addEventListener('change', async (e) => {
             const porcentaje = Math.round((completados / 2) * 100);
             const barColor = completados === 2 ? 'var(--accent-teal)' : (completados === 1 ? '#e5a93d' : 'var(--accent-red)');
 
-            const elTitle = document.getElementById(`chk-adm-title-${id}`);
-            const elPct = document.getElementById(`chk-adm-pct-${id}`);
-            const elBar = document.getElementById(`chk-adm-bar-${id}`);
-            if (elTitle) elTitle.textContent = `📋 Requisitos de Admisión (${completados}/2)`;
-            if (elPct) {
-                elPct.textContent = `${porcentaje}%`;
-                elPct.style.color = barColor;
-            }
-            if (elBar) {
-                elBar.style.width = `${porcentaje}%`;
-                elBar.style.background = barColor;
-            }
+            document.querySelectorAll(`[id="chk-adm-title-${id}"]`).forEach(el => el.textContent = `📋 Requisitos de Admisión (${completados}/2)`);
+            document.querySelectorAll(`[id="chk-adm-pct-${id}"]`).forEach(el => {
+                el.textContent = `${porcentaje}%`;
+                el.style.color = barColor;
+            });
+            document.querySelectorAll(`[id="chk-adm-bar-${id}"]`).forEach(el => {
+                el.style.width = `${porcentaje}%`;
+                el.style.background = barColor;
+            });
             
             const labelPadre = e.target.closest('label');
             if (labelPadre) {
@@ -4240,19 +4248,16 @@ document.addEventListener('change', async (e) => {
             const porcentaje = Math.round((completados / 5) * 100);
             const barColor = completados === 5 ? 'var(--accent-teal)' : (completados >= 3 ? '#e5a93d' : 'var(--accent-red)');
 
-            // Actualización visual reactiva instantánea en el DOM (sin recargar la página)
-            const elTitle = document.getElementById(`chk-title-${id}`);
-            const elPct = document.getElementById(`chk-pct-${id}`);
-            const elBar = document.getElementById(`chk-bar-${id}`);
-            if (elTitle) elTitle.textContent = `📋 Checklist de Alta (${completados}/5)`;
-            if (elPct) {
-                elPct.textContent = `${porcentaje}%`;
-                elPct.style.color = barColor;
-            }
-            if (elBar) {
-                elBar.style.width = `${porcentaje}%`;
-                elBar.style.background = barColor;
-            }
+            // Actualización visual reactiva instantánea en el DOM (todas las instancias del alumno)
+            document.querySelectorAll(`[id="chk-title-${id}"]`).forEach(el => el.textContent = `📋 Checklist de Alta (${completados}/5)`);
+            document.querySelectorAll(`[id="chk-pct-${id}"]`).forEach(el => {
+                el.textContent = `${porcentaje}%`;
+                el.style.color = barColor;
+            });
+            document.querySelectorAll(`[id="chk-bar-${id}"]`).forEach(el => {
+                el.style.width = `${porcentaje}%`;
+                el.style.background = barColor;
+            });
             
             // Actualizar color del label del paso
             const labelPadre = e.target.closest('label');
