@@ -11,7 +11,7 @@ import {
     configNodosFlujo,
     configNodosFlujoEvaluador,
     configNodosFlujoCoordinador
-} from "./src/config/constants.js?v=5.9.16";
+} from "./src/config/constants.js?v=5.9.17";
 
 import { 
     app, 
@@ -73,7 +73,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=5.9.16";
+} from "./src/services/calendar.service.js?v=5.9.17";
 
 import {
     matchCantidadActual,
@@ -106,7 +106,7 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=5.9.16";
+} from "./src/modules/match.module.js?v=5.9.17";
 
 import {
     renderPortalProfesor
@@ -128,7 +128,7 @@ import {
     copiarFilaExcelFacturacionAdmision,
     abrirModalAvisoPrealtaAlumno,
     copiarAvisoPrealtaAlumno
-} from "./src/modules/altas.module.js?v=5.9.16";
+} from "./src/modules/altas.module.js?v=5.9.17";
 
 import {
     renderTimelineUnificado,
@@ -4073,6 +4073,27 @@ onAuthStateChanged(auth, async (user) => {
                 }, 800);
             }
         } catch(eUrl) {}
+
+        // Receptor de mensajes en vivo desde Service Worker (sin recargar la app en móviles al tocar [👁️ Ver Ficha])
+        if ('serviceWorker' in navigator && !window._swNotifListenerActive) {
+            window._swNotifListenerActive = true;
+            navigator.serviceWorker.addEventListener('message', (event) => {
+                if (event.data && event.data.type === 'ABRIR_FICHA_NOTIFICACION') {
+                    const fId = event.data.fichaId;
+                    if (fId) {
+                        setTimeout(() => {
+                            if (fId.startsWith('test-')) {
+                                if (typeof window.abrirFichaSimuladaTest === 'function') {
+                                    window.abrirFichaSimuladaTest(fId);
+                                }
+                            } else if (typeof window.editarAlumnoModalDirecto === 'function') {
+                                window.editarAlumnoModalDirecto(fId);
+                            }
+                        }, 300);
+                    }
+                }
+            });
+        }
 
         // Verificación diaria de alertas a las 09:00 hs
         setTimeout(() => {
