@@ -1,4 +1,4 @@
-const CACHE_NAME = "mandala-app-v5.9.17";
+const CACHE_NAME = "mandala-app-v5.9.18";
 
 self.addEventListener('install', (event) => {
     self.skipWaiting();
@@ -73,29 +73,33 @@ self.addEventListener('notificationclick', (event) => {
     const fichaId = notifData.alumnoId || (targetUrl.includes('verFicha=') ? targetUrl.split('verFicha=')[1].split('&')[0] : null);
 
     event.waitUntil(
-        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clientList) => {
             // 1. Si la app ya está abierta (en primer plano o segundo plano en celular/PC)
             for (const client of clientList) {
-                if ('focus' in client) {
-                    client.focus();
-                    // Envía mensaje directo a la app para abrir la ficha de inmediato sin recarga
-                    if (fichaId) {
-                        client.postMessage({
-                            type: 'ABRIR_FICHA_NOTIFICACION',
-                            fichaId: fichaId,
-                            url: targetUrl,
-                            action: event.action
-                        });
-                    }
-                    if ('navigate' in client && targetUrl !== '/' && !client.url.includes(targetUrl)) {
-                        try { client.navigate(targetUrl); } catch(eNav) {}
-                    }
-                    return;
+                try {
+                    await client.focus();
+                } catch(eF) {}
+
+                // Envía mensaje directo a la app para abrir la ficha de inmediato sin recarga
+                if (fichaId) {
+                    client.postMessage({
+                        type: 'ABRIR_FICHA_NOTIFICACION',
+                        fichaId: fichaId,
+                        url: targetUrl,
+                        action: event.action
+                    });
                 }
+
+                if ('navigate' in client && targetUrl !== '/' && !client.url.includes('verFicha=')) {
+                    try {
+                        return await client.navigate(targetUrl);
+                    } catch(eNav) {}
+                }
+                return;
             }
             // 2. Si la app estaba completamente cerrada, abrir ventana limpia con la URL de destino
             if (clients.openWindow) {
-                return clients.openWindow(targetUrl);
+                return await clients.openWindow(targetUrl);
             }
         })
     );
