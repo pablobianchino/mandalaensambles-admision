@@ -11,7 +11,7 @@ import {
     configNodosFlujo,
     configNodosFlujoEvaluador,
     configNodosFlujoCoordinador
-} from "./src/config/constants.js?v=5.9.10";
+} from "./src/config/constants.js?v=5.9.12";
 
 import { 
     app, 
@@ -73,7 +73,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=5.9.10";
+} from "./src/services/calendar.service.js?v=5.9.12";
 
 import {
     matchCantidadActual,
@@ -106,7 +106,7 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=5.9.10";
+} from "./src/modules/match.module.js?v=5.9.12";
 
 import {
     renderPortalProfesor
@@ -128,7 +128,7 @@ import {
     copiarFilaExcelFacturacionAdmision,
     abrirModalAvisoPrealtaAlumno,
     copiarAvisoPrealtaAlumno
-} from "./src/modules/altas.module.js?v=5.9.10";
+} from "./src/modules/altas.module.js?v=5.9.12";
 
 import {
     renderTimelineUnificado,
@@ -7038,5 +7038,161 @@ export async function limpiarCasosPrueba() {
 window.limpiarCasosPrueba = limpiarCasosPrueba;
 window.copiarFilaExcelFacturacionAdmision = copiarFilaExcelFacturacionAdmision;
 window.generarFilaExcelFacturacionAdmision = generarFilaExcelFacturacionAdmision;
+
+// ================================================================
+// TEST DE NOTIFICACIÓN PUSH PWA (RECORDATORIO DE ENTREVISTA)
+// ================================================================
+export function abrirModalTestNotificacion() {
+    const modal = document.getElementById('modal-test-notificacion');
+    if (!modal) return;
+
+    const radio5 = modal.querySelector('input[name="test-notif-timer"][value="5"]');
+    if (radio5) radio5.checked = true;
+    const inputCustom = document.getElementById('test-notif-custom-datetime');
+    if (inputCustom) {
+        inputCustom.style.display = 'none';
+        const d = new Date(Date.now() + 2 * 60000);
+        const iso = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        inputCustom.value = iso;
+    }
+
+    modal.querySelectorAll('input[name="test-notif-timer"]').forEach(radio => {
+        radio.onchange = () => {
+            if (inputCustom) {
+                inputCustom.style.display = radio.value === 'custom' ? 'block' : 'none';
+            }
+        };
+    });
+
+    modal.showModal();
+}
+window.abrirModalTestNotificacion = abrirModalTestNotificacion;
+
+export async function dispararNotificacionPrueba() {
+    const modal = document.getElementById('modal-test-notificacion');
+
+    if (!('Notification' in window)) {
+        alert("⚠️ Este navegador no soporta notificaciones de escritorio o PWA.");
+        return;
+    }
+
+    let permission = Notification.permission;
+    if (permission !== 'granted') {
+        try {
+            permission = await Notification.requestPermission();
+        } catch(e) {
+            console.error("Error al solicitar permiso de notificación:", e);
+        }
+    }
+
+    if (permission !== 'granted') {
+        alert("⚠️ Permiso de notificaciones no concedido.\n\nPara que la notificación suene en tu celular o pantalla de bloqueo, debes habilitar los permisos de notificación para este sitio en la configuración del navegador.");
+        return;
+    }
+
+    const radioChecked = modal?.querySelector('input[name="test-notif-timer"]:checked')?.value || '5';
+    let delayMs = 5000;
+    let labelTiempo = "5 segundos";
+
+    if (radioChecked === '0') {
+        delayMs = 0;
+        labelTiempo = "inmediatamente";
+    } else if (radioChecked === '15') {
+        delayMs = 15000;
+        labelTiempo = "15 segundos";
+    } else if (radioChecked === '60') {
+        delayMs = 60000;
+        labelTiempo = "1 minuto";
+    } else if (radioChecked === 'custom') {
+        const customVal = document.getElementById('test-notif-custom-datetime')?.value;
+        if (!customVal) {
+            alert("Por favor selecciona una fecha y hora.");
+            return;
+        }
+        const targetDate = new Date(customVal);
+        const diff = targetDate.getTime() - Date.now();
+        if (diff <= 0) {
+            alert("La fecha y hora elegida debe ser en el futuro.");
+            return;
+        }
+        delayMs = diff;
+        const mins = Math.round(delayMs / 60000);
+        labelTiempo = mins >= 60 ? `${Math.round(mins / 60)} hora(s)` : `${mins} minuto(s)`;
+    }
+
+    if (modal) modal.close();
+
+    mostrarToast(`⏳ Notificación programada para dispararse ${labelTiempo === 'inmediatamente' ? 'ahora' : 'en ' + labelTiempo}.`, "info");
+
+    const notifTitle = "📅 Entrevista de Admisión hoy (18:00 hs)";
+    const iconUrl = new URL('logo.png', window.location.href).href;
+
+    const swOptions = {
+        body: "👤 Mateo Barrios (13 años) • 🥁 Batería (Ensamble)\nTutora: Mamá Vanesa. Tocá para ver la ficha.",
+        icon: iconUrl,
+        badge: iconUrl,
+        tag: "test-recordatorio-entrevista",
+        renotify: true,
+        vibrate: [200, 100, 200],
+        data: {
+            url: window.location.href,
+            telefono: "5491123456789",
+            mensaje: "Hola Vanesa! Te contacto de Mandala por la entrevista de admisión de Mateo hoy a las 18:00 hs."
+        },
+        actions: [
+            { action: 'ver_ficha', title: '👁️ Ver Ficha' },
+            { action: 'whatsapp', title: '💬 WhatsApp' }
+        ]
+    };
+
+    const domOptions = {
+        body: swOptions.body,
+        icon: iconUrl,
+        tag: swOptions.tag
+    };
+
+    setTimeout(async () => {
+        let emitido = false;
+
+        // Intento 1: Service Worker (Soporta actions y pantalla de bloqueo)
+        try {
+            if ('serviceWorker' in navigator) {
+                const reg = await Promise.race([
+                    navigator.serviceWorker.ready,
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('SW timeout')), 1200))
+                ]);
+                if (reg && typeof reg.showNotification === 'function') {
+                    await reg.showNotification(notifTitle, swOptions);
+                    emitido = true;
+                    console.log("✅ Notificación mostrada vía Service Worker");
+                }
+            }
+        } catch(errSw) {
+            console.warn("⚠️ Fallo o timeout en Service Worker:", errSw);
+        }
+
+        // Intento 2: Fallback DOM Notification (Compatible con Chrome/Edge en PC sin SW)
+        if (!emitido) {
+            try {
+                const n = new Notification(notifTitle, domOptions);
+                n.onclick = () => {
+                    window.focus();
+                    n.close();
+                };
+                emitido = true;
+                console.log("✅ Notificación mostrada vía DOM Notification");
+            } catch(errDom) {
+                console.error("❌ Falló notificación DOM:", errDom);
+            }
+        }
+
+        if (emitido) {
+            mostrarToast("🔔 ¡Notificación de prueba emitida con éxito!", "info");
+        } else {
+            mostrarToast("⚠️ No se pudo desplegar la notificación en el sistema operativo. Verifica permisos de Windows / navegador.", "warning");
+        }
+    }, delayMs);
+}
+window.dispararNotificacionPrueba = dispararNotificacionPrueba;
 
 
