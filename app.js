@@ -11,7 +11,7 @@ import {
     configNodosFlujo,
     configNodosFlujoEvaluador,
     configNodosFlujoCoordinador
-} from "./src/config/constants.js?v=5.9.14";
+} from "./src/config/constants.js?v=5.9.15";
 
 import { 
     app, 
@@ -73,7 +73,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=5.9.14";
+} from "./src/services/calendar.service.js?v=5.9.15";
 
 import {
     matchCantidadActual,
@@ -106,7 +106,7 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=5.9.14";
+} from "./src/modules/match.module.js?v=5.9.15";
 
 import {
     renderPortalProfesor
@@ -128,7 +128,7 @@ import {
     copiarFilaExcelFacturacionAdmision,
     abrirModalAvisoPrealtaAlumno,
     copiarAvisoPrealtaAlumno
-} from "./src/modules/altas.module.js?v=5.9.14";
+} from "./src/modules/altas.module.js?v=5.9.15";
 
 import {
     renderTimelineUnificado,
@@ -939,7 +939,10 @@ document.addEventListener('click', (e) => {
 window.toggleChecklistPill = function(contentId, iconId) {
     const el = document.getElementById(contentId);
     const ic = document.getElementById(iconId);
-    if (!el) return;
+    if (!el) {
+        console.warn("⚠️ toggleChecklistPill: No se encontró elemento con ID:", contentId);
+        return;
+    }
     const isHidden = el.style.display === 'none' || !el.style.display;
     el.style.display = isHidden ? 'flex' : 'none';
     if (ic) ic.style.transform = isHidden ? 'rotate(90deg)' : 'rotate(0deg)';
@@ -1306,21 +1309,21 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
         const barColorAdm = completadosAdm === 2 ? 'var(--accent-teal)' : (completadosAdm === 1 ? '#e5a93d' : 'var(--accent-red)');
 
         checklistAdmisionHtml = `
-            <div id="chk-adm-wrapper-${id}" class="admision-checklist-wrapper" style="margin-top:8px; padding:8px 12px; background:var(--hover-bg); border-radius:10px; border:1px solid var(--border-color);" onclick="event.stopPropagation();">
-                <div style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:12px; cursor:pointer; user-select:none;" onclick="window.toggleChecklistPill('chk-adm-list-${id}', 'chk-adm-icon-${id}')" title="Clic para ver o completar los requisitos de admisión">
+            <div id="chk-adm-wrapper-${id}" class="admision-checklist-wrapper" style="margin-top:4px; margin-bottom:4px; padding:8px 12px; background:var(--hover-bg); border-radius:10px; border:1px solid var(--border-color); cursor:pointer; min-width:215px; user-select:none;" onclick="event.stopPropagation(); window.toggleChecklistPill('chk-adm-list-${id}', 'chk-adm-icon-${id}')" title="Clic para ver o completar los requisitos de admisión">
+                <div style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:12px;">
                     <div style="display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:var(--text-main);">
                         <span id="chk-adm-icon-${id}" style="font-size:9px; color:#64748b; transition:transform 0.2s ease; display:inline-block;">▶</span>
                         <span id="chk-adm-title-${id}">📋 Requisitos de Admisión (${completadosAdm}/2)</span>
                     </div>
                     <span id="chk-adm-pct-${id}" style="color:${barColorAdm}; font-size:11.5px; font-weight:800; margin-left:auto; padding-left:16px; white-space:nowrap;">${porcentajeAdm}%</span>
                 </div>
-                <div style="width:100%; height:5px; background:#e9e5de; border-radius:4px; overflow:hidden; margin-top:5px; cursor:pointer;" onclick="window.toggleChecklistPill('chk-adm-list-${id}', 'chk-adm-icon-${id}')">
+                <div style="width:100%; height:5px; background:#e9e5de; border-radius:4px; overflow:hidden; margin-top:5px;">
                     <div id="chk-adm-bar-${id}" style="width:${porcentajeAdm}%; height:100%; background:${barColorAdm}; transition:width 0.3s ease, background 0.3s ease;"></div>
                 </div>
-                <div id="chk-adm-list-${id}" class="checklist-items-collapsible" style="display:none; flex-wrap:wrap; gap:8px 12px; font-size:11px; color:var(--text-muted); margin-top:9px; padding-top:8px; border-top:1px dashed var(--border-color);">
+                <div id="chk-adm-list-${id}" class="checklist-items-collapsible" style="display:none; flex-wrap:wrap; gap:8px 12px; font-size:11px; color:var(--text-muted); margin-top:9px; padding-top:8px; border-top:1px dashed var(--border-color);" onclick="event.stopPropagation();">
                     ${checksAdm.map((chk, idx) => `
-                        <label style="display:inline-flex; align-items:center; gap:5px; margin:0; cursor:pointer; font-weight:600; text-transform:none; color:${chk ? 'var(--text-main)' : 'var(--text-muted)'};">
-                            <input type="checkbox" class="chk-admision-paso" data-id="${id}" data-idx="${idx}" ${chk ? 'checked' : ''} style="accent-color:var(--accent-teal); width:15px; height:15px; cursor:pointer;">
+                        <label style="display:inline-flex; align-items:center; gap:5px; margin:0; cursor:pointer; font-weight:600; text-transform:none; color:${chk ? 'var(--text-main)' : 'var(--text-muted)'};" onclick="event.stopPropagation();">
+                            <input type="checkbox" class="chk-admision-paso" data-id="${id}" data-idx="${idx}" ${chk ? 'checked' : ''} style="accent-color:var(--accent-teal); width:15px; height:15px; cursor:pointer;" onclick="event.stopPropagation();">
                             <span style="${chk ? 'text-decoration:none;' : ''}">${pasosAdm[idx] || `Paso ${idx+1}`}</span>
                         </label>
                     `).join('')}
@@ -1345,21 +1348,21 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
         const barColor = completados === 5 ? 'var(--accent-teal)' : (completados >= 3 ? '#e5a93d' : 'var(--accent-red)');
 
         checklistHtml = `
-            <div id="chk-wrapper-${id}" class="alta-checklist-wrapper" style="margin-top:8px; padding:8px 12px; background:var(--hover-bg); border-radius:10px; border:1px solid var(--border-color);" onclick="event.stopPropagation();">
-                <div style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:12px; cursor:pointer; user-select:none;" onclick="window.toggleChecklistPill('chk-list-${id}', 'chk-icon-${id}')" title="Clic para ver o completar los pasos del checklist">
+            <div id="chk-wrapper-${id}" class="alta-checklist-wrapper" style="margin-top:4px; margin-bottom:4px; padding:8px 12px; background:var(--hover-bg); border-radius:10px; border:1px solid var(--border-color); cursor:pointer; min-width:215px; user-select:none;" onclick="event.stopPropagation(); window.toggleChecklistPill('chk-list-${id}', 'chk-icon-${id}')" title="Clic para ver o completar los pasos del checklist">
+                <div style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:12px;">
                     <div style="display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:var(--text-main);">
                         <span id="chk-icon-${id}" style="font-size:9px; color:#64748b; transition:transform 0.2s ease; display:inline-block;">▶</span>
                         <span id="chk-title-${id}">📋 Checklist de Alta (${completados}/5)</span>
                     </div>
                     <span id="chk-pct-${id}" style="color:${barColor}; font-size:11.5px; font-weight:800; margin-left:auto; padding-left:16px; white-space:nowrap;">${porcentaje}%</span>
                 </div>
-                <div style="width:100%; height:5px; background:#e9e5de; border-radius:4px; overflow:hidden; margin-top:5px; cursor:pointer;" onclick="window.toggleChecklistPill('chk-list-${id}', 'chk-icon-${id}')">
+                <div style="width:100%; height:5px; background:#e9e5de; border-radius:4px; overflow:hidden; margin-top:5px;">
                     <div id="chk-bar-${id}" style="width:${porcentaje}%; height:100%; background:${barColor}; transition:width 0.3s ease, background 0.3s ease;"></div>
                 </div>
-                <div id="chk-list-${id}" class="checklist-items-collapsible" style="display:none; flex-wrap:wrap; gap:8px 12px; font-size:11px; color:var(--text-muted); margin-top:9px; padding-top:8px; border-top:1px dashed var(--border-color);">
+                <div id="chk-list-${id}" class="checklist-items-collapsible" style="display:none; flex-wrap:wrap; gap:8px 12px; font-size:11px; color:var(--text-muted); margin-top:9px; padding-top:8px; border-top:1px dashed var(--border-color);" onclick="event.stopPropagation();">
                     ${checks.map((chk, idx) => `
-                        <label style="display:inline-flex; align-items:center; gap:5px; margin:0; cursor:pointer; font-weight:600; text-transform:none; color:${chk ? 'var(--text-main)' : 'var(--text-muted)'};">
-                            <input type="checkbox" class="chk-alta-paso" data-id="${id}" data-idx="${idx}" ${chk ? 'checked' : ''} style="accent-color:var(--accent-teal); width:15px; height:15px; cursor:pointer;">
+                        <label style="display:inline-flex; align-items:center; gap:5px; margin:0; cursor:pointer; font-weight:600; text-transform:none; color:${chk ? 'var(--text-main)' : 'var(--text-muted)'};" onclick="event.stopPropagation();">
+                            <input type="checkbox" class="chk-alta-paso" data-id="${id}" data-idx="${idx}" ${chk ? 'checked' : ''} style="accent-color:var(--accent-teal); width:15px; height:15px; cursor:pointer;" onclick="event.stopPropagation();">
                             <span style="${chk ? 'text-decoration:none;' : ''}">${pasostitulos[idx] || `Paso ${idx+1}`}</span>
                         </label>
                     `).join('')}
@@ -4047,9 +4050,13 @@ onAuthStateChanged(auth, async (user) => {
         try {
             const urlParams = new URLSearchParams(window.location.search);
             const fichaId = urlParams.get('verFicha') || urlParams.get('alumnoId');
-            if (fichaId && !fichaId.startsWith('test-')) {
+            if (fichaId) {
                 setTimeout(() => {
-                    if (typeof window.editarAlumnoModalDirecto === 'function') {
+                    if (fichaId.startsWith('test-')) {
+                        if (typeof window.abrirFichaSimuladaTest === 'function') {
+                            window.abrirFichaSimuladaTest(fichaId);
+                        }
+                    } else if (typeof window.editarAlumnoModalDirecto === 'function') {
                         window.editarAlumnoModalDirecto(fichaId);
                     }
                 }, 800);
@@ -6027,6 +6034,34 @@ async function cargarSelectsAlumnos() {
     const sSp = await getDocs(collection(db, "tipos_suscripcion")); sSp.forEach(d => sS.innerHTML += `<option value="${d.data().nombre}">${d.data().nombre}</option>`); 
     setTimeout(() => { syncSelectToChips('instrumento', 'chips-instrumentos'); }, 100);
 }
+
+window.abrirFichaSimuladaTest = function(testId) {
+    const wrap = document.getElementById('form-alumno-wrapper');
+    if (!wrap) return;
+    wrap.style.display = 'block';
+    document.getElementById('modal-alta-alumno').appendChild(wrap);
+
+    const esAdmisor = testId === 'test-sofia-admisor';
+    document.getElementById('form-titulo').textContent = esAdmisor 
+        ? "⚠️ Ficha Simulada de Prueba: Sofía Gómez (Vencimiento)" 
+        : "📅 Ficha Simulada de Prueba: Mateo Barrios (Entrevista 18hs)";
+    
+    document.getElementById('alumno-id').value = testId;
+    document.getElementById('alumno-nombre').value = esAdmisor ? "Sofía Gómez" : "Mateo Barrios";
+    document.getElementById('alumno-email').value = esAdmisor ? "sofia.gomez@test.com" : "mateo.barrios@test.com";
+    document.getElementById('alumno-telefono').value = esAdmisor ? "5491133445566" : "5491199887766";
+    document.getElementById('alumno-edad').value = esAdmisor ? "24" : "13";
+    document.getElementById('alumno-nivel').value = esAdmisor ? "Inicial I" : "Inicial II";
+    document.getElementById('alumno-tutor').value = esAdmisor ? "" : "Mamá Vanesa";
+    document.getElementById('alumno-tutor-telefono').value = esAdmisor ? "" : "5491122334455";
+    document.getElementById('alumno-estado').value = esAdmisor ? "Pendiente validación por alumno" : "Agenda confirmada";
+
+    const contDirecto = document.getElementById('container-ingreso-directo');
+    if (contDirecto) contDirecto.style.display = 'none';
+
+    mostrarToast(`🔔 Ficha simulada abierta: ${esAdmisor ? 'Sofía Gómez' : 'Mateo Barrios'}`, 'info');
+    document.getElementById('modal-alta-alumno').showModal();
+};
 
 window.editarAlumnoModalDirecto = async function(id) {
     const wrap = document.getElementById('form-alumno-wrapper');
