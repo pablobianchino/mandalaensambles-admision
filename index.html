@@ -18,7 +18,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=5.8.14">
+    <link rel="stylesheet" href="styles.css?v=5.9.10">
 
     <style>
         /* Estilos Críticos de Widget de Perfil y Popover Google-Style */
@@ -318,7 +318,7 @@
                     <button type="button" id="btn-quick-test-evaluador" onclick="window.generarCasosPruebaEvaluador()" class="btn-app btn-secondary" style="font-size:11px; height:28px; padding:0 8px; flex:1; justify-content:center;" title="Crear casos de prueba [TEST] propios para evaluar el flujo">🧪 Casos Test</button>
                     <button type="button" id="btn-quick-test-clean" onclick="window.limpiarCasosPrueba()" class="btn-app btn-secondary" style="font-size:11px; height:28px; padding:0 8px; justify-content:center;" title="Eliminar mis alumnos de prueba [TEST]">🗑️</button>
                 </div>
-                <div id="sidebar-version-label" style="font-size: 11px; color: var(--text-light); text-align: left; font-weight: 600; padding: 2px 6px;">v5.8.14</div>
+                <div id="sidebar-version-label" style="font-size: 11px; color: var(--text-light); text-align: left; font-weight: 600; padding: 2px 6px;">v5.9.10</div>
             </div>
         </aside>
 
@@ -529,6 +529,21 @@
                     </div>
 
                     <div class="match-criterios-body" id="match-criterios-body">
+                        <!-- Selector Universal de Búsqueda: Grupos vs Alumnos -->
+                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid var(--border-color); flex-wrap:wrap; gap:10px;">
+                            <div style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; display:flex; align-items:center; gap:6px;">
+                                🎯 Modo de Búsqueda:
+                            </div>
+                            <div style="display:inline-flex; background:var(--hover-bg); padding:3px; border-radius:10px; border:1px solid var(--border-color); gap:4px;">
+                                <button type="button" id="match-tab-modo-grupos" class="btn-app btn-primary" style="height:32px; font-size:12px; font-weight:700; padding:0 14px; border-radius:7px; cursor:pointer; background:var(--accent-teal); color:#ffffff; border:1px solid var(--accent-teal);">
+                                    👥 Buscar Grupos (Match)
+                                </button>
+                                <button type="button" id="match-tab-modo-alumnos" class="btn-app btn-secondary" style="height:32px; font-size:12px; font-weight:700; padding:0 14px; border-radius:7px; cursor:pointer; background:transparent; color:var(--text-main); border:1px solid transparent;">
+                                    👤 Buscar Alumnos (Perfiles)
+                                </button>
+                            </div>
+                        </div>
+
                         <!-- FILA 1: Suscripción + Toggle tipo -->
                         <div class="match-form-grid">
                             <div class="match-form-col">
@@ -639,9 +654,9 @@
 
                         <!-- Acciones del formulario -->
                         <div style="display:flex; gap:10px; justify-content:flex-end; align-items:center; padding-top:15px; border-top:1px solid var(--border-color); margin-top:5px; flex-wrap:wrap;">
-                            <button type="button" id="btn-mock-match-data" class="filter-chip" style="font-family:inherit; color:var(--accent-blue); border-color:var(--accent-blue); background:rgba(31,84,145,0.06); cursor:pointer;">🧪 Cargar Todos (14)</button>
-                            <button type="button" id="btn-mock-match-indiv" class="filter-chip" style="font-family:inherit; color:var(--accent-teal); border-color:var(--accent-teal); background:rgba(0,123,143,0.06); cursor:pointer;">👤 Cargar Individuales (4)</button>
-                            <button type="button" id="btn-limpiar-mock-data" class="filter-chip" style="font-family:inherit; margin-right:auto; color:var(--accent-red); border-color:var(--accent-red); background:rgba(194,86,59,0.06); cursor:pointer;">🧹 Borrar Pruebas</button>
+                            <button type="button" id="btn-mock-match-data" class="filter-chip" style="display:none; font-family:inherit; color:var(--accent-blue); border-color:var(--accent-blue); background:rgba(31,84,145,0.06); cursor:pointer;">🧪 Cargar Todos (14)</button>
+                            <button type="button" id="btn-mock-match-indiv" class="filter-chip" style="display:none; font-family:inherit; color:var(--accent-teal); border-color:var(--accent-teal); background:rgba(0,123,143,0.06); cursor:pointer;">👤 Cargar Individuales (4)</button>
+                            <button type="button" id="btn-limpiar-mock-data" class="filter-chip" style="display:none; font-family:inherit; margin-right:auto; color:var(--accent-red); border-color:var(--accent-red); background:rgba(194,86,59,0.06); cursor:pointer;">🧹 Borrar Pruebas</button>
                             <button type="button" id="match-btn-limpiar" style="padding:10px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted); font-family:inherit;">Limpiar</button>
                             <button type="button" id="match-btn-buscar" class="btn-primary">🔍 Buscar Matches</button>
                         </div>
@@ -650,12 +665,18 @@
 
                 <!-- SECCIÓN DE RESULTADOS -->
                 <div id="match-resultados" style="display:none; flex-direction:column; gap:15px;">
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <h2 style="margin:0; font-size:1.1em; font-weight:800; color:var(--text-main);">Resultados</h2>
-                        <span id="match-resultados-badge" class="status-badge bg-teal" style="display:none;"></span>
+                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <h2 id="match-resultados-titulo" style="margin:0; font-size:1.1em; font-weight:800; color:var(--text-main);">Resultados</h2>
+                            <span id="match-resultados-badge" class="status-badge bg-teal" style="display:none;"></span>
+                        </div>
+                        <div id="match-alumnos-bulk-bar" style="display:none; align-items:center; gap:10px;">
+                            <span id="match-alumnos-selected-count" style="font-size:12.5px; font-weight:700; color:var(--accent-teal);">0 seleccionados</span>
+                            <button type="button" id="btn-match-armar-grupo-seleccionados" class="btn-app btn-primary" style="height:32px; font-size:12px; font-weight:700; padding:0 12px; background:var(--accent-teal); cursor:pointer;">👥 Armar Grupo con Seleccionados</button>
+                        </div>
                     </div>
                     <div id="match-resultados-grid" class="match-results-grid"></div>
-                    <div id="match-sin-resultados" style="display:none; color:var(--text-muted); text-align:center; padding:30px; font-weight:500; background:var(--hover-bg); border-radius:12px; border:1px solid var(--border-color);">No se encontraron grupos compatibles con los criterios seleccionados.</div>
+                    <div id="match-sin-resultados" style="display:none; color:var(--text-muted); text-align:center; padding:30px; font-weight:500; background:var(--hover-bg); border-radius:12px; border:1px solid var(--border-color);">No se encontraron resultados con los criterios seleccionados.</div>
                 </div>
             </div>
             <!-- FIN MÓDULO MATCH -->
@@ -832,14 +853,47 @@
                 </div>
 
                 <div id="tab-informe" class="tab-content" style="display:none;">
-                    <div id="modal-informe-entrevista-box" style="background:var(--hover-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; margin-bottom:15px; display:flex; flex-wrap:wrap; gap:12px 24px; align-items:center;">
-                        <div>
-                            <span style="font-size:10.5px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">📅 Fecha y Hora de Entrevista</span>
-                            <div id="modal-informe-fecha-val" style="font-size:13px; font-weight:700; color:var(--text-main); margin-top:2px;">-</div>
+                    <div id="modal-informe-entrevista-box" style="background:var(--hover-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; margin-bottom:15px; display:flex; flex-direction:column; gap:10px;">
+                        <div id="modal-informe-entrevista-view" style="display:flex; flex-wrap:wrap; gap:12px 24px; align-items:center; justify-content:space-between;">
+                            <div style="display:flex; flex-wrap:wrap; gap:12px 24px; align-items:center;">
+                                <div>
+                                    <span style="font-size:10.5px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">📅 Fecha y Hora de Entrevista</span>
+                                    <div id="modal-informe-fecha-val" style="font-size:13px; font-weight:700; color:var(--text-main); margin-top:2px;">-</div>
+                                </div>
+                                <div>
+                                    <span style="font-size:10.5px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">👨‍🏫 Evaluador a Cargo</span>
+                                    <div id="modal-informe-evaluador-val" style="font-size:13px; font-weight:700; color:var(--accent-teal); margin-top:2px;">-</div>
+                                </div>
+                            </div>
+                            <button type="button" id="btn-corregir-entrevista-admin" class="btn-app btn-secondary" style="display:none; font-size:11.5px; font-weight:700; padding:4px 10px; height:30px; border-color:var(--border-color); cursor:pointer;" title="Solo Administrador: Corregir manualmente">
+                                ✏️ Corregir Datos (Admin)
+                            </button>
                         </div>
-                        <div>
-                            <span style="font-size:10.5px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">👨‍🏫 Evaluador a Cargo</span>
-                            <div id="modal-informe-evaluador-val" style="font-size:13px; font-weight:700; color:var(--accent-teal); margin-top:2px;">-</div>
+
+                        <div id="modal-informe-entrevista-edit" style="display:none; background:#fff; border:1px solid var(--accent-teal); border-radius:8px; padding:12px; flex-direction:column; gap:10px;">
+                            <div style="font-size:11.5px; font-weight:800; color:var(--accent-teal); text-transform:uppercase; display:flex; align-items:center; gap:6px;">
+                                🛠️ Corrección Manual de Entrevista (Administrador)
+                            </div>
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                                <div>
+                                    <label style="font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:3px; display:block;">📅 Fecha y Hora de Entrevista</label>
+                                    <input type="text" id="modal-informe-fecha-edit-input" class="modern-input" placeholder="Ej: Lunes 24/8 16:30hs" style="height:32px; font-size:12px; font-weight:600; width:100%;">
+                                </div>
+                                <div>
+                                    <label style="font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:3px; display:block;">👨‍🏫 Evaluador a Cargo</label>
+                                    <div style="display:flex; gap:6px;">
+                                        <select id="modal-informe-evaluador-select" class="modern-input" style="height:32px; font-size:12px; font-weight:600; flex:1;">
+                                            <option value="">Seleccionar evaluador...</option>
+                                        </select>
+                                        <input type="text" id="modal-informe-evaluador-custom-input" class="modern-input" placeholder="O escribir nombre..." style="height:32px; font-size:12px; flex:1; display:none;">
+                                        <button type="button" id="btn-toggle-evaluador-custom" class="btn-app btn-secondary" style="font-size:11px; height:32px; padding:0 8px; cursor:pointer;" title="Alternar entre lista o escribir nombre libre">✏️</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:4px;">
+                                <button type="button" id="btn-cancelar-entrevista-admin" class="btn-app btn-secondary" style="height:30px; font-size:11.5px; padding:0 12px; cursor:pointer;">✖ Cancelar</button>
+                                <button type="button" id="btn-guardar-entrevista-admin" class="btn-app btn-primary" style="height:30px; font-size:11.5px; padding:0 14px; background:var(--accent-teal); cursor:pointer;">💾 Guardar Corrección</button>
+                            </div>
                         </div>
                     </div>
                     <div id="aviso-informe-bloqueado" style="display:none; background:var(--hover-bg); color:var(--accent-red); padding:10px; border-radius:8px; margin-bottom:15px; font-weight:600; font-size:13px;">
@@ -1158,21 +1212,7 @@
             <input type="hidden" id="prealta-alumno-id">
             <div id="prealta-info-banner" style="display:none; background:var(--hover-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 12px; font-size:12.5px; margin-bottom:15px; color:var(--text-muted); line-height:1.4;"></div>
             
-            <div id="prealta-campo-instrumento" style="margin-bottom:12px;">
-                <label style="font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:6px;">INSTRUMENTO DE LA CLASE
-                    <select id="prealta-instrumento-select" class="modern-input">
-                        <option value="">Seleccionar instrumento...</option>
-                    </select>
-                </label>
-            </div>
-
-            <!-- Asignación grupal por alumno -->
-            <div id="prealta-lista-alumnos-instrumentos" style="display:none; margin-bottom:15px;">
-                <label style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:8px;">ASIGNACIÓN DE INSTRUMENTOS POR ALUMNO</label>
-                <div id="prealta-alumnos-container" style="display:flex; flex-direction:column; gap:8px; max-height:220px; overflow-y:auto; padding-right:4px;"></div>
-            </div>
-            
-            <!-- Selector Tipo de Ensamble (si la suscripción es grupal/ensamble) -->
+            <!-- 1. Selector Tipo de Ensamble (visible SOLO si la suscripción es ensamble) -->
             <div id="prealta-campo-tipo-ensamble" style="display:none; margin-bottom:14px;">
                 <label style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:6px;">MODALIDAD DE ENSAMBLE</label>
                 <div style="display:flex; gap:16px; align-items:center; background:var(--hover-bg); padding:10px 14px; border-radius:8px; border:1px solid var(--border-color);">
@@ -1187,13 +1227,30 @@
                 </div>
             </div>
 
-            <div id="prealta-campo-grupo">
-                <label style="font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:6px;">GRUPO O TALLER
-                    <input type="text" id="prealta-grupo" class="modern-input" placeholder="Ej: M18.00 Javi" required>
+            <!-- 2. Instrumento de clase individual -->
+            <div id="prealta-campo-instrumento" style="margin-bottom:12px;">
+                <label style="font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:6px;">INSTRUMENTO DE LA CLASE
+                    <select id="prealta-instrumento-select" class="modern-input">
+                        <option value="">Seleccionar instrumento...</option>
+                    </select>
                 </label>
             </div>
 
-            <div id="prealta-campo-profe" style="display:none; margin-bottom:12px;">
+            <!-- 2. Asignación grupal por alumno -->
+            <div id="prealta-lista-alumnos-instrumentos" style="display:none; margin-bottom:15px;">
+                <label style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:8px;">ASIGNACIÓN DE INSTRUMENTOS POR ALUMNO</label>
+                <div id="prealta-alumnos-container" style="display:flex; flex-direction:column; gap:8px; max-height:220px; overflow-y:auto; padding-right:4px;"></div>
+            </div>
+
+            <!-- 3. Fecha y Hora de la primera clase -->
+            <div id="prealta-campo-fecha" style="margin-bottom:14px;">
+                <label style="font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:6px;">FECHA Y HORA DE PRIMERA CLASE
+                    <input type="datetime-local" id="prealta-fecha-inicio" class="modern-input" required>
+                </label>
+            </div>
+
+            <!-- 4. Profesor asignado -->
+            <div id="prealta-campo-profe" style="display:none; margin-bottom:14px;">
                 <label style="font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:6px;">PROFESOR ASIGNADO
                     <select id="prealta-profe-select" class="modern-input">
                         <option value="">Seleccionar profesor...</option>
@@ -1201,9 +1258,21 @@
                 </label>
             </div>
 
-            <label style="font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-top:12px; margin-bottom:6px;">FECHA Y HORA DE PRIMERA CLASE
-                <input type="datetime-local" id="prealta-fecha-inicio" class="modern-input" required>
-            </label>
+            <!-- 5. Grupo o Taller (auto-sugerido DHH.MM Profe) -->
+            <div id="prealta-campo-grupo" style="display:none; margin-bottom:14px;">
+                <label style="font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:6px;">GRUPO O TALLER
+                    <input type="text" id="prealta-grupo" class="modern-input" placeholder="Ej: M18.00 Javi" required>
+                </label>
+                <div style="font-size:11px; color:var(--text-light); margin-top:4px;">Auto-generado según día, horario y profesor (DHH.MM Profe). Podés editarlo libremente.</div>
+            </div>
+
+            <!-- Panel de advertencias y validación Match (Edades, Niveles, Disponibilidad) -->
+            <div id="prealta-match-warnings-container" style="display:none; background:#fff8e6; border:1px solid #ffd591; border-radius:10px; padding:12px 14px; margin-top:12px;">
+                <div style="display:flex; align-items:center; gap:6px; font-weight:700; color:#d46b08; font-size:12.5px; margin-bottom:6px;">
+                    <span>⚠️ Advertencias de Validación Match</span>
+                </div>
+                <div id="prealta-match-warnings-list" style="font-size:11.5px; color:#873800; line-height:1.4; display:flex; flex-direction:column; gap:4px;"></div>
+            </div>
 
             <div id="prealta-alerta-validacion" style="display:none; margin-top:10px; font-size:12px; padding:8px 12px; border-radius:6px; font-weight:600;"></div>
 
@@ -1982,19 +2051,19 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=5.8.14"></script>
+    <script type="module" src="app.js?v=5.9.10"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
-            let refreshing = false;
             navigator.serviceWorker.addEventListener('controllerchange', () => {
-                if (!refreshing) {
-                    refreshing = true;
+                const swReloaded = sessionStorage.getItem('sw_controller_reloaded');
+                if (!swReloaded) {
+                    sessionStorage.setItem('sw_controller_reloaded', '1');
                     window.location.reload();
                 }
             });
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=5.8.14').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=5.9.10').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {
