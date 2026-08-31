@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guía Paso a Paso para Evaluadores — Mandala Admisión</title>
+    
+    <link rel="icon" href="logo.png" type="image/png">
+    
+    <!-- Tipografía Google Fonts Moderna -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-main: #f8fafc;
+            --bg-card: #ffffff;
+            --border-color: #e2e8f0;
+            --border-strong: #cbd5e1;
+            --text-main: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --text-light: #94a3b8;
+            
+            /* Mandala House Colors */
+            --teal: #007b8f;
+            --teal-dark: #005a69;
+            --teal-light: #e0f2f1;
+            --teal-glow: rgba(0, 123, 143, 0.12);
+            --amber-bg: #fffbeb;
+            --amber-border: #fde68a;
+            --amber-text: #92400e;
+            --blue-bg: #eff6ff;
+            --blue-border: #bfdbfe;
+            --blue-text: #1e40af;
+            --emerald-bg: #ecfdf5;
+            --emerald-border: #a7f3d0;
+            --emerald-text: #065f46;
+            --purple-bg: #faf5ff;
+            --purple-border: #e9d5ff;
+            --purple-text: #6b21a8;
+            
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.05);
+            --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.08);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            line-height: 1.6;
+            font-size: 14.5px;
+            -webkit-font-smoothing: antialiased;
+            padding-bottom: 80px;
+        }
+
+        code, pre, .mono {
+            font-family: 'Geist Mono', monospace;
+        }
+
+        /* Top Sticky Floating Bar */
+        .top-action-bar {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 10px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .bar-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .brand-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 800;
+            font-size: 13.5px;
+            color: var(--teal);
+            letter-spacing: -0.01em;
+        }
+
+        .brand-badge img {
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            object-fit: cover;
+        }
+
+        .progress-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #f1f5f9;
+            padding: 5px 12px;
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .progress-bar-track {
+            width: 100px;
+            height: 7px;
+            background: #cbd5e1;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: var(--teal);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+
+        .progress-text {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-secondary);
+        }
+
+        .bar-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+            text-decoration: none;
+        }
+
+        .btn-print {
+            background: var(--teal);
+            color: #ffffff;
+        }
+
+        .btn-print:hover {
+            background: var(--teal-dark);
+            box-shadow: 0 2px 8px rgba(0, 123, 143, 0.25);
+        }
+
+        .btn-reset {
+            background: #ffffff;
+            color: var(--text-secondary);
+            border-color: var(--border-color);
+        }
+
+        .btn-reset:hover {
+            background: #f8fafc;
+            color: var(--text-main);
+        }
+
+        .btn-back-app {
+            background: #f1f5f9;
+            color: var(--text-main);
+            border-color: var(--border-color);
+        }
+
+        .btn-back-app:hover {
+            background: #e2e8f0;
+        }
+
+        /* Container & Document Layout */
+        .container {
+            max-width: 900px;
+            margin: 32px auto 0;
+            padding: 0 24px;
+        }
+
+        /* Header Document Style Notion */
+        .doc-header {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 36px 40px;
+            margin-bottom: 28px;
+            box-shadow: var(--shadow-sm);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .doc-header::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, var(--teal), #0284c7);
+        }
+
+        .doc-meta-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .meta-tag {
+            font-size: 11.5px;
+            font-weight: 700;
+            padding: 3px 9px;
+            border-radius: 6px;
+            letter-spacing: 0.02em;
+        }
+
+        .tag-teal { background: var(--teal-light); color: var(--teal); }
+        .tag-gray { background: #f1f5f9; color: var(--text-secondary); }
+        .tag-amber { background: var(--amber-bg); color: var(--amber-text); border: 1px solid var(--amber-border); }
+
+        .doc-title {
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--text-main);
+            line-height: 1.25;
+            margin-bottom: 12px;
+            letter-spacing: -0.02em;
+        }
+
+        .doc-subtitle {
+            font-size: 15px;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .doc-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 14px 18px;
+            font-size: 12.5px;
+        }
+
+        .info-col strong {
+            display: block;
+            color: var(--text-muted);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 2px;
+        }
+
+        .info-col span {
+            color: var(--text-main);
+            font-weight: 700;
+        }
+
+        /* Callouts / Alerts Notion Style */
+        .callout {
+            border-radius: var(--radius-md);
+            padding: 16px 20px;
+            margin: 20px 0;
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+            border: 1px solid;
+            font-size: 13.5px;
+            line-height: 1.55;
+        }
+
+        .callout-icon {
+            font-size: 20px;
+            line-height: 1;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .callout-content {
+            flex-grow: 1;
+        }
+
+        .callout-critical {
+            background: #fff1f2;
+            border-color: #fecdd3;
+            color: #9f1239;
+        }
+        .callout-critical strong { color: #881337; }
+
+        .callout-warning {
+            background: var(--amber-bg);
+            border-color: var(--amber-border);
+            color: var(--amber-text);
+        }
+
+        .callout-tip {
+            background: var(--teal-light);
+            border-color: #b2dfdb;
+            color: var(--teal-dark);
+        }
+
+        .callout-info {
+            background: var(--blue-bg);
+            border-color: var(--blue-border);
+            color: var(--blue-text);
+        }
+
+        /* Section Cards */
+        .guide-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 30px 34px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-sm);
+            transition: border-color 0.2s ease;
+        }
+
+        .guide-section:hover {
+            border-color: var(--border-strong);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .section-badge {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            background: var(--teal);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 16px;
+            flex-shrink: 0;
+            box-shadow: 0 2px 6px rgba(0, 123, 143, 0.2);
+        }
+
+        .section-badge.critical {
+            background: #e11d48;
+            box-shadow: 0 2px 6px rgba(225, 29, 72, 0.2);
+        }
+
+        .section-badge.success {
+            background: #059669;
+            box-shadow: 0 2px 6px rgba(5, 150, 105, 0.2);
+        }
+
+        .section-title-wrap {
+            flex-grow: 1;
+        }
+
+        .section-title {
+            font-size: 19px;
+            font-weight: 800;
+            color: var(--text-main);
+            margin-bottom: 4px;
+            letter-spacing: -0.01em;
+        }
+
+        .section-subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* Step Item & Interactive Checkboxes */
+        .step-list {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            margin: 18px 0;
+        }
+
+        .step-item {
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+            padding: 14px 18px;
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            transition: all 0.2s ease;
+        }
+
+        .step-item:hover {
+            background: #ffffff;
+            border-color: #cbd5e1;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .step-item.checked {
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+        }
+
+        .step-item.checked .step-label {
+            color: #166534;
+        }
+
+        .step-checkbox {
+            margin-top: 3px;
+            width: 19px;
+            height: 19px;
+            cursor: pointer;
+            accent-color: var(--teal);
+            flex-shrink: 0;
+        }
+
+        .step-body {
+            flex-grow: 1;
+        }
+
+        .step-label {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .step-tag {
+            font-size: 11px;
+            font-weight: 600;
+            font-family: 'Geist Mono', monospace;
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            padding: 2px 7px;
+            border-radius: 4px;
+            color: var(--text-muted);
+        }
+
+        .step-item.checked .step-tag {
+            background: #dcfce7;
+            border-color: #86efac;
+            color: #15803d;
+        }
+
+        .step-desc {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .step-desc ul {
+            margin: 8px 0 6px 18px;
+        }
+
+        .step-desc li {
+            margin-bottom: 4px;
+        }
+
+        /* Mockup Visual Boxes */
+        .mockup-box {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: var(--radius-md);
+            padding: 14px 18px;
+            margin: 12px 0 8px;
+            font-size: 13px;
+        }
+
+        .mockup-header {
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--teal);
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .mockup-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 4px;
+        }
+
+        .mockup-body {
+            font-size: 12.5px;
+            color: var(--text-secondary);
+            line-height: 1.45;
+        }
+
+        .mockup-action-badge {
+            display: inline-block;
+            margin-top: 6px;
+            font-size: 11.5px;
+            font-weight: 700;
+            color: var(--teal);
+            background: var(--teal-light);
+            padding: 3px 8px;
+            border-radius: 5px;
+            border: 1px solid rgba(0, 123, 143, 0.2);
+        }
+
+        .pill-key {
+            display: inline-block;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            border-radius: 5px;
+            padding: 2px 7px;
+            font-size: 11.5px;
+            font-weight: 700;
+            color: var(--text-main);
+            font-family: 'Geist Mono', monospace;
+        }
+
+        /* Accordion Structure Grid (Bloques del Informe) */
+        .accordion-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            margin: 16px 0;
+        }
+
+        .accordion-item-card {
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 14px 18px;
+            background: #ffffff;
+            border-left: 4px solid var(--teal);
+        }
+
+        .accordion-item-card h4 {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .accordion-item-card p {
+            font-size: 12.5px;
+            color: var(--text-secondary);
+            line-height: 1.45;
+            margin: 0;
+        }
+
+        /* QA Matrix Table */
+        .qa-table-wrap {
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+        }
+
+        .qa-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12.5px;
+            text-align: left;
+        }
+
+        .qa-table th {
+            background: #f8fafc;
+            padding: 10px 14px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-color);
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.04em;
+        }
+
+        .qa-table td {
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-main);
+            vertical-align: top;
+        }
+
+        .qa-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .qa-table tr:hover td {
+            background: #fcfdfe;
+        }
+
+        /* Footer */
+        .guide-footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 12.5px;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border-color);
+            padding-top: 24px;
+        }
+
+        /* PRINT STYLES OPTIMIZATION FOR CLEAN A4 PDF */
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 14mm 12mm 14mm 12mm;
+            }
+
+            body {
+                background: #ffffff !important;
+                color: #000000 !important;
+                font-size: 11pt;
+                line-height: 1.4;
+                padding: 0 !important;
+            }
+
+            .top-action-bar, 
+            .btn-action, 
+            .bar-actions,
+            .progress-wrapper,
+            #btn-reiniciar-flotante {
+                display: none !important;
+            }
+
+            .container {
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            .doc-header {
+                border: 1px solid #ccc !important;
+                border-radius: 8px !important;
+                padding: 14px 18px !important;
+                margin-bottom: 14px !important;
+                box-shadow: none !important;
+                page-break-inside: avoid;
+            }
+
+            .doc-title {
+                font-size: 18pt !important;
+                margin-bottom: 6px !important;
+            }
+
+            .doc-subtitle {
+                font-size: 10.5pt !important;
+                margin-bottom: 10px !important;
+            }
+
+            .doc-info-grid {
+                padding: 6px 10px !important;
+                gap: 8px !important;
+                background: #f9f9f9 !important;
+                border-color: #ddd !important;
+            }
+
+            .guide-section {
+                border: 1px solid #ccc !important;
+                border-radius: 8px !important;
+                padding: 14px 16px !important;
+                margin-bottom: 14px !important;
+                box-shadow: none !important;
+                page-break-inside: avoid;
+            }
+
+            .section-header {
+                margin-bottom: 10px !important;
+                padding-bottom: 8px !important;
+            }
+
+            .section-badge {
+                width: 28px !important;
+                height: 28px !important;
+                font-size: 12pt !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .section-title {
+                font-size: 13.5pt !important;
+            }
+
+            .callout {
+                border: 1px solid #ccc !important;
+                padding: 8px 12px !important;
+                margin: 8px 0 !important;
+                page-break-inside: avoid;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .step-item {
+                padding: 6px 10px !important;
+                background: #ffffff !important;
+                border: 1px solid #ddd !important;
+                page-break-inside: avoid;
+                margin-bottom: 5px !important;
+            }
+
+            .step-checkbox {
+                width: 14px !important;
+                height: 14px !important;
+            }
+
+            .mockup-box {
+                border: 1px solid #aaa !important;
+                padding: 6px 10px !important;
+                page-break-inside: avoid;
+            }
+
+            .accordion-item-card {
+                padding: 6px 10px !important;
+                border-left-width: 3px !important;
+                page-break-inside: avoid;
+            }
+
+            .qa-table th, .qa-table td {
+                padding: 5px 8px !important;
+                font-size: 9pt !important;
+            }
+
+            .guide-footer {
+                margin-top: 16px !important;
+                padding-top: 10px !important;
+                font-size: 8.5pt !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- BARRA SUPERIOR FIJA / ACCIONES RÁPIDAS -->
+    <header class="top-action-bar">
+        <div class="bar-left">
+            <div class="brand-badge">
+                <img src="logo.png" alt="Logo" onerror="this.style.display='none'">
+                <span>Mandala Admisión</span>
+            </div>
+            <div class="progress-wrapper">
+                <div class="progress-bar-track">
+                    <div class="progress-bar-fill" id="progress-fill"></div>
+                </div>
+                <span class="progress-text" id="progress-text">0 / 19 validados (0%)</span>
+            </div>
+        </div>
+
+        <div class="bar-actions">
+            <button type="button" class="btn-action btn-reset" onclick="resetChecklist()" title="Restablecer todas las casillas marcadas">
+                <span>🔄</span> Reiniciar Checklist
+            </button>
+            <a href="index.html" class="btn-action btn-back-app" title="Ir a la aplicación Mandala Admisión">
+                <span>🚀</span> Volver a la App
+            </a>
+            <button type="button" class="btn-action btn-print" onclick="window.print()" title="Generar PDF A4 o imprimir esta guía">
+                <span>🖨️</span> Imprimir / Guardar en PDF
+            </button>
+        </div>
+    </header>
+
+    <div class="container">
+
+        <!-- ENCABEZADO NOTION / GOOGLE STYLE -->
+        <div class="doc-header">
+            <div class="doc-meta-tags">
+                <span class="meta-tag tag-teal">Mandala House — Manual Operativo</span>
+                <span class="meta-tag tag-gray">Versión 5.9.x</span>
+                <span class="meta-tag tag-amber">Uso Interno & Evaluación QA</span>
+            </div>
+            <h1 class="doc-title">Guía Paso a Paso para Evaluadores<br><span style="color:var(--teal); font-weight:700; font-size:0.85em;">Casos de Prueba y Validación en Mandala Admisión</span></h1>
+            <p class="doc-subtitle">
+                Procedimiento estandarizado para la verificación previa, prueba de notificaciones push en tiempo real, apertura de expedientes simulados y registro integral del informe de entrevista de admisión.
+            </p>
+
+            <div class="doc-info-grid">
+                <div class="info-col">
+                    <strong>Coordinación / Dirección</strong>
+                    <span>Pablo Bianchino</span>
+                </div>
+                <div class="info-col">
+                    <strong>Audiencia Destino</strong>
+                    <span>Socios, Coordinadores y Evaluadores</span>
+                </div>
+                <div class="info-col">
+                    <strong>Módulo Evaluado</strong>
+                    <span>PWA, Notificaciones, Ficha e Informe</span>
+                </div>
+                <div class="info-col">
+                    <strong>Fecha de Emisión</strong>
+                    <span>Agosto 2026</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- PASO 0: VERIFICACIÓN PREVIA (CRÍTICO) -->
+        <!-- ============================================================== -->
+        <section class="guide-section" id="paso-0">
+            <div class="section-header">
+                <div class="section-badge critical">0</div>
+                <div class="section-title-wrap">
+                    <h2 class="section-title">Paso 0: Verificación Previa Obligatoria</h2>
+                    <p class="section-subtitle">Alineación de versión de software y selector de perfil activo antes de comenzar cualquier prueba operativa.</p>
+                </div>
+            </div>
+
+            <div class="callout callout-critical">
+                <div class="callout-icon">🚨</div>
+                <div class="callout-content">
+                    <strong>REQUISITO CRÍTICO DE ENTORNO:</strong><br>
+                    Los socios y coordinadores disponen de múltiples permisos asignados (Administrador, Admisor, Evaluador, etc.). Si la plataforma no se encuentra visualizada bajo el perfil específico de <strong>Evaluador</strong>, las opciones de prueba de entrevistas, vistas de Inbox e informes no se comportarán según lo previsto para este rol.
+                </div>
+            </div>
+
+            <div class="step-list">
+                <!-- 0.1 -->
+                <div class="step-item" id="item-0-1">
+                    <input type="checkbox" class="step-checkbox" onchange="toggleStep('item-0-1')">
+                    <div class="step-body">
+                        <div class="step-label">
+                            <span>0.1 Control de Versión Desplegada en Barra Lateral</span>
+                            <span class="step-tag">Pie de Sidebar</span>
+                        </div>
+                        <div class="step-desc">
+                            Al iniciar sesión con tu cuenta Google, dirigí la vista al <strong>pie de la barra lateral izquierda</strong> (debajo del botón de Notificaciones). Verificá que la etiqueta de versión (ejemplo: <span class="pill-key">v5.9.16</span>) coincida con la última versión comunicada por el Administrador.
+                            <ul>
+                                <li>Si la versión difiere o parece desactualizada, forzá una recarga limpia presionando <span class="pill-key">Ctrl + F5</span> (o vaciá la caché de la PWA en el celular).</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 0.2 -->
+                <div class="step-item" id="item-0-2">
+                    <input type="checkbox" class="step-checkbox" onchange="toggleStep('item-0-2')">
+                    <div class="step-body">
+                        <div class="step-label">
+                            <span>0.2 Cambio de Rol Activo a "Evaluador"</span>
+                            <span class="step-tag">Header Superior Derecho</span>
+                        </div>
+                        <div class="step-desc">
+                            En la esquina superior derecha de la aplicación se encuentra el <strong>Widget de Usuario estilo Google Account</strong> (con tu nombre, iniciales y rol actual):
+                            <ul>
+                                <li>Hacé clic sobre tu avatar o nombre para abrir el menú flotante desplegable.</li>
+                                <li>Bajo el encabezado <strong>"Ver Plataforma como:"</strong>, seleccioná la pastilla o botón <strong>[👨‍🏫 Evaluador]</strong>.</li>
+                                <li>Comprobá que el badge del header se actualice de inmediato mostrando el rol activo: <strong>EVALUADOR</strong>.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 0.3 -->
+                <div class="step-item" id="item-0-3">
+                    <input type="checkbox" class="step-checkbox" onchange="toggleStep('item-0-3')">
+                    <div class="step-body">
+                        <div class="step-label">
+                            <span>0.3 Validación de Permisos de Notificación en el Navegador</span>
+                            <span class="step-tag">Navegador / PWA</span>
+                        </div>
+                        <div class="step-desc">
+                            Verificá que el navegador web o la app instalada en tu smartphone o computadora tenga los <strong>permisos de Notificación en "Permitir"</strong> (icono de candado junto a la URL en Chrome/Edge). Sin este permiso, el sistema operativo bloqueará los avisos en segundo plano.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================== -->
+        <!-- CASO 1: TEST DE NOTIFICACIÓN PUSH -->
+        <!-- ============================================================== -->
+        <section class="guide-section" id="caso-1">
+            <div class="section-header">
+                <div class="section-badge">1</div>
+                <div class="section-title-wrap">
+                    <h2 class="section-title">Caso 1: Test de Notificación Push para Evaluadores</h2>
+                    <p class="section-subtitle">Simulación del aviso matutino de las 09:00 hs para entrevistas del día en celular o PC.</p>
+                </div>
+            </div>
+
+            <p style="font-size:13.5px; color:var(--text-secondary); margin-bottom:14px;">
+                Mandala Admisión emite notificaciones nativas a las 09:00 hs recordando las entrevistas programadas para la jornada. El botón de prueba permite testear en caliente la llegada del aviso sin esperar a ese horario.
+            </p>
+
+            <div class="step-list">
+                <!-- 1.1 -->
+                <div class="step-item" id="item-1-1">
+                    <input type="checkbox" class="step-checkbox" onchange="toggleStep('item-1-1')">
+                    <div class="step-body">
+                        <div class="step-label">
+                            <span>1.1 Disparar Modal de Prueba desde la Barra Lateral</span>
+                            <span class="step-tag">Botón 🔔 Test Notificación</span>
+                        </div>
+                        <div class="step-desc">
+                            En el pie de la barra lateral izquierda, hacé clic en el botón <strong>[🔔 Test Notificación]</strong>. Se abrirá el modal emergente <em>"Probar Notificación en Celular"</em>.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 1.2 -->
+                <div class="step-item" id="item-1-2">
+                    <input type="checkbox" class="step-checkbox" onchange="toggleStep('item-1-2')">
+                    <div class="step-body">
+                        <div class="step-label">
+                            <span>1.2 Configurar Rol Evaluador y Temporizador</span>
+                            <span class="step-tag">Parámetros del Test</span>
+                        </div>
+                        <div class="step-desc">
+                            Dentro de la ventana de prueba:
+                            <ul>
+                                <li>En <strong>"Simular Notificación de Rol"</strong>, asegurate de marcar el selector <strong>[👨‍🏫 Evaluador]</strong>.</li>
+                                <li>En <strong>"Disparar alerta en"</strong>, seleccioná <strong>"En 5 segundos"</strong> (para prueba rápida en escritorio) o <strong>"En 15 segundos"</strong> (recomendado si estás en celular para darte tiempo a bloquear la pantalla).</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 1.3 -->
+                <div class="step-item" id="item-1-3">
+                    <input type="checkbox" class="step-checkbox" onchange="toggleStep('item-1-3')">
+                    <div class="step-body">
+                        <div class="step-label">
+                            <span>1.3 Comprobar la Vista Previa de la Notificación</span>
+                            <span class="step-tag">Preview Evaluador</span>
+                        </div>
+                        <div class="step-desc">
+                            Validá que el cuadro de previsualización en pantalla refleje con exactitud la tarjeta de entrevista de prueba:
+                            
+                            <div class="mockup-box">
+                                <div class="mockup-header">PREVIEW EVALUADOR</div>
+                                <div class="mockup-title">📅 Entrevista de Admisión hoy (18:00 hs)</div>
+                                <div class="mockup-body">
+                                    👤 Mateo Barrios (13 años) • 🥁 Batería (Ensamble)<br>
+                                    Tutora: Mamá Vanesa.
+                                </div>
+                                <span class="mockup-action-badge">Acción directa: [👁️ Ver Ficha]</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 1.4 -->
+                <div class="step-item" id="item-1-4">
+                    <input type="checkbox" class="step-checkbox" onchange="toggleStep('item-1-4')">
+                    <div class="step-body">
+                        <div class="step-label">
+                            <span>1.4 Iniciar el Test y Observar el Despacho</span>
+                            <span class="step-tag">Confirmación & Toast</span>
+                        </div>
+                        <div class="step-desc">
+                            Hacé clic en <strong>[🚀 Iniciar Prueba]</strong>. Comprobá que aparezca el toast en la esquina inferior: <em>"⏳ Notificación de prueba (evaluador) programada para dispararse en..."</em>. Si estás en celular o PC, minimizá la ventana o bloqueá la pantalla para corroborar la recepción nativa en segundo plano.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================== -->
+        <!-- CASO 2: APERTURA DE FICHA DESDE LA NOTIFICACIÓN -->
+        <!-- ============================================================== -->
+        <section class="guide-section" id="caso-2">
+            <div class="section-header">
+                <div class="section-badge">2</div>
+                <div class="section-title-wrap">
+                    <h2 class="section-title">Caso 2: Prueba de Apertura de Ficha desde la Notificación</h2>
+                    <p class="section-subtitle">Verificación de enlaces profundos (Deep Linking) y foco automático de la aplicación.</p>
+                </div>
+            </div>
+
+            <div class="callout callout-tip">
+                <div class="callout-icon">💡</div>
+                <div class="callout-content">
+                    <strong>OBJETIVO CLAVE:</strong> El evaluador no debe perder tiempo buscando al alumno manualmente en la agenda cuando le llega el aviso. Al tocar la notificación debe ingresar de forma directa e inmediata a la ficha del aspirante.
+                </div>
+            </div>
+
+            <div class="step-list">
+                <!-- 2.1 -->
+                <div class="step-item" id="item-2-1">
+                    <input type="checkbox" class="step-checkbox" onchange="toggleStep('item-2-1')">
+                    <div class="step-body">
+                        <div class="step-label">
+                            <span>2.1 Recepción del Aviso en Pantalla de Bloqueo o Bandeja</span>
+                            <span class="step-tag">Sistema Operativo</span>
+                        </div>
+                        <div class="step-desc">
+                            Al cumplirse los 5 o 15 segundos programados, el celular debe vibrar/sonar o la PC debe mostrar el popup en el rincón de notificaciones con el logo de Mandala House y el título <em>"📅 Entrevista de Admisión hoy (18:00 hs)"</em>.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2.2 -->
+                <div class="step-item" id="item-2-2">
+                    <input type="checkbox" class="step-checkbox" onchange="toggleStep('item-2-2')">
+                    <div class="step-body">
+                        <div class="step-label">
+                            <span>2.2 Clic en la Acción "[👁️ Ver Ficha]"</span>
+                            <span class="step-tag">Deep Link Trigger</span>
+                        </div>
+                        <div class="step-desc">
+                            Hacé clic sobre el botón de acción <strong>[👁️ Ver Ficha]</strong> (o tocá directamente el cuerpo de la notificación emergente).
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2.3 -->
+                <div class="step-item" id="item-2-3">
+                    <input type="checkbox" class="step-checkbox" onchange="toggleStep('item-2-3')">
+                    <div class="step-body">
+                        <div class="step-label">
+                            <span>2.3 Comprobar Foco y Despliegue de la Ficha de Mateo Barrios</span>
+                            <span class="step-tag">Criterio de Éxito</span>
+                        </div>
+                        <div class="step-desc">
+                            La aplicación debe activarse en primer plano y abrir automáticamente el modal de la ficha del alumno con los siguientes datos precargados:
+                            <ul>
+                                <li><strong>Título:</strong> <em>"📅 Ficha Simulada de Prueba: Mateo Barrios (Entrevista 18hs)"</em></li>
+                                <li><strong>Nombre:</strong> Mateo Barrios | <strong>Edad:</strong> 13 años | <strong>Nivel:</strong> Inicial II</li>
+                                <li><strong>Tutora:</strong> Mamá Vanesa (Tel: 5491122334455)</li>
+                                <li><strong>Estado:</strong> Agenda confirmada</li>
+                                <li><strong>Mensaje Toast:</strong> <em>"🔔 Ficha simulada abierta: Mateo Barrios"</em></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================== -->
+        <!-- CASO 3: NAVEGACIÓN Y VISUALIZACIÓN DE ENTREVISTAS -->
+        <!-- ============================================================== -->
+        <section class="guide-section" id="caso-3">
+            <div class="section-header">
+                <div class="section-badge">3</div>
+                <div class="section-title-wrap">
+                    <h2 class="section-title">Caso 3: Navegación y Visualización de Entrevistas de Admisión</h2>
+                    <p class="section-subtitle">Recorrido por el Dashboard de resumen y el módulo Inbox (Flujo de Entrevistas).</p>
+                </div>
+            </div>
+
+            <div class="step-list">
+                <!-- 3.1 -->
+                <div class="step-item" id="item-3-1">
+                    <input type="checkbox" class="step-checkbox" onchange="toggleStep('item-3-1')">
+                    <div class="step-body">
+                        <div class="step-label">
+                            <span>3.1 Inspección del Dashboard (Resumen General)</span>
+                            <span class="step-tag">Menú Lateral -> Dashboard</span>
+                        </div>
+                        <div class="step-desc">
+                            Ingresá a la sección <strong>Dashboard</strong> desde la barra de navegación lateral. Verificá la presencia del widget con el contador de entrevistas del día y de la semana asignadas a tu cargo como evaluador, junto con las métricas de postulantes pendientes de atención.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3.2 -->
+                <div class="step-item" id="item-3-2">
+                    <input type="checkbox" class="step-checkbox" onchange="toggleStep('item-3-2')">
+                    <div class="step-body">
+                        <div class="step-label">
+                            <span>3.2 Revisión de la Pestaña "Inbox" (Flujo de Entrevistas)</span>
+                            <span class="step-tag">Menú Lateral -> Inbox</span>
+                        </div>
+                        <div class="step-desc">
+                            Hacé clic en el módulo <strong>Inbox</strong> en la barra lateral:
+                            <ul>
+                                <li>Comprobá que aparezca el listado de tarjetas de aspirantes con entrevistas agendadas o en estado <em>"Agenda confirmada"</em>.</li>
+                                <li>Identificá en cada tarjeta la fecha y hora asignada, el instrumento principal elegido y el canal de contacto.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3.3 -->
+                <div class="step-item" id="item-3-3">
+                    <input type="checkbox" class="step-checkbox" onchange="toggleStep('item-3-3')">
+                    <div class="step-body">
+                        <div class="step-label">
+                            <span>3.3 Prueba de Filtros Rápidos por Instrumento y Búsqueda</span>
+                            <span class="step-tag">Chips de Filtro</span>
+                        </div>
+                        <div class="step-desc">
+                            En la cabecera superior del Inbox, probá pulsar los chips de filtro por instrumento (Guitarra, Bajo, Batería, Canto, Teclado) y escribí un nombre en el buscador para asegurar que el listado se reduzca con fluidez en tiempo real.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================== -->
+        <!-- CASO 4: COMPLETAR Y GUARDAR EL INFORME DE ENTREVISTA -->
+        <!-- ============================================================== -->
+        <section class="guide-section" id="caso-4">
+            <div class="section-header">
+                <div class="section-badge">4</div>
+                <div class="section-title-wrap">
+                    <h2 class="section-title">Caso 4: Completar y Guardar el Informe de Entrevista</h2>
+                    <p class="section-subtitle">Carga exhaustiva de la nivelación, aptitudes musicales, expectativas y perfil psicológico.</p>
+                </div>
+            </div>
+
+            <p style="font-size:13.5px; color:var(--text-secondary); margin-bottom:14px;">
+                Desde la ficha del alumno o el botón de acción rápida, el evaluador accede a la ventana modal <strong>"Informe y Finalización de Admisión"</strong>. Dicho informe está estructurado en <strong>5 bloques temáticos desplegables (Acordeón)</strong>:
+            </p>
+
+            <div class="step-list">
+                <!-- 4.1 -->
+                <div class="step-item" id="item-4-1">
+                    <input type="checkbox" class="step-checkbox" onchange="toggleStep('item-4-1')">
+                    <div class="step-body">
+                        <div class="step-label">
+                            <span>4.1 Apertura del Modal de Informe de Entrevista</span>
+                            <span class="step-tag">Botón 📝 Editar / Actualizar Informe</span>
+                        </div>
+                        <div class="step-desc">
+                            En la ficha de admisión del alumno, pulsá el botón <strong>[📝 Editar / Actualizar Informe de Entrevista]</strong>. Se desplegará el modal <span class="pill-key">modal-informe-admision</span> con los datos de cabecera (Fecha/Hora y Evaluador a cargo).
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4.2 -->
+                <div class="step-item" id="item-4-2">
+                    <input type="checkbox" class="step-checkbox" onchange="toggleStep('item-4-2')">
+                    <div class="step-body">
+                        <div class="step-label">
+                            <span>4.2 Asignación del Nivel Sugerido Obligatorio</span>
+                            <span class="step-tag">Campo Crítico *</span>
+                        </div>
+                        <div class="step-desc">
+                            En el banner superior de datos del alumno, seleccioná en el menú desplegable el <strong>Nivel Asignado</strong>:
+                            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;">
+                                <span class="pill-key">Inicial I</span>
+                                <span class="pill-key">Inicial II</span>
+                                <span class="pill-key">Intermedio</span>
+                                <span class="pill-key">Avanzado</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4.3 -->
+                <div class="step-item" id="item-4-3">
+                    <input type="checkbox" class="step-checkbox" onchange="toggleStep('item-4-3')">
+                    <div class="step-body">
+                        <div class="step-label">
+                            <span>4.3 Completar los 5 Bloques del Acordeón</span>
+                            <span class="step-tag">Estructura Integral del Informe</span>
+                        </div>
+                        <div class="step-desc">
+                            Revisá y completá cada sección del acordeón:
+
+                            <div class="accordion-grid">
+                                <div class="accordion-item-card">
+                                    <h4><span class="pill-key">1</span> Motivación, Intereses y Expectativas</h4>
+                                    <p>Escribí en el editor enriquecido qué busca llevarse el aspirante. Tildá la casilla obligatoria: <strong>[x] Propuesta Mandala Charlada</strong> (formato de aprendizaje grupal, repertorio democrático y versiones creativas propias).</p>
+                                </div>
+
+                                <div class="accordion-item-card">
+                                    <h4><span class="pill-key">2</span> Evaluación Técnica y Plasticidad (Tocar algo)</h4>
+                                    <p>Registrá en el editor el <strong>Diagnóstico de Ejecución & Plasticidad</strong> (cómo responde a consignas espontáneas, pulso, tempo). En <strong>Zona de Confort</strong>, ingresá artistas de referencia (ej: <em>Spinetta, RHCP, Charly, Daft Punk</em>; se registran artistas referentes, no canciones individuales).</p>
+                                </div>
+
+                                <div class="accordion-item-card">
+                                    <h4><span class="pill-key">3</span> Preguntas Clave, Requisitos y Cierre</h4>
+                                    <p>Completá las preguntas condicionales según el instrumento (ej: Cantantes &rarr; ¿está dispuesto a compartir voces?; Instrumentistas &rarr; ¿sabe transportar tonalidades?). Tildá la casilla: <strong>[x] Requisitos Explicados y Aceptados</strong> (asistencia, objetivos y química).</p>
+                                </div>
+
+                                <div class="accordion-item-card">
+                                    <h4><span class="pill-key">4</span> Disponibilidad Horaria</h4>
+                                    <p>Marcá en la matriz interactiva los días de la semana y las franjas horarias en las que el aspirante tiene disponibilidad efectiva para asistir a los ensayos del ensamble.</p>
+                                </div>
+
+                                <div class="accordion-item-card">
+                                    <h4><span class="pill-key">5</span> Perfil Emocional / Psicológico</h4>
+                                    <p>Seleccioná los chips de afinidad conductual observados durante el encuentro (ej: <em>Empático, Tímido/a, Líder, Participativo/a, Escucha activa</em>) para facilitar el posterior armado armónico de grupos.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================== -->
+        <!-- CASO 5: CHECKLIST Y CIERRE DE ADMISIÓN -->
+        <!-- ============================================================== -->
+        <section class="guide-section" id="caso-5">
+            <div class="section-header">
+                <div class="section-badge success">5</div>
+                <div class="section-title-wrap">
+                    <h2 class="section-title">Caso 5: Checklist y Cierre de Admisión</h2>
+                    <p class="section-subtitle">Formalización del encuentro y derivación exitosa a la Lista de Espera de ensambles.</p>
+                </div>
+            </div>
+
+            <div class="callout callout-info">
+                <div class="callout-icon">📋</div>
+                <div class="callout-content">
+                    <strong>CRITERIO DE CIERRE:</strong> Al finalizar la entrevista, se le debe transmitir con calidez al aspirante o a su tutor/a que la admisión concluyó y que ingresa formalmente en el pool de ensamble (Lista de Espera) para encontrar el cruce ideal de edad, nivel musical y disponibilidad horaria.
+                </div>
+            </div>
+
+            <div class="step-list">
+                <!-- 5.1 -->
+                <div class="step-item" id="item-5-1">
+                    <input type="checkbox" class="step-checkbox" onchange="toggleStep('item-5-1')">
+                    <div class="step-body">
+                        <div class="step-label">
+                            <span>5.1 Tildar la Casilla "Cierre y Lista de Espera"</span>
+                            <span class="step-tag">Bloque 3 del Modal</span>
+                        </div>
+                        <div class="step-desc">
+                            En el Bloque 3 del informe, marcá con un tilde el casillero: <strong>[x] Cierre y Lista de Espera</strong> (<em>"Se transmitió que queda en lista de espera para el cruce óptimo de grupo y horarios"</em>).
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5.2 -->
+                <div class="step-item" id="item-5-2">
+                    <input type="checkbox" class="step-checkbox" onchange="toggleStep('item-5-2')">
+                    <div class="step-body">
+                        <div class="step-label">
+                            <span>5.2 Ejecutar el Guardado Definitivo</span>
+                            <span class="step-tag">Botón ✅ Guardar y Derivar</span>
+                        </div>
+                        <div class="step-desc">
+                            En la barra inferior fija del modal, hacé clic en el botón principal destacado: <strong>[✅ Guardar y Derivar a Lista de Espera]</strong>.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5.3 -->
+                <div class="step-item" id="item-5-3">
+                    <input type="checkbox" class="step-checkbox" onchange="toggleStep('item-5-3')">
+                    <div class="step-body">
+                        <div class="step-label">
+                            <span>5.3 Validación del Cambio de Estado en la Plataforma</span>
+                            <span class="step-tag">Comprobación en Base de Datos</span>
+                        </div>
+                        <div class="step-desc">
+                            Verificá que se cumpla la secuencia de guardado:
+                            <ul>
+                                <li>Se muestra el toast verde de confirmación: <em>"✅ Informe guardado y alumno derivado a Lista de Espera con éxito"</em>.</li>
+                                <li>El modal de informe se cierra adecuadamente.</li>
+                                <li>El aspirante desaparece de la vista de pendientes del Inbox y pasa a visualizarse en el módulo <strong>"Lista de Espera"</strong> con su nivel e informe registrado.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================== -->
+        <!-- TABLA RESUMEN DE CRITERIOS DE ACEPTACIÓN (QA MATRIX) -->
+        <!-- ============================================================== -->
+        <section class="guide-section" id="qa-matrix">
+            <div class="section-header">
+                <div class="section-badge" style="background:#475569;">QA</div>
+                <div class="section-title-wrap">
+                    <h2 class="section-title">Matriz Resumen de Criterios de Aceptación</h2>
+                    <p class="section-subtitle">Tabla de control rápido para validar el cumplimiento de cada hito de prueba.</p>
+                </div>
+            </div>
+
+            <div class="qa-table-wrap">
+                <table class="qa-table">
+                    <thead>
+                        <tr>
+                            <th style="width:18%;">Caso / Hito</th>
+                            <th style="width:30%;">Acción Realizada</th>
+                            <th style="width:37%;">Resultado Esperado</th>
+                            <th style="width:15%;">Validación</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Paso 0</strong><br>Entorno & Rol</td>
+                            <td>Revisar versión en sidebar y alternar selector de usuario a 'Evaluador'.</td>
+                            <td>El badge superior confirma 'EVALUADOR' y la versión coincide con la desplegada.</td>
+                            <td><span class="step-tag" style="color:#059669; background:#ecfdf5; border-color:#a7f3d0;">OBLIGATORIO</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Caso 1</strong><br>Push Notif</td>
+                            <td>Clic en '🔔 Test Notificación', elegir Evaluador y timer de 5s o 15s.</td>
+                            <td>Toast de confirmación y llegada de la notificación nativa con título y horario.</td>
+                            <td><span class="step-tag">APROBADO</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Caso 2</strong><br>Deep Linking</td>
+                            <td>Tocar '[👁️ Ver Ficha]' en la notificación emergente.</td>
+                            <td>La app pasa al frente y abre automáticamente la ficha simulada de Mateo Barrios.</td>
+                            <td><span class="step-tag">APROBADO</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Caso 3</strong><br>Navegación</td>
+                            <td>Ingresar a Dashboard e Inbox, interactuar con chips de instrumentos.</td>
+                            <td>Visualización limpia de tarjetas agendadas y filtrado fluido sin recargas.</td>
+                            <td><span class="step-tag">APROBADO</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Caso 4</strong><br>Informe Completo</td>
+                            <td>Cargar Nivel Asignado, expectativas, diagnóstico técnico y disponibilidad.</td>
+                            <td>Los 5 bloques desplegables conservan el texto y las selecciones realizadas.</td>
+                            <td><span class="step-tag">APROBADO</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Caso 5</strong><br>Cierre & Espera</td>
+                            <td>Tildar 'Cierre y Lista de Espera' y pulsar 'Guardar y Derivar'.</td>
+                            <td>Toast de éxito, cierre de modal y reubicación del aspirante en Lista de Espera.</td>
+                            <td><span class="step-tag">APROBADO</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- PIE DE PÁGINA -->
+        <footer class="guide-footer">
+            <p><strong>Mandala Admisión</strong> — Sistema Integral de Admisión y Gestión Académica de Mandala House.</p>
+            <p style="margin-top:4px;">Documento técnico y operativo confeccionado bajo la dirección de Pablo Bianchino. Uso exclusivo del equipo de Mandala House.</p>
+        </footer>
+
+    </div>
+
+    <!-- SCRIPT DE REACTIVIDAD DEL CHECKLIST Y PERSISTENCIA -->
+    <script>
+        const STORAGE_KEY = 'mandala_guia_evaluadores_progress';
+
+        function updateProgress() {
+            const allItems = document.querySelectorAll('.step-item');
+            const checkedItems = document.querySelectorAll('.step-item.checked');
+            const total = allItems.length;
+            const completed = checkedItems.length;
+            const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+            const fillEl = document.getElementById('progress-fill');
+            const textEl = document.getElementById('progress-text');
+
+            if (fillEl) fillEl.style.width = percentage + '%';
+            if (textEl) textEl.textContent = `${completed} / ${total} validados (${percentage}%)`;
+
+            // Guardar en localStorage
+            const state = {};
+            allItems.forEach(item => {
+                const id = item.id;
+                const isChecked = item.classList.contains('checked');
+                if (id) state[id] = isChecked;
+            });
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            } catch(e) {
+                console.warn("No se pudo persistir el checklist en localStorage", e);
+            }
+        }
+
+        function toggleStep(itemId) {
+            const item = document.getElementById(itemId);
+            if (!item) return;
+            const checkbox = item.querySelector('.step-checkbox');
+            if (checkbox && checkbox.checked) {
+                item.classList.add('checked');
+            } else {
+                item.classList.remove('checked');
+            }
+            updateProgress();
+        }
+
+        function resetChecklist() {
+            if (!confirm("¿Deseas reiniciar todos los pasos validados del checklist para comenzar una nueva prueba?")) {
+                return;
+            }
+            const allItems = document.querySelectorAll('.step-item');
+            allItems.forEach(item => {
+                item.classList.remove('checked');
+                const checkbox = item.querySelector('.step-checkbox');
+                if (checkbox) checkbox.checked = false;
+            });
+            try {
+                localStorage.removeItem(STORAGE_KEY);
+            } catch(e) {}
+            updateProgress();
+        }
+
+        // Cargar estado inicial al abrir la página
+        window.addEventListener('DOMContentLoaded', () => {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    Object.keys(parsed).forEach(id => {
+                        const item = document.getElementById(id);
+                        if (item && parsed[id]) {
+                            item.classList.add('checked');
+                            const checkbox = item.querySelector('.step-checkbox');
+                            if (checkbox) checkbox.checked = true;
+                        }
+                    });
+                }
+            } catch(e) {
+                console.warn("Error al cargar estado del checklist", e);
+            }
+            updateProgress();
+        });
+    </script>
+</body>
+</html>
