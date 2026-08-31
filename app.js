@@ -11,7 +11,7 @@ import {
     configNodosFlujo,
     configNodosFlujoEvaluador,
     configNodosFlujoCoordinador
-} from "./src/config/constants.js?v=5.9.12";
+} from "./src/config/constants.js?v=5.9.13";
 
 import { 
     app, 
@@ -73,7 +73,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=5.9.12";
+} from "./src/services/calendar.service.js?v=5.9.13";
 
 import {
     matchCantidadActual,
@@ -106,7 +106,7 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=5.9.12";
+} from "./src/modules/match.module.js?v=5.9.13";
 
 import {
     renderPortalProfesor
@@ -128,7 +128,7 @@ import {
     copiarFilaExcelFacturacionAdmision,
     abrirModalAvisoPrealtaAlumno,
     copiarAvisoPrealtaAlumno
-} from "./src/modules/altas.module.js?v=5.9.12";
+} from "./src/modules/altas.module.js?v=5.9.13";
 
 import {
     renderTimelineUnificado,
@@ -4042,6 +4042,26 @@ onAuthStateChanged(auth, async (user) => {
                 cargarVista('Dashboard');
             }
         }
+
+        // Manejo de redirección desde notificación push (?verFicha=ID)
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const fichaId = urlParams.get('verFicha') || urlParams.get('alumnoId');
+            if (fichaId && !fichaId.startsWith('test-')) {
+                setTimeout(() => {
+                    if (typeof window.editarAlumnoModalDirecto === 'function') {
+                        window.editarAlumnoModalDirecto(fichaId);
+                    }
+                }, 800);
+            }
+        } catch(eUrl) {}
+
+        // Verificación diaria de alertas a las 09:00 hs
+        setTimeout(() => {
+            if (typeof window.verificarAlertasDiarias09hs === 'function') {
+                window.verificarAlertasDiarias09hs();
+            }
+        }, 1500);
         
         // Listener del Popover de Perfil Google-Style
         const userTopBtn = document.getElementById('user-top-btn');
@@ -7056,6 +7076,24 @@ export function abrirModalTestNotificacion() {
         inputCustom.value = iso;
     }
 
+    // Listener de rol a simular (Evaluador vs Admisor)
+    modal.querySelectorAll('input[name="test-notif-rol"]').forEach(r => {
+        r.onchange = () => {
+            const tag = document.getElementById('test-notif-preview-tag');
+            const title = document.getElementById('test-notif-preview-title');
+            const body = document.getElementById('test-notif-preview-body');
+            if (r.value === 'admisor') {
+                if (tag) tag.textContent = "Preview Admisor";
+                if (title) title.textContent = "⚠️ Vencimiento de Admisión hoy";
+                if (body) body.innerHTML = "Alumno: Sofía Gómez (Canto)<br>Vence plazo: Validación de reserva pendiente.<br><span style='color:var(--text-muted); font-size:11.5px;'>Acción: [👁️ Ver Ficha]</span>";
+            } else {
+                if (tag) tag.textContent = "Preview Evaluador";
+                if (title) title.textContent = "📅 Entrevista de Admisión hoy (18:00 hs)";
+                if (body) body.innerHTML = "👤 Mateo Barrios (13 años) • 🥁 Batería (Ensamble)<br><span style='color:var(--text-muted); font-size:11.5px;'>Acción: [👁️ Ver Ficha]</span>";
+            }
+        };
+    });
+
     modal.querySelectorAll('input[name="test-notif-timer"]').forEach(radio => {
         radio.onchange = () => {
             if (inputCustom) {
@@ -7067,6 +7105,58 @@ export function abrirModalTestNotificacion() {
     modal.showModal();
 }
 window.abrirModalTestNotificacion = abrirModalTestNotificacion;
+
+// ================================================================
+// HELPER COMPARTIDO: DESPACHO DE NOTIFICACIÓN NATIVA
+// ================================================================
+export async function despacharNotificacionNativa(notifTitle, swOptions) {
+    const iconUrl = swOptions.icon || new URL('logo.png', window.location.href).href;
+    const domOptions = {
+        body: swOptions.body,
+        icon: iconUrl,
+        tag: swOptions.tag || 'mandala-notif'
+    };
+
+    let emitido = false;
+
+    // Intento 1: Service Worker (Soporta actions y pantalla de bloqueo en celulares)
+    try {
+        if ('serviceWorker' in navigator) {
+            const reg = await Promise.race([
+                navigator.serviceWorker.ready,
+                new Promise((_, reject) => setTimeout(() => reject(new Error('SW timeout')), 1200))
+            ]);
+            if (reg && typeof reg.showNotification === 'function') {
+                await reg.showNotification(notifTitle, swOptions);
+                emitido = true;
+                console.log("✅ Notificación mostrada vía Service Worker");
+            }
+        }
+    } catch(errSw) {
+        console.warn("⚠️ Fallo o timeout en Service Worker:", errSw);
+    }
+
+    // Intento 2: Fallback DOM Notification (Compatible con Chrome/Edge en PC sin SW)
+    if (!emitido) {
+        try {
+            const n = new Notification(notifTitle, domOptions);
+            n.onclick = () => {
+                window.focus();
+                if (swOptions.data?.url) {
+                    window.location.href = swOptions.data.url;
+                }
+                n.close();
+            };
+            emitido = true;
+            console.log("✅ Notificación mostrada vía DOM Notification");
+        } catch(errDom) {
+            console.error("❌ Falló notificación DOM:", errDom);
+        }
+    }
+
+    return emitido;
+}
+window.despacharNotificacionNativa = despacharNotificacionNativa;
 
 export async function dispararNotificacionPrueba() {
     const modal = document.getElementById('modal-test-notificacion');
@@ -7090,6 +7180,7 @@ export async function dispararNotificacionPrueba() {
         return;
     }
 
+    const simRol = modal?.querySelector('input[name="test-notif-rol"]:checked')?.value || 'evaluador';
     const radioChecked = modal?.querySelector('input[name="test-notif-timer"]:checked')?.value || '5';
     let delayMs = 5000;
     let labelTiempo = "5 segundos";
@@ -7122,70 +7213,41 @@ export async function dispararNotificacionPrueba() {
 
     if (modal) modal.close();
 
-    mostrarToast(`⏳ Notificación programada para dispararse ${labelTiempo === 'inmediatamente' ? 'ahora' : 'en ' + labelTiempo}.`, "info");
+    mostrarToast(`⏳ Notificación de prueba (${simRol}) programada para dispararse ${labelTiempo === 'inmediatamente' ? 'ahora' : 'en ' + labelTiempo}.`, "info");
 
-    const notifTitle = "📅 Entrevista de Admisión hoy (18:00 hs)";
     const iconUrl = new URL('logo.png', window.location.href).href;
+    let notifTitle = "";
+    let notifBody = "";
+    let targetUrl = window.location.origin + window.location.pathname;
+
+    if (simRol === 'admisor') {
+        notifTitle = "⚠️ Vencimiento de Admisión hoy";
+        notifBody = "Alumno: Sofía Gómez (Canto)\nVence plazo: Validación de reserva pendiente.";
+        targetUrl += "?verFicha=test-sofia-admisor";
+    } else {
+        notifTitle = "📅 Entrevista de Admisión hoy (18:00 hs)";
+        notifBody = "👤 Mateo Barrios (13 años) • 🥁 Batería (Ensamble)\nTutora: Mamá Vanesa.";
+        targetUrl += "?verFicha=test-mateo-eval";
+    }
 
     const swOptions = {
-        body: "👤 Mateo Barrios (13 años) • 🥁 Batería (Ensamble)\nTutora: Mamá Vanesa. Tocá para ver la ficha.",
+        body: notifBody,
         icon: iconUrl,
         badge: iconUrl,
-        tag: "test-recordatorio-entrevista",
+        tag: "test-alerta-09hs-" + Date.now(),
         renotify: true,
         vibrate: [200, 100, 200],
         data: {
-            url: window.location.href,
-            telefono: "5491123456789",
-            mensaje: "Hola Vanesa! Te contacto de Mandala por la entrevista de admisión de Mateo hoy a las 18:00 hs."
+            url: targetUrl,
+            alumnoId: simRol === 'admisor' ? 'test-sofia-admisor' : 'test-mateo-eval'
         },
         actions: [
-            { action: 'ver_ficha', title: '👁️ Ver Ficha' },
-            { action: 'whatsapp', title: '💬 WhatsApp' }
+            { action: 'ver_ficha', title: '👁️ Ver Ficha' }
         ]
     };
 
-    const domOptions = {
-        body: swOptions.body,
-        icon: iconUrl,
-        tag: swOptions.tag
-    };
-
     setTimeout(async () => {
-        let emitido = false;
-
-        // Intento 1: Service Worker (Soporta actions y pantalla de bloqueo)
-        try {
-            if ('serviceWorker' in navigator) {
-                const reg = await Promise.race([
-                    navigator.serviceWorker.ready,
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('SW timeout')), 1200))
-                ]);
-                if (reg && typeof reg.showNotification === 'function') {
-                    await reg.showNotification(notifTitle, swOptions);
-                    emitido = true;
-                    console.log("✅ Notificación mostrada vía Service Worker");
-                }
-            }
-        } catch(errSw) {
-            console.warn("⚠️ Fallo o timeout en Service Worker:", errSw);
-        }
-
-        // Intento 2: Fallback DOM Notification (Compatible con Chrome/Edge en PC sin SW)
-        if (!emitido) {
-            try {
-                const n = new Notification(notifTitle, domOptions);
-                n.onclick = () => {
-                    window.focus();
-                    n.close();
-                };
-                emitido = true;
-                console.log("✅ Notificación mostrada vía DOM Notification");
-            } catch(errDom) {
-                console.error("❌ Falló notificación DOM:", errDom);
-            }
-        }
-
+        const emitido = await despacharNotificacionNativa(notifTitle, swOptions);
         if (emitido) {
             mostrarToast("🔔 ¡Notificación de prueba emitida con éxito!", "info");
         } else {
@@ -7194,5 +7256,182 @@ export async function dispararNotificacionPrueba() {
     }, delayMs);
 }
 window.dispararNotificacionPrueba = dispararNotificacionPrueba;
+
+// ================================================================
+// VERIFICADOR DIARIO DE ALERTAS 09:00 HS (ADMISOR Y EVALUADOR)
+// ================================================================
+export async function verificarAlertasDiarias09hs(forzar = false) {
+    try {
+        const u = window.usuarioActual || {};
+        if (!u.email) return;
+
+        const roles = Array.isArray(u.roles) ? u.roles : [u.rol];
+        const esAdmin = roles.includes('admin') || u.rol === 'admin' || u.email?.toLowerCase() === 'productora.mandalahouse@gmail.com';
+        const esAdmisor = roles.includes('admisor') || roles.includes('admisiones') || u.rol === 'admisor' || u.rol === 'admisiones';
+        const esEvaluador = roles.includes('evaluador') || u.rol === 'evaluador' || roles.includes('profesor') || u.rol === 'profesor';
+
+        // Regla: El Administrador NO recibe alertas (solo Admisor y Evaluador)
+        if (esAdmin && !esAdmisor && !esEvaluador) {
+            console.log("ℹ️ Usuario con rol Administrador exclusivo: no recibe alertas automáticas.");
+            return;
+        }
+
+        const hoy = new Date();
+        const hoyStr = hoy.toISOString().slice(0, 10); // YYYY-MM-DD
+        const claveStorage = `alerta_09hs_emitida_${u.email}_${hoyStr}`;
+
+        // Comprobar si ya se emitió hoy
+        if (!forzar && localStorage.getItem(claveStorage)) {
+            console.log("ℹ️ Alerta de 09:00 hs ya fue emitida para hoy:", hoyStr);
+            programarProximaAlerta09hs();
+            return;
+        }
+
+        // Si no es forzada, verificar que sean las 9:00 hs o más
+        const horaActual = hoy.getHours();
+        if (!forzar && horaActual < 9) {
+            console.log(`ℹ️ Aún no son las 09:00 hs (hora actual: ${horaActual}:${hoy.getMinutes()}). Programando alerta.`);
+            programarProximaAlerta09hs();
+            return;
+        }
+
+        // Cargar alumnos para evaluar
+        let listaAlumnos = [];
+        try {
+            const snap = await getDocs(collection(db, "alumnos"));
+            snap.forEach(d => {
+                listaAlumnos.push({ id: d.id, ...d.data() });
+            });
+        } catch(e) {
+            console.warn("No se pudieron cargar alumnos para alertas:", e);
+            return;
+        }
+
+        const iconUrl = new URL('logo.png', window.location.href).href;
+
+        // 1. CASO ADMISOR: Vencimientos del día en el flujo de admisión
+        if (esAdmisor) {
+            const vencimientosHoy = [];
+
+            listaAlumnos.forEach(al => {
+                const est = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                const fVenc = al.fecha_vencimiento || '';
+                const fInicio = al.fecha_inicio_clases || '';
+                const fAgenda = al.fecha_agenda || al.reserva_fecha || '';
+
+                if (fVenc === hoyStr) {
+                    vencimientosHoy.push({ al, motivo: `Vence plazo (${est})` });
+                } else if ((est === 'pre-alta pendiente' || est === 'pre-alta iniciada') && fInicio === hoyStr) {
+                    vencimientosHoy.push({ al, motivo: 'Inicia clases hoy' });
+                } else if ((est === 'pendiente validacion por alumno' || est === 'pendiente validacion por evaluador') && (fVenc === hoyStr || fAgenda === hoyStr)) {
+                    vencimientosHoy.push({ al, motivo: `Validación (${est})` });
+                }
+            });
+
+            if (vencimientosHoy.length > 0) {
+                let notifTitle = "";
+                let notifBody = "";
+                let targetUrl = window.location.origin + window.location.pathname;
+
+                if (vencimientosHoy.length === 1) {
+                    const item = vencimientosHoy[0];
+                    notifTitle = "⚠️ Vencimiento de Admisión hoy";
+                    notifBody = `Alumno: ${item.al.nombre} (${item.al.instrumento || 'Ensamble'})\n${item.motivo}.`;
+                    targetUrl += `?verFicha=${item.al.id}`;
+                } else {
+                    notifTitle = `📋 Tenés ${vencimientosHoy.length} vencimientos de admisión hoy`;
+                    const resumen = vencimientosHoy.slice(0, 3).map(v => `• ${v.al.nombre} (${v.motivo})`).join('\n');
+                    notifBody = `${resumen}${vencimientosHoy.length > 3 ? `\n...y ${vencimientosHoy.length - 3} más.` : ''}`;
+                    targetUrl += `?verFicha=${vencimientosHoy[0].al.id}`;
+                }
+
+                await despacharNotificacionNativa(notifTitle, {
+                    body: notifBody,
+                    icon: iconUrl,
+                    badge: iconUrl,
+                    tag: `admisor-vencimientos-${hoyStr}`,
+                    data: { url: targetUrl, alumnoId: vencimientosHoy[0].al.id },
+                    actions: [{ action: 'ver_ficha', title: '👁️ Ver Ficha' }]
+                });
+
+                localStorage.setItem(claveStorage, 'true');
+            }
+        }
+
+        // 2. CASO EVALUADOR: Entrevistas del día asignadas a este evaluador
+        if (esEvaluador) {
+            const emailEval = (u.email || '').toLowerCase().trim();
+            const nombreEval = (u.nombre || '').toLowerCase().trim();
+
+            const misEntrevistasHoy = listaAlumnos.filter(al => {
+                const est = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                if (est !== 'agenda confirmada' && est !== 'pendiente validacion por evaluador') return false;
+
+                const profEmail = (al.reserva_profe_email || al.profe_email || '').toLowerCase().trim();
+                const profNombre = (al.reserva_profe_nombre || al.profe || '').toLowerCase().trim();
+
+                const coincide = (emailEval && profEmail === emailEval) || (nombreEval && profNombre.includes(nombreEval));
+                if (!coincide) return false;
+
+                const fAgenda = al.fecha_agenda || al.reserva_fecha || '';
+                return fAgenda === hoyStr || fAgenda.startsWith(hoyStr);
+            });
+
+            if (misEntrevistasHoy.length > 0) {
+                let notifTitle = "";
+                let notifBody = "";
+                let targetUrl = window.location.origin + window.location.pathname;
+
+                if (misEntrevistasHoy.length === 1) {
+                    const item = misEntrevistasHoy[0];
+                    const hora = item.hora_agenda || item.reserva_hora || '18:00';
+                    notifTitle = `📅 Entrevista de Admisión hoy (${hora} hs)`;
+                    notifBody = `👤 ${item.nombre} (${item.edad || '13'} años) • ${item.instrumento || 'Instrumento'}\n${item.tutor ? 'Tutor/a: ' + item.tutor : ''}`;
+                    targetUrl += `?verFicha=${item.id}&rol=evaluador`;
+                } else {
+                    notifTitle = `📅 Tenés ${misEntrevistasHoy.length} entrevistas de admisión hoy`;
+                    const listaHoras = misEntrevistasHoy.slice(0, 3).map(e => `• ${e.hora_agenda || '18:00'} hs: ${e.nombre} (${e.instrumento || ''})`).join('\n');
+                    notifBody = `${listaHoras}`;
+                    targetUrl += `?verFicha=${misEntrevistasHoy[0].id}&rol=evaluador`;
+                }
+
+                await despacharNotificacionNativa(notifTitle, {
+                    body: notifBody,
+                    icon: iconUrl,
+                    badge: iconUrl,
+                    tag: `evaluador-entrevistas-${hoyStr}`,
+                    data: { url: targetUrl, alumnoId: misEntrevistasHoy[0].id },
+                    actions: [{ action: 'ver_ficha', title: '👁️ Ver Ficha' }]
+                });
+
+                localStorage.setItem(claveStorage, 'true');
+            }
+        }
+
+        programarProximaAlerta09hs();
+    } catch(err) {
+        console.error("Error en verificarAlertasDiarias09hs:", err);
+    }
+}
+window.verificarAlertasDiarias09hs = verificarAlertasDiarias09hs;
+
+// Programa el temporizador para la próxima ejecución a las 09:00:00 hs
+function programarProximaAlerta09hs() {
+    const ahora = new Date();
+    const proxima = new Date(ahora);
+    proxima.setHours(9, 0, 0, 0);
+
+    if (ahora.getTime() >= proxima.getTime()) {
+        // Ya pasaron las 9:00 hs de hoy, programar para mañana a las 9:00 hs
+        proxima.setDate(proxima.getDate() + 1);
+    }
+
+    const msRestantes = proxima.getTime() - ahora.getTime();
+    console.log(`⏰ Próxima verificación de alertas de las 09:00 hs programada en ${Math.round(msRestantes / 60000)} minutos.`);
+
+    setTimeout(() => {
+        verificarAlertasDiarias09hs();
+    }, msRestantes);
+}
 
 
