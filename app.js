@@ -11,7 +11,7 @@ import {
     configNodosFlujo,
     configNodosFlujoEvaluador,
     configNodosFlujoCoordinador
-} from "./src/config/constants.js?v=5.9.21";
+} from "./src/config/constants.js?v=5.9.22";
 
 import { 
     app, 
@@ -73,7 +73,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=5.9.21";
+} from "./src/services/calendar.service.js?v=5.9.22";
 
 import {
     matchCantidadActual,
@@ -106,7 +106,7 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=5.9.21";
+} from "./src/modules/match.module.js?v=5.9.22";
 
 import {
     renderPortalProfesor
@@ -128,7 +128,7 @@ import {
     copiarFilaExcelFacturacionAdmision,
     abrirModalAvisoPrealtaAlumno,
     copiarAvisoPrealtaAlumno
-} from "./src/modules/altas.module.js?v=5.9.21";
+} from "./src/modules/altas.module.js?v=5.9.22";
 
 import {
     renderTimelineUnificado,
@@ -988,6 +988,85 @@ document.addEventListener('cancel', (e) => {
         }
     }
 }, true);
+
+// =======================================================================
+// GESTOR CENTRALIZADO DE APERTURA DE EXPEDIENTE / NOTIFICACIÓN PUSH
+// =======================================================================
+export function procesarAperturaFichaNotificacion(fichaId) {
+    if (!fichaId) return;
+    console.log("🔔 [Push Notif] Procesando apertura de ficha:", fichaId);
+    sessionStorage.setItem('mandala_ficha_pendiente', fichaId);
+
+    const ejecutar = () => {
+        const fId = sessionStorage.getItem('mandala_ficha_pendiente') || fichaId;
+        if (!fId) return;
+
+        if (fId.startsWith('test-')) {
+            sessionStorage.removeItem('mandala_ficha_pendiente');
+            if (typeof window.abrirFichaSimuladaTest === 'function') {
+                window.abrirFichaSimuladaTest(fId);
+            }
+        } else {
+            sessionStorage.removeItem('mandala_ficha_pendiente');
+            const esEval = typeof window.esModoEvaluadorActivo === 'function' ? window.esModoEvaluadorActivo() : false;
+            if (esEval && typeof window.abrirModalInformeAdmisionDirecto === 'function') {
+                window.abrirModalInformeAdmisionDirecto(fId);
+            } else if (typeof window.editarAlumnoModalDirecto === 'function') {
+                window.editarAlumnoModalDirecto(fId);
+            }
+        }
+    };
+
+    if (window.usuarioActual && document.getElementById('app-container')?.style.display !== 'none') {
+        setTimeout(ejecutar, 200);
+    } else {
+        setTimeout(ejecutar, 1200);
+    }
+}
+window.procesarAperturaFichaNotificacion = procesarAperturaFichaNotificacion;
+
+// Receptor vía BroadcastChannel (sincronización instantánea Service Worker <-> App en celulares)
+try {
+    if ('BroadcastChannel' in window) {
+        const bc = new BroadcastChannel('mandala_notificaciones');
+        bc.onmessage = (event) => {
+            if (event.data && event.data.type === 'ABRIR_FICHA_NOTIFICACION' && event.data.fichaId) {
+                procesarAperturaFichaNotificacion(event.data.fichaId);
+            }
+        };
+    }
+} catch(eBc) {}
+
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'ABRIR_FICHA_NOTIFICACION' && event.data.fichaId) {
+            procesarAperturaFichaNotificacion(event.data.fichaId);
+        }
+    });
+}
+
+// Chequeo inmediato de URL params al arrancar
+try {
+    const urlParams = new URLSearchParams(window.location.search);
+    const fId = urlParams.get('verFicha') || urlParams.get('alumnoId');
+    if (fId) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+        procesarAperturaFichaNotificacion(fId);
+    }
+} catch(e) {}
+
+window.addEventListener('focus', () => {
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const fId = urlParams.get('verFicha') || urlParams.get('alumnoId') || sessionStorage.getItem('mandala_ficha_pendiente');
+        if (fId) {
+            if (urlParams.get('verFicha') || urlParams.get('alumnoId')) {
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+            procesarAperturaFichaNotificacion(fId);
+        }
+    } catch(e) {}
+});
 
 export function formatearFechaHoraEstandar(val) {
     if (!val) return '-';
@@ -3724,12 +3803,10 @@ window.ejecutarBusquedaGlobal = ejecutarBusquedaGlobal;
 export async function cargarVista(vista = 'Inbox - Pendientes') {
     window.cargarVistaGlobal = cargarVista;
 
-    const usuario = window.usuarioActual || {};
-    const roles = Array.isArray(usuario.roles) && usuario.roles.length > 0 ? usuario.roles : [usuario.rol || 'admisiones'];
-    const esSoloEvaluador = roles.includes('evaluador') && !roles.includes('admin') && !roles.includes('admisiones') && !roles.includes('admisor');
+    const esEvalActivo = esModoEvaluadorActivo();
     
-    // Si un evaluador exclusivo intenta acceder a Inbox, redirigir a Entrevistas Confirmadas
-    if (esSoloEvaluador && (vista.startsWith('Inbox') && vista !== 'Inbox - Confirmadas')) {
+    // Si el modo activo es Evaluador y se intenta acceder a Inbox, redirigir siempre a Entrevistas Confirmadas
+    if (esEvalActivo && (vista.startsWith('Inbox') && vista !== 'Inbox - Confirmadas')) {
         vista = 'Inbox - Confirmadas';
     }
 
@@ -3802,7 +3879,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
     
     document.querySelectorAll('.bottom-nav-item').forEach(el => el.classList.remove('active'));
     let bottomVista = vista;
-    if (vista.startsWith('Inbox')) bottomVista = esSoloEvaluador ? 'Inbox - Confirmadas' : 'Inbox - Pendientes';
+    if (vista.startsWith('Inbox')) bottomVista = esEvalActivo ? 'Inbox - Confirmadas' : 'Inbox - Pendientes';
     if (vista.startsWith('Altas')) bottomVista = 'Altas - Pendientes';
     const bottomMatch = document.querySelector(`.bottom-nav-item[data-vista="${bottomVista}"]`);
     if(bottomMatch) bottomMatch.classList.add('active');
@@ -4325,64 +4402,11 @@ onAuthStateChanged(auth, async (user) => {
             }
         }
 
-        // Manejo de redirección desde notificación push (?verFicha=ID)
-        try {
-            const urlParams = new URLSearchParams(window.location.search);
-            const fichaId = urlParams.get('verFicha') || urlParams.get('alumnoId');
-            if (fichaId) {
-                window.history.replaceState({}, document.title, window.location.pathname);
-                setTimeout(() => {
-                    if (fichaId.startsWith('test-')) {
-                        if (typeof window.abrirFichaSimuladaTest === 'function') {
-                            window.abrirFichaSimuladaTest(fichaId);
-                        }
-                    } else if (typeof window.editarAlumnoModalDirecto === 'function') {
-                        window.editarAlumnoModalDirecto(fichaId);
-                    }
-                }, 600);
-            }
-        } catch(eUrl) {}
-
-        // Receptor de mensajes en vivo desde Service Worker (sin recargar la app en móviles al tocar [👁️ Ver Ficha])
-        if ('serviceWorker' in navigator && !window._swNotifListenerActive) {
-            window._swNotifListenerActive = true;
-            navigator.serviceWorker.addEventListener('message', (event) => {
-                if (event.data && event.data.type === 'ABRIR_FICHA_NOTIFICACION') {
-                    const fId = event.data.fichaId;
-                    if (fId) {
-                        setTimeout(() => {
-                            if (fId.startsWith('test-')) {
-                                if (typeof window.abrirFichaSimuladaTest === 'function') {
-                                    window.abrirFichaSimuladaTest(fId);
-                                }
-                            } else if (typeof window.editarAlumnoModalDirecto === 'function') {
-                                window.editarAlumnoModalDirecto(fId);
-                            }
-                        }, 200);
-                    }
-                }
-            });
+        // Procesar cualquier apertura pendiente de notificación
+        const fIdPendiente = sessionStorage.getItem('mandala_ficha_pendiente');
+        if (fIdPendiente) {
+            setTimeout(() => { procesarAperturaFichaNotificacion(fIdPendiente); }, 500);
         }
-
-        // Listener reactivo al enfocar la app (cuando el celular vuelve al primer plano tras tocar la notificación)
-        window.addEventListener('focus', () => {
-            try {
-                const urlParams = new URLSearchParams(window.location.search);
-                const fId = urlParams.get('verFicha') || urlParams.get('alumnoId');
-                if (fId) {
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                    setTimeout(() => {
-                        if (fId.startsWith('test-')) {
-                            if (typeof window.abrirFichaSimuladaTest === 'function') {
-                                window.abrirFichaSimuladaTest(fId);
-                            }
-                        } else if (typeof window.editarAlumnoModalDirecto === 'function') {
-                            window.editarAlumnoModalDirecto(fId);
-                        }
-                    }, 200);
-                }
-            } catch(e) {}
-        });
 
         // Verificación diaria de alertas a las 09:00 hs
         setTimeout(() => {
@@ -5211,6 +5235,13 @@ document.addEventListener('click', async (e) => {
     
     if (target.id === 'btn-guardar-informe-final') {
         const id = document.getElementById('informe-final-alumno-id').value;
+        if (id === 'test-mateo-eval' || id?.startsWith('test-')) {
+            window._modalEditandoModificado = false;
+            window._fichaAlumnoModificada = false;
+            document.getElementById('modal-informe-admision').close();
+            alert("✅ ¡Informe de prueba simulado guardado con éxito!\n\nEn un caso real con alumno oficial, la entrevista quedaría registrada y el alumno pasaría a Lista de Espera.");
+            return;
+        }
         const nombre = document.getElementById('inf-nombre').value.trim();
         const edadVal = document.getElementById('inf-edad').value.trim();
         const edad = edadVal ? parseInt(edadVal, 10) : null;
@@ -6394,7 +6425,98 @@ async function cargarSelectsAlumnos() {
     setTimeout(() => { syncSelectToChips('instrumento', 'chips-instrumentos'); }, 100);
 }
 
-window.abrirFichaSimuladaTest = function(testId) {
+window.abrirFichaSimuladaTest = async function(testId) {
+    const esAdmisor = testId === 'test-sofia-admisor';
+
+    if (!esAdmisor) {
+        // =======================================================================
+        // MODO EVALUADOR: Abrir directamente modal-informe-admision con datos de Mateo Barrios
+        // =======================================================================
+        const modal = document.getElementById('modal-informe-admision');
+        if (!modal) return;
+
+        // Banner informativo de simulación en la cabecera del modal
+        let banner = document.getElementById('banner-test-simulado-eval');
+        if (!banner) {
+            banner = document.createElement('div');
+            banner.id = 'banner-test-simulado-eval';
+            banner.style.cssText = 'background:#fef3c7; border:1px solid #fde68a; color:#92400e; padding:10px 14px; border-radius:10px; margin-bottom:14px; font-size:12.5px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;';
+            banner.innerHTML = '<span>🧪 <strong>MODO TEST / SIMULACIÓN:</strong> Informe de Admisión de Mateo Barrios</span><span style="font-size:11px; background:#f59e0b; color:#fff; padding:2px 8px; border-radius:12px; font-weight:700;">No altera base de datos</span>';
+            const modalContent = modal.querySelector('div') || modal;
+            modalContent.insertBefore(banner, modalContent.firstChild);
+        }
+
+        document.getElementById('informe-final-alumno-id').value = 'test-mateo-eval';
+        const elFechaTop = document.getElementById('inf-modal-fecha-val');
+        const elEvalTop = document.getElementById('inf-modal-evaluador-val');
+        if (elFechaTop) elFechaTop.textContent = 'Hoy 18:00 hs (Simulada)';
+        if (elEvalTop) elEvalTop.textContent = window.usuarioActual?.nombre || 'Evaluador de Turno';
+
+        const inpNombre = document.getElementById('inf-nombre');
+        const inpEdad = document.getElementById('inf-edad');
+        const inpProf = document.getElementById('inf-profesion');
+        const selSusc = document.getElementById('inf-suscripcion');
+        const selNivel = document.getElementById('inf-nivel');
+
+        if (inpNombre) inpNombre.value = 'Mateo Barrios';
+        if (inpEdad) inpEdad.value = '13';
+        if (inpProf) inpProf.value = 'Estudiante Secundario (1er año)';
+
+        // Suscripción y Nivel
+        if (selSusc) {
+            selSusc.innerHTML = '<option value="Ensamble Regular" selected>Ensamble Regular</option><option value="Clase Individual">Clase Individual</option>';
+        }
+        if (selNivel) {
+            selNivel.value = 'Inicial II';
+        }
+
+        // Bloque 1: Motivación
+        if (typeof quillInfMotivacion !== 'undefined' && quillInfMotivacion) {
+            quillInfMotivacion.root.innerHTML = '<p>Le gusta el rock nacional y los Red Hot Chili Peppers. Toca la batería hace 1 año en su casa y quiere tocar con otros chicos en banda.</p>';
+        }
+        const chkPropuesta = document.getElementById('inf-chk-propuesta');
+        if (chkPropuesta) chkPropuesta.checked = true;
+
+        // Bloque 2: Diagnóstico Musical
+        if (typeof quillInfDiagnostico !== 'undefined' && quillInfDiagnostico) {
+            quillInfDiagnostico.root.innerHTML = '<p>Buen sentido del pulso y subdivisión básica en 4/4. Responde bien a consignas rítmicas. Coordinación manos/pies acorde a nivel Inicial II.</p>';
+        }
+        const txtArtistas = document.getElementById('inf-artistas');
+        if (txtArtistas) txtArtistas.value = 'Spinetta, Red Hot Chili Peppers, Charly García';
+
+        // Bloque 3: Requisitos
+        const chkRequisitos = document.getElementById('inf-chk-requisitos');
+        if (chkRequisitos) chkRequisitos.checked = true;
+        const chkCierre = document.getElementById('inf-chk-cierre');
+        if (chkCierre) chkCierre.checked = false;
+
+        // Abrir acordeones por defecto
+        [1, 2, 3, 4, 5].forEach(n => {
+            const b = document.getElementById(`inf-body-${n}`);
+            const c = document.getElementById(`inf-chevron-${n}`);
+            if (b) b.style.display = 'flex';
+            if (c) c.textContent = '▲';
+        });
+
+        // Cerrar cualquier otro diálogo abierto
+        document.querySelectorAll('dialog[open]').forEach(d => {
+            if (d !== modal) {
+                try { d.close(); } catch(e) {}
+            }
+        });
+
+        if (!modal.open) {
+            try { modal.showModal(); } catch(e) { modal.setAttribute('open', ''); }
+        }
+
+        mostrarToast("🔔 Informe simulado abierto: Mateo Barrios (Evaluador)", "info");
+        setTimeout(() => { window._modalEditandoModificado = false; window._fichaAlumnoModificada = false; }, 350);
+        return;
+    }
+
+    // =======================================================================
+    // MODO ADMISOR: Abrir modal-alta-alumno con datos de Sofía Gómez
+    // =======================================================================
     const modal = document.getElementById('modal-alta-alumno');
     const wrap = document.getElementById('form-alumno-wrapper');
     if (!wrap || !modal) return;
@@ -6402,10 +6524,16 @@ window.abrirFichaSimuladaTest = function(testId) {
     wrap.style.display = 'block';
     if (!modal.contains(wrap)) modal.appendChild(wrap);
 
-    const esAdmisor = testId === 'test-sofia-admisor';
-    document.getElementById('form-titulo').textContent = esAdmisor 
-        ? "⚠️ Ficha Simulada de Prueba: Sofía Gómez (Vencimiento)" 
-        : "📅 Ficha Simulada de Prueba: Mateo Barrios (Entrevista 18hs)";
+    let banner = document.getElementById('banner-test-simulado-alta');
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'banner-test-simulado-alta';
+        banner.style.cssText = 'background:#fef3c7; border:1px solid #fde68a; color:#92400e; padding:10px 14px; border-radius:10px; margin-bottom:14px; font-size:12.5px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;';
+        banner.innerHTML = '<span>🧪 <strong>MODO TEST / SIMULACIÓN:</strong> Ficha de Sofía Gómez (Vencimiento)</span><span style="font-size:11px; background:#f59e0b; color:#fff; padding:2px 8px; border-radius:12px; font-weight:700;">No altera base de datos</span>';
+        wrap.insertBefore(banner, wrap.firstChild);
+    }
+
+    document.getElementById('form-titulo').textContent = "⚠️ Ficha Simulada: Sofía Gómez (Vencimiento)";
     
     // Activar pestaña principal de datos
     document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
@@ -6416,11 +6544,11 @@ window.abrirFichaSimuladaTest = function(testId) {
     if (btnTabDatos) btnTabDatos.classList.add('active');
 
     // Llenar campos simulados con los IDs reales de form-alumno
-    if (document.getElementById('alumno-id')) document.getElementById('alumno-id').value = testId;
-    if (document.getElementById('nombre')) document.getElementById('nombre').value = esAdmisor ? "Sofía Gómez" : "Mateo Barrios";
-    if (document.getElementById('celular')) document.getElementById('celular').value = esAdmisor ? "5491133445566" : "5491199887766";
-    if (document.getElementById('edad')) document.getElementById('edad').value = esAdmisor ? "24" : "13";
-    if (document.getElementById('nivel')) document.getElementById('nivel').value = esAdmisor ? "Inicial I" : "Inicial II";
+    if (document.getElementById('alumno-id')) document.getElementById('alumno-id').value = 'test-sofia-admisor';
+    if (document.getElementById('nombre')) document.getElementById('nombre').value = "Sofía Gómez";
+    if (document.getElementById('celular')) document.getElementById('celular').value = "5491133445566";
+    if (document.getElementById('edad')) document.getElementById('edad').value = "24";
+    if (document.getElementById('nivel')) document.getElementById('nivel').value = "Inicial I";
 
     const contDirecto = document.getElementById('container-ingreso-directo');
     if (contDirecto) contDirecto.style.display = 'none';
@@ -6440,8 +6568,18 @@ window.abrirFichaSimuladaTest = function(testId) {
         }
     }
 
-    mostrarToast(`🔔 Ficha simulada abierta: ${esAdmisor ? 'Sofía Gómez' : 'Mateo Barrios'}`, 'info');
-    setTimeout(() => { window._fichaAlumnoModificada = false; }, 250);
+    mostrarToast("🔔 Ficha simulada abierta: Sofía Gómez (Admisor)", "info");
+    setTimeout(() => { window._modalEditandoModificado = false; window._fichaAlumnoModificada = false; }, 350);
+};
+
+window.abrirModalInformeAdmisionDirecto = async function(id) {
+    if (!id) return;
+    const fakeBtn = document.createElement('button');
+    fakeBtn.setAttribute('data-id', id);
+    fakeBtn.classList.add('btn-admision-finalizada');
+    document.body.appendChild(fakeBtn);
+    fakeBtn.click();
+    fakeBtn.remove();
 };
 
 window.editarAlumnoModalDirecto = async function(id) {
@@ -6962,6 +7100,16 @@ document.getElementById('form-alumno').addEventListener('submit', async (e) => {
 
     try {
         const id = document.getElementById('alumno-id').value;
+        if (id === 'test-sofia-admisor' || id?.startsWith('test-')) {
+            window._modalEditandoModificado = false;
+            window._fichaAlumnoModificada = false;
+            const wrap = document.getElementById('form-alumno-wrapper');
+            if (wrap) { wrap.style.display = 'none'; document.body.appendChild(wrap); }
+            document.getElementById('modal-alta-alumno').close();
+            mostrarToast("✅ Ficha de prueba simulada guardada con éxito.", "success");
+            setBotonCargando(btnSubmit, false);
+            return;
+        }
         if (id) {
             await updateDoc(doc(db, "alumnos", id), data);
         } else {

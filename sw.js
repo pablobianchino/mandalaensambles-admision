@@ -1,4 +1,4 @@
-const CACHE_NAME = "mandala-app-v5.9.21";
+const CACHE_NAME = "mandala-app-v5.9.22";
 
 self.addEventListener('install', (event) => {
     self.skipWaiting();
@@ -72,37 +72,52 @@ self.addEventListener('notificationclick', (event) => {
     const targetUrl = notifData.url || '/';
     const fichaId = notifData.alumnoId || (targetUrl.includes('verFicha=') ? targetUrl.split('verFicha=')[1].split('&')[0] : null);
 
-    event.waitUntil(
-        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clientList) => {
-            // 1. Si la app ya está abierta (en primer plano o segundo plano en celular/PC)
-            for (const client of clientList) {
+    event.waitUntil((async () => {
+        // 1. Notificar por BroadcastChannel a cualquier pestaña activa
+        try {
+            if ('BroadcastChannel' in self) {
+                const bc = new BroadcastChannel('mandala_notificaciones');
+                bc.postMessage({
+                    type: 'ABRIR_FICHA_NOTIFICACION',
+                    fichaId: fichaId,
+                    url: targetUrl,
+                    action: event.action
+                });
+                bc.close();
+            }
+        } catch(eBc) {}
+
+        const clientList = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+        
+        // 2. Si la app ya está abierta en alguna pestaña o ventana PWA:
+        for (const client of clientList) {
+            try {
+                await client.focus();
+            } catch(eF) {}
+
+            try {
+                client.postMessage({
+                    type: 'ABRIR_FICHA_NOTIFICACION',
+                    fichaId: fichaId,
+                    url: targetUrl,
+                    action: event.action
+                });
+            } catch(ePost) {}
+
+            // Siempre navegar/actualizar la URL a targetUrl con ?verFicha= para asegurar captura
+            if ('navigate' in client && fichaId) {
                 try {
-                    await client.focus();
-                } catch(eF) {}
-
-                // Envía mensaje directo a la app para abrir la ficha de inmediato sin recarga
-                if (fichaId) {
-                    client.postMessage({
-                        type: 'ABRIR_FICHA_NOTIFICACION',
-                        fichaId: fichaId,
-                        url: targetUrl,
-                        action: event.action
-                    });
-                }
-
-                if ('navigate' in client && targetUrl !== '/' && !client.url.includes('verFicha=')) {
-                    try {
-                        return await client.navigate(targetUrl);
-                    } catch(eNav) {}
-                }
-                return;
+                    await client.navigate(targetUrl);
+                } catch(eNav) {}
             }
-            // 2. Si la app estaba completamente cerrada, abrir ventana limpia con la URL de destino
-            if (clients.openWindow) {
-                return await clients.openWindow(targetUrl);
-            }
-        })
-    );
+            return;
+        }
+
+        // 3. Si la app estaba completamente cerrada, abrir ventana con targetUrl
+        if (clients.openWindow) {
+            await clients.openWindow(targetUrl);
+        }
+    })());
 });
 
 self.addEventListener('push', (event) => {
