@@ -11,7 +11,7 @@ import {
     configNodosFlujo,
     configNodosFlujoEvaluador,
     configNodosFlujoCoordinador
-} from "./src/config/constants.js?v=5.9.19";
+} from "./src/config/constants.js?v=5.9.20";
 
 import { 
     app, 
@@ -73,7 +73,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=5.9.19";
+} from "./src/services/calendar.service.js?v=5.9.20";
 
 import {
     matchCantidadActual,
@@ -106,7 +106,7 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=5.9.19";
+} from "./src/modules/match.module.js?v=5.9.20";
 
 import {
     renderPortalProfesor
@@ -128,7 +128,7 @@ import {
     copiarFilaExcelFacturacionAdmision,
     abrirModalAvisoPrealtaAlumno,
     copiarAvisoPrealtaAlumno
-} from "./src/modules/altas.module.js?v=5.9.19";
+} from "./src/modules/altas.module.js?v=5.9.20";
 
 import {
     renderTimelineUnificado,
@@ -823,38 +823,71 @@ try {
 } catch(e) { console.error("Error init Quill interview editors:", e); }
 
 // ================================================================
-// DIRTY FORM TRACKING — Protección contra pérdida de datos en ficha
+// DIRTY FORM TRACKING — Protección contra pérdida de datos en ficha e informe
 // ================================================================
-window._fichaAlumnoModificada = false;
+window._modalEditandoModificado = false;
+window._fichaAlumnoModificada = false; // Compatibilidad retroactiva
 
+// Marcador universal reactivo: captura inputs, selects, textareas, contenteditable y teclados virtuales
+function marcarModalComoModificado(e) {
+    const el = e.target;
+    if (!el) return;
+    const modalActivo = el.closest ? el.closest('#modal-alta-alumno, #modal-informe-admision, #form-alumno-wrapper') : null;
+    if (modalActivo) {
+        window._modalEditandoModificado = true;
+        window._fichaAlumnoModificada = true;
+    }
+}
+
+// Fase de captura en document para asegurar que ningún teclado móvil o framework detenga el evento
+['input', 'change', 'keyup', 'paste', 'compositionend'].forEach(evtName => {
+    document.addEventListener(evtName, marcarModalComoModificado, true);
+});
+
+// Capturar interacciones con chips, checkboxes, radios o celdas de disponibilidad
+document.addEventListener('click', (e) => {
+    const el = e.target;
+    if (!el) return;
+    const modalActivo = el.closest ? el.closest('#modal-alta-alumno, #modal-informe-admision, #form-alumno-wrapper') : null;
+    if (modalActivo) {
+        if (el.matches('input[type="checkbox"], input[type="radio"], select, .chip, .chip-btn, .dia-cell, .rango-btn, .tag-chip, button[data-chip]')) {
+            window._modalEditandoModificado = true;
+            window._fichaAlumnoModificada = true;
+        }
+    }
+}, true);
+
+// Editores Quill
 if (typeof quill !== 'undefined' && quill && quill.on) {
-    quill.on('text-change', () => { window._fichaAlumnoModificada = true; });
+    quill.on('text-change', () => { window._modalEditandoModificado = true; window._fichaAlumnoModificada = true; });
 }
 if (typeof quillInforme !== 'undefined' && quillInforme && quillInforme.on) {
-    quillInforme.on('text-change', () => { window._fichaAlumnoModificada = true; });
+    quillInforme.on('text-change', () => { window._modalEditandoModificado = true; window._fichaAlumnoModificada = true; });
 }
 if (quillInfMotivacion && quillInfMotivacion.on) {
-    quillInfMotivacion.on('text-change', () => { window._fichaAlumnoModificada = true; });
+    quillInfMotivacion.on('text-change', () => { window._modalEditandoModificado = true; window._fichaAlumnoModificada = true; });
 }
 if (quillInfDiagnostico && quillInfDiagnostico.on) {
-    quillInfDiagnostico.on('text-change', () => { window._fichaAlumnoModificada = true; });
+    quillInfDiagnostico.on('text-change', () => { window._modalEditandoModificado = true; window._fichaAlumnoModificada = true; });
 }
 
-// Escuchar cambios en cualquier input, select, textarea o checkbox dentro del wrapper de alumno
-const formAlumnoWrapEl = document.getElementById('form-alumno-wrapper');
-if (formAlumnoWrapEl) {
-    formAlumnoWrapEl.addEventListener('input', () => { window._fichaAlumnoModificada = true; });
-    formAlumnoWrapEl.addEventListener('change', () => { window._fichaAlumnoModificada = true; });
-}
-
-export function solicitarConfirmacionSalidaFicha(onDescartar, onGuardar) {
+export function solicitarConfirmacionSalidaModal(modalActivo, onDescartar, onGuardar) {
     const modalDescarte = document.getElementById('modal-confirmar-descarte');
     if (!modalDescarte) return;
 
-    const nom = document.getElementById('nombre')?.value || document.getElementById('alumno-nombre')?.value || 'el alumno';
+    const modalId = modalActivo?.id || 'modal-alta-alumno';
+    const esInforme = modalId === 'modal-informe-admision';
+
+    let nom = '';
+    if (esInforme) {
+        nom = document.getElementById('inf-nombre')?.value || 'el alumno';
+    } else {
+        nom = document.getElementById('nombre')?.value || document.getElementById('alumno-nombre')?.value || 'el alumno';
+    }
+
     const msgEl = document.getElementById('descarte-modal-mensaje');
     if (msgEl) {
-        msgEl.textContent = `Modificaste datos en la ficha de ${nom}. Si salís ahora, perderás la información que acabás de ingresar.`;
+        msgEl.textContent = `Modificaste datos en ${esInforme ? 'el informe de admisión' : 'la ficha'} de ${nom}. Si salís ahora, perderás la información que acabás de ingresar.`;
     }
 
     const btnGuardar = document.getElementById('btn-descarte-guardar');
@@ -864,12 +897,16 @@ export function solicitarConfirmacionSalidaFicha(onDescartar, onGuardar) {
     if (btnGuardar) {
         btnGuardar.onclick = () => {
             modalDescarte.close();
+            window._modalEditandoModificado = false;
+            window._fichaAlumnoModificada = false;
             if (typeof onGuardar === 'function') {
                 onGuardar();
+            } else if (esInforme) {
+                const btnSaveInf = document.getElementById('btn-guardar-informe-final');
+                if (btnSaveInf) btnSaveInf.click();
             } else {
                 const form = document.getElementById('form-alumno');
                 if (form) {
-                    window._fichaAlumnoModificada = false;
                     const btnSub = form.querySelector('button[type="submit"]');
                     if (btnSub) btnSub.click();
                     else form.requestSubmit();
@@ -881,9 +918,13 @@ export function solicitarConfirmacionSalidaFicha(onDescartar, onGuardar) {
     if (btnDescartar) {
         btnDescartar.onclick = () => {
             modalDescarte.close();
+            window._modalEditandoModificado = false;
             window._fichaAlumnoModificada = false;
             if (typeof onDescartar === 'function') {
                 onDescartar();
+            } else if (esInforme) {
+                const mInf = document.getElementById('modal-informe-admision');
+                if (mInf && mInf.open) mInf.close();
             } else {
                 const wrap = document.getElementById('form-alumno-wrapper');
                 if (wrap) {
@@ -910,7 +951,8 @@ export function solicitarConfirmacionSalidaFicha(onDescartar, onGuardar) {
         }
     }
 }
-window.solicitarConfirmacionSalidaFicha = solicitarConfirmacionSalidaFicha;
+window.solicitarConfirmacionSalidaModal = solicitarConfirmacionSalidaModal;
+window.solicitarConfirmacionSalidaFicha = (onD, onG) => solicitarConfirmacionSalidaModal(document.getElementById('modal-alta-alumno'), onD, onG);
 
 export function formatearFechaHoraEstandar(val) {
     if (!val) return '-';
@@ -3445,19 +3487,25 @@ export function initManejadorNavegacionMobile() {
             return;
         }
 
-        // Nivel 1: ¿Ficha de alumno abierta?
+        // Nivel 1: ¿Ficha de alumno o Informe de admisión abierto?
         const modalFicha = document.getElementById('modal-alta-alumno');
-        if (modalFicha && modalFicha.open) {
+        const modalInforme = document.getElementById('modal-informe-admision');
+
+        const modalEditableActivo = (modalFicha && modalFicha.open) ? modalFicha : ((modalInforme && modalInforme.open) ? modalInforme : null);
+
+        if (modalEditableActivo) {
             try { history.pushState({ mandalaGuard: true }, ''); } catch(e) {}
-            if (window._fichaAlumnoModificada) {
-                solicitarConfirmacionSalidaFicha();
+            if (window._modalEditandoModificado) {
+                solicitarConfirmacionSalidaModal(modalEditableActivo);
             } else {
-                const wrap = document.getElementById('form-alumno-wrapper');
-                if (wrap) {
-                    wrap.style.display = 'none';
-                    document.body.appendChild(wrap);
+                if (modalEditableActivo.id === 'modal-alta-alumno') {
+                    const wrap = document.getElementById('form-alumno-wrapper');
+                    if (wrap) {
+                        wrap.style.display = 'none';
+                        document.body.appendChild(wrap);
+                    }
                 }
-                modalFicha.close();
+                modalEditableActivo.close();
             }
             return;
         }
@@ -4757,15 +4805,17 @@ document.addEventListener('click', async (e) => {
     if (target.tagName === 'DIALOG') { 
         const rect = target.getBoundingClientRect(), inDialog = (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom);
         if (!inDialog) {
-            if (target.id === 'modal-alta-alumno') {
-                if (window._fichaAlumnoModificada) {
-                    solicitarConfirmacionSalidaFicha();
+            if (target.id === 'modal-alta-alumno' || target.id === 'modal-informe-admision') {
+                if (window._modalEditandoModificado) {
+                    solicitarConfirmacionSalidaModal(target);
                     return;
                 }
-                const wrap = document.getElementById('form-alumno-wrapper');
-                if (wrap) {
-                    wrap.style.display = 'none';
-                    document.body.appendChild(wrap);
+                if (target.id === 'modal-alta-alumno') {
+                    const wrap = document.getElementById('form-alumno-wrapper');
+                    if (wrap) {
+                        wrap.style.display = 'none';
+                        document.body.appendChild(wrap);
+                    }
                 }
                 target.close();
                 return;
@@ -5116,6 +5166,7 @@ document.addEventListener('click', async (e) => {
             });
 
             document.getElementById('modal-informe-admision').showModal();
+            setTimeout(() => { window._modalEditandoModificado = false; window._fichaAlumnoModificada = false; }, 350);
         } catch(e) {
             console.error("Error al abrir informe admisión:", e);
             alert("Error: " + e.message);
@@ -5264,6 +5315,8 @@ document.addEventListener('click', async (e) => {
             }
 
             await updateDoc(doc(db, "alumnos", id), updatePayload);
+            window._modalEditandoModificado = false;
+            window._fichaAlumnoModificada = false;
             document.getElementById('modal-informe-admision').close();
             alert("✅ ¡Informe guardado con éxito!\nEl registro quedó actualizado y el alumno en Lista de Espera.");
             cargarVista(estadoActualVista);
@@ -6208,6 +6261,10 @@ document.addEventListener('click', async (e) => {
         const mId = target.getAttribute('data-modal');
         const dlg = document.getElementById(mId);
         if (dlg) {
+            if (mId === 'modal-informe-admision' && window._modalEditandoModificado) {
+                solicitarConfirmacionSalidaModal(dlg);
+                return;
+            }
             dlg.close();
             if (mId === 'modal-iniciar-prealta') {
                 const warnCont = document.getElementById('prealta-match-warnings-container');
@@ -6277,13 +6334,13 @@ document.addEventListener('click', async (e) => {
         const tabBtnInforme = document.querySelector('.tab-btn[data-target="tab-informe"]');
         if (tabBtnInforme) tabBtnInforme.style.display = 'none';
         await cargarSelectsAlumnos(); 
-        setTimeout(() => { window._fichaAlumnoModificada = false; }, 250);
+        setTimeout(() => { window._modalEditandoModificado = false; window._fichaAlumnoModificada = false; }, 350);
         document.getElementById('modal-alta-alumno').showModal(); 
         return; 
     }
     if (target.id === 'btn-cerrar-alumno') { 
-        if (window._fichaAlumnoModificada) {
-            solicitarConfirmacionSalidaFicha();
+        if (window._modalEditandoModificado || window._fichaAlumnoModificada) {
+            solicitarConfirmacionSalidaModal(document.getElementById('modal-alta-alumno'));
             return;
         }
         const wrap = document.getElementById('form-alumno-wrapper'); 
@@ -6323,16 +6380,12 @@ window.abrirFichaSimuladaTest = function(testId) {
     const btnTabDatos = document.querySelector('.tab-btn[data-target="tab-datos"]');
     if (btnTabDatos) btnTabDatos.classList.add('active');
 
-    // Llenar campos simulados
-    document.getElementById('alumno-id').value = testId;
-    document.getElementById('alumno-nombre').value = esAdmisor ? "Sofía Gómez" : "Mateo Barrios";
-    document.getElementById('alumno-email').value = esAdmisor ? "sofia.gomez@test.com" : "mateo.barrios@test.com";
-    document.getElementById('alumno-telefono').value = esAdmisor ? "5491133445566" : "5491199887766";
-    document.getElementById('alumno-edad').value = esAdmisor ? "24" : "13";
-    document.getElementById('alumno-nivel').value = esAdmisor ? "Inicial I" : "Inicial II";
-    document.getElementById('alumno-tutor').value = esAdmisor ? "" : "Mamá Vanesa";
-    document.getElementById('alumno-tutor-telefono').value = esAdmisor ? "" : "5491122334455";
-    document.getElementById('alumno-estado').value = esAdmisor ? "Pendiente validación por alumno" : "Agenda confirmada";
+    // Llenar campos simulados con los IDs reales de form-alumno
+    if (document.getElementById('alumno-id')) document.getElementById('alumno-id').value = testId;
+    if (document.getElementById('nombre')) document.getElementById('nombre').value = esAdmisor ? "Sofía Gómez" : "Mateo Barrios";
+    if (document.getElementById('celular')) document.getElementById('celular').value = esAdmisor ? "5491133445566" : "5491199887766";
+    if (document.getElementById('edad')) document.getElementById('edad').value = esAdmisor ? "24" : "13";
+    if (document.getElementById('nivel')) document.getElementById('nivel').value = esAdmisor ? "Inicial I" : "Inicial II";
 
     const contDirecto = document.getElementById('container-ingreso-directo');
     if (contDirecto) contDirecto.style.display = 'none';
@@ -6830,7 +6883,7 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
     if(tabBtns.length > 0) { tabBtns[0].classList.add('active'); } 
     document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none'); 
     if(document.getElementById('tab-datos')) document.getElementById('tab-datos').style.display = 'block';
-    setTimeout(() => { window._fichaAlumnoModificada = false; }, 250);
+    setTimeout(() => { window._modalEditandoModificado = false; window._fichaAlumnoModificada = false; }, 350);
 }
 
 document.getElementById('form-alumno').addEventListener('submit', async (e) => { 
@@ -6887,6 +6940,7 @@ document.getElementById('form-alumno').addEventListener('submit', async (e) => {
             }
             await addDoc(collection(db, "alumnos"), data);
         }
+        window._modalEditandoModificado = false;
         window._fichaAlumnoModificada = false;
         const wrap = document.getElementById('form-alumno-wrapper');
         wrap.style.display = 'none';

@@ -21,7 +21,7 @@ import {
     sincronizarEventoAltaConfirmadaCalendar, 
     eliminarEventoAltaSeguro,
     validarConflictoCalendarEnVivo
-} from "../services/calendar.service.js?v=5.9.19";
+} from "../services/calendar.service.js?v=5.9.20";
 import { calcularProximaFechaDiaHora } from "./match.module.js";
 
 const mapaDiasCodigos = { 'D': 'Domingo', 'L': 'Lunes', 'M': 'Martes', 'X': 'Miércoles', 'J': 'Jueves', 'V': 'Viernes', 'S': 'Sábado' };
