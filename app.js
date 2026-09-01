@@ -11,7 +11,7 @@ import {
     configNodosFlujo,
     configNodosFlujoEvaluador,
     configNodosFlujoCoordinador
-} from "./src/config/constants.js?v=5.9.18";
+} from "./src/config/constants.js?v=5.9.19";
 
 import { 
     app, 
@@ -73,7 +73,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=5.9.18";
+} from "./src/services/calendar.service.js?v=5.9.19";
 
 import {
     matchCantidadActual,
@@ -106,7 +106,7 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=5.9.18";
+} from "./src/modules/match.module.js?v=5.9.19";
 
 import {
     renderPortalProfesor
@@ -128,7 +128,7 @@ import {
     copiarFilaExcelFacturacionAdmision,
     abrirModalAvisoPrealtaAlumno,
     copiarAvisoPrealtaAlumno
-} from "./src/modules/altas.module.js?v=5.9.18";
+} from "./src/modules/altas.module.js?v=5.9.19";
 
 import {
     renderTimelineUnificado,
@@ -821,6 +821,96 @@ try {
         quillInfDiagnostico = new Quill('#inf-diagnostico-editor', { theme: 'snow', modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] } });
     }
 } catch(e) { console.error("Error init Quill interview editors:", e); }
+
+// ================================================================
+// DIRTY FORM TRACKING — Protección contra pérdida de datos en ficha
+// ================================================================
+window._fichaAlumnoModificada = false;
+
+if (typeof quill !== 'undefined' && quill && quill.on) {
+    quill.on('text-change', () => { window._fichaAlumnoModificada = true; });
+}
+if (typeof quillInforme !== 'undefined' && quillInforme && quillInforme.on) {
+    quillInforme.on('text-change', () => { window._fichaAlumnoModificada = true; });
+}
+if (quillInfMotivacion && quillInfMotivacion.on) {
+    quillInfMotivacion.on('text-change', () => { window._fichaAlumnoModificada = true; });
+}
+if (quillInfDiagnostico && quillInfDiagnostico.on) {
+    quillInfDiagnostico.on('text-change', () => { window._fichaAlumnoModificada = true; });
+}
+
+// Escuchar cambios en cualquier input, select, textarea o checkbox dentro del wrapper de alumno
+const formAlumnoWrapEl = document.getElementById('form-alumno-wrapper');
+if (formAlumnoWrapEl) {
+    formAlumnoWrapEl.addEventListener('input', () => { window._fichaAlumnoModificada = true; });
+    formAlumnoWrapEl.addEventListener('change', () => { window._fichaAlumnoModificada = true; });
+}
+
+export function solicitarConfirmacionSalidaFicha(onDescartar, onGuardar) {
+    const modalDescarte = document.getElementById('modal-confirmar-descarte');
+    if (!modalDescarte) return;
+
+    const nom = document.getElementById('nombre')?.value || document.getElementById('alumno-nombre')?.value || 'el alumno';
+    const msgEl = document.getElementById('descarte-modal-mensaje');
+    if (msgEl) {
+        msgEl.textContent = `Modificaste datos en la ficha de ${nom}. Si salís ahora, perderás la información que acabás de ingresar.`;
+    }
+
+    const btnGuardar = document.getElementById('btn-descarte-guardar');
+    const btnDescartar = document.getElementById('btn-descarte-descartar');
+    const btnCancelar = document.getElementById('btn-descarte-cancelar');
+
+    if (btnGuardar) {
+        btnGuardar.onclick = () => {
+            modalDescarte.close();
+            if (typeof onGuardar === 'function') {
+                onGuardar();
+            } else {
+                const form = document.getElementById('form-alumno');
+                if (form) {
+                    window._fichaAlumnoModificada = false;
+                    const btnSub = form.querySelector('button[type="submit"]');
+                    if (btnSub) btnSub.click();
+                    else form.requestSubmit();
+                }
+            }
+        };
+    }
+
+    if (btnDescartar) {
+        btnDescartar.onclick = () => {
+            modalDescarte.close();
+            window._fichaAlumnoModificada = false;
+            if (typeof onDescartar === 'function') {
+                onDescartar();
+            } else {
+                const wrap = document.getElementById('form-alumno-wrapper');
+                if (wrap) {
+                    wrap.style.display = 'none';
+                    document.body.appendChild(wrap);
+                }
+                const modalFicha = document.getElementById('modal-alta-alumno');
+                if (modalFicha && modalFicha.open) modalFicha.close();
+            }
+        };
+    }
+
+    if (btnCancelar) {
+        btnCancelar.onclick = () => {
+            modalDescarte.close();
+        };
+    }
+
+    if (!modalDescarte.open) {
+        try {
+            modalDescarte.showModal();
+        } catch(e) {
+            modalDescarte.setAttribute('open', '');
+        }
+    }
+}
+window.solicitarConfirmacionSalidaFicha = solicitarConfirmacionSalidaFicha;
 
 export function formatearFechaHoraEstandar(val) {
     if (!val) return '-';
@@ -3329,6 +3419,97 @@ export function iniciarVerificadorVersion() {
 }
 window.iniciarVerificadorVersion = iniciarVerificadorVersion;
 
+// ================================================================
+// MANEJADOR JERÁRQUICO DE NAVEGACIÓN MÓVIL (Doble Atrás para Salir)
+// ================================================================
+window._ultimoTapAtras = 0;
+window._manejadorNavegacionMobileIniciado = false;
+
+export function initManejadorNavegacionMobile() {
+    if (window._manejadorNavegacionMobileIniciado) return;
+    window._manejadorNavegacionMobileIniciado = true;
+
+    // Asegurar estado centinela en el historial para interceptar el botón Atrás
+    try {
+        if (!history.state || !history.state.mandalaGuard) {
+            history.pushState({ mandalaGuard: true }, '');
+        }
+    } catch(e) {}
+
+    window.addEventListener('popstate', (event) => {
+        // Nivel 0: Si el modal de confirmación de descarte estaba abierto, cerrarlo y quedarse en el formulario
+        const modalDescarte = document.getElementById('modal-confirmar-descarte');
+        if (modalDescarte && modalDescarte.open) {
+            modalDescarte.close();
+            try { history.pushState({ mandalaGuard: true }, ''); } catch(e) {}
+            return;
+        }
+
+        // Nivel 1: ¿Ficha de alumno abierta?
+        const modalFicha = document.getElementById('modal-alta-alumno');
+        if (modalFicha && modalFicha.open) {
+            try { history.pushState({ mandalaGuard: true }, ''); } catch(e) {}
+            if (window._fichaAlumnoModificada) {
+                solicitarConfirmacionSalidaFicha();
+            } else {
+                const wrap = document.getElementById('form-alumno-wrapper');
+                if (wrap) {
+                    wrap.style.display = 'none';
+                    document.body.appendChild(wrap);
+                }
+                modalFicha.close();
+            }
+            return;
+        }
+
+        // Nivel 1b: ¿Cualquier otro diálogo modal abierto?
+        const modalesAbiertos = Array.from(document.querySelectorAll('dialog[open]')).filter(d => d.id !== 'global-action-loader');
+        if (modalesAbiertos.length > 0) {
+            try { history.pushState({ mandalaGuard: true }, ''); } catch(e) {}
+            const ultimoModal = modalesAbiertos[modalesAbiertos.length - 1];
+            const btnCerrar = ultimoModal.querySelector('[id^="btn-cerrar"], .btn-cerrar-modal, .btn-close');
+            if (btnCerrar) {
+                btnCerrar.click();
+            } else {
+                ultimoModal.close();
+            }
+            return;
+        }
+
+        // Nivel 2: ¿Menú lateral móvil abierto?
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('mobile-overlay');
+        if (sidebar && sidebar.classList.contains('active')) {
+            try { history.pushState({ mandalaGuard: true }, ''); } catch(e) {}
+            sidebar.classList.remove('active');
+            if (overlay) overlay.style.display = 'none';
+            return;
+        }
+
+        // Nivel 2b: ¿Popover de perfil abierto?
+        const profilePopover = document.getElementById('profile-popover');
+        if (profilePopover && profilePopover.classList.contains('show')) {
+            try { history.pushState({ mandalaGuard: true }, ''); } catch(e) {}
+            profilePopover.classList.remove('show');
+            return;
+        }
+
+        // Nivel 3: Doble Toque para Salir de la App (ventana de 2 segundos)
+        const ahora = Date.now();
+        const tiempoDesdeUltimoAtras = ahora - (window._ultimoTapAtras || 0);
+
+        if (tiempoDesdeUltimoAtras < 2000) {
+            mostrarToast("👋 Saliendo de la app...", "info");
+            history.back();
+        } else {
+            window._ultimoTapAtras = ahora;
+            try { history.pushState({ mandalaGuard: true }, ''); } catch(e) {}
+            mostrarToast("⚠️ Presioná atrás nuevamente para salir", "warning");
+        }
+    });
+}
+window.initManejadorNavegacionMobile = initManejadorNavegacionMobile;
+
 export function configurarSidebarPorPermisos() {
     const usuario = window.usuarioActual || {};
     const mods = obtenerModulosPermitidosModoActivo();
@@ -4193,6 +4374,9 @@ onAuthStateChanged(auth, async (user) => {
         // Iniciar detector de actualizaciones automáticas en tiempo real
         iniciarVerificadorVersion();
 
+        // Iniciar manejador jerárquico de navegación móvil (Doble atrás para salir y guardia de modales)
+        initManejadorNavegacionMobile();
+
     } else { 
         try {
             localStorage.removeItem('mandala_has_session');
@@ -4573,6 +4757,23 @@ document.addEventListener('click', async (e) => {
     if (target.tagName === 'DIALOG') { 
         const rect = target.getBoundingClientRect(), inDialog = (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom);
         if (!inDialog) {
+            if (target.id === 'modal-alta-alumno') {
+                if (window._fichaAlumnoModificada) {
+                    solicitarConfirmacionSalidaFicha();
+                    return;
+                }
+                const wrap = document.getElementById('form-alumno-wrapper');
+                if (wrap) {
+                    wrap.style.display = 'none';
+                    document.body.appendChild(wrap);
+                }
+                target.close();
+                return;
+            }
+            if (target.id === 'modal-confirmar-descarte') {
+                target.close();
+                return;
+            }
             target.close(); 
             return;
         }
@@ -6076,10 +6277,21 @@ document.addEventListener('click', async (e) => {
         const tabBtnInforme = document.querySelector('.tab-btn[data-target="tab-informe"]');
         if (tabBtnInforme) tabBtnInforme.style.display = 'none';
         await cargarSelectsAlumnos(); 
+        setTimeout(() => { window._fichaAlumnoModificada = false; }, 250);
         document.getElementById('modal-alta-alumno').showModal(); 
         return; 
     }
-    if (target.id === 'btn-cerrar-alumno') { const wrap = document.getElementById('form-alumno-wrapper'); wrap.style.display = 'none'; document.body.appendChild(wrap); document.getElementById('modal-alta-alumno').close(); return; }
+    if (target.id === 'btn-cerrar-alumno') { 
+        if (window._fichaAlumnoModificada) {
+            solicitarConfirmacionSalidaFicha();
+            return;
+        }
+        const wrap = document.getElementById('form-alumno-wrapper'); 
+        wrap.style.display = 'none'; 
+        document.body.appendChild(wrap); 
+        document.getElementById('modal-alta-alumno').close(); 
+        return; 
+    }
 });
 
 async function cargarSelectsAlumnos() { 
@@ -6141,6 +6353,7 @@ window.abrirFichaSimuladaTest = function(testId) {
     }
 
     mostrarToast(`🔔 Ficha simulada abierta: ${esAdmisor ? 'Sofía Gómez' : 'Mateo Barrios'}`, 'info');
+    setTimeout(() => { window._fichaAlumnoModificada = false; }, 250);
 };
 
 window.editarAlumnoModalDirecto = async function(id) {
@@ -6617,6 +6830,7 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
     if(tabBtns.length > 0) { tabBtns[0].classList.add('active'); } 
     document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none'); 
     if(document.getElementById('tab-datos')) document.getElementById('tab-datos').style.display = 'block';
+    setTimeout(() => { window._fichaAlumnoModificada = false; }, 250);
 }
 
 document.getElementById('form-alumno').addEventListener('submit', async (e) => { 
@@ -6673,6 +6887,7 @@ document.getElementById('form-alumno').addEventListener('submit', async (e) => {
             }
             await addDoc(collection(db, "alumnos"), data);
         }
+        window._fichaAlumnoModificada = false;
         const wrap = document.getElementById('form-alumno-wrapper');
         wrap.style.display = 'none';
         document.body.appendChild(wrap);

@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=5.9.18">
+    <link rel="stylesheet" href="styles.css?v=5.9.19">
 
     <style>
         /* Estilos Críticos de Widget de Perfil y Popover Google-Style */
@@ -339,7 +339,7 @@
                     <button type="button" id="btn-quick-test-notif" onclick="window.abrirModalTestNotificacion()" class="btn-app btn-secondary" style="font-size:11px; height:28px; padding:0 8px; flex:1; justify-content:center; color:var(--accent-teal); border-color:var(--accent-teal); background:rgba(0,123,143,0.05); font-weight:700;" title="Probar notificación push de entrevista en celular o PC">🔔 Test Notificación</button>
                     <a href="guia-evaluadores.html" target="_blank" class="btn-app btn-secondary" style="font-size:11px; height:28px; padding:0 8px; justify-content:center; text-decoration:none; display:inline-flex; align-items:center;" title="Abrir Guía Paso a Paso para Evaluadores">📖 Guía</a>
                 </div>
-                <div id="sidebar-version-label" style="font-size: 11px; color: var(--text-light); text-align: left; font-weight: 600; padding: 2px 6px;">v5.9.18</div>
+                <div id="sidebar-version-label" style="font-size: 11px; color: var(--text-light); text-align: left; font-weight: 600; padding: 2px 6px;">v5.9.19</div>
             </div>
         </aside>
 
@@ -2120,6 +2120,30 @@
         </div>
     </dialog>
 
+    <!-- MODAL CONFIRMACIÓN DE CAMBIOS SIN GUARDAR (DIRTY GUARD) -->
+    <dialog id="modal-confirmar-descarte" class="modern-modal auto-height-modal" style="max-width:440px; width:92%; padding:0; border-radius:18px; border:1px solid var(--border-color); box-shadow:0 24px 60px rgba(0,0,0,0.22); z-index:100000;">
+        <div style="padding:24px 22px 20px;">
+            <div style="font-size:2.4em; margin-bottom:12px; text-align:center;">⚠️</div>
+            <h3 style="margin:0 0 8px; font-size:18px; font-weight:800; color:var(--text-main); text-align:center; letter-spacing:-0.01em;">¿Descartar cambios sin guardar?</h3>
+            <p id="descarte-modal-mensaje" style="margin:0 0 22px; font-size:13.5px; color:var(--text-muted); text-align:center; line-height:1.5;">
+                Modificaste datos en la ficha del alumno. Si salís ahora, perderás la información que acabás de ingresar.
+            </p>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <button type="button" id="btn-descarte-guardar" class="btn-app btn-primary" style="width:100%; justify-content:center; padding:12px; font-size:14px; font-weight:700; border-radius:10px; background:var(--accent-teal, #007b8f); color:#ffffff;">
+                    💾 Guardar Cambios y Salir
+                </button>
+                <div style="display:flex; gap:8px; width:100%;">
+                    <button type="button" id="btn-descarte-descartar" class="btn-app btn-secondary" style="flex:1; justify-content:center; padding:10px; font-size:13px; font-weight:700; color:#dc2626; border-color:#fca5a5; background:#fff5f5; border-radius:10px;">
+                        🗑️ Descartar y Salir
+                    </button>
+                    <button type="button" id="btn-descarte-cancelar" class="btn-app btn-secondary" style="flex:1; justify-content:center; padding:10px; font-size:13px; font-weight:600; border-radius:10px;">
+                        Continuar Editando
+                    </button>
+                </div>
+            </div>
+        </div>
+    </dialog>
+
     <!-- MODAL DE CONFIRMACIÓN CUSTOM — Punto 6 -->
     <dialog id="modal-confirmar-accion" class="modern-modal auto-height-modal" style="max-width:420px; width:90%; padding:0; border-radius:16px; border:1px solid var(--border-color); box-shadow:0 20px 60px rgba(0,0,0,0.15);">
         <div style="padding:24px 24px 20px;">
@@ -2144,12 +2168,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=5.9.18"></script>
+    <script type="module" src="app.js?v=5.9.19"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=5.9.18').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=5.9.19').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {
