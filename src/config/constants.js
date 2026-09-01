@@ -2,7 +2,7 @@
 // src/config/constants.js — Constantes globales del sistema
 // =======================================================================
 
-export const APP_VERSION = "v5.9.20";
+export const APP_VERSION = "v5.9.21";
 export const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 export const firebaseConfig = {

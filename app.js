@@ -11,7 +11,7 @@ import {
     configNodosFlujo,
     configNodosFlujoEvaluador,
     configNodosFlujoCoordinador
-} from "./src/config/constants.js?v=5.9.20";
+} from "./src/config/constants.js?v=5.9.21";
 
 import { 
     app, 
@@ -73,7 +73,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=5.9.20";
+} from "./src/services/calendar.service.js?v=5.9.21";
 
 import {
     matchCantidadActual,
@@ -106,7 +106,7 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=5.9.20";
+} from "./src/modules/match.module.js?v=5.9.21";
 
 import {
     renderPortalProfesor
@@ -128,7 +128,7 @@ import {
     copiarFilaExcelFacturacionAdmision,
     abrirModalAvisoPrealtaAlumno,
     copiarAvisoPrealtaAlumno
-} from "./src/modules/altas.module.js?v=5.9.20";
+} from "./src/modules/altas.module.js?v=5.9.21";
 
 import {
     renderTimelineUnificado,
@@ -953,6 +953,41 @@ export function solicitarConfirmacionSalidaModal(modalActivo, onDescartar, onGua
 }
 window.solicitarConfirmacionSalidaModal = solicitarConfirmacionSalidaModal;
 window.solicitarConfirmacionSalidaFicha = (onD, onG) => solicitarConfirmacionSalidaModal(document.getElementById('modal-alta-alumno'), onD, onG);
+
+// =======================================================================
+// INTERCEPTOR DE CANCELACIÓN NATIVA DE <dialog> (BOTÓN/GESTO ATRÁS EN CELULAR)
+// En Android Chrome, la tecla física o gesto "Atrás" dispara el evento 'cancel' en el <dialog>.
+// Si no se llama a e.preventDefault(), el navegador cierra el modal automáticamente sin pasar por popstate.
+// =======================================================================
+document.addEventListener('cancel', (e) => {
+    const dialog = e.target;
+    if (!dialog || dialog.tagName !== 'DIALOG') return;
+
+    // Si es el modal de confirmación de descarte, dejar que se cierre (equivale a "Continuar editando")
+    if (dialog.id === 'modal-confirmar-descarte') {
+        return;
+    }
+
+    // Si es modal-alta-alumno o modal-informe-admision y tiene cambios:
+    if (dialog.id === 'modal-alta-alumno' || dialog.id === 'modal-informe-admision') {
+        if (window._modalEditandoModificado || window._fichaAlumnoModificada) {
+            // ¡PREVENIR EL CIERRE NATIVO AUTOMÁTICO DE ANDROID/CHROME!
+            e.preventDefault();
+            // Desplegar el diálogo de confirmación de descarte con las 3 opciones
+            solicitarConfirmacionSalidaModal(dialog);
+            return;
+        } else {
+            // Si no fue modificado, limpiar el wrapper si es modal-alta-alumno antes del cierre
+            if (dialog.id === 'modal-alta-alumno') {
+                const wrap = document.getElementById('form-alumno-wrapper');
+                if (wrap) {
+                    wrap.style.display = 'none';
+                    document.body.appendChild(wrap);
+                }
+            }
+        }
+    }
+}, true);
 
 export function formatearFechaHoraEstandar(val) {
     if (!val) return '-';
