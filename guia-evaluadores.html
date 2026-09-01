@@ -779,7 +779,7 @@
                 <span>🔄</span> Reiniciar Checklist
             </button>
             <a href="index.html" class="btn-action btn-back-app" title="Ir a la aplicación Mandala Admisión">
-                <span>🚀</span> Volver a la App
+                <span>🚀</span> Ir a la App
             </a>
             <button type="button" class="btn-action btn-print" onclick="window.print()" title="Generar PDF A4 o imprimir esta guía">
                 <span>🖨️</span> Imprimir / Guardar en PDF
@@ -851,7 +851,7 @@
                             <span class="step-tag">Pie de Sidebar</span>
                         </div>
                         <div class="step-desc">
-                            Al iniciar sesión con tu cuenta Google, dirigí la vista al <strong>pie de la barra lateral izquierda</strong> (debajo del botón de Notificaciones). Verificá que la etiqueta de versión (ejemplo: <span class="pill-key">v5.9.16</span>) coincida con la última versión comunicada por el Administrador.
+                            Al iniciar sesión con tu cuenta Google, dirigí la vista al <strong>pie de la barra lateral izquierda</strong> (debajo del botón de Notificaciones). Verificá que la etiqueta de versión (ejemplo: <span class="pill-key">v5.9.22</span>) coincida con la última versión comunicada por el Administrador.
                             <ul>
                                 <li>Si la versión difiere o parece desactualizada, forzá una recarga limpia presionando <span class="pill-key">Ctrl + F5</span> (o vaciá la caché de la PWA en el celular).</li>
                             </ul>
@@ -1279,6 +1279,67 @@
         </section>
 
         <!-- ============================================================== -->
+        <!-- CASO 6: LIMPIEZA DE CASOS DE PRUEBA Y REUTILIZACIÓN -->
+        <!-- ============================================================== -->
+        <section class="guide-section" id="caso-6">
+            <div class="section-header">
+                <div class="section-badge">6</div>
+                <div class="section-title-wrap">
+                    <h2 class="section-title">Caso 6: Limpieza de Casos de Prueba y Reutilización del Entorno</h2>
+                    <p class="section-subtitle">Eliminación controlada de los expedientes simulados y confirmación de disponibilidad para futuras pruebas.</p>
+                </div>
+            </div>
+
+            <div class="callout callout-info" style="margin-bottom: 20px;">
+                <div class="callout-icon">💡</div>
+                <div class="callout-content">
+                    <strong>CREACIÓN Y BORRADO ILIMITADO DE PRUEBAS:</strong><br>
+                    Tanto la generación de aspirantes de test como su eliminación son procedimientos 100% seguros y aislados. <strong>Se pueden crear y borrar las veces que sea necesario</strong> para capacitar evaluadores o validar nuevos flujos de admisión sin alterar ningún registro real ni estadísticas oficiales de la academia.
+                </div>
+            </div>
+
+            <div class="step-list">
+                <!-- 6.1 -->
+                <div class="step-item" id="item-6-1">
+                    <input type="checkbox" class="step-checkbox" onchange="toggleStep('item-6-1')">
+                    <div class="step-body">
+                        <div class="step-label">
+                            <span>6.1 Eliminar los Alumnos de Prueba con el Botón de Papelera</span>
+                            <span class="step-tag">Botón 🗑️ en Barra Lateral</span>
+                        </div>
+                        <div class="step-desc">
+                            Una vez concluidas todas las validaciones operativas, solicitamos limpiar los registros de prueba generados:
+                            <ul>
+                                <li>Dirigite al pie de la barra lateral izquierda, justo al lado del botón <strong>[🧪 Casos Test]</strong>.</li>
+                                <li>Hacé clic sobre el botón con ícono de papelera <strong>[🗑️]</strong>.</li>
+                                <li>El sistema identificará todos los aspirantes de prueba asociados a tu cuenta (rotulados con <code>[TEST...]</code>) y los suprimirá de la base de datos.</li>
+                                <li>Verificá la aparición del toast informativo de confirmación: <em>"🗑️ Se eliminaron X alumnos de prueba..."</em>.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6.2 -->
+                <div class="step-item" id="item-6-2">
+                    <input type="checkbox" class="step-checkbox" onchange="toggleStep('item-6-2')">
+                    <div class="step-body">
+                        <div class="step-label">
+                            <span>6.2 Verificación de Bandeja Limpia y Disponibilidad Futura</span>
+                            <span class="step-tag">Comprobación Final</span>
+                        </div>
+                        <div class="step-desc">
+                            Constatá que la plataforma vuelva a su estado operativo habitual:
+                            <ul>
+                                <li>En las vistas de <strong>Inbox</strong> y <strong>Lista de Espera</strong> ya no deben figurar expedientes ficticios de prueba.</li>
+                                <li>Recordá que ante cualquier necesidad de realizar un nuevo ciclo de validación o entrenamiento, podés volver a presionar <strong>[🧪 Casos Test]</strong> para recrearlos al instante.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================== -->
         <!-- TABLA RESUMEN DE CRITERIOS DE ACEPTACIÓN (QA MATRIX) -->
         <!-- ============================================================== -->
         <section class="guide-section" id="qa-matrix">
@@ -1316,7 +1377,7 @@
                         <tr>
                             <td><strong>Caso 2</strong><br>Deep Linking</td>
                             <td>Tocar '[👁️ Ver Ficha]' en la notificación emergente.</td>
-                            <td>La app pasa al frente y abre automáticamente la ficha simulada de Mateo Barrios.</td>
+                            <td>La app pasa al frente y abre automáticamente el informe de entrevista de Mateo Barrios.</td>
                             <td><span class="step-tag">APROBADO</span></td>
                         </tr>
                         <tr>
@@ -1335,6 +1396,12 @@
                             <td><strong>Caso 5</strong><br>Cierre & Espera</td>
                             <td>Tildar 'Cierre y Lista de Espera' y pulsar 'Guardar y Derivar'.</td>
                             <td>Toast de éxito, cierre de modal y reubicación del aspirante en Lista de Espera.</td>
+                            <td><span class="step-tag">APROBADO</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Caso 6</strong><br>Limpieza Test</td>
+                            <td>Pulsar el botón '🗑️' en el pie de la barra lateral tras finalizar.</td>
+                            <td>Bandeja limpia sin alumnos residuales y certeza de poder crear y borrar pruebas ilimitadamente.</td>
                             <td><span class="step-tag">APROBADO</span></td>
                         </tr>
                     </tbody>
