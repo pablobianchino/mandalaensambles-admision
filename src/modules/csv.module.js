@@ -38,6 +38,14 @@ function parseCSVLine(text) {
     const p = [];
     let cur = '';
     let inQuotes = false;
+    
+    // Detección inteligente del delimitador más probable (coma, punto y coma o tab)
+    let delim = ',';
+    if (!text.includes(',') && text.includes(';')) delim = ';';
+    else if (!text.includes(',') && !text.includes(';') && text.includes('\t')) delim = '\t';
+    else if (text.includes(';') && (text.match(/;/g) || []).length > (text.match(/,/g) || []).length) delim = ';';
+    else if (text.includes('\t') && (text.match(/\t/g) || []).length > (text.match(/,/g) || []).length) delim = '\t';
+
     for (let i = 0; i < text.length; i++) {
         const c = text[i];
         if (c === '"') {
@@ -47,7 +55,7 @@ function parseCSVLine(text) {
             } else {
                 inQuotes = !inQuotes;
             }
-        } else if (c === ',' && !inQuotes) {
+        } else if (c === delim && !inQuotes) {
             p.push(cur);
             cur = '';
         } else {
@@ -218,6 +226,11 @@ export function procesarFilasCSV(filas, alumnosExistentesBD = []) {
             continue;
         }
 
+        const diasEspRaw = parseInt((row[1] || '').trim(), 10);
+        const diasContRaw = parseInt((row[2] || '').trim(), 10);
+        const diasEsperando = isNaN(diasEspRaw) ? null : diasEspRaw;
+        const diasContacto = isNaN(diasContRaw) ? diasEsperando : diasContRaw;
+
         const celuRaw = (row[3] || '').trim();
         const edadRaw = (row[4] || '').trim();
         const instRaw = (row[5] || '').trim();
@@ -300,9 +313,13 @@ export function procesarFilasCSV(filas, alumnosExistentesBD = []) {
             informe_admision: informeHtml,
             perfil_psicologico: perfilTags,
             estado_agenda: 'Lista de espera',
+            dias_esperando_historico: diasEsperando,
+            dias_contacto_historico: diasContacto,
+            fecha_ingreso_espera: diasEsperando !== null ? new Date(Date.now() - diasEsperando * 24 * 3600 * 1000).toISOString() : new Date().toISOString(),
+            fecha_ultimo_contacto: diasContacto !== null ? new Date(Date.now() - diasContacto * 24 * 3600 * 1000).toISOString() : new Date().toISOString(),
             historial: historialInicial,
             origen_creacion: 'Carga Masiva CSV',
-            fecha_ingreso_espera: new Date().toISOString(),
+            es_bicicleta: Boolean(nombreRaw.includes('🚲') || detalleRaw.toLowerCase().includes('bicicleta') || perfilRaw.toLowerCase().includes('bicicleta')),
             es_duplicado: yaExiste
         };
 

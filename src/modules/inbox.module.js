@@ -202,7 +202,16 @@ export function generarBotonesAccion(al, id, esModal = false) {
             html += `<button type="button" class="btn-action-neutral btn-copiar-aviso-cancelacion" data-id="${id}">💬 Avisar Cancelación a Profe</button>`;
             html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
         } else if (est === 'lista de espera') {
+            const esBici = !!al.es_bicicleta;
+            const celSafe = (al.celular || al.telefono || '').replace(/'/g, "\\'");
+            const nombreSafe = (al.nombre || '').replace(/'/g, "\\'");
             html += `<button type="button" class="btn-action-primary btn-abrir-prealta" data-id="${id}">⚙️ Iniciar Pre-Alta</button>`;
+            html += `<button type="button" class="btn-action-neutral" onclick="window.abrirModalRegistrarContacto('${id}', '${nombreSafe}', '${celSafe}', ${esBici})">📞 Registrar Contacto</button>`;
+            if (!esBici) {
+                html += `<button type="button" class="btn-action-neutral" onclick="window.toggleBicicletaAlumno('${id}', true, '${nombreSafe}')">🚲 Enviar a Bicicleta</button>`;
+            } else {
+                html += `<button type="button" class="btn-action-neutral" onclick="window.toggleBicicletaAlumno('${id}', false, '${nombreSafe}')">↩️ Quitar de Bicicleta</button>`;
+            }
             html += `<button type="button" class="btn-action-neutral btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Agenda WS</button>`;
             html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
             html += `<button type="button" class="btn-action-neutral btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
@@ -271,6 +280,15 @@ export function generarBotonesAccion(al, id, esModal = false) {
         html += `<button type="button" class="dropdown-item btn-copiar-aviso-cancelacion" data-id="${id}">💬 Avisar Cancelación a Profe</button>`;
         html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
     } else if (est === 'lista de espera') {
+        const esBici = !!al.es_bicicleta;
+        const celSafe = (al.celular || al.telefono || '').replace(/'/g, "\\'");
+        const nombreSafe = (al.nombre || '').replace(/'/g, "\\'");
+        html += `<button type="button" class="dropdown-item" onclick="window.abrirModalRegistrarContacto('${id}', '${nombreSafe}', '${celSafe}', ${esBici})">📞 Registrar Contacto</button>`;
+        if (!esBici) {
+            html += `<button type="button" class="dropdown-item" onclick="window.toggleBicicletaAlumno('${id}', true, '${nombreSafe}')">🚲 Enviar a Bicicleta</button>`;
+        } else {
+            html += `<button type="button" class="dropdown-item" onclick="window.toggleBicicletaAlumno('${id}', false, '${nombreSafe}')">↩️ Quitar de Bicicleta</button>`;
+        }
         html += `<button type="button" class="dropdown-item btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Agenda WS</button>`;
         html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
         html += `<button type="button" class="dropdown-item btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;

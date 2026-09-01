@@ -260,6 +260,40 @@ body {
     background: #f0fdfa;
 }
 
+.btn-trigger-bicicletas {
+    border-color: #d8b4fe !important;
+    background: #faf5ff !important;
+    color: #7e22ce !important;
+    font-weight: 700;
+}
+.btn-trigger-bicicletas:hover {
+    border-color: #9333ea !important;
+    background: #f3e8ff !important;
+    color: #6b21a8 !important;
+    transform: translateY(-1px);
+}
+.badge-count-bicicletas {
+    background: #9333ea;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 1px 7px;
+    border-radius: 10px;
+}
+.highlight-panel-target {
+    animation: highlightPulse 1.6s ease-out;
+}
+@keyframes highlightPulse {
+    0% {
+        box-shadow: 0 0 0 6px rgba(147, 51, 234, 0.45);
+        transform: scale(1.008);
+    }
+    100% {
+        box-shadow: 0 2px 8px rgba(147, 51, 234, 0.04);
+        transform: scale(1);
+    }
+}
+
 .dropdown-filtros-menu {
     animation: fadeInFilters 0.15s ease-out;
 }
@@ -2391,4 +2425,197 @@ button.btn-prio-filtro.prio-proximos.active,
 .ql-container.ql-snow {
     border-color: var(--border-color) !important;
 }
+
+/* =======================================================================
+   MÉTRICAS DE SEGUIMIENTO EN LISTA DE ESPERA & BICICLETAS
+   ======================================================================= */
+.espera-metricas-col {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.badge-dias-espera {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3px 8px;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    line-height: 1.15;
+    min-width: 68px;
+    text-align: center;
+}
+.badge-dias-espera-label {
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 0.3px;
+}
+.badge-dias-espera-val {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--text-main);
+}
+
+.badge-dias-contacto {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3px 8px;
+    border-radius: 8px;
+    line-height: 1.15;
+    min-width: 78px;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+.badge-dias-contacto-label {
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+.badge-dias-contacto-val {
+    font-size: 13px;
+    font-weight: 800;
+}
+
+/* Semáforo de Colores */
+.badge-dias-contacto.blanco {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: #334155;
+}
+.badge-dias-contacto.blanco .badge-dias-contacto-label {
+    color: #64748b;
+}
+
+.badge-dias-contacto.amarillo {
+    background: #fef9c3;
+    border: 1px solid #fde047;
+    color: #854d0e;
+}
+.badge-dias-contacto.amarillo .badge-dias-contacto-label {
+    color: #a16207;
+}
+
+.badge-dias-contacto.rojo {
+    background: #fee2e2;
+    border: 1px solid #fca5a5;
+    color: #991b1b;
+    animation: pulseRojo 2.5s infinite;
+}
+.badge-dias-contacto.rojo .badge-dias-contacto-label {
+    color: #b91c1c;
+}
+
+@keyframes pulseRojo {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    50% { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15); }
+}
+
+.btn-contactar-fila {
+    background: rgba(0, 123, 143, 0.09);
+    color: var(--accent-teal);
+    border: 1px solid rgba(0, 123, 143, 0.25);
+    font-weight: 700;
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 11.5px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, transform 0.1s;
+    font-family: inherit;
+    white-space: nowrap;
+}
+.btn-contactar-fila:hover {
+    background: rgba(0, 123, 143, 0.18);
+    border-color: var(--accent-teal);
+    transform: translateY(-1px);
+}
+
+.btn-bicicleta-fila {
+    background: rgba(147, 51, 234, 0.08);
+    color: #7e22ce;
+    border: 1px solid rgba(147, 51, 234, 0.25);
+    font-weight: 700;
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-size: 11px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+    white-space: nowrap;
+}
+.btn-bicicleta-fila:hover {
+    background: rgba(147, 51, 234, 0.18);
+    border-color: #9333ea;
+}
+
+.btn-quitar-bicicleta-fila {
+    background: rgba(100, 116, 139, 0.09);
+    color: #475569;
+    border: 1px solid rgba(100, 116, 139, 0.25);
+    font-weight: 700;
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-size: 11px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+    white-space: nowrap;
+}
+.btn-quitar-bicicleta-fila:hover {
+    background: rgba(100, 116, 139, 0.2);
+    border-color: #475569;
+}
+
+/* Panel Agrupador de Bicicletas */
+.panel-bicicletas-box {
+    margin-top: 24px;
+    margin-bottom: 24px;
+    border: 2px dashed #c084fc;
+    background: linear-gradient(180deg, #faf5ff 0%, #ffffff 100%);
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(147, 51, 234, 0.04);
+}
+.panel-bicicletas-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e9d5ff;
+}
+.panel-bicicletas-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 800;
+    color: #6b21a8;
+}
+.panel-bicicletas-badge {
+    background: #9333ea;
+    color: white;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 2px 9px;
+    border-radius: 12px;
+}
+
 

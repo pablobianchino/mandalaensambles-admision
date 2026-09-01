@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=5.9.22">
+    <link rel="stylesheet" href="styles.css?v=5.9.23">
 
     <style>
         /* Estilos Críticos de Widget de Perfil y Popover Google-Style */
@@ -339,7 +339,7 @@
                     <button type="button" id="btn-quick-test-notif" onclick="window.abrirModalTestNotificacion()" class="btn-app btn-secondary" style="font-size:11px; height:28px; padding:0 8px; flex:1; justify-content:center; color:var(--accent-teal); border-color:var(--accent-teal); background:rgba(0,123,143,0.05); font-weight:700;" title="Probar notificación push de entrevista en celular o PC">🔔 Test Notificación</button>
                     <a href="guia-evaluadores.html" target="_blank" class="btn-app btn-secondary" style="font-size:11px; height:28px; padding:0 8px; justify-content:center; text-decoration:none; display:inline-flex; align-items:center;" title="Abrir Guía Paso a Paso para Evaluadores">📖 Guía</a>
                 </div>
-                <div id="sidebar-version-label" style="font-size: 11px; color: var(--text-light); text-align: left; font-weight: 600; padding: 2px 6px;">v5.9.22</div>
+                <div id="sidebar-version-label" style="font-size: 11px; color: var(--text-light); text-align: left; font-weight: 600; padding: 2px 6px;">v5.9.23</div>
             </div>
         </aside>
 
@@ -360,6 +360,7 @@
                                 <button type="button" id="btn-limpiar-buscador" style="display:none; position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; color:#8a9097; font-size:14px; cursor:pointer; padding:4px 6px; border-radius:50%; line-height:1;" title="Limpiar búsqueda">✕</button>
                             </div>
                             <button id="btn-carga-masiva" style="display:none; background:var(--hover-bg); color:var(--text-main); border:1px solid var(--border-color); border-radius:8px; padding:0 14px; cursor:pointer; font-weight:700; font-size:12.5px; font-family:inherit; white-space:nowrap; transition:0.2s;" title="Carga masiva de alumnos mediante archivo CSV">📥 Cargar CSV</button>
+                            <button id="btn-sync-espera-csv" onclick="window.abrirModalSyncEsperaCSV()" style="display:none; background:rgba(0,123,143,0.08); color:var(--accent-teal); border:1px solid rgba(0,123,143,0.3); border-radius:8px; padding:0 14px; cursor:pointer; font-weight:700; font-size:12.5px; font-family:inherit; white-space:nowrap; transition:0.2s;" title="Sincronizar días de espera y último contacto desde CSV">📥 Sincronizar CSV</button>
                             <input type="file" id="input-csv" accept=".csv" style="display:none;">
                         </div>
                         <!-- Filtros rápidos de Alarma -->
@@ -2144,6 +2145,155 @@
         </div>
     </dialog>
 
+    <!-- MODAL REGISTRAR CONTACTO CON ALUMNO (LISTA DE ESPERA / BICICLETAS) -->
+    <dialog id="modal-registrar-contacto" class="modern-modal auto-height-modal" style="max-width:480px; width:92%; padding:0; border-radius:16px; border:1px solid var(--border-color); box-shadow:0 20px 60px rgba(0,0,0,0.18);">
+        <div style="padding:22px 24px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;">
+                <div>
+                    <h3 style="margin:0; font-size:17px; font-weight:800; color:var(--text-main); display:flex; align-items:center; gap:8px;">
+                        <span>📞</span> Registrar Contacto
+                    </h3>
+                    <div id="modal-contacto-subtitulo" style="font-size:12.5px; color:var(--text-muted); margin-top:3px; font-weight:500;">
+                        Alumno: <strong id="modal-contacto-alumno-nombre" style="color:var(--text-main);"></strong>
+                    </div>
+                </div>
+                <button type="button" class="btn-cerrar-modal" onclick="document.getElementById('modal-registrar-contacto').close()" style="background:none; border:none; font-size:18px; cursor:pointer; color:var(--text-muted); line-height:1;">✕</button>
+            </div>
+
+            <!-- Info de celular y WhatsApp directo -->
+            <div id="modal-contacto-celular-box" style="display:flex; align-items:center; justify-content:space-between; background:var(--hover-bg); border:1px solid var(--border-color); border-radius:10px; padding:8px 12px; margin-bottom:14px;">
+                <div style="display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--text-muted);">
+                    <span>📱</span> <span id="modal-contacto-celular-val" style="font-weight:700; color:var(--text-main);">-</span>
+                </div>
+                <a id="modal-contacto-whatsapp-btn" href="#" target="_blank" style="display:inline-flex; align-items:center; gap:5px; background:#25d366; color:#ffffff; padding:4px 10px; border-radius:6px; font-size:11.5px; font-weight:700; text-decoration:none; transition:opacity 0.2s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                    <span>💬</span> WhatsApp
+                </a>
+            </div>
+
+            <input type="hidden" id="modal-contacto-alumno-id">
+            <input type="hidden" id="modal-contacto-es-bicicleta" value="false">
+
+            <!-- Textbox directo de lo conversado -->
+            <div style="margin-bottom:16px;">
+                <label style="display:block; font-size:12px; font-weight:700; color:var(--text-main); margin-bottom:6px;">
+                    Lo conversado con el alumno / situación informada:
+                </label>
+                <textarea id="modal-contacto-texto" rows="4" placeholder="Escribí lo conversado con el alumno (ej: Se le informó que estamos armando el grupo de los martes a las 19hs con Belu...)" style="width:100%; border:1px solid var(--border-color); border-radius:10px; padding:10px 12px; font-family:inherit; font-size:13px; outline:none; box-sizing:border-box; resize:vertical; line-height:1.4; background:#ffffff;"></textarea>
+            </div>
+
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button type="button" class="btn-app btn-secondary" onclick="document.getElementById('modal-registrar-contacto').close()" style="padding:9px 16px; border-radius:8px; font-size:13px;">
+                    Cancelar
+                </button>
+                <button type="button" id="btn-guardar-contacto" class="btn-app btn-primary" style="padding:9px 18px; border-radius:8px; font-size:13px; font-weight:700; background:var(--accent-teal); color:#ffffff;">
+                    💾 Guardar
+                </button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- MODAL DECISIÓN POST-CONTACTO PARA ALUMNOS EN BICICLETA -->
+    <dialog id="modal-decision-bicicleta" class="modern-modal auto-height-modal" style="max-width:440px; width:92%; padding:0; border-radius:16px; border:1px solid var(--border-color); box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+        <div style="padding:22px 24px;">
+            <div style="font-size:2.2em; text-align:center; margin-bottom:8px;">🚲 ➔ ❓</div>
+            <h3 style="margin:0 0 8px; font-size:16.5px; font-weight:800; color:var(--text-main); text-align:center;">
+                ¿Qué destino querés darle al alumno?
+            </h3>
+            <p style="margin:0 0 18px; font-size:13px; color:var(--text-muted); text-align:center; line-height:1.45;">
+                Acabás de asentar el contacto con <strong id="modal-decision-alumno-nombre" style="color:var(--text-main);"></strong>. Como está en el grupo <strong>Bicicletas</strong>, podés suspenderlo para que salga de la Lista de Espera o mantenerlo en bicicleta.
+            </p>
+            <input type="hidden" id="modal-decision-alumno-id">
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <button type="button" id="btn-decision-suspender" class="btn-app btn-secondary" style="width:100%; justify-content:center; padding:12px; font-size:13.5px; font-weight:700; color:#dc2626; border-color:#fca5a5; background:#fff5f5; border-radius:10px;">
+                    ⏸️ Enviar a Suspendidos (Sale de Espera)
+                </button>
+                <button type="button" id="btn-decision-mantener" class="btn-app btn-primary" style="width:100%; justify-content:center; padding:12px; font-size:13.5px; font-weight:700; background:#9333ea; border-color:#9333ea; color:#ffffff; border-radius:10px;">
+                    🚲 Mantener en Bicicleta (0 días contacto)
+                </button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- MODAL SINCRONIZADOR CSV LISTA DE ESPERA (3 COLUMNAS) -->
+    <dialog id="modal-sync-espera-csv" class="modern-modal" style="max-width:680px; width:94%; max-height:90vh; padding:0; border-radius:16px; border:1px solid var(--border-color); box-shadow:0 24px 64px rgba(0,0,0,0.2);">
+        <div style="padding:22px 24px; border-bottom:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <h3 style="margin:0; font-size:17.5px; font-weight:800; color:var(--text-main); display:flex; align-items:center; gap:8px;">
+                    <span>📥</span> Sincronizar Espera desde CSV
+                </h3>
+                <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">
+                    Solo actualiza días en alumnos existentes en la base. No agrega nuevos registros.
+                </div>
+            </div>
+            <button type="button" class="btn-cerrar-modal" onclick="document.getElementById('modal-sync-espera-csv').close()" style="background:none; border:none; font-size:18px; cursor:pointer; color:var(--text-muted);">✕</button>
+        </div>
+
+        <div style="padding:20px 24px; max-height:calc(90vh - 140px); overflow-y:auto;">
+            <!-- Paso 1: Selección de Archivo o Pegado -->
+            <div id="sync-csv-paso-1">
+                <div style="background:rgba(0,123,143,0.05); border:1px solid rgba(0,123,143,0.2); border-radius:10px; padding:12px 14px; margin-bottom:16px; font-size:12.5px; color:#005b6a; line-height:1.45;">
+                    📌 <strong>Columnas requeridas:</strong> <code>Nombre y Apellido</code>, <code>Dias esperando</code>, <code>Dias Ultimo contacto</code>.<br>
+                    El motor buscará coincidencias exactas o por contención en la base de datos para actualizar los días históricos.
+                </div>
+
+                <div style="border:2px dashed var(--border-color); border-radius:12px; padding:24px; text-align:center; background:#faf8f5; cursor:pointer; margin-bottom:14px;" onclick="document.getElementById('input-sync-espera-file').click()">
+                    <div style="font-size:2em; margin-bottom:6px;">📄</div>
+                    <div style="font-weight:700; font-size:14px; color:var(--text-main);">Hacé clic para seleccionar tu archivo CSV</div>
+                    <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">o arrastralo aquí</div>
+                    <input type="file" id="input-sync-espera-file" accept=".csv" style="display:none;">
+                </div>
+            </div>
+
+            <!-- Paso 2: Vista Previa y Confirmación de Matching -->
+            <div id="sync-csv-paso-2" style="display:none;">
+                <div id="sync-csv-resumen-matching" style="margin-bottom:14px; font-size:13px; font-weight:700;"></div>
+                <div style="max-height:300px; overflow-y:auto; border:1px solid var(--border-color); border-radius:10px; margin-bottom:16px;">
+                    <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
+                        <thead>
+                            <tr style="background:#f1f5f9; border-bottom:1px solid var(--border-color); color:var(--text-muted);">
+                                <th style="padding:8px 10px;">Nombre CSV</th>
+                                <th style="padding:8px 10px;">Días Esp.</th>
+                                <th style="padding:8px 10px;">Días Cont.</th>
+                                <th style="padding:8px 10px;">Match en BD</th>
+                                <th style="padding:8px 10px; text-align:center;">Asociar</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sync-csv-tabla-matching"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Paso 3: Reporte Final de Sincronización -->
+            <div id="sync-csv-paso-3" style="display:none;">
+                <div style="background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46; border-radius:10px; padding:14px; margin-bottom:16px; font-size:13px;">
+                    ✅ <strong id="sync-csv-total-actualizados">0</strong> alumnos actualizados exitosamente en Firestore con sus días de espera y último contacto.
+                </div>
+
+                <div id="sync-csv-bloque-no-encontrados" style="display:none;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <h4 style="margin:0; font-size:13.5px; font-weight:700; color:#b91c1c;">
+                            ⚠️ Alumnos del CSV sin coincidencia en la base (<span id="sync-csv-count-no-encontrados">0</span>):
+                        </h4>
+                        <button type="button" id="btn-copiar-no-encontrados" class="btn-app btn-secondary" style="font-size:11px; padding:3px 8px;">
+                            📋 Copiar Lista
+                        </button>
+                    </div>
+                    <div style="max-height:200px; overflow-y:auto; border:1px solid #fecaca; border-radius:8px; background:#fff5f5; padding:8px 12px; font-size:12px; color:#7f1d1d;" id="sync-csv-lista-no-encontrados">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div style="padding:14px 24px; border-top:1px solid var(--border-color); display:flex; justify-content:flex-end; gap:10px; background:#faf8f5;">
+            <button type="button" class="btn-app btn-secondary" onclick="document.getElementById('modal-sync-espera-csv').close()" style="padding:8px 16px; border-radius:8px; font-size:13px;">
+                Cerrar
+            </button>
+            <button type="button" id="btn-ejecutar-sync-csv" class="btn-app btn-primary" style="display:none; padding:8px 18px; border-radius:8px; font-size:13px; font-weight:700; background:var(--accent-teal); color:#ffffff;">
+                🚀 Confirmar y Actualizar
+            </button>
+        </div>
+    </dialog>
+
     <!-- MODAL DE CONFIRMACIÓN CUSTOM — Punto 6 -->
     <dialog id="modal-confirmar-accion" class="modern-modal auto-height-modal" style="max-width:420px; width:90%; padding:0; border-radius:16px; border:1px solid var(--border-color); box-shadow:0 20px 60px rgba(0,0,0,0.15);">
         <div style="padding:24px 24px 20px;">
@@ -2168,12 +2318,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=5.9.22"></script>
+    <script type="module" src="app.js?v=5.9.23"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=5.9.22').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=5.9.23').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {

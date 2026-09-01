@@ -11,7 +11,7 @@ import {
     configNodosFlujo,
     configNodosFlujoEvaluador,
     configNodosFlujoCoordinador
-} from "./src/config/constants.js?v=5.9.22";
+} from "./src/config/constants.js?v=5.9.23";
 
 import { 
     app, 
@@ -32,7 +32,7 @@ import {
     GoogleAuthProvider, 
     onAuthStateChanged, 
     signOut 
-} from "./src/config/firebase.js";
+} from "./src/config/firebase.js?v=5.9.23";
 
 import {
     limpiarHoraParaChip,
@@ -46,7 +46,7 @@ import {
     extraerDisponibilidadMultiRango,
     normalizarHora,
     inicializarAutocompletadoHorarios
-} from "./src/ui/horarios.ui.js";
+} from "./src/ui/horarios.ui.js?v=5.9.23";
 
 import {
     getEmojiInstrumento,
@@ -73,7 +73,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=5.9.22";
+} from "./src/services/calendar.service.js?v=5.9.23";
 
 import {
     matchCantidadActual,
@@ -106,11 +106,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=5.9.22";
+} from "./src/modules/match.module.js?v=5.9.23";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js";
+} from "./src/modules/profesor.module.js?v=5.9.23";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -128,14 +128,14 @@ import {
     copiarFilaExcelFacturacionAdmision,
     abrirModalAvisoPrealtaAlumno,
     copiarAvisoPrealtaAlumno
-} from "./src/modules/altas.module.js?v=5.9.22";
+} from "./src/modules/altas.module.js?v=5.9.23";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js";
+} from "./src/modules/dashboard.module.js?v=5.9.23";
 
 import {
     renderConfigHub,
@@ -144,20 +144,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js";
+} from "./src/modules/abm.module.js?v=5.9.23";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js";
+} from "./src/modules/inbox.module.js?v=5.9.23";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js";
+} from "./src/modules/csv.module.js?v=5.9.23";
 
 let agrupadorActual = 'ninguno';
 let filtrosSeleccionados = {
@@ -167,7 +167,8 @@ let filtrosSeleccionados = {
     evaluadores: new Set(),
     edadMin: null,
     edadMax: null,
-    gruposEtarios: new Set()
+    gruposEtarios: new Set(),
+    diasSinContactoMin: null
 };
 let filtroAlarmaActual = 'Todos'; 
 let vistaModo = 'lista'; 
@@ -227,12 +228,14 @@ function renderFiltrosChips() {
 
     const tieneFiltroEdad = (filtrosSeleccionados.edadMin !== null && filtrosSeleccionados.edadMin !== '') || 
                             (filtrosSeleccionados.edadMax !== null && filtrosSeleccionados.edadMax !== '');
+    const tieneFiltroDiasContacto = (estadoActualVista === 'Lista de Espera' && filtrosSeleccionados.diasSinContactoMin !== null && !isNaN(filtrosSeleccionados.diasSinContactoMin));
     const totalFiltrosActivos = filtrosSeleccionados.instrumentos.size + 
                                 filtrosSeleccionados.niveles.size + 
                                 filtrosSeleccionados.suscripciones.size +
                                 (filtrosSeleccionados.evaluadores ? filtrosSeleccionados.evaluadores.size : 0) +
                                 (filtrosSeleccionados.gruposEtarios ? filtrosSeleccionados.gruposEtarios.size : 0) +
-                                (tieneFiltroEdad ? 1 : 0);
+                                (tieneFiltroEdad ? 1 : 0) +
+                                (tieneFiltroDiasContacto ? 1 : 0);
 
     const instrumentos = [
         { id: 'Canto', label: '🎤 Canto' },
@@ -339,6 +342,14 @@ function renderFiltrosChips() {
             </span>`;
     }
 
+    if (tieneFiltroDiasContacto) {
+        activeBadgesHtml += `
+            <span class="active-filter-badge" style="background:#fee2e2; color:#991b1b; border-color:#fca5a5;">
+                <span>📞 Sin contacto: &gt;${filtrosSeleccionados.diasSinContactoMin}d</span>
+                <button type="button" class="btn-remove-filter" data-type="diasContacto" title="Quitar filtro">✕</button>
+            </span>`;
+    }
+
     if (totalFiltrosActivos > 0) {
         activeBadgesHtml += `
             <button type="button" id="btn-limpiar-todos-filtros" style="background:none; border:none; color:#ef4444; font-size:12px; font-weight:600; cursor:pointer; padding:3px 6px; text-decoration:underline; font-family:inherit;">Limpiar todo</button>
@@ -423,6 +434,26 @@ function renderFiltrosChips() {
                         </div>
                     </div>
 
+                    <!-- Sección Días sin Contacto (Exclusivo para Lista de Espera) -->
+                    ${estadoActualVista === 'Lista de Espera' ? `
+                    <div style="margin-bottom:14px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px;">
+                        <div style="font-size:11px; font-weight:700; color:#0f766e; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between;">
+                            <span>📞 DÍAS SIN CONTACTO</span>
+                            <span style="font-size:9.5px; background:#ccfbf1; color:#0f766e; padding:1px 6px; border-radius:8px; font-weight:800;">Lista de Espera</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">
+                            <span style="font-size:11.5px; color:var(--text-muted);">Más de</span>
+                            <input type="number" id="filtro-dias-contacto-custom" class="modern-input" placeholder="Días" min="1" max="999" value="${filtrosSeleccionados.diasSinContactoMin !== null ? filtrosSeleccionados.diasSinContactoMin : ''}" style="width:70px; height:28px; font-size:12px; padding:2px 6px; text-align:center;">
+                            <span style="font-size:11.5px; color:var(--text-muted);">días</span>
+                            <button type="button" id="btn-aplicar-dias-contacto" class="btn-app btn-secondary" style="height:28px; font-size:11px; padding:0 8px; margin-left:auto;">OK</button>
+                        </div>
+                        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                            <button type="button" class="filter-chip ${filtrosSeleccionados.diasSinContactoMin === 15 ? 'active active-susc' : ''}" data-type="diasContactoPreset" data-val="15">🟡 &gt; 15 días</button>
+                            <button type="button" class="filter-chip ${filtrosSeleccionados.diasSinContactoMin === 30 ? 'active' : ''}" style="${filtrosSeleccionados.diasSinContactoMin === 30 ? 'background:#dc2626; border-color:#dc2626;' : ''}" data-type="diasContactoPreset" data-val="30">🔴 &gt; 30 días</button>
+                        </div>
+                    </div>
+                    ` : ''}
+
                     <!-- Footer Popover -->
                     <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #f1f5f9; padding-top:10px;">
                         <button type="button" id="btn-popover-limpiar" style="background:none; border:none; color:#ef4444; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; padding:4px 0; ${totalFiltrosActivos === 0 ? 'opacity:0.4; pointer-events:none;' : ''}">Limpiar</button>
@@ -430,6 +461,23 @@ function renderFiltrosChips() {
                     </div>
                 </div>
             </div>
+
+            <!-- Botón Ir a Bicicletas (Solo en Lista de Espera si hay bicicletas) -->
+            ${(() => {
+                if (estadoActualVista !== 'Lista de Espera') return '';
+                const cantBicis = Array.isArray(ultimosAlumnosCargados) 
+                    ? ultimosAlumnosCargados.filter(a => (a.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'lista de espera' && a.es_bicicleta).length 
+                    : 0;
+                if (cantBicis === 0) return '';
+                return `
+                    <button type="button" id="btn-ir-a-bicicletas" onclick="window.hacerScrollABicicletas()" class="btn-filtros-trigger btn-trigger-bicicletas" title="Ir directamente a la sección Bicicletas">
+                        <span style="font-size:14px;">🚲</span>
+                        <span>Ir a Bicicletas</span>
+                        <span class="badge-count-bicicletas">${cantBicis}</span>
+                        <span style="font-size:10px; opacity:0.75;">▼</span>
+                    </button>
+                `;
+            })()}
 
             <!-- Chips de Filtros Activos en Pantalla -->
             <div id="filtros-activos-chips" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
@@ -489,6 +537,18 @@ function renderFiltrosChips() {
         });
     }
 
+    // Botón aplicar días de contacto manual (exclusivo Lista de Espera)
+    const btnAplicarDiasContacto = document.getElementById('btn-aplicar-dias-contacto');
+    if (btnAplicarDiasContacto) {
+        btnAplicarDiasContacto.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const valStr = document.getElementById('filtro-dias-contacto-custom')?.value.trim();
+            filtrosSeleccionados.diasSinContactoMin = valStr ? parseInt(valStr, 10) : null;
+            renderFiltrosChips();
+            cargarVista(estadoActualVista);
+        });
+    }
+
     // Toggle chip individual dentro del popover
     cont.querySelectorAll('.dropdown-filtros-menu .filter-chip').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -512,6 +572,13 @@ function renderFiltrosChips() {
                 if (!filtrosSeleccionados.gruposEtarios) filtrosSeleccionados.gruposEtarios = new Set();
                 if (filtrosSeleccionados.gruposEtarios.has(val)) filtrosSeleccionados.gruposEtarios.delete(val);
                 else filtrosSeleccionados.gruposEtarios.add(val);
+            } else if (type === 'diasContactoPreset') {
+                const valNum = parseInt(val, 10);
+                if (filtrosSeleccionados.diasSinContactoMin === valNum) {
+                    filtrosSeleccionados.diasSinContactoMin = null;
+                } else {
+                    filtrosSeleccionados.diasSinContactoMin = valNum;
+                }
             }
 
             renderFiltrosChips();
@@ -534,6 +601,8 @@ function renderFiltrosChips() {
             else if (type === 'edadRango') {
                 filtrosSeleccionados.edadMin = null;
                 filtrosSeleccionados.edadMax = null;
+            } else if (type === 'diasContacto') {
+                filtrosSeleccionados.diasSinContactoMin = null;
             }
 
             renderFiltrosChips();
@@ -551,6 +620,7 @@ function renderFiltrosChips() {
         if (filtrosSeleccionados.gruposEtarios) filtrosSeleccionados.gruposEtarios.clear();
         filtrosSeleccionados.edadMin = null;
         filtrosSeleccionados.edadMax = null;
+        filtrosSeleccionados.diasSinContactoMin = null;
         renderFiltrosChips();
         cargarVista(estadoActualVista);
     };
@@ -1273,6 +1343,8 @@ function renderHistorial() {
             badgeTipoHtml = '<span style="background:rgba(194,86,59,0.12); color:var(--accent-red); font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px; border:1px solid rgba(194,86,59,0.25);">⏸️ Suspensión</span>';
         } else if (tipo === 'informe') {
             badgeTipoHtml = '<span style="background:rgba(0,123,143,0.12); color:var(--accent-teal); font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px; border:1px solid rgba(0,123,143,0.25);">📝 Informe</span>';
+        } else if (tipo === 'contacto') {
+            badgeTipoHtml = '<span style="background:rgba(0,123,143,0.14); color:#005b6a; font-size:10px; font-weight:800; padding:2px 7px; border-radius:4px; border:1px solid rgba(0,123,143,0.3);">📞 Contacto</span>';
         } else if (tipo === 'nota') {
             badgeTipoHtml = '<span style="background:#f4ece1; color:#9c6500; font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px; border:1px solid #e2ceb1;">💬 Nota</span>';
         } else if (tipo === 'sistema') {
@@ -1471,6 +1543,67 @@ function getFechaReferenciaAlumno(al) {
 }
 
 const getEstadoYBadgeLocal = (al) => getEstadoYBadge(al, getFechaReferenciaAlumno);
+
+// =======================================================================
+// CÁLCULO DE MÉTRICAS DE SEGUIMIENTO EN LISTA DE ESPERA & SEMÁFORO
+// =======================================================================
+export function calcularMetricasEspera(al) {
+    const ahora = Date.now();
+    const MS_POR_DIA = 24 * 60 * 60 * 1000;
+
+    // 1. Días esperando (acumulativo continuo, nunca se resetea)
+    let fechaIngreso = null;
+    if (al.fecha_ingreso_espera) {
+        fechaIngreso = new Date(al.fecha_ingreso_espera);
+    } else if (al.informe_entrevista?.fecha_evaluacion) {
+        fechaIngreso = new Date(al.informe_entrevista.fecha_evaluacion);
+    } else if (al.fecha_creacion) {
+        fechaIngreso = new Date(al.fecha_creacion);
+    }
+
+    let diasEsperando = 0;
+    if (fechaIngreso && !isNaN(fechaIngreso.getTime())) {
+        diasEsperando = Math.max(0, Math.floor((ahora - fechaIngreso.getTime()) / MS_POR_DIA));
+    } else if (typeof al.dias_esperando_historico === 'number') {
+        diasEsperando = al.dias_esperando_historico;
+    }
+
+    // 2. Días último contacto (reseteable cada vez que se contacta)
+    let fechaContacto = null;
+    if (al.fecha_ultimo_contacto) {
+        fechaContacto = new Date(al.fecha_ultimo_contacto);
+    } else {
+        const notasContacto = Array.isArray(al.historial) ? al.historial.filter(h => h && h.tipo === 'contacto') : [];
+        if (notasContacto.length > 0) {
+            const ultimaNota = notasContacto[notasContacto.length - 1];
+            if (ultimaNota.fecha_iso) {
+                fechaContacto = new Date(ultimaNota.fecha_iso);
+            }
+        }
+    }
+
+    let diasContacto = diasEsperando;
+    if (fechaContacto && !isNaN(fechaContacto.getTime())) {
+        diasContacto = Math.max(0, Math.floor((ahora - fechaContacto.getTime()) / MS_POR_DIA));
+    } else if (typeof al.dias_contacto_historico === 'number') {
+        diasContacto = al.dias_contacto_historico;
+    }
+
+    // 3. Semáforo: <15 días blanco, 15-30 días amarillo, >30 días rojo
+    let claseSemaforo = 'blanco';
+    if (diasContacto >= 30) {
+        claseSemaforo = 'rojo';
+    } else if (diasContacto >= 15) {
+        claseSemaforo = 'amarillo';
+    }
+
+    return {
+        diasEsperando,
+        diasContacto,
+        claseSemaforo
+    };
+}
+window.calcularMetricasEspera = calcularMetricasEspera;
 
 function generarFilaAlumno(al, id, vista, isKanban = false) {
     const info = getEstadoYBadgeLocal(al);
@@ -1687,9 +1820,41 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                         </div>
                     </div>
 
-                    <!-- Columna 2: Estado del Alumno (Columna Dedicada Fija) -->
+                    <!-- Columna 2: Estado del Alumno / Métricas de Espera -->
                     <div class="col-status-wrapper">
-                        ${(estadoActualVista === 'Lista de Espera' && al.estado_agenda === 'Lista de espera') ? '' : `<span class="status-badge ${info.colorBadge}">${info.txtEstado}</span>`}
+                        ${(() => {
+                            if (al.estado_agenda === 'Lista de espera') {
+                                const met = calcularMetricasEspera(al);
+                                const esBici = !!al.es_bicicleta;
+                                const celSafe = (al.celular || al.telefono || '').replace(/'/g, "\\'");
+                                const nombreSafe = (al.nombre || '').replace(/'/g, "\\'");
+                                return `
+                                    <div class="espera-metricas-col">
+                                        <div class="badge-dias-espera" title="Días en Lista de Espera (acumulativo continuo, nunca se resetea)">
+                                            <span class="badge-dias-espera-label">Esperando</span>
+                                            <span class="badge-dias-espera-val">${met.diasEsperando}d</span>
+                                        </div>
+                                        <div class="badge-dias-contacto ${met.claseSemaforo}" title="Días desde el último contacto con el alumno (reseteable a 0)">
+                                            <span class="badge-dias-contacto-label">Último cont.</span>
+                                            <span class="badge-dias-contacto-val">${met.diasContacto}d</span>
+                                        </div>
+                                        <button type="button" class="btn-contactar-fila" onclick="event.stopPropagation(); window.abrirModalRegistrarContacto('${id}', '${nombreSafe}', '${celSafe}', ${esBici});" title="Registrar lo conversado y resetear contador a 0 días">
+                                            <span>📞</span> Contactar
+                                        </button>
+                                        ${!esBici ? `
+                                            <button type="button" class="btn-bicicleta-fila" onclick="event.stopPropagation(); window.toggleBicicletaAlumno('${id}', true, '${nombreSafe}');" title="Mover este alumno al grupo Bicicletas">
+                                                <span>🚲</span> Bicicleta
+                                            </button>
+                                        ` : `
+                                            <button type="button" class="btn-quitar-bicicleta-fila" onclick="event.stopPropagation(); window.toggleBicicletaAlumno('${id}', false, '${nombreSafe}');" title="Quitar de Bicicletas y devolver a la lista activa">
+                                                <span>↩️</span> Quitar Bici
+                                            </button>
+                                        `}
+                                    </div>
+                                `;
+                            }
+                            return `<span class="status-badge ${info.colorBadge}">${info.txtEstado}</span>`;
+                        })()}
                     </div>
 
                     <!-- Columna 3: Grilla Semanal Fija -->
@@ -2624,6 +2789,15 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
         });
     }
 
+    // Filtro por días sin contacto (exclusivo para Lista de Espera)
+    if (estadoActualVista === 'Lista de Espera' && filtrosSeleccionados.diasSinContactoMin !== null && !isNaN(filtrosSeleccionados.diasSinContactoMin)) {
+        const minDias = Number(filtrosSeleccionados.diasSinContactoMin);
+        filtrados = filtrados.filter(al => {
+            const met = calcularMetricasEspera(al);
+            return met.diasContacto >= minDias;
+        });
+    }
+
     if (filtroAlarmaActual !== 'Todos') {
         filtrados = filtrados.filter(al => {
             const info = getEstadoYBadgeLocal(al);
@@ -2818,10 +2992,42 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
         }
 
         let html = '';
-        if (nivelesActivos.length === 0) {
-            html = filtrados.map(a => generarFilaAlumno(a, a.id, estadoActualVista)).join('');
+        if (estadoActualVista === 'Lista de Espera') {
+            const alumnosNormales = filtrados.filter(a => !a.es_bicicleta);
+            const alumnosBicis = filtrados.filter(a => !!a.es_bicicleta);
+
+            if (nivelesActivos.length === 0) {
+                html = alumnosNormales.map(a => generarFilaAlumno(a, a.id, estadoActualVista)).join('');
+            } else {
+                html = renderNivelAgrupado(alumnosNormales, 0);
+            }
+
+            if (alumnosBicis.length > 0) {
+                html += `
+                    <div class="panel-bicicletas-box" id="panel-bicicletas-section">
+                        <div class="panel-bicicletas-header">
+                            <div class="panel-bicicletas-title">
+                                <span>🚲</span>
+                                <span>Bicicletas</span>
+                                <span class="panel-bicicletas-badge">${alumnosBicis.length} alumnos</span>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:10px; margin-left:auto;">
+                                <span style="font-size:12px; color:#7e22ce; font-weight:600;">Alumnos en espera activa / postergados</span>
+                                <button type="button" onclick="window.hacerScrollArribaLista()" class="btn-app btn-secondary" style="font-size:11px; padding:3px 9px; border-radius:14px; display:inline-flex; align-items:center; gap:4px; border-color:#d8b4fe; color:#7e22ce; background:#ffffff; cursor:pointer;" title="Volver al inicio de la lista"><span>⬆️</span> Subir</button>
+                            </div>
+                        </div>
+                        <div class="panel-bicicletas-cards" style="display:flex; flex-direction:column; gap:4px;">
+                            ${alumnosBicis.map(a => generarFilaAlumno(a, a.id, estadoActualVista)).join('')}
+                        </div>
+                    </div>
+                `;
+            }
         } else {
-            html = renderNivelAgrupado(filtrados, 0);
+            if (nivelesActivos.length === 0) {
+                html = filtrados.map(a => generarFilaAlumno(a, a.id, estadoActualVista)).join('');
+            } else {
+                html = renderNivelAgrupado(filtrados, 0);
+            }
         }
         cont.innerHTML = html;
         
@@ -3891,10 +4097,13 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
     // Ocultar botones CSV de toda la app y resetear barra bulk flotante
     const btnCSVEl = document.getElementById('btn-carga-masiva');
     if (btnCSVEl) btnCSVEl.style.display = 'none';
+    const btnSyncEspera = document.getElementById('btn-sync-espera-csv');
+    if (btnSyncEspera) btnSyncEspera.style.display = 'none';
     selectedBulkIds = [];
     window.selectedBulkIds = [];
     const barBulkGlobal = document.getElementById('bulk-actions-bar');
     if (barBulkGlobal) barBulkGlobal.style.display = 'none';
+    if (vista !== 'Lista de Espera') { filtrosSeleccionados.diasSinContactoMin = null; }
     
     document.getElementById('search-container-general').style.display = 'block'; 
     document.getElementById('alarm-filters').style.display = 'none';
@@ -4101,6 +4310,8 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
             renderListaFilas('lista-generica', dataFiltrada, 'all', null);
         } catch(e) {}
     } else if (vista === 'Lista de Espera') {
+        const btnSyncEspera = document.getElementById('btn-sync-espera-csv');
+        if (btnSyncEspera) btnSyncEspera.style.display = 'inline-flex';
         try {
             if (!agrupadoresEsperaInicializados) {
                 agrupadorNivel1 = 'suscripcion';
@@ -7026,7 +7237,17 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
     
     const info = getEstadoYBadgeLocal(d);
     const badgeEl = document.getElementById('modal-status-badge');
-    if (badgeEl) { badgeEl.className = `status-badge ${info.colorBadge}`; badgeEl.textContent = info.txtEstado; badgeEl.style.display = 'inline-flex'; }
+    if (badgeEl) { 
+        if (d.estado_agenda === 'Lista de espera' && d.es_bicicleta) {
+            badgeEl.className = 'status-badge bg-purple';
+            badgeEl.textContent = '🚲 BICICLETA';
+            badgeEl.style.display = 'inline-flex';
+        } else {
+            badgeEl.className = `status-badge ${info.colorBadge}`;
+            badgeEl.textContent = info.txtEstado;
+            badgeEl.style.display = 'inline-flex';
+        }
+    }
 
     const accionesCont = document.getElementById('modal-acciones-container');
     if (accionesCont) {
@@ -8017,5 +8238,481 @@ function programarProximaAlerta09hs() {
         verificarAlertasDiarias09hs();
     }, msRestantes);
 }
+
+// =======================================================================
+// GESTIÓN DE CONTACTO ÁGIL EN LISTA DE ESPERA & BICICLETAS
+// =======================================================================
+
+let alumnoContactoPendienteBicicleta = null;
+
+export function abrirModalRegistrarContacto(id, nombre, celular, esBicicleta) {
+    const modal = document.getElementById('modal-registrar-contacto');
+    if (!modal) return;
+
+    document.getElementById('modal-contacto-alumno-id').value = id;
+    document.getElementById('modal-contacto-alumno-nombre').textContent = nombre;
+    document.getElementById('modal-contacto-es-bicicleta').value = esBicicleta ? 'true' : 'false';
+
+    const cleanCel = (celular || '').replace(/\D/g, '');
+    const boxCel = document.getElementById('modal-contacto-celular-box');
+    const valCel = document.getElementById('modal-contacto-celular-val');
+    const btnWa = document.getElementById('modal-contacto-whatsapp-btn');
+
+    if (cleanCel) {
+        if (boxCel) boxCel.style.display = 'flex';
+        if (valCel) valCel.textContent = celular;
+        if (btnWa) {
+            const textoWa = encodeURIComponent(`Hola ${nombre}, te escribimos de Mandala Ensambles en relación a tu admisión y disponibilidad para los grupos...`);
+            btnWa.href = `https://wa.me/${cleanCel}?text=${textoWa}`;
+            btnWa.style.display = 'inline-flex';
+        }
+    } else {
+        if (valCel) valCel.textContent = 'Sin número registrado';
+        if (btnWa) btnWa.style.display = 'none';
+    }
+
+    const txtArea = document.getElementById('modal-contacto-texto');
+    if (txtArea) {
+        txtArea.value = '';
+        setTimeout(() => txtArea.focus(), 150);
+    }
+
+    modal.showModal();
+}
+window.abrirModalRegistrarContacto = abrirModalRegistrarContacto;
+
+// Listener de guardado de contacto
+document.getElementById('btn-guardar-contacto')?.addEventListener('click', async () => {
+    const id = document.getElementById('modal-contacto-alumno-id')?.value;
+    const nombre = document.getElementById('modal-contacto-alumno-nombre')?.textContent || '';
+    const esBicicleta = document.getElementById('modal-contacto-es-bicicleta')?.value === 'true';
+    const texto = (document.getElementById('modal-contacto-texto')?.value || '').trim();
+
+    if (!id) return;
+    if (!texto) {
+        alert("Por favor escribí lo conversado con el alumno antes de guardar.");
+        document.getElementById('modal-contacto-texto')?.focus();
+        return;
+    }
+
+    const btn = document.getElementById('btn-guardar-contacto');
+    if (btn) setBotonCargando(btn, true, 'Guardando...');
+
+    try {
+        const alDoc = await getDoc(doc(db, "alumnos", id));
+        const alData = alDoc.exists() ? alDoc.data() : {};
+        const hist = Array.isArray(alData.historial) ? alData.historial : [];
+
+        const autor = window.usuarioActual?.nombre || 'Coordinación';
+        const ahoraIso = new Date().toISOString();
+        const entradaHist = crearEntradaHistorial(`📞 [Contacto]: ${texto}`, 'contacto', autor);
+        entradaHist.fecha_iso = ahoraIso;
+        hist.push(entradaHist);
+
+        await updateDoc(doc(db, "alumnos", id), {
+            fecha_ultimo_contacto: ahoraIso,
+            ultimo_contacto_nota: texto,
+            historial: hist
+        });
+
+        document.getElementById('modal-registrar-contacto')?.close();
+
+        // Si es bicicleta, preguntar si desea suspender o mantener en bicicleta
+        if (esBicicleta) {
+            alumnoContactoPendienteBicicleta = { id, nombre };
+            const modalDecision = document.getElementById('modal-decision-bicicleta');
+            if (modalDecision) {
+                document.getElementById('modal-decision-alumno-id').value = id;
+                document.getElementById('modal-decision-alumno-nombre').textContent = nombre;
+                modalDecision.showModal();
+            }
+        } else {
+            mostrarToast("✅ Contacto registrado con éxito. Contador de último contacto reseteado a 0 días.", "success");
+            await cargarVista(estadoActualVista);
+        }
+    } catch(err) {
+        console.error("Error al registrar contacto:", err);
+        alert("Error al guardar el contacto: " + err.message);
+    } finally {
+        if (btn) setBotonCargando(btn, false);
+    }
+});
+
+// Listener Decisión Bicicleta: Suspender
+document.getElementById('btn-decision-suspender')?.addEventListener('click', async () => {
+    const id = document.getElementById('modal-decision-alumno-id')?.value || alumnoContactoPendienteBicicleta?.id;
+    const nombre = document.getElementById('modal-decision-alumno-nombre')?.textContent || '';
+    if (!id) return;
+
+    mostrarIndicadorCarga("Enviando alumno a Suspendidos...");
+    try {
+        const alDoc = await getDoc(doc(db, "alumnos", id));
+        const alData = alDoc.exists() ? alDoc.data() : {};
+        const hist = Array.isArray(alData.historial) ? alData.historial : [];
+
+        hist.push(crearEntradaHistorial(`⏸️ Alumno derivado a Suspendidos tras contacto telefónico en grupo Bicicletas.`, 'sistema', window.usuarioActual?.nombre || 'Coordinación'));
+
+        await updateDoc(doc(db, "alumnos", id), {
+            estado_agenda: "Agenda suspendida",
+            es_bicicleta: false,
+            historial: hist
+        });
+
+        document.getElementById('modal-decision-bicicleta')?.close();
+        ocultarIndicadorCarga();
+        mostrarToast(`⏸️ ${nombre} fue derivado a Suspendidos y salió de Lista de Espera.`, "info");
+        await cargarVista(estadoActualVista);
+    } catch(err) {
+        ocultarIndicadorCarga();
+        alert("Error al suspender alumno: " + err.message);
+    }
+});
+
+// Listener Decisión Bicicleta: Mantener en Bicicleta
+document.getElementById('btn-decision-mantener')?.addEventListener('click', async () => {
+    document.getElementById('modal-decision-bicicleta')?.close();
+    mostrarToast("🚲 Alumno conservado en el panel Bicicletas con contador reseteado a 0 días.", "success");
+    await cargarVista(estadoActualVista);
+});
+
+// =======================================================================
+// TOGGLE BICICLETA EN ALUMNOS DE LISTA DE ESPERA
+// =======================================================================
+export async function toggleBicicletaAlumno(id, pasarABicicleta, nombre) {
+    if (!id) return;
+
+    const accionTxt = pasarABicicleta ? 'enviar al grupo Bicicletas' : 'quitar del grupo Bicicletas y devolver a la lista activa';
+    const conf = await window.confirmar(
+        pasarABicicleta ? `🚲 ¿Enviar a Bicicleta?` : `↩️ ¿Quitar de Bicicleta?`,
+        `¿Deseás ${accionTxt} a ${nombre || 'este alumno'}?`,
+        pasarABicicleta ? '🚲 Enviar a Bicicleta' : '↩️ Devolver a Lista Activa',
+        'question'
+    );
+    if (!conf) return;
+
+    mostrarIndicadorCarga(pasarABicicleta ? "Moviendo a Bicicletas..." : "Devolviendo a Lista Activa...");
+    try {
+        const alDoc = await getDoc(doc(db, "alumnos", id));
+        const alData = alDoc.exists() ? alDoc.data() : {};
+        const hist = Array.isArray(alData.historial) ? alData.historial : [];
+
+        const autor = window.usuarioActual?.nombre || 'Coordinación';
+        if (pasarABicicleta) {
+            hist.push(crearEntradaHistorial(`🚲 Alumno marcado como Bicicleta en Lista de Espera.`, 'sistema', autor));
+            await updateDoc(doc(db, "alumnos", id), {
+                es_bicicleta: true,
+                fecha_bicicleta: new Date().toISOString(),
+                historial: hist
+            });
+            mostrarToast(`🚲 ${nombre || 'Alumno'} movido al panel Bicicletas.`, "info");
+        } else {
+            hist.push(crearEntradaHistorial(`↩️ Alumno quitado de Bicicletas y retornado a lista de espera activa.`, 'sistema', autor));
+            await updateDoc(doc(db, "alumnos", id), {
+                es_bicicleta: false,
+                historial: hist
+            });
+            mostrarToast(`↩️ ${nombre || 'Alumno'} devuelto a la lista de espera activa.`, "success");
+        }
+        ocultarIndicadorCarga();
+        await cargarVista(estadoActualVista);
+    } catch(err) {
+        ocultarIndicadorCarga();
+        alert("Error al actualizar estado bicicleta: " + err.message);
+    }
+}
+window.toggleBicicletaAlumno = toggleBicicletaAlumno;
+
+export function hacerScrollABicicletas() {
+    const el = document.getElementById('panel-bicicletas-section');
+    if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        el.classList.remove('highlight-panel-target');
+        void el.offsetWidth; // Forzar reflow para reiniciar animación
+        el.classList.add('highlight-panel-target');
+    }
+}
+window.hacerScrollABicicletas = hacerScrollABicicletas;
+
+export function hacerScrollArribaLista() {
+    const mainEl = document.getElementById('main-content');
+    if (mainEl) {
+        mainEl.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    const contLista = document.getElementById('lista-generica') || document.getElementById('controles-vista');
+    if (contLista) {
+        contLista.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.documentElement.scrollTo({ top: 0, behavior: 'smooth' });
+    document.body.scrollTo({ top: 0, behavior: 'smooth' });
+}
+window.hacerScrollArribaLista = hacerScrollArribaLista;
+
+// =======================================================================
+// ASISTENTE DE SINCRONIZACIÓN CSV (3 COLUMNAS: NOMBRE, ESPERA, CONTACTO)
+// =======================================================================
+
+let candidatosSyncEsperaCSV = [];
+let noEncontradosSyncCSV = [];
+
+export function abrirModalSyncEsperaCSV() {
+    const modal = document.getElementById('modal-sync-espera-csv');
+    if (!modal) return;
+
+    // Resetear vistas
+    document.getElementById('sync-csv-paso-1').style.display = 'block';
+    document.getElementById('sync-csv-paso-2').style.display = 'none';
+    document.getElementById('sync-csv-paso-3').style.display = 'none';
+    document.getElementById('btn-ejecutar-sync-csv').style.display = 'none';
+    const inputFile = document.getElementById('input-sync-espera-file');
+    if (inputFile) inputFile.value = '';
+
+    candidatosSyncEsperaCSV = [];
+    noEncontradosSyncCSV = [];
+
+    modal.showModal();
+}
+window.abrirModalSyncEsperaCSV = abrirModalSyncEsperaCSV;
+
+function normalizarTextoBusqueda(str) {
+    if (!str) return '';
+    return str
+        .toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/\(.*?\)/g, '')
+        .replace(/\[.*?\]/g, '')
+        .replace(/[^a-z0-9\s]/gi, '')
+        .trim();
+}
+
+// Listener para el archivo CSV de sincronización
+document.getElementById('input-sync-espera-file')?.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    mostrarIndicadorCarga("Leyendo y analizando archivo CSV...");
+    try {
+        const texto = await file.text();
+        const filas = parseCSV(texto);
+        if (!filas || filas.length === 0) {
+            ocultarIndicadorCarga();
+            return alert("El archivo CSV parece estar vacío.");
+        }
+
+        // Obtener alumnos de la base de datos
+        const qSnap = await getDocs(collection(db, "alumnos"));
+        const alumnosBD = [];
+        qSnap.forEach(d => alumnosBD.push({ id: d.id, ...d.data() }));
+
+        // Detectar si la primera fila es encabezado
+        let startIdx = 0;
+        const cabeceraStr = (filas[0] || []).join(' ').toLowerCase();
+        if (cabeceraStr.includes('nombre') || cabeceraStr.includes('dias') || cabeceraStr.includes('esperando')) {
+            startIdx = 1;
+        }
+
+        candidatosSyncEsperaCSV = [];
+        noEncontradosSyncCSV = [];
+
+        for (let i = startIdx; i < filas.length; i++) {
+            const row = filas[i];
+            if (!row || row.length === 0) continue;
+
+            const nombreCSV = (row[0] || '').trim();
+            if (!nombreCSV) continue;
+
+            const diasEspRaw = parseInt((row[1] || '').trim(), 10);
+            const diasContRaw = parseInt((row[2] || '').trim(), 10);
+
+            const diasEsperando = isNaN(diasEspRaw) ? 0 : diasEspRaw;
+            const diasContacto = isNaN(diasContRaw) ? diasEsperando : diasContRaw;
+
+            // Búsqueda inteligente en base de datos
+            const nomNormCSV = normalizarTextoBusqueda(nombreCSV);
+            if (!nomNormCSV) continue;
+
+            // Primero buscar en Lista de espera
+            let mejorMatch = null;
+            let esExacto = false;
+
+            // 1. Coincidencia exacta
+            const exactoEspera = alumnosBD.find(al => {
+                const alNorm = normalizarTextoBusqueda(al.nombre);
+                return alNorm === nomNormCSV && al.estado_agenda === 'Lista de espera';
+            });
+            if (exactoEspera) {
+                mejorMatch = exactoEspera;
+                esExacto = true;
+            } else {
+                const exactoGlobal = alumnosBD.find(al => normalizarTextoBusqueda(al.nombre) === nomNormCSV);
+                if (exactoGlobal) {
+                    mejorMatch = exactoGlobal;
+                    esExacto = true;
+                }
+            }
+
+            // 2. Coincidencia por contención si no hubo exacto
+            if (!mejorMatch) {
+                const contieneEspera = alumnosBD.find(al => {
+                    const alNorm = normalizarTextoBusqueda(al.nombre);
+                    return al.estado_agenda === 'Lista de espera' && (alNorm.includes(nomNormCSV) || nomNormCSV.includes(alNorm));
+                });
+                if (contieneEspera) {
+                    mejorMatch = contieneEspera;
+                } else {
+                    const contieneGlobal = alumnosBD.find(al => {
+                        const alNorm = normalizarTextoBusqueda(al.nombre);
+                        return alNorm.includes(nomNormCSV) || nomNormCSV.includes(alNorm);
+                    });
+                    if (contieneGlobal) mejorMatch = contieneGlobal;
+                }
+            }
+
+            if (mejorMatch) {
+                candidatosSyncEsperaCSV.push({
+                    nombreCSV,
+                    diasEsperando,
+                    diasContacto,
+                    alumnoBD: mejorMatch,
+                    confirmado: true
+                });
+            } else {
+                noEncontradosSyncCSV.push({
+                    nombreCSV,
+                    diasEsperando,
+                    diasContacto
+                });
+            }
+        }
+
+        ocultarIndicadorCarga();
+
+        // Mostrar Paso 2: Tabla de matching
+        const tablaBody = document.getElementById('sync-csv-tabla-matching');
+        const resumenEl = document.getElementById('sync-csv-resumen-matching');
+        if (tablaBody && resumenEl) {
+            resumenEl.innerHTML = `
+                Se encontraron <span style="color:#059669;">${candidatosSyncEsperaCSV.length} coincidencias</span> en la base de datos 
+                y <span style="color:#dc2626;">${noEncontradosSyncCSV.length} sin match</span> que se listarán al finalizar.
+            `;
+
+            tablaBody.innerHTML = candidatosSyncEsperaCSV.map((c, idx) => `
+                <tr style="border-bottom:1px solid var(--border-color); background:${idx % 2 === 0 ? '#ffffff' : '#faf8f5'};">
+                    <td style="padding:8px 10px; font-weight:700; color:var(--text-main);">${c.nombreCSV}</td>
+                    <td style="padding:8px 10px; font-weight:800; color:#2563eb;">${c.diasEsperando}d</td>
+                    <td style="padding:8px 10px; font-weight:800; color:${c.diasContacto >= 30 ? '#dc2626' : (c.diasContacto >= 15 ? '#d97706' : '#16a34a')};">${c.diasContacto}d</td>
+                    <td style="padding:8px 10px;">
+                        <strong style="color:var(--text-main);">${c.alumnoBD.nombre}</strong><br>
+                        <span style="font-size:10.5px; color:var(--text-muted);">${c.alumnoBD.estado_agenda || 'Sin estado'} • ${c.alumnoBD.nivel || ''}</span>
+                    </td>
+                    <td style="padding:8px 10px; text-align:center;">
+                        <input type="checkbox" class="sync-chk-item" data-idx="${idx}" checked style="width:16px; height:16px; cursor:pointer; accent-color:var(--accent-teal);">
+                    </td>
+                </tr>
+            `).join('');
+
+            document.getElementById('sync-csv-paso-1').style.display = 'none';
+            document.getElementById('sync-csv-paso-2').style.display = 'block';
+            document.getElementById('btn-ejecutar-sync-csv').style.display = 'inline-flex';
+        }
+    } catch(err) {
+        ocultarIndicadorCarga();
+        console.error("Error al procesar CSV:", err);
+        alert("Error al leer el archivo CSV: " + err.message);
+    }
+});
+
+// Listener para ejecutar la sincronización en Firestore
+document.getElementById('btn-ejecutar-sync-csv')?.addEventListener('click', async () => {
+    const checks = document.querySelectorAll('.sync-chk-item');
+    const seleccionados = [];
+    checks.forEach(chk => {
+        if (chk.checked) {
+            const idx = parseInt(chk.getAttribute('data-idx'), 10);
+            if (candidatosSyncEsperaCSV[idx]) seleccionados.push(candidatosSyncEsperaCSV[idx]);
+        }
+    });
+
+    if (seleccionados.length === 0) {
+        return alert("No seleccionaste ningún alumno para sincronizar.");
+    }
+
+    const btn = document.getElementById('btn-ejecutar-sync-csv');
+    if (btn) setBotonCargando(btn, true, 'Sincronizando...');
+
+    let actualizados = 0;
+    const ahora = Date.now();
+    const MS_POR_DIA = 24 * 60 * 60 * 1000;
+
+    try {
+        for (const item of seleccionados) {
+            const al = item.alumnoBD;
+            const fechaIngresoCalc = new Date(ahora - item.diasEsperando * MS_POR_DIA).toISOString();
+            const fechaContactoCalc = new Date(ahora - item.diasContacto * MS_POR_DIA).toISOString();
+
+            const hist = Array.isArray(al.historial) ? al.historial : [];
+            hist.push(crearEntradaHistorial(
+                `Días de espera (${item.diasEsperando}d) y último contacto (${item.diasContacto}d) sincronizados desde planilla histórica.`,
+                'sistema',
+                window.usuarioActual?.nombre || 'Sincronizador CSV'
+            ));
+
+            await updateDoc(doc(db, "alumnos", al.id), {
+                fecha_ingreso_espera: fechaIngresoCalc,
+                fecha_ultimo_contacto: fechaContactoCalc,
+                dias_esperando_historico: item.diasEsperando,
+                dias_contacto_historico: item.diasContacto,
+                historial: hist
+            });
+            actualizados++;
+        }
+
+        // Mostrar Paso 3: Reporte final
+        document.getElementById('sync-csv-paso-2').style.display = 'none';
+        document.getElementById('sync-csv-paso-3').style.display = 'block';
+        if (btn) btn.style.display = 'none';
+
+        document.getElementById('sync-csv-total-actualizados').textContent = actualizados;
+
+        const bloqueNoEnc = document.getElementById('sync-csv-bloque-no-encontrados');
+        const listaNoEnc = document.getElementById('sync-csv-lista-no-encontrados');
+        const countNoEnc = document.getElementById('sync-csv-count-no-encontrados');
+
+        if (noEncontradosSyncCSV.length > 0) {
+            if (bloqueNoEnc) bloqueNoEnc.style.display = 'block';
+            if (countNoEnc) countNoEnc.textContent = noEncontradosSyncCSV.length;
+            if (listaNoEnc) {
+                listaNoEnc.innerHTML = noEncontradosSyncCSV.map(item => `
+                    <div style="padding:4px 0; border-bottom:1px dashed #fca5a5; display:flex; justify-content:space-between;">
+                        <strong>${item.nombreCSV}</strong>
+                        <span>⏳ ${item.diasEsperando}d esperando • 📞 ${item.diasContacto}d contacto</span>
+                    </div>
+                `).join('');
+            }
+        } else {
+            if (bloqueNoEnc) bloqueNoEnc.style.display = 'none';
+        }
+
+        mostrarToast(`✅ ${actualizados} alumnos sincronizados exitosamente.`, "success");
+        await cargarVista(estadoActualVista);
+    } catch(err) {
+        console.error("Error al sincronizar alumnos:", err);
+        alert("Error al actualizar alumnos: " + err.message);
+    } finally {
+        if (btn) setBotonCargando(btn, false);
+    }
+});
+
+// Listener botón copiar lista de no encontrados
+document.getElementById('btn-copiar-no-encontrados')?.addEventListener('click', () => {
+    if (!noEncontradosSyncCSV || noEncontradosSyncCSV.length === 0) return;
+    const texto = noEncontradosSyncCSV.map(i => `${i.nombreCSV}\t${i.diasEsperando}\t${i.diasContacto}`).join('\n');
+    navigator.clipboard.writeText(texto).then(() => {
+        mostrarToast("📋 Lista de no encontrados copiada al portapapeles.", "info");
+    }).catch(err => {
+        alert("No se pudo copiar al portapapeles: " + err.message);
+    });
+});
+
 
 
