@@ -36,6 +36,50 @@ function isoToDatetimeLocal(isoStr) {
     return formatoLocalISO(d).substring(0, 16);
 }
 
+/**
+ * Formatea el nombre de grupo o clase según la regla de nomenclatura:
+ * - Si minutos === '00' -> DHH Profe (ej: X17 Nacho)
+ * - Si minutos !== '00' -> DHH.MM Profe (ej: M18.30 Guido)
+ */
+export function formatearNomenclaturaGrupoOClase(diaCod, horaStr, profeNombre) {
+    if (!diaCod || !horaStr) return '';
+    const [hRaw, mRaw] = horaStr.split(':');
+    const h = parseInt(hRaw, 10);
+    const m = mRaw || '00';
+    const horaFormatted = (m === '00') ? `${h}` : `${h}.${m}`;
+    const profe = (profeNombre || '').trim().split(' ')[0] || 'Profe';
+    return `${diaCod.toUpperCase()}${horaFormatted} ${profe}`;
+}
+
+/**
+ * Parsea el nombre del grupo (DHH.MM Profe o DHH Profe) para extraer día, horario y docente.
+ */
+export function parsearNomenclaturaGrupoOClase(nombreStr, duracionMin = 60) {
+    const match = (nombreStr || '').trim().match(/^([LMXJVSD])(\d{1,2})(?:\.(\d{2}))?\s*(.*)$/i);
+    if (!match) return null;
+    const diaCod = match[1].toUpperCase();
+    const h = parseInt(match[2], 10);
+    const m = match[3] ? parseInt(match[3], 10) : 0;
+    const profe = match[4] ? match[4].trim() : '';
+    const hIniStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+    const totalMinIni = h * 60 + m;
+    const totalMinFin = totalMinIni + (duracionMin || 60);
+    const hFin = Math.floor(totalMinFin / 60) % 24;
+    const mFin = totalMinFin % 60;
+    const hFinStr = `${hFin.toString().padStart(2, '0')}:${mFin.toString().padStart(2, '0')}`;
+    
+    const mapaDias = { 'L': 'Lunes', 'M': 'Martes', 'X': 'Miércoles', 'J': 'Jueves', 'V': 'Viernes', 'S': 'Sábado', 'D': 'Domingo' };
+    return {
+        diaCod,
+        diaNombre: mapaDias[diaCod] || diaCod,
+        horaInicio: hIniStr,
+        horaFin: hFinStr,
+        horarioTexto: `${mapaDias[diaCod] || diaCod} ${hIniStr} a ${hFinStr} hs`,
+        profeNombre: profe,
+        duracionMin: duracionMin || 60
+    };
+}
+
 let cachedProfesorDoc = null;
 let slotsLibresCache = [];
 
@@ -43,11 +87,11 @@ export function getEmojiParaInstrumento(inst) {
     if (!inst) return '🎵';
     const s = (Array.isArray(inst) ? inst.join(' ') : String(inst)).toLowerCase();
     if (s.includes('bat')) return '🥁';
-    if (s.includes('gui') || s.includes('electr')) return '🎸';
+    if (s.includes('baj')) return '🎸';
+    if (s.includes('gui') || s.includes('electr') || s.includes('acúst') || s.includes('acust')) return '🎸';
     if (s.includes('cajón') || s.includes('cajon') || s.includes('perc')) return '📦';
     if (s.includes('cant') || s.includes('voz') || s.includes('vocal') || s.includes('coro')) return '🎤';
     if (s.includes('pian') || s.includes('tecl')) return '🎹';
-    if (s.includes('baj')) return '🎸';
     if (s.includes('sax') || s.includes('vient')) return '🎷';
     if (s.includes('tromp')) return '🎺';
     if (s.includes('viol')) return '🎻';
@@ -215,6 +259,7 @@ function setupNivelesChipsListeners() {
 }
 
 function resetNivelesChips() {
+    setupNivelesChipsListeners();
     const cont = document.getElementById('sol-vac-niveles-container');
     if (!cont) return;
     cont.querySelectorAll('.btn-chip-nivel').forEach(b => {
@@ -232,6 +277,7 @@ function resetNivelesChips() {
         }
     });
 }
+const resetearNivelesChips = resetNivelesChips;
 
 function obtenerNivelesSeleccionados() {
     const cont = document.getElementById('sol-vac-niveles-container');
@@ -256,9 +302,10 @@ async function poblarInstrumentosChips(instrumentoPre = '') {
             const bg = isPre ? 'var(--accent-teal)' : '#fff';
             const col = isPre ? '#fff' : 'var(--text-main)';
             const border = isPre ? 'var(--accent-teal)' : 'var(--border-color)';
+            const emoji = getEmojiParaInstrumento(inst);
             html += `
                 <button type="button" class="btn-chip-instrumento ${isPre ? 'active' : ''}" data-inst="${inst}" style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:600; border:1px solid ${border}; background:${bg}; color:${col}; cursor:pointer;">
-                    🎵 ${inst}
+                    ${emoji} ${inst}
                 </button>
             `;
         });
@@ -288,6 +335,402 @@ function obtenerInstrumentosSeleccionados() {
     if (!cont) return [];
     return Array.from(cont.querySelectorAll('.btn-chip-instrumento.active')).map(b => b.getAttribute('data-inst'));
 }
+
+export function actualizarBotonesTipoGrupo(tipoGrp) {
+    tipoGrupoSeleccionadoModal = tipoGrp;
+    const modal = document.getElementById('modal-solicitar-vacante');
+    if (!modal) return;
+
+    modal.querySelectorAll('.btn-sol-tipo-grupo').forEach(btn => {
+        const esEste = btn.getAttribute('data-tipo') === tipoGrp;
+        btn.classList.toggle('active', esEste);
+        btn.style.background = esEste ? 'var(--accent-teal)' : '#fff';
+        btn.style.borderColor = esEste ? 'var(--accent-teal)' : 'var(--border-color)';
+        btn.style.color = esEste ? '#fff' : 'var(--text-main)';
+
+        const sub = btn.querySelector('.btn-sol-subtexto') || btn.querySelector('span');
+        if (sub) {
+            if (esEste) {
+                sub.style.color = '#ffffff';
+                sub.style.opacity = '0.95';
+            } else if (btn.getAttribute('data-tipo') === 'Ensamble Mandalorian') {
+                sub.style.color = '#9333ea';
+                sub.style.opacity = '1';
+            } else {
+                sub.style.color = 'var(--text-muted)';
+                sub.style.opacity = '1';
+            }
+        }
+    });
+
+    const inpDurMin = document.getElementById('sol-vac-duracion-min');
+    const inpDurTexto = document.getElementById('sol-vac-duracion-texto');
+    const dur = (tipoGrp === 'Ensamble Mandalorian') ? 90 : 60;
+    if (inpDurMin) inpDurMin.value = dur.toString();
+    if (inpDurTexto) inpDurTexto.value = dur === 90 ? '90 min (1.5h)' : `${dur} min`;
+}
+
+let tipoGrupoSeleccionadoModal = 'Clase Grupal';
+
+export function setupModalSolicitarVacanteListeners() {
+    const modal = document.getElementById('modal-solicitar-vacante');
+    if (!modal || modal.dataset.listenersAttached === 'true') return;
+    modal.dataset.listenersAttached = 'true';
+
+    const selDiaModal = document.getElementById('sol-vac-dia-sel');
+    const inpHoraModal = document.getElementById('sol-vac-hora-sel');
+    const inpNombreModal = document.getElementById('sol-vac-nombre-input');
+    const lblNombreModal = document.getElementById('sol-vac-nombre-label');
+    const inpDurTexto = document.getElementById('sol-vac-duracion-texto');
+    const inpDurMin = document.getElementById('sol-vac-duracion-min');
+    const secTipoGrupo = document.getElementById('sol-vac-sec-tipo-grupo');
+    const rModInd = document.getElementById('sol-vac-mod-ind');
+    const rModGrp = document.getElementById('sol-vac-mod-grp');
+    const lblModInd = document.getElementById('sol-vac-lbl-ind');
+    const lblModGrp = document.getElementById('sol-vac-lbl-grp');
+
+    const recalcularNombreModal = () => {
+        const dia = selDiaModal ? selDiaModal.value : 'M';
+        const hora = inpHoraModal ? inpHoraModal.value : '18:30';
+        const profeNom = document.getElementById('sol-vac-profe-nombre')?.value || 'Profe';
+        const nombreGenerado = formatearNomenclaturaGrupoOClase(dia, hora, profeNom);
+        if (inpNombreModal) inpNombreModal.value = nombreGenerado;
+    };
+
+    const actualizarEstilosModalidad = (esIndividual) => {
+        if (esIndividual) {
+            if (secTipoGrupo) secTipoGrupo.style.display = 'none';
+            if (inpDurMin) inpDurMin.value = '60';
+            if (inpDurTexto) inpDurTexto.value = '60 min';
+            if (lblNombreModal) {
+                lblNombreModal.innerHTML = '<span>NOMBRE DE LA CLASE</span><span style="font-size:10.5px; text-transform:none; font-weight:500; color:var(--accent-teal);">Auto-generado (editable)</span>';
+            }
+            if (lblModInd) {
+                lblModInd.style.borderColor = 'var(--accent-teal)';
+                lblModInd.style.background = 'rgba(0,123,143,0.06)';
+            }
+            if (lblModGrp) {
+                lblModGrp.style.borderColor = 'var(--border-color)';
+                lblModGrp.style.background = 'var(--card-bg)';
+            }
+        } else {
+            if (secTipoGrupo) secTipoGrupo.style.display = 'block';
+            if (lblNombreModal) {
+                lblNombreModal.innerHTML = '<span>NOMBRE DEL GRUPO</span><span style="font-size:10.5px; text-transform:none; font-weight:500; color:var(--accent-teal);">Auto-generado (editable)</span>';
+            }
+            if (lblModGrp) {
+                lblModGrp.style.borderColor = 'var(--accent-teal)';
+                lblModGrp.style.background = 'rgba(0,123,143,0.06)';
+            }
+            if (lblModInd) {
+                lblModInd.style.borderColor = 'var(--border-color)';
+                lblModInd.style.background = 'var(--card-bg)';
+            }
+            actualizarBotonesTipoGrupo(tipoGrupoSeleccionadoModal);
+        }
+        recalcularNombreModal();
+    };
+
+    rModInd?.addEventListener('change', () => actualizarEstilosModalidad(true));
+    rModGrp?.addEventListener('change', () => actualizarEstilosModalidad(false));
+
+    selDiaModal?.addEventListener('change', recalcularNombreModal);
+    inpHoraModal?.addEventListener('change', recalcularNombreModal);
+
+    modal.querySelectorAll('.btn-sol-tipo-grupo').forEach(b => {
+        b.addEventListener('click', () => {
+            const tipo = b.getAttribute('data-tipo') || 'Clase Grupal';
+            actualizarBotonesTipoGrupo(tipo);
+            recalcularNombreModal();
+        });
+    });
+
+    // Botón Cancelar/Cerrar
+    modal.querySelectorAll('.btn-cerrar-modal').forEach(btn => {
+        btn.addEventListener('click', () => modal.close());
+    });
+
+    // Al cerrar el modal, resetear estado del botón para que nunca quede en "Enviando..."
+    modal.addEventListener('close', () => {
+        const btnG = document.getElementById('btn-guardar-solicitar-vacante');
+        if (btnG) {
+            btnG.disabled = false;
+            btnG.textContent = 'Enviar Solicitud';
+        }
+    });
+
+    // Botón Eliminar Solicitud
+    const btnEliminar = document.getElementById('btn-eliminar-solicitar-vacante');
+    btnEliminar?.addEventListener('click', async () => {
+        const solId = document.getElementById('sol-vac-id')?.value;
+        const nombreGrupo = document.getElementById('sol-vac-nombre-input')?.value || '';
+        if (!solId) return;
+        await eliminarSolicitudVacanteDirecto(solId, nombreGrupo, async () => {
+            modal.close();
+            if (typeof window._onSolicitudVacanteSaved === 'function') {
+                await window._onSolicitudVacanteSaved();
+            }
+        });
+    });
+
+    // Botón Guardar / Enviar Solicitud
+    const btnGuardarSol = document.getElementById('btn-guardar-solicitar-vacante');
+    btnGuardarSol?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const solId = document.getElementById('sol-vac-id')?.value || '';
+        const textoOriginal = solId ? '💾 Guardar Cambios' : 'Enviar Solicitud';
+        const pId = document.getElementById('sol-vac-profe-id')?.value || '';
+        const pNom = document.getElementById('sol-vac-profe-nombre')?.value || 'Docente';
+        const pEmail = document.getElementById('sol-vac-profe-email')?.value || '';
+        const modalidad = document.querySelector('input[name="sol-vac-modalidad"]:checked')?.value || 'grupo';
+        const durMin = parseInt(document.getElementById('sol-vac-duracion-min')?.value || '60', 10);
+        const diaCod = selDiaModal ? selDiaModal.value : 'M';
+        const horaInicio = inpHoraModal ? inpHoraModal.value : '18:30';
+        const nombreGrupo = inpNombreModal ? inpNombreModal.value.trim() : '';
+
+        if (!nombreGrupo) {
+            return alert("Por favor ingresa un nombre para la clase o grupo.");
+        }
+
+        const instrumentos = obtenerInstrumentosSeleccionados();
+        if (instrumentos.length === 0) {
+            return alert("Por favor selecciona al menos un instrumento buscado.");
+        }
+
+        const niveles = obtenerNivelesSeleccionados();
+        const obs = document.getElementById('sol-vac-obs')?.value.trim() || '';
+
+        const edadMinVal = parseInt(document.getElementById('sol-vac-edad-min')?.value, 10);
+        const edadMaxVal = parseInt(document.getElementById('sol-vac-edad-max')?.value, 10);
+        const edadMin = (!isNaN(edadMinVal) && edadMinVal > 0) ? edadMinVal : null;
+        const edadMax = (!isNaN(edadMaxVal) && edadMaxVal > 0) ? edadMaxVal : null;
+        const rangoEdadTexto = (edadMin && edadMax) 
+            ? `${edadMin} a ${edadMax} años` 
+            : (edadMin ? `Desde ${edadMin} años` : (edadMax ? `Hasta ${edadMax} años` : ''));
+
+        const parsed = parsearNomenclaturaGrupoOClase(nombreGrupo, durMin);
+        const horarioTexto = parsed ? parsed.horarioTexto : `${diaCod} ${horaInicio} hs`;
+        const tipoGrupo = (modalidad === 'individual') ? 'Clase Individual' : tipoGrupoSeleccionadoModal;
+
+        btnGuardarSol.disabled = true;
+        btnGuardarSol.textContent = 'Guardando...';
+
+        try {
+            const payload = {
+                profesorId: pId,
+                profesorNombre: pNom,
+                profesorEmail: pEmail,
+                modalidad: modalidad,
+                tipoGrupo: tipoGrupo,
+                duracionMinutos: durMin,
+                grupoNombre: nombreGrupo,
+                diaCod: parsed ? parsed.diaCod : diaCod,
+                diaNombre: parsed ? parsed.diaNombre : '',
+                horaInicio: parsed ? parsed.horaInicio : horaInicio,
+                horaFin: parsed ? parsed.horaFin : '',
+                horario: horarioTexto,
+                instrumento: instrumentos.join(', '),
+                instrumentosArray: instrumentos,
+                nivel: niveles.join(', '),
+                nivelesArray: niveles,
+                edadMin: edadMin,
+                edadMax: edadMax,
+                rangoEdadTexto: rangoEdadTexto,
+                observaciones: obs
+            };
+
+            if (solId) {
+                await updateDoc(doc(db, "solicitudes_vacantes", solId), {
+                    ...payload,
+                    fechaActualizacion: new Date().toISOString()
+                });
+                alert(`✅ Solicitud "${nombreGrupo}" actualizada con éxito.`);
+            } else {
+                await addDoc(collection(db, "solicitudes_vacantes"), {
+                    ...payload,
+                    estado: "Pendiente",
+                    fechaCreacion: new Date().toISOString()
+                });
+                alert(`✅ Solicitud para "${nombreGrupo}" enviada con éxito a Coordinación.`);
+            }
+
+            modal.close();
+            btnGuardarSol.disabled = false;
+            btnGuardarSol.textContent = 'Enviar Solicitud';
+
+            if (typeof window._onSolicitudVacanteSaved === 'function') {
+                await window._onSolicitudVacanteSaved();
+            }
+        } catch(err) {
+            alert("❌ Error al guardar solicitud: " + err.message);
+        } finally {
+            btnGuardarSol.disabled = false;
+            btnGuardarSol.textContent = 'Enviar Solicitud';
+        }
+    });
+}
+
+export async function abrirModalSolicitudVacante(solicitudParam = null, onSavedCallback = null) {
+    const modal = document.getElementById('modal-solicitar-vacante');
+    if (!modal) return;
+
+    setupModalSolicitarVacanteListeners();
+
+    let sol = null;
+    if (typeof solicitudParam === 'string' && solicitudParam.trim()) {
+        try {
+            const dSnap = await getDoc(doc(db, "solicitudes_vacantes", solicitudParam));
+            if (dSnap.exists()) sol = { id: dSnap.id, ...dSnap.data() };
+        } catch(e) {
+            console.error("Error al cargar solicitud:", e);
+        }
+    } else if (solicitudParam && typeof solicitudParam === 'object') {
+        sol = solicitudParam;
+    }
+
+    const inpId = document.getElementById('sol-vac-id');
+    const txtTitulo = document.getElementById('sol-vac-modal-titulo');
+    const txtSubtitulo = document.getElementById('sol-vac-modal-subtitulo');
+    const btnGuardar = document.getElementById('btn-guardar-solicitar-vacante');
+    const btnEliminar = document.getElementById('btn-eliminar-solicitar-vacante');
+
+    const inpProfeId = document.getElementById('sol-vac-profe-id');
+    const inpProfeNom = document.getElementById('sol-vac-profe-nombre');
+    const inpProfeEmail = document.getElementById('sol-vac-profe-email');
+
+    const rModInd = document.getElementById('sol-vac-mod-ind');
+    const rModGrp = document.getElementById('sol-vac-mod-grp');
+    const secTipoGrupo = document.getElementById('sol-vac-sec-tipo-grupo');
+    const lblNombre = document.getElementById('sol-vac-nombre-label');
+    const inpNombreModal = document.getElementById('sol-vac-nombre-input');
+    const selDiaModal = document.getElementById('sol-vac-dia-sel');
+    const inpHoraModal = document.getElementById('sol-vac-hora-sel');
+    const inpDurMin = document.getElementById('sol-vac-duracion-min');
+    const inpDurTexto = document.getElementById('sol-vac-duracion-texto');
+    const inpObs = document.getElementById('sol-vac-obs');
+
+    window._onSolicitudVacanteSaved = onSavedCallback;
+
+    if (sol && sol.id) {
+        // MODO EDICIÓN
+        if (inpId) inpId.value = sol.id;
+        if (txtTitulo) txtTitulo.textContent = '✏️ Editar Solicitud de Vacante';
+        if (txtSubtitulo) txtSubtitulo.textContent = `Modificá los datos o elimina la solicitud para ${sol.grupoNombre || 'el grupo'}.`;
+        if (btnGuardar) {
+            btnGuardar.disabled = false;
+            btnGuardar.textContent = '💾 Guardar Cambios';
+        }
+        if (btnEliminar) btnEliminar.style.display = 'inline-flex';
+
+        if (inpProfeId) inpProfeId.value = sol.profesorId || '';
+        if (inpProfeNom) inpProfeNom.value = sol.profesorNombre || '';
+        if (inpProfeEmail) inpProfeEmail.value = sol.profesorEmail || '';
+
+        const esInd = sol.modalidad === 'individual' || sol.tipoGrupo === 'Clase Individual';
+        if (rModInd && rModGrp) {
+            rModInd.checked = esInd;
+            rModGrp.checked = !esInd;
+            rModInd.dispatchEvent(new Event('change'));
+            rModGrp.dispatchEvent(new Event('change'));
+        }
+
+        const tipoGrp = sol.tipoGrupo || (esInd ? 'Clase Individual' : 'Clase Grupal');
+        actualizarBotonesTipoGrupo(tipoGrp);
+
+        if (selDiaModal) selDiaModal.value = sol.diaCod || 'M';
+        if (inpHoraModal) inpHoraModal.value = sol.horaInicio || '18:30';
+        if (inpNombreModal) inpNombreModal.value = sol.grupoNombre || '';
+        if (inpObs) inpObs.value = sol.observaciones || '';
+
+        const inpEdadMin = document.getElementById('sol-vac-edad-min');
+        const inpEdadMax = document.getElementById('sol-vac-edad-max');
+        if (inpEdadMin) inpEdadMin.value = (sol.edadMin !== undefined && sol.edadMin !== null) ? sol.edadMin : '';
+        if (inpEdadMax) inpEdadMax.value = (sol.edadMax !== undefined && sol.edadMax !== null) ? sol.edadMax : '';
+
+        const instsPre = sol.instrumentosArray || (sol.instrumento ? sol.instrumento.split(',').map(s => s.trim()) : []);
+        await poblarInstrumentosChips(instsPre.join(','));
+
+        setupNivelesChipsListeners();
+        const nivelesPre = sol.nivelesArray || (sol.nivel ? sol.nivel.split(',').map(s => s.trim()) : ['Cualquiera']);
+        const contNiv = document.getElementById('sol-vac-niveles-container');
+        if (contNiv) {
+            contNiv.querySelectorAll('.btn-chip-nivel').forEach(b => {
+                const niv = b.getAttribute('data-nivel');
+                const esActivo = nivelesPre.includes(niv);
+                b.classList.toggle('active', esActivo);
+                b.style.background = esActivo ? 'var(--accent-teal)' : '#fff';
+                b.style.color = esActivo ? '#fff' : 'var(--text-main)';
+                b.style.borderColor = esActivo ? 'var(--accent-teal)' : 'var(--border-color)';
+            });
+        }
+    } else {
+        // MODO CREACIÓN
+        if (inpId) inpId.value = '';
+        if (txtTitulo) txtTitulo.textContent = '➕ Solicitar Alumno / Vacante';
+        if (txtSubtitulo) txtSubtitulo.textContent = 'Completá los datos para solicitar alumnos a Coordinación.';
+        if (btnGuardar) {
+            btnGuardar.disabled = false;
+            btnGuardar.textContent = 'Enviar Solicitud';
+        }
+        if (btnEliminar) btnEliminar.style.display = 'none';
+
+        const u = window.usuarioActual || {};
+        if (inpProfeId) inpProfeId.value = (sol && sol.profesorId) || u.profesor_id || '';
+        if (inpProfeNom) inpProfeNom.value = (sol && sol.profesorNombre) || u.nombre || '';
+        if (inpProfeEmail) inpProfeEmail.value = (sol && sol.profesorEmail) || u.email || '';
+
+        const inpEdadMin = document.getElementById('sol-vac-edad-min');
+        const inpEdadMax = document.getElementById('sol-vac-edad-max');
+        if (inpEdadMin) inpEdadMin.value = (sol && sol.edadMin !== undefined && sol.edadMin !== null) ? sol.edadMin : '';
+        if (inpEdadMax) inpEdadMax.value = (sol && sol.edadMax !== undefined && sol.edadMax !== null) ? sol.edadMax : '';
+
+        if (rModGrp) {
+            rModGrp.checked = true;
+            rModGrp.dispatchEvent(new Event('change'));
+        }
+
+        actualizarBotonesTipoGrupo('Clase Grupal');
+
+        if (selDiaModal) selDiaModal.value = 'M';
+        if (inpHoraModal) inpHoraModal.value = '18:30';
+
+        if (sol && sol.grupoNombre) {
+            if (inpNombreModal) inpNombreModal.value = sol.grupoNombre;
+            const parsed = parsearNomenclaturaGrupoOClase(sol.grupoNombre);
+            if (parsed && selDiaModal) selDiaModal.value = parsed.diaCod;
+            if (parsed && inpHoraModal) inpHoraModal.value = parsed.horaInicio;
+        } else {
+            const profeNom = (sol && sol.profesorNombre) || u.nombre || 'Profe';
+            const nombreGenerado = formatearNomenclaturaGrupoOClase('M', '18:30', profeNom);
+            if (inpNombreModal) inpNombreModal.value = nombreGenerado;
+        }
+
+        if (inpObs) inpObs.value = '';
+        await poblarInstrumentosChips();
+        resetNivelesChips();
+    }
+
+    modal.showModal();
+}
+window.abrirModalSolicitudVacante = abrirModalSolicitudVacante;
+
+export async function eliminarSolicitudVacanteDirecto(solId, nombreGrupo = '', onDeleted = null) {
+    if (!solId) return false;
+    const txt = nombreGrupo ? `para "${nombreGrupo}"` : '';
+    if (!confirm(`¿Estás seguro de eliminar la solicitud de vacante ${txt}? Esta acción no se puede deshacer.`)) {
+        return false;
+    }
+    try {
+        await deleteDoc(doc(db, "solicitudes_vacantes", solId));
+        alert(`🗑️ Solicitud ${txt} eliminada con éxito.`);
+        if (typeof onDeleted === 'function') await onDeleted();
+        return true;
+    } catch(err) {
+        alert("Error al eliminar solicitud: " + err.message);
+        return false;
+    }
+}
+window.eliminarSolicitudVacanteDirecto = eliminarSolicitudVacanteDirecto;
 
 /**
  * Renderiza la vista principal del Portal del Profesor "Mis Alumnos y Ensambles"
@@ -605,29 +1048,69 @@ export async function renderPortalProfesor(cont, usuarioActual = {}, callbacks =
         let solicitudesHtml = '';
         if (misSolicitudes.length === 0) {
             solicitudesHtml = `
-                <div style="background:var(--item-bg); border:1px dashed var(--border-color); border-radius:12px; padding:35px 20px; text-align:center; color:var(--text-muted); width:100%;">
+                <div style="background:var(--item-bg); border:1px dashed var(--border-color); border-radius:12px; padding:35px 20px; text-align:center; color:var(--text-muted); width:100%; grid-column: 1 / -1;">
                     <div style="font-size:2.2em; margin-bottom:8px;">🔔</div>
                     <div style="font-weight:700; font-size:15px; color:var(--text-main);">No tienes solicitudes de vacantes activas en este momento</div>
                 </div>
             `;
         } else {
             solicitudesHtml = misSolicitudes.map(sol => {
-                let badgeEstado = '<span class="status-val-pending">⏳ Buscando</span>';
-                if (sol.estado === 'Cubierta') badgeEstado = `<span class="status-val-ok">✅ Asignado ${sol.alumnoAsignadoNombre ? `(${sol.alumnoAsignadoNombre})` : ''}</span>`;
-                else if (sol.estado === 'Cancelada') badgeEstado = '<span class="status-val-reject">❌ Cancelada</span>';
+                let badgeEstado = '<span class="status-val-pending" style="font-size:11px; font-weight:700;">⏳ Buscando</span>';
+                if (sol.estado === 'Cubierta') badgeEstado = `<span class="status-val-ok" style="font-size:11px; font-weight:700;">✅ Asignado ${sol.alumnoAsignadoNombre ? `(${sol.alumnoAsignadoNombre})` : ''}</span>`;
+                else if (sol.estado === 'Cancelada') badgeEstado = '<span class="status-val-reject" style="font-size:11px; font-weight:700;">❌ Cancelada</span>';
+
+                const durMin = sol.duracionMinutos || (sol.tipoGrupo === 'Ensamble Mandalorian' ? 90 : 60);
+                const durBadge = durMin === 90 
+                    ? '<span class="status-badge" style="background:#f3e8ff; color:#7e22ce; font-weight:700; font-size:11px;">⏱️ 90 min (1.5h)</span>'
+                    : '<span class="status-badge" style="background:#e0f2fe; color:#0369a1; font-weight:700; font-size:11px;">⏱️ 60 min</span>';
+
+                const edadBadge = (sol.rangoEdadTexto || (sol.edadMin || sol.edadMax)) 
+                    ? `<span class="match-chip" style="background:#fdf2f8; color:#be185d; font-size:10.5px; padding:2px 6px; border-radius:6px; font-weight:700;">🎂 ${sol.rangoEdadTexto || (sol.edadMin && sol.edadMax ? `${sol.edadMin}-${sol.edadMax} años` : (sol.edadMin ? `≥ ${sol.edadMin} años` : `≤ ${sol.edadMax} años`))}</span>` 
+                    : '';
+
+                const instsArray = sol.instrumentosArray || (sol.instrumento ? sol.instrumento.split(',').map(s => s.trim()) : []);
+                const chipsInstHtml = instsArray.map(inst => {
+                    return `<span class="match-student-tag" style="font-size:11px; font-weight:600;">🎯 ${inst}</span>`;
+                }).join(' ');
 
                 return `
-                    <div class="row-item" style="display:flex; justify-content:space-between; align-items:center; padding:14px 18px; margin-bottom:10px; flex-wrap:wrap; gap:10px; width:100%;">
+                    <div class="card-solicitud-docente" data-id="${sol.id}" style="cursor:pointer; display:flex; flex-direction:column; justify-content:space-between; padding:16px; border-radius:14px; border:1px solid var(--border-color); background:#ffffff; box-shadow:0 2px 8px rgba(0,0,0,0.04); position:relative; min-height:220px; transition:all 0.2s ease; border-top:4px solid var(--accent-teal);" title="Haz clic en la ficha para editar esta solicitud">
                         <div>
-                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                                <strong style="color:var(--text-main); font-size:14px;">🎯 ${sol.instrumento}</strong>
-                                <span class="match-student-tag nivel" style="font-size:11px;">Niveles: ${sol.nivel || 'Cualquiera'}</span>
+                            <!-- Top: Grupo, Estado y Botón Único Borrar -->
+                            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:10px;">
+                                <div>
+                                    <div style="font-family:monospace; font-size:16px; font-weight:800; color:var(--accent-teal); line-height:1.2;">${sol.grupoNombre}</div>
+                                    <div style="margin-top:4px;">
+                                        ${badgeEstado}
+                                    </div>
+                                </div>
+                                <button type="button" class="btn-eliminar-sol-docente" data-id="${sol.id}" data-grupo="${sol.grupoNombre}" title="Eliminar solicitud" style="background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; border-radius:8px; padding:5px 8px; font-size:13px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.2s;" onclick="event.stopPropagation();">
+                                    🗑️
+                                </button>
                             </div>
-                            <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">
-                                Grupo: <strong>${sol.grupoNombre}</strong> • ${sol.horario}
+
+                            <!-- Badges Tipo y Duración -->
+                            <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;">
+                                <span class="status-badge" style="background:#fef3c7; color:#92400e; font-weight:700; font-size:11px;">${sol.tipoGrupo || 'Grupo'}</span>
+                                ${durBadge}
+                            </div>
+
+                            <!-- Horario Limpio (sin lapiz ni tacho duplicados) -->
+                            <div style="background:#f0fdfa; border:1px solid #ccfbf1; border-radius:8px; padding:7px 10px; margin-bottom:10px; display:flex; align-items:center; gap:8px;">
+                                <span style="font-size:14px;">📅</span>
+                                <span style="font-weight:700; font-size:12.5px; color:var(--accent-teal);">${sol.horario || 'Sin horario'}</span>
+                            </div>
+
+                            <!-- Instrumentos, Niveles y Rango de Edad -->
+                            <div style="background:#f8fafc; border-radius:8px; padding:8px 10px; font-size:11.5px; display:flex; flex-direction:column; gap:6px;">
+                                <div style="display:flex; flex-wrap:wrap; gap:5px; align-items:center;">
+                                    ${chipsInstHtml}
+                                    <span class="match-student-tag nivel" style="font-size:11px;">📚 ${sol.nivel || 'Cualquiera'}</span>
+                                    ${edadBadge}
+                                </div>
+                                ${sol.notas ? `<div style="color:var(--text-muted); font-size:11px; font-style:italic; border-top:1px solid #e2e8f0; padding-top:4px;">"${sol.notas}"</div>` : ''}
                             </div>
                         </div>
-                        <div>${badgeEstado}</div>
                     </div>
                 `;
             }).join('');
@@ -694,8 +1177,8 @@ export async function renderPortalProfesor(cont, usuarioActual = {}, callbacks =
                     ${individualesHtml}
                 </div>
 
-                <!-- CONTENIDO TAB 3: SOLICITUDES DE VACANTES -->
-                <div id="tab-content-portal-solicitudes" class="lista-filas" style="display:none; flex-direction:column; gap:10px; width:100%;">
+                <!-- CONTENIDO TAB 3: SOLICITUDES DE VACANTES (Tarjetas una al lado de la otra) -->
+                <div id="tab-content-portal-solicitudes" style="display:none; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:16px; width:100%; box-sizing:border-box;">
                     ${solicitudesHtml}
                 </div>
             </div>
@@ -727,7 +1210,9 @@ export async function renderPortalProfesor(cont, usuarioActual = {}, callbacks =
                 tabActivo.style.borderBottomColor = 'var(--accent-teal)';
                 tabActivo.style.fontWeight = '700';
             }
-            if (contenidoActivo) contenidoActivo.style.display = 'flex';
+            if (contenidoActivo) {
+                contenidoActivo.style.display = (contenidoActivo === contentSolicitudes ? 'grid' : 'flex');
+            }
         };
 
         if (btnTabGrupos) btnTabGrupos.addEventListener('click', () => {
@@ -1001,67 +1486,39 @@ export async function renderPortalProfesor(cont, usuarioActual = {}, callbacks =
             }
         });
 
-        // 12. Modal Solicitud de Vacante
-        const cargarSlotsLibresEnModal = async () => {
-            const selSlot = document.getElementById('sol-vac-slot-libre');
-            if (!selSlot) return;
-            selSlot.innerHTML = '<option value="">⏳ Consultando agenda libre y Google Calendar...</option>';
+        // 12. Modal Solicitud de Vacante (Crear, Editar y Eliminar)
+        setupModalSolicitarVacanteListeners();
 
-            slotsLibresCache = await obtenerHorariosLibresDocente(cachedProfesorDoc, 90);
+        document.getElementById('btn-solicitar-vacante-general')?.addEventListener('click', () => {
+            abrirModalSolicitudVacante(null, () => renderPortalProfesor(cont, usuarioActual, callbacks));
+        });
 
-            if (slotsLibresCache.length === 0) {
-                selSlot.innerHTML = '<option value="">⚠️ No se encontraron huecos libres en tu disponibilidad declarada.</option>';
-                return;
-            }
-
-            let optsHtml = '<option value="">-- Selecciona un horario libre --</option>';
-            slotsLibresCache.forEach((slot, idx) => {
-                const icon = slot.pegado ? '⭐' : '🕒';
-                const tag = slot.pegado ? ' (Recomendado - Pegado a tu clase)' : '';
-                optsHtml += `<option value="${idx}">${icon} ${slot.texto}${tag}</option>`;
+        cont.querySelectorAll('.btn-pedir-vacante-grupo').forEach(b => {
+            b.addEventListener('click', () => {
+                const grp = b.getAttribute('data-grupo');
+                abrirModalSolicitudVacante(grp ? { grupoNombre: grp, profesorId, profesorNombre, profesorEmail } : null, () => renderPortalProfesor(cont, usuarioActual, callbacks));
             });
-            selSlot.innerHTML = optsHtml;
-        };
+        });
 
-        const abrirModalSolicitud = async (grupoPre = '', horarioPre = '', forzarNuevo = false) => {
-            const modal = document.getElementById('modal-solicitar-vacante');
-            if (!modal) return;
+        // Clic en la tarjeta abre el modal en modo edición
+        cont.querySelectorAll('.card-solicitud-docente').forEach(card => {
+            card.addEventListener('click', (e) => {
+                if (e.target.closest('.btn-eliminar-sol-docente')) return;
+                const solId = card.getAttribute('data-id');
+                const sol = misSolicitudes.find(s => s.id === solId);
+                abrirModalSolicitudVacante(sol || solId, () => renderPortalProfesor(cont, usuarioActual, callbacks));
+            });
+        });
 
-            const rExistente = document.getElementById('sol-vac-modo-existente');
-            const rNuevo = document.getElementById('sol-vac-modo-nuevo');
-            const secExistente = document.getElementById('sol-vac-sec-existente');
-            const secNuevo = document.getElementById('sol-vac-sec-nuevo');
-
-            if (forzarNuevo || (gruposKeys.length === 0 && !grupoPre)) {
-                if (rNuevo) rNuevo.checked = true;
-                if (secExistente) secExistente.style.display = 'none';
-                if (secNuevo) secNuevo.style.display = 'block';
-                await cargarSlotsLibresEnModal();
-            } else {
-                if (rExistente) rExistente.checked = true;
-                if (secExistente) secExistente.style.display = 'block';
-                if (secNuevo) secNuevo.style.display = 'none';
-
-                const selGrp = document.getElementById('sol-vac-grupo');
-                if (selGrp) {
-                    selGrp.innerHTML = '<option value="">-- Selecciona un Grupo --</option>';
-                    gruposKeys.forEach(gk => {
-                        const sel = (gk === grupoPre) ? 'selected' : '';
-                        selGrp.innerHTML += `<option value="${gk}" ${sel}>${gk}</option>`;
-                    });
-                }
-                const inpH = document.getElementById('sol-vac-horario');
-                if (inpH) inpH.value = horarioPre || (gruposMap[grupoPre]?.horario || '');
-            }
-
-            document.getElementById('sol-vac-profe-id').value = profesorId || '';
-            document.getElementById('sol-vac-profe-nombre').value = profesorNombre || '';
-            document.getElementById('sol-vac-profe-email').value = profesorEmail || '';
-
-            modal.showModal();
-        };
-
-        document.getElementById('btn-solicitar-vacante-general')?.addEventListener('click', () => abrirModalSolicitud());
+        // Botón único de eliminación
+        cont.querySelectorAll('.btn-eliminar-sol-docente').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const solId = btn.getAttribute('data-id');
+                const grp = btn.getAttribute('data-grupo');
+                eliminarSolicitudVacanteDirecto(solId, grp, () => renderPortalProfesor(cont, usuarioActual, callbacks));
+            });
+        });
 
     } catch (err) {
         cont.innerHTML = `<div style="color:var(--accent-red); padding:30px; text-align:center; font-weight:700;">Error al cargar el portal docente: ${err.message}</div>`;

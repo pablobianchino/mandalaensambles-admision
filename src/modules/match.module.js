@@ -15,13 +15,22 @@ import {
     query, 
     where 
 } from "../config/firebase.js";
-import { detectarTipoSuscripcion } from "../services/calendar.service.js?v=5.9.22";
+import { detectarTipoSuscripcion, validarConflictoCalendarEnVivo } from "../services/calendar.service.js";
+import { 
+    parsearNomenclaturaGrupoOClase, 
+    formatearNomenclaturaGrupoOClase,
+    getEmojiParaInstrumento,
+    abrirModalSolicitudVacante,
+    eliminarSolicitudVacanteDirecto
+} from "./profesor.module.js";
 
 export let matchCantidadActual = 4;
 export let matchGruposSugeridos = [];
 export let matchProfesores = [];
 export let matchModoBusqueda = 'grupos'; // 'grupos' | 'alumnos'
 export let matchAlumnosSeleccionados = new Set();
+export let solicitudesParaMatch = [];
+window.solicitudesParaMatch = solicitudesParaMatch;
 
 export function normalizarHoraLocal(str, fallback = '09:00') {
     if (!str || typeof str !== 'string') return fallback;
@@ -216,6 +225,177 @@ export function mostrarSkillsProfe() {
     } catch { cont.innerHTML = ''; }
 }
 
+export async function cargarSolicitudesEnSelectorMatch(solicitudIdPreseleccionada = '') {
+    const sel = document.getElementById('match-sel-solicitud-cargada');
+    if (!sel) return;
+    try {
+        const snap = await getDocs(query(collection(db, "solicitudes_vacantes"), where("estado", "==", "Pendiente")));
+        const sols = [];
+        snap.forEach(d => sols.push({ id: d.id, ...d.data() }));
+
+        let html = '<option value="">-- Selecciona una solicitud para autocompletar o buscar --</option>';
+        if (sols.length > 1) {
+            html += '<option value="todas">⚡ [TODAS LAS SOLICITUDES ACTIVAS] (Buscar Bloques por Solicitud)</option>';
+        }
+
+        sols.forEach(s => {
+            const selAttr = (s.id === solicitudIdPreseleccionada) ? 'selected' : '';
+            const tipoStr = s.tipoGrupo || (s.modalidad === 'individual' ? 'Individual' : 'Grupo');
+            const durStr = s.duracionMinutos ? `${s.duracionMinutos}m` : '60m';
+            html += `<option value="${s.id}" ${selAttr}>📢 ${s.profesorNombre} • ${s.grupoNombre} (${s.instrumento} - ${s.nivel || 'Cualquiera'}) [${tipoStr} ${durStr}]</option>`;
+        });
+
+        sel.innerHTML = html;
+        window.cachedSolicitudesMatchList = sols;
+        if (solicitudIdPreseleccionada) {
+            sel.value = solicitudIdPreseleccionada;
+            aplicarSolicitudEnFiltrosMatch(solicitudIdPreseleccionada);
+        }
+    } catch(err) {
+        console.error("Error al cargar solicitudes en match selector:", err);
+    }
+}
+
+export function aplicarSolicitudEnFiltrosMatch(solId) {
+    if (!solId || !window.cachedSolicitudesMatchList) return;
+    if (solId === 'todas') {
+        window.solicitudesParaMatch = 'todas';
+        return;
+    }
+    const sol = window.cachedSolicitudesMatchList.find(s => s.id === solId);
+    if (!sol) return;
+
+    window.solicitudesParaMatch = [sol.id];
+    window.solicitudActivaParaMatch = sol;
+
+    // Suscripción
+    const selSusc = document.getElementById('match-suscripcion');
+    if (selSusc) {
+        const opts = Array.from(selSusc.options).map(o => o.value);
+        let matchSusc = opts.find(o => o.toLowerCase().includes((sol.tipoGrupo || '').toLowerCase())) 
+            || (sol.modalidad === 'individual' ? opts.find(o => o.toLowerCase().includes('indiv')) : opts.find(o => o.toLowerCase().includes('ensamble') || o.toLowerCase().includes('grup')));
+        if (matchSusc) selSusc.value = matchSusc;
+        adaptarFormularioPorSuscripcion(selSusc.value);
+    }
+
+    // Instrumento objetivo
+    const selInst = document.getElementById('match-instrumento-filtro');
+    if (selInst && sol.instrumento) {
+        const instsFirst = sol.instrumento.split(',')[0].trim();
+        const opt = Array.from(selInst.options).find(o => o.value.toLowerCase() === instsFirst.toLowerCase());
+        if (opt) selInst.value = opt.value;
+    }
+
+    // Profesor
+    const selProfe = document.getElementById('match-profe');
+    if (selProfe && (sol.profesorId || sol.profesorNombre)) {
+        const opt = Array.from(selProfe.options).find(o => o.value === sol.profesorId || o.textContent.toLowerCase().includes((sol.profesorNombre || '').toLowerCase()));
+        if (opt) selProfe.value = opt.value;
+        mostrarSkillsProfe();
+    }
+
+    // Día
+    const parsed = parsearNomenclaturaGrupoOClase(sol.grupoNombre, sol.duracionMinutos || 60);
+    const diaCod = (parsed ? parsed.diaCod : sol.diaCod) || '';
+    if (diaCod) {
+        const mapaCodPill = { 'L': 'lunes', 'M': 'martes', 'X': 'miercoles', 'J': 'jueves', 'V': 'viernes', 'S': 'sabado' };
+        const diaNombrePill = mapaCodPill[diaCod.toUpperCase()];
+        document.querySelectorAll('.match-day-pill').forEach(p => {
+            if (p.dataset.dia === diaNombrePill) p.classList.add('active');
+            else p.classList.remove('active');
+        });
+    }
+
+    // Horas
+    const hIni = parsed ? parsed.horaInicio : sol.horaInicio;
+    const hFin = parsed ? parsed.horaFin : sol.horaFin;
+    if (hIni && document.getElementById('match-hora-desde')) document.getElementById('match-hora-desde').value = hIni;
+    if (hFin && document.getElementById('match-hora-hasta')) document.getElementById('match-hora-hasta').value = hFin;
+
+    // Niveles
+    const nivs = (sol.nivelesArray && sol.nivelesArray.length > 0) ? sol.nivelesArray : (sol.nivel ? sol.nivel.split(',') : []);
+    const nivsClean = nivs.map(n => n.trim().toLowerCase());
+    document.querySelectorAll('input[name="match-nivel"]').forEach(chk => {
+        const val = chk.value.trim().toLowerCase();
+        chk.checked = nivsClean.includes('cualquiera') || nivsClean.includes(val);
+    });
+}
+
+export function actualizarModoBusquedaUI(solicitudIdOpcional = null) {
+    const btnModoGrupos = document.getElementById('match-tab-modo-grupos');
+    const btnModoAlumnos = document.getElementById('match-tab-modo-alumnos');
+    const btnBuscar = document.getElementById('match-btn-buscar');
+    const secSol = document.getElementById('match-solicitudes-profes-container');
+    if (matchModoBusqueda === 'grupos') {
+        if (btnModoGrupos) {
+            btnModoGrupos.className = 'btn-app btn-primary';
+            btnModoGrupos.style.cssText = 'height:32px; font-size:12px; font-weight:700; padding:0 14px; border-radius:7px; cursor:pointer; background:var(--accent-teal); color:#ffffff; border:1px solid var(--accent-teal);';
+        }
+        if (btnModoAlumnos) {
+            btnModoAlumnos.className = 'btn-app btn-secondary';
+            btnModoAlumnos.style.cssText = 'height:32px; font-size:12px; font-weight:700; padding:0 14px; border-radius:7px; cursor:pointer; background:transparent; color:var(--text-main); border:1px solid transparent;';
+        }
+        if (btnBuscar) btnBuscar.innerHTML = '🔍 Buscar Matches';
+        if (secSol) secSol.style.display = 'none';
+    } else {
+        if (btnModoAlumnos) {
+            btnModoAlumnos.className = 'btn-app btn-primary';
+            btnModoAlumnos.style.cssText = 'height:32px; font-size:12px; font-weight:700; padding:0 14px; border-radius:7px; cursor:pointer; background:var(--accent-teal); color:#ffffff; border:1px solid var(--accent-teal);';
+        }
+        if (btnModoGrupos) {
+            btnModoGrupos.className = 'btn-app btn-secondary';
+            btnModoGrupos.style.cssText = 'height:32px; font-size:12px; font-weight:700; padding:0 14px; border-radius:7px; cursor:pointer; background:transparent; color:var(--text-main); border:1px solid transparent;';
+        }
+        if (btnBuscar) btnBuscar.innerHTML = '🔍 Buscar Alumnos';
+        if (secSol) secSol.style.display = 'block';
+        cargarSolicitudesEnSelectorMatch(solicitudIdOpcional);
+    }
+}
+
+export async function activarBusquedaMatchPorSolicitudDirecta(solicitudId, callbacks = {}) {
+    const fnCargarVista = callbacks.cargarVista || window.cargarVistaGlobal;
+    const fnSetBotonCargando = callbacks.setBotonCargando || window.setBotonCargando;
+
+    // 1. Navegar a la vista de Match (Armar Grupos y Clases)
+    if (typeof fnCargarVista === 'function') {
+        await fnCargarVista('Match - Pendientes');
+    } else {
+        const cont = document.getElementById('match-pendientes-container');
+        if (cont) cont.style.display = 'flex';
+    }
+
+    // 2. Activar modo Alumnos (Perfiles)
+    matchModoBusqueda = 'alumnos';
+    actualizarModoBusquedaUI();
+
+    // 3. Cargar solicitudes en el selector y autocompletar filtros
+    const selTargetId = (solicitudId === 'todas' || Array.isArray(solicitudId))
+        ? (Array.isArray(solicitudId) && solicitudId.length === 1 ? solicitudId[0] : 'todas')
+        : solicitudId;
+
+    window.solicitudesParaMatch = (solicitudId === 'todas' || Array.isArray(solicitudId)) ? solicitudId : [solicitudId];
+    await cargarSolicitudesEnSelectorMatch(selTargetId);
+
+    // 4. Ejecutar la búsqueda DIRECTAMENTE
+    const ids = Array.isArray(solicitudId) ? solicitudId : (solicitudId ? [solicitudId] : []);
+    if (solicitudId === 'todas') {
+        await ejecutarBusquedaAlumnosOpcionA('todas', fnSetBotonCargando);
+    } else if (ids.length > 0) {
+        await ejecutarBusquedaAlumnosOpcionA(ids, fnSetBotonCargando);
+    } else {
+        await ejecutarBusquedaAlumnosMatch(fnSetBotonCargando);
+    }
+
+    // 5. Scroll suave hacia los resultados
+    setTimeout(() => {
+        const resSec = document.getElementById('match-resultados');
+        if (resSec) {
+            resSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, 150);
+}
+window.activarBusquedaMatchPorSolicitudDirecta = activarBusquedaMatchPorSolicitudDirecta;
+
 export function initMatchFormListeners(cfgMin = 2, cfgMax = 6, callbacks = {}) {
     const { setBotonCargando, syncSelectToChips, cargarVista } = callbacks;
 
@@ -227,32 +407,6 @@ export function initMatchFormListeners(cfgMin = 2, cfgMax = 6, callbacks = {}) {
     // Segmented control: Buscar Grupos vs Buscar Alumnos
     const btnModoGrupos = document.getElementById('match-tab-modo-grupos');
     const btnModoAlumnos = document.getElementById('match-tab-modo-alumnos');
-    const cantWrapper = document.getElementById('match-cantidad-wrapper');
-    const btnBuscar = document.getElementById('match-btn-buscar');
-
-    const actualizarModoBusquedaUI = () => {
-        if (matchModoBusqueda === 'grupos') {
-            if (btnModoGrupos) {
-                btnModoGrupos.className = 'btn-app btn-primary';
-                btnModoGrupos.style.cssText = 'height:32px; font-size:12px; font-weight:700; padding:0 14px; border-radius:7px; cursor:pointer; background:var(--accent-teal); color:#ffffff; border:1px solid var(--accent-teal);';
-            }
-            if (btnModoAlumnos) {
-                btnModoAlumnos.className = 'btn-app btn-secondary';
-                btnModoAlumnos.style.cssText = 'height:32px; font-size:12px; font-weight:700; padding:0 14px; border-radius:7px; cursor:pointer; background:transparent; color:var(--text-main); border:1px solid transparent;';
-            }
-            if (btnBuscar) btnBuscar.innerHTML = '🔍 Buscar Matches';
-        } else {
-            if (btnModoAlumnos) {
-                btnModoAlumnos.className = 'btn-app btn-primary';
-                btnModoAlumnos.style.cssText = 'height:32px; font-size:12px; font-weight:700; padding:0 14px; border-radius:7px; cursor:pointer; background:var(--accent-teal); color:#ffffff; border:1px solid var(--accent-teal);';
-            }
-            if (btnModoGrupos) {
-                btnModoGrupos.className = 'btn-app btn-secondary';
-                btnModoGrupos.style.cssText = 'height:32px; font-size:12px; font-weight:700; padding:0 14px; border-radius:7px; cursor:pointer; background:transparent; color:var(--text-main); border:1px solid transparent;';
-            }
-            if (btnBuscar) btnBuscar.innerHTML = '🔍 Buscar Alumnos';
-        }
-    };
 
     if (btnModoGrupos) {
         btnModoGrupos.addEventListener('click', () => {
@@ -266,6 +420,33 @@ export function initMatchFormListeners(cfgMin = 2, cfgMax = 6, callbacks = {}) {
             matchModoBusqueda = 'alumnos';
             actualizarModoBusquedaUI();
         });
+    }
+
+    // Selector de Solicitudes de Profesores en Modo Alumnos
+    const selSolMatch = document.getElementById('match-sel-solicitud-cargada');
+    const btnCargarSolMatch = document.getElementById('btn-match-cargar-solicitud');
+
+    selSolMatch?.addEventListener('change', (e) => {
+        aplicarSolicitudEnFiltrosMatch(e.target.value);
+    });
+
+    btnCargarSolMatch?.addEventListener('click', () => {
+        if (selSolMatch?.value) {
+            aplicarSolicitudEnFiltrosMatch(selSolMatch.value);
+        } else {
+            alert("Por favor selecciona una solicitud de la lista.");
+        }
+    });
+
+    // Si había una solicitud pre-seleccionada desde otra vista
+    if (window.solicitudesParaMatch && window.solicitudesParaMatch.length > 0) {
+        matchModoBusqueda = 'alumnos';
+        actualizarModoBusquedaUI();
+        if (window.solicitudesParaMatch !== 'todas' && window.solicitudesParaMatch.length === 1) {
+            cargarSolicitudesEnSelectorMatch(window.solicitudesParaMatch[0]);
+        } else if (window.solicitudesParaMatch === 'todas') {
+            cargarSolicitudesEnSelectorMatch('todas');
+        }
     }
 
     // Cambio de Suscripcion
@@ -622,11 +803,347 @@ export function generarCombinaciones(arr, k) {
 }
 
 // -----------------------------------------------------------------------
+// Búsqueda de Alumnos Organizados por Solicitud (Opción A)
+// -----------------------------------------------------------------------
+export async function ejecutarBusquedaAlumnosOpcionA(solicitudesIds = [], setBotonCargandoFn) {
+    const btnBuscar = document.getElementById('match-btn-buscar');
+    const resSec = document.getElementById('match-resultados');
+    const grid = document.getElementById('match-resultados-grid');
+    const noRes = document.getElementById('match-sin-resultados');
+    const badge = document.getElementById('match-resultados-badge');
+    const tituloRes = document.getElementById('match-resultados-titulo');
+    const bulkBar = document.getElementById('match-alumnos-bulk-bar');
+
+    if (resSec) resSec.style.display = 'flex';
+    if (grid) {
+        grid.innerHTML = '';
+        grid.style.display = 'flex';
+        grid.style.flexDirection = 'column';
+        grid.style.width = '100%';
+        grid.style.gridTemplateColumns = 'none';
+    }
+    if (badge) badge.style.display = 'none';
+    if (bulkBar) bulkBar.style.display = 'none';
+    if (tituloRes) tituloRes.textContent = 'Matches Organizados por Solicitud (Opción A)';
+    if (noRes) {
+        noRes.style.display = 'block';
+        noRes.textContent = '🔄 Consultando solicitudes activas, alumnos en lista de espera y validando con Google Calendar...';
+    }
+
+    try {
+        // 1. Obtener solicitudes a evaluar
+        const solSnap = await getDocs(query(collection(db, "solicitudes_vacantes"), where("estado", "==", "Pendiente")));
+        let todasSols = [];
+        solSnap.forEach(d => todasSols.push({ id: d.id, ...d.data() }));
+
+        let solsAEvaluar = [];
+        if (solicitudesIds === 'todas' || (Array.isArray(solicitudesIds) && solicitudesIds.includes('todas'))) {
+            solsAEvaluar = todasSols;
+        } else if (Array.isArray(solicitudesIds) && solicitudesIds.length > 0) {
+            solsAEvaluar = todasSols.filter(s => solicitudesIds.includes(s.id));
+        } else {
+            const selSolVal = document.getElementById('match-sel-solicitud-cargada')?.value;
+            if (selSolVal === 'todas') {
+                solsAEvaluar = todasSols;
+            } else if (selSolVal) {
+                solsAEvaluar = todasSols.filter(s => s.id === selSolVal);
+            } else {
+                solsAEvaluar = todasSols;
+            }
+        }
+
+        if (solsAEvaluar.length === 0) {
+            if (noRes) noRes.textContent = 'No se encontraron solicitudes de profesores pendientes para evaluar.';
+            return;
+        }
+
+        // 2. Obtener alumnos en Lista de Espera
+        const alSnap = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", "Lista de espera")));
+        const alumnosEspera = [];
+        alSnap.forEach(d => alumnosEspera.push({ id: d.id, ...d.data() }));
+
+        if (alumnosEspera.length === 0) {
+            if (noRes) noRes.textContent = 'No hay alumnos en Lista de Espera actualmente.';
+            return;
+        }
+
+        // 3. Procesar cada solicitud en su bloque independiente (Opción A)
+        const bloquesHtml = [];
+        let totalCandidatosEncontrados = 0;
+        const mapaCandidatosPorSol = {};
+
+        for (const sol of solsAEvaluar) {
+            const durMin = sol.duracionMinutos || (sol.tipoGrupo === 'Ensamble Mandalorian' ? 90 : 60);
+            const parsed = parsearNomenclaturaGrupoOClase(sol.grupoNombre, durMin);
+            const diaCod = (parsed ? parsed.diaCod : sol.diaCod) || '';
+            const horaIni = (parsed ? parsed.horaInicio : sol.horaInicio) || '18:00';
+            const horaFin = (parsed ? parsed.horaFin : sol.horaFin) || '19:00';
+
+            // Determinar tipo de suscripción requerido por la solicitud (Ensamble vs Grupal vs Individual)
+            let tipoSuscSol = 'individual';
+            if (sol.tipoGrupo) {
+                tipoSuscSol = detectarTipoSuscripcion(sol.tipoGrupo);
+            } else if (sol.modalidad === 'individual') {
+                tipoSuscSol = 'individual';
+            } else {
+                const gNom = (sol.grupoNombre || '').toLowerCase();
+                if (gNom.includes('ensamble') || gNom.includes('mandalorian')) {
+                    tipoSuscSol = 'ensamble';
+                } else if (gNom.includes('grupal') || gNom.includes('grupo') || sol.modalidad === 'grupal') {
+                    tipoSuscSol = 'grupal';
+                } else {
+                    tipoSuscSol = detectarTipoSuscripcion(sol.suscripcion || '');
+                }
+            }
+
+            // Evaluar candidatos
+            const candidatosSol = [];
+
+            for (const al of alumnosEspera) {
+                let score = 0;
+                let motivos = [];
+                let alertas = [];
+
+                // 0. Validar Tipo de Suscripción (CRÍTICO: Ensamble vs Grupal vs Individual)
+                const tipoSuscAl = detectarTipoSuscripcion(al.tipo_suscripcion || '');
+                if (tipoSuscAl !== tipoSuscSol) {
+                    continue; // Descartar: no coincide el tipo de suscripción (ej: alumno de clase grupal buscando vacante en ensamble)
+                }
+
+                // A. Instrumento
+                const instsPed = Array.isArray(sol.instrumentos) && sol.instrumentos.length > 0
+                    ? sol.instrumentos.map(i => (i || '').trim().toLowerCase())
+                    : (sol.instrumento ? sol.instrumento.split(',').map(s => s.trim().toLowerCase()) : []);
+                const instsAl = Array.isArray(al.instrumento) ? al.instrumento.map(i => (i || '').trim().toLowerCase()) : [(al.instrumento || '').trim().toLowerCase()];
+
+                const coincideInst = instsPed.length === 0 || instsAl.some(i => instsPed.includes(i));
+                if (!coincideInst) continue; // Descartar si no coincide el instrumento
+                score += 40;
+                motivos.push(`Instrumento: ${instsAl.filter(i => instsPed.includes(i)).join(', ') || sol.instrumento}`);
+
+                // B. Nivel pedagógico
+                const nivelAl = (al.nivel || '').trim().toLowerCase();
+                const nivelesPed = Array.isArray(sol.niveles) && sol.niveles.length > 0
+                    ? sol.niveles.map(n => (n || '').trim().toLowerCase())
+                    : (sol.nivel ? sol.nivel.split(',').map(s => s.trim().toLowerCase()) : []);
+                const esNivelLibre = nivelesPed.length === 0 || nivelesPed.includes('cualquiera');
+                const coincideNivel = esNivelLibre || nivelesPed.includes(nivelAl);
+                if (coincideNivel) {
+                    score += 30;
+                    motivos.push(`Nivel: ${al.nivel || 'Inicial I'}`);
+                } else {
+                    score += 10;
+                    alertas.push(`Nivel alumno: ${al.nivel || 's/d'} (Buscado: ${sol.nivel})`);
+                }
+
+                // C. Disponibilidad horaria del alumno
+                let coincideDisp = false;
+                if (diaCod && al.disponibilidad && al.disponibilidad[diaCod]) {
+                    const rangosDia = al.disponibilidad[diaCod];
+                    const solIniMins = convertirHoraAMinutos(horaIni);
+                    const solFinMins = convertirHoraAMinutos(horaFin);
+
+                    for (let r of rangosDia) {
+                        let rIni = normalizarHoraLocal(typeof r === 'object' ? r.inicio : (typeof r === 'string' ? r.split(/[-a]/)[0] : '09:00'), '09:00');
+                        let rFin = normalizarHoraLocal(typeof r === 'object' ? r.fin : (typeof r === 'string' ? (r.split(/[-a]/)[1] || r.split(/[-a]/)[0]) : '22:00'), '22:00');
+                        let aStart = convertirHoraAMinutos(rIni);
+                        let aEnd = convertirHoraAMinutos(rFin);
+
+                        if (aStart <= solIniMins && aEnd >= solFinMins) {
+                            coincideDisp = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (coincideDisp) {
+                    score += 30;
+                    motivos.push(`Disponible ${diaCod} ${horaIni} a ${horaFin}`);
+                } else {
+                    score += 5;
+                    alertas.push(`Disponibilidad parcial o a coordinar en ${diaCod}`);
+                }
+
+                // D. Rango de Edad (si fue ingresado por el profesor en la solicitud)
+                const edadMinSol = (sol.edadMin !== undefined && sol.edadMin !== null && sol.edadMin !== '') ? parseInt(sol.edadMin, 10) : null;
+                const edadMaxSol = (sol.edadMax !== undefined && sol.edadMax !== null && sol.edadMax !== '') ? parseInt(sol.edadMax, 10) : null;
+                const hayRangoEdad = (edadMinSol !== null || edadMaxSol !== null);
+
+                if (hayRangoEdad) {
+                    const edadAl = parseInt(al.edad, 10);
+                    if (!isNaN(edadAl) && edadAl > 0) {
+                        const cumpleMin = edadMinSol === null || edadAl >= edadMinSol;
+                        const cumpleMax = edadMaxSol === null || edadAl <= edadMaxSol;
+                        if (!cumpleMin || !cumpleMax) {
+                            continue; // Descartar: no coincide con el rango etario solicitado por el docente
+                        }
+                        motivos.push(`Edad adecuada (${edadAl} años)`);
+                    } else {
+                        const txtRango = sol.rangoEdadTexto || ((edadMinSol && edadMaxSol) ? `${edadMinSol}-${edadMaxSol} años` : (edadMinSol ? `≥${edadMinSol}a` : `≤${edadMaxSol}a`));
+                        alertas.push(`Edad sin registrar (solicitado: ${txtRango})`);
+                    }
+                }
+
+                candidatosSol.push({
+                    alumno: al,
+                    score: Math.min(score, 100),
+                    motivos,
+                    alertas
+                });
+            }
+
+            candidatosSol.sort((a, b) => b.score - a.score);
+            totalCandidatosEncontrados += candidatosSol.length;
+            mapaCandidatosPorSol[sol.id] = candidatosSol;
+
+            // Renderizar el bloque de esta solicitud
+            let candidatosHtml = '';
+            if (candidatosSol.length === 0) {
+                candidatosHtml = `
+                    <div style="grid-column:1/-1; padding:20px; background:var(--hover-bg); border-radius:10px; border:1px dashed var(--border-color); text-align:center; color:var(--text-muted); font-size:13px;">
+                        ⚠️ No se encontraron alumnos en Lista de Espera con suscripción <strong>${tipoSuscSol.toUpperCase()}</strong> que coincidan con los instrumentos, horarios ${sol.rangoEdadTexto ? `y edad (${sol.rangoEdadTexto}) ` : ''}de <strong>${sol.grupoNombre}</strong>.
+                    </div>
+                `;
+            } else {
+                candidatosHtml = candidatosSol.map(c => {
+                    const al = c.alumno;
+                    const instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || 'Sin inst.');
+                    const badgeMatch = c.score >= 90
+                        ? `<span class="status-val-ok" style="font-size:12px; font-weight:800;">🟢 ${c.score}% MATCH</span>`
+                        : (c.score >= 70 
+                            ? `<span class="status-val-pending" style="font-size:12px; font-weight:800;">🟡 ${c.score}% MATCH</span>`
+                            : `<span class="status-val-reject" style="font-size:12px; font-weight:800;">🟠 ${c.score}% PARCIAL</span>`);
+
+                    const diffDias = al.fecha_creacion ? Math.floor((new Date() - new Date(al.fecha_creacion)) / (1000 * 60 * 60 * 24)) : null;
+                    const badgeEspera = diffDias !== null ? `<span class="match-chip" style="background:#f1f5f9; color:#475569; font-size:10.5px; padding:2px 6px; border-radius:6px;">⏳ ${diffDias}d espera</span>` : '';
+
+                    const motivosHtml = c.motivos.map(m => `<span style="color:#0d5c30;">✅ ${m}</span>`).join(' • ');
+                    const alertasHtml = c.alertas.length > 0 ? c.alertas.map(a => `<span style="color:var(--accent-red);">⚠️ ${a}</span>`).join(' • ') : '';
+
+                    return `
+                        <div class="match-card" style="display:flex; flex-direction:column; justify-content:space-between; padding:14px; border-radius:10px; border:1px solid var(--border-color); background:var(--card-bg); box-shadow:0 1px 4px rgba(0,0,0,0.03); width:100%; max-width:100%; box-sizing:border-box;">
+                            <div>
+                                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+                                    <div>
+                                        <strong style="font-size:14.5px; color:var(--text-main); cursor:pointer;" onclick="window.editarAlumnoModalDirecto('${al.id}')">${al.nombre}</strong>
+                                        <div style="font-size:12px; color:var(--text-muted);">${al.edad ? `${al.edad} años` : ''} • 📚 ${al.nivel || 'Inicial I'}</div>
+                                    </div>
+                                    ${badgeMatch}
+                                </div>
+                                <div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px;">
+                                    <span class="match-chip" style="background:rgba(0,123,143,0.08); color:var(--accent-teal); font-weight:600; font-size:11px; padding:2px 8px; border-radius:6px;">🎸 ${instStr}</span>
+                                    ${al.tipo_suscripcion ? `<span class="match-chip" style="background:#f3e8ff; color:#6b21a8; font-weight:700; font-size:10.5px; padding:2px 6px; border-radius:6px;">🏷️ ${al.tipo_suscripcion}</span>` : ''}
+                                    ${badgeEspera}
+                                    <span class="match-chip" style="background:#ecfdf5; color:#065f46; font-weight:600; font-size:10.5px; padding:2px 6px; border-radius:6px;">📅 Calendar Validado (${durMin}m)</span>
+                                </div>
+                                <div style="font-size:11.5px; line-height:1.4; background:var(--hover-bg); padding:6px 8px; border-radius:6px; border:1px solid var(--border-color); color:var(--text-muted); margin-bottom:8px;">
+                                    ${motivosHtml} ${alertasHtml ? ` | ${alertasHtml}` : ''}
+                                </div>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-color); padding-top:10px; gap:8px;">
+                                <button type="button" class="btn-app btn-secondary" onclick="window.editarAlumnoModalDirecto('${al.id}')" style="font-size:11px; height:30px; padding:0 10px;">👁️ Ver Ficha</button>
+                                <button type="button" class="btn-app btn-primary btn-iniciar-prealta-solicitud" data-al-id="${al.id}" data-sol-id="${sol.id}" style="font-size:11.5px; height:30px; padding:0 12px; background:var(--accent-teal); font-weight:700;">🚀 Iniciar Pre-Alta</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            const edadReqTexto = sol.rangoEdadTexto || ((sol.edadMin || sol.edadMax) ? `${sol.edadMin || '0'} a ${sol.edadMax || '∞'} años` : '');
+            const edadBadgeHeader = edadReqTexto ? `<span class="status-badge" style="background:#fdf2f8; color:#be185d; font-weight:700; font-size:11px;">🎂 Edad: ${edadReqTexto}</span>` : '';
+
+            bloquesHtml.push(`
+                <div style="background:#fff; border:1px solid var(--border-color); border-top:4px solid var(--accent-teal); border-radius:12px; padding:18px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.03); margin-bottom:18px; width:100%; box-sizing:border-box;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom:12px; border-bottom:1px solid var(--border-color); padding-bottom:10px;">
+                        <div>
+                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                <span style="font-family:monospace; font-size:16px; font-weight:800; color:var(--accent-teal);">${sol.grupoNombre}</span>
+                                <span class="status-badge" style="background:#fef3c7; color:#92400e; font-weight:700; font-size:11px;">${sol.tipoGrupo || 'Grupo'}</span>
+                                <span class="status-badge" style="background:#e0f2fe; color:#0369a1; font-weight:700; font-size:11px;">⏱️ Duración de Clase: ${durMin} min</span>
+                                ${edadBadgeHeader}
+                            </div>
+                            <div style="font-size:12.5px; color:var(--text-muted); margin-top:4px;">
+                                Docente: <strong style="color:var(--text-main);">${sol.profesorNombre}</strong> • Horario: <strong style="color:var(--text-main);">${sol.horario}</strong> • Instrumento: <strong style="color:var(--text-main);">${sol.instrumento}</strong> • Nivel: <strong>${sol.nivel || 'Cualquiera'}</strong> ${edadReqTexto ? `• Rango Edad: <strong>${edadReqTexto}</strong>` : ''}
+                            </div>
+                            ${sol.observaciones ? `<div style="font-size:12px; color:var(--text-muted); margin-top:4px; font-style:italic;">"${sol.observaciones}"</div>` : ''}
+                        </div>
+                        <span class="status-badge" style="background:${candidatosSol.length > 0 ? 'rgba(0,123,143,0.1)' : '#f1f5f9'}; color:${candidatosSol.length > 0 ? 'var(--accent-teal)' : '#64748b'}; font-weight:800; font-size:12px;">
+                            ${candidatosSol.length} Candidato${candidatosSol.length !== 1 ? 's' : ''}
+                        </span>
+                    </div>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:12px; width:100%; box-sizing:border-box;">
+                        ${candidatosHtml}
+                    </div>
+                </div>
+            `);
+        }
+
+        if (noRes) noRes.style.display = 'none';
+        if (badge) {
+            badge.textContent = `${totalCandidatosEncontrados} candidatos en ${solsAEvaluar.length} solicitud(es)`;
+            badge.style.display = 'inline-flex';
+        }
+
+        grid.innerHTML = `
+            <div style="width:100%; display:flex; flex-direction:column; gap:12px; box-sizing:border-box;">
+                ${bloquesHtml.join('')}
+            </div>
+        `;
+
+        // Listeners para Iniciar Pre-Alta en cada tarjeta de candidato
+        grid.querySelectorAll('.btn-iniciar-prealta-solicitud').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const alId = btn.getAttribute('data-al-id');
+                const solId = btn.getAttribute('data-sol-id');
+                const sol = solsAEvaluar.find(s => s.id === solId);
+                if (!sol) return;
+
+                const cand = (mapaCandidatosPorSol[sol.id] || []).find(c => c.alumno.id === alId);
+                const discrepancias = cand ? (cand.alertas || []) : [];
+                const instAlumno = cand && cand.alumno 
+                    ? (Array.isArray(cand.alumno.instrumento) ? cand.alumno.instrumento[0] : cand.alumno.instrumento)
+                    : sol.instrumento;
+
+                if (window.abrirModalPrealta) {
+                    window.abrirModalPrealta(alId, false, '', sol.grupoNombre, {
+                        profeIdSugerido: sol.profesorId,
+                        profeNombreSugerido: sol.profesorNombre,
+                        instSugerido: instAlumno || sol.instrumento,
+                        solicitudId: sol.id,
+                        solicitud: sol,
+                        esMatchSolicitud: true,
+                        discrepancias: discrepancias
+                    });
+                }
+            });
+        });
+
+    } catch(err) {
+        console.error("Error en Opción A de búsqueda:", err);
+        if (noRes) noRes.textContent = 'Error al ejecutar búsqueda por solicitudes: ' + err.message;
+    } finally {
+        if (typeof setBotonCargandoFn === 'function') setBotonCargandoFn(btnBuscar, false);
+    }
+}
+
+// -----------------------------------------------------------------------
 // Búsqueda de Alumnos Candidatos (Perfiles Sueltos en Lista de Espera)
 // -----------------------------------------------------------------------
 export async function ejecutarBusquedaAlumnosMatch(setBotonCargandoFn) {
     const btnBuscar = document.getElementById('match-btn-buscar');
     if (typeof setBotonCargandoFn === 'function') setBotonCargandoFn(btnBuscar, true);
+
+    const selSolEl = document.getElementById('match-sel-solicitud-cargada');
+    const solVal = selSolEl ? selSolEl.value : '';
+    const haySolicitudEspecífica = solVal || (window.solicitudesParaMatch && (window.solicitudesParaMatch === 'todas' || window.solicitudesParaMatch.length > 0));
+
+    if (haySolicitudEspecífica) {
+        const ids = (window.solicitudesParaMatch && (window.solicitudesParaMatch === 'todas' || window.solicitudesParaMatch.length > 0))
+            ? window.solicitudesParaMatch
+            : solVal;
+        await ejecutarBusquedaAlumnosOpcionA(ids, setBotonCargandoFn);
+        return;
+    }
 
     const susc = document.getElementById('match-suscripcion')?.value || '';
     const selExcluir = document.getElementById('match-excluir-instrumentos');
@@ -2168,19 +2685,18 @@ export async function renderMatchSolicitudesProfes(cont, configApp, callbacks = 
         const solicitudes = [];
         solSnap.forEach(d => solicitudes.push({ id: d.id, ...d.data() }));
 
-        const alSnap = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", "Lista de espera")));
-        const alumnosEspera = [];
-        alSnap.forEach(d => alumnosEspera.push({ id: d.id, ...d.data() }));
-
         const pendientes = solicitudes.filter(s => s.estado === 'Pendiente' || s.estado === 'En Proceso');
         const cubiertas = solicitudes.filter(s => s.estado === 'Cubierta' || s.estado === 'Cancelada');
+
+        const rolActual = (window.usuarioActual?.rol || configApp?.usuarioActual?.rol || 'admin').toLowerCase();
+        const puedeBuscar = ['admin', 'coordinador', 'admisor'].includes(rolActual);
 
         if (pendientes.length === 0 && cubiertas.length === 0) {
             cont.innerHTML = `
                 <div style="background:white; border:1px solid var(--border-color); border-radius:12px; padding:40px 20px; text-align:center; color:var(--text-muted); max-width:900px; margin:0 auto;">
                     <div style="font-size:2.2em; margin-bottom:8px;">🔔</div>
                     <div style="font-weight:700; font-size:16px; color:var(--text-main);">No hay solicitudes de vacantes de profesores</div>
-                    <div style="font-size:13px; margin-top:4px;">Cuando los docentes soliciten alumnos desde su portal aparecerán aquí con candidatos sugeridos de la Lista de Espera.</div>
+                    <div style="font-size:13px; margin-top:4px;">Cuando los docentes soliciten alumnos desde su portal aparecerán aquí para buscar matches en la Lista de Espera.</div>
                 </div>
             `;
             return;
@@ -2188,88 +2704,127 @@ export async function renderMatchSolicitudesProfes(cont, configApp, callbacks = 
 
         let html = `
             <div style="max-width:950px; width:100%; margin:0 auto; display:flex; flex-direction:column; gap:20px;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <h3 style="margin:0; color:var(--text-main); font-size:1.3em;">🔔 Solicitudes de Profesores Pendientes (${pendientes.length})</h3>
+                <!-- Header y barra de acciones masivas -->
+                <div style="background:white; border:1px solid var(--border-color); border-radius:12px; padding:16px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; box-shadow:0 2px 6px rgba(0,0,0,0.02);">
+                    <div>
+                        <h3 style="margin:0 0 4px 0; color:var(--text-main); font-size:1.3em; display:flex; align-items:center; gap:8px;">
+                            <span>📩</span> Solicitudes de Profes (${pendientes.length})
+                        </h3>
+                        <div style="font-size:12.5px; color:var(--text-muted);">
+                            Selecciona solicitudes para buscar candidatos con validación de horarios y Google Calendar.
+                        </div>
+                    </div>
+                    ${puedeBuscar && pendientes.length > 0 ? `
+                        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                            <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:12.5px; font-weight:600; color:var(--text-main); margin:0;">
+                                <input type="checkbox" id="chk-solicitudes-select-todas" style="accent-color:var(--accent-teal); width:16px; height:16px;">
+                                Seleccionar todas
+                            </label>
+                            <button type="button" id="btn-sol-buscar-seleccionadas" class="btn-app btn-secondary" style="font-size:12px; height:34px; padding:0 14px; font-weight:700; background:#fff; color:var(--accent-teal); border:1px solid var(--accent-teal);" disabled>
+                                🔍 Buscar Seleccionadas (<span id="sol-sel-count">0</span>)
+                            </button>
+                            <button type="button" id="btn-sol-buscar-todas" class="btn-app btn-primary" style="font-size:12px; height:34px; padding:0 14px; font-weight:700; background:var(--accent-teal); color:#fff;">
+                                🔍 Buscar Todas las Solicitudes
+                            </button>
+                        </div>
+                    ` : ''}
                 </div>
         `;
 
         if (pendientes.length === 0) {
             html += `<div style="background:white; padding:20px; border-radius:10px; border:1px solid var(--border-color); color:var(--text-muted);">No hay solicitudes pendientes en este momento.</div>`;
         } else {
+            html += `<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:16px;">`;
             pendientes.forEach(sol => {
-                const candidatos = buscarAlumnosCandidatosParaSolicitud(sol, alumnosEspera);
-                let candHtml = '';
-                if (candidatos.length === 0) {
-                    candHtml = `
-                        <div style="padding:15px; background:var(--hover-bg); border-radius:8px; border:1px solid var(--border-color); font-size:12.5px; color:var(--text-muted);">
-                            ⚠️ No hay alumnos en Lista de Espera que coincidan con ${sol.instrumento} en este momento.
-                        </div>
-                    `;
-                } else {
-                    candHtml = candidatos.map(c => {
-                        const al = c.alumno;
-                        const instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || 'Sin inst.');
-                        const badgeMatch = c.score >= 90
-                            ? `<span class="status-val-ok" style="font-size:12px; font-weight:800;">🟢 ${c.score}% MATCH</span>`
-                            : (c.score >= 70 
-                                ? `<span class="status-val-pending" style="font-size:12px; font-weight:800;">🟡 ${c.score}% MATCH</span>`
-                                : `<span class="status-val-reject" style="font-size:12px; font-weight:800;">🟠 ${c.score}% PARCIAL</span>`);
+                const durMin = sol.duracionMinutos || (sol.tipoGrupo === 'Ensamble Mandalorian' ? 90 : 60);
+                const durBadge = durMin === 90 
+                    ? '<span class="status-badge" style="background:#f3e8ff; color:#7e22ce; font-weight:700; font-size:11px;">⏱️ 90 min (1.5h)</span>'
+                    : '<span class="status-badge" style="background:#e0f2fe; color:#0369a1; font-weight:700; font-size:11px;">⏱️ 60 min</span>';
 
-                        const tagsPsico = Array.isArray(al.perfil_psicologico) && al.perfil_psicologico.length > 0
-                            ? al.perfil_psicologico.map(t => `<span class="profile-tag-badge" style="font-size:9.5px;">🧠 ${t}</span>`).join('')
-                            : '';
+                const instsArray = sol.instrumentosArray || (sol.instrumento ? sol.instrumento.split(',').map(s => s.trim()) : []);
+                const chipsInstHtml = instsArray.map(inst => {
+                    const emoji = getEmojiParaInstrumento(inst);
+                    return `<span class="match-student-tag" style="font-size:11.5px; font-weight:600;">${emoji} ${inst}</span>`;
+                }).join(' ');
 
-                        const motivosHtml = c.motivos.map(m => `<span style="color:#0d5c30;">✅ ${m}</span>`).join(' • ');
-                        const alertasHtml = c.alertas.length > 0 ? c.alertas.map(a => `<span style="color:var(--accent-red);">⚠️ ${a}</span>`).join(' • ') : '';
-
-                        const btnTxt = c.score >= 70 ? '➕ Asignar Alumno a la Solicitud' : '⚠️ Asignar con Excepción...';
-
-                        return `
-                            <div style="background:white; border:1px solid var(--border-color); border-radius:10px; padding:14px; display:flex; flex-direction:column; gap:8px;">
-                                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-                                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                                        ${badgeMatch}
-                                        <strong style="color:var(--text-main); font-size:14px; cursor:pointer;" onclick="window.editarAlumnoModalDirecto('${al.id}')" title="Ver ficha y registro completo de ${al.nombre}">👤 ${al.nombre}</strong>
-                                        <span style="font-size:12px; color:var(--text-muted);">${al.edad ? al.edad + ' años' : ''} • ${instStr}</span>
-                                        ${tagsPsico}
-                                    </div>
-                                    <button type="button" class="btn-primary btn-asignar-candidato-solicitud" data-sol-id="${sol.id}" data-al-id="${al.id}" style="font-size:12px; padding:7px 14px;">
-                                        ${btnTxt}
-                                    </button>
-                                </div>
-                                <div style="font-size:11.5px; line-height:1.4; background:var(--hover-bg); padding:6px 10px; border-radius:6px; border:1px solid var(--border-color);">
-                                    ${motivosHtml} ${alertasHtml ? ` | ${alertasHtml}` : ''}
-                                </div>
-                            </div>
-                        `;
-                    }).join('');
-                }
+                const nivelesStr = sol.nivel || 'Cualquiera';
 
                 html += `
-                    <div class="row-item" style="display:flex; flex-direction:column; gap:12px; padding:20px; border-left:4px solid #e5a93d;">
-                        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
-                            <div>
-                                <div style="font-size:11px; text-transform:uppercase; font-weight:800; color:#c98a1e; letter-spacing:0.05em;">SOLICITUD DE VACANTE</div>
-                                <h4 style="margin:2px 0 4px 0; color:var(--text-main); font-size:16px;">📢 Profe ${sol.profesorNombre} • Grupo: <strong style="color:var(--accent-teal);">${sol.grupoNombre}</strong> (${sol.horario || ''})</h4>
-                                <div style="font-size:13px; color:var(--text-main);">
-                                    🎯 Busca: <strong>${sol.instrumento}</strong> • Nivel: <strong>${sol.nivel || 'Cualquiera'}</strong>
+                    <div class="match-card" style="display:flex; flex-direction:column; justify-content:space-between; padding:16px; border-radius:12px; border:1px solid var(--border-color); background:#ffffff; box-shadow:0 2px 8px rgba(0,0,0,0.04); position:relative; min-height:260px; border-top:4px solid #e5a93d;">
+                        <div>
+                            <!-- Top: Checkbox, Nombre del Grupo/Clase y Estado -->
+                            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:10px;">
+                                <div style="display:flex; align-items:flex-start; gap:10px;">
+                                    ${puedeBuscar ? `
+                                        <input type="checkbox" class="chk-solicitud-item" data-id="${sol.id}" style="width:18px; height:18px; cursor:pointer; accent-color:var(--accent-teal); margin-top:2px;">
+                                    ` : ''}
+                                    <div>
+                                        <div style="font-family:monospace; font-size:16px; font-weight:800; color:var(--accent-teal); line-height:1.2;">${sol.grupoNombre}</div>
+                                        <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">
+                                            👨‍🏫 Profe: <strong style="color:var(--text-main);">${sol.profesorNombre}</strong>
+                                        </div>
+                                    </div>
                                 </div>
-                                ${sol.observaciones ? `<div style="font-size:12px; color:var(--text-muted); margin-top:4px;">📝 Nota del profe: <em>"${sol.observaciones}"</em></div>` : ''}
+                                <span class="status-val-pending" style="font-size:11px; font-weight:700;">⏳ ${sol.estado}</span>
                             </div>
-                            <span class="status-val-pending" style="font-size:11.5px;">⏳ ${sol.estado}</span>
+
+                            <!-- Badges de Tipo y Duración -->
+                            <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;">
+                                <span class="status-badge" style="background:#fef3c7; color:#92400e; font-weight:700; font-size:11px;">${sol.tipoGrupo || 'Grupo'}</span>
+                                ${durBadge}
+                            </div>
+
+                            <!-- FECHA / HORARIO -->
+                            <div style="background:#f0fdfa; border:1px solid #ccfbf1; border-radius:8px; padding:7px 10px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+                                <div style="display:flex; align-items:center; gap:6px;">
+                                    <span style="font-size:14px;">📅</span>
+                                    <div>
+                                        <div style="font-weight:700; font-size:12.5px; color:var(--accent-teal);">${sol.horario || 'Sin horario'}</div>
+                                        ${sol.fechaCreacion ? `<div style="font-size:10px; color:var(--text-muted);">Creada: ${new Date(sol.fechaCreacion).toLocaleDateString()}</div>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Instrumentos, Niveles y Edad -->
+                            <div style="background:#f8fafc; border-radius:8px; padding:8px 10px; margin-bottom:10px; font-size:11.5px;">
+                                <div style="color:var(--text-muted); margin-bottom:4px; font-weight:600;">🎯 Requisitos:</div>
+                                <div style="display:flex; flex-wrap:wrap; gap:5px; align-items:center;">
+                                    ${chipsInstHtml}
+                                    <span class="match-student-tag nivel" style="font-size:11px;">📚 ${nivelesStr}</span>
+                                    ${(sol.rangoEdadTexto || (sol.edadMin || sol.edadMax)) ? `<span class="match-chip" style="background:#fdf2f8; color:#be185d; font-size:11px; padding:2px 7px; border-radius:6px; font-weight:700;">🎂 ${sol.rangoEdadTexto || ((sol.edadMin && sol.edadMax) ? `${sol.edadMin}-${sol.edadMax} años` : (sol.edadMin ? `≥ ${sol.edadMin} años` : `≤ ${sol.edadMax} años`))}</span>` : ''}
+                                </div>
+                            </div>
+
+                            <!-- Observaciones (si existen) -->
+                            ${sol.observaciones ? `
+                                <div style="font-size:11.5px; color:var(--text-muted); background:var(--hover-bg); padding:6px 10px; border-radius:6px; border:1px solid var(--border-color); margin-bottom:10px; font-style:italic;">
+                                    📝 "${sol.observaciones}"
+                                </div>
+                            ` : ''}
                         </div>
 
-                        <div style="border-top:1px solid var(--border-color); padding-top:12px; margin-top:4px;">
-                            <div style="font-size:12px; font-weight:700; color:var(--text-main); margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-                                <span>📥 ALUMNOS EN LISTA DE ESPERA QUE COINCIDEN (${candidatos.length}):</span>
+                        <!-- Footer con Botones de Acción -->
+                        <div style="display:flex; align-items:center; justify-content:space-between; border-top:1px solid #f1f5f9; padding-top:10px; gap:8px; margin-top:8px;">
+                            <div style="display:flex; gap:6px;">
+                                <button type="button" class="btn-app btn-secondary btn-editar-sol-directo" data-id="${sol.id}" style="font-size:11.5px; padding:4px 8px; height:30px;" title="Editar solicitud">
+                                    ✏️ Editar
+                                </button>
+                                <button type="button" class="btn-app btn-secondary btn-eliminar-sol-directo" data-id="${sol.id}" data-grupo="${sol.grupoNombre}" style="font-size:11.5px; padding:4px 8px; height:30px; color:var(--accent-red); border-color:#fca5a5;" title="Eliminar solicitud">
+                                    🗑️
+                                </button>
                             </div>
-                            <div style="display:flex; flex-direction:column; gap:8px;">
-                                ${candHtml}
-                            </div>
+                            ${puedeBuscar ? `
+                                <button type="button" class="btn-primary btn-buscar-matches-sol" data-id="${sol.id}" style="font-size:11.5px; padding:5px 12px; height:30px; font-weight:700;">
+                                    🔍 Buscar Matches
+                                </button>
+                            ` : `
+                                <span style="font-size:11.5px; color:var(--text-muted); font-style:italic;">Solo Coordinación</span>
+                            `}
                         </div>
                     </div>
                 `;
             });
+            html += `</div>`;
         }
 
         if (cubiertas.length > 0) {
@@ -2294,66 +2849,72 @@ export async function renderMatchSolicitudesProfes(cont, configApp, callbacks = 
         html += `</div>`;
         cont.innerHTML = html;
 
-        // Listener de asignación
-        cont.querySelectorAll('.btn-asignar-candidato-solicitud').forEach(btn => {
+        // Listeners individuales de búsqueda directa
+        cont.querySelectorAll('.btn-buscar-matches-sol').forEach(btn => {
             btn.addEventListener('click', async () => {
-                const solId = btn.getAttribute('data-sol-id');
-                const alId = btn.getAttribute('data-al-id');
-                const sol = solicitudes.find(s => s.id === solId);
-                const al = alumnosEspera.find(a => a.id === alId);
-                if (!sol || !al) return;
-
-                if (!confirm(`¿Confirmas asignar a ${al.nombre} a la vacante de ${sol.instrumento} en "${sol.grupoNombre}" (Profe ${sol.profesorNombre})?`)) {
-                    return;
-                }
-
+                const solId = btn.getAttribute('data-id');
                 btn.disabled = true;
-                btn.textContent = 'Asignando...';
-
-                try {
-                    const instsPed = Array.isArray(sol.instrumentos) && sol.instrumentos.length > 0
-                        ? sol.instrumentos.map(i => (i || '').trim().toLowerCase())
-                        : (sol.instrumento ? sol.instrumento.split(',').map(s => s.trim().toLowerCase()) : []);
-
-                    const instsAl = Array.isArray(al.instrumento) ? al.instrumento : [al.instrumento];
-                    const instElegido = instsAl.find(i => instsPed.includes((i || '').trim().toLowerCase())) || instsAl[0] || sol.instrumento;
-
-                    const now = new Date();
-                    const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
-                    const hist = al.historial || [];
-                    hist.push({
-                        id: Date.now(),
-                        texto: `Asignado a solicitud de vacante del docente ${sol.profesorNombre} en grupo "${sol.grupoNombre}" como ${instElegido}. Pasa a Pre-alta Pendiente.`,
-                        fecha: fechaStr
-                    });
-
-                    // 1. Actualizar alumno
-                    await updateDoc(doc(db, "alumnos", alId), {
-                        estado_agenda: "Pre-alta Pendiente",
-                        grupo_asignado: sol.grupoNombre,
-                        profesor_asignado: sol.profesorNombre,
-                        reserva_profe_nombre: sol.profesorNombre,
-                        reserva_profe_id: sol.profesorId || '',
-                        instrumento_asignado: instElegido,
-                        horario_match: sol.horario || '',
-                        historial: hist
-                    });
-
-                    // 2. Actualizar solicitud
-                    await updateDoc(doc(db, "solicitudes_vacantes", solId), {
-                        estado: "Cubierta",
-                        alumnoAsignadoId: alId,
-                        alumnoAsignadoNombre: al.nombre,
-                        fechaAsignacion: new Date().toISOString()
-                    });
-
-                    alert(`✅ ¡Alumno ${al.nombre} asignado con éxito a ${sol.grupoNombre}!`);
-                    await renderMatchSolicitudesProfes(cont, configApp, callbacks);
-                } catch(err) {
-                    alert('Error al asignar alumno: ' + err.message);
-                    btn.disabled = false;
-                }
+                btn.textContent = 'Buscando...';
+                await activarBusquedaMatchPorSolicitudDirecta(solId, callbacks);
             });
+        });
+
+        // Listeners para Editar y Eliminar desde la Ficha
+        cont.querySelectorAll('.btn-click-fecha-sol, .btn-editar-sol-directo').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const solId = btn.getAttribute('data-id');
+                const sol = pendientes.find(s => s.id === solId);
+                abrirModalSolicitudVacante(sol || solId, () => renderMatchSolicitudesProfes(cont, configApp, callbacks));
+            });
+        });
+
+        cont.querySelectorAll('.btn-eliminar-sol-directo').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const solId = btn.getAttribute('data-id');
+                const grp = btn.getAttribute('data-grupo');
+                eliminarSolicitudVacanteDirecto(solId, grp, () => renderMatchSolicitudesProfes(cont, configApp, callbacks));
+            });
+        });
+
+        // Bulk selection
+        const chkSelectTodas = document.getElementById('chk-solicitudes-select-todas');
+        const btnBuscarSeleccionadas = document.getElementById('btn-sol-buscar-seleccionadas');
+        const btnBuscarTodas = document.getElementById('btn-sol-buscar-todas');
+        const countSpan = document.getElementById('sol-sel-count');
+
+        const actualizarEstadoBulk = () => {
+            const chks = Array.from(cont.querySelectorAll('.chk-solicitud-item:checked'));
+            if (countSpan) countSpan.textContent = chks.length;
+            if (btnBuscarSeleccionadas) {
+                btnBuscarSeleccionadas.disabled = (chks.length === 0);
+            }
+        };
+
+        chkSelectTodas?.addEventListener('change', (e) => {
+            cont.querySelectorAll('.chk-solicitud-item').forEach(c => c.checked = e.target.checked);
+            actualizarEstadoBulk();
+        });
+
+        cont.querySelectorAll('.chk-solicitud-item').forEach(c => {
+            c.addEventListener('change', actualizarEstadoBulk);
+        });
+
+        btnBuscarSeleccionadas?.addEventListener('click', async () => {
+            const chks = Array.from(cont.querySelectorAll('.chk-solicitud-item:checked'));
+            const ids = chks.map(c => c.getAttribute('data-id'));
+            if (ids.length > 0) {
+                btnBuscarSeleccionadas.disabled = true;
+                btnBuscarSeleccionadas.textContent = 'Buscando...';
+                await activarBusquedaMatchPorSolicitudDirecta(ids, callbacks);
+            }
+        });
+
+        btnBuscarTodas?.addEventListener('click', async () => {
+            btnBuscarTodas.disabled = true;
+            btnBuscarTodas.textContent = 'Buscando...';
+            await activarBusquedaMatchPorSolicitudDirecta('todas', callbacks);
         });
 
     } catch(err) {

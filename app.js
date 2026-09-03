@@ -11,7 +11,7 @@ import {
     configNodosFlujo,
     configNodosFlujoEvaluador,
     configNodosFlujoCoordinador
-} from "./src/config/constants.js?v=5.9.23";
+} from "./src/config/constants.js?v=6.2.1";
 
 import { 
     app, 
@@ -32,7 +32,7 @@ import {
     GoogleAuthProvider, 
     onAuthStateChanged, 
     signOut 
-} from "./src/config/firebase.js?v=5.9.23";
+} from "./src/config/firebase.js?v=6.2.1";
 
 import {
     limpiarHoraParaChip,
@@ -46,7 +46,7 @@ import {
     extraerDisponibilidadMultiRango,
     normalizarHora,
     inicializarAutocompletadoHorarios
-} from "./src/ui/horarios.ui.js?v=5.9.23";
+} from "./src/ui/horarios.ui.js?v=6.2.1";
 
 import {
     getEmojiInstrumento,
@@ -73,7 +73,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=5.9.23";
+} from "./src/services/calendar.service.js?v=6.2.1";
 
 import {
     matchCantidadActual,
@@ -106,11 +106,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=5.9.23";
+} from "./src/modules/match.module.js?v=6.2.1";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=5.9.23";
+} from "./src/modules/profesor.module.js?v=6.2.1";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -128,14 +128,14 @@ import {
     copiarFilaExcelFacturacionAdmision,
     abrirModalAvisoPrealtaAlumno,
     copiarAvisoPrealtaAlumno
-} from "./src/modules/altas.module.js?v=5.9.23";
+} from "./src/modules/altas.module.js?v=6.2.1";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=5.9.23";
+} from "./src/modules/dashboard.module.js?v=6.2.1";
 
 import {
     renderConfigHub,
@@ -144,20 +144,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=5.9.23";
+} from "./src/modules/abm.module.js?v=6.2.1";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=5.9.23";
+} from "./src/modules/inbox.module.js?v=6.2.1";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=5.9.23";
+} from "./src/modules/csv.module.js?v=6.2.1";
 
 let agrupadorActual = 'ninguno';
 let filtrosSeleccionados = {
@@ -648,8 +648,8 @@ export function mostrarIndicadorCarga(mensaje = 'Procesando acción en el sistem
     if (txt) txt.textContent = mensaje;
     if (loader) {
         try {
-            if (typeof loader.showModal === 'function') {
-                if (!loader.open) loader.showModal();
+            if (typeof loader.show === 'function') {
+                if (!loader.open) loader.show();
             } else {
                 loader.style.display = 'flex';
             }
@@ -893,17 +893,18 @@ try {
 } catch(e) { console.error("Error init Quill interview editors:", e); }
 
 // ================================================================
-// DIRTY FORM TRACKING — Protección contra pérdida de datos en ficha e informe
+// DIRTY FORM TRACKING — Protección contra pérdida de datos en TODOS los modales de edición
 // ================================================================
 window._modalEditandoModificado = false;
 window._fichaAlumnoModificada = false; // Compatibilidad retroactiva
 
-// Marcador universal reactivo: captura inputs, selects, textareas, contenteditable y teclados virtuales
+// Marcador universal reactivo: captura inputs, selects, textareas, contenteditable y teclados virtuales en cualquier modal
 function marcarModalComoModificado(e) {
     const el = e.target;
     if (!el) return;
-    const modalActivo = el.closest ? el.closest('#modal-alta-alumno, #modal-informe-admision, #form-alumno-wrapper') : null;
-    if (modalActivo) {
+    const modalActivo = el.closest ? (el.closest('dialog') || el.closest('#form-alumno-wrapper')?.closest('dialog') || document.querySelector('dialog[open]')) : null;
+    if (modalActivo && !['modal-confirmar-descarte', 'modal-confirmar-accion', 'modal-test-notificacion', 'global-action-loader'].includes(modalActivo.id)) {
+        modalActivo.dataset.modificado = 'true';
         window._modalEditandoModificado = true;
         window._fichaAlumnoModificada = true;
     }
@@ -914,31 +915,64 @@ function marcarModalComoModificado(e) {
     document.addEventListener(evtName, marcarModalComoModificado, true);
 });
 
-// Capturar interacciones con chips, checkboxes, radios o celdas de disponibilidad
+// Capturar interacciones con chips, checkboxes, radios, botones de opciones o celdas de disponibilidad
 document.addEventListener('click', (e) => {
     const el = e.target;
     if (!el) return;
-    const modalActivo = el.closest ? el.closest('#modal-alta-alumno, #modal-informe-admision, #form-alumno-wrapper') : null;
-    if (modalActivo) {
-        if (el.matches('input[type="checkbox"], input[type="radio"], select, .chip, .chip-btn, .dia-cell, .rango-btn, .tag-chip, button[data-chip]')) {
+    const modalActivo = el.closest ? (el.closest('dialog') || el.closest('#form-alumno-wrapper')?.closest('dialog') || document.querySelector('dialog[open]')) : null;
+    if (modalActivo && !['modal-confirmar-descarte', 'modal-confirmar-accion', 'modal-test-notificacion', 'global-action-loader'].includes(modalActivo.id)) {
+        if (el.matches('input[type="checkbox"], input[type="radio"], select, .chip, .chip-btn, .dia-cell, .rango-btn, .tag-chip, button[data-chip], .btn-sol-tipo-grupo, .btn-sol-dia, .btn-sol-instrumento, .btn-tipo-ensamble')) {
+            modalActivo.dataset.modificado = 'true';
             window._modalEditandoModificado = true;
             window._fichaAlumnoModificada = true;
         }
     }
 }, true);
 
+// Limpiar estado de modificado al cerrarse cualquier dialog
+document.addEventListener('close', (e) => {
+    const dlg = e.target;
+    if (dlg && dlg.tagName === 'DIALOG' && dlg.id !== 'modal-confirmar-descarte') {
+        dlg.dataset.modificado = 'false';
+        if (!document.querySelector('dialog[open][data-modificado="true"]')) {
+            window._modalEditandoModificado = false;
+            window._fichaAlumnoModificada = false;
+        }
+    }
+}, true);
+
 // Editores Quill
 if (typeof quill !== 'undefined' && quill && quill.on) {
-    quill.on('text-change', () => { window._modalEditandoModificado = true; window._fichaAlumnoModificada = true; });
+    quill.on('text-change', () => {
+        const d = document.getElementById('modal-alta-alumno');
+        if (d) d.dataset.modificado = 'true';
+        window._modalEditandoModificado = true;
+        window._fichaAlumnoModificada = true;
+    });
 }
 if (typeof quillInforme !== 'undefined' && quillInforme && quillInforme.on) {
-    quillInforme.on('text-change', () => { window._modalEditandoModificado = true; window._fichaAlumnoModificada = true; });
+    quillInforme.on('text-change', () => {
+        const d = document.getElementById('modal-alta-alumno');
+        if (d) d.dataset.modificado = 'true';
+        window._modalEditandoModificado = true;
+        window._fichaAlumnoModificada = true;
+    });
 }
 if (quillInfMotivacion && quillInfMotivacion.on) {
-    quillInfMotivacion.on('text-change', () => { window._modalEditandoModificado = true; window._fichaAlumnoModificada = true; });
+    quillInfMotivacion.on('text-change', () => {
+        const d = document.getElementById('modal-informe-admision');
+        if (d) d.dataset.modificado = 'true';
+        window._modalEditandoModificado = true;
+        window._fichaAlumnoModificada = true;
+    });
 }
 if (quillInfDiagnostico && quillInfDiagnostico.on) {
-    quillInfDiagnostico.on('text-change', () => { window._modalEditandoModificado = true; window._fichaAlumnoModificada = true; });
+    quillInfDiagnostico.on('text-change', () => {
+        const d = document.getElementById('modal-informe-admision');
+        if (d) d.dataset.modificado = 'true';
+        window._modalEditandoModificado = true;
+        window._fichaAlumnoModificada = true;
+    });
 }
 
 export function solicitarConfirmacionSalidaModal(modalActivo, onDescartar, onGuardar) {
@@ -946,18 +980,43 @@ export function solicitarConfirmacionSalidaModal(modalActivo, onDescartar, onGua
     if (!modalDescarte) return;
 
     const modalId = modalActivo?.id || 'modal-alta-alumno';
-    const esInforme = modalId === 'modal-informe-admision';
-
-    let nom = '';
-    if (esInforme) {
-        nom = document.getElementById('inf-nombre')?.value || 'el alumno';
+    
+    // Obtener título o nombre representativo del modal
+    let tituloModal = 'el formulario';
+    if (modalId === 'modal-alta-alumno') {
+        const nom = document.getElementById('nombre')?.value || document.getElementById('alumno-nombre')?.value || 'el alumno';
+        tituloModal = `la ficha de ${nom}`;
+    } else if (modalId === 'modal-informe-admision') {
+        const nom = document.getElementById('inf-nombre')?.value || 'el alumno';
+        tituloModal = `el informe de admisión de ${nom}`;
+    } else if (modalId === 'modal-solicitar-vacante') {
+        tituloModal = 'la solicitud de vacante / alumno';
+    } else if (modalId === 'modal-iniciar-prealta') {
+        tituloModal = 'la pre-alta del alumno';
+    } else if (modalId === 'modal-suspender') {
+        tituloModal = 'la suspensión del alumno';
+    } else if (modalId === 'modal-nueva-suscripcion') {
+        tituloModal = 'la nueva suscripción';
+    } else if (modalId === 'modal-mi-perfil') {
+        tituloModal = 'tu perfil';
+    } else if (modalId === 'modal-abm-edit') {
+        tituloModal = 'la edición de datos';
+    } else if (modalId === 'modal-nota-rapida') {
+        tituloModal = 'la nota rápida';
+    } else if (modalId === 'modal-nueva-propuesta-grupo') {
+        tituloModal = 'la propuesta de grupo';
+    } else if (modalId === 'modal-registrar-contacto') {
+        tituloModal = 'el registro de contacto';
     } else {
-        nom = document.getElementById('nombre')?.value || document.getElementById('alumno-nombre')?.value || 'el alumno';
+        const hEl = modalActivo?.querySelector('h2, h3, .modal-title, .form-title');
+        if (hEl && hEl.textContent.trim()) {
+            tituloModal = `"${hEl.textContent.trim()}"`;
+        }
     }
 
     const msgEl = document.getElementById('descarte-modal-mensaje');
     if (msgEl) {
-        msgEl.textContent = `Modificaste datos en ${esInforme ? 'el informe de admisión' : 'la ficha'} de ${nom}. Si salís ahora, perderás la información que acabás de ingresar.`;
+        msgEl.textContent = `Modificaste datos en ${tituloModal}. Si salís ahora, perderás la información que acabás de ingresar.`;
     }
 
     const btnGuardar = document.getElementById('btn-descarte-guardar');
@@ -967,20 +1026,42 @@ export function solicitarConfirmacionSalidaModal(modalActivo, onDescartar, onGua
     if (btnGuardar) {
         btnGuardar.onclick = () => {
             modalDescarte.close();
+            if (modalActivo) modalActivo.dataset.modificado = 'false';
             window._modalEditandoModificado = false;
             window._fichaAlumnoModificada = false;
             if (typeof onGuardar === 'function') {
                 onGuardar();
-            } else if (esInforme) {
+            } else if (modalId === 'modal-informe-admision') {
                 const btnSaveInf = document.getElementById('btn-guardar-informe-final');
                 if (btnSaveInf) btnSaveInf.click();
-            } else {
+            } else if (modalId === 'modal-alta-alumno') {
                 const form = document.getElementById('form-alumno');
                 if (form) {
                     const btnSub = form.querySelector('button[type="submit"]');
                     if (btnSub) btnSub.click();
                     else form.requestSubmit();
                 }
+            } else if (modalId === 'modal-solicitar-vacante') {
+                document.getElementById('btn-guardar-solicitar-vacante')?.click();
+            } else if (modalId === 'modal-iniciar-prealta') {
+                document.getElementById('btn-guardar-prealta')?.click();
+            } else if (modalId === 'modal-suspender') {
+                document.getElementById('btn-guardar-suspension')?.click();
+            } else if (modalId === 'modal-mi-perfil') {
+                document.getElementById('btn-guardar-mi-perfil')?.click();
+            } else if (modalId === 'modal-nueva-suscripcion') {
+                document.getElementById('form-nueva-suscripcion')?.querySelector('button[type="submit"]')?.click();
+            } else if (modalId === 'modal-abm-edit') {
+                document.getElementById('form-abm-edit')?.querySelector('button[type="submit"]')?.click();
+            } else if (modalId === 'modal-nota-rapida') {
+                document.getElementById('btn-guardar-nota-rapida')?.click();
+            } else if (modalId === 'modal-nueva-propuesta-grupo') {
+                document.getElementById('btn-guardar-propuesta-grupo')?.click();
+            } else if (modalId === 'modal-registrar-contacto') {
+                document.getElementById('btn-guardar-contacto')?.click();
+            } else {
+                const btnSub = modalActivo?.querySelector('button[type="submit"], button.btn-primary:not(#btn-descarte-guardar), button[id*="guardar"], button[id*="submit"]');
+                if (btnSub) btnSub.click();
             }
         };
     }
@@ -988,14 +1069,12 @@ export function solicitarConfirmacionSalidaModal(modalActivo, onDescartar, onGua
     if (btnDescartar) {
         btnDescartar.onclick = () => {
             modalDescarte.close();
+            if (modalActivo) modalActivo.dataset.modificado = 'false';
             window._modalEditandoModificado = false;
             window._fichaAlumnoModificada = false;
             if (typeof onDescartar === 'function') {
                 onDescartar();
-            } else if (esInforme) {
-                const mInf = document.getElementById('modal-informe-admision');
-                if (mInf && mInf.open) mInf.close();
-            } else {
+            } else if (modalId === 'modal-alta-alumno') {
                 const wrap = document.getElementById('form-alumno-wrapper');
                 if (wrap) {
                     wrap.style.display = 'none';
@@ -1003,6 +1082,8 @@ export function solicitarConfirmacionSalidaModal(modalActivo, onDescartar, onGua
                 }
                 const modalFicha = document.getElementById('modal-alta-alumno');
                 if (modalFicha && modalFicha.open) modalFicha.close();
+            } else {
+                if (modalActivo && modalActivo.open) modalActivo.close();
             }
         };
     }
@@ -1025,35 +1106,32 @@ window.solicitarConfirmacionSalidaModal = solicitarConfirmacionSalidaModal;
 window.solicitarConfirmacionSalidaFicha = (onD, onG) => solicitarConfirmacionSalidaModal(document.getElementById('modal-alta-alumno'), onD, onG);
 
 // =======================================================================
-// INTERCEPTOR DE CANCELACIÓN NATIVA DE <dialog> (BOTÓN/GESTO ATRÁS EN CELULAR)
-// En Android Chrome, la tecla física o gesto "Atrás" dispara el evento 'cancel' en el <dialog>.
-// Si no se llama a e.preventDefault(), el navegador cierra el modal automáticamente sin pasar por popstate.
+// INTERCEPTOR DE CANCELACIÓN NATIVA DE <dialog> (BOTÓN/GESTO ATRÁS EN CELULAR O TECLA ESCAPE)
+// En Android Chrome o teclado, la acción "Atrás" o Escape dispara el evento 'cancel' en el <dialog>.
+// Si el modal fue modificado, prevenimos el cierre y preguntamos qué hacer.
 // =======================================================================
 document.addEventListener('cancel', (e) => {
     const dialog = e.target;
     if (!dialog || dialog.tagName !== 'DIALOG') return;
 
     // Si es el modal de confirmación de descarte, dejar que se cierre (equivale a "Continuar editando")
-    if (dialog.id === 'modal-confirmar-descarte') {
+    if (dialog.id === 'modal-confirmar-descarte' || dialog.id === 'global-action-loader') {
         return;
     }
 
-    // Si es modal-alta-alumno o modal-informe-admision y tiene cambios:
-    if (dialog.id === 'modal-alta-alumno' || dialog.id === 'modal-informe-admision') {
-        if (window._modalEditandoModificado || window._fichaAlumnoModificada) {
-            // ¡PREVENIR EL CIERRE NATIVO AUTOMÁTICO DE ANDROID/CHROME!
-            e.preventDefault();
-            // Desplegar el diálogo de confirmación de descarte con las 3 opciones
-            solicitarConfirmacionSalidaModal(dialog);
-            return;
-        } else {
-            // Si no fue modificado, limpiar el wrapper si es modal-alta-alumno antes del cierre
-            if (dialog.id === 'modal-alta-alumno') {
-                const wrap = document.getElementById('form-alumno-wrapper');
-                if (wrap) {
-                    wrap.style.display = 'none';
-                    document.body.appendChild(wrap);
-                }
+    // Si cualquier modal fue modificado:
+    if (dialog.dataset.modificado === 'true' || ((dialog.id === 'modal-alta-alumno' || dialog.id === 'modal-informe-admision') && window._modalEditandoModificado)) {
+        // ¡PREVENIR EL CIERRE NATIVO AUTOMÁTICO!
+        e.preventDefault();
+        solicitarConfirmacionSalidaModal(dialog);
+        return;
+    } else {
+        // Si no fue modificado, limpiar el wrapper si es modal-alta-alumno antes del cierre
+        if (dialog.id === 'modal-alta-alumno') {
+            const wrap = document.getElementById('form-alumno-wrapper');
+            if (wrap) {
+                wrap.style.display = 'none';
+                document.body.appendChild(wrap);
             }
         }
     }
@@ -1168,16 +1246,26 @@ export function actualizarCondicionalesPunto3() {
     const insts = selInst ? Array.from(selInst.selectedOptions).map(o => (o.value || '').toLowerCase()) : [];
     const esCantante = insts.some(i => i.includes('canto') || i.includes('voz') || i.includes('vocal') || i.includes('cantante'));
     
+    // Detectar si el instrumento es batería / percusión
+    const esBateria = insts.some(i => i.includes('bateria') || i.includes('batería') || i.includes('percusion') || i.includes('percusión') || i.includes('cajon') || i.includes('cajón'));
+    const tieneOtroArmonico = insts.some(i => 
+        i.includes('guitarra') || i.includes('bajo') || i.includes('piano') || i.includes('teclado') || 
+        i.includes('canto') || i.includes('voz') || i.includes('vocal') || i.includes('violin') || i.includes('saxo') || i.includes('flauta') || i.includes('trompeta') || i.includes('ukelele')
+    );
+    
     const nivel = (document.getElementById('inf-nivel')?.value || '').toLowerCase();
     const esIntermedioOAvanzado = nivel.includes('intermedio') || nivel.includes('avanzado');
+    
+    // Si el alumno toca batería (y no tiene otro instrumento armónico), NO aplica la pregunta de tonalidades sin importar el nivel
+    const aplicaTonalidades = esIntermedioOAvanzado && (!esBateria || tieneOtroArmonico);
     
     const cardCantante = document.getElementById('inf-card-cantante');
     const cardTonalidades = document.getElementById('inf-card-tonalidades');
     const grid = document.getElementById('inf-preguntas-condicionales-grid');
     
     if (cardCantante) cardCantante.style.display = esCantante ? 'flex' : 'none';
-    if (cardTonalidades) cardTonalidades.style.display = esIntermedioOAvanzado ? 'flex' : 'none';
-    if (grid) grid.style.display = (esCantante || esIntermedioOAvanzado) ? 'grid' : 'none';
+    if (cardTonalidades) cardTonalidades.style.display = aplicaTonalidades ? 'flex' : 'none';
+    if (grid) grid.style.display = (esCantante || aplicaTonalidades) ? 'grid' : 'none';
 }
 window.actualizarCondicionalesPunto3 = actualizarCondicionalesPunto3;
 
@@ -1605,6 +1693,27 @@ export function calcularMetricasEspera(al) {
 }
 window.calcularMetricasEspera = calcularMetricasEspera;
 
+export function isAlumnoSuspendido(al) {
+    const rawEst = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    return rawEst === 'agenda suspendida' || rawEst === 'alta suspendida' || rawEst === 'suspendido' || !!al.suspendido;
+}
+window.isAlumnoSuspendido = isAlumnoSuspendido;
+
+export function getOrigenSuspension(al) {
+    if (al.origen_suspension) return al.origen_suspension.toLowerCase().trim();
+    const rawEst = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    if (rawEst === 'agenda suspendida') return 'inbox';
+    if (rawEst === 'alta suspendida') {
+        const hist = al.historial || [];
+        const lastSusp = [...hist].reverse().find(h => (h.tipo === 'suspension' || (h.nota && h.nota.toLowerCase().includes('suspendid'))));
+        if (lastSusp && lastSusp.nota && lastSusp.nota.toLowerCase().includes('espera')) return 'espera';
+        if (al.grupo_asignado || al.id_evento_alta || al.fecha_inicio_clases) return 'altas';
+        return 'espera';
+    }
+    return 'inbox';
+}
+window.getOrigenSuspension = getOrigenSuspension;
+
 function generarFilaAlumno(al, id, vista, isKanban = false) {
     const info = getEstadoYBadgeLocal(al);
     let instArray = Array.isArray(al.instrumento) ? al.instrumento : (al.instrumento ? [al.instrumento] : []);
@@ -1629,6 +1738,32 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
     let tagsHtml = '';
     if (Array.isArray(al.perfil_psicologico) && al.perfil_psicologico.length > 0) {
         tagsHtml = `<div class="row-sub-line" style="display:flex; flex-wrap:wrap; gap:4px; margin-top:2px;">${al.perfil_psicologico.map(t => `<span class="profile-tag-badge" style="font-size:9.5px; padding:1px 6px;">🧠 ${t}</span>`).join('')}</div>`;
+    }
+
+    let suspInfoHtml = '';
+    if (isAlumnoSuspendido(al)) {
+        const orig = getOrigenSuspension(al);
+        let origLabel = '💬 De Inbox';
+        let origStyle = 'background:#dbeafe; color:#1e40af; border:1px solid #bfdbfe;';
+        if (orig === 'espera') {
+            origLabel = '⏳ De Lista de Espera';
+            origStyle = 'background:#fef3c7; color:#92400e; border:1px solid #fde68a;';
+        } else if (orig === 'altas') {
+            origLabel = '📋 De Pre-Alta';
+            origStyle = 'background:#f3e8ff; color:#6b21a8; border:1px solid #e9d5ff;';
+        }
+        
+        const motivoTxt = al.motivo_suspension || al.detalle_suspension || 'Sin motivo especificado';
+        suspInfoHtml = `
+            <div style="margin-top:6px; display:flex; flex-direction:column; gap:4px; max-width:550px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span class="badge" style="${origStyle} font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:12px;">${origLabel}</span>
+                </div>
+                <div style="background:rgba(239, 68, 68, 0.07); border:1px solid rgba(239, 68, 68, 0.2); border-radius:8px; padding:6px 10px; font-size:11.5px; color:#991b1b; line-height:1.4;">
+                    <strong>🛑 Motivo:</strong> ${motivoTxt}
+                </div>
+            </div>
+        `;
     }
 
     if (isKanban) {
@@ -1817,6 +1952,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                             </div>
                             ${filaDatosHtml}
                             ${tagsHtml}
+                            ${suspInfoHtml}
                         </div>
                     </div>
 
@@ -1940,6 +2076,70 @@ function renderKanban(containerId, datos, vista) {
     cont.innerHTML = html;
 }
 
+// =======================================================================
+// PERMISOS Y ELIMINACIÓN DE FICHAS (ADMINISTRADOR)
+// =======================================================================
+
+export function esUsuarioAdministrador() {
+    const u = window.usuarioActual || {};
+    const roles = Array.isArray(u.roles) ? u.roles : [u.rol || ''];
+    const email = (u.email || '').toLowerCase().trim();
+    return roles.includes('admin') || u.rol === 'admin' || email === 'productora.mandalahouse@gmail.com' || email === 'pablobianchino@gmail.com' || window.modoRolActivo === 'admin' || window.modoRolActivo === 'multi';
+}
+window.esUsuarioAdministrador = esUsuarioAdministrador;
+
+window.eliminarFichaAlumnoSeguro = async function(id, nombreHint = '') {
+    if (!id) return;
+    if (!esUsuarioAdministrador()) {
+        alert("⚠️ Solo los usuarios con rol Administrador pueden eliminar fichas del sistema.");
+        return;
+    }
+
+    try {
+        const alDoc = await getDoc(doc(db, "alumnos", id));
+        if (!alDoc.exists()) {
+            alert("El alumno no existe o ya fue eliminado.");
+            return;
+        }
+        const al = alDoc.data();
+        const nombre = al.nombre || nombreHint || 'este alumno';
+        const rawEst = al.estado_agenda || 'Desconocido';
+
+        const ok = await window.confirmar(
+            `🗑️ ¿Eliminar ficha de ${nombre}?`,
+            `Estás a punto de borrar definitivamente del sistema la ficha de:\n\n• Alumno: ${nombre}\n• Estado actual: ${rawEst}\n• Motivo: Ficha duplicada o mal cargada.\n\n⚠️ Si tiene reservas o clases agendadas en Google Calendar, serán canceladas y liberadas automáticamente.\n\nEsta acción es permanente y NO se puede deshacer.`,
+            '🗑️ Eliminar Ficha',
+            '⚠️'
+        );
+
+        if (!ok) return;
+
+        mostrarIndicadorCarga(`Eliminando ficha de ${nombre}...`);
+
+        try {
+            if (al.id_evento_reserva) await eliminarEventoSeguro(al, configApp);
+            if (al.id_evento_alta) await eliminarEventoAltaSeguro(al, configApp);
+        } catch(calErr) {
+            console.warn("Aviso al cancelar eventos de calendar:", calErr);
+        }
+
+        await deleteDoc(doc(db, "alumnos", id));
+
+        removerFilaOptimista(id);
+
+        const modalAlta = document.getElementById('modal-alta-alumno');
+        if (modalAlta && modalAlta.open) modalAlta.close();
+
+        await cargarVista(estadoActualVista);
+        ocultarIndicadorCarga();
+        alert(`🗑️ La ficha de ${nombre} fue eliminada permanentemente del sistema.`);
+    } catch(err) {
+        ocultarIndicadorCarga();
+        console.error("Error al eliminar alumno:", err);
+        alert("❌ Error al eliminar alumno: " + err.message);
+    }
+};
+
 window.toggleBulkSelection = function(id, isChecked) {
     if (isChecked && !selectedBulkIds.includes(id)) {
         selectedBulkIds.push(id);
@@ -1957,6 +2157,7 @@ function actualizarBulkBar() {
     const btnBD = document.getElementById('btn-bulk-copiar-bd');
     const btnFact = document.getElementById('btn-bulk-copiar-fact');
     const btnAuditCal = document.getElementById('btn-bulk-auditar-cal');
+    const btnEliminar = document.getElementById('btn-bulk-eliminar');
     if (selectedBulkIds.length > 0) {
         document.getElementById('bulk-count').textContent = `${selectedBulkIds.length} seleccionados`;
         bar.style.display = 'flex';
@@ -1988,6 +2189,10 @@ function actualizarBulkBar() {
             const esAdminOAdmisor = r === 'admin' || r === 'admisor' || r === 'admisiones' || (Array.isArray(u.roles) && (u.roles.includes('admin') || u.roles.includes('admisor')));
             btnAuditCal.style.display = esAdminOAdmisor ? 'inline-block' : 'none';
         }
+
+        if (btnEliminar) {
+            btnEliminar.style.display = esUsuarioAdministrador() ? 'inline-block' : 'none';
+        }
     } else {
         bar.style.display = 'none';
     }
@@ -2009,37 +2214,30 @@ if (btnBulkDevolver) {
         for (let id of idsToProcess) {
             try {
                 removerFilaOptimista(id);
-                const alDoc = await getDoc(doc(db, "alumnos", id));
-                if (!alDoc.exists()) continue;
-                const al = alDoc.data();
-
-                // Eliminar de calendar solo si efectivamente tiene ID de evento
-                if (al.id_evento_alta) await eliminarEventoAltaSeguro(al, configApp);
-                if (al.id_evento_reserva) await eliminarEventoSeguro(al, configApp);
-
-                const hist = al.historial || [];
-                hist.push(crearEntradaHistorial(`Devuelto masivamente a Lista de Espera desde ${estadoActualVista}. Motivo: ${motivo.trim()}`, 'estado'));
-                
-                await updateDoc(doc(db, "alumnos", id), {
-                    estado_agenda: "Lista de espera",
-                    grupo_asignado: null,
-                    horario_match: null,
-                    dia_match: null,
-                    horario_inicio_match: null,
-                    horario_fin_match: null,
-                    profesor_id: null,
-                    profesor_asignado: null,
-                    fecha_sugerida_inicio: null,
-                    fecha_inicio_clases: null,
-                    id_evento_alta: null,
-                    calendario_evento_alta: null,
-                    id_evento_reserva: null,
-                    calendario_evento_reserva: null,
-                    checklist_alta: null,
-                    historial: hist
-                });
+                const alSnap = await getDoc(doc(db, "alumnos", id));
+                if (alSnap.exists()) {
+                    const al = alSnap.data();
+                    if (al.id_evento_reserva) await eliminarEventoSeguro(al, configApp);
+                    if (al.id_evento_alta) await eliminarEventoAltaSeguro(al, configApp);
+                    const hist = al.historial || [];
+                    hist.push(crearEntradaHistorial(`Alumno devuelto a Lista de Espera masivamente. Motivo: ${motivo.trim()}.`, 'devolucion_espera'));
+                    await updateDoc(doc(db, "alumnos", id), {
+                        estado_agenda: "Lista de espera",
+                        fecha_inicio_clases: null,
+                        grupo_asignado: null,
+                        horario_match: null,
+                        dia_match: null,
+                        profesor_id: null,
+                        profesor_asignado: null,
+                        id_evento_alta: null,
+                        calendario_evento_alta: null,
+                        id_evento_reserva: null,
+                        calendario_evento_reserva: null,
+                        historial: hist
+                    });
+                }
             } catch(e) {
-                console.error("Error al devolver masivo a espera:", e);
+                console.error("Error al devolver alumno a espera:", id, e);
             }
         }
         selectedBulkIds.splice(0);
@@ -2050,21 +2248,61 @@ if (btnBulkDevolver) {
     });
 }
 
-document.getElementById('btn-bulk-suspender').addEventListener('click', async () => {
-    const motivo = prompt("Motivo de suspensión para todos los seleccionados:");
-    if (!motivo) return;
-    mostrarIndicadorCarga(`Suspendiendo ${selectedBulkIds.length} registros...`);
-    const now = new Date(); const fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
-    const idsToSuspend = [...selectedBulkIds];
-    for (let id of idsToSuspend) {
+// Botón Suspender Masivo: Alineado con modal-suspender
+document.getElementById('btn-bulk-suspender')?.addEventListener('click', () => {
+    if (selectedBulkIds.length === 0) return;
+    document.getElementById('susp-alumno-id').value = 'bulk';
+    document.getElementById('susp-motivo').value = '';
+    const detEl = document.getElementById('susp-detalle-adicional');
+    if (detEl) detEl.value = '';
+    const modal = document.getElementById('modal-suspender');
+    const h3 = modal?.querySelector('h3');
+    if (h3) {
+        h3.textContent = selectedBulkIds.length === 1 
+            ? 'Suspender Alumno' 
+            : `Suspender ${selectedBulkIds.length} Alumnos`;
+    }
+    modal.showModal();
+});
+
+// Botón Eliminar Masivo (Solo Administrador)
+document.getElementById('btn-bulk-eliminar')?.addEventListener('click', async () => {
+    if (!esUsuarioAdministrador()) {
+        alert("⚠️ Solo los administradores pueden eliminar fichas.");
+        return;
+    }
+    const cant = selectedBulkIds.length;
+    if (cant === 0) return;
+
+    const ok = await window.confirmar(
+        `🗑️ ¿Eliminar ${cant} ficha${cant > 1 ? 's' : ''} permanentemente?`,
+        `Esta acción borrará definitivamente ${cant > 1 ? 'las fichas seleccionadas' : 'la ficha seleccionada'} de la base de datos (fichas duplicadas o erróneas).\n\n⚠️ Si tienen eventos agendados en Google Calendar, serán cancelados y liberados automáticamente.\n\nEsta operación NO se puede deshacer.`,
+        `🗑️ Eliminar ${cant} Ficha${cant > 1 ? 's' : ''}`,
+        '⚠️'
+    );
+    if (!ok) return;
+
+    mostrarIndicadorCarga(`Eliminando ${cant} registro${cant > 1 ? 's' : ''}...`);
+    const idsToDelete = [...selectedBulkIds];
+    let borrados = 0;
+    for (let id of idsToDelete) {
         try {
             removerFilaOptimista(id);
-            const al = (await getDoc(doc(db, "alumnos", id))).data();
-            if (al.id_evento_reserva) await eliminarEventoSeguro(al);
-            const hist = al.historial || [];
-            hist.push(crearEntradaHistorial(`Alumno suspendido masivamente. Motivo: ${motivo.trim()}. Cupos y eventos liberados.`, 'suspension'));
-            await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Agenda suspendida", motivo_suspension: motivo, reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null, historial: hist });
-        } catch(e) {}
+            const alSnap = await getDoc(doc(db, "alumnos", id));
+            if (alSnap.exists()) {
+                const al = alSnap.data();
+                try {
+                    if (al.id_evento_reserva) await eliminarEventoSeguro(al, configApp);
+                    if (al.id_evento_alta) await eliminarEventoAltaSeguro(al, configApp);
+                } catch(calErr) {
+                    console.warn("Aviso al limpiar calendar:", calErr);
+                }
+            }
+            await deleteDoc(doc(db, "alumnos", id));
+            borrados++;
+        } catch(err) {
+            console.error(`Error al eliminar alumno ${id}:`, err);
+        }
     }
     selectedBulkIds.splice(0);
     actualizarBulkBar();
@@ -2717,8 +2955,23 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
     const contKanban = document.getElementById('kanban-generico');
     let filtrados = datos;
 
-    const queryStr = (document.getElementById('input-buscador-general').value || '').toLowerCase();
-    if (queryStr) { filtrados = filtrados.filter(al => al.nombre.toLowerCase().includes(queryStr)); }
+    const queryStr = (document.getElementById('input-buscador-general')?.value || '').trim().toLowerCase();
+    if (queryStr) { 
+        const qNorm = queryStr.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const qNum = queryStr.replace(/\D/g, '');
+        filtrados = filtrados.filter(al => {
+            const nom = (al.nombre || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            if (nom.includes(qNorm)) return true;
+            if (qNum && (al.celular || '').replace(/\D/g, '').includes(qNum)) return true;
+            const insts = Array.isArray(al.instrumento) ? al.instrumento.join(' ') : (al.instrumento || '');
+            if (insts.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(qNorm)) return true;
+            const prof = (al.reserva_profe_nombre || al.profesor_asignado || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            if (prof.includes(qNorm)) return true;
+            const grp = (al.grupo_asignado || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            if (grp.includes(qNorm)) return true;
+            return false;
+        }); 
+    }
 
     // Filtro multi-select de instrumentos
     if (filtrosSeleccionados.instrumentos.size > 0) {
@@ -3356,12 +3609,6 @@ function getModuloSubtabs() {
                     const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
                     return st === 'pre-alta pendiente' || st === 'pre-alta iniciada' || ((st === 'alta efectiva' || st === 'alta ilegal') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5));
                 }).length 
-            },
-            { 
-                vista: 'Inbox - Suspendidas', 
-                label: 'Suspendidas', 
-                icon: '⏸️', 
-                countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() === 'agenda suspendida').length 
             }
         ];
     }
@@ -3372,12 +3619,17 @@ function getModuloSubtabs() {
             { vista: 'Altas - Pendientes', label: 'Pendientes', icon: '📝', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'pre-alta pendiente').length },
             { vista: 'Altas - En Curso', label: 'En Curso', icon: '🚀', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'pre-alta iniciada').length },
             { vista: 'Altas - Confirmadas', label: 'Confirmadas', icon: '⚠️', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5)).length },
-            { vista: 'Altas - Finalizadas', label: 'Finalizadas', icon: '🏆', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal' || d.estado_agenda === 'Alta Finalizada') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5)).length },
-            { vista: 'Altas - Suspendidas', label: 'Suspendidas', icon: '❌', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'alta suspendida').length }
+            { vista: 'Altas - Finalizadas', label: 'Finalizadas', icon: '🏆', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal' || d.estado_agenda === 'Alta Finalizada') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5)).length }
+        ],
+        'Suspendidos': [
+            { vista: 'Suspendidos - Todos', label: 'Todos', icon: '⏸️', countFn: (alumnos) => alumnos.filter(d => isAlumnoSuspendido(d)).length },
+            { vista: 'Suspendidos - De Inbox', label: 'De Inbox', icon: '💬', countFn: (alumnos) => alumnos.filter(d => isAlumnoSuspendido(d) && getOrigenSuspension(d) === 'inbox').length },
+            { vista: 'Suspendidos - De Lista de Espera', label: 'De Lista de Espera', icon: '⏳', countFn: (alumnos) => alumnos.filter(d => isAlumnoSuspendido(d) && getOrigenSuspension(d) === 'espera').length },
+            { vista: 'Suspendidos - De Pre-Alta', label: 'De Pre-Alta', icon: '📋', countFn: (alumnos) => alumnos.filter(d => isAlumnoSuspendido(d) && getOrigenSuspension(d) === 'altas').length }
         ],
         'Match': [
             { vista: 'Match - Pendientes', label: 'Armar Grupos y Clases', icon: '🔍', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'lista de espera').length },
-            { vista: 'Match - Solicitudes Profes', label: 'Solicitudes Profes', icon: '🔔', countFn: () => cachedSolicitudesVacantesCount, className: 'tab-badge-solicitudes' },
+            { vista: 'Match - Solicitudes Profes', label: 'Solicitudes de Profes', icon: '📩', countFn: () => cachedSolicitudesVacantesCount, className: 'tab-badge-solicitudes' },
             { vista: 'Match - En Validacion', label: 'Grupos en Validación', icon: '👥', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'validando grupo').length },
             { vista: 'Ajustes Match', label: 'Reglas y Tolerancias', icon: '⚙️' }
         ]
@@ -3458,6 +3710,14 @@ function actualizarBadgesYNavegacion(allData) {
         bAltas.textContent = countAltas;
         bAltas.style.display = countAltas > 0 ? 'inline-block' : 'none';
     }
+
+    // Conteo Suspendidos
+    const countSuspendidos = datos.filter(d => isAlumnoSuspendido(d)).length;
+    const bSusp = document.getElementById('badge-suspendidos');
+    if (bSusp) {
+        bSusp.textContent = countSuspendidos;
+        bSusp.style.display = countSuspendidos > 0 ? 'inline-block' : 'none';
+    }
 }
 
 function renderSegmentedTabs(vista) {
@@ -3469,6 +3729,7 @@ function renderSegmentedTabs(vista) {
     if (vista.startsWith('Inbox')) modulo = 'Inbox';
     else if (vista.startsWith('Altas')) modulo = 'Altas';
     else if (vista.startsWith('Match') || vista === 'Ajustes Match') modulo = 'Match';
+    else if (vista.startsWith('Suspendidos')) modulo = 'Suspendidos';
 
     const subtabsDict = getModuloSubtabs();
     if (!modulo || !subtabsDict[modulo]) {
@@ -3562,15 +3823,15 @@ export function obtenerModulosPermitidosModoActivo() {
     } else if (modo === 'profesor' || modo === 'docente') {
         return ['portal_profesor'];
     } else if (modo === 'coordinador_grupos' || modo === 'coordinador') {
-        return ['dashboard', 'espera', 'match', 'match_etapa4', 'altas'];
+        return ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos'];
     } else if (modo === 'admisor' || modo === 'admisiones') {
-        return ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas'];
+        return ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'metricas'];
     } else if (modo === 'admin') {
-        return ['dashboard', 'portal_profesor', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas', 'configuracion'];
+        return ['dashboard', 'portal_profesor', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'metricas', 'configuracion'];
     } else {
         // modo multi: unión de todos los módulos habilitados del usuario
         if (rolesArr.includes('admin') || usuario.email?.toLowerCase() === 'productora.mandalahouse@gmail.com') {
-            return ['dashboard', 'portal_profesor', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas', 'configuracion'];
+            return ['dashboard', 'portal_profesor', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'metricas', 'configuracion'];
         }
         const setMods = new Set();
         rolesArr.forEach(r => {
@@ -3907,6 +4168,7 @@ export function configurarSidebarPorPermisos() {
         'Lista de Espera': 'espera',
         'Match': 'match',
         'Altas': 'altas',
+        'Suspendidos': 'suspendidos',
         'Estadísticas': 'metricas',
         'Configuración': 'configuracion'
     };
@@ -4016,6 +4278,24 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
         vista = 'Inbox - Confirmadas';
     }
 
+    // Reseteo automático del buscador al cambiar de vista
+    if (vista !== estadoActualVista) {
+        const inputBuscador = document.getElementById('input-buscador-general');
+        if (inputBuscador && inputBuscador.value) {
+            inputBuscador.value = '';
+        }
+        const inputDash = document.getElementById('input-buscador-dashboard');
+        if (inputDash && inputDash.value) {
+            inputDash.value = '';
+        }
+        const btnLimpiar = document.getElementById('btn-limpiar-buscador');
+        if (btnLimpiar) btnLimpiar.style.display = 'none';
+        const btnLimpiarDash = document.getElementById('btn-limpiar-buscador-dashboard');
+        if (btnLimpiarDash) btnLimpiarDash.style.display = 'none';
+        const contBusqueda = document.getElementById('seccion-busqueda-global');
+        if (contBusqueda) contBusqueda.style.display = 'none';
+    }
+
     estadoActualVista = vista; 
     
     let modulo = null;
@@ -4023,6 +4303,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
     else if (vista.startsWith('Altas')) modulo = 'Altas';
     else if (vista.startsWith('Match') || vista === 'Ajustes Match') modulo = 'Match';
     else if (vista === 'Lista de Espera') modulo = 'Lista de Espera';
+    else if (vista.startsWith('Suspendidos')) modulo = 'Suspendidos';
     else if (vista === 'Dashboard') modulo = 'Dashboard';
     else if (vista === 'Estadísticas') modulo = 'Estadísticas';
     else if (vista.startsWith('Configuración') || vista.startsWith('Ajustes') || vista.startsWith('ABM')) modulo = 'Configuración';
@@ -4035,6 +4316,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
         'Lista de Espera': 'espera',
         'Match': 'match',
         'Altas': 'altas',
+        'Suspendidos': 'suspendidos',
         'Estadísticas': 'metricas',
         'Configuración': 'configuracion',
         'portal_profesor': 'portal_profesor'
@@ -4068,11 +4350,18 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
             'Inbox - Finalizar Admision': '<span style="color:var(--text-muted); font-weight:500;">Inbox › </span><span style="color:var(--text-main); font-weight:700;">Pendientes Finalizar Admisión</span>',
             'Inbox - Validar Alumno': '<span style="color:var(--text-muted); font-weight:500;">Inbox › </span><span style="color:var(--text-main); font-weight:700;">Validar por Alumno</span>',
             'Inbox - Altas Pendientes': '<span style="color:var(--text-muted); font-weight:500;">Inbox › </span><span style="color:var(--text-main); font-weight:700;">Altas Pendientes</span>',
-            'Inbox - Pendientes': '<span style="color:var(--text-muted); font-weight:500;">Inbox › </span><span style="color:var(--text-main); font-weight:700;">Sin Agendar</span>'
+            'Inbox - Pendientes': '<span style="color:var(--text-muted); font-weight:500;">Inbox › </span><span style="color:var(--text-main); font-weight:700;">Sin Agendar</span>',
+            'Suspendidos - Todos': '<span style="color:var(--text-muted); font-weight:500;">Suspendidos › </span><span style="color:var(--text-main); font-weight:700;">Todos los Suspendidos</span>',
+            'Suspendidos - De Inbox': '<span style="color:var(--text-muted); font-weight:500;">Suspendidos › </span><span style="color:var(--text-main); font-weight:700;">De Inbox (Entrevistas)</span>',
+            'Suspendidos - De Lista de Espera': '<span style="color:var(--text-muted); font-weight:500;">Suspendidos › </span><span style="color:var(--text-main); font-weight:700;">De Lista de Espera</span>',
+            'Suspendidos - De Pre-Alta': '<span style="color:var(--text-muted); font-weight:500;">Suspendidos › </span><span style="color:var(--text-main); font-weight:700;">De Pre-Alta / Alta</span>'
         };
 
         if (tituloMap[vista]) {
             tituloEl.innerHTML = tituloMap[vista];
+        } else if (vista.startsWith('Suspendidos')) {
+            const sub = vista.replace('Suspendidos - ', '').trim();
+            tituloEl.innerHTML = `<span style="color:var(--text-muted); font-weight:500;">Suspendidos › </span><span style="color:var(--text-main); font-weight:700;">${sub}</span>`;
         } else if (vista.includes('-')) {
             const partes = vista.split('-');
             const seccion = partes[0].trim();
@@ -4105,7 +4394,10 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
     if (barBulkGlobal) barBulkGlobal.style.display = 'none';
     if (vista !== 'Lista de Espera') { filtrosSeleccionados.diasSinContactoMin = null; }
     
-    document.getElementById('search-container-general').style.display = 'block'; 
+    const searchHeader = document.getElementById('search-container-header');
+    const searchVista = document.getElementById('search-container-vista');
+    if (searchHeader) searchHeader.style.display = 'none';
+    if (searchVista) searchVista.style.display = 'none';
     document.getElementById('alarm-filters').style.display = 'none';
     vResumen.style.display = 'none'; if(vResumenTime) vResumenTime.style.display = 'none'; contLista.style.display = 'none'; if(contKanban) contKanban.style.display = 'none'; contEstad.style.display = 'none'; cv.style.display = 'none';
     const contMatch = document.getElementById('match-pendientes-container'); if(contMatch) contMatch.style.display = 'none';
@@ -4122,31 +4414,42 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
         allData = ultimosAlumnosCargados || [];
     }
 
-    // Comprobar si hay búsqueda global activa
+    // Comprobar si hay búsqueda activa
     const queryStr = (document.getElementById('input-buscador-general')?.value || '').trim();
+    const queryDashStr = (document.getElementById('input-buscador-dashboard')?.value || '').trim();
     const contBusqueda = document.getElementById('seccion-busqueda-global');
-    if (queryStr.length > 0) {
-        const busquedaActiva = ejecutarBusquedaGlobal(queryStr, allData);
-        if (busquedaActiva) {
-            return;
+
+    // Búsqueda global ÚNICAMENTE si estamos en el Dashboard
+    if (vista === 'Dashboard') {
+        if (queryDashStr.length > 0) {
+            const busquedaActiva = ejecutarBusquedaGlobal(queryDashStr, allData);
+            if (busquedaActiva) {
+                return;
+            }
+        } else {
+            if (contBusqueda) contBusqueda.style.display = 'none';
         }
     } else {
+        // En cualquier otra vista con lista, la búsqueda es contextual (ocultamos panel global)
         if (contBusqueda) contBusqueda.style.display = 'none';
     }
 
-    const esVistaConLista = vista.startsWith('Inbox') || vista.startsWith('Altas') || vista === 'Lista de Espera';
+    const esVistaConLista = vista.startsWith('Inbox') || vista.startsWith('Altas') || vista === 'Lista de Espera' || vista.startsWith('Suspendidos');
 
     if (esVistaConLista) { 
         cv.style.display = 'flex'; 
         renderFiltrosChips(); 
-        document.getElementById('search-container-general').style.display = 'block'; 
+        if (searchVista) searchVista.style.display = 'block'; 
         mostrarSkeleton('lista-generica', 6);
 
         if (vista === 'Inbox - Confirmadas' || vista === 'Altas - Confirmadas') document.getElementById('alarm-filters').style.display = 'flex';
     }
     
     if (vista === 'Dashboard') {
-        document.getElementById('search-container-general').style.display = 'block'; vResumen.style.display = 'flex'; cv.style.display = 'none';
+        if (searchHeader) searchHeader.style.display = 'block'; 
+        vResumen.style.display = 'flex'; 
+        cv.style.display = 'none';
+        if (searchVista) searchVista.style.display = 'none';
         document.getElementById('alarm-filters').style.display = 'none';
         
         const trayContainer = document.getElementById('timeline-tray-container');
@@ -4288,8 +4591,6 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
                     const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
                     return st === 'pendiente validacion por profe' || st === 'pendiente validacion por evaluador' || st === 'pendiente validacion por alumno';
                 });
-            } else if (vista === 'Inbox - Suspendidas') {
-                dataFiltrada = allData.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() === 'agenda suspendida');
             } else if (vista === 'Altas - Pendientes') {
                 dataFiltrada = allData.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() === 'pre-alta pendiente');
             } else if (vista === 'Altas - En Curso') {
@@ -4304,11 +4605,27 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
                     const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
                     return (st === 'alta efectiva' || st === 'alta ilegal' || st === 'alta finalizada') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5);
                 });
-            } else if (vista === 'Altas - Suspendidas') {
-                dataFiltrada = allData.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() === 'alta suspendida');
             }
             renderListaFilas('lista-generica', dataFiltrada, 'all', null);
         } catch(e) {}
+    } else if (vista.startsWith('Suspendidos')) {
+        try {
+            const qSnap = await getDocs(collection(db, "alumnos")); let allData = []; qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
+            actualizarBadgesYNavegacion(allData);
+            renderSegmentedTabs(vista);
+
+            let dataFiltrada = allData.filter(d => isAlumnoSuspendido(d));
+            if (vista === 'Suspendidos - De Inbox') {
+                dataFiltrada = dataFiltrada.filter(d => getOrigenSuspension(d) === 'inbox');
+            } else if (vista === 'Suspendidos - De Lista de Espera') {
+                dataFiltrada = dataFiltrada.filter(d => getOrigenSuspension(d) === 'espera');
+            } else if (vista === 'Suspendidos - De Pre-Alta') {
+                dataFiltrada = dataFiltrada.filter(d => getOrigenSuspension(d) === 'altas');
+            }
+            renderListaFilas('lista-generica', dataFiltrada, 'all', null);
+        } catch(e) {
+            console.error("Error al cargar suspendidos:", e);
+        }
     } else if (vista === 'Lista de Espera') {
         const btnSyncEspera = document.getElementById('btn-sync-espera-csv');
         if (btnSyncEspera) btnSyncEspera.style.display = 'inline-flex';
@@ -4344,7 +4661,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
             actualizarBadgesYNavegacion(allData);
             renderSegmentedTabs(vista);
         } catch(e) {}
-        await renderMatchSolicitudesProfes(contLista, configApp, { setBotonCargando });
+        await renderMatchSolicitudesProfes(contLista, configApp, { setBotonCargando, cargarVista });
     } else if (vista === 'Match - En Validacion') {
         try { 
             const qSnap = await getDocs(collection(db, "alumnos")); let allData = [];
@@ -4376,7 +4693,10 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
 async function renderMatchPendientes() {
     document.getElementById('vista-titulo').innerHTML = '<span style="color:var(--text-muted); font-weight:500;">Match › </span><span style="color:var(--text-main); font-weight:700;">Armar Grupos y Clases</span>';
     document.getElementById('controles-vista').style.display = 'none';
-    document.getElementById('search-container-general').style.display = 'none';
+    const sH = document.getElementById('search-container-header');
+    const sV = document.getElementById('search-container-vista');
+    if (sH) sH.style.display = 'none';
+    if (sV) sV.style.display = 'none';
     // Mostrar container del módulo
     const cont = document.getElementById('match-pendientes-container');
     cont.style.display = 'flex';
@@ -4430,7 +4750,10 @@ async function renderMatchConfirmados(cont) {
     document.getElementById('vista-titulo').textContent = 'Match — Confirmados';
     document.getElementById('controles-vista').style.display = 'flex';
     renderFiltrosChips();
-    document.getElementById('search-container-general').style.display = 'block';
+    const sH = document.getElementById('search-container-header');
+    const sV = document.getElementById('search-container-vista');
+    if (sH) sH.style.display = 'none';
+    if (sV) sV.style.display = 'block';
 
     try {
         const qSnap = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", "Pre-alta Pendiente")));
@@ -4462,10 +4785,10 @@ const btnLogout = document.getElementById('btn-logout'); if (btnLogout) btnLogou
 
 
 const ROLES_MODULOS_DEFAULT = {
-    admin: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas', 'portal_profesor', 'configuracion', 'permisos'],
-    admisor: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas'],
-    admisiones: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas'],
-    coordinador_grupos: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas'],
+    admin: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'metricas', 'portal_profesor', 'configuracion', 'permisos'],
+    admisor: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'metricas'],
+    admisiones: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'metricas'],
+    coordinador_grupos: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos'],
     evaluador: ['dashboard', 'inbox', 'espera'],
     profesor: ['portal_profesor'],
     personalizado: []
@@ -4705,18 +5028,23 @@ onAuthStateChanged(auth, async (user) => {
     } 
 });
 
-// Buscador general con debounce (200ms) y botón para limpiar
+// Buscador general (debajo de filtros para vistas de lista) y buscador Dashboard (global en header)
 let searchDebounceTimer = null;
 const inputBuscadorGeneral = document.getElementById('input-buscador-general');
 const btnLimpiarBuscador = document.getElementById('btn-limpiar-buscador');
+const inputBuscadorDash = document.getElementById('input-buscador-dashboard');
+const btnLimpiarBuscadorDash = document.getElementById('btn-limpiar-buscador-dashboard');
 const btnCerrarBusquedaGlobal = document.getElementById('btn-cerrar-busqueda-global');
 
 const limpiarYRestaurarBusqueda = () => {
     if (inputBuscadorGeneral) {
         inputBuscadorGeneral.value = '';
-        inputBuscadorGeneral.focus();
     }
     if (btnLimpiarBuscador) btnLimpiarBuscador.style.display = 'none';
+    if (inputBuscadorDash) {
+        inputBuscadorDash.value = '';
+    }
+    if (btnLimpiarBuscadorDash) btnLimpiarBuscadorDash.style.display = 'none';
     const contBusqueda = document.getElementById('seccion-busqueda-global');
     if (contBusqueda) contBusqueda.style.display = 'none';
     cargarVista(estadoActualVista);
@@ -4735,8 +5063,34 @@ if (inputBuscadorGeneral) {
     });
 }
 
+if (inputBuscadorDash) {
+    inputBuscadorDash.addEventListener('input', (e) => {
+        const val = e.target.value;
+        if (btnLimpiarBuscadorDash) {
+            btnLimpiarBuscadorDash.style.display = val.trim().length > 0 ? 'block' : 'none';
+        }
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = setTimeout(() => {
+            if (estadoActualVista === 'Dashboard') {
+                const queryVal = (inputBuscadorDash.value || '').trim();
+                if (queryVal.length > 0) {
+                    ejecutarBusquedaGlobal(queryVal, ultimosAlumnosCargados);
+                } else {
+                    const contB = document.getElementById('seccion-busqueda-global');
+                    if (contB) contB.style.display = 'none';
+                    cargarVista('Dashboard');
+                }
+            }
+        }, 200);
+    });
+}
+
 if (btnLimpiarBuscador) {
     btnLimpiarBuscador.addEventListener('click', limpiarYRestaurarBusqueda);
+}
+
+if (btnLimpiarBuscadorDash) {
+    btnLimpiarBuscadorDash.addEventListener('click', limpiarYRestaurarBusqueda);
 }
 
 if (btnCerrarBusquedaGlobal) {
@@ -5073,26 +5427,23 @@ document.addEventListener('click', async (e) => {
     }
     
     if (target.tagName === 'DIALOG') { 
-        const rect = target.getBoundingClientRect(), inDialog = (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom);
+        const rect = target.getBoundingClientRect();
+        const inDialog = (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom);
         if (!inDialog) {
-            if (target.id === 'modal-alta-alumno' || target.id === 'modal-informe-admision') {
-                if (window._modalEditandoModificado) {
-                    solicitarConfirmacionSalidaModal(target);
-                    return;
-                }
-                if (target.id === 'modal-alta-alumno') {
-                    const wrap = document.getElementById('form-alumno-wrapper');
-                    if (wrap) {
-                        wrap.style.display = 'none';
-                        document.body.appendChild(wrap);
-                    }
-                }
-                target.close();
+            if (target.id === 'modal-confirmar-descarte' || target.id === 'global-action-loader') {
+                return; // No auto-cerrar el diálogo de confirmación de descarte ni el loader
+            }
+            // Si cualquier modal fue editado, preguntar si desea seguir editando, guardar o cancelar
+            if (target.dataset.modificado === 'true' || ((target.id === 'modal-alta-alumno' || target.id === 'modal-informe-admision') && window._modalEditandoModificado)) {
+                solicitarConfirmacionSalidaModal(target);
                 return;
             }
-            if (target.id === 'modal-confirmar-descarte') {
-                target.close();
-                return;
+            if (target.id === 'modal-alta-alumno') {
+                const wrap = document.getElementById('form-alumno-wrapper');
+                if (wrap) {
+                    wrap.style.display = 'none';
+                    document.body.appendChild(wrap);
+                }
             }
             target.close(); 
             return;
@@ -5124,15 +5475,13 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    if (target.classList.contains('btn-eliminar-alumno')) { 
+    if (target.classList.contains('btn-eliminar-alumno') || target.classList.contains('btn-eliminar-ficha-directo') || target.closest('.btn-eliminar-ficha-directo')) { 
         e.stopPropagation(); 
-        const ok = await window.confirmar('¿Eliminar este alumno?', 'Esta acción es permanente y no se puede deshacer.', '🗑️ Eliminar', '⚠️');
-        if (ok) { 
-            const id = target.closest('.btn-editar-alumno').getAttribute('data-id'); 
-            try { const al = (await getDoc(doc(db, "alumnos", id))).data(); if (al && al.id_evento_reserva) { await eliminarEventoSeguro(al); } } catch(err) {} 
-            await deleteDoc(doc(db, "alumnos", id)); 
-            cargarVista(estadoActualVista); 
-        } 
+        const btn = target.closest('.btn-eliminar-ficha-directo') || target.closest('.btn-eliminar-alumno') || target;
+        const id = btn.getAttribute('data-id') || btn.closest('.btn-editar-alumno')?.getAttribute('data-id'); 
+        if (id) {
+            await window.eliminarFichaAlumnoSeguro(id);
+        }
         return; 
     }
     
@@ -5902,12 +6251,98 @@ document.addEventListener('click', async (e) => {
             const alDoc = await getDoc(doc(db, "alumnos", alumnoIdActual));
             const al = alDoc.exists() ? alDoc.data() : {};
 
-            // Aviso preventivo si el alumno no tiene disponibilidad horaria cargada en su ficha
-            const disp = al.disponibilidad || {};
-            const tieneDisp = Object.values(disp).some(arr => Array.isArray(arr) && arr.length > 0);
-            if (!tieneDisp) {
-                mostrarToast("ℹ️ El alumno no tiene disponibilidad horaria cargada en su ficha. Mostrando todos los turnos disponibles.", "warning");
+            // 1. Resumen Visual del Alumno y su Disponibilidad Semanal
+            const infoAlumnoBox = document.getElementById('info-alumno-agenda');
+            const diasOrdenAgenda = [
+                { key: 'L', label: 'Lun' },
+                { key: 'M', label: 'Mar' },
+                { key: 'X', label: 'Mié' },
+                { key: 'J', label: 'Jue' },
+                { key: 'V', label: 'Vie' },
+                { key: 'S', label: 'Sáb' }
+            ];
+
+            let profesorSeleccionadoActivo = null;
+            window._mapaProfesoresAgenda = {};
+
+            function normalizarRangosTexto(rangos) {
+                if (!rangos) return [];
+                if (Array.isArray(rangos)) {
+                    return rangos.map(r => typeof r === 'string' ? r : `${r.inicio || r.start || ''}-${r.fin || r.end || ''}`).filter(r => r && r !== '-');
+                }
+                return [String(rangos)];
             }
+
+            function renderResumenAlumnoAgenda(profeMatchData = null) {
+                if (!infoAlumnoBox) return;
+                infoAlumnoBox.style.display = 'block';
+                const nombre = al.nombre || 'Alumno';
+                const iniciales = nombre.split(' ').filter(p => p).slice(0, 2).map(p => p[0].toUpperCase()).join('') || 'AL';
+                const edadStr = al.edad ? `${al.edad} años` : '';
+                const nivelStr = al.nivel || '';
+                const subInfo = [edadStr, nivelStr].filter(x => x).join(' • ') || 'Sin nivel asignado';
+                const instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || 'Sin Instrumento');
+                const suscStr = al.tipo_suscripcion || 'Ensamble';
+
+                let gridHtml = '';
+                diasOrdenAgenda.forEach(d => {
+                    const rangos = normalizarRangosTexto(disp[d.key]);
+                    const hasDisp = rangos.length > 0;
+                    
+                    let isMatch = false;
+                    if (hasDisp && profeMatchData && profeMatchData.disponibilidad) {
+                        const pRangos = normalizarRangosTexto(profeMatchData.disponibilidad[d.key]);
+                        if (pRangos.length > 0) isMatch = true;
+                    }
+
+                    let cls = 'disp-day-agenda-card';
+                    if (isMatch) cls += ' match-highlight';
+                    else if (hasDisp) cls += ' has-disp';
+
+                    gridHtml += `
+                        <div class="${cls}">
+                            <div class="day-agenda-label">${d.label}</div>
+                            ${hasDisp ? `
+                                <div class="day-agenda-hours">${rangos.join('<br>')}</div>
+                            ` : `
+                                <div style="font-size:10px; color:#cbd5e1;">-</div>
+                            `}
+                        </div>
+                    `;
+                });
+
+                infoAlumnoBox.innerHTML = `
+                    <div class="card-alumno-disp-agenda">
+                        <div class="alumno-agenda-header">
+                            <div class="alumno-agenda-meta">
+                                <div class="alumno-agenda-avatar">${iniciales}</div>
+                                <div>
+                                    <div class="alumno-agenda-name">${nombre}</div>
+                                    <div style="font-size:11.5px; color:var(--text-muted);">${subInfo}</div>
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:6px; align-items:center;">
+                                <span class="pill-mini pill-instrumento" style="font-size:11px; font-weight:700; padding:2px 7px; border-radius:6px; background:#fdf2f8; color:#be185d; border:1px solid #fbcfe8;">${instStr}</span>
+                                <span class="pill-mini" style="font-size:11px; font-weight:700; padding:2px 7px; border-radius:6px; background:#f1f5f9; color:#475569;">${suscStr}</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                                <span style="font-size:10.5px; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.03em;">
+                                    📅 Disponibilidad Semanal del Alumno:
+                                </span>
+                                <span style="font-size:10px; color:var(--accent-green); font-weight:700;">● Días disponibles</span>
+                            </div>
+                            <div class="disp-grid-agenda-resumen">
+                                ${gridHtml}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            renderResumenAlumnoAgenda(null);
 
             const insts = Array.isArray(al.instrumento) ? al.instrumento : (al.instrumento ? [al.instrumento] : []);
             const wrapInst = document.getElementById('agenda-instrumento-wrapper');
@@ -5924,10 +6359,71 @@ document.addEventListener('click', async (e) => {
                 }
             }
 
+            function actualizarPanelProfeAgenda() {
+                const box = document.getElementById('agenda-profe-schedule-box');
+                if (!box) return;
+                const selectProfe = document.getElementById('agenda-profe-filtro');
+                if (!selectProfe) return;
+
+                const selectedIds = Array.from(selectProfe.selectedOptions).map(o => o.value).filter(v => v);
+                
+                if (selectedIds.length === 1) {
+                    const pId = selectedIds[0];
+                    const profe = window._mapaProfesoresAgenda[pId];
+                    if (profe && profe.disponibilidad) {
+                        profesorSeleccionadoActivo = profe;
+                        box.style.display = 'flex';
+                        box.className = 'profe-schedule-agenda-box';
+
+                        const diasMatch = [];
+                        const pDisp = profe.disponibilidad || {};
+
+                        const pillsHtml = diasOrdenAgenda.map(d => {
+                            const pRangos = normalizarRangosTexto(pDisp[d.key]);
+                            if (pRangos.length === 0) return '';
+                            const alTieneDia = normalizarRangosTexto(disp[d.key]).length > 0;
+                            if (alTieneDia) diasMatch.push(d.label);
+
+                            return `
+                                <div class="profe-schedule-pill ${alTieneDia ? 'is-match' : ''}">
+                                    <strong>${d.label}:</strong> ${pRangos.join(', ')}
+                                </div>
+                            `;
+                        }).filter(x => x).join('');
+
+                        box.innerHTML = `
+                            <div class="profe-schedule-agenda-header">
+                                <div style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:800; color:#0369a1;">
+                                    <span>👤</span>
+                                    <span>Disponibilidad habitual de <strong>${profe.nombre}</strong> (según Config):</span>
+                                </div>
+                                ${diasMatch.length > 0 ? `
+                                    <span style="font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:12px; background:#e0f2fe; color:#0284c7; border:1px solid #7dd3fc;">⚡ Coincide en ${diasMatch.join(', ')}</span>
+                                ` : `
+                                    <span style="font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:12px; background:#fef2f2; color:#ef4444; border:1px solid #fca5a5;">⚠️ Sin coincidencia directa de días</span>
+                                `}
+                            </div>
+                            <div style="display:flex; flex-wrap:wrap; gap:5px;">
+                                ${pillsHtml || '<div style="font-size:11.5px; color:#64748b;">Sin franjas horarias cargadas en Config.</div>'}
+                            </div>
+                        `;
+
+                        renderResumenAlumnoAgenda(profe);
+                        return;
+                    }
+                }
+
+                box.style.display = 'none';
+                profesorSeleccionadoActivo = null;
+                renderResumenAlumnoAgenda(null);
+            }
+
             async function refrescarProfesoresEntrevista(instrumentoSeleccionado) {
                 const selectProfe = document.getElementById('agenda-profe-filtro');
                 if (!selectProfe) return;
                 selectProfe.innerHTML = '<option value="">Todos los profesores</option>';
+                window._mapaProfesoresAgenda = {};
+
                 try {
                     const pSnap = await getDocs(collection(db, "profesores"));
                     pSnap.forEach(p => {
@@ -5937,11 +6433,16 @@ document.addEventListener('click', async (e) => {
                             const skills = d.skills || [];
                             const ensena = !instrumentoSeleccionado || skills.length === 0 || skills.some(s => s.toLowerCase() === instrumentoSeleccionado.toLowerCase());
                             if (ensena) {
+                                window._mapaProfesoresAgenda[p.id] = { id: p.id, ...d };
                                 selectProfe.innerHTML += `<option value="${p.id}">${d.nombre}</option>`;
                             }
                         }
                     });
                     syncSelectToChips('agenda-profe-filtro', 'chips-profesores');
+
+                    // Añadir evento al cambio de profesores para actualizar la comparativa en vivo
+                    selectProfe.onchange = () => actualizarPanelProfeAgenda();
+                    actualizarPanelProfeAgenda();
                 } catch(e) {}
             }
 
@@ -6415,7 +6916,10 @@ document.addEventListener('click', async (e) => {
         document.getElementById('susp-motivo').value = ""; 
         const detEl = document.getElementById('susp-detalle-adicional');
         if (detEl) detEl.value = "";
-        document.getElementById('modal-suspender').showModal(); 
+        const modal = document.getElementById('modal-suspender');
+        const h3 = modal?.querySelector('h3');
+        if (h3) h3.textContent = 'Suspender Alumno';
+        modal.showModal(); 
         return; 
     }
     if (target.id === 'btn-guardar-suspension') { 
@@ -6425,10 +6929,82 @@ document.addEventListener('click', async (e) => {
         if(!mtv) return alert("Seleccione motivo"); 
         setBotonCargando(target, true, 'Guardando suspensión...'); 
         try { 
+            if (id === 'bulk') {
+                const motivoCompleto = det ? `${mtv} (Detalle: ${det})` : mtv;
+                const idsToSuspend = [...selectedBulkIds];
+                let suspendidos = 0;
+                for (let sId of idsToSuspend) {
+                    try {
+                        removerFilaOptimista(sId);
+                        const alDoc = await getDoc(doc(db, "alumnos", sId));
+                        if (alDoc.exists()) {
+                            const al = alDoc.data();
+                            const estadoActual = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                            
+                            let origen = 'inbox';
+                            if (estadoActual === 'lista de espera') {
+                                origen = 'espera';
+                            } else if (['pre-alta pendiente', 'pre-alta iniciada', 'alta efectiva', 'alta ilegal', 'alta finalizada', 'validando grupo'].includes(estadoActual)) {
+                                origen = 'altas';
+                            }
+
+                            const esDeAltaOEspera = origen === 'altas' || origen === 'espera';
+                            
+                            if (al.id_evento_reserva) await eliminarEventoSeguro(al, configApp);
+                            if (al.id_evento_alta) await eliminarEventoAltaSeguro(al, configApp);
+
+                            const hist = al.historial || [];
+                            hist.push(crearEntradaHistorial(`Alumno suspendido masivamente. Motivo: ${motivoCompleto}. Eventos y cupos liberados.`, 'suspension'));
+
+                            const nuevoEstado = esDeAltaOEspera ? "Alta suspendida" : "Agenda suspendida";
+                            await updateDoc(doc(db, "alumnos", sId), {
+                                estado_agenda: nuevoEstado,
+                                suspendido: true,
+                                origen_suspension: origen,
+                                motivo_suspension: motivoCompleto,
+                                motivo_suspension_cat: mtv,
+                                detalle_suspension: det || null,
+                                estado_previo_suspension: al.estado_agenda || estadoActual,
+                                fecha_suspension: new Date().toISOString(),
+                                reserva_profe_id_previo: al.reserva_profe_id || al.profesor_id || null,
+                                reserva_profe_nombre_previo: al.reserva_profe_nombre || al.profesor_asignado || null,
+                                reserva_fecha_texto_previo: al.reserva_fecha_texto || (al.fecha_inicio_clases ? formatearFechaAmi(al.fecha_inicio_clases) : null),
+                                reserva_profe_id: null,
+                                reserva_profe_nombre: null,
+                                reserva_cal_id: null,
+                                reserva_fecha_texto: null,
+                                reserva_inicio: null,
+                                reserva_fin: null,
+                                id_evento_reserva: null,
+                                calendario_evento_reserva: null,
+                                historial: hist
+                            });
+                            suspendidos++;
+                        }
+                    } catch(e) {
+                        console.error("Error al suspender alumno masivo:", sId, e);
+                    }
+                }
+                document.getElementById('modal-suspender').close();
+                selectedBulkIds.splice(0);
+                actualizarBulkBar();
+                await cargarVista(estadoActualVista);
+                alert(`✅ ${suspendidos} fichas suspendidas correctamente.`);
+                return;
+            }
+
             const alDoc = await getDoc(doc(db, "alumnos", id));
             const al = alDoc.data(); 
             const estadoActual = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-            const esDeAltaOEspera = ['lista de espera', 'pre-alta pendiente', 'pre-alta iniciada', 'alta efectiva', 'alta ilegal', 'alta finalizada'].includes(estadoActual);
+            
+            let origen = 'inbox';
+            if (estadoActual === 'lista de espera') {
+                origen = 'espera';
+            } else if (['pre-alta pendiente', 'pre-alta iniciada', 'alta efectiva', 'alta ilegal', 'alta finalizada', 'validando grupo'].includes(estadoActual)) {
+                origen = 'altas';
+            }
+
+            const esDeAltaOEspera = origen === 'altas' || origen === 'espera';
             
             const teniaReserva = !!(al.id_evento_reserva || al.id_evento_alta || al.reserva_profe_id || al.reserva_fecha_texto || al.fecha_inicio_clases);
             const profPrevioId = al.reserva_profe_id || al.profesor_id || null;
@@ -6457,8 +7033,13 @@ document.addEventListener('click', async (e) => {
             const nuevoEstado = esDeAltaOEspera ? "Alta suspendida" : "Agenda suspendida";
             await updateDoc(doc(db, "alumnos", id), { 
                 estado_agenda: nuevoEstado, 
+                suspendido: true,
+                origen_suspension: origen,
                 motivo_suspension: motivoCompleto, 
+                motivo_suspension_cat: mtv,
                 detalle_suspension: det || null,
+                estado_previo_suspension: al.estado_agenda || estadoActual,
+                fecha_suspension: new Date().toISOString(),
                 reserva_profe_id_previo: profPrevioId,
                 reserva_profe_nombre_previo: profPrevioNom,
                 reserva_fecha_texto_previo: fechaPrevTexto,
@@ -6518,17 +7099,81 @@ document.addEventListener('click', async (e) => {
         }
         return;
     }
-    if (target.classList.contains('btn-recuperar-agenda') || target.closest('.btn-recuperar-agenda')) { 
-        const btn = target.classList.contains('btn-recuperar-agenda') ? target : target.closest('.btn-recuperar-agenda');
+
+    if (target.classList.contains('btn-reactivar-inbox') || target.closest('.btn-reactivar-inbox') || target.classList.contains('btn-recuperar-agenda') || target.closest('.btn-recuperar-agenda')) { 
+        const btn = target.closest('.btn-reactivar-inbox') || target.closest('.btn-recuperar-agenda') || target;
         const id = btn.getAttribute('data-id');
-        setBotonCargando(btn, true, 'Recuperando ficha...');
+        
         try {
-            await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente procesar", motivo_suspension: null }); 
+            const alDoc = await getDoc(doc(db, "alumnos", id));
+            if (!alDoc.exists()) return alert("Alumno no encontrado.");
+            const al = alDoc.data();
+
+            const ok = await window.confirmar(
+                '♻️ Reactivar Alumno en Inbox',
+                `¿Confirmás reactivar a "${al.nombre || 'Alumno'}" y devolverlo a la bandeja de Inbox (Sin Agendar)?`,
+                '♻️ Reactivar en Inbox'
+            );
+            if (!ok) return;
+
+            setBotonCargando(btn, true, 'Reactivando...');
+            const hist = al.historial || [];
+            hist.push(crearEntradaHistorial(`Alumno reactivado desde Suspendidos hacia Inbox (Sin Agendar).`, 'sistema'));
+
+            await updateDoc(doc(db, "alumnos", id), { 
+                estado_agenda: "Pendiente procesar", 
+                suspendido: false,
+                motivo_suspension: null,
+                motivo_suspension_cat: null,
+                origen_suspension: null,
+                detalle_suspension: null,
+                historial: hist
+            }); 
             removerFilaOptimista(id);
+            if (typeof mostrarToast === 'function') mostrarToast(`✓ ${al.nombre} fue reactivado en Inbox.`, "success");
             await cargarVista(estadoActualVista); 
-            alert("Ficha recuperada exitosamente.");
         } catch(e) {
-            alert("❌ Error al recuperar: " + e.message);
+            alert("❌ Error al reactivar: " + e.message);
+        } finally {
+            setBotonCargando(btn, false);
+        }
+        return; 
+    }
+
+    if (target.classList.contains('btn-reactivar-espera') || target.closest('.btn-reactivar-espera')) { 
+        const btn = target.closest('.btn-reactivar-espera') || target;
+        const id = btn.getAttribute('data-id');
+        
+        try {
+            const alDoc = await getDoc(doc(db, "alumnos", id));
+            if (!alDoc.exists()) return alert("Alumno no encontrado.");
+            const al = alDoc.data();
+
+            const ok = await window.confirmar(
+                '♻️ Reactivar Alumno en Lista de Espera',
+                `¿Confirmás reactivar a "${al.nombre || 'Alumno'}" y enviarlo a Lista de Espera?`,
+                '♻️ Reactivar en Lista de Espera'
+            );
+            if (!ok) return;
+
+            setBotonCargando(btn, true, 'Reactivando...');
+            const hist = al.historial || [];
+            hist.push(crearEntradaHistorial(`Alumno reactivado desde Suspendidos hacia Lista de Espera.`, 'sistema'));
+
+            await updateDoc(doc(db, "alumnos", id), { 
+                estado_agenda: "Lista de espera", 
+                suspendido: false,
+                motivo_suspension: null,
+                motivo_suspension_cat: null,
+                origen_suspension: null,
+                detalle_suspension: null,
+                historial: hist
+            }); 
+            removerFilaOptimista(id);
+            if (typeof mostrarToast === 'function') mostrarToast(`✓ ${al.nombre} fue reactivado en Lista de Espera.`, "success");
+            await cargarVista(estadoActualVista); 
+        } catch(e) {
+            alert("❌ Error al reactivar: " + e.message);
         } finally {
             setBotonCargando(btn, false);
         }
@@ -6538,7 +7183,7 @@ document.addEventListener('click', async (e) => {
         const mId = target.getAttribute('data-modal');
         const dlg = document.getElementById(mId);
         if (dlg) {
-            if (mId === 'modal-informe-admision' && window._modalEditandoModificado) {
+            if (dlg.dataset.modificado === 'true' || ((mId === 'modal-alta-alumno' || mId === 'modal-informe-admision') && window._modalEditandoModificado)) {
                 solicitarConfirmacionSalidaModal(dlg);
                 return;
             }
@@ -6568,9 +7213,10 @@ document.addEventListener('click', async (e) => {
         document.getElementById('modal-alta-alumno').appendChild(wrap); 
         wrap.style.display = 'block'; 
         document.getElementById('form-titulo').textContent = 'Nuevo Alumno'; 
-        document.getElementById('modal-status-badge').style.display = 'none'; 
         document.getElementById('alumno-id').value = ''; 
         document.getElementById('form-alumno').reset(); 
+        const btnElimModal = document.getElementById('btn-modal-eliminar-alumno');
+        if (btnElimModal) btnElimModal.style.display = 'none';
         quill.setContents([]); 
         quillInforme.setContents([]); 
         quillInforme.enable(false); 
@@ -7268,6 +7914,12 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
     if (btnNuevaSusc) {
         btnNuevaSusc.style.display = (modoLectura || !id) ? 'none' : 'block';
         btnNuevaSusc.setAttribute('data-id', id);
+    }
+
+    const btnModalEliminar = document.getElementById('btn-modal-eliminar-alumno');
+    if (btnModalEliminar) {
+        btnModalEliminar.style.display = (!modoLectura && esUsuarioAdministrador() && id) ? 'inline-flex' : 'none';
+        btnModalEliminar.onclick = () => window.eliminarFichaAlumnoSeguro(id, d.nombre);
     }
 
     const hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00'; 

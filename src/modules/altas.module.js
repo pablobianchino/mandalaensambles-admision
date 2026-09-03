@@ -20,9 +20,11 @@ import {
     sincronizarEventoPrealtaCalendar, 
     sincronizarEventoAltaConfirmadaCalendar, 
     eliminarEventoAltaSeguro,
-    validarConflictoCalendarEnVivo
-} from "../services/calendar.service.js?v=5.9.22";
+    validarConflictoCalendarEnVivo,
+    obtenerEventosProfesoresParaSlot
+} from "../services/calendar.service.js?v=6.2.1";
 import { calcularProximaFechaDiaHora } from "./match.module.js";
+import { parsearNomenclaturaGrupoOClase } from "./profesor.module.js";
 
 const mapaDiasCodigos = { 'D': 'Domingo', 'L': 'Lunes', 'M': 'Martes', 'X': 'Miércoles', 'J': 'Jueves', 'V': 'Viernes', 'S': 'Sábado' };
 
@@ -152,6 +154,11 @@ export function autoCompletarNombreGrupoPrealta() {
         return;
     }
 
+    if (opt && opt.dataset.ocupado === '1' && opt.dataset.eventoSummary) {
+        campoGrupo.value = opt.dataset.eventoSummary;
+        return;
+    }
+
     const sugerido = calcularNombreGrupoSugerido(inputFechaIni.value, profeNombre);
     if (sugerido) {
         campoGrupo.value = sugerido;
@@ -184,19 +191,26 @@ export function actualizarVisibilidadCamposPrealta(tipoSusc) {
 // -----------------------------------------------------------------------
 // Refrescar profesores para pre-alta según tipo (Ensamble vs Grupal vs Individual)
 // -----------------------------------------------------------------------
-export async function refrescarProfesoresPrealta(tipoClase, instrumentoSeleccionado = '', profeSeleccionadoId = '') {
+// -----------------------------------------------------------------------
+// Refrescar profesores para pre-alta según tipo (Ensamble vs Grupal vs Individual)
+// -----------------------------------------------------------------------
+export async function refrescarProfesoresPrealta(tipoClase, instrumentoSeleccionado = '', profeSeleccionadoId = '', cfg = defaultCfg) {
     const selectProfe = document.getElementById('prealta-profe-select');
     if (!selectProfe) return;
-    selectProfe.innerHTML = '<option value="">Seleccionar profesor...</option>';
+    selectProfe.innerHTML = '<option value="">Consultando profesores y agendas...</option>';
     try {
         const pSnap = await getDocs(collection(db, "profesores"));
-        const profesores = [];
+        const profesoresMap = new Map();
         pSnap.forEach(pDoc => {
             const data = pDoc.data();
-            if (data.activo !== false && data.estado !== 'inactivo') {
-                profesores.push({ id: pDoc.id, ...data });
+            if (data.activo !== false && data.estado !== 'inactivo' && data.nombre) {
+                const key = data.nombre.toLowerCase().trim();
+                if (!profesoresMap.has(key)) {
+                    profesoresMap.set(key, { id: pDoc.id, ...data });
+                }
             }
         });
+        const profesores = Array.from(profesoresMap.values());
 
         const esEnsamble = tipoClase === 'ensamble';
         const esGrupal = tipoClase === 'grupal';
@@ -207,13 +221,29 @@ export async function refrescarProfesoresPrealta(tipoClase, instrumentoSeleccion
         let slotIniMins = null;
         let slotFinMins = null;
         const durMin = obtenerDuracionPrealtaMinutos();
+        let fIsoStart = null;
+        let fIsoEnd = null;
+
         if (fIniVal) {
             const dObj = new Date(fIniVal);
             if (!isNaN(dObj.getTime())) {
+                fIsoStart = dObj.toISOString();
+                fIsoEnd = new Date(dObj.getTime() + durMin * 60000).toISOString();
                 const diasMap = { 0: 'D', 1: 'L', 2: 'M', 3: 'X', 4: 'J', 5: 'V', 6: 'S' };
                 diaCod = diasMap[dObj.getDay()];
                 slotIniMins = dObj.getHours() * 60 + dObj.getMinutes();
                 slotFinMins = slotIniMins + durMin;
+            }
+        }
+
+        // Consultar eventos en vivo de Calendar para este slot
+        let ocupadosMap = {};
+        if (fIsoStart && fIsoEnd) {
+            try {
+                const resSlot = await obtenerEventosProfesoresParaSlot({ inicioISO: fIsoStart, finISO: fIsoEnd, configApp: cfg });
+                ocupadosMap = resSlot.ocupadosMap || {};
+            } catch(eCal) {
+                console.warn("No se pudieron consultar eventos de Calendar para el slot:", eCal);
             }
         }
 
@@ -256,26 +286,68 @@ export async function refrescarProfesoresPrealta(tipoClase, instrumentoSeleccion
                     });
                 }
 
-                aptos.push({ pr, etiqueta, cubreHorario });
+                const pNomKey = (pr.nombre || '').toLowerCase().trim();
+                const infoOcupado = ocupadosMap[pNomKey] || null;
+
+                aptos.push({ 
+                    pr, 
+                    etiqueta, 
+                    cubreHorario,
+                    ocupadoConEvento: infoOcupado ? infoOcupado.summary : null,
+                    eventoId: infoOcupado ? infoOcupado.id : null
+                });
             }
         });
 
-        // Mostrar exclusivamente los profesores disponibles y aptos para el horario seleccionado
+        selectProfe.innerHTML = '<option value="">Seleccionar profesor...</option>';
+
         if (diaCod && slotIniMins !== null) {
-            const disponiblesEnHorario = aptos.filter(a => a.cubreHorario);
-            disponiblesEnHorario.sort((a, b) => (a.pr.nombre || '').localeCompare(b.pr.nombre || ''));
-            disponiblesEnHorario.forEach(({ pr, etiqueta }) => {
-                const opt = document.createElement('option');
-                opt.value = pr.id;
-                opt.textContent = `${pr.nombre} (${etiqueta})`;
-                opt.dataset.nombre = pr.nombre;
-                opt.dataset.calId = pr.correo_calendario || '';
-                opt.dataset.disponibilidad = JSON.stringify(pr.disponibilidad || {});
-                if (pr.id === profeSeleccionadoId || (pr.nombre && pr.nombre === profeSeleccionadoId)) {
-                    opt.selected = true;
-                }
-                selectProfe.appendChild(opt);
-            });
+            // Dividir en disponibles (libres) vs con clase agendada (sumar a grupo)
+            const libres = aptos.filter(a => a.cubreHorario && !a.ocupadoConEvento);
+            const conClase = aptos.filter(a => a.ocupadoConEvento);
+
+            libres.sort((a, b) => (a.pr.nombre || '').localeCompare(b.pr.nombre || ''));
+            conClase.sort((a, b) => (a.pr.nombre || '').localeCompare(b.pr.nombre || ''));
+
+            if (libres.length > 0) {
+                const grpLibres = document.createElement('optgroup');
+                grpLibres.label = '🟢 Profesores Disponibles (Libres)';
+                libres.forEach(({ pr, etiqueta }) => {
+                    const opt = document.createElement('option');
+                    opt.value = pr.id;
+                    opt.textContent = `${pr.nombre} (${etiqueta})`;
+                    opt.dataset.nombre = pr.nombre;
+                    opt.dataset.calId = pr.correo_calendario || '';
+                    opt.dataset.ocupado = '0';
+                    opt.dataset.disponibilidad = JSON.stringify(pr.disponibilidad || {});
+                    if (pr.id === profeSeleccionadoId || (pr.nombre && pr.nombre === profeSeleccionadoId)) {
+                        opt.selected = true;
+                    }
+                    grpLibres.appendChild(opt);
+                });
+                selectProfe.appendChild(grpLibres);
+            }
+
+            if (conClase.length > 0) {
+                const grpOcupados = document.createElement('optgroup');
+                grpOcupados.label = '🟡 Profesores con Clase Agendada (Sumar a Grupo)';
+                conClase.forEach(({ pr, ocupadoConEvento, eventoId }) => {
+                    const opt = document.createElement('option');
+                    opt.value = pr.id;
+                    opt.textContent = `${pr.nombre} (Clase: "${ocupadoConEvento}")`;
+                    opt.dataset.nombre = pr.nombre;
+                    opt.dataset.calId = pr.correo_calendario || '';
+                    opt.dataset.ocupado = '1';
+                    opt.dataset.eventoSummary = ocupadoConEvento;
+                    opt.dataset.eventoId = eventoId || '';
+                    opt.dataset.disponibilidad = JSON.stringify(pr.disponibilidad || {});
+                    if (pr.id === profeSeleccionadoId || (pr.nombre && pr.nombre === profeSeleccionadoId)) {
+                        opt.selected = true;
+                    }
+                    grpOcupados.appendChild(opt);
+                });
+                selectProfe.appendChild(grpOcupados);
+            }
         }
 
         if (selectProfe.options.length <= 1) {
@@ -318,6 +390,18 @@ export async function verificarPrealtaEnCalendar(alumnosList = [], cfg = default
     const profeId = selectProfe.value;
     const profeNombre = opt ? (opt.dataset.nombre || opt.textContent.split('(')[0].trim()) : '';
     const profeCalId = opt ? (opt.dataset.calId || '') : '';
+    const esSumaGrupoExistente = opt && opt.dataset.ocupado === '1';
+    const eventoSummaryExistente = opt ? (opt.dataset.eventoSummary || '') : '';
+
+    // Si el usuario seleccionó un profesor con clase agendada para sumarse a ese grupo:
+    if (esSumaGrupoExistente) {
+        alertaValidacion.style.display = 'block';
+        alertaValidacion.style.background = '#eff6ff';
+        alertaValidacion.style.color = '#1d4ed8';
+        alertaValidacion.style.border = '1px solid #bfdbfe';
+        alertaValidacion.innerHTML = `ℹ️ <strong>Sumándose a grupo existente:</strong> Se asociará la ficha a la clase en curso de ${profeNombre} ("${eventoSummaryExistente}"). No se creará un evento duplicado en Google Calendar.`;
+        return;
+    }
 
     const tieneBateria = alumnosList.some(al => {
         const insts = Array.isArray(al.instrumento) ? al.instrumento : [al.instrumento || ''];
@@ -338,6 +422,7 @@ export async function verificarPrealtaEnCalendar(alumnosList = [], cfg = default
             profeNombre,
             profeCalId,
             esBateria: tieneBateria,
+            permitirProfeOcupado: false,
             configApp: cfg
         });
 
@@ -478,6 +563,19 @@ export function renderizarAdvertenciasMatchPrealta(alumnosList, fechaHoraStr = '
     }
 }
 
+function asegurarOpcionProfesor(selectEl, profeId, profeNombre = '') {
+    if (!selectEl || !profeId) return;
+    let opt = Array.from(selectEl.options).find(o => o.value === profeId);
+    if (!opt) {
+        opt = document.createElement('option');
+        opt.value = profeId;
+        opt.textContent = `${profeNombre || 'Docente'} (Solicitado)`;
+        selectEl.appendChild(opt);
+    }
+    opt.selected = true;
+    selectEl.value = profeId;
+}
+
 // -----------------------------------------------------------------------
 // Abrir Modal Pre-alta Individual / Edicion / Modificar Alta
 // -----------------------------------------------------------------------
@@ -507,6 +605,8 @@ export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg
 
     const configApp = opts.configApp || defaultCfg;
     const profeSugerido = opts.profeIdSugerido || '';
+    const sol = (opts.esMatchSolicitud && opts.solicitud) ? opts.solicitud : null;
+    const esMatchSolicitud = Boolean(sol);
 
     document.getElementById('prealta-alumno-id').value = id;
     
@@ -535,13 +635,21 @@ export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg
     if (matchWarnList) matchWarnList.innerHTML = '';
 
     const instsAlumno = Array.isArray(al.instrumento) ? al.instrumento : (al.instrumento ? [al.instrumento] : []);
-    const instActual = al.instrumento_asignado || instsAlumno[0] || '';
+    const instActual = opts.instSugerido || al.instrumento_asignado || instsAlumno[0] || '';
     const profeActualId = profeSugerido || al.reserva_profe_id || al.profesor_id || '';
 
-    // La fecha y hora NUNCA vienen precargadas en altas nuevas
     let fVal = '';
     let grupoVal = '';
-    if (esEdicion || esAltaConfirmada) {
+    if (esMatchSolicitud) {
+        const durMin = sol.duracionMinutos || (sol.tipoGrupo === 'Ensamble Mandalorian' ? 90 : 60);
+        const parsed = parsearNomenclaturaGrupoOClase(sol.grupoNombre, durMin);
+        const diaCod = (parsed ? parsed.diaCod : sol.diaCod) || '';
+        const horaIni = (parsed ? parsed.horaInicio : sol.horaInicio) || '18:00';
+        if (diaCod && horaIni) {
+            fVal = calcularProximaFechaDiaHora(diaCod, horaIni);
+        }
+        grupoVal = sol.grupoNombre || grupoPrev || '';
+    } else if (esEdicion || esAltaConfirmada) {
         if (inicioPrev) fVal = isoToDatetimeLocal(inicioPrev);
         else if (al.fecha_inicio_clases) fVal = isoToDatetimeLocal(al.fecha_inicio_clases);
         else if (al.fecha_sugerida_inicio) fVal = isoToDatetimeLocal(al.fecha_sugerida_inicio);
@@ -560,12 +668,16 @@ export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg
 
         if (selInstPrealta) {
             selInstPrealta.innerHTML = '';
+            const instParaSeleccionar = opts.instSugerido || instActual;
             if (instsAlumno.length > 0) {
                 instsAlumno.forEach(i => {
-                    selInstPrealta.innerHTML += `<option value="${i}" ${i === instActual ? 'selected' : ''}>${i}</option>`;
+                    selInstPrealta.innerHTML += `<option value="${i}" ${i === instParaSeleccionar ? 'selected' : ''}>${i}</option>`;
                 });
             } else {
                 selInstPrealta.innerHTML = '<option value="">Sin instrumento especificado</option>';
+            }
+            if (instParaSeleccionar && !instsAlumno.includes(instParaSeleccionar)) {
+                selInstPrealta.innerHTML += `<option value="${instParaSeleccionar}" selected>${instParaSeleccionar}</option>`;
             }
             selInstPrealta.onchange = async () => {
                 if (document.getElementById('prealta-fecha-inicio')?.value) {
@@ -577,6 +689,9 @@ export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg
 
         if (fVal) {
             await refrescarProfesoresPrealta('individual', instActual, profeActualId);
+            if (selectProfe && profeActualId) {
+                asegurarOpcionProfesor(selectProfe, profeActualId, sol ? sol.profesorNombre : opts.profeNombreSugerido);
+            }
         } else {
             selectProfe.innerHTML = '<option value="">Seleccionar profesor...</option>';
         }
@@ -584,22 +699,37 @@ export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg
     } else {
         if (campoInst) campoInst.style.display = 'none';
         
-        // Modalidad Ensamble: SOLO visible si tipo_suscripcion es ensamble
+        // Modalidad Ensamble: visible si tipo_suscripcion es ensamble o la solicitud es ensamble
         const campoTipoEns = document.getElementById('prealta-campo-tipo-ensamble');
+        const esSolicitudEnsamble = sol && (sol.tipoGrupo === 'Ensamble' || sol.tipoGrupo === 'Ensamble Mandalorian');
         if (campoTipoEns) {
-            campoTipoEns.style.display = (tipoSusc === 'ensamble') ? 'block' : 'none';
-            if (tipoSusc === 'ensamble') {
-                const esMandalorian = (al.tipo_suscripcion || '').toLowerCase().includes('mandalorian') || al.tipo_ensamble === 'Ensamble Mandalorian';
+            campoTipoEns.style.display = (tipoSusc === 'ensamble' || esSolicitudEnsamble) ? 'block' : 'none';
+            if (tipoSusc === 'ensamble' || esSolicitudEnsamble) {
+                const esMandalorian = (sol && sol.tipoGrupo === 'Ensamble Mandalorian') 
+                    || (al.tipo_suscripcion || '').toLowerCase().includes('mandalorian') 
+                    || al.tipo_ensamble === 'Ensamble Mandalorian';
                 const rMandalorian = document.querySelector('input[name="prealta-tipo-ensamble"][value="Ensamble Mandalorian"]');
                 const rEnsamble = document.querySelector('input[name="prealta-tipo-ensamble"][value="Ensamble"]');
                 if (esMandalorian && rMandalorian) rMandalorian.checked = true;
                 else if (rEnsamble) rEnsamble.checked = true;
             }
         }
+
+        if (opts.instSugerido) {
+            al.instrumento_asignado = opts.instSugerido;
+        }
         await renderListaInstrumentosAlumnos([{ id, ...al }], configApp);
+
         if (fVal) {
             await refrescarProfesoresPrealta(tipoSusc, instActual, profeActualId);
-            autoCompletarNombreGrupoPrealta();
+            if (selectProfe && profeActualId) {
+                asegurarOpcionProfesor(selectProfe, profeActualId, sol ? sol.profesorNombre : opts.profeNombreSugerido);
+            }
+            if (!esMatchSolicitud) {
+                autoCompletarNombreGrupoPrealta();
+            } else {
+                document.getElementById('prealta-grupo').value = sol.grupoNombre || grupoVal;
+            }
         } else {
             selectProfe.innerHTML = '<option value="">Seleccionar profesor...</option>';
         }
@@ -613,21 +743,28 @@ export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg
         inputFechaIni.onchange = async () => {
             if (inputFechaIni.value) {
                 await refrescarProfesoresPrealta(tipoSusc, instActual, selectProfe.value);
+                if (esMatchSolicitud && selectProfe && profeActualId) {
+                    asegurarOpcionProfesor(selectProfe, profeActualId, sol ? sol.profesorNombre : opts.profeNombreSugerido);
+                }
             } else {
                 selectProfe.innerHTML = '<option value="">Seleccionar profesor...</option>';
             }
-            autoCompletarNombreGrupoPrealta();
+            if (!esMatchSolicitud) autoCompletarNombreGrupoPrealta();
             actualizarVisibilidadCamposPrealta(tipoSusc);
-            renderizarAdvertenciasMatchPrealta([al], inputFechaIni.value, obtenerDuracionPrealtaMinutos(), configApp);
+            if (!esMatchSolicitud) {
+                renderizarAdvertenciasMatchPrealta([al], inputFechaIni.value, obtenerDuracionPrealtaMinutos(), configApp);
+            }
             verificarPrealtaEnCalendar([al], configApp);
         };
         inputFechaIni.oninput = inputFechaIni.onchange;
     }
     if (selectProfe) {
         selectProfe.onchange = () => {
-            autoCompletarNombreGrupoPrealta();
+            if (!esMatchSolicitud) autoCompletarNombreGrupoPrealta();
             actualizarVisibilidadCamposPrealta(tipoSusc);
-            renderizarAdvertenciasMatchPrealta([al], inputFechaIni?.value || '', obtenerDuracionPrealtaMinutos(), configApp);
+            if (!esMatchSolicitud) {
+                renderizarAdvertenciasMatchPrealta([al], inputFechaIni?.value || '', obtenerDuracionPrealtaMinutos(), configApp);
+            }
             verificarPrealtaEnCalendar([al], configApp);
         };
     }
@@ -635,16 +772,31 @@ export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg
         radio.onchange = async () => {
             if (inputFechaIni && inputFechaIni.value) {
                 await refrescarProfesoresPrealta(tipoSusc, instActual, selectProfe.value);
+                if (esMatchSolicitud && selectProfe && profeActualId) {
+                    asegurarOpcionProfesor(selectProfe, profeActualId, sol ? sol.profesorNombre : opts.profeNombreSugerido);
+                }
             }
-            autoCompletarNombreGrupoPrealta();
+            if (!esMatchSolicitud) autoCompletarNombreGrupoPrealta();
             actualizarVisibilidadCamposPrealta(tipoSusc);
             verificarPrealtaEnCalendar([al], configApp);
         };
     });
 
+    // Mostrar discrepancias si vienen del match por solicitud
+    if (opts.discrepancias && opts.discrepancias.length > 0) {
+        if (matchWarnList) {
+            matchWarnList.innerHTML = opts.discrepancias.map(w => `<div style="margin-bottom:4px;">⚠️ ${w}</div>`).join('');
+        }
+        if (matchWarnCont) matchWarnCont.style.display = 'block';
+    } else if (!esMatchSolicitud) {
+        renderizarAdvertenciasMatchPrealta([al], inputFechaIni?.value || '', obtenerDuracionPrealtaMinutos(), configApp);
+    }
+
     const banner = document.getElementById('prealta-info-banner');
     banner.style.display = 'block';
-    if (esAltaConfirmada) {
+    if (esMatchSolicitud && sol) {
+        banner.innerHTML = `🎯 <strong>Pre-Alta desde Solicitud Docente (${sol.grupoNombre}):</strong> Docente: <strong>${sol.profesorNombre}</strong> • Horario: <strong>${sol.horario}</strong> • Instrumento: <strong>${opts.instSugerido || sol.instrumento}</strong>`;
+    } else if (esAltaConfirmada) {
         banner.innerHTML = `✏️ <strong>Modificar Alta de ${al.nombre} (${al.estado_agenda}):</strong> Podés forzar la edición del profesor, grupo y horario de inicio.`;
     } else if (esEdicion) {
         banner.innerHTML = `✏️ <strong>Modificar Pre-Alta de ${al.nombre}:</strong> Podés ajustar la fecha y hora de inicio, el profesor asignado y ${esIndividual ? 'el instrumento' : 'el grupo'}.`;
@@ -819,12 +971,13 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
         }
     }
 
-    mostrarLoader('Guardando cambios y sincronizando calendario...');
-    if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, true, 'Guardando...');
+    // Asegurar que no quede ningún loader abierto de acciones previas
+    if (typeof ocultarLoader === 'function') ocultarLoader();
+
+    if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, true, 'Validando...');
 
     const dateObj = new Date(fIni);
     if (isNaN(dateObj.getTime())) {
-        ocultarLoader();
         if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
         return alert("Fecha y hora inválidas.");
     }
@@ -845,13 +998,11 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
             return slIni >= rIni && (slIni + durMin) <= rFin;
         });
         if (rangosAl.length > 0 && !cubreAl) {
-            ocultarLoader();
             const confirmarForzar = await window.confirmar('Disponibilidad no coincide', 'El alumno no tiene disponibilidad para el horario seleccionado. ¿Guardar de todas formas?', 'Forzar y Guardar');
             if (!confirmarForzar) {
                 if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
                 return;
             }
-            mostrarLoader('Guardando cambios y sincronizando calendario...');
         }
     }
 
@@ -868,13 +1019,11 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
                     return slIni >= rIni && (slIni + durMin) <= rFin;
                 });
                 if (rangosProfe.length > 0 && !cubreProfe) {
-                    ocultarLoader();
                     const confirmarForzarProfe = await window.confirmar('Horario fuera de rango del profesor', `El profesor ${profeNombre} no tiene disponibilidad configurada para ese día/horario. ¿Deseas continuar igualmente?`, 'Forzar y Asignar');
                     if (!confirmarForzarProfe) {
                         if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
                         return;
                     }
-                    mostrarLoader('Guardando cambios y sincronizando calendario...');
                 }
             }
         } catch(e) {}
@@ -886,48 +1035,63 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
         return insts.some(i => (i || '').toLowerCase().includes('bat')) || (al.instrumento_asignado || '').toLowerCase().includes('bat');
     }) || (document.getElementById('prealta-instrumento-select')?.value || '').toLowerCase().includes('bat');
 
-    try {
-        const valCal = await validarConflictoCalendarEnVivo({
-            inicioISO: dateObj.toISOString(),
-            finISO: new Date(dateObj.getTime() + durMin * 60000).toISOString(),
-            profeId: profeId,
-            profeNombre: profeNombre,
-            profeCalId: profeCalId,
-            esBateria: tieneBateria,
-            configApp: callbacks.configApp || defaultCfg
-        });
+    const optProfeSel = selProfe ? selProfe.selectedOptions[0] : null;
+    const esSumaGrupoExistente = optProfeSel && optProfeSel.dataset.ocupado === '1';
+    const eventoIdExistente = optProfeSel ? (optProfeSel.dataset.eventoId || null) : null;
+    const eventoSummaryExistente = optProfeSel ? (optProfeSel.dataset.eventoSummary || '') : '';
 
-        if (!valCal.valido) {
-            ocultarLoader();
-            const forzarConflicto = await window.confirmar(
-                '⚠️ Conflicto detectado en Google Calendar',
-                `Se detectó un problema en el horario seleccionado:\n\n• ${valCal.motivo}\n\n¿Deseas forzar la asignación de todas formas?`,
-                'Forzar Asignación'
-            );
-            if (!forzarConflicto) {
-                if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
-                return;
+    // Si NO es suma a grupo existente, verificamos conflicto live en Google Calendar
+    if (!esSumaGrupoExistente) {
+        if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, true, 'Verificando agenda...');
+        try {
+            const valCal = await validarConflictoCalendarEnVivo({
+                inicioISO: dateObj.toISOString(),
+                finISO: new Date(dateObj.getTime() + durMin * 60000).toISOString(),
+                profeId: profeId,
+                profeNombre: profeNombre,
+                profeCalId: profeCalId,
+                esBateria: tieneBateria,
+                permitirProfeOcupado: false,
+                configApp: callbacks.configApp || defaultCfg
+            });
+
+            if (!valCal.valido) {
+                const forzarConflicto = await window.confirmar(
+                    '⚠️ Conflicto detectado en Google Calendar',
+                    `Se detectó un problema en el horario seleccionado:\n\n• ${valCal.motivo}\n\n¿Deseas forzar la asignación de todas formas?`,
+                    'Forzar Asignación'
+                );
+                if (!forzarConflicto) {
+                    if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
+                    return;
+                }
             }
-            mostrarLoader('Guardando cambios y sincronizando calendario...');
+        } catch(errVal) {
+            console.warn("Error al validar conflicto en Google Calendar:", errVal);
         }
-    } catch(errVal) {
-        console.warn("Error al validar conflicto en Google Calendar:", errVal);
     }
 
     const fInicioTexto = `${mapaDiasCodigos[diaCodigo] || diaCodigo} ${dateObj.getDate()}/${dateObj.getMonth()+1} ${horaInicioStr} hs`;
     const docNom = profeNombre || primerAl.reserva_profe_nombre || 'Docente';
+    const textoModalidad = esSumaGrupoExistente 
+        ? `Sumar a grupo existente: "${eventoSummaryExistente}" (se actualizará la clase en Google Calendar sin duplicar evento)`
+        : (esIndividual ? 'Clase Individual' : (grp || 'Ensamble'));
+
+    // Restaurar estado del botón antes de mostrar confirmación para que no diga "Guardando..." en el fondo
+    if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
+
     const confAgenda = await window.confirmar(
         `📅 Sincronizar agenda en Google Calendar`,
-        `Se creará o actualizará la clase en Google Calendar:\n\n• Alumnos: ${ids.length > 1 ? ids.length + ' alumnos' : (primerAl.nombre || 'Alumno')}\n• Modalidad: ${esIndividual ? 'Clase Individual' : (grp || 'Ensamble')}\n• Inicio: ${fInicioTexto}\n• Docente: ${docNom}\n\n¿Confirmás sincronizar en Google Calendar y guardar?`,
+        `Se ${esSumaGrupoExistente ? 'actualizará la clase existente' : 'creará o actualizará la clase'} en Google Calendar:\n\n• Alumnos: ${ids.length > 1 ? ids.length + ' alumnos' : (primerAl.nombre || 'Alumno')}\n• Modalidad: ${textoModalidad}\n• Inicio: ${fInicioTexto}\n• Docente: ${docNom}\n\n¿Confirmás sincronizar en Google Calendar y guardar?`,
         '📅 Sincronizar y Guardar'
     );
     if (!confAgenda) {
-        ocultarLoader();
         if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
         return;
     }
 
-    mostrarLoader('Guardando cambios y sincronizando calendario...');
+    // El usuario confirmó: activar estado de guardado únicamente en el botón
+    if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, true, 'Guardando...');
 
     const fIso = dateObj.toISOString();
     const dateObjEnd = new Date(dateObj.getTime() + durMin * 60000);
@@ -987,6 +1151,12 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
             instrumento_asignado: instFinal,
             instrumento: al.instrumento || []
         };
+        if (esSumaGrupoExistente && eventoIdExistente) {
+            alParaSync.id_evento_alta = eventoIdExistente;
+        }
+        if (esSumaGrupoExistente && eventoSummaryExistente) {
+            alParaSync.evento_summary_original = eventoSummaryExistente;
+        }
 
         if (!esIndividual) {
             if (!alumnosDelGrupo.some(a => a.id === id)) {

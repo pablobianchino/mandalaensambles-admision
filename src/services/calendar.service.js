@@ -299,7 +299,20 @@ export async function sincronizarEventoPrealtaCalendar(al, esIndividual, fIsoSta
         // 3. Si existe: ACTUALIZAR (NO duplicar)
         if (existingEventId && existingCalId) {
             try {
-                await actualizarEventoCalendario(existingCalId, existingEventId, titulos.tituloProfe, desc);
+                let tituloFinal = titulos.tituloProfe;
+                if (!esIndividual) {
+                    if (al.evento_summary_original) {
+                        tituloFinal = al.evento_summary_original;
+                    } else {
+                        const evExistente = await buscarEventoGrupoEnCalendar(existingCalId, al.grupo_asignado, fIsoStart);
+                        if (evExistente && evExistente.summary) {
+                            tituloFinal = evExistente.summary;
+                        } else if (al.grupo_asignado && !al.grupo_asignado.startsWith('Grupo Sin')) {
+                            tituloFinal = al.grupo_asignado;
+                        }
+                    }
+                }
+                await actualizarEventoCalendario(existingCalId, existingEventId, tituloFinal, desc);
                 if (al.id) {
                     await updateDoc(doc(db, "alumnos", al.id), {
                         id_evento_alta: existingEventId,
@@ -379,7 +392,20 @@ export async function sincronizarEventoAltaConfirmadaCalendar(al, esIndividual, 
 
         // 3. Si existe el evento: ACTUALIZAR (NO CREAR DUPLICADO)
         if (targetEventId && targetCalId) {
-            await actualizarEventoCalendario(targetCalId, targetEventId, titulos.tituloProfe, desc);
+            let tituloFinal = titulos.tituloProfe;
+            if (!esIndividual) {
+                if (al.evento_summary_original) {
+                    tituloFinal = al.evento_summary_original;
+                } else {
+                    const evExistente = await buscarEventoGrupoEnCalendar(targetCalId, al.grupo_asignado, al.fecha_inicio_clases);
+                    if (evExistente && evExistente.summary) {
+                        tituloFinal = evExistente.summary;
+                    } else if (al.grupo_asignado && !al.grupo_asignado.startsWith('Grupo Sin')) {
+                        tituloFinal = al.grupo_asignado;
+                    }
+                }
+            }
+            await actualizarEventoCalendario(targetCalId, targetEventId, tituloFinal, desc);
             if (al.id) {
                 await updateDoc(doc(db, "alumnos", al.id), {
                     id_evento_alta: targetEventId,
@@ -853,6 +879,7 @@ export async function validarConflictoCalendarEnVivo({
     profeNombre = '', 
     profeCalId = '', 
     esBateria = false, 
+    permitirProfeOcupado = false,
     configApp = defaultCfg
 }) {
     if (!inicioISO || !finISO) return { valido: true, detalle: 'Sin horario definido' };
@@ -943,7 +970,7 @@ export async function validarConflictoCalendarEnVivo({
     const hayAulaLibre = simultaneosAulas < cantAulas;
     const hayBateriaLibre = esBateria ? (simultaneosBat < cantBat) : true;
 
-    if (profeOcupado) {
+    if (profeOcupado && !permitirProfeOcupado) {
         return {
             valido: false,
             motivo: `El profesor ${profeNombre || ''} ya tiene una clase/evento en Calendar ("${profeEventoSummary}")`,
@@ -952,7 +979,7 @@ export async function validarConflictoCalendarEnVivo({
         };
     }
 
-    if (!hayAulaLibre) {
+    if (!hayAulaLibre && !permitirProfeOcupado) {
         return {
             valido: false,
             motivo: `Capacidad de aulas superada: ya hay ${simultaneosAulas} de ${cantAulas} aulas ocupadas en ese horario`,
@@ -972,8 +999,114 @@ export async function validarConflictoCalendarEnVivo({
 
     return {
         valido: true,
+        profeOcupado,
+        profeEventoSummary,
         simultaneosAulas,
         simultaneosBat,
-        detalle: `Espacio disponible (${simultaneosAulas}/${cantAulas} aulas, ${simultaneosBat}/${cantBat} baterías en uso)`
+        detalle: profeOcupado 
+            ? `Sumándose a clase existente de ${profeNombre}: "${profeEventoSummary}"`
+            : `Espacio disponible (${simultaneosAulas}/${cantAulas} aulas, ${simultaneosBat}/${cantBat} baterías en uso)`
+    };
+}
+
+// -----------------------------------------------------------------------
+// Consultar ocupación de profesores en Google Calendar para un slot de Pre-Alta
+// -----------------------------------------------------------------------
+export async function obtenerEventosProfesoresParaSlot({ inicioISO, finISO, configApp = defaultCfg }) {
+    const dStart = new Date(inicioISO);
+    const dEnd = new Date(finISO);
+    if (isNaN(dStart.getTime()) || isNaN(dEnd.getTime())) {
+        return { ocupadosMap: {}, simultaneosAulas: 0, simultaneosBat: 0 };
+    }
+
+    const cantAulas = parseInt(configApp.cantidad_aulas, 10) || 3;
+    const cantBat = parseInt(configApp.cantidad_baterias, 10) || 2;
+    const emojiBat = configApp.identificador_bateria || '🥁';
+    const mainCal = configApp.calendario_por_defecto || 'productora.mandalahouse@gmail.com';
+
+    const calIds = new Set([mainCal]);
+    const profesLista = [];
+    try {
+        const pSnap = await getDocs(collection(db, "profesores"));
+        const nombresVistos = new Set();
+        pSnap.forEach(pDoc => {
+            const pData = pDoc.data();
+            if (pData.activo !== false && pData.estado !== 'inactivo' && pData.nombre) {
+                const nomTrim = pData.nombre.trim();
+                const nomLow = nomTrim.toLowerCase();
+                if (!nombresVistos.has(nomLow)) {
+                    nombresVistos.add(nomLow);
+                    const cal = pData.correo_calendario || pData.email_calendar || '';
+                    if (cal && cal.includes('@')) calIds.add(cal);
+                    profesLista.push({ id: pDoc.id, nombre: nomTrim, calId: cal });
+                }
+            }
+        });
+    } catch(e) {
+        console.warn("Error cargando profesores para calendar slot:", e);
+    }
+
+    const dayStart = new Date(dStart);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(dEnd);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    let allEvents = [];
+    const evPromises = Array.from(calIds).map(async (cId) => {
+        try {
+            const evs = await getEventosCalendario(cId, dayStart.toISOString(), dayEnd.toISOString());
+            const items = Array.isArray(evs) ? evs : (evs && Array.isArray(evs.items) ? evs.items : []);
+            items.forEach(e => { e.calIdSource = cId; allEvents.push(e); });
+        } catch(err) {
+            console.warn(`No se pudieron consultar eventos de ${cId}:`, err);
+        }
+    });
+    await Promise.all(evPromises);
+
+    const inMs = dStart.getTime();
+    const finMs = dEnd.getTime();
+    let simultaneosAulas = 0;
+    let simultaneosBat = 0;
+    const eventosVistos = new Set();
+    const ocupadosMap = {}; // key: profeNombre.toLowerCase().trim() -> { summary, id, calId }
+
+    allEvents.forEach(ev => {
+        const evStart = new Date(ev.start?.dateTime || ev.start?.date).getTime();
+        const evEnd = new Date(ev.end?.dateTime || ev.end?.date).getTime();
+        if (isNaN(evStart) || isNaN(evEnd)) return;
+
+        const overlapStart = Math.max(inMs, evStart);
+        const overlapEnd = Math.min(finMs, evEnd);
+        if (overlapEnd - overlapStart > 60000) {
+            const evKey = ev.id || `${evStart}_${evEnd}_${ev.summary}`;
+            if (!eventosVistos.has(evKey)) {
+                eventosVistos.add(evKey);
+                simultaneosAulas++;
+                const sum = (ev.summary || '').toLowerCase();
+                if (sum.includes(emojiBat.toLowerCase()) || sum.includes('bater')) {
+                    simultaneosBat++;
+                }
+
+                profesLista.forEach(p => {
+                    const pNomLow = p.nombre.toLowerCase().trim();
+                    const pCalLow = (p.calId || '').toLowerCase().trim();
+                    if ((pCalLow && ev.calIdSource?.toLowerCase() === pCalLow) || (pNomLow && sum.includes(pNomLow))) {
+                        ocupadosMap[pNomLow] = {
+                            summary: ev.summary || 'Clase agendada',
+                            id: ev.id,
+                            calId: ev.calIdSource || p.calId || mainCal
+                        };
+                    }
+                });
+            }
+        }
+    });
+
+    return {
+        ocupadosMap,
+        simultaneosAulas,
+        simultaneosBat,
+        hayAulaLibre: simultaneosAulas < cantAulas,
+        hayBateriaLibre: simultaneosBat < cantBat
     };
 }

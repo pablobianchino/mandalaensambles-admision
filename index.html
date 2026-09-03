@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=5.9.23">
+    <link rel="stylesheet" href="styles.css?v=6.2.1">
 
     <style>
         /* Estilos Críticos de Widget de Perfil y Popover Google-Style */
@@ -326,6 +326,11 @@
                     <span class="nav-badge" id="badge-altas" style="display:none;">0</span>
                 </li>
 
+                <li class="nav-item" data-vista="Suspendidos - Todos" data-modulo="Suspendidos">
+                    <span class="nav-icon">⏸️</span> <span>Suspendidos</span>
+                    <span class="nav-badge" id="badge-suspendidos" style="display:none; background:var(--accent-red); color:#fff;">0</span>
+                </li>
+
                 <li class="nav-divider"></li>
                 <li class="nav-item" data-vista="Estadísticas" data-modulo="Estadísticas"><span class="nav-icon">📊</span> <span>Métricas</span></li>
             </ul>
@@ -339,7 +344,7 @@
                     <button type="button" id="btn-quick-test-notif" onclick="window.abrirModalTestNotificacion()" class="btn-app btn-secondary" style="font-size:11px; height:28px; padding:0 8px; flex:1; justify-content:center; color:var(--accent-teal); border-color:var(--accent-teal); background:rgba(0,123,143,0.05); font-weight:700;" title="Probar notificación push de entrevista en celular o PC">🔔 Test Notificación</button>
                     <a href="guia-evaluadores.html" target="_blank" class="btn-app btn-secondary" style="font-size:11px; height:28px; padding:0 8px; justify-content:center; text-decoration:none; display:inline-flex; align-items:center;" title="Abrir Guía Paso a Paso para Evaluadores">📖 Guía</a>
                 </div>
-                <div id="sidebar-version-label" style="font-size: 11px; color: var(--text-light); text-align: left; font-weight: 600; padding: 2px 6px;">v5.9.23</div>
+                <div id="sidebar-version-label" style="font-size: 11px; color: var(--text-light); text-align: left; font-weight: 600; padding: 2px 6px;">v6.2.1</div>
             </div>
         </aside>
 
@@ -354,10 +359,10 @@
                 <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:flex-end; flex:1;">
                     <div style="display:flex; flex-direction:column; gap:8px; max-width:380px; width:100%;">
                         <div style="display:flex; gap:10px; width:100%;">
-                            <div id="search-container-general" style="display:none; position:relative; flex-grow:1;">
-                                <span style="position:absolute; left:12px; top:10px; font-size:0.9em; color:#b3aa9a;">🔍</span>
-                                <input type="text" id="input-buscador-general" placeholder="Buscar alumno..." style="width:100%; padding:9px 30px 9px 32px; border:1px solid #ece6dc; border-radius:10px; outline:none; background:#ffffff; font-family:inherit; box-sizing:border-box;">
-                                <button type="button" id="btn-limpiar-buscador" style="display:none; position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; color:#8a9097; font-size:14px; cursor:pointer; padding:4px 6px; border-radius:50%; line-height:1;" title="Limpiar búsqueda">✕</button>
+                            <div id="search-container-header" style="display:none; position:relative; flex-grow:1;">
+                                <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); font-size:0.9em; color:#b3aa9a; pointer-events:none;">🔍</span>
+                                <input type="text" id="input-buscador-dashboard" placeholder="Buscar en toda la base..." style="width:100%; height:38px; padding:0 30px 0 32px; border:1px solid #ece6dc; border-radius:10px; outline:none; background:#ffffff; font-family:inherit; box-sizing:border-box;">
+                                <button type="button" id="btn-limpiar-buscador-dashboard" style="display:none; position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; color:#8a9097; font-size:14px; cursor:pointer; padding:4px 6px; border-radius:50%; line-height:1;" title="Limpiar búsqueda">✕</button>
                             </div>
                             <button id="btn-carga-masiva" style="display:none; background:var(--hover-bg); color:var(--text-main); border:1px solid var(--border-color); border-radius:8px; padding:0 14px; cursor:pointer; font-weight:700; font-size:12.5px; font-family:inherit; white-space:nowrap; transition:0.2s;" title="Carga masiva de alumnos mediante archivo CSV">📥 Cargar CSV</button>
                             <button id="btn-sync-espera-csv" onclick="window.abrirModalSyncEsperaCSV()" style="display:none; background:rgba(0,123,143,0.08); color:var(--accent-teal); border:1px solid rgba(0,123,143,0.3); border-radius:8px; padding:0 14px; cursor:pointer; font-weight:700; font-size:12.5px; font-family:inherit; white-space:nowrap; transition:0.2s;" title="Sincronizar días de espera y último contacto desde CSV">📥 Sincronizar CSV</button>
@@ -472,6 +477,15 @@
                 </div>
             </div>
 
+            <!-- BARRA DE BÚSQUEDA DEDICADA DEBAJO DE LA LÍNEA DE FILTROS -->
+            <div id="search-container-vista" style="display:none; margin-bottom:14px; width:100%;">
+                <div style="position:relative; max-width:440px; width:100%;">
+                    <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); font-size:0.95em; color:#94a3b8; pointer-events:none;">🔍</span>
+                    <input type="text" id="input-buscador-general" placeholder="Buscar alumno..." style="width:100%; height:38px; padding:0 34px 0 34px; border:1px solid #e2e8f0; border-radius:8px; outline:none; background:#ffffff; font-family:inherit; font-size:13px; color:var(--text-main); box-sizing:border-box; transition:all 0.15s ease; box-shadow:0 1px 2px rgba(0,0,0,0.02);">
+                    <button type="button" id="btn-limpiar-buscador" style="display:none; position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; color:#8a9097; font-size:14px; cursor:pointer; padding:4px 6px; border-radius:50%; line-height:1;" title="Limpiar búsqueda">✕</button>
+                </div>
+            </div>
+
             <!-- VISTA RESUMEN (Parte 1: Prioridades) -->
             <div id="vista-resumen" style="display:none; flex-direction:column; gap:14px; margin-bottom:15px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; border-bottom:2px solid #e2e8f0; padding-bottom:10px;">
@@ -562,6 +576,24 @@
                                 </button>
                                 <button type="button" id="match-tab-modo-alumnos" class="btn-app btn-secondary" style="height:32px; font-size:12px; font-weight:700; padding:0 14px; border-radius:7px; cursor:pointer; background:transparent; color:var(--text-main); border:1px solid transparent;">
                                     👤 Buscar Alumnos (Perfiles)
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Bloque de Solicitudes de Profesores (Visible en Modo Buscar Alumnos) -->
+                        <div id="match-solicitudes-profes-container" style="display:none; margin-bottom:16px; background:rgba(234,179,8,0.07); border:1px solid rgba(234,179,8,0.3); border-radius:12px; padding:12px 14px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
+                                <label style="margin:0; font-size:12px; font-weight:800; color:#854d0e; text-transform:uppercase; letter-spacing:0.04em; display:flex; align-items:center; gap:6px;">
+                                    <span>📩</span> Solicitudes de Profesores:
+                                </label>
+                                <span style="font-size:11px; color:#a16207; font-weight:600;">Autocompleta criterios y valida con Calendar</span>
+                            </div>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                <select id="match-sel-solicitud-cargada" class="modern-input" style="flex:1; min-width:260px; font-size:12.5px; font-weight:600;">
+                                    <option value="">-- Selecciona una solicitud para autocompletar o buscar --</option>
+                                </select>
+                                <button type="button" id="btn-match-cargar-solicitud" class="btn-app btn-secondary" style="font-size:12px; height:36px; padding:0 12px; font-weight:700; background:white; color:#854d0e; border-color:#ca8a04;">
+                                    ⚡ Cargar Criterios
                                 </button>
                             </div>
                         </div>
@@ -714,6 +746,7 @@
             <button id="btn-bulk-copiar-bd" style="padding:6px 12px; font-size:12px; font-weight:700; border-radius:6px; background:#fff; border:1px solid var(--border-color); color:var(--text-main); cursor:pointer; display:none;">📋 Generar registro BD</button>
             <button id="btn-bulk-copiar-fact" style="padding:6px 12px; font-size:12px; font-weight:700; border-radius:6px; background:#fff; border:1px solid var(--border-color); color:var(--text-main); cursor:pointer; display:none;">💰 Generar registro Facturación</button>
             <button id="btn-bulk-suspender">Suspender</button>
+            <button id="btn-bulk-eliminar" style="display:none; padding:6px 12px; font-size:12px; font-weight:700; border-radius:6px; background:#ef4444; border:1px solid #dc2626; color:#ffffff; cursor:pointer;" title="Eliminar fichas seleccionadas (Solo Administrador)">🗑️ Eliminar</button>
             <button id="btn-bulk-cancelar">Cancelar</button>
         </div>
 
@@ -946,6 +979,7 @@
                     <div style="display:flex; gap:10px; align-items:center; width:100%;">
                         <button type="button" id="btn-modal-nueva-suscripcion" class="btn-secondary" style="display:none; flex:1;">➕ Nueva Suscripción</button>
                         <button type="submit" id="btn-submit-alumno" class="btn-primary" style="flex:2;">Guardar Alumno</button>
+                        <button type="button" id="btn-modal-eliminar-alumno" class="btn-secondary" style="display:none; color:var(--accent-red); border-color:var(--accent-red); font-weight:700; padding:0 14px;" title="Eliminar ficha permanentemente (Solo Administrador)">🗑️ Eliminar</button>
                     </div>
                 </div>
             </form>
@@ -1187,28 +1221,53 @@
         </div>
     </dialog>
 
-    <dialog id="modal-agenda" class="modern-modal" style="width: 95%; max-width: 600px;">
-        <div style="padding:24px;">
+    <dialog id="modal-agenda" class="modern-modal" style="width: 95%; max-width: 680px;">
+        <div style="padding:22px;">
             <div class="modal-drag-pill"></div>
-            <h3 style="margin:0 0 15px 0; color:var(--text-main); font-size:1.4em;">Buscar Disponibilidad</h3>
-            <div id="info-alumno-agenda" style="margin-bottom:15px; padding:15px; background:var(--hover-bg); border-radius:8px; display:none; border:1px solid var(--border-color);"></div>
-            <div id="agenda-instrumento-wrapper" style="margin-bottom:15px; display:none;">
-                <label style="font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:6px;">INSTRUMENTO PARA ESTA ENTREVISTA</label>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:18px;">🔍</span>
+                    <h3 style="margin:0; color:var(--text-main); font-size:1.3em; font-weight:800;">Buscar Disponibilidad</h3>
+                </div>
+            </div>
+
+            <!-- Resumen del Alumno y su Disponibilidad Semanal -->
+            <div id="info-alumno-agenda" style="display:none;"></div>
+
+            <div id="agenda-instrumento-wrapper" style="margin-bottom:12px; display:none;">
+                <label style="font-size:11.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">INSTRUMENTO PARA ESTA ENTREVISTA</label>
                 <select id="agenda-instrumento-select" class="modern-input"></select>
             </div>
-            <div style="margin-bottom: 15px; padding: 15px; background: var(--bg-main); border:1px solid var(--border-color); border-radius: 8px; display:flex; flex-direction:column; gap:15px;">
+
+            <div style="margin-bottom: 14px; padding: 14px; background: var(--bg-main); border:1px solid var(--border-color); border-radius: 10px; display:flex; flex-direction:column; gap:12px;">
                 <div style="display:flex; gap:10px;">
-                    <div style="flex:1;"><label>Desde:</label><input type="date" id="agenda-start" class="modern-input" required></div>
-                    <div style="flex:1;"><label>Hasta:</label><input type="date" id="agenda-end" class="modern-input" required></div>
+                    <div style="flex:1;"><label style="font-size:11.5px; font-weight:700; color:var(--text-muted); display:block; margin-bottom:4px;">Desde:</label><input type="date" id="agenda-start" class="modern-input" required></div>
+                    <div style="flex:1;"><label style="font-size:11.5px; font-weight:700; color:var(--text-muted); display:block; margin-bottom:4px;">Hasta:</label><input type="date" id="agenda-end" class="modern-input" required></div>
                 </div>
-                <div><label>Evaluador(es):</label><select id="agenda-profe-filtro" multiple style="display:none;"></select><div id="chips-profesores"></div></div>
-                <button id="btn-ejecutar-busqueda" class="btn-primary" style="height:42px;">Buscar Agenda</button>
+
+                <div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                        <label style="font-size:11.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.03em;">Evaluador(es) Disponibles:</label>
+                        <span style="font-size:11px; color:#0284c7; font-weight:600;">(Seleccioná para ver disponibilidad)</span>
+                    </div>
+                    <select id="agenda-profe-filtro" multiple style="display:none;"></select>
+                    <div id="chips-profesores"></div>
+                </div>
+
+                <!-- Panel Dinámico: Disponibilidad del Evaluador según Config -->
+                <div id="agenda-profe-schedule-box" style="display:none;"></div>
+
+                <button id="btn-ejecutar-busqueda" class="btn-primary" style="height:42px; font-weight:700; font-size:13.5px; display:flex; align-items:center; justify-content:center; gap:6px;">
+                    <span>🔎</span> Buscar Agenda
+                </button>
             </div>
-            <input type="text" id="input-buscador-popup" class="modern-input" placeholder="Filtrar resultados..." style="margin-bottom: 15px; display:none;">
-            <div id="resultados-agenda" style="margin-bottom:15px; max-height:40vh; overflow-y:auto;"></div>
-            <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-color); padding-top:15px; gap:10px;">
-                <button type="button" class="btn-cerrar-modal" data-modal="modal-agenda" style="padding:10px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted); flex:1;">Cerrar</button>
-                <button id="btn-procesar-seleccion-agenda" class="btn-primary" style="display:none; flex:2;">Copiar Texto y Avanzar</button>
+
+            <input type="text" id="input-buscador-popup" class="modern-input" placeholder="Filtrar resultados..." style="margin-bottom: 12px; display:none;">
+            <div id="resultados-agenda" style="margin-bottom:14px; max-height:38vh; overflow-y:auto;"></div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-color); padding-top:14px; gap:10px;">
+                <button type="button" class="btn-cerrar-modal" data-modal="modal-agenda" style="padding:9px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:700; color:var(--text-muted); flex:1;">Cerrar</button>
+                <button id="btn-procesar-seleccion-agenda" class="btn-primary" style="display:none; flex:2; padding:9px 16px; font-weight:700;">Copiar Texto y Avanzar</button>
             </div>
         </div>
     </dialog>
@@ -1711,88 +1770,133 @@
     <dialog id="modal-solicitar-vacante" class="modern-modal auto-height-modal" style="max-width:540px;">
         <div style="padding:24px;">
             <div class="modal-drag-pill"></div>
-            <h3 style="margin:0 0 10px 0; color:var(--text-main); font-weight:700;">➕ Solicitar Alumno / Vacante</h3>
-            <p style="color:var(--text-muted); font-size:0.9em; margin-bottom:15px; line-height:1.4;">Busca alumnos para completar un grupo existente o para abrir una nueva clase según tus horarios libres en agenda.</p>
+            <h3 id="sol-vac-modal-titulo" style="margin:0 0 8px 0; color:var(--text-main); font-weight:700; font-size:18px;">➕ Solicitar Alumno / Vacante</h3>
+            <p id="sol-vac-modal-subtitulo" style="color:var(--text-muted); font-size:0.88em; margin-bottom:15px; line-height:1.4;">Completá los datos para solicitar alumnos a Coordinación.</p>
             
+            <input type="hidden" id="sol-vac-id" value="">
             <input type="hidden" id="sol-vac-profe-id">
             <input type="hidden" id="sol-vac-profe-nombre">
             <input type="hidden" id="sol-vac-profe-email">
-            <input type="hidden" id="sol-vac-dia">
+            <input type="hidden" id="sol-vac-duracion-min" value="60">
 
-            <!-- Selector de Tipo de Solicitud -->
-            <div style="margin-bottom:15px; background:var(--hover-bg); padding:8px 12px; border-radius:10px; border:1px solid var(--border-color); display:flex; gap:16px;">
-                <label style="display:flex; align-items:center; gap:6px; margin:0; cursor:pointer; font-size:13px; font-weight:700; color:var(--text-main); text-transform:none;">
-                    <input type="radio" name="sol-vac-modo" id="sol-vac-modo-existente" value="existente" checked style="accent-color:var(--accent-teal);">
-                    👥 Grupo Existente
-                </label>
-                <label style="display:flex; align-items:center; gap:6px; margin:0; cursor:pointer; font-size:13px; font-weight:700; color:var(--text-main); text-transform:none;">
-                    <input type="radio" name="sol-vac-modo" id="sol-vac-modo-nuevo" value="nuevo" style="accent-color:var(--accent-teal);">
-                    ✨ Iniciar Nueva Clase / Grupo de Cero
-                </label>
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:14px;">
-                <!-- Sección: Grupo Existente -->
-                <div id="sol-vac-sec-existente">
-                    <label>Grupo / Ensamble:
-                        <select id="sol-vac-grupo" class="modern-input"></select>
+            <!-- 1. Modalidad: Clase Individual vs Grupo / Ensamble -->
+            <div style="margin-bottom:14px;">
+                <label style="display:block; font-size:11.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;">Modalidad de Clase</label>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                    <label id="sol-vac-lbl-ind" style="display:flex; align-items:center; justify-content:center; gap:8px; padding:10px; border-radius:10px; border:1px solid var(--border-color); cursor:pointer; background:var(--card-bg); font-weight:700; font-size:13px; color:var(--text-main); transition:all 0.2s ease;">
+                        <input type="radio" name="sol-vac-modalidad" id="sol-vac-mod-ind" value="individual" style="accent-color:var(--accent-teal);">
+                        <span>Clase Individual</span>
                     </label>
-                    <div style="margin-top:10px;">
-                        <label>Horario del Grupo:
-                            <input type="text" id="sol-vac-horario" class="modern-input" placeholder="Ej: Jueves 19:00 a 20:30" readonly style="background:var(--hover-bg);">
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Sección: Nueva Clase de Cero (Horarios Libres de Agenda) -->
-                <div id="sol-vac-sec-nuevo" style="display:none; background:rgba(0,123,143,0.04); border:1px solid rgba(0,123,143,0.2); border-radius:10px; padding:14px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                        <label style="margin:0; font-weight:700; font-size:12.5px; color:var(--accent-teal);">📅 Horarios Libres en tu Agenda (Lunes a Sábado):</label>
-                        <button type="button" id="btn-recargar-slots-docente" style="background:none; border:none; cursor:pointer; font-size:12px; color:var(--accent-teal); font-weight:600;">🔄 Actualizar</button>
-                    </div>
-                    <select id="sol-vac-slot-libre" class="modern-input" style="font-size:13px;">
-                        <option value="">Cargando disponibilidad y calendario...</option>
-                    </select>
-                    <div style="font-size:11px; color:var(--text-muted); margin-top:5px;">⭐ = Horario recomendado contiguo a otra clase ya agendada en tu calendario.</div>
-
-                    <div style="margin-top:10px;">
-                        <label style="font-size:12px;">Nombre de la Nueva Clase / Grupo:
-                            <input type="text" id="sol-vac-nuevo-nombre" class="modern-input" placeholder="Ej: J18.00 Pablo (Ensamble Rock)">
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Instrumentos Requeridos (Multi-selección) -->
-                <div>
-                    <label style="display:block; margin-bottom:6px;">Instrumentos Buscados (puedes seleccionar más de uno):</label>
-                    <div id="sol-vac-instrumentos-container" style="display:flex; flex-wrap:wrap; gap:8px; background:var(--hover-bg); padding:10px; border-radius:10px; border:1px solid var(--border-color); max-height:140px; overflow-y:auto;">
-                        <span style="color:var(--text-muted); font-size:12px;">Cargando instrumentos...</span>
-                    </div>
-                </div>
-
-                <!-- Niveles Sugeridos (Multi-selección) -->
-                <div>
-                    <label style="display:block; margin-bottom:6px;">Niveles Sugeridos (puedes seleccionar más de uno):</label>
-                    <div id="sol-vac-niveles-container" style="display:flex; flex-wrap:wrap; gap:8px;">
-                        <button type="button" class="btn-chip-nivel active" data-nivel="Cualquiera" style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:700; border:1px solid var(--accent-teal); background:var(--accent-teal); color:#fff; cursor:pointer;">✨ Cualquiera</button>
-                        <button type="button" class="btn-chip-nivel" data-nivel="Inicial" style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:600; border:1px solid var(--border-color); background:#fff; color:var(--text-main); cursor:pointer;">🌱 Inicial</button>
-                        <button type="button" class="btn-chip-nivel" data-nivel="Nivel 1" style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:600; border:1px solid var(--border-color); background:#fff; color:var(--text-main); cursor:pointer;">🎸 Nivel 1</button>
-                        <button type="button" class="btn-chip-nivel" data-nivel="Nivel 2" style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:600; border:1px solid var(--border-color); background:#fff; color:var(--text-main); cursor:pointer;">⚡ Nivel 2</button>
-                        <button type="button" class="btn-chip-nivel" data-nivel="Avanzado" style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:600; border:1px solid var(--border-color); background:#fff; color:var(--text-main); cursor:pointer;">🏆 Avanzado</button>
-                    </div>
-                </div>
-
-                <!-- Observaciones -->
-                <div>
-                    <label>Observaciones / Perfil Deseado:
-                        <textarea id="sol-vac-obs" rows="3" class="modern-input" placeholder="Ej: Buscamos bajista con buena onda para temas de blues y rock..."></textarea>
+                    <label id="sol-vac-lbl-grp" style="display:flex; align-items:center; justify-content:center; gap:8px; padding:10px; border-radius:10px; border:1px solid var(--accent-teal); cursor:pointer; background:rgba(0,123,143,0.06); font-weight:700; font-size:13px; color:var(--text-main); transition:all 0.2s ease;">
+                        <input type="radio" name="sol-vac-modalidad" id="sol-vac-mod-grp" value="grupo" checked style="accent-color:var(--accent-teal);">
+                        <span>Grupo / Ensamble</span>
                     </label>
                 </div>
             </div>
 
-            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px; border-top:1px solid var(--border-color); padding-top:15px;">
-                <button type="button" class="btn-cerrar-modal" data-modal="modal-solicitar-vacante" style="padding:10px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted);">Cancelar</button>
-                <button id="btn-guardar-solicitar-vacante" class="btn-primary">Enviar Solicitud</button>
+            <!-- 2. Tipo de Grupo (Visible solo si es Grupo) -->
+            <div id="sol-vac-sec-tipo-grupo" style="margin-bottom:14px;">
+                <label style="display:block; font-size:11.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;">Tipo de Grupo</label>
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+                    <button type="button" class="btn-sol-tipo-grupo active" data-tipo="Clase Grupal" data-dur="60" style="padding:8px 4px; border-radius:8px; border:1px solid var(--accent-teal); background:var(--accent-teal); color:#fff; font-size:12px; font-weight:700; cursor:pointer; text-align:center;">
+                        Clase Grupal
+                        <span class="btn-sol-subtexto" style="display:block; font-size:10px; font-weight:400; opacity:0.9;">60 min</span>
+                    </button>
+                    <button type="button" class="btn-sol-tipo-grupo" data-tipo="Ensamble" data-dur="60" style="padding:8px 4px; border-radius:8px; border:1px solid var(--border-color); background:#fff; color:var(--text-main); font-size:12px; font-weight:700; cursor:pointer; text-align:center;">
+                        Ensamble
+                        <span class="btn-sol-subtexto" style="display:block; font-size:10px; font-weight:400; color:var(--text-muted);">60 min</span>
+                    </button>
+                    <button type="button" class="btn-sol-tipo-grupo" data-tipo="Ensamble Mandalorian" data-dur="90" style="padding:8px 4px; border-radius:8px; border:1px solid var(--border-color); background:#fff; color:var(--text-main); font-size:12px; font-weight:700; cursor:pointer; text-align:center;">
+                        Mandalorian
+                        <span class="btn-sol-subtexto" style="display:block; font-size:10px; font-weight:700; color:#9333ea;">90 min (1.5h)</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 3. Horario libre + Nomenclatura -->
+            <div style="background:var(--hover-bg); padding:12px; border-radius:10px; border:1px solid var(--border-color); margin-bottom:14px; display:flex; flex-direction:column; gap:10px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+                    <div>
+                        <label style="display:block; font-size:11px; font-weight:600; color:var(--text-muted); margin-bottom:4px;">Día</label>
+                        <select id="sol-vac-dia-sel" class="modern-input" style="padding:6px; font-size:12px; font-weight:700;">
+                            <option value="L">Lunes (L)</option>
+                            <option value="M" selected>Martes (M)</option>
+                            <option value="X">Miércoles (X)</option>
+                            <option value="J">Jueves (J)</option>
+                            <option value="V">Viernes (V)</option>
+                            <option value="S">Sábado (S)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:11px; font-weight:600; color:var(--text-muted); margin-bottom:4px;">Hora Inicio</label>
+                        <input type="time" id="sol-vac-hora-sel" value="18:30" class="modern-input" style="padding:6px; font-size:12px; font-weight:700;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:11px; font-weight:600; color:var(--text-muted); margin-bottom:4px;">Duración de Clase</label>
+                        <input type="text" id="sol-vac-duracion-texto" value="60 min" readonly class="modern-input" style="padding:6px; font-size:12px; font-weight:700; text-align:center; background:var(--item-bg); color:var(--text-muted);">
+                    </div>
+                </div>
+
+                <div style="padding-top:8px; border-top:1px solid var(--border-color);">
+                    <label id="sol-vac-nombre-label" style="display:flex; justify-content:space-between; font-size:11.5px; font-weight:700; color:var(--text-main); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;">
+                        <span>NOMBRE DEL GRUPO</span>
+                        <span style="font-size:10.5px; text-transform:none; font-weight:500; color:var(--accent-teal);">Auto-generado (editable)</span>
+                    </label>
+                    <input type="text" id="sol-vac-nombre-input" class="modern-input" placeholder="Ej: M18.30 Guido" style="font-family:monospace; font-weight:700; font-size:13.5px; letter-spacing:0.02em;">
+                </div>
+            </div>
+
+            <!-- 4. Instrumentos Requeridos -->
+            <div style="margin-bottom:14px;">
+                <label style="display:block; font-size:11.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;">Instrumentos Buscados (puedes seleccionar más de uno):</label>
+                <div id="sol-vac-instrumentos-container" style="display:flex; flex-wrap:wrap; gap:6px; background:var(--hover-bg); padding:10px; border-radius:10px; border:1px solid var(--border-color); max-height:120px; overflow-y:auto;">
+                    <span style="color:var(--text-muted); font-size:12px;">Cargando instrumentos...</span>
+                </div>
+            </div>
+
+            <!-- 5. Niveles Sugeridos -->
+            <div style="margin-bottom:14px;">
+                <label style="display:block; font-size:11.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;">Niveles Sugeridos (puedes seleccionar más de uno):</label>
+                <div id="sol-vac-niveles-container" style="display:flex; flex-wrap:wrap; gap:6px;">
+                    <button type="button" class="btn-chip-nivel active" data-nivel="Cualquiera" style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:700; border:1px solid var(--accent-teal); background:var(--accent-teal); color:#fff; cursor:pointer;">✨ Cualquiera</button>
+                    <button type="button" class="btn-chip-nivel" data-nivel="Inicial I" style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:600; border:1px solid var(--border-color); background:#fff; color:var(--text-main); cursor:pointer;">🌱 Inicial I</button>
+                    <button type="button" class="btn-chip-nivel" data-nivel="Inicial II" style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:600; border:1px solid var(--border-color); background:#fff; color:var(--text-main); cursor:pointer;">🌿 Inicial II</button>
+                    <button type="button" class="btn-chip-nivel" data-nivel="Intermedio" style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:600; border:1px solid var(--border-color); background:#fff; color:var(--text-main); cursor:pointer;">⚡ Intermedio</button>
+                    <button type="button" class="btn-chip-nivel" data-nivel="Avanzado" style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:600; border:1px solid var(--border-color); background:#fff; color:var(--text-main); cursor:pointer;">🏆 Avanzado</button>
+                </div>
+            </div>
+
+            <!-- 6. Rango de Edad Buscado (Opcional) -->
+            <div style="margin-bottom:14px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <label style="display:block; font-size:11.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0;">Rango de Edad Buscado (Opcional):</label>
+                    <span style="font-size:10.5px; color:var(--text-light); font-weight:500;">Dejar vacío si no aplica</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <input type="number" id="sol-vac-edad-min" class="modern-input" placeholder="Desde" min="3" max="99" style="width:90px; padding:6px 10px; font-size:13px;">
+                    <span style="color:var(--text-muted); font-weight:600;">a</span>
+                    <input type="number" id="sol-vac-edad-max" class="modern-input" placeholder="Hasta" min="3" max="99" style="width:90px; padding:6px 10px; font-size:13px;">
+                    <span style="font-size:13px; color:var(--text-muted); font-weight:500;">años</span>
+                </div>
+            </div>
+
+            <!-- 7. Observaciones -->
+            <div style="margin-bottom:16px;">
+                <label style="display:block; font-size:11.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;">Observaciones / Perfil Deseado:</label>
+                <textarea id="sol-vac-obs" rows="2" class="modern-input" placeholder="Ej: Buscamos bajista con buena onda para temas de blues y rock..."></textarea>
+            </div>
+
+            <!-- Acciones -->
+            <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-color); padding-top:14px; width:100%; flex-wrap:wrap; gap:10px;">
+                <div>
+                    <button type="button" id="btn-eliminar-solicitar-vacante" class="row-quick-btn danger" style="display:none; padding:8px 14px; font-size:12.5px; font-weight:700;">
+                        🗑️ Eliminar Solicitud
+                    </button>
+                </div>
+                <div style="display:flex; gap:10px; margin-left:auto;">
+                    <button type="button" class="btn-cerrar-modal" data-modal="modal-solicitar-vacante" style="padding:8px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted);">Cancelar</button>
+                    <button id="btn-guardar-solicitar-vacante" class="btn-primary" style="padding:8px 18px; font-weight:700;">Enviar Solicitud</button>
+                </div>
             </div>
         </div>
     </dialog>
@@ -2318,12 +2422,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=5.9.23"></script>
+    <script type="module" src="app.js?v=6.2.1"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=5.9.23').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=6.2.1').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {
