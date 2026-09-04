@@ -2,7 +2,7 @@
 // src/modules/dashboard.module.js -- Metricas, Timeline interactivo & Charts
 // =======================================================================
 
-import { configNodosFlujo } from "../config/constants.js";
+import { configNodosFlujo, esAlumnoAltaFinalizada } from "../config/constants.js?v=6.5.1";
 import { db, collection, getDocs } from "../config/firebase.js";
 
 let chartFlowInst = null;
@@ -221,7 +221,7 @@ export async function renderCharts(callbacks = {}) {
         let entConf = allData.filter(d => d.estado_agenda === 'Agenda confirmada').length;
         let entSusp = allData.filter(d => d.estado_agenda === 'Agenda suspendida').length;
 
-        let altFin  = allData.filter(d => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5)).length;
+        let altFin  = allData.filter(d => esAlumnoAltaFinalizada(d)).length;
         let altSusp = allData.filter(d => d.estado_agenda === 'Alta Suspendida').length;
 
         const instrMap = {};

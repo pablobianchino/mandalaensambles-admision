@@ -3,6 +3,7 @@
 // =======================================================================
 
 import { getEmojiInstrumento } from "./altas.module.js";
+import { esAlumnoAltaFinalizada } from "../config/constants.js?v=6.5.1";
 import { db, doc, updateDoc } from "../config/firebase.js";
 
 export function getEstadoYBadge(al, getFechaReferenciaAlumno) {
@@ -22,7 +23,7 @@ export function getEstadoYBadge(al, getFechaReferenciaAlumno) {
         txtEstado = 'PENDIENTE VALIDACIÓN POR ALUMNO';
         colorBadge = 'bg-blue-3';
         colorIndicador = 'ind-blue-3';
-    } else if (est === 'agenda confirmada') {
+    } else if (est === 'agenda confirmada' || est === 'entrevista confirmada' || est.startsWith('entrevista')) {
         txtEstado = 'ENTREVISTA CONFIRMADA';
         colorBadge = 'bg-blue-4';
         colorIndicador = 'ind-blue-4';
@@ -31,11 +32,11 @@ export function getEstadoYBadge(al, getFechaReferenciaAlumno) {
         colorBadge = 'bg-amber';
         colorIndicador = 'ind-amber';
     } else if (est === 'validando grupo') {
-        txtEstado = 'GRUPOS EN VALIDACIÓN';
+        txtEstado = 'GRUPO EN VALIDACIÓN';
         colorBadge = 'bg-purple';
         colorIndicador = 'ind-purple';
     } else if (est === 'pre-alta pendiente') {
-        txtEstado = 'ALTA PENDIENTE';
+        txtEstado = 'PRE-ALTA PENDIENTE';
         colorBadge = 'bg-green-1';
         colorIndicador = 'ind-green-1';
     } else if (est === 'pre-alta iniciada') {
@@ -47,8 +48,7 @@ export function getEstadoYBadge(al, getFechaReferenciaAlumno) {
         colorBadge = 'bg-green-3';
         colorIndicador = 'ind-green-3';
     } else if (est === 'alta efectiva' || est === 'alta ilegal' || est === 'alta finalizada') {
-        let checks = al.checklist_alta || [];
-        if (checks.filter(Boolean).length === 5 || est === 'alta finalizada') {
+        if (esAlumnoAltaFinalizada(al)) {
             colorBadge = 'bg-green-4';
             txtEstado = 'ALTA FINALIZADA';
             colorIndicador = 'ind-green-4';
@@ -144,11 +144,10 @@ export function generarBotonesPrincipalesVisibles(al, id) {
         html += `<button type="button" class="row-quick-btn primary btn-abrir-prealta" data-id="${id}">⚙️ Iniciar Pre-Alta</button>`;
         html += `<button type="button" class="row-quick-btn secondary btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
     } else if (est === 'pre-alta iniciada') {
-        html += `<button type="button" class="row-quick-btn primary btn-abrir-confirmar-alta" data-id="${id}">✅ Confirmar Alta</button>`;
+        html += `<button type="button" class="row-quick-btn primary btn-abrir-confirmar-alta" data-id="${id}">💳 Suscripción Abonada</button>`;
         html += `<button type="button" class="row-quick-btn secondary btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${al.grupo_asignado||''}">✏️ Editar Pre-Alta</button>`;
     } else if (est === 'alta efectiva' || est === 'alta ilegal' || est === 'alta finalizada') {
-        let checks = al.checklist_alta || [];
-        const esFinalizada = checks.filter(Boolean).length === 5 || est === 'alta finalizada';
+        const esFinalizada = esAlumnoAltaFinalizada(al);
         if (!esFinalizada) {
             html += `<button type="button" class="row-quick-btn primary btn-finalizar-alta-directa" data-id="${id}">🏁 Finalizar Alta</button>`;
         }
@@ -234,7 +233,7 @@ export function generarBotonesAccion(al, id, esModal = false) {
             html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
             html += `<button type="button" class="btn-action-neutral btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
         } else if (est === 'pre-alta iniciada') {
-            html += `<button type="button" class="btn-action-primary btn-abrir-confirmar-alta" data-id="${id}">✅ Confirmar Alta</button>`;
+            html += `<button type="button" class="btn-action-primary btn-abrir-confirmar-alta" data-id="${id}">💳 Suscripción Abonada</button>`;
             html += `<button type="button" class="btn-action-neutral btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${al.grupo_asignado||''}">✏️ Editar Pre-Alta</button>`;
             html += `<button type="button" class="btn-action-neutral btn-aviso-prealta-alumno" data-id="${id}">💬 WhatsApp Pre-Alta Alumno</button>`;
             html += `<button type="button" class="btn-action-neutral btn-reenviar-prealta" data-id="${id}">💬 WhatsApp Pre-Alta Docente</button>`;
@@ -242,8 +241,7 @@ export function generarBotonesAccion(al, id, esModal = false) {
             html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
             html += `<button type="button" class="btn-action-neutral btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
         } else if (est === 'alta efectiva' || est === 'alta ilegal' || est === 'alta finalizada') {
-            let checks = al.checklist_alta || [];
-            const esFinalizada = checks.filter(Boolean).length === 5 || est === 'alta finalizada';
+            const esFinalizada = esAlumnoAltaFinalizada(al);
             if (!esFinalizada) {
                 html += `<button type="button" class="btn-action-primary btn-finalizar-alta-directa" data-id="${id}">🏁 Finalizar Alta</button>`;
             }

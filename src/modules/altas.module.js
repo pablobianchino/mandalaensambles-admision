@@ -22,7 +22,7 @@ import {
     eliminarEventoAltaSeguro,
     validarConflictoCalendarEnVivo,
     obtenerEventosProfesoresParaSlot
-} from "../services/calendar.service.js?v=6.2.1";
+} from "../services/calendar.service.js?v=6.5.1";
 import { calcularProximaFechaDiaHora } from "./match.module.js";
 import { parsearNomenclaturaGrupoOClase } from "./profesor.module.js";
 
@@ -1209,7 +1209,7 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
         }
 
         if (!al.fecha_prealta) updates.fecha_prealta = new Date().toISOString();
-        if (!al.checklist_alta && !esAltaPrevia) updates.checklist_alta = [false, false, false, false, false];
+        if (!al.checklist_alta && !esAltaPrevia) updates.checklist_alta = [false, false, false, false];
         
         const hist = al.historial || [];
         const fnHist = window.crearEntradaHistorial || ((txt, tipo) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema' }));

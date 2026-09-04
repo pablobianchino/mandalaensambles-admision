@@ -2,7 +2,7 @@
 // src/config/constants.js — Constantes globales del sistema
 // =======================================================================
 
-export const APP_VERSION = "v6.2.1";
+export const APP_VERSION = "v6.5.1";
 export const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 export const firebaseConfig = {
@@ -69,20 +69,38 @@ export const defaultCfg = {
     perfil_psicologico_opciones: ['😊 Buena onda', '🙈 Tímido', '🎉 Extrovertido', '🦄 Raro', '🗣️ Muy hablador', '🌱 Humilde']
 };
 
+export function esAlumnoAltaFinalizada(d) {
+    if (!d) return false;
+    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    if (st === 'alta finalizada') return true;
+    if (st !== 'alta efectiva' && st !== 'alta ilegal') return false;
+    const checks = d.checklist_alta;
+    if (!Array.isArray(checks) || checks.length === 0) return false;
+    const completados = checks.filter(Boolean).length;
+    return (checks.length === 5 && completados === 5) || (checks.length === 4 && completados === 4) || (completados >= 4);
+}
+
+export function esAlumnoAltaConfirmadaIncompleta(d) {
+    if (!d) return false;
+    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    if (st !== 'alta efectiva' && st !== 'alta ilegal') return false;
+    return !esAlumnoAltaFinalizada(d);
+}
+
 export const configNodosFlujo = [
     { id: 'Pendiente procesar', label: 'Sin Agendar', icon: '⏳', color: 'node-blue-1', hexColor: '#74a9d8', vistaDestino: 'Inbox - Pendientes', filterFn: (d) => {
         const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
         return st === 'pendiente procesar' || st === 'sin agendar';
     }},
-    { id: 'Pendiente validación por profe', label: 'Validando con Evaluador', icon: '👨‍🏫', color: 'node-blue-2', hexColor: '#4a8cd2', vistaDestino: 'Inbox - En Validacion', filterFn: (d) => {
+    { id: 'Pendiente validación por profe', label: 'Validando con Evaluador', icon: '👨‍🏫', color: 'node-blue-2', hexColor: '#4a8cd2', vistaDestino: 'Inbox - Validar Evaluador', filterFn: (d) => {
         const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
         return st === 'pendiente validacion por profe' || st === 'pendiente validacion por evaluador';
     }},
-    { id: 'Pendiente validación por alumno', label: 'Validando con Alumno', icon: '🧑‍🎓', color: 'node-blue-3', hexColor: '#256bbb', vistaDestino: 'Inbox - En Validacion', filterFn: (d) => {
+    { id: 'Pendiente validación por alumno', label: 'Validando con Alumno', icon: '🧑‍🎓', color: 'node-blue-3', hexColor: '#256bbb', vistaDestino: 'Inbox - Validar Alumno', filterFn: (d) => {
         const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
         return st === 'pendiente validacion por alumno';
     }},
-    { id: 'Agenda confirmada', label: 'Entrevista Confirmada', icon: '✅', color: 'node-blue-4', hexColor: '#134b8c', vistaDestino: 'Inbox - Confirmadas', filterFn: (d) => {
+    { id: 'Agenda confirmada', label: 'Entrevistas Confirmadas', icon: '✅', color: 'node-blue-4', hexColor: '#134b8c', vistaDestino: 'Inbox - Confirmadas', filterFn: (d) => {
         const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
         return st === 'agenda confirmada' || st === 'entrevista confirmada';
     }},
@@ -103,12 +121,10 @@ export const configNodosFlujo = [
         return st === 'pre-alta iniciada';
     }},
     { id: 'Altas Incompletas', label: 'Altas Confirmadas Incompletas', icon: '⚠️', color: 'node-green-3', hexColor: '#1b7f47', vistaDestino: 'Altas - Confirmadas', filterFn: (d) => {
-        const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-        return (st === 'alta efectiva' || st === 'alta ilegal' || st === 'alta finalizada') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5);
+        return esAlumnoAltaConfirmadaIncompleta(d);
     }},
     { id: 'Altas Finalizadas', label: 'Altas Finalizadas', icon: '🏆', color: 'node-green-4', hexColor: '#0d5c30', vistaDestino: 'Altas - Finalizadas', filterFn: (d) => {
-        const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-        return (st === 'alta efectiva' || st === 'alta ilegal' || st === 'alta finalizada') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5);
+        return esAlumnoAltaFinalizada(d);
     }}
 ];
 
@@ -130,12 +146,10 @@ export const configNodosFlujoCoordinador = [
         return st === 'pre-alta iniciada';
     }},
     { id: 'Altas Incompletas', label: 'Altas Confirmadas Incompletas', icon: '⚠️', color: 'node-green-3', hexColor: '#1b7f47', vistaDestino: 'Altas - Confirmadas', filterFn: (d) => {
-        const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-        return (st === 'alta efectiva' || st === 'alta ilegal' || st === 'alta finalizada') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5);
+        return esAlumnoAltaConfirmadaIncompleta(d);
     }},
     { id: 'Altas Finalizadas', label: 'Altas Finalizadas', icon: '🏆', color: 'node-green-4', hexColor: '#0d5c30', vistaDestino: 'Altas - Finalizadas', filterFn: (d) => {
-        const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-        return (st === 'alta efectiva' || st === 'alta ilegal' || st === 'alta finalizada') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5);
+        return esAlumnoAltaFinalizada(d);
     }}
 ];
 

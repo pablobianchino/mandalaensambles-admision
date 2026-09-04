@@ -10,8 +10,10 @@ import {
     defaultCfg, 
     configNodosFlujo,
     configNodosFlujoEvaluador,
-    configNodosFlujoCoordinador
-} from "./src/config/constants.js?v=6.2.1";
+    configNodosFlujoCoordinador,
+    esAlumnoAltaFinalizada,
+    esAlumnoAltaConfirmadaIncompleta
+} from "./src/config/constants.js?v=6.5.1";
 
 import { 
     app, 
@@ -32,7 +34,7 @@ import {
     GoogleAuthProvider, 
     onAuthStateChanged, 
     signOut 
-} from "./src/config/firebase.js?v=6.2.1";
+} from "./src/config/firebase.js?v=6.5.1";
 
 import {
     limpiarHoraParaChip,
@@ -46,7 +48,7 @@ import {
     extraerDisponibilidadMultiRango,
     normalizarHora,
     inicializarAutocompletadoHorarios
-} from "./src/ui/horarios.ui.js?v=6.2.1";
+} from "./src/ui/horarios.ui.js?v=6.5.1";
 
 import {
     getEmojiInstrumento,
@@ -73,7 +75,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=6.2.1";
+} from "./src/services/calendar.service.js?v=6.5.1";
 
 import {
     matchCantidadActual,
@@ -106,11 +108,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=6.2.1";
+} from "./src/modules/match.module.js?v=6.5.1";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=6.2.1";
+} from "./src/modules/profesor.module.js?v=6.5.1";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -128,14 +130,14 @@ import {
     copiarFilaExcelFacturacionAdmision,
     abrirModalAvisoPrealtaAlumno,
     copiarAvisoPrealtaAlumno
-} from "./src/modules/altas.module.js?v=6.2.1";
+} from "./src/modules/altas.module.js?v=6.5.1";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=6.2.1";
+} from "./src/modules/dashboard.module.js?v=6.5.1";
 
 import {
     renderConfigHub,
@@ -144,20 +146,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=6.2.1";
+} from "./src/modules/abm.module.js?v=6.5.1";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=6.2.1";
+} from "./src/modules/inbox.module.js?v=6.5.1";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=6.2.1";
+} from "./src/modules/csv.module.js?v=6.5.1";
 
 let agrupadorActual = 'ninguno';
 let filtrosSeleccionados = {
@@ -1801,7 +1803,10 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
         const tiene = Array.isArray(rangos) && rangos.length > 0;
         const txt = tiene ? formatearDiaCompletoChips(rangos, configApp.hora_apertura || '09:00', configApp.hora_cierre || '22:00') : '-';
         const esActivo = tiene && txt !== '-';
-        dispHtml += `<div class="disp-box ${esActivo ? 'active' : ''}"><div class="disp-day">${d.id}</div><div class="disp-time">${txt}</div></div>`;
+        const esFlex = txt === 'Flex';
+        const esLibre = txt === 'Libre';
+        const extraClass = esFlex ? 'is-flex' : (esLibre ? 'is-libre' : '');
+        dispHtml += `<div class="disp-box ${esActivo ? 'active' : ''} ${extraClass}"><div class="disp-day">${d.id}</div><div class="disp-time">${txt}</div></div>`;
     });
     dispHtml += '</div></div>';
 
@@ -1860,24 +1865,24 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
     let checklistHtml = '';
     const esAltaConfirmadaOFinalizada = al.estado_agenda === 'Alta Efectiva' || al.estado_agenda === 'Alta Ilegal' || al.estado_agenda === 'Alta Finalizada';
     if (esAltaConfirmadaOFinalizada || al.checklist_alta) {
-        const checks = al.checklist_alta || [false, false, false, false, false];
+        let rawChecks = al.checklist_alta || [false, false, false, false];
+        let checks = rawChecks.length === 5 ? rawChecks.slice(1) : (rawChecks.length === 4 ? rawChecks : [false, false, false, false]);
         const pasostitulos = [
-            '1. Suscripción abonada',
-            '2. Carga en Sistema',
-            '3. Profesor notificado',
-            '4. Bienvenida a alumno',
-            '5. Alumno en grupo WhatsApp'
+            '1. Carga en Sistema',
+            '2. Profesor notificado',
+            '3. Bienvenida a alumno',
+            '4. Alumno en grupo WhatsApp'
         ];
         const completados = checks.filter(Boolean).length;
-        const porcentaje = Math.round((completados / 5) * 100);
-        const barColor = completados === 5 ? 'var(--accent-teal)' : (completados >= 3 ? '#e5a93d' : 'var(--accent-red)');
+        const porcentaje = Math.round((completados / 4) * 100);
+        const barColor = completados === 4 ? 'var(--accent-teal)' : (completados >= 2 ? '#e5a93d' : 'var(--accent-red)');
 
         checklistHtml = `
             <div id="chk-wrapper-${id}" class="alta-checklist-wrapper" style="margin-top:4px; margin-bottom:4px; padding:8px 12px; background:var(--hover-bg); border-radius:10px; border:1px solid var(--border-color); cursor:pointer; min-width:215px; user-select:none;" onclick="event.stopPropagation(); window.toggleChecklistPill(this);" title="Clic para ver o completar los pasos del checklist">
                 <div style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:12px;">
                     <div style="display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:var(--text-main);">
                         <span id="chk-icon-${id}" style="font-size:9px; color:#64748b; transition:transform 0.2s ease; display:inline-block;">▶</span>
-                        <span id="chk-title-${id}">📋 Checklist de Alta (${completados}/5)</span>
+                        <span id="chk-title-${id}">📋 Checklist de Alta (${completados}/4)</span>
                     </div>
                     <span id="chk-pct-${id}" style="color:${barColor}; font-size:11.5px; font-weight:800; margin-left:auto; padding-left:16px; white-space:nowrap;">${porcentaje}%</span>
                 </div>
@@ -3558,7 +3563,7 @@ function getModuloSubtabs() {
                 icon: '🚀', 
                 countFn: (alumnos) => alumnos.filter(d => {
                     const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-                    return st === 'pre-alta pendiente' || st === 'pre-alta iniciada' || ((st === 'alta efectiva' || st === 'alta ilegal') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5));
+                    return st === 'pre-alta pendiente' || st === 'pre-alta iniciada' || esAlumnoAltaConfirmadaIncompleta(d);
                 }).length 
             }
         ];
@@ -3607,7 +3612,7 @@ function getModuloSubtabs() {
                 icon: '🚀', 
                 countFn: (alumnos) => alumnos.filter(d => {
                     const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-                    return st === 'pre-alta pendiente' || st === 'pre-alta iniciada' || ((st === 'alta efectiva' || st === 'alta ilegal') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5));
+                    return st === 'pre-alta pendiente' || st === 'pre-alta iniciada' || esAlumnoAltaConfirmadaIncompleta(d);
                 }).length 
             }
         ];
@@ -3618,8 +3623,8 @@ function getModuloSubtabs() {
         'Altas': [
             { vista: 'Altas - Pendientes', label: 'Pendientes', icon: '📝', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'pre-alta pendiente').length },
             { vista: 'Altas - En Curso', label: 'En Curso', icon: '🚀', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'pre-alta iniciada').length },
-            { vista: 'Altas - Confirmadas', label: 'Confirmadas', icon: '⚠️', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5)).length },
-            { vista: 'Altas - Finalizadas', label: 'Finalizadas', icon: '🏆', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda === 'Alta Efectiva' || d.estado_agenda === 'Alta Ilegal' || d.estado_agenda === 'Alta Finalizada') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5)).length }
+            { vista: 'Altas - Confirmadas', label: 'Confirmadas', icon: '⚠️', countFn: (alumnos) => alumnos.filter(d => esAlumnoAltaConfirmadaIncompleta(d)).length },
+            { vista: 'Altas - Finalizadas', label: 'Finalizadas', icon: '🏆', countFn: (alumnos) => alumnos.filter(d => esAlumnoAltaFinalizada(d)).length }
         ],
         'Suspendidos': [
             { vista: 'Suspendidos - Todos', label: 'Todos', icon: '⏸️', countFn: (alumnos) => alumnos.filter(d => isAlumnoSuspendido(d)).length },
@@ -4583,7 +4588,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
             } else if (vista === 'Inbox - Altas Pendientes') {
                 dataFiltrada = allData.filter(d => {
                     const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-                    return st === 'pre-alta pendiente' || st === 'pre-alta iniciada' || ((st === 'alta efectiva' || st === 'alta ilegal') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5));
+                    return st === 'pre-alta pendiente' || st === 'pre-alta iniciada' || esAlumnoAltaConfirmadaIncompleta(d);
                 });
             } else if (vista === 'Inbox - En Validacion') {
                 const fuente = esSoloEval ? filtrarAlumnosEvaluador(allData) : allData;
@@ -4596,15 +4601,9 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
             } else if (vista === 'Altas - En Curso') {
                 dataFiltrada = allData.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() === 'pre-alta iniciada');
             } else if (vista === 'Altas - Confirmadas') {
-                dataFiltrada = allData.filter(d => {
-                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-                    return (st === 'alta efectiva' || st === 'alta ilegal') && (!d.checklist_alta || d.checklist_alta.filter(Boolean).length < 5);
-                });
+                dataFiltrada = allData.filter(d => esAlumnoAltaConfirmadaIncompleta(d));
             } else if (vista === 'Altas - Finalizadas') {
-                dataFiltrada = allData.filter(d => {
-                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-                    return (st === 'alta efectiva' || st === 'alta ilegal' || st === 'alta finalizada') && (d.checklist_alta && d.checklist_alta.filter(Boolean).length === 5);
-                });
+                dataFiltrada = allData.filter(d => esAlumnoAltaFinalizada(d));
             }
             renderListaFilas('lista-generica', dataFiltrada, 'all', null);
         } catch(e) {}
@@ -5147,15 +5146,16 @@ document.addEventListener('change', async (e) => {
         const id = e.target.getAttribute('data-id'), idx = parseInt(e.target.getAttribute('data-idx'), 10);
         try {
             const docRef = doc(db, "alumnos", id), alDoc = await getDoc(docRef), al = alDoc.data();
-            let checks = al.checklist_alta || [false, false, false, false, false]; 
+            let rawChecks = al.checklist_alta || [false, false, false, false];
+            let checks = rawChecks.length === 5 ? rawChecks.slice(1) : (rawChecks.length === 4 ? [...rawChecks] : [false, false, false, false]);
             checks[idx] = e.target.checked;
             
             const completados = checks.filter(Boolean).length;
-            const porcentaje = Math.round((completados / 5) * 100);
-            const barColor = completados === 5 ? 'var(--accent-teal)' : (completados >= 3 ? '#e5a93d' : 'var(--accent-red)');
+            const porcentaje = Math.round((completados / 4) * 100);
+            const barColor = completados === 4 ? 'var(--accent-teal)' : (completados >= 2 ? '#e5a93d' : 'var(--accent-red)');
 
             // Actualización visual reactiva instantánea en el DOM (todas las instancias del alumno)
-            document.querySelectorAll(`[id="chk-title-${id}"]`).forEach(el => el.textContent = `📋 Checklist de Alta (${completados}/5)`);
+            document.querySelectorAll(`[id="chk-title-${id}"]`).forEach(el => el.textContent = `📋 Checklist de Alta (${completados}/4)`);
             document.querySelectorAll(`[id="chk-pct-${id}"]`).forEach(el => {
                 el.textContent = `${porcentaje}%`;
                 el.style.color = barColor;
@@ -5182,7 +5182,21 @@ document.addEventListener('change', async (e) => {
             }
             actualizarBadgesYNavegacion(cachedAlumnosData);
 
-            if (completados === 5) {
+            if (completados === 4) {
+                // Deshabilitar checkboxes de esa fila para evitar re-clicks
+                document.querySelectorAll(`[data-id="${id}"].chk-alta-paso`).forEach(i => i.disabled = true);
+                
+                // Feedback visual e informe de progreso inmediato en la tarjeta
+                const chkWrapper = document.getElementById(`chk-wrapper-${id}`);
+                if (chkWrapper) {
+                    const feedEl = document.createElement('div');
+                    feedEl.id = `chk-loading-feedback-${id}`;
+                    feedEl.style.cssText = 'margin-top:8px; padding:6px 10px; background:#f0fdf4; border:1px solid #86efac; border-radius:6px; font-size:11px; color:#166534; font-weight:600; display:flex; align-items:center; gap:6px;';
+                    feedEl.innerHTML = `<span class="spinner-border spinner-border-sm" style="display:inline-block; width:12px; height:12px; border:2px solid #166534; border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite;"></span> ⏳ Finalizando Alta de ${al.nombre || 'Alumno'}... Guardando y sincronizando Google Calendar...`;
+                    chkWrapper.appendChild(feedEl);
+                }
+                mostrarToast(`⏳ Finalizando Alta de ${al.nombre || 'Alumno'}... Sincronizando Calendar y guardando cambios.`, "info");
+
                 const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
                 const hist = al.historial || [];
                 hist.push({
@@ -5210,28 +5224,69 @@ document.addEventListener('change', async (e) => {
                     fecha_alta_finalizada: new Date().toISOString(),
                     historial: hist
                 });
-                mostrarToast("🏆 ¡Felicitaciones! Checklist completo. El alumno pasó a Altas Finalizadas.", "success");
+                mostrarToast(`🏆 ¡Felicitaciones! Checklist completo. ${al.nombre || 'El alumno'} pasó a Altas Finalizadas.`, "success");
                 cargarVista(estadoActualVista);
             } else {
                 await updateDoc(docRef, { checklist_alta: checks });
-                mostrarToast(`✓ Paso ${e.target.checked ? 'marcado' : 'desmarcado'} (${completados}/5)`, "info");
+                mostrarToast(`✓ Paso ${e.target.checked ? 'marcado' : 'desmarcado'} (${completados}/4)`, "info");
             }
         } catch(err) {
             console.error("Error al actualizar checklist:", err);
         }
     }
 
-    if (e.target.classList.contains('chk-disp-all') || e.target.classList.contains('chk-disp-none')) {
+    if (e.target.classList.contains('chk-disp-all') || e.target.classList.contains('chk-disp-flex') || e.target.classList.contains('chk-disp-none')) {
         const diaRow = e.target.closest('.dia-disponibilidad-row');
         if (diaRow) {
             const chkAll = diaRow.querySelector('.chk-disp-all');
+            const chkFlex = diaRow.querySelector('.chk-disp-flex');
             const chkNone = diaRow.querySelector('.chk-disp-none');
-            if (e.target.classList.contains('chk-disp-all') && e.target.checked && chkNone) {
-                chkNone.checked = false;
-            } else if (e.target.classList.contains('chk-disp-none') && e.target.checked && chkAll) {
-                chkAll.checked = false;
+            if (e.target.classList.contains('chk-disp-all') && e.target.checked) {
+                if (chkFlex) chkFlex.checked = false;
+                if (chkNone) chkNone.checked = false;
+            } else if (e.target.classList.contains('chk-disp-flex') && e.target.checked) {
+                if (chkAll) chkAll.checked = false;
+                if (chkNone) chkNone.checked = false;
+            } else if (e.target.classList.contains('chk-disp-none') && e.target.checked) {
+                if (chkAll) chkAll.checked = false;
+                if (chkFlex) chkFlex.checked = false;
             }
             updateDispStateForRow(diaRow);
+        }
+    }
+});
+
+// DESTILDADO AUTOMÁTICO INMEDIATO AL CLICKEAR O EDITAR HORARIOS MANUALMENTE
+document.addEventListener('focusin', (e) => {
+    if (e.target.classList.contains('rango-inicio') || e.target.classList.contains('rango-fin')) {
+        const diaRow = e.target.closest('.dia-disponibilidad-row');
+        if (diaRow) {
+            const chkAll = diaRow.querySelector('.chk-disp-all');
+            const chkFlex = diaRow.querySelector('.chk-disp-flex');
+            const chkNone = diaRow.querySelector('.chk-disp-none');
+            if ((chkAll && chkAll.checked) || (chkFlex && chkFlex.checked) || (chkNone && chkNone.checked)) {
+                if (chkAll) chkAll.checked = false;
+                if (chkFlex) chkFlex.checked = false;
+                if (chkNone) chkNone.checked = false;
+                updateDispStateForRow(diaRow);
+            }
+        }
+    }
+});
+
+document.addEventListener('mousedown', (e) => {
+    if (e.target.classList.contains('rango-inicio') || e.target.classList.contains('rango-fin') || e.target.closest('.rango-item')) {
+        const diaRow = e.target.closest('.dia-disponibilidad-row');
+        if (diaRow) {
+            const chkAll = diaRow.querySelector('.chk-disp-all');
+            const chkFlex = diaRow.querySelector('.chk-disp-flex');
+            const chkNone = diaRow.querySelector('.chk-disp-none');
+            if ((chkAll && chkAll.checked) || (chkFlex && chkFlex.checked) || (chkNone && chkNone.checked)) {
+                if (chkAll) chkAll.checked = false;
+                if (chkFlex) chkFlex.checked = false;
+                if (chkNone) chkNone.checked = false;
+                updateDispStateForRow(diaRow);
+            }
         }
     }
 });
@@ -5287,8 +5342,10 @@ document.addEventListener('click', async (e) => {
                 const count = rangosList.querySelectorAll('.rango-item').length;
                 rangosList.insertAdjacentHTML('beforeend', crearFilaRangoHTML(diaId, '', '', esProfe, count));
                 const chkAll = diaRow.querySelector('.chk-disp-all');
+                const chkFlex = diaRow.querySelector('.chk-disp-flex');
                 const chkNone = diaRow.querySelector('.chk-disp-none');
                 if (chkAll) chkAll.checked = false;
+                if (chkFlex) chkFlex.checked = false;
                 if (chkNone) chkNone.checked = false;
                 actualizarBotonesQuitarRangoEnFila(diaRow);
                 updateDispStateForRow(diaRow);
@@ -5326,6 +5383,7 @@ document.addEventListener('click', async (e) => {
             });
             clipboardDisponibilidad = {
                 all: diaRow.querySelector('.chk-disp-all')?.checked || false,
+                flex: diaRow.querySelector('.chk-disp-flex')?.checked || false,
                 none: diaRow.querySelector('.chk-disp-none')?.checked || false,
                 rangos: rangos
             };
@@ -5342,9 +5400,11 @@ document.addEventListener('click', async (e) => {
             const diaId = diaRow.getAttribute('data-dia');
             const esProfe = diaRow.getAttribute('data-profe') === 'true';
             const chkAll = diaRow.querySelector('.chk-disp-all');
+            const chkFlex = diaRow.querySelector('.chk-disp-flex');
             const chkNone = diaRow.querySelector('.chk-disp-none');
-            if (chkAll) chkAll.checked = clipboardDisponibilidad.all;
-            if (chkNone) chkNone.checked = clipboardDisponibilidad.none;
+            if (chkAll) chkAll.checked = !!clipboardDisponibilidad.all;
+            if (chkFlex) chkFlex.checked = !!clipboardDisponibilidad.flex;
+            if (chkNone) chkNone.checked = !!clipboardDisponibilidad.none;
 
             const rangosList = diaRow.querySelector('.rangos-list');
             if (rangosList) {
@@ -6036,30 +6096,18 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    // Botón Confirmar Alta (Abre modal)
+    // Botón Confirmar Alta (Abre modal Suscripción Abonada)
     if (target.classList.contains('btn-abrir-confirmar-alta')) {
         const id = target.getAttribute('data-id');
-        const alDoc = await getDoc(doc(db, "alumnos", id));
-        if (alDoc.exists()) {
-            const al = alDoc.data();
-            const checksAlta = al.checklist_alta || [false, false, false, false, false];
-            if (!checksAlta[0]) {
-                return alert('⚠️ No se puede confirmar el alta:\n\nEl punto "1. Suscripción abonada" no está tildado en el checklist.\n\nPor favor verificá que el alumno haya abonado su suscripción antes de confirmar el alta.');
-            }
-        }
         document.getElementById('conf-alta-alumno-id').value = id;
         document.getElementById('modal-confirmar-alta').showModal();
         return;
     }
-    // Guardar Confirmación de Alta
+    // Guardar Confirmación de Alta (Suscripción Abonada)
     if (target.id === 'btn-guardar-confirmacion-alta') {
         const id = document.getElementById('conf-alta-alumno-id').value, est = document.querySelector('input[name="opt-tipo-alta"]:checked').value;
         const alDoc = await getDoc(doc(db, "alumnos", id));
         const al = alDoc.exists() ? alDoc.data() : {};
-        const checksAlta = al.checklist_alta || [false, false, false, false, false];
-        if (!checksAlta[0]) {
-            return alert('⚠️ No se puede confirmar el alta:\n\nEl punto "1. Suscripción abonada" no está tildado en el checklist.\n\nPor favor verificá que el alumno haya abonado su suscripción antes de confirmar el alta.');
-        }
         setBotonCargando(target, true);
         const tipoSusc = detectarTipoSuscripcion(al.tipo_suscripcion || '');
         const esIndividual = tipoSusc === 'individual';
@@ -6111,7 +6159,7 @@ document.addEventListener('click', async (e) => {
                 }
                 const evFin = await sincronizarEventoAltaConfirmadaCalendar({ id, ...al }, esInd, alumnosDelGrupo, configApp);
                 const updatesFin = {
-                    checklist_alta: [true, true, true, true, true],
+                    checklist_alta: [true, true, true, true],
                     fecha_alta_finalizada: new Date().toISOString(),
                     historial: hist
                 };
@@ -6268,7 +6316,12 @@ document.addEventListener('click', async (e) => {
             function normalizarRangosTexto(rangos) {
                 if (!rangos) return [];
                 if (Array.isArray(rangos)) {
-                    return rangos.map(r => typeof r === 'string' ? r : `${r.inicio || r.start || ''}-${r.fin || r.end || ''}`).filter(r => r && r !== '-');
+                    return rangos.map(r => {
+                        if (typeof r === 'string') return r;
+                        if (r.flex === true || r.tipo === 'flex') return 'Flex';
+                        if (r.inicio === '09:00' && r.fin === '22:00') return 'Libre';
+                        return `${r.inicio || r.start || ''}-${r.fin || r.end || ''}`;
+                    }).filter(r => r && r !== '-');
                 }
                 return [String(rangos)];
             }
@@ -7256,6 +7309,14 @@ document.addEventListener('click', async (e) => {
         if (btnNuevaSusc) btnNuevaSusc.style.display = 'none';
         const tabBtnInforme = document.querySelector('.tab-btn[data-target="tab-informe"]');
         if (tabBtnInforme) tabBtnInforme.style.display = 'none';
+        
+        window._instrumentoPrincipalSeleccionado = '';
+        window._instrumentosSecundariosSeleccionados = [];
+        window._alumnoCantaSeleccionado = false;
+        const chkCanto = document.getElementById('chk-alumno-canta');
+        if (chkCanto) chkCanto.checked = false;
+        window.actualizarEstadoCantoAlumno(false);
+
         await cargarSelectsAlumnos(); 
         setTimeout(() => { window._modalEditandoModificado = false; window._fichaAlumnoModificada = false; }, 350);
         document.getElementById('modal-alta-alumno').showModal(); 
@@ -7270,16 +7331,138 @@ document.addEventListener('click', async (e) => {
         wrap.style.display = 'none'; 
         document.body.appendChild(wrap); 
         document.getElementById('modal-alta-alumno').close(); 
+        window._modalEditandoModificado = false;
+        window._fichaAlumnoModificada = false;
         return; 
     }
 });
 
+// =======================================================================
+// GESTIÓN DINÁMICA DE INSTRUMENTO PRINCIPAL, SECUNDARIOS Y CANTO
+// =======================================================================
+window._instrumentosCatalogo = [];
+window._instrumentoPrincipalSeleccionado = '';
+window._instrumentosSecundariosSeleccionados = [];
+window._alumnoCantaSeleccionado = false;
+
+window.toggleCantoAlumnoForm = function() {
+    const chk = document.getElementById('chk-alumno-canta');
+    if (!chk) return;
+    chk.checked = !chk.checked;
+    window.actualizarEstadoCantoAlumno(chk.checked);
+    window._modalEditandoModificado = true;
+};
+
+window.actualizarEstadoCantoAlumno = function(checked) {
+    window._alumnoCantaSeleccionado = checked;
+    const card = document.getElementById('card-toggle-canto');
+    if (card) {
+        if (checked) card.classList.add('active');
+        else card.classList.remove('active');
+    }
+};
+
+window.renderChipsInstrumentosAlumno = function() {
+    const contP = document.getElementById('chips-instrumento-principal');
+    const contS = document.getElementById('chips-instrumentos-secundarios');
+    const selP = document.getElementById('instrumento_principal');
+    const selS = document.getElementById('instrumentos_secundarios');
+    const selLegacy = document.getElementById('instrumento');
+
+    if (!contP || !contS) return;
+
+    // Normalizar catálogo: deduplicar y excluir 'Teclado' (Piano=Teclado, se deja solo Piano)
+    let catalogo = (window._instrumentosCatalogo || []).filter(inst => {
+        const nom = (typeof inst === 'string' ? inst : (inst.nombre || inst.id || '')).trim();
+        if (!nom) return false;
+        if (nom.toLowerCase() === 'teclado') return false;
+        return true;
+    }).map(inst => typeof inst === 'string' ? inst : inst.nombre);
+
+    if (catalogo.length === 0) {
+        catalogo = ['Piano', 'Guitarra', 'Bajo', 'Batería', 'Cajón', 'Canto', 'Ukelele', 'Saxofón'];
+    }
+
+    // 1. Render Principal
+    contP.innerHTML = catalogo.map(inst => {
+        const isSel = inst.toLowerCase() === (window._instrumentoPrincipalSeleccionado || '').toLowerCase();
+        const emoji = obtenerEmojiInstrumento(inst);
+        return `
+            <div class="chip-inst-form ${isSel ? 'is-principal' : ''}" onclick="window.seleccionarInstrumentoPrincipal('${inst}')">
+                <span>${emoji}</span> <span>${inst}</span>
+            </div>
+        `;
+    }).join('');
+
+    // 2. Render Secundarios (Excluyendo el Principal seleccionado)
+    const secundariosDisponibles = catalogo.filter(inst => inst.toLowerCase() !== (window._instrumentoPrincipalSeleccionado || '').toLowerCase());
+    contS.innerHTML = secundariosDisponibles.map(inst => {
+        const isSel = (window._instrumentosSecundariosSeleccionados || []).some(s => s.toLowerCase() === inst.toLowerCase());
+        const emoji = obtenerEmojiInstrumento(inst);
+        return `
+            <div class="chip-inst-form ${isSel ? 'is-secundario' : ''}" onclick="window.toggleInstrumentoSecundario('${inst}')">
+                <span>${emoji}</span> <span>${inst}</span>
+            </div>
+        `;
+    }).join('');
+
+    // 3. Sincronizar hidden selects
+    if (selP) {
+        selP.innerHTML = catalogo.map(inst => `<option value="${inst}" ${inst.toLowerCase() === (window._instrumentoPrincipalSeleccionado || '').toLowerCase() ? 'selected' : ''}>${inst}</option>`).join('');
+    }
+    if (selS) {
+        selS.innerHTML = secundariosDisponibles.map(inst => `<option value="${inst}" ${(window._instrumentosSecundariosSeleccionados || []).some(s => s.toLowerCase() === inst.toLowerCase()) ? 'selected' : ''}>${inst}</option>`).join('');
+    }
+    if (selLegacy) {
+        const todos = [window._instrumentoPrincipalSeleccionado, ...(window._instrumentosSecundariosSeleccionados || [])].filter(Boolean);
+        selLegacy.innerHTML = catalogo.map(inst => `<option value="${inst}" ${todos.some(t => t.toLowerCase() === inst.toLowerCase()) ? 'selected' : ''}>${inst}</option>`).join('');
+    }
+};
+
+window.seleccionarInstrumentoPrincipal = function(inst) {
+    window._instrumentoPrincipalSeleccionado = inst;
+    // Si el nuevo principal estaba en secundarios, lo removemos
+    window._instrumentosSecundariosSeleccionados = (window._instrumentosSecundariosSeleccionados || []).filter(s => s.toLowerCase() !== inst.toLowerCase());
+    window.renderChipsInstrumentosAlumno();
+    window._modalEditandoModificado = true;
+};
+
+window.toggleInstrumentoSecundario = function(inst) {
+    if (!window._instrumentosSecundariosSeleccionados) window._instrumentosSecundariosSeleccionados = [];
+    const idx = window._instrumentosSecundariosSeleccionados.findIndex(s => s.toLowerCase() === inst.toLowerCase());
+    if (idx >= 0) {
+        window._instrumentosSecundariosSeleccionados.splice(idx, 1);
+    } else {
+        window._instrumentosSecundariosSeleccionados.push(inst);
+    }
+    window.renderChipsInstrumentosAlumno();
+    window._modalEditandoModificado = true;
+};
+
 async function cargarSelectsAlumnos() { 
-    const sI = document.getElementById('instrumento'), sS = document.getElementById('tipo_suscripcion'); 
-    sI.innerHTML = ''; sS.innerHTML = '<option value="">Seleccione...</option>'; 
-    const iS = await getDocs(collection(db, "instrumentos")); iS.forEach(d => sI.innerHTML += `<option value="${d.data().nombre}">${d.data().nombre}</option>`); 
-    const sSp = await getDocs(collection(db, "tipos_suscripcion")); sSp.forEach(d => sS.innerHTML += `<option value="${d.data().nombre}">${d.data().nombre}</option>`); 
-    setTimeout(() => { syncSelectToChips('instrumento', 'chips-instrumentos'); }, 100);
+    const sS = document.getElementById('tipo_suscripcion'); 
+    if (sS) sS.innerHTML = '<option value="">Seleccione...</option>'; 
+    
+    try {
+        const iS = await getDocs(collection(db, "instrumentos"));
+        const lista = [];
+        iS.forEach(d => {
+            const nom = d.data().nombre;
+            if (nom && nom.toLowerCase() !== 'teclado') lista.push(nom);
+        });
+        window._instrumentosCatalogo = lista.length > 0 ? lista : ['Piano', 'Guitarra', 'Bajo', 'Batería', 'Cajón', 'Canto', 'Ukelele', 'Saxofón'];
+    } catch(e) {
+        window._instrumentosCatalogo = ['Piano', 'Guitarra', 'Bajo', 'Batería', 'Cajón', 'Canto', 'Ukelele', 'Saxofón'];
+    }
+
+    try {
+        const sSp = await getDocs(collection(db, "tipos_suscripcion"));
+        sSp.forEach(d => {
+            if (sS) sS.innerHTML += `<option value="${d.data().nombre}">${d.data().nombre}</option>`;
+        }); 
+    } catch(e) {}
+
+    window.renderChipsInstrumentosAlumno();
 }
 
 window.abrirFichaSimuladaTest = async function(testId) {
@@ -7493,10 +7676,28 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
     document.getElementById('edad').value = d.edad||''; 
     document.getElementById('nivel').value = d.nivel||''; 
     await cargarSelectsAlumnos(); 
-    const sI = document.getElementById('instrumento'); 
-    Array.from(sI.options).forEach(o => o.selected = (d.instrumento||[]).includes(o.value)); 
-    syncSelectToChips('instrumento', 'chips-instrumentos'); 
-    document.getElementById('tipo_suscripcion').value = d.tipo_suscripcion; 
+
+    // Fallback inteligente para instrumentos (preserva historial de versiones anteriores)
+    const instLegacy = Array.isArray(d.instrumento) ? d.instrumento : (d.instrumento ? [d.instrumento] : []);
+    let principalVal = d.instrumento_principal || instLegacy[0] || 'Piano';
+    if (principalVal.toLowerCase() === 'teclado') principalVal = 'Piano';
+    window._instrumentoPrincipalSeleccionado = principalVal;
+
+    let secundariosVal = Array.isArray(d.instrumentos_secundarios) 
+        ? d.instrumentos_secundarios 
+        : (instLegacy.length > 1 ? instLegacy.slice(1) : []);
+    secundariosVal = secundariosVal.map(s => s.toLowerCase() === 'teclado' ? 'Piano' : s)
+                                   .filter(s => s.toLowerCase() !== principalVal.toLowerCase());
+    window._instrumentosSecundariosSeleccionados = secundariosVal;
+
+    const cantaVal = d.canta_ensamble === true || (instLegacy.some(i => (i || '').toLowerCase() === 'canto') && principalVal.toLowerCase() !== 'canto');
+    const chkCanto = document.getElementById('chk-alumno-canta');
+    if (chkCanto) chkCanto.checked = cantaVal;
+    window.actualizarEstadoCantoAlumno(cantaVal);
+
+    window.renderChipsInstrumentosAlumno();
+
+    document.getElementById('tipo_suscripcion').value = d.tipo_suscripcion || ''; 
     quill.root.innerHTML = d.descripcion||''; 
     historialActual = d.historial || []; 
     renderHistorial(); 
@@ -7940,7 +8141,22 @@ document.getElementById('form-alumno').addEventListener('submit', async (e) => {
     const hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00'; 
     const disp = extraerDisponibilidadMultiRango('contenedor-disponibilidad', hApe, hCie); 
     
-    const selInst = document.getElementById('instrumento'), instV = Array.from(selInst.selectedOptions).map(o=>o.value);
+    if (!window._instrumentoPrincipalSeleccionado) {
+        alert("⚠️ Por favor, selecciona un Instrumento Principal.");
+        setBotonCargando(btnSubmit, false);
+        return;
+    }
+
+    let instPrincipal = window._instrumentoPrincipalSeleccionado;
+    if (instPrincipal.toLowerCase() === 'teclado') instPrincipal = 'Piano';
+
+    const instSecundarios = (window._instrumentosSecundariosSeleccionados || [])
+        .map(s => s.toLowerCase() === 'teclado' ? 'Piano' : s)
+        .filter(s => s.toLowerCase() !== instPrincipal.toLowerCase());
+
+    const cantaVal = document.getElementById('chk-alumno-canta')?.checked || false;
+    const todosInst = [instPrincipal, ...instSecundarios];
+
     const tagsPerfil = getPerfilPsicologicoSeleccionado('ficha-perfil-psicologico-chips');
     const inpHora = document.getElementById('modal-alta-horario-input');
     const inpIni = document.getElementById('modal-alta-inicio-input');
@@ -7950,7 +8166,10 @@ document.getElementById('form-alumno').addEventListener('submit', async (e) => {
         celular: document.getElementById('celular').value, 
         edad: Number(document.getElementById('edad').value), 
         nivel: document.getElementById('nivel').value, 
-        instrumento: instV, 
+        instrumento_principal: instPrincipal,
+        instrumentos_secundarios: instSecundarios,
+        canta_ensamble: cantaVal,
+        instrumento: todosInst, 
         tipo_suscripcion: document.getElementById('tipo_suscripcion').value, 
         descripcion: quill.root.innerHTML, 
         informe_admision: quillInforme.root.innerHTML, 

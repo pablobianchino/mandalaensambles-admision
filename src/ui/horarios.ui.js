@@ -14,6 +14,10 @@ export function formatearChipHorario(rango, hApertura = '09:00', hCierre = '22:0
     let ini = (rango.inicio || '').trim();
     let fin = (rango.fin || '').trim();
 
+    if (rango.flex === true || rango.tipo === 'flex') {
+        return 'Flex';
+    }
+
     if ((ini === hApertura || !ini) && (fin === hCierre || !fin)) {
         return 'Libre';
     }
@@ -30,6 +34,7 @@ export function formatearDiaCompletoChips(rangosDia, hApertura = '09:00', hCierr
     if (!rangosDia || rangosDia.length === 0) return '-';
     const chips = rangosDia.map(r => formatearChipHorario(r, hApertura, hCierre)).filter(c => c && c !== '-');
     if (chips.length === 0) return '-';
+    if (chips.includes('Flex')) return 'Flex';
     if (chips.includes('Libre')) return 'Libre';
     return chips.join('<br>');
 }
@@ -60,10 +65,13 @@ export function renderContenedorDisponibilidad(containerId, esProfe = false) {
         
         diaRow.innerHTML = `
             <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
-                <div style="display:flex; align-items:center; gap:8px;">
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                     <strong style="min-width:75px; font-size:13px; color:var(--text-main);">${dia.nombre}:</strong>
                     <label style="font-weight:normal; margin:0; cursor:pointer; font-size:12px; display:flex; align-items:center; gap:4px; text-transform:none;">
                         <input type="checkbox" class="chk-disp-all" data-dia="${dia.id}" data-profe="${esProfe}"> Todo el día
+                    </label>
+                    <label style="font-weight:700; margin:0; cursor:pointer; font-size:12px; display:flex; align-items:center; gap:4px; text-transform:none; color:#7c3aed;">
+                        <input type="checkbox" class="chk-disp-flex" data-dia="${dia.id}" data-profe="${esProfe}"> Flex
                     </label>
                     <label style="font-weight:normal; margin:0; cursor:pointer; font-size:12px; display:flex; align-items:center; gap:4px; text-transform:none;">
                         <input type="checkbox" class="chk-disp-none" data-dia="${dia.id}" data-profe="${esProfe}"> No disp.
@@ -100,6 +108,7 @@ export function actualizarBotonesQuitarRangoEnFila(diaRow) {
 export function updateDispStateForRow(diaRow) {
     if (!diaRow) return;
     const chkAll = diaRow.querySelector('.chk-disp-all');
+    const chkFlex = diaRow.querySelector('.chk-disp-flex');
     const chkNone = diaRow.querySelector('.chk-disp-none');
     const spanE = diaRow.querySelector('.estado-disp');
     const rangosList = diaRow.querySelector('.rangos-list');
@@ -110,19 +119,27 @@ export function updateDispStateForRow(diaRow) {
     const btnsDel = rangosList.querySelectorAll('.btn-quitar-rango');
 
     if (chkAll && chkAll.checked) {
+        if (chkFlex) chkFlex.checked = false;
         if (chkNone) chkNone.checked = false;
-        inputs.forEach(inp => { inp.disabled = true; inp.value = ''; });
+        inputs.forEach(inp => { inp.value = ''; });
         btnsDel.forEach(b => b.disabled = true);
         if (btnAgregar) btnAgregar.style.display = 'none';
         if (spanE) { spanE.textContent = "Libre"; spanE.style.color = "var(--accent-teal)"; }
+    } else if (chkFlex && chkFlex.checked) {
+        if (chkAll) chkAll.checked = false;
+        if (chkNone) chkNone.checked = false;
+        inputs.forEach(inp => { inp.value = ''; });
+        btnsDel.forEach(b => b.disabled = true);
+        if (btnAgregar) btnAgregar.style.display = 'none';
+        if (spanE) { spanE.textContent = "Flex"; spanE.style.color = "#7c3aed"; }
     } else if (chkNone && chkNone.checked) {
         if (chkAll) chkAll.checked = false;
-        inputs.forEach(inp => { inp.disabled = true; inp.value = ''; });
+        if (chkFlex) chkFlex.checked = false;
+        inputs.forEach(inp => { inp.value = ''; });
         btnsDel.forEach(b => b.disabled = true);
         if (btnAgregar) btnAgregar.style.display = 'none';
         if (spanE) { spanE.textContent = "Bloqueado"; spanE.style.color = "var(--accent-red)"; }
     } else {
-        inputs.forEach(inp => { inp.disabled = false; });
         btnsDel.forEach(b => b.disabled = false);
         if (btnAgregar) btnAgregar.style.display = 'inline-flex';
         if (spanE) { spanE.textContent = ""; }
@@ -161,15 +178,20 @@ export function poblarDisponibilidadMultiRango(disp = {}, containerRef = false, 
         const dD = (disp && disp[dia.id]) || [];
         const rangosList = diaRow.querySelector('.rangos-list');
         const cA = diaRow.querySelector('.chk-disp-all');
+        const cFlex = diaRow.querySelector('.chk-disp-flex');
         const cN = diaRow.querySelector('.chk-disp-none');
         const esProfe = diaRow.getAttribute('data-profe') === 'true';
 
         if (rangosList) rangosList.innerHTML = '';
         if (cA) cA.checked = false;
+        if (cFlex) cFlex.checked = false;
         if (cN) cN.checked = false;
 
         if (dD.length === 0) {
             if (cN) cN.checked = true;
+            if (rangosList) rangosList.innerHTML = crearFilaRangoHTML(dia.id, '', '', esProfe, 0);
+        } else if (dD.length === 1 && (dD[0].flex === true || dD[0].tipo === 'flex')) {
+            if (cFlex) cFlex.checked = true;
             if (rangosList) rangosList.innerHTML = crearFilaRangoHTML(dia.id, '', '', esProfe, 0);
         } else if (dD.length === 1 && dD[0].inicio === hApe && dD[0].fin === hCie) {
             if (cA) cA.checked = true;
@@ -225,10 +247,13 @@ export function extraerDisponibilidadMultiRango(containerRef = false, hApe = '09
         }
 
         const cA = diaRow.querySelector('.chk-disp-all')?.checked;
+        const cFlex = diaRow.querySelector('.chk-disp-flex')?.checked;
         const cN = diaRow.querySelector('.chk-disp-none')?.checked;
 
         if (cN) {
             disp[d.id] = [];
+        } else if (cFlex) {
+            disp[d.id] = [{ inicio: normalizarHora(hApe, '09:00'), fin: normalizarHora(hCie, '22:00'), flex: true }];
         } else if (cA) {
             disp[d.id] = [{ inicio: normalizarHora(hApe, '09:00'), fin: normalizarHora(hCie, '22:00') }];
         } else {
