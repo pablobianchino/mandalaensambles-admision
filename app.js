@@ -13,7 +13,7 @@ import {
     configNodosFlujoCoordinador,
     esAlumnoAltaFinalizada,
     esAlumnoAltaConfirmadaIncompleta
-} from "./src/config/constants.js?v=6.6.7";
+} from "./src/config/constants.js?v=6.6.8";
 
 import { 
     app, 
@@ -34,7 +34,7 @@ import {
     GoogleAuthProvider, 
     onAuthStateChanged, 
     signOut 
-} from "./src/config/firebase.js?v=6.6.7";
+} from "./src/config/firebase.js?v=6.6.8";
 
 import {
     limpiarHoraParaChip,
@@ -48,7 +48,7 @@ import {
     extraerDisponibilidadMultiRango,
     normalizarHora,
     inicializarAutocompletadoHorarios
-} from "./src/ui/horarios.ui.js?v=6.6.7";
+} from "./src/ui/horarios.ui.js?v=6.6.8";
 
 import {
     getEmojiInstrumento,
@@ -75,7 +75,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=6.6.7";
+} from "./src/services/calendar.service.js?v=6.6.8";
 
 import {
     matchCantidadActual,
@@ -108,11 +108,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=6.6.7";
+} from "./src/modules/match.module.js?v=6.6.8";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=6.6.7";
+} from "./src/modules/profesor.module.js?v=6.6.8";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -135,14 +135,14 @@ import {
     confirmarInicioGrupoAction,
     confirmarAlumnoAltaAction,
     generarChecklistAltaHtml
-} from "./src/modules/altas.module.js?v=6.6.7";
+} from "./src/modules/altas.module.js?v=6.6.8";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=6.6.7";
+} from "./src/modules/dashboard.module.js?v=6.6.8";
 
 import {
     renderConfigHub,
@@ -151,20 +151,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=6.6.7";
+} from "./src/modules/abm.module.js?v=6.6.8";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=6.6.7";
+} from "./src/modules/inbox.module.js?v=6.6.8";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=6.6.7";
+} from "./src/modules/csv.module.js?v=6.6.8";
 
 window.generarBotonesPrincipalesVisibles = generarBotonesPrincipalesVisibles;
 window.generarBotonesAccion = generarBotonesAccion;
@@ -1709,7 +1709,8 @@ function chequearDisponibilidadExacta(inicioTestMs, finTestMs, eventosAPI, cantA
 function chequearProfeDisponible(pr, hIniB, finMs, lDia) {
     if (!pr.disponibilidad || !pr.disponibilidad[lDia] || pr.disponibilidad[lDia].length === 0) return false; 
     const slotStartMins = hIniB.getHours() * 60 + hIniB.getMinutes(); 
-    let endH = new Date(finMs).getHours(), endM = new Date(finMs).getMinutes(); if (endH === 0 && endM === 0) endH = 24;
+    let endH = new Date(finMs).getHours(), endM = new Date(finMs).getMinutes(); 
+    if (endH === 0 && endM === 0) endH = 24;
     const slotEndMins = endH * 60 + endM; 
     let disponible = false;
 
@@ -1724,8 +1725,14 @@ function chequearProfeDisponible(pr, hIniB, finMs, lDia) {
             iniStr = normalizarHora(rango.inicio, '09:00');
             finStr = normalizarHora(rango.fin, '22:00');
         }
-        const pStartMins = parseInt(iniStr.split(':')[0], 10)*60 + parseInt(iniStr.split(':')[1], 10);
-        const pEndMins = parseInt(finStr.split(':')[0], 10)*60 + parseInt(finStr.split(':')[1], 10); 
+        let pIniH = parseInt(iniStr.split(':')[0], 10);
+        let pIniM = parseInt(iniStr.split(':')[1], 10);
+        let pEndH = parseInt(finStr.split(':')[0], 10);
+        let pEndM = parseInt(finStr.split(':')[1], 10);
+        if ((pEndH === 0 || pEndH === 24) && pEndM === 0) pEndH = 24;
+        else if (pEndH < pIniH) pEndH += 24;
+        const pStartMins = pIniH * 60 + pIniM;
+        const pEndMins = pEndH * 60 + pEndM; 
         if (slotStartMins >= pStartMins && slotEndMins <= pEndMins) { disponible = true; } 
     });
     return disponible;
@@ -1741,8 +1748,23 @@ function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, todosLosProfes, pr
                 const iniNorm = normalizarHora(rango.inicio || (typeof rango === 'string' ? rango.split(/[-a]/)[0] : ''), '');
                 const finNorm = normalizarHora(rango.fin || (typeof rango === 'string' ? (rango.split(/[-a]/)[1] || rango.split(/[-a]/)[0]) : ''), '');
                 if (!iniNorm || !finNorm) return;
-                const hIniB = new Date(fEval); hIniB.setHours(parseInt(iniNorm.split(':')[0], 10), parseInt(iniNorm.split(':')[1], 10), 0, 0); 
-                const hFinR = new Date(fEval); hFinR.setHours(parseInt(finNorm.split(':')[0], 10), parseInt(finNorm.split(':')[1], 10), 0, 0);
+                let iniH = parseInt(iniNorm.split(':')[0], 10);
+                let iniM = parseInt(iniNorm.split(':')[1], 10);
+                let finH = parseInt(finNorm.split(':')[0], 10);
+                let finM = parseInt(finNorm.split(':')[1], 10);
+
+                // Si la hora de fin es 00:00 o 24:00, o menor a la hora de inicio, representa medianoche/fin de jornada
+                if ((finH === 0 || finH === 24) && finM === 0) {
+                    finH = 24;
+                } else if (finH < iniH) {
+                    finH += 24;
+                }
+
+                const hIniB = new Date(fEval); 
+                hIniB.setHours(iniH, iniM, 0, 0); 
+                const hFinR = new Date(fEval); 
+                hFinR.setHours(finH, finM, 0, 0);
+
                 if (hIniB < new Date()) { let curr = new Date(); curr.setMinutes(curr.getMinutes() + (30 - (curr.getMinutes() % 30)), 0, 0); hIniB.setTime(curr.getTime()); }
                 while (hIniB.getTime() + durMs <= hFinR.getTime()) {
                     const inMs = hIniB.getTime(), finMs = inMs + durMs, evalOverlap = chequearDisponibilidadExacta(inMs, finMs, eventosAPI, cantAulas, cantBat, esBateria, cfg.identificador_bateria);

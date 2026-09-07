@@ -35,10 +35,13 @@ function isoToDatetimeLocal(isoStr) {
     return formatoLocalISO(d).substring(0, 16);
 }
 
-function convertirHoraAMinutos(horaStr) {
-    if (!horaStr) return 0;
+function convertirHoraAMinutos(horaStr, esFin = false) {
+    if (!horaStr) return esFin ? 1440 : 0;
     const parts = horaStr.split(':');
-    return parseInt(parts[0], 10) * 60 + parseInt(parts[1] || 0, 10);
+    const h = parseInt(parts[0], 10);
+    const m = parseInt(parts[1] || 0, 10);
+    if (esFin && (h === 0 || h === 24) && m === 0) return 1440;
+    return h * 60 + m;
 }
 
 function minutosAHora(mins) {

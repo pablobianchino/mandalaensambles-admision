@@ -171,11 +171,11 @@ export function filtrarProfesoresMatch() {
                     let rIni = normalizarHoraLocal(typeof r === 'object' ? r.inicio : (typeof r === 'string' ? r.split(/[-a]/)[0] : '09:00'), '09:00');
                     let rFin = normalizarHoraLocal(typeof r === 'object' ? r.fin : (typeof r === 'string' ? (r.split(/[-a]/)[1] || r.split(/[-a]/)[0]) : '22:00'), '22:00');
 
-                    let pStart = convertirHoraAMinutos(rIni);
-                    let pEnd = convertirHoraAMinutos(rFin);
+                    let pStart = convertirHoraAMinutos(rIni, false);
+                    let pEnd = convertirHoraAMinutos(rFin, true);
 
-                    let fStart = horaDesde ? convertirHoraAMinutos(horaDesde) : pStart;
-                    let fEnd = horaHasta ? convertirHoraAMinutos(horaHasta) : pEnd;
+                    let fStart = horaDesde ? convertirHoraAMinutos(horaDesde, false) : pStart;
+                    let fEnd = horaHasta ? convertirHoraAMinutos(horaHasta, true) : pEnd;
 
                     const overlapStart = Math.max(pStart, fStart);
                     const overlapEnd = Math.min(pEnd, fEnd);
@@ -765,10 +765,13 @@ export function buscarHuecosComunes(alumnos, profe, diasFiltro, horaDesde, horaH
     return slots;
 }
 
-function convertirHoraAMinutos(horaStr) {
-    if (!horaStr) return 0;
+function convertirHoraAMinutos(horaStr, esFin = false) {
+    if (!horaStr) return esFin ? 1440 : 0;
     const parts = horaStr.split(':');
-    return parseInt(parts[0], 10) * 60 + parseInt(parts[1] || 0, 10);
+    const h = parseInt(parts[0], 10);
+    const m = parseInt(parts[1] || 0, 10);
+    if (esFin && (h === 0 || h === 24) && m === 0) return 1440;
+    return h * 60 + m;
 }
 
 function minutosAHora(mins) {
@@ -1306,19 +1309,19 @@ export async function ejecutarBusquedaAlumnosMatch(setBotonCargandoFn) {
                         if (!rp) continue;
                         let rpIni = normalizarHoraLocal(typeof rp === 'object' ? rp.inicio : (typeof rp === 'string' ? rp.split(/[-a]/)[0] : '09:00'), '09:00');
                         let rpFin = normalizarHoraLocal(typeof rp === 'object' ? rp.fin : (typeof rp === 'string' ? (rp.split(/[-a]/)[1] || rp.split(/[-a]/)[0]) : '22:00'), '22:00');
-                        let pStart = convertirHoraAMinutos(rpIni);
-                        let pEnd = convertirHoraAMinutos(rpFin);
+                        let pStart = convertirHoraAMinutos(rpIni, false);
+                        let pEnd = convertirHoraAMinutos(rpFin, true);
 
-                        if (horaDesde) pStart = Math.max(pStart, convertirHoraAMinutos(horaDesde));
-                        if (horaHasta) pEnd = Math.min(pEnd, convertirHoraAMinutos(horaHasta));
+                        if (horaDesde) pStart = Math.max(pStart, convertirHoraAMinutos(horaDesde, false));
+                        if (horaHasta) pEnd = Math.min(pEnd, convertirHoraAMinutos(horaHasta, true));
                         if (pEnd - pStart < 60) continue;
 
                         for (let ra of rangosAl) {
                             if (!ra) continue;
                             let raIni = normalizarHoraLocal(typeof ra === 'object' ? ra.inicio : (typeof ra === 'string' ? ra.split(/[-a]/)[0] : '09:00'), '09:00');
                             let raFin = normalizarHoraLocal(typeof ra === 'object' ? ra.fin : (typeof ra === 'string' ? (ra.split(/[-a]/)[1] || ra.split(/[-a]/)[0]) : '22:00'), '22:00');
-                            let aStart = convertirHoraAMinutos(raIni);
-                            let aEnd = convertirHoraAMinutos(raFin);
+                            let aStart = convertirHoraAMinutos(raIni, false);
+                            let aEnd = convertirHoraAMinutos(raFin, true);
 
                             const overlapStart = Math.max(pStart, aStart);
                             const overlapEnd = Math.min(pEnd, aEnd);
@@ -1349,11 +1352,11 @@ export async function ejecutarBusquedaAlumnosMatch(setBotonCargandoFn) {
                             let rIni = normalizarHoraLocal(typeof r === 'object' ? r.inicio : (typeof r === 'string' ? r.split(/[-a]/)[0] : '09:00'), '09:00');
                             let rFin = normalizarHoraLocal(typeof r === 'object' ? r.fin : (typeof r === 'string' ? (r.split(/[-a]/)[1] || r.split(/[-a]/)[0]) : '22:00'), '22:00');
                             
-                            let alIniMins = convertirHoraAMinutos(rIni);
-                            let alFinMins = convertirHoraAMinutos(rFin);
+                            let alIniMins = convertirHoraAMinutos(rIni, false);
+                            let alFinMins = convertirHoraAMinutos(rFin, true);
 
-                            let filtroIniMins = horaDesde ? convertirHoraAMinutos(horaDesde) : alIniMins;
-                            let filtroFinMins = horaHasta ? convertirHoraAMinutos(horaHasta) : alFinMins;
+                            let filtroIniMins = horaDesde ? convertirHoraAMinutos(horaDesde, false) : alIniMins;
+                            let filtroFinMins = horaHasta ? convertirHoraAMinutos(horaHasta, true) : alFinMins;
 
                             const overlapStart = Math.max(alIniMins, filtroIniMins);
                             const overlapEnd = Math.min(alFinMins, filtroFinMins);

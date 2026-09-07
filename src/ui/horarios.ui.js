@@ -24,7 +24,7 @@ export function formatearChipHorario(rango, hApertura = '09:00', hCierre = '22:0
     if ((ini === hApertura || !ini) && fin && fin < hCierre) {
         return `${limpiarHoraParaChip(fin)}-`;
     }
-    if (ini && (fin === hCierre || !fin || fin >= hCierre)) {
+    if (ini && (fin === hCierre || !fin || fin >= hCierre || fin === '00:00' || fin === '24:00' || fin === '0:00')) {
         return `${limpiarHoraParaChip(ini)}+`;
     }
     return `${limpiarHoraParaChip(ini)}-${limpiarHoraParaChip(fin)}`;
