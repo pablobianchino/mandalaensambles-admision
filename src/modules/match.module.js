@@ -21,7 +21,8 @@ import {
     formatearNomenclaturaGrupoOClase,
     getEmojiParaInstrumento,
     abrirModalSolicitudVacante,
-    eliminarSolicitudVacanteDirecto
+    eliminarSolicitudVacanteDirecto,
+    abrirModalFinalizarSolicitud
 } from "./profesor.module.js";
 
 export let matchCantidadActual = 4;
@@ -2906,7 +2907,10 @@ export async function renderMatchSolicitudesProfes(cont, configApp, callbacks = 
         solSnap.forEach(d => solicitudes.push({ id: d.id, ...d.data() }));
 
         const pendientes = solicitudes.filter(s => s.estado === 'Pendiente' || s.estado === 'En Proceso');
-        const cubiertas = solicitudes.filter(s => s.estado === 'Cubierta' || s.estado === 'Cancelada');
+        const cumplidas = solicitudes.filter(s => s.estado !== 'Pendiente' && s.estado !== 'En Proceso');
+
+        pendientes.sort((a, b) => new Date(b.fechaCreacion || 0) - new Date(a.fechaCreacion || 0));
+        cumplidas.sort((a, b) => new Date(b.fechaFinalizacion || b.fechaActualizacion || b.fechaCreacion || 0) - new Date(a.fechaFinalizacion || a.fechaActualizacion || a.fechaCreacion || 0));
 
         const rolesUser = Array.isArray(window.usuarioActual?.roles) 
             ? window.usuarioActual.roles 
@@ -2914,49 +2918,68 @@ export async function renderMatchSolicitudesProfes(cont, configApp, callbacks = 
         const modoActivo = (window.modoRolActivo || '').toLowerCase();
         const puedeBuscar = rolesUser.some(r => ['admin', 'coordinador', 'coordinador_grupos', 'admisor', 'admisiones'].includes((r || '').toLowerCase())) || ['admin', 'coordinador', 'coordinador_grupos', 'admisor', 'admisiones', 'multi'].includes(modoActivo);
 
-        if (pendientes.length === 0 && cubiertas.length === 0) {
-            cont.innerHTML = `
-                <div style="background:white; border:1px solid var(--border-color); border-radius:12px; padding:40px 20px; text-align:center; color:var(--text-muted); max-width:900px; margin:0 auto;">
-                    <div style="font-size:2.2em; margin-bottom:8px;">🔔</div>
-                    <div style="font-weight:700; font-size:16px; color:var(--text-main);">No hay solicitudes de vacantes de profesores</div>
-                    <div style="font-size:13px; margin-top:4px;">Cuando los docentes soliciten alumnos desde su portal aparecerán aquí para buscar matches en la Lista de Espera.</div>
-                </div>
-            `;
-            return;
-        }
-
         let html = `
-            <div style="max-width:950px; width:100%; margin:0 auto; display:flex; flex-direction:column; gap:20px;">
-                <!-- Header y barra de acciones masivas -->
+            <div style="max-width:950px; width:100%; margin:0 auto; display:flex; flex-direction:column; gap:16px;">
+                <!-- Header Principal -->
                 <div style="background:white; border:1px solid var(--border-color); border-radius:12px; padding:16px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; box-shadow:0 2px 6px rgba(0,0,0,0.02);">
                     <div>
                         <h3 style="margin:0 0 4px 0; color:var(--text-main); font-size:1.3em; display:flex; align-items:center; gap:8px;">
-                            <span>📩</span> Solicitudes de Profes (${pendientes.length})
+                            <span>📩</span> Solicitudes de Vacantes Docentes
                         </h3>
                         <div style="font-size:12.5px; color:var(--text-muted);">
-                            Selecciona solicitudes para buscar candidatos con validación de horarios y Google Calendar.
+                            Gestión centralizada de vacantes solicitadas por y para los docentes de la escuela.
                         </div>
                     </div>
-                    ${puedeBuscar && pendientes.length > 0 ? `
-                        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                            <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:12.5px; font-weight:600; color:var(--text-main); margin:0;">
-                                <input type="checkbox" id="chk-solicitudes-select-todas" style="accent-color:var(--accent-teal); width:16px; height:16px;">
-                                Seleccionar todas
-                            </label>
-                            <button type="button" id="btn-sol-buscar-seleccionadas" class="btn-app btn-secondary" style="font-size:12px; height:34px; padding:0 14px; font-weight:700; background:#fff; color:var(--accent-teal); border:1px solid var(--accent-teal);" disabled>
-                                🔍 Buscar Seleccionadas (<span id="sol-sel-count">0</span>)
-                            </button>
-                            <button type="button" id="btn-sol-buscar-todas" class="btn-app btn-primary" style="font-size:12px; height:34px; padding:0 14px; font-weight:700; background:var(--accent-teal); color:#fff;">
-                                🔍 Buscar Todas las Solicitudes
-                            </button>
-                        </div>
+                    ${puedeBuscar ? `
+                        <button type="button" id="btn-coordinador-nueva-solicitud" class="btn-app btn-primary" style="font-size:12.5px; height:34px; padding:0 14px; font-weight:700; background:var(--accent-teal); color:#fff; display:inline-flex; align-items:center; gap:6px;">
+                            <span>➕</span> Nueva Solicitud Docente
+                        </button>
                     ` : ''}
                 </div>
+
+                <!-- Barra de Navegación por Tabs -->
+                <div style="display:flex; border-bottom:2px solid var(--border-color); gap:8px; background:white; padding:0 12px; border-radius:10px 10px 0 0; border:1px solid var(--border-color); border-bottom:2px solid var(--border-color);">
+                    <button type="button" id="tab-sol-pendientes" class="tab-sol-btn" style="padding:12px 18px; border:none; background:transparent; font-size:13.5px; font-weight:700; color:var(--accent-teal); border-bottom:3px solid var(--accent-teal); cursor:pointer; display:flex; align-items:center; gap:8px; margin-bottom:-2px; transition:all 0.2s ease;">
+                        <span>⏳ Pendientes (${pendientes.length})</span>
+                    </button>
+                    <button type="button" id="tab-sol-cumplidas" class="tab-sol-btn" style="padding:12px 18px; border:none; background:transparent; font-size:13.5px; font-weight:600; color:var(--text-muted); border-bottom:3px solid transparent; cursor:pointer; display:flex; align-items:center; gap:8px; margin-bottom:-2px; transition:all 0.2s ease;">
+                        <span>🏁 Cumplidas (${cumplidas.length})</span>
+                    </button>
+                </div>
+
+                <!-- SECCIÓN 1: PENDIENTES -->
+                <div id="sec-sol-pendientes" style="display:flex; flex-direction:column; gap:16px;">
         `;
 
         if (pendientes.length === 0) {
-            html += `<div style="background:white; padding:20px; border-radius:10px; border:1px solid var(--border-color); color:var(--text-muted);">No hay solicitudes pendientes en este momento.</div>`;
+            html += `
+                <div style="background:white; border:1px dashed var(--border-color); border-radius:12px; padding:40px 20px; text-align:center; color:var(--text-muted);">
+                    <div style="font-size:2em; margin-bottom:8px;">🔔</div>
+                    <div style="font-weight:700; font-size:15px; color:var(--text-main);">No hay solicitudes pendientes en este momento</div>
+                    <div style="font-size:12.5px; margin-top:4px;">Todas las solicitudes están cubiertas o podés crear una nueva con el botón superior.</div>
+                </div>
+            `;
         } else {
+            // Barra de acciones masivas
+            if (puedeBuscar) {
+                html += `
+                    <div style="background:white; border:1px solid var(--border-color); border-radius:10px; padding:10px 16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; box-shadow:0 1px 4px rgba(0,0,0,0.02);">
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:12.5px; font-weight:600; color:var(--text-main); margin:0;">
+                            <input type="checkbox" id="chk-solicitudes-select-todas" style="accent-color:var(--accent-teal); width:16px; height:16px;">
+                            Seleccionar todas (${pendientes.length})
+                        </label>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <button type="button" id="btn-sol-buscar-seleccionadas" class="btn-app btn-secondary" style="font-size:12px; height:32px; padding:0 12px; font-weight:700; background:#fff; color:var(--accent-teal); border:1px solid var(--accent-teal);" disabled>
+                                🔍 Buscar Seleccionadas (<span id="sol-sel-count">0</span>)
+                            </button>
+                            <button type="button" id="btn-sol-buscar-todas" class="btn-app btn-primary" style="font-size:12px; height:32px; padding:0 12px; font-weight:700; background:var(--accent-teal); color:#fff;">
+                                🔍 Buscar Todas
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+
             html += `<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:16px;">`;
             pendientes.forEach(sol => {
                 const durMin = sol.duracionMinutos || (sol.tipoGrupo === 'Ensamble Mandalorian' ? 90 : 60);
@@ -2991,9 +3014,10 @@ export async function renderMatchSolicitudesProfes(cont, configApp, callbacks = 
                                 <span class="status-val-pending" style="font-size:11px; font-weight:700;">⏳ ${sol.estado}</span>
                             </div>
 
-                            <!-- Badges de Tipo y Duración -->
+                            <!-- Badges de Tipo, Coordinación y Duración -->
                             <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;">
                                 <span class="status-badge" style="background:#fef3c7; color:#92400e; font-weight:700; font-size:11px;">${sol.tipoGrupo || 'Grupo'}</span>
+                                ${sol.creadoPorCoordinador ? `<span class="status-badge" style="background:#f0fdf4; color:#166534; font-weight:700; font-size:11px;">👔 Coordinación</span>` : ''}
                                 ${durBadge}
                             </div>
 
@@ -3028,7 +3052,10 @@ export async function renderMatchSolicitudesProfes(cont, configApp, callbacks = 
 
                         <!-- Footer con Botones de Acción -->
                         <div style="display:flex; align-items:center; justify-content:space-between; border-top:1px solid #f1f5f9; padding-top:10px; gap:8px; margin-top:8px;">
-                            <div style="display:flex; gap:6px;">
+                            <div style="display:flex; gap:6px; align-items:center;">
+                                <button type="button" class="btn-app btn-secondary btn-finalizar-sol-directo" data-id="${sol.id}" data-grupo="${sol.grupoNombre}" data-profe="${sol.profesorNombre || ''}" style="font-size:11.5px; padding:4px 8px; height:30px; color:#059669; border-color:#a7f3d0; background:#ecfdf5; font-weight:700;" title="Finalizar solicitud">
+                                    🏁 Finalizar
+                                </button>
                                 <button type="button" class="btn-app btn-secondary btn-editar-sol-directo" data-id="${sol.id}" style="font-size:11.5px; padding:4px 8px; height:30px;" title="Editar solicitud">
                                     ✏️ Editar
                                 </button>
@@ -3050,27 +3077,169 @@ export async function renderMatchSolicitudesProfes(cont, configApp, callbacks = 
             html += `</div>`;
         }
 
-        if (cubiertas.length > 0) {
+        html += `
+                </div>
+
+                <!-- SECCIÓN 2: CUMPLIDAS / HISTORIAL -->
+                <div id="sec-sol-cumplidas" style="display:none; flex-direction:column; gap:16px;">
+        `;
+
+        if (cumplidas.length === 0) {
             html += `
-                <div style="margin-top:20px;">
-                    <h4 style="color:var(--text-muted); font-size:1.1em; margin-bottom:10px;">✅ Solicitudes Cubiertas / Historial (${cubiertas.length})</h4>
-                    <div style="display:flex; flex-direction:column; gap:8px;">
-                        ${cubiertas.map(sol => `
-                            <div style="background:white; border:1px solid var(--border-color); border-radius:8px; padding:12px 16px; display:flex; justify-content:space-between; align-items:center; opacity:0.85;">
-                                <div>
-                                    <strong style="color:var(--text-main); font-size:13px;">${sol.instrumento} para ${sol.grupoNombre}</strong>
-                                    <div style="font-size:11.5px; color:var(--text-muted);">Profe ${sol.profesorNombre} • Asignado a: <strong>${sol.alumnoAsignadoNombre || 'Alumno'}</strong></div>
-                                </div>
-                                <span class="status-val-ok">✅ Cubierta</span>
-                            </div>
-                        `).join('')}
-                    </div>
+                <div style="background:white; border:1px dashed var(--border-color); border-radius:12px; padding:40px 20px; text-align:center; color:var(--text-muted);">
+                    <div style="font-size:2em; margin-bottom:8px;">🏁</div>
+                    <div style="font-weight:700; font-size:15px; color:var(--text-main);">No hay solicitudes finalizadas en el historial</div>
+                    <div style="font-size:12.5px; margin-top:4px;">Las solicitudes finalizadas o cubiertas aparecerán aquí de forma prolija.</div>
                 </div>
             `;
+        } else {
+            html += `<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:16px;">`;
+            cumplidas.forEach(sol => {
+                const esCancelada = sol.estado === 'Cancelada';
+                const borderColor = esCancelada ? '#ef4444' : '#10b981';
+                const badgeEstado = esCancelada
+                    ? '<span class="status-val-reject" style="font-size:11px; font-weight:700;">❌ Cancelada</span>'
+                    : '<span class="status-val-ok" style="font-size:11px; font-weight:700;">✅ Cumplida</span>';
+
+                const durMin = sol.duracionMinutos || (sol.tipoGrupo === 'Ensamble Mandalorian' ? 90 : 60);
+                const durBadge = durMin === 90 
+                    ? '<span class="status-badge" style="background:#f3e8ff; color:#7e22ce; font-weight:700; font-size:11px;">⏱️ 90 min (1.5h)</span>'
+                    : '<span class="status-badge" style="background:#e0f2fe; color:#0369a1; font-weight:700; font-size:11px;">⏱️ 60 min</span>';
+
+                const instsArray = sol.instrumentosArray || (sol.instrumento ? sol.instrumento.split(',').map(s => s.trim()) : []);
+                const chipsInstHtml = instsArray.map(inst => {
+                    const emoji = getEmojiParaInstrumento(inst);
+                    return `<span class="match-student-tag" style="font-size:11px; font-weight:600;">${emoji} ${inst}</span>`;
+                }).join(' ');
+
+                html += `
+                    <div class="match-card" style="display:flex; flex-direction:column; justify-content:space-between; padding:16px; border-radius:12px; border:1px solid var(--border-color); background:#ffffff; box-shadow:0 2px 8px rgba(0,0,0,0.03); position:relative; min-height:240px; border-top:4px solid ${borderColor};">
+                        <div>
+                            <!-- Top: Titulo y Estado -->
+                            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:8px;">
+                                <div>
+                                    <div style="font-family:monospace; font-size:15.5px; font-weight:800; color:var(--text-main); line-height:1.2;">${sol.grupoNombre}</div>
+                                    <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">
+                                        👨‍🏫 Profe: <strong style="color:var(--text-main);">${sol.profesorNombre || 'Docente'}</strong>
+                                    </div>
+                                </div>
+                                ${badgeEstado}
+                            </div>
+
+                            <!-- Badges Tipo y Duración -->
+                            <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;">
+                                <span class="status-badge" style="background:#f1f5f9; color:var(--text-muted); font-weight:700; font-size:11px;">${sol.tipoGrupo || 'Grupo'}</span>
+                                ${sol.creadoPorCoordinador ? `<span class="status-badge" style="background:#f0fdf4; color:#166534; font-weight:700; font-size:11px;">👔 Coordinación</span>` : ''}
+                                ${durBadge}
+                            </div>
+
+                            <!-- Horario y Fecha -->
+                            <div style="background:#f8fafc; border:1px solid var(--border-color); border-radius:8px; padding:7px 10px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+                                <div style="display:flex; align-items:center; gap:6px; font-size:12px;">
+                                    <span>📅</span>
+                                    <span style="font-weight:700; color:var(--text-main);">${sol.horario || 'Sin horario'}</span>
+                                </div>
+                                ${sol.fechaFinalizacion ? `<div style="font-size:10px; color:var(--text-muted);">Finalizada: ${new Date(sol.fechaFinalizacion).toLocaleDateString()}</div>` : ''}
+                            </div>
+
+                            <!-- Requisitos breves -->
+                            <div style="margin-bottom:10px; display:flex; flex-wrap:wrap; gap:5px; align-items:center;">
+                                ${chipsInstHtml}
+                                ${sol.nivel ? `<span class="match-student-tag nivel" style="font-size:11px;">📚 ${sol.nivel}</span>` : ''}
+                            </div>
+
+                            <!-- Motivo y Observación de Finalización -->
+                            <div style="background:${esCancelada ? 'rgba(239,68,68,0.05)' : 'rgba(16,185,129,0.05)'}; border:1px solid ${esCancelada ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)'}; border-radius:8px; padding:9px 11px; margin-bottom:8px; font-size:12px;">
+                                <div style="font-weight:700; color:${esCancelada ? '#991b1b' : '#065f46'}; margin-bottom:3px; display:flex; align-items:center; gap:5px;">
+                                    <span>${esCancelada ? '🔴' : '🟢'}</span> Motivo: ${sol.motivoFinalizacion || (esCancelada ? 'Solicitud Cancelada' : 'Solicitud Cumplida')}
+                                </div>
+                                ${sol.observacionFinalizacion ? `
+                                    <div style="color:var(--text-muted); font-size:11.5px; font-style:italic; margin-top:3px; line-height:1.35;">
+                                        "${sol.observacionFinalizacion}"
+                                    </div>
+                                ` : ''}
+                                ${sol.alumnoAsignadoNombre ? `
+                                    <div style="color:var(--text-main); font-size:11.5px; font-weight:600; margin-top:4px;">
+                                        👤 Asignado a: ${sol.alumnoAsignadoNombre}
+                                    </div>
+                                ` : ''}
+                                ${sol.usuarioFinalizo?.nombre ? `
+                                    <div style="font-size:10px; color:var(--text-light); margin-top:4px;">
+                                        Finalizado por: ${sol.usuarioFinalizo.nombre} (${sol.usuarioFinalizo.rol || 'coordinación'})
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+
+                        <!-- Footer Acciones de Cumplidas -->
+                        <div style="display:flex; align-items:center; justify-content:space-between; border-top:1px solid #f1f5f9; padding-top:10px; gap:8px; margin-top:8px;">
+                            <button type="button" class="btn-app btn-secondary btn-reabrir-sol-directo" data-id="${sol.id}" data-grupo="${sol.grupoNombre}" style="font-size:11.5px; padding:4px 10px; height:30px; color:var(--accent-teal); border-color:var(--accent-teal); font-weight:600;" title="Reactivar y mover a Pendientes">
+                                🔄 Reabrir a Pendientes
+                            </button>
+                            <button type="button" class="btn-app btn-secondary btn-eliminar-sol-directo" data-id="${sol.id}" data-grupo="${sol.grupoNombre}" style="font-size:11.5px; padding:4px 8px; height:30px; color:var(--accent-red); border-color:#fca5a5;" title="Eliminar del historial">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            html += `</div>`;
         }
 
-        html += `</div>`;
+        html += `
+                </div>
+            </div>
+        `;
         cont.innerHTML = html;
+
+        // Manejador de Tabs
+        const tabPendientes = document.getElementById('tab-sol-pendientes');
+        const tabCumplidas = document.getElementById('tab-sol-cumplidas');
+        const secPendientes = document.getElementById('sec-sol-pendientes');
+        const secCumplidas = document.getElementById('sec-sol-cumplidas');
+
+        const cambiarTab = (tab) => {
+            window.tabActivoSolicitudesProfes = tab;
+            if (tab === 'cumplidas') {
+                if (tabCumplidas) {
+                    tabCumplidas.style.borderBottomColor = 'var(--accent-teal)';
+                    tabCumplidas.style.color = 'var(--accent-teal)';
+                    tabCumplidas.style.fontWeight = '700';
+                }
+                if (tabPendientes) {
+                    tabPendientes.style.borderBottomColor = 'transparent';
+                    tabPendientes.style.color = 'var(--text-muted)';
+                    tabPendientes.style.fontWeight = '600';
+                }
+                if (secPendientes) secPendientes.style.display = 'none';
+                if (secCumplidas) secCumplidas.style.display = 'flex';
+            } else {
+                if (tabPendientes) {
+                    tabPendientes.style.borderBottomColor = 'var(--accent-teal)';
+                    tabPendientes.style.color = 'var(--accent-teal)';
+                    tabPendientes.style.fontWeight = '700';
+                }
+                if (tabCumplidas) {
+                    tabCumplidas.style.borderBottomColor = 'transparent';
+                    tabCumplidas.style.color = 'var(--text-muted)';
+                    tabCumplidas.style.fontWeight = '600';
+                }
+                if (secPendientes) secPendientes.style.display = 'flex';
+                if (secCumplidas) secCumplidas.style.display = 'none';
+            }
+        };
+
+        tabPendientes?.addEventListener('click', () => cambiarTab('pendientes'));
+        tabCumplidas?.addEventListener('click', () => cambiarTab('cumplidas'));
+        cambiarTab(window.tabActivoSolicitudesProfes || 'pendientes');
+
+        // Listener para Nueva Solicitud por parte de Coordinador
+        document.getElementById('btn-coordinador-nueva-solicitud')?.addEventListener('click', () => {
+            abrirModalSolicitudVacante(null, () => {
+                window.tabActivoSolicitudesProfes = 'pendientes';
+                renderMatchSolicitudesProfes(cont, configApp, callbacks);
+            }, true);
+        });
 
         // Listeners individuales de búsqueda directa
         cont.querySelectorAll('.btn-buscar-matches-sol').forEach(btn => {
@@ -3082,13 +3251,49 @@ export async function renderMatchSolicitudesProfes(cont, configApp, callbacks = 
             });
         });
 
+        // Listeners para Finalizar Solicitud (mueve automáticamente a Cumplidas)
+        cont.querySelectorAll('.btn-finalizar-sol-directo').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const solId = btn.getAttribute('data-id');
+                const grp = btn.getAttribute('data-grupo');
+                const profe = btn.getAttribute('data-profe');
+                abrirModalFinalizarSolicitud(solId, { grupoNombre: grp, profesorNombre: profe }, () => {
+                    window.tabActivoSolicitudesProfes = 'cumplidas';
+                    renderMatchSolicitudesProfes(cont, configApp, callbacks);
+                });
+            });
+        });
+
+        // Listeners para Reabrir Solicitud Finalizada
+        cont.querySelectorAll('.btn-reabrir-sol-directo').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const solId = btn.getAttribute('data-id');
+                const grp = btn.getAttribute('data-grupo');
+                if (!confirm(`¿Deseas reactivar la solicitud para "${grp}" y moverla a la pestaña Pendientes?`)) return;
+                try {
+                    await updateDoc(doc(db, "solicitudes_vacantes", solId), {
+                        estado: "Pendiente",
+                        motivoFinalizacion: null,
+                        observacionFinalizacion: null,
+                        fechaReapertura: new Date().toISOString()
+                    });
+                    window.tabActivoSolicitudesProfes = 'pendientes';
+                    await renderMatchSolicitudesProfes(cont, configApp, callbacks);
+                } catch(err) {
+                    alert("Error al reabrir solicitud: " + err.message);
+                }
+            });
+        });
+
         // Listeners para Editar y Eliminar desde la Ficha
         cont.querySelectorAll('.btn-click-fecha-sol, .btn-editar-sol-directo').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const solId = btn.getAttribute('data-id');
                 const sol = pendientes.find(s => s.id === solId);
-                abrirModalSolicitudVacante(sol || solId, () => renderMatchSolicitudesProfes(cont, configApp, callbacks));
+                abrirModalSolicitudVacante(sol || solId, () => renderMatchSolicitudesProfes(cont, configApp, callbacks), true);
             });
         });
 

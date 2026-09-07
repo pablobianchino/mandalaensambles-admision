@@ -344,7 +344,7 @@
                     <button type="button" id="btn-quick-test-notif" onclick="window.abrirModalTestNotificacion()" class="btn-app btn-secondary" style="font-size:11px; height:28px; padding:0 8px; flex:1; justify-content:center; color:var(--accent-teal); border-color:var(--accent-teal); background:rgba(0,123,143,0.05); font-weight:700;" title="Probar notificación push de entrevista en celular o PC">🔔 Test Notificación</button>
                     <a href="guia-evaluadores.html" target="_blank" class="btn-app btn-secondary" style="font-size:11px; height:28px; padding:0 8px; justify-content:center; text-decoration:none; display:inline-flex; align-items:center;" title="Abrir Guía Paso a Paso para Evaluadores">📖 Guía</a>
                 </div>
-                <div id="sidebar-version-label" style="font-size: 11px; color: var(--text-light); text-align: left; font-weight: 600; padding: 2px 6px;">v6.6.6</div>
+                <div id="sidebar-version-label" style="font-size: 11px; color: var(--text-light); text-align: left; font-weight: 600; padding: 2px 6px;">v6.6.7</div>
             </div>
         </aside>
 
@@ -1931,6 +1931,19 @@
             <input type="hidden" id="sol-vac-profe-nombre">
             <input type="hidden" id="sol-vac-profe-email">
             <input type="hidden" id="sol-vac-duracion-min" value="60">
+            <!-- 0. Docente Asignado (Visible solo para Coordinadores) -->
+            <div id="sol-vac-sec-docente" style="display:none; margin-bottom:14px; background:rgba(0,123,143,0.04); border:1px solid rgba(0,123,143,0.2); padding:12px; border-radius:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                    <label style="display:block; font-size:11.5px; font-weight:700; color:var(--accent-teal); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0;">
+                        Docente / Profesor Asignado *
+                    </label>
+                    <span style="font-size:10.5px; font-weight:700; background:rgba(0,123,143,0.12); color:var(--accent-teal); padding:2px 8px; border-radius:10px;">Modo Coordinación</span>
+                </div>
+                <select id="sol-vac-profe-select" class="modern-input" style="font-weight:700; font-size:13px; color:var(--text-main); width:100%;">
+                    <option value="">-- Seleccionar Docente --</option>
+                </select>
+                <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">La solicitud se asignará a este profesor y se reflejará en su portal docente.</div>
+            </div>
 
             <!-- 1. Modalidad: Clase Individual vs Grupo / Ensamble -->
             <div style="margin-bottom:14px;">
@@ -2050,6 +2063,73 @@
                     <button type="button" class="btn-cerrar-modal" data-modal="modal-solicitar-vacante" style="padding:8px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted);">Cancelar</button>
                     <button id="btn-guardar-solicitar-vacante" class="btn-primary" style="padding:8px 18px; font-weight:700;">Enviar Solicitud</button>
                 </div>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- ================================================ -->
+    <!-- MODAL: FINALIZAR SOLICITUD DE VACANTE            -->
+    <!-- ================================================ -->
+    <dialog id="modal-finalizar-solicitud" class="modern-modal auto-height-modal" style="max-width:480px;">
+        <div style="padding:24px;">
+            <div class="modal-drag-pill"></div>
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+                <div style="width:36px; height:36px; border-radius:10px; background:rgba(0,123,143,0.1); color:var(--accent-teal); display:flex; align-items:center; justify-content:center; font-size:18px;">🏁</div>
+                <div>
+                    <h3 style="margin:0; color:var(--text-main); font-weight:700; font-size:18px;">Finalizar Solicitud</h3>
+                    <p id="modal-finalizar-sol-subtitulo" style="margin:2px 0 0 0; color:var(--text-muted); font-size:12.5px;">Cerrar el ciclo de la solicitud de vacante</p>
+                </div>
+            </div>
+
+            <input type="hidden" id="modal-finalizar-sol-id">
+            <input type="hidden" id="modal-finalizar-sol-grupo">
+
+            <div id="modal-finalizar-sol-info" style="background:var(--hover-bg); border:1px solid var(--border-color); border-radius:10px; padding:12px; margin:14px 0;">
+                <!-- Datos inyectados dinámicamente -->
+            </div>
+
+            <!-- Motivo de Finalización -->
+            <div style="margin-bottom:14px;">
+                <label style="display:block; font-size:11.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:8px;">
+                    Motivo de Finalización *
+                </label>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                    <label id="lbl-motivo-cumplida" style="display:flex; flex-direction:column; gap:4px; padding:12px; border-radius:10px; border:2px solid #10b981; background:rgba(16,185,129,0.06); cursor:pointer; transition:all 0.2s ease;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <input type="radio" name="motivo-finalizacion" id="motivo-cumplida" value="Solicitud Cumplida" checked style="accent-color:#10b981;">
+                            <span style="font-weight:700; font-size:13px; color:#065f46;">Solicitud Cumplida</span>
+                        </div>
+                        <span style="font-size:10.5px; color:#047857; margin-left:22px;">Vacante cubierta con alumno(s)</span>
+                    </label>
+
+                    <label id="lbl-motivo-cancelada" style="display:flex; flex-direction:column; gap:4px; padding:12px; border-radius:10px; border:1px solid var(--border-color); background:var(--card-bg); cursor:pointer; transition:all 0.2s ease;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <input type="radio" name="motivo-finalizacion" id="motivo-cancelada" value="Solicitud Cancelada" style="accent-color:#ef4444;">
+                            <span style="font-weight:700; font-size:13px; color:var(--text-main);">Solicitud Cancelada</span>
+                        </div>
+                        <span style="font-size:10.5px; color:var(--text-muted); margin-left:22px;">No se dictará o se desistió</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Observación -->
+            <div style="margin-bottom:16px;">
+                <label id="lbl-finalizar-obs" style="display:flex; justify-content:space-between; font-size:11.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;">
+                    <span>Observación / Motivo Detallado <span id="span-finalizar-obs-req" style="color:#ef4444; display:none;">*</span></span>
+                    <span id="span-finalizar-obs-help" style="font-size:10.5px; text-transform:none; font-weight:500; color:var(--text-light);">Opcional</span>
+                </label>
+                <textarea id="modal-finalizar-sol-obs" rows="3" class="modern-input" placeholder="Detalles de la finalización (opcional para Solicitud Cumplida)..." style="width:100%; box-sizing:border-box;"></textarea>
+                <div id="modal-finalizar-obs-alerta" style="display:none; font-size:11.5px; color:#dc2626; font-weight:600; margin-top:4px;">
+                    ⚠️ La observación es obligatoria al cancelar una solicitud.
+                </div>
+            </div>
+
+            <!-- Acciones -->
+            <div style="display:flex; justify-content:flex-end; gap:10px; border-top:1px solid var(--border-color); padding-top:14px;">
+                <button type="button" class="btn-cerrar-modal" data-modal="modal-finalizar-solicitud" style="padding:8px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted);">Cancelar</button>
+                <button type="button" id="btn-confirmar-finalizar-solicitud" class="btn-primary" style="padding:8px 18px; font-weight:700; background:#10b981; border-color:#10b981;">
+                    ✓ Finalizar Solicitud
+                </button>
             </div>
         </div>
     </dialog>
@@ -2575,12 +2655,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=6.6.6"></script>
+    <script type="module" src="app.js?v=6.6.7"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=6.6.6').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=6.6.7').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {

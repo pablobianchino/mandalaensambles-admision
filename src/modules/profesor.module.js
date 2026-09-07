@@ -437,6 +437,21 @@ export function setupModalSolicitarVacanteListeners() {
     selDiaModal?.addEventListener('change', recalcularNombreModal);
     inpHoraModal?.addEventListener('change', recalcularNombreModal);
 
+    const selProfeModal = document.getElementById('sol-vac-profe-select');
+    selProfeModal?.addEventListener('change', () => {
+        const opt = selProfeModal.options[selProfeModal.selectedIndex];
+        const pId = selProfeModal.value;
+        const pNom = opt?.getAttribute('data-nombre') || '';
+        const pEmail = opt?.getAttribute('data-email') || '';
+        const inpPId = document.getElementById('sol-vac-profe-id');
+        const inpPNom = document.getElementById('sol-vac-profe-nombre');
+        const inpPEmail = document.getElementById('sol-vac-profe-email');
+        if (inpPId) inpPId.value = pId;
+        if (inpPNom) inpPNom.value = pNom;
+        if (inpPEmail) inpPEmail.value = pEmail;
+        recalcularNombreModal();
+    });
+
     modal.querySelectorAll('.btn-sol-tipo-grupo').forEach(b => {
         b.addEventListener('click', () => {
             const tipo = b.getAttribute('data-tipo') || 'Clase Grupal';
@@ -480,13 +495,17 @@ export function setupModalSolicitarVacanteListeners() {
         const solId = document.getElementById('sol-vac-id')?.value || '';
         const textoOriginal = solId ? '💾 Guardar Cambios' : 'Enviar Solicitud';
         const pId = document.getElementById('sol-vac-profe-id')?.value || '';
-        const pNom = document.getElementById('sol-vac-profe-nombre')?.value || 'Docente';
+        const pNom = document.getElementById('sol-vac-profe-nombre')?.value || '';
         const pEmail = document.getElementById('sol-vac-profe-email')?.value || '';
         const modalidad = document.querySelector('input[name="sol-vac-modalidad"]:checked')?.value || 'grupo';
         const durMin = parseInt(document.getElementById('sol-vac-duracion-min')?.value || '60', 10);
         const diaCod = selDiaModal ? selDiaModal.value : 'M';
         const horaInicio = inpHoraModal ? inpHoraModal.value : '18:30';
         const nombreGrupo = inpNombreModal ? inpNombreModal.value.trim() : '';
+
+        if (!pId && !pNom) {
+            return alert("Por favor selecciona o asigna un docente para esta solicitud.");
+        }
 
         if (!nombreGrupo) {
             return alert("Por favor ingresa un nombre para la clase o grupo.");
@@ -514,6 +533,11 @@ export function setupModalSolicitarVacanteListeners() {
 
         btnGuardarSol.disabled = true;
         btnGuardarSol.textContent = 'Guardando...';
+
+        const rolesU = Array.isArray(window.usuarioActual?.roles) 
+            ? window.usuarioActual.roles 
+            : [window.usuarioActual?.rol];
+        const esCoordActivo = rolesU.some(r => ['admin', 'coordinador', 'coordinador_grupos', 'admisor', 'admisiones'].includes((r || '').toLowerCase()));
 
         try {
             const payload = {
@@ -546,6 +570,15 @@ export function setupModalSolicitarVacanteListeners() {
                 });
                 alert(`✅ Solicitud "${nombreGrupo}" actualizada con éxito.`);
             } else {
+                if (esCoordActivo) {
+                    payload.creadoPorCoordinador = true;
+                    payload.coordinadorCargador = {
+                        uid: window.usuarioActual?.uid || '',
+                        nombre: window.usuarioActual?.nombre || 'Coordinación',
+                        email: window.usuarioActual?.email || '',
+                        fecha: new Date().toISOString()
+                    };
+                }
                 await addDoc(collection(db, "solicitudes_vacantes"), {
                     ...payload,
                     estado: "Pendiente",
@@ -570,7 +603,46 @@ export function setupModalSolicitarVacanteListeners() {
     });
 }
 
-export async function abrirModalSolicitudVacante(solicitudParam = null, onSavedCallback = null) {
+export async function obtenerListaProfesoresActivos() {
+    try {
+        const [profsSnap, usersSnap] = await Promise.all([
+            getDocs(collection(db, "profesores")),
+            getDocs(collection(db, "usuarios_sistema"))
+        ]);
+        const emailPorProfeId = {};
+        const emailPorNombre = {};
+        usersSnap.forEach(d => {
+            const u = d.data();
+            const uMail = (u.email || '').trim().toLowerCase();
+            if (uMail && !uMail.includes('@group.calendar.google.com')) {
+                if (u.profesor_id && (!emailPorProfeId[u.profesor_id] || u.activo !== false)) {
+                    emailPorProfeId[u.profesor_id] = uMail;
+                }
+                if (u.nombre) {
+                    emailPorNombre[u.nombre.toLowerCase().trim()] = uMail;
+                }
+            }
+        });
+        const lista = [];
+        profsSnap.forEach(d => {
+            const data = d.data();
+            if (data.activo !== false && data.estado !== 'inactivo') {
+                const id = d.id;
+                const nombre = data.nombre || 'Docente';
+                const email = emailPorProfeId[id] || (data.nombre && emailPorNombre[data.nombre.toLowerCase().trim()]) || data.email || data.correo || '';
+                lista.push({ id, nombre, email, ...data });
+            }
+        });
+        lista.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+        return lista;
+    } catch(e) {
+        console.error("Error al obtener profesores activos:", e);
+        return [];
+    }
+}
+window.obtenerListaProfesoresActivos = obtenerListaProfesoresActivos;
+
+export async function abrirModalSolicitudVacante(solicitudParam = null, onSavedCallback = null, esCoordinador = null) {
     const modal = document.getElementById('modal-solicitar-vacante');
     if (!modal) return;
 
@@ -597,6 +669,25 @@ export async function abrirModalSolicitudVacante(solicitudParam = null, onSavedC
     const inpProfeId = document.getElementById('sol-vac-profe-id');
     const inpProfeNom = document.getElementById('sol-vac-profe-nombre');
     const inpProfeEmail = document.getElementById('sol-vac-profe-email');
+
+    const secProfeCoord = document.getElementById('sol-vac-sec-docente');
+    const selProfeCoord = document.getElementById('sol-vac-profe-select');
+
+    // Determinar si opera en modo coordinador
+    const rolesUser = Array.isArray(window.usuarioActual?.roles) 
+        ? window.usuarioActual.roles 
+        : [(window.usuarioActual?.rol || 'docente')];
+    const esCoordRol = rolesUser.some(r => ['admin', 'coordinador', 'coordinador_grupos', 'admisor', 'admisiones'].includes((r || '').toLowerCase()));
+    const modoCoordinador = (esCoordinador !== null) ? !!esCoordinador : (esCoordRol && !window.estaEnPortalDocente);
+
+    if (modoCoordinador && secProfeCoord && selProfeCoord) {
+        secProfeCoord.style.display = 'block';
+        const profes = await obtenerListaProfesoresActivos();
+        selProfeCoord.innerHTML = `<option value="">-- Seleccionar Docente Asignado --</option>` + 
+            profes.map(p => `<option value="${p.id}" data-nombre="${p.nombre || ''}" data-email="${p.email || ''}">${p.nombre || 'Sin nombre'}</option>`).join('');
+    } else if (secProfeCoord) {
+        secProfeCoord.style.display = 'none';
+    }
 
     const rModInd = document.getElementById('sol-vac-mod-ind');
     const rModGrp = document.getElementById('sol-vac-mod-grp');
@@ -625,6 +716,10 @@ export async function abrirModalSolicitudVacante(solicitudParam = null, onSavedC
         if (inpProfeId) inpProfeId.value = sol.profesorId || '';
         if (inpProfeNom) inpProfeNom.value = sol.profesorNombre || '';
         if (inpProfeEmail) inpProfeEmail.value = sol.profesorEmail || '';
+
+        if (modoCoordinador && selProfeCoord && sol.profesorId) {
+            selProfeCoord.value = sol.profesorId;
+        }
 
         const esInd = sol.modalidad === 'individual' || sol.tipoGrupo === 'Clase Individual';
         if (rModInd && rModGrp) {
@@ -674,10 +769,24 @@ export async function abrirModalSolicitudVacante(solicitudParam = null, onSavedC
         }
         if (btnEliminar) btnEliminar.style.display = 'none';
 
-        const u = window.usuarioActual || {};
-        if (inpProfeId) inpProfeId.value = (sol && sol.profesorId) || u.profesor_id || '';
-        if (inpProfeNom) inpProfeNom.value = (sol && sol.profesorNombre) || u.nombre || '';
-        if (inpProfeEmail) inpProfeEmail.value = (sol && sol.profesorEmail) || u.email || '';
+        if (modoCoordinador) {
+            if (sol && sol.profesorId && selProfeCoord) {
+                selProfeCoord.value = sol.profesorId;
+                if (inpProfeId) inpProfeId.value = sol.profesorId;
+                if (inpProfeNom) inpProfeNom.value = sol.profesorNombre || '';
+                if (inpProfeEmail) inpProfeEmail.value = sol.profesorEmail || '';
+            } else {
+                if (selProfeCoord) selProfeCoord.value = '';
+                if (inpProfeId) inpProfeId.value = '';
+                if (inpProfeNom) inpProfeNom.value = '';
+                if (inpProfeEmail) inpProfeEmail.value = '';
+            }
+        } else {
+            const u = window.usuarioActual || {};
+            if (inpProfeId) inpProfeId.value = (sol && sol.profesorId) || u.profesor_id || '';
+            if (inpProfeNom) inpProfeNom.value = (sol && sol.profesorNombre) || u.nombre || '';
+            if (inpProfeEmail) inpProfeEmail.value = (sol && sol.profesorEmail) || u.email || '';
+        }
 
         const inpEdadMin = document.getElementById('sol-vac-edad-min');
         const inpEdadMax = document.getElementById('sol-vac-edad-max');
@@ -700,8 +809,8 @@ export async function abrirModalSolicitudVacante(solicitudParam = null, onSavedC
             if (parsed && selDiaModal) selDiaModal.value = parsed.diaCod;
             if (parsed && inpHoraModal) inpHoraModal.value = parsed.horaInicio;
         } else {
-            const profeNom = (sol && sol.profesorNombre) || u.nombre || 'Profe';
-            const nombreGenerado = formatearNomenclaturaGrupoOClase('M', '18:30', profeNom);
+            const profeNom = (sol && sol.profesorNombre) || (modoCoordinador ? '' : (window.usuarioActual?.nombre || 'Profe'));
+            const nombreGenerado = formatearNomenclaturaGrupoOClase('M', '18:30', profeNom || 'Profe');
             if (inpNombreModal) inpNombreModal.value = nombreGenerado;
         }
 
@@ -713,6 +822,177 @@ export async function abrirModalSolicitudVacante(solicitudParam = null, onSavedC
     modal.showModal();
 }
 window.abrirModalSolicitudVacante = abrirModalSolicitudVacante;
+
+export function setupModalFinalizarSolicitudListeners() {
+    const modal = document.getElementById('modal-finalizar-solicitud');
+    if (!modal || modal.dataset.listenersAttached === 'true') return;
+    modal.dataset.listenersAttached = 'true';
+
+    const rCumplida = document.getElementById('motivo-cumplida');
+    const rCancelada = document.getElementById('motivo-cancelada');
+    const lblCumplida = document.getElementById('lbl-motivo-cumplida');
+    const lblCancelada = document.getElementById('lbl-motivo-cancelada');
+    const spanReq = document.getElementById('span-finalizar-obs-req');
+    const spanHelp = document.getElementById('span-finalizar-obs-help');
+    const inpObs = document.getElementById('modal-finalizar-sol-obs');
+    const alertaObs = document.getElementById('modal-finalizar-obs-alerta');
+    const btnConfirmar = document.getElementById('btn-confirmar-finalizar-solicitud');
+
+    const actualizarVistaMotivo = () => {
+        const esCancelada = rCancelada && rCancelada.checked;
+        if (alertaObs) alertaObs.style.display = 'none';
+
+        if (esCancelada) {
+            if (lblCancelada) {
+                lblCancelada.style.borderColor = '#ef4444';
+                lblCancelada.style.background = 'rgba(239,68,68,0.06)';
+            }
+            if (lblCumplida) {
+                lblCumplida.style.borderColor = 'var(--border-color)';
+                lblCumplida.style.background = 'var(--card-bg)';
+            }
+            if (spanReq) spanReq.style.display = 'inline';
+            if (spanHelp) {
+                spanHelp.textContent = 'Obligatoria *';
+                spanHelp.style.color = '#ef4444';
+                spanHelp.style.fontWeight = '700';
+            }
+            if (inpObs) inpObs.placeholder = 'Motivo por el cual se cancela la vacante (obligatorio)...';
+            if (btnConfirmar) {
+                btnConfirmar.textContent = '✕ Cancelar Solicitud';
+                btnConfirmar.style.background = '#dc2626';
+                btnConfirmar.style.borderColor = '#dc2626';
+            }
+        } else {
+            if (lblCumplida) {
+                lblCumplida.style.borderColor = '#10b981';
+                lblCumplida.style.background = 'rgba(16,185,129,0.06)';
+            }
+            if (lblCancelada) {
+                lblCancelada.style.borderColor = 'var(--border-color)';
+                lblCancelada.style.background = 'var(--card-bg)';
+            }
+            if (spanReq) spanReq.style.display = 'none';
+            if (spanHelp) {
+                spanHelp.textContent = 'Opcional';
+                spanHelp.style.color = 'var(--text-light)';
+                spanHelp.style.fontWeight = '500';
+            }
+            if (inpObs) inpObs.placeholder = 'Detalles de la finalización (opcional para Solicitud Cumplida)...';
+            if (btnConfirmar) {
+                btnConfirmar.textContent = '✓ Finalizar Solicitud';
+                btnConfirmar.style.background = '#10b981';
+                btnConfirmar.style.borderColor = '#10b981';
+            }
+        }
+    };
+
+    rCumplida?.addEventListener('change', actualizarVistaMotivo);
+    rCancelada?.addEventListener('change', actualizarVistaMotivo);
+
+    modal.querySelectorAll('.btn-cerrar-modal').forEach(btn => {
+        btn.addEventListener('click', () => modal.close());
+    });
+
+    btnConfirmar?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const solId = document.getElementById('modal-finalizar-sol-id')?.value;
+        const nombreGrupo = document.getElementById('modal-finalizar-sol-grupo')?.value || '';
+        const motivo = document.querySelector('input[name="motivo-finalizacion"]:checked')?.value || 'Solicitud Cumplida';
+        const obs = inpObs ? inpObs.value.trim() : '';
+
+        if (!solId) {
+            return alert("Error: no se identificó la solicitud a finalizar.");
+        }
+
+        if (motivo === 'Solicitud Cancelada' && !obs) {
+            if (alertaObs) alertaObs.style.display = 'block';
+            if (inpObs) {
+                inpObs.focus();
+                inpObs.style.borderColor = '#ef4444';
+            }
+            return;
+        }
+
+        btnConfirmar.disabled = true;
+        btnConfirmar.textContent = 'Procesando...';
+
+        try {
+            const nuevoEstado = (motivo === 'Solicitud Cumplida') ? 'Cumplida' : 'Cancelada';
+            const u = window.usuarioActual || {};
+            await updateDoc(doc(db, "solicitudes_vacantes", solId), {
+                estado: nuevoEstado,
+                motivoFinalizacion: motivo,
+                observacionFinalizacion: obs,
+                fechaFinalizacion: new Date().toISOString(),
+                usuarioFinalizo: {
+                    uid: u.uid || '',
+                    nombre: u.nombre || 'Usuario',
+                    email: u.email || '',
+                    rol: (u.roles && u.roles[0]) || u.rol || 'admin'
+                }
+            });
+
+            modal.close();
+            alert(`✅ Solicitud "${nombreGrupo}" finalizada como "${motivo}".`);
+
+            if (typeof window._onSolicitudFinalizadaCallback === 'function') {
+                await window._onSolicitudFinalizadaCallback();
+            }
+        } catch(err) {
+            alert("❌ Error al finalizar solicitud: " + err.message);
+        } finally {
+            btnConfirmar.disabled = false;
+            actualizarVistaMotivo();
+        }
+    });
+}
+
+export async function abrirModalFinalizarSolicitud(solicitudId, info = {}, onFinishedCallback = null) {
+    const modal = document.getElementById('modal-finalizar-solicitud');
+    if (!modal) return;
+
+    setupModalFinalizarSolicitudListeners();
+
+    window._onSolicitudFinalizadaCallback = onFinishedCallback;
+
+    const inpId = document.getElementById('modal-finalizar-sol-id');
+    const inpGrupo = document.getElementById('modal-finalizar-sol-grupo');
+    const contInfo = document.getElementById('modal-finalizar-sol-info');
+    const inpObs = document.getElementById('modal-finalizar-sol-obs');
+    const alertaObs = document.getElementById('modal-finalizar-obs-alerta');
+    const rCumplida = document.getElementById('motivo-cumplida');
+
+    if (inpId) inpId.value = solicitudId;
+    if (inpGrupo) inpGrupo.value = info.grupoNombre || '';
+    if (inpObs) {
+        inpObs.value = '';
+        inpObs.style.borderColor = 'var(--border-color)';
+    }
+    if (alertaObs) alertaObs.style.display = 'none';
+
+    if (rCumplida) {
+        rCumplida.checked = true;
+        rCumplida.dispatchEvent(new Event('change'));
+    }
+
+    if (contInfo) {
+        contInfo.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+                <div>
+                    <div style="font-family:monospace; font-size:15px; font-weight:800; color:var(--accent-teal);">${info.grupoNombre || 'Solicitud de Vacante'}</div>
+                    <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">
+                        👨‍🏫 Docente: <strong style="color:var(--text-main);">${info.profesorNombre || 'Asignado'}</strong>
+                    </div>
+                </div>
+                <span class="status-badge" style="background:#fef3c7; color:#92400e; font-weight:700; font-size:11px;">Activa</span>
+            </div>
+        `;
+    }
+
+    modal.showModal();
+}
+window.abrirModalFinalizarSolicitud = abrirModalFinalizarSolicitud;
 
 export async function eliminarSolicitudVacanteDirecto(solId, nombreGrupo = '', onDeleted = null) {
     if (!solId) return false;
@@ -1076,7 +1356,7 @@ export async function renderPortalProfesor(cont, usuarioActual = {}, callbacks =
                 return `
                     <div class="card-solicitud-docente" data-id="${sol.id}" style="cursor:pointer; display:flex; flex-direction:column; justify-content:space-between; padding:16px; border-radius:14px; border:1px solid var(--border-color); background:#ffffff; box-shadow:0 2px 8px rgba(0,0,0,0.04); position:relative; min-height:220px; transition:all 0.2s ease; border-top:4px solid var(--accent-teal);" title="Haz clic en la ficha para editar esta solicitud">
                         <div>
-                            <!-- Top: Grupo, Estado y Botón Único Borrar -->
+                            <!-- Top: Grupo, Estado y Botones de Acción -->
                             <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:10px;">
                                 <div>
                                     <div style="font-family:monospace; font-size:16px; font-weight:800; color:var(--accent-teal); line-height:1.2;">${sol.grupoNombre}</div>
@@ -1084,14 +1364,22 @@ export async function renderPortalProfesor(cont, usuarioActual = {}, callbacks =
                                         ${badgeEstado}
                                     </div>
                                 </div>
-                                <button type="button" class="btn-eliminar-sol-docente" data-id="${sol.id}" data-grupo="${sol.grupoNombre}" title="Eliminar solicitud" style="background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; border-radius:8px; padding:5px 8px; font-size:13px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.2s;" onclick="event.stopPropagation();">
-                                    🗑️
-                                </button>
+                                <div style="display:flex; align-items:center; gap:6px;">
+                                    ${sol.estado !== 'Cumplida' && sol.estado !== 'Cancelada' ? `
+                                        <button type="button" class="btn-finalizar-sol-docente" data-id="${sol.id}" data-grupo="${sol.grupoNombre}" data-profe="${sol.profesorNombre || ''}" title="Finalizar solicitud" style="background:#ecfdf5; border:1px solid #a7f3d0; color:#059669; border-radius:8px; padding:5px 8px; font-size:12px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:all 0.2s;" onclick="event.stopPropagation();">
+                                            🏁 Finalizar
+                                        </button>
+                                    ` : ''}
+                                    <button type="button" class="btn-eliminar-sol-docente" data-id="${sol.id}" data-grupo="${sol.grupoNombre}" title="Eliminar solicitud" style="background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; border-radius:8px; padding:5px 8px; font-size:13px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background 0.2s;" onclick="event.stopPropagation();">
+                                        🗑️
+                                    </button>
+                                </div>
                             </div>
 
-                            <!-- Badges Tipo y Duración -->
+                            <!-- Badges Tipo, Coordinación y Duración -->
                             <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;">
                                 <span class="status-badge" style="background:#fef3c7; color:#92400e; font-weight:700; font-size:11px;">${sol.tipoGrupo || 'Grupo'}</span>
+                                ${sol.creadoPorCoordinador ? `<span class="status-badge" style="background:#f0fdf4; color:#166534; font-weight:700; font-size:11px;">👔 Coordinación</span>` : ''}
                                 ${durBadge}
                             </div>
 
@@ -1503,10 +1791,21 @@ export async function renderPortalProfesor(cont, usuarioActual = {}, callbacks =
         // Clic en la tarjeta abre el modal en modo edición
         cont.querySelectorAll('.card-solicitud-docente').forEach(card => {
             card.addEventListener('click', (e) => {
-                if (e.target.closest('.btn-eliminar-sol-docente')) return;
+                if (e.target.closest('.btn-eliminar-sol-docente') || e.target.closest('.btn-finalizar-sol-docente')) return;
                 const solId = card.getAttribute('data-id');
                 const sol = misSolicitudes.find(s => s.id === solId);
                 abrirModalSolicitudVacante(sol || solId, () => renderPortalProfesor(cont, usuarioActual, callbacks));
+            });
+        });
+
+        // Botón de finalización directa
+        cont.querySelectorAll('.btn-finalizar-sol-docente').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const solId = btn.getAttribute('data-id');
+                const grp = btn.getAttribute('data-grupo');
+                const profe = btn.getAttribute('data-profe');
+                abrirModalFinalizarSolicitud(solId, { grupoNombre: grp, profesorNombre: profe }, () => renderPortalProfesor(cont, usuarioActual, callbacks));
             });
         });
 
