@@ -1962,6 +1962,11 @@ body.body-action-busy input[type="submit"] {
     pointer-events: none !important;
     cursor: wait !important;
 }
+body.body-action-busy #modal-confirmar-accion button,
+body.body-action-busy dialog[open] button {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+}
 
 /* ==========================================================================
    BADGES DE PRIORIDAD Y VENCIMIENTO (COUNTDOWN PILLS)

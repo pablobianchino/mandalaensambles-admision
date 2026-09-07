@@ -2136,26 +2136,9 @@ export async function confirmarAlumnoAltaAction(alumnoId, alumnoNombre, grupoNom
         );
         if (!okConf) return;
 
-        if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(`Confirmando a ${alumnoNombre}...`);
-
         const dSnap = await getDoc(doc(db, "alumnos", alumnoId));
         if (!dSnap.exists()) return;
         const al = dSnap.data();
-
-        const hist = al.historial || [];
-        const fnHist = window.crearEntradaHistorial || ((txt, t) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: t || 'sistema' }));
-        hist.push(fnHist(`Alta confirmada (pago abonado). Alumno activo en ${grupoNombre || al.grupo_asignado || 'clase'}.`, 'alta'));
-
-        const checksExistentes = Array.isArray(al.checklist_alta) && al.checklist_alta.length > 0 
-            ? al.checklist_alta 
-            : [false, false, false, false];
-
-        await updateDoc(doc(db, "alumnos", alumnoId), {
-            estado_agenda: "Alta Efectiva",
-            fecha_alta_confirmada: new Date().toISOString(),
-            checklist_alta: checksExistentes,
-            historial: hist
-        });
 
         // Sincronizar Calendar
         const cfg = callbacks.configApp || defaultCfg;
@@ -2191,6 +2174,24 @@ export async function confirmarAlumnoAltaAction(alumnoId, alumnoNombre, grupoNom
                 opcionesAlta.esRecurrente = esRec;
             }
         }
+
+        // Una vez resueltas TODAS las preguntas al usuario, recién ahora activamos el loader de procesamiento
+        if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(`Confirmando a ${alumnoNombre}...`);
+
+        const hist = al.historial || [];
+        const fnHist = window.crearEntradaHistorial || ((txt, t) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: t || 'sistema' }));
+        hist.push(fnHist(`Alta confirmada (pago abonado). Alumno activo en ${grupoNombre || al.grupo_asignado || 'clase'}.`, 'alta'));
+
+        const checksExistentes = Array.isArray(al.checklist_alta) && al.checklist_alta.length > 0 
+            ? al.checklist_alta 
+            : [false, false, false, false];
+
+        await updateDoc(doc(db, "alumnos", alumnoId), {
+            estado_agenda: "Alta Efectiva",
+            fecha_alta_confirmada: new Date().toISOString(),
+            checklist_alta: checksExistentes,
+            historial: hist
+        });
 
         // Obtener lista completa y FRESCA de todos los miembros del grupo desde Firestore
         let todosMiembrosGrupo = [];
@@ -2284,7 +2285,7 @@ function construirAccionesFilaAlta(al, id, vista, isConfirmed, nombreGrupo, call
         } else if (vista === 'Altas - Finalizadas' && (!alClon.estado_agenda || !alClon.estado_agenda.toLowerCase().includes('alta'))) {
             alClon.estado_agenda = 'Alta Finalizada';
         }
-        botonesSecundarios = fnAccion(alClon, id, true);
+        botonesSecundarios = fnAccion(alClon, id, false);
     }
 
     if (vista === 'Altas - Pendientes') {
@@ -2475,7 +2476,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                             </div>
                             ${checklistRowHtml}
                         </div>
-                        <div class="group-member-actions" onclick="event.stopPropagation();" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; flex-shrink:0;">
+                        <div class="group-member-actions" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; flex-shrink:0;">
                             ${botonesRow}
                         </div>
                     </div>
@@ -2575,7 +2576,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                                 </div>
                                 ${checklistIndivHtml}
                             </div>
-                            <div class="group-member-actions" onclick="event.stopPropagation();" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; flex-shrink:0;">
+                            <div class="group-member-actions" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; flex-shrink:0;">
                                 ${botonesIndiv}
                             </div>
                         </div>
