@@ -257,16 +257,31 @@ export async function cargarSolicitudesEnSelectorMatch(solicitudIdPreseleccionad
 }
 
 export function aplicarSolicitudEnFiltrosMatch(solId) {
-    if (!solId || !window.cachedSolicitudesMatchList) return;
+    if (!solId || !window.cachedSolicitudesMatchList) {
+        resetMatchForm();
+        return;
+    }
     if (solId === 'todas') {
+        resetMatchForm();
         window.solicitudesParaMatch = 'todas';
+        const selSol = document.getElementById('match-sel-solicitud-cargada');
+        if (selSol) selSol.value = 'todas';
         return;
     }
     const sol = window.cachedSolicitudesMatchList.find(s => s.id === solId);
-    if (!sol) return;
+    if (!sol) {
+        resetMatchForm();
+        return;
+    }
+
+    // Limpieza completa previa para que ningún filtro anterior contamine esta solicitud
+    resetMatchForm();
 
     window.solicitudesParaMatch = [sol.id];
     window.solicitudActivaParaMatch = sol;
+
+    const selSol = document.getElementById('match-sel-solicitud-cargada');
+    if (selSol) selSol.value = sol.id;
 
     // Suscripción
     const selSusc = document.getElementById('match-suscripcion');
@@ -398,18 +413,20 @@ window.activarBusquedaMatchPorSolicitudDirecta = activarBusquedaMatchPorSolicitu
 
 export function initMatchFormListeners(cfgMin = 2, cfgMax = 6, callbacks = {}) {
     const { setBotonCargando, syncSelectToChips, cargarVista } = callbacks;
+    window.syncSelectToChipsGlobal = syncSelectToChips;
 
     // Panel colapsable
     document.getElementById('match-criterios-toggle')?.addEventListener('click', () => {
         document.getElementById('match-criterios-panel')?.classList.toggle('collapsed');
     });
 
-    // Segmented control: Buscar Grupos vs Buscar Alumnos
+    // Segmented control: Buscar Grupos vs Buscar Alumnos (limpieza automática de filtros previos)
     const btnModoGrupos = document.getElementById('match-tab-modo-grupos');
     const btnModoAlumnos = document.getElementById('match-tab-modo-alumnos');
 
     if (btnModoGrupos) {
         btnModoGrupos.addEventListener('click', () => {
+            resetMatchForm(syncSelectToChips);
             matchModoBusqueda = 'grupos';
             actualizarModoBusquedaUI();
         });
@@ -417,6 +434,7 @@ export function initMatchFormListeners(cfgMin = 2, cfgMax = 6, callbacks = {}) {
 
     if (btnModoAlumnos) {
         btnModoAlumnos.addEventListener('click', () => {
+            resetMatchForm(syncSelectToChips);
             matchModoBusqueda = 'alumnos';
             actualizarModoBusquedaUI();
         });
@@ -541,45 +559,79 @@ export function initMatchFormListeners(cfgMin = 2, cfgMax = 6, callbacks = {}) {
     });
 }
 
-export function resetMatchForm(syncSelectToChipsFn) {
+export function resetMatchForm(syncSelectToChipsFn = null) {
+    const fnSync = (typeof syncSelectToChipsFn === 'function') ? syncSelectToChipsFn : window.syncSelectToChipsGlobal;
+
+    // 1. Suscripción y estructura de formulario
     const selSusc = document.getElementById('match-suscripcion');
     if (selSusc) selSusc.selectedIndex = 0;
-    adaptarFormularioPorSuscripcion('');
+    adaptarFormularioPorSuscripcion(selSusc ? selSusc.value : '');
 
+    // 2. Canto y visibilidad de wrappers
     const chkCanto = document.getElementById('match-chk-canto');
     if (chkCanto) chkCanto.checked = false;
+    const excWrapper = document.getElementById('match-excluir-wrapper');
+    if (excWrapper) excWrapper.style.display = 'block';
+    const instWrapper = document.getElementById('match-instrumento-wrapper');
+    if (instWrapper) instWrapper.style.display = 'block';
 
+    // 3. Instrumento objetivo (opcional)
+    const selInst = document.getElementById('match-instrumento-filtro');
+    if (selInst) selInst.selectedIndex = 0;
+
+    // 4. Profesor y skills
     const selProfe = document.getElementById('match-profe');
     if (selProfe) selProfe.selectedIndex = 0;
     const skillsCont = document.getElementById('match-profe-skills');
     if (skillsCont) skillsCont.innerHTML = '';
     filtrarProfesoresMatch();
 
+    // 5. Rango de edad
     const edadD = document.getElementById('match-edad-desde');
     if (edadD) edadD.value = '';
     const edadH = document.getElementById('match-edad-hasta');
     if (edadH) edadH.value = '';
 
+    // 6. Cantidad máxima
     matchCantidadActual = 4;
     const cantVal = document.getElementById('match-cantidad-valor');
     if (cantVal) cantVal.textContent = 4;
 
+    // 7. Niveles
     document.querySelectorAll('[name="match-nivel"]').forEach(cb => cb.checked = false);
-    document.querySelectorAll('.match-day-pill').forEach(p => p.classList.remove('active'));
 
+    // 8. Días y Horarios
+    document.querySelectorAll('.match-day-pill').forEach(p => p.classList.remove('active'));
     const hDesde = document.getElementById('match-hora-desde');
     if (hDesde) hDesde.value = '';
     const hHasta = document.getElementById('match-hora-hasta');
     if (hHasta) hHasta.value = '';
 
+    // 9. Excluir instrumentos
     const excSel = document.getElementById('match-excluir-instrumentos');
     if (excSel) {
         Array.from(excSel.options).forEach(o => o.selected = false);
-        if (typeof syncSelectToChipsFn === 'function') {
-            syncSelectToChipsFn('match-excluir-instrumentos', 'match-chips-excluir');
+        if (typeof fnSync === 'function') {
+            fnSync('match-excluir-instrumentos', 'match-chips-excluir');
         }
     }
 
+    // 10. Solicitudes de profesores y variables globales
+    const selSolMatch = document.getElementById('match-sel-solicitud-cargada');
+    if (selSolMatch) selSolMatch.selectedIndex = 0;
+    window.solicitudesParaMatch = null;
+    window.solicitudActivaParaMatch = null;
+
+    // 11. Selección individual de alumnos en modo Perfiles
+    if (matchAlumnosSeleccionados && typeof matchAlumnosSeleccionados.clear === 'function') {
+        matchAlumnosSeleccionados.clear();
+        const bulkBar = document.getElementById('match-alumnos-bulk-bar');
+        if (bulkBar) bulkBar.style.display = 'none';
+        const countEl = document.getElementById('match-alumnos-selected-count');
+        if (countEl) countEl.textContent = '0 seleccionados';
+    }
+
+    // 12. Ocultar resultados previos
     ocultarResultadosMatch();
 }
 
