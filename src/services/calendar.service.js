@@ -108,7 +108,7 @@ export function detectarTipoSuscripcion(nombreSusc) {
     return 'individual';
 }
 
-export function construirTitulosPrealtaYAlta(al, tipo, cfg) {
+export function construirTitulosPrealtaYAlta(al, tipo, cfg, cantPendientes = 0) {
     const tipoSusc = detectarTipoSuscripcion(al.tipo_suscripcion || '');
     const esInd = tipoSusc === 'individual';
     const instElegido = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento[0] : al.instrumento) || '';
@@ -118,23 +118,70 @@ export function construirTitulosPrealtaYAlta(al, tipo, cfg) {
 
     let titulo = '';
     if (tipo === 'prealta') {
-        titulo = esInd ? `❓${emojiInst} ${nombreAlumno}` : `❓🧩 ${nombreGrupo}`;
+        titulo = esInd ? `❓${emojiInst} ${nombreAlumno}` : `❓ ${nombreGrupo}`;
     } else {
-        titulo = esInd ? `${emojiInst} ${nombreAlumno}` : `🧩 ${nombreGrupo}`;
+        if (esInd) {
+            titulo = `${emojiInst} ${nombreAlumno}`;
+        } else {
+            titulo = cantPendientes > 0 ? `${nombreGrupo} (⏳ ${cantPendientes} pend)` : nombreGrupo;
+        }
     }
     return { tituloProfe: titulo, tituloDefecto: titulo };
 }
 
 export function construirDescripcionEventoAlta(al, esGrupo = false, alumnosGrupo = []) {
+    const formatHorario = (a) => {
+        if (a.horario_match) return a.horario_match;
+        if (a.dia_match && a.horario_inicio_match) {
+            const diasMap = { 'L': 'Lunes', 'M': 'Martes', 'X': 'Miércoles', 'J': 'Jueves', 'V': 'Viernes', 'S': 'Sábado', 'D': 'Domingo' };
+            const diaTxt = diasMap[a.dia_match] || a.dia_match;
+            return `${diaTxt} ${a.horario_inicio_match} hs`;
+        }
+        if (a.fecha_inicio_clases) {
+            const d = new Date(a.fecha_inicio_clases);
+            if (!isNaN(d.getTime())) {
+                const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+                return `${dias[d.getDay()]} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')} hs`;
+            }
+        }
+        return a.reserva_fecha_texto || '-';
+    };
+
+    const horarioStr = formatHorario(al);
+    const docenteStr = al.reserva_profe_nombre || al.profesor_asignado || '-';
+
     if (esGrupo && alumnosGrupo.length > 0) {
-        const listaIntegrantes = alumnosGrupo.map(a => `• ${a.nombre} (${a.instrumento_asignado || (Array.isArray(a.instrumento) ? a.instrumento[0] : a.instrumento) || 'Instrumento'}) - Tel: ${a.celular || '-'}`).join('\n');
-        return `👥 INTEGRANTES DEL GRUPO (${alumnosGrupo.length}):\n${listaIntegrantes}\n\n🏫 Grupo: ${al.grupo_asignado || '-'}\n👨‍🏫 Profe: ${al.reserva_profe_nombre || '-'}`;
+        const confirmados = alumnosGrupo.filter(a => {
+            const est = (a.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+            return ['alta confirmada', 'alta efectiva', 'alta finalizada'].includes(est);
+        });
+        const pendientes = alumnosGrupo.filter(a => !confirmados.some(c => c.id === a.id));
+
+        const formatoFila = (a, estadoTxt, icono) => {
+            const inst = a.instrumento_asignado || (Array.isArray(a.instrumento) ? a.instrumento[0] : a.instrumento) || 'Instrumento';
+            const tel = a.celular || a.telefono || '-';
+            return `${icono} ${a.nombre} (${inst}) — ${estadoTxt} • Tel: ${tel}`;
+        };
+
+        const strConfirmados = confirmados.length > 0
+            ? confirmados.map(a => formatoFila(a, 'Alta Confirmada', '✅')).join('\n')
+            : 'Sin integrantes confirmados aún.';
+
+        const strPendientes = pendientes.length > 0
+            ? pendientes.map(a => formatoFila(a, 'Pago pendiente', '⏳')).join('\n')
+            : '(No quedan alumnos pendientes en este grupo)';
+
+        const modalidadStr = al.modalidad_ensamble || al.tipo_ensamble || al.tipo_suscripcion || 'Ensamble';
+
+        return `MANDALA ENSAMBLES — GRUPO ${al.grupo_asignado || '-'}\nDocente: ${docenteStr}\nHorario: ${horarioStr}\nModalidad: ${modalidadStr}\n\n--- INTEGRANTES ACTIVOS (${confirmados.length}) ---\n${strConfirmados}\n\n--- PENDIENTES DE PAGO EN ALTA EN CURSO (${pendientes.length}) ---\n${strPendientes}`;
     }
+
+    // Clase Individual
     const instStr = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || '-'));
     const descP = al.descripcion 
         ? al.descripcion.replace(/<br\s*[\/]?>/gi, '\n').replace(/<\/p>/gi, '\n').replace(/<\/div>/gi, '\n').replace(/<[^>]*>?/gm, '').replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim() 
         : '';
-    return `👤 ALUMNO:\n• Nombre: ${al.nombre}\n• Edad: ${al.edad || '-'}\n• Celular: ${al.celular || '-'}\n• Instrumento: ${instStr}\n• Suscripción: ${al.tipo_suscripcion || '-'}\n\n📝 INFORMACIÓN ADICIONAL:\n${descP || 'Sin notas adicionales.'}`;
+    return `MANDALA ENSAMBLES — CLASE INDIVIDUAL\nDocente: ${docenteStr}\nHorario: ${horarioStr}\nSuscripción: ${al.tipo_suscripcion || 'Clase Individual'}\n\n👤 ALUMNO:\n• Nombre: ${al.nombre}\n• Edad: ${al.edad || '-'}\n• Celular: ${al.celular || '-'}\n• Instrumento: ${instStr}\n\n📝 INFORMACIÓN ADICIONAL:\n${descP || 'Sin notas adicionales.'}`;
 }
 
 export async function getCalendarIdParaAlumno(al, cfg = defaultCfg) {
@@ -267,11 +314,16 @@ export async function buscarEventoGrupoEnCalendar(calId, nombreGrupo, fIsoStart)
 
 export async function sincronizarEventoPrealtaCalendar(al, esIndividual, fIsoStart, fIsoEnd, otrosAlumnosDelGrupo = [], cfg = defaultCfg) {
     try {
-        const titulos = construirTitulosPrealtaYAlta(al, 'prealta', cfg);
         const listaCompletaAlumnos = [...otrosAlumnosDelGrupo];
         if (!listaCompletaAlumnos.some(a => a.id === al.id || (a.nombre && a.nombre.toLowerCase().trim() === (al.nombre || '').toLowerCase().trim()))) {
             listaCompletaAlumnos.push(al);
         }
+        const confirmadosCount = listaCompletaAlumnos.filter(a => {
+            const est = (a.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+            return ['alta confirmada', 'alta efectiva', 'alta finalizada'].includes(est);
+        }).length;
+        const cantPendientes = Math.max(0, listaCompletaAlumnos.length - confirmadosCount);
+        const titulos = construirTitulosPrealtaYAlta(al, 'prealta', cfg, cantPendientes);
         const desc = construirDescripcionEventoAlta(al, !esIndividual, listaCompletaAlumnos);
         let primaryCalId = await getCalendarIdParaAlumno(al, cfg);
         let fallbackCalId = cfg.calendario_por_defecto || 'productora.mandalahouse@gmail.com';
@@ -300,18 +352,6 @@ export async function sincronizarEventoPrealtaCalendar(al, esIndividual, fIsoSta
         if (existingEventId && existingCalId) {
             try {
                 let tituloFinal = titulos.tituloProfe;
-                if (!esIndividual) {
-                    if (al.evento_summary_original) {
-                        tituloFinal = al.evento_summary_original;
-                    } else {
-                        const evExistente = await buscarEventoGrupoEnCalendar(existingCalId, al.grupo_asignado, fIsoStart);
-                        if (evExistente && evExistente.summary) {
-                            tituloFinal = evExistente.summary;
-                        } else if (al.grupo_asignado && !al.grupo_asignado.startsWith('Grupo Sin')) {
-                            tituloFinal = al.grupo_asignado;
-                        }
-                    }
-                }
                 await actualizarEventoCalendario(existingCalId, existingEventId, tituloFinal, desc);
                 if (al.id) {
                     await updateDoc(doc(db, "alumnos", al.id), {
@@ -363,17 +403,28 @@ export async function sincronizarEventoPrealtaCalendar(al, esIndividual, fIsoSta
 
 export async function sincronizarEventoAltaConfirmadaCalendar(al, esIndividual, otrosAlumnosDelGrupo = [], cfg = defaultCfg, opcionesAlta = {}) {
     try {
-        const titulos = construirTitulosPrealtaYAlta(al, 'confirmada', cfg);
+        // Unificar lista completa de alumnos del grupo asegurando estados frescos
         const listaCompletaAlumnos = [...otrosAlumnosDelGrupo];
-        if (!listaCompletaAlumnos.some(a => a.id === al.id || (a.nombre && a.nombre.toLowerCase().trim() === (al.nombre || '').toLowerCase().trim()))) {
+        const idxAl = listaCompletaAlumnos.findIndex(a => a.id === al.id || (a.nombre && a.nombre.toLowerCase().trim() === (al.nombre || '').toLowerCase().trim()));
+        if (idxAl >= 0) {
+            listaCompletaAlumnos[idxAl] = { ...listaCompletaAlumnos[idxAl], ...al };
+        } else {
             listaCompletaAlumnos.push(al);
         }
+
+        const confirmadosCount = listaCompletaAlumnos.filter(a => {
+            const est = (a.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+            return ['alta confirmada', 'alta efectiva', 'alta finalizada'].includes(est);
+        }).length;
+        const cantPendientes = Math.max(0, listaCompletaAlumnos.length - confirmadosCount);
+
+        const titulos = construirTitulosPrealtaYAlta(al, 'confirmada', cfg, cantPendientes);
         const desc = construirDescripcionEventoAlta(al, !esIndividual, listaCompletaAlumnos);
         
         let targetEventId = al.id_evento_alta;
         let targetCalId = al.calendario_evento_alta || await getCalendarIdParaAlumno(al, cfg);
 
-        // 1. Buscar a través de compañeros de grupo en Firestore
+        // 1. Buscar a través de compañeros de grupo en Firestore si no lo tiene directo
         if (!targetEventId && !esIndividual && listaCompletaAlumnos.length > 0) {
             const compConEv = listaCompletaAlumnos.find(c => c.id_evento_alta);
             if (compConEv) {
@@ -390,31 +441,45 @@ export async function sincronizarEventoAltaConfirmadaCalendar(al, esIndividual, 
             }
         }
 
-        // 3. Si existe el evento: ACTUALIZAR (NO CREAR DUPLICADO)
-        if (targetEventId && targetCalId) {
-            let tituloFinal = titulos.tituloProfe;
-            if (!esIndividual) {
-                if (al.evento_summary_original) {
-                    tituloFinal = al.evento_summary_original;
-                } else {
-                    const evExistente = await buscarEventoGrupoEnCalendar(targetCalId, al.grupo_asignado, al.fecha_inicio_clases);
-                    if (evExistente && evExistente.summary) {
-                        tituloFinal = evExistente.summary;
-                    } else if (al.grupo_asignado && !al.grupo_asignado.startsWith('Grupo Sin')) {
-                        tituloFinal = al.grupo_asignado;
-                    }
+        // Calendarios candidatos para actualización o creación
+        const primaryCalId = await getCalendarIdParaAlumno(al, cfg);
+        const fallbackCalId = cfg.calendario_por_defecto || 'productora.mandalahouse@gmail.com';
+        const candidatosCal = [];
+        if (targetCalId && !candidatosCal.includes(targetCalId)) candidatosCal.push(targetCalId);
+        if (primaryCalId && !candidatosCal.includes(primaryCalId)) candidatosCal.push(primaryCalId);
+        if (fallbackCalId && !candidatosCal.includes(fallbackCalId)) candidatosCal.push(fallbackCalId);
+
+        // 3. Si existe el evento: ACTUALIZAR IN-SITU (NUNCA DEJAR DUPLICADOS NI BORRAR)
+        if (targetEventId) {
+            let actualizado = false;
+            let calExito = null;
+            for (const cCal of candidatosCal) {
+                try {
+                    await actualizarEventoCalendario(cCal, targetEventId, titulos.tituloProfe, desc);
+                    actualizado = true;
+                    calExito = cCal;
+                    break;
+                } catch(errAct) {
+                    console.warn(`No se pudo actualizar evento ${targetEventId} en ${cCal}:`, errAct.message);
                 }
             }
-            await actualizarEventoCalendario(targetCalId, targetEventId, tituloFinal, desc);
-            if (al.id) {
-                await updateDoc(doc(db, "alumnos", al.id), {
-                    id_evento_alta: targetEventId,
-                    calendario_evento_alta: targetCalId
-                }).catch(() => {});
+
+            if (actualizado && calExito) {
+                // Sincronizar ID de evento y calendario en todos los alumnos del grupo en Firestore
+                for (const alumno of listaCompletaAlumnos) {
+                    if (alumno.id) {
+                        await updateDoc(doc(db, "alumnos", alumno.id), {
+                            id_evento_alta: targetEventId,
+                            calendario_evento_alta: calExito
+                        }).catch(() => {});
+                    }
+                }
+                return { id: targetEventId, calendar: calExito, existiaPreviamente: true };
             }
-            return { id: targetEventId, calendar: targetCalId, existiaPreviamente: true };
-        } else if (targetCalId && al.fecha_inicio_clases) {
-            // 4. Si no existe: recién ahora CREAR
+        }
+        
+        // 4. Si no existe previamente o falló la actualización: CREAR
+        if (al.fecha_inicio_clases) {
             const dStart = new Date(al.fecha_inicio_clases);
             if (!isNaN(dStart.getTime())) {
                 const esMandalorian = (al.modalidad_ensamble === 'Ensamble Mandalorian') || (al.tipo_suscripcion || '').toLowerCase().includes('mandalorian') || (al.tipo_ensamble === 'Ensamble Mandalorian');
@@ -436,19 +501,22 @@ export async function sincronizarEventoAltaConfirmadaCalendar(al, esIndividual, 
                         esRecurrente = !soloUnaClase;
                     }
                 } else {
-                    esRecurrente = true;
+                    esRecurrente = typeof opcionesAlta.esRecurrente === 'boolean' ? opcionesAlta.esRecurrente : true;
                 }
 
-                const evRes = await crearEventoCalendario(targetCalId, titulos.tituloProfe, dStart.toISOString(), dEnd.toISOString(), desc, esRecurrente);
+                const calCrear = candidatosCal[0] || fallbackCalId;
+                const evRes = await crearEventoCalendario(calCrear, titulos.tituloProfe, dStart.toISOString(), dEnd.toISOString(), desc, esRecurrente);
                 if (evRes && evRes.id) {
-                    if (al.id) {
-                        await updateDoc(doc(db, "alumnos", al.id), {
-                            id_evento_alta: evRes.id,
-                            calendario_evento_alta: targetCalId,
-                            es_evento_recurrente: esRecurrente
-                        }).catch(() => {});
+                    for (const alumno of listaCompletaAlumnos) {
+                        if (alumno.id) {
+                            await updateDoc(doc(db, "alumnos", alumno.id), {
+                                id_evento_alta: evRes.id,
+                                calendario_evento_alta: calCrear,
+                                es_evento_recurrente: esRecurrente
+                            }).catch(() => {});
+                        }
                     }
-                    return { id: evRes.id, calendar: targetCalId, esRecurrente };
+                    return { id: evRes.id, calendar: calCrear, esRecurrente };
                 }
             }
         }
@@ -489,7 +557,13 @@ export async function eliminarEventoAltaSeguro(al, cfg = defaultCfg) {
     // PROTECCIÓN CRÍTICA: Si quedan otros compañeros cursando en el grupo,
     // NO BORRAR el evento de Google Calendar! En su lugar, actualizar la descripción quitando al alumno que causó baja.
     if (otrosMiembrosActivos.length > 0) {
-        const titulos = construirTitulosPrealtaYAlta(al, 'confirmada', cfg);
+        const confirmadosCount = otrosMiembrosActivos.filter(a => {
+            const est = (a.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+            return ['alta confirmada', 'alta efectiva', 'alta finalizada'].includes(est);
+        }).length;
+        const cantPendientes = Math.max(0, otrosMiembrosActivos.length - confirmadosCount);
+        const tipoEv = (confirmadosCount > 0) ? 'confirmada' : 'prealta';
+        const titulos = construirTitulosPrealtaYAlta(al, tipoEv, cfg, cantPendientes);
         const descActualizada = construirDescripcionEventoAlta(al, true, otrosMiembrosActivos);
         for (const cal of candidatos) {
             try {
@@ -517,7 +591,12 @@ export async function eliminarEventoAltaSeguro(al, cfg = defaultCfg) {
 export async function reprogramarClaseCalendar({ al, esGrupo = false, alumnosGrupo = [], fIsoStart, fIsoEnd, duracionMinutos = 60, cfg = defaultCfg }) {
     try {
         const tipo = (al.estado_agenda === 'Pre-alta Iniciada') ? 'prealta' : 'confirmada';
-        const titulos = construirTitulosPrealtaYAlta(al, tipo, cfg);
+        const confirmadosCount = alumnosGrupo.filter(a => {
+            const est = (a.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+            return ['alta confirmada', 'alta efectiva', 'alta finalizada'].includes(est);
+        }).length;
+        const cantPendientes = Math.max(0, alumnosGrupo.length - confirmadosCount);
+        const titulos = construirTitulosPrealtaYAlta(al, tipo, cfg, cantPendientes);
         const desc = construirDescripcionEventoAlta(al, esGrupo, alumnosGrupo);
         
         let evId = al.id_evento_alta;

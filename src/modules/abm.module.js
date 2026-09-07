@@ -28,7 +28,7 @@ export function renderConfigHub(cont, callbacks = {}) {
             <div style="background:var(--item-bg); border:1px solid var(--border-color); border-radius:12px; padding:20px; display:flex; align-items:center; gap:15px; margin-bottom:10px; cursor:pointer;" onclick="window.cargarVistaGlobal('Ajustes Match')"><span style="font-size:1.5em; opacity:0.7;">🧩</span><div><strong style="color:var(--text-main);">Ajustes de Match</strong><div style="font-size:12px; color:var(--text-muted);">Límites de integrantes y reglas de edad para grupos.</div></div></div>
             <div style="background:var(--item-bg); border:1px solid var(--border-color); border-radius:12px; padding:20px; display:flex; align-items:center; gap:15px; margin-bottom:10px; cursor:pointer;" onclick="window.cargarVistaGlobal('ABM-Usuarios')"><span style="font-size:1.5em; opacity:0.7;">👥</span><div><strong style="color:var(--text-main);">Usuarios y Profesores</strong><div style="font-size:12px; color:var(--text-muted);">Administrar accesos, roles, docentes, disponibilidades y skills.</div></div></div>
             <div style="background:var(--item-bg); border:1px solid var(--border-color); border-radius:12px; padding:20px; display:flex; align-items:center; gap:15px; margin-bottom:10px; cursor:pointer;" onclick="window.cargarVistaGlobal('ABM-Instrumentos')"><span style="font-size:1.5em; opacity:0.7;">🎸</span><div><strong style="color:var(--text-main);">Instrumentos</strong></div></div>
-            <div style="background:var(--item-bg); border:1px solid var(--border-color); border-radius:12px; padding:20px; display:flex; align-items:center; gap:15px; margin-bottom:10px; cursor:pointer;" onclick="window.cargarVistaGlobal('ABM-Suscripciones')"><span style="font-size:1.5em; opacity:0.7;">🎫</span><div><strong style="color:var(--text-main);">Suscripciones</strong></div></div>
+            <div style="background:var(--item-bg); border:1px solid var(--border-color); border-radius:12px; padding:20px; display:flex; align-items:center; gap:15px; margin-bottom:10px; cursor:pointer;" onclick="window.cargarVistaGlobal('ABM-Suscripciones')"><span style="font-size:1.5em; opacity:0.7;">🎫</span><div><strong style="color:var(--text-main);">Suscripciones y Aranceles</strong><div style="font-size:12px; color:var(--text-muted);">Gestionar modalidades de suscripción y sus aranceles asociados.</div></div></div>
         </div>`;
 }
 
@@ -44,6 +44,17 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
         ? [...currentCfg.perfil_psicologico_opciones] 
         : ['😊 Buena onda', '🙈 Tímido', '🎉 Extrovertido', '🦄 Raro', '🗣️ Muy hablador', '🌱 Humilde'];
 
+    let motivosList = Array.isArray(currentCfg.motivos_suspension) && currentCfg.motivos_suspension.length > 0
+        ? [...currentCfg.motivos_suspension]
+        : [
+            'Arrepentido',
+            'No responde',
+            'No se logra acordar agenda por falta de disponibilidad',
+            'Problemas económicos',
+            'Horarios incompatibles',
+            'Otro'
+        ];
+
     const renderTagsAdmin = () => {
         const wrap = document.getElementById('cfg-tags-admin-list');
         if (!wrap) return;
@@ -52,6 +63,20 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
                 ${tag}
                 <button type="button" class="btn-del-tag-cfg" data-idx="${idx}" style="background:none; border:none; color:var(--accent-red); cursor:pointer; font-weight:bold; padding:0 2px; font-size:14px;" title="Eliminar etiqueta">✕</button>
             </span>
+        `).join('');
+    };
+
+    const renderMotivosAdmin = () => {
+        const wrap = document.getElementById('cfg-motivos-suspension-list');
+        if (!wrap) return;
+        wrap.innerHTML = motivosList.map((mot, idx) => `
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 12px; background:var(--hover-bg); border:1px solid var(--border-color); border-radius:8px;">
+                <span style="font-size:13px; font-weight:600; color:var(--text-main); flex:1;">${mot}</span>
+                <div style="display:flex; gap:6px;">
+                    <button type="button" class="btn-edit-motivo-cfg" data-idx="${idx}" style="background:#fff; border:1px solid var(--border-color); border-radius:6px; cursor:pointer; padding:3px 8px; font-size:12px; font-family:inherit;" title="Editar motivo">✏️ Editar</button>
+                    <button type="button" class="btn-del-motivo-cfg" data-idx="${idx}" style="background:#fff; border:1px solid var(--border-color); color:var(--accent-red); border-radius:6px; cursor:pointer; padding:3px 8px; font-size:12px; font-family:inherit;" title="Eliminar motivo">🗑️</button>
+                </div>
+            </div>
         `).join('');
     };
 
@@ -206,7 +231,16 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
                     <span class="cfg-accordion-arrow" id="arrow-cfg-sec-aranceles">▶</span>
                 </div>
                 <div id="cfg-sec-aranceles" class="cfg-accordion-body" style="display:none;">
-                    <p style="color:var(--text-muted); font-size:0.9em; margin:0 0 16px 0;">En esta sección se ingresará el valor del arancel de las clases para su posterior utilización en mensajes y altas.</p>
+                    <div style="background:#f0fdfa; border:1px solid #99f6e4; border-radius:8px; padding:12px 14px; margin-bottom:16px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+                        <div style="font-size:12.5px; color:#0f766e; line-height:1.4;">
+                            💡 <strong>Gestión Centralizada:</strong> Los aranceles están asociados y vinculados directamente a cada suscripción en <strong>Suscripciones y Aranceles</strong>.
+                        </div>
+                        <button type="button" class="btn-app btn-secondary" style="font-size:12px; height:32px; padding:0 12px; font-weight:700; white-space:nowrap;" onclick="window.cargarVistaGlobal ? window.cargarVistaGlobal('ABM-Suscripciones') : null">
+                            🎫 Ir a Suscripciones y Aranceles
+                        </button>
+                    </div>
+
+                    <p style="color:var(--text-muted); font-size:0.9em; margin:0 0 16px 0;">En esta sección se configuran los valores globales de aranceles de respaldo para mensajes, avisos y altas.</p>
                     
                     <h4 style="margin:0 0 10px 0; color:var(--text-main); font-size:0.95em; text-transform:uppercase; letter-spacing:0.04em;">Clases Individuales</h4>
                     <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-bottom:20px;">
@@ -234,7 +268,7 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
                                 </label>
                             </div>
                         </div>
-                        <div style="background:var(--hover-bg); border:1px solid var(--border-color); border-radius:8px; padding:14px;">
+                        <div style="background:var(--hover-bg); border:1px solid var(--border-color); border-radius:8px; padding:14px; margin-bottom:12px;">
                             <strong style="font-size:13px; color:var(--text-main); display:block; margin-bottom:10px;">🎸 Ensamble Mandalorian</strong>
                             <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px;">
                                 <label style="font-size:12px; font-weight:600; color:var(--text-muted);">Valor actual:
@@ -245,6 +279,38 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
                                 </label>
                             </div>
                         </div>
+                        <div style="background:var(--hover-bg); border:1px solid var(--border-color); border-radius:8px; padding:14px;">
+                            <strong style="font-size:13px; color:var(--text-main); display:block; margin-bottom:10px;">👥 Clases Grupales</strong>
+                            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px;">
+                                <label style="font-size:12px; font-weight:600; color:var(--text-muted);">Valor regular:
+                                    <input type="text" id="cfg-arancel-grupal-regular" class="modern-input cfg-arancel-input" value="${formatearPrecioMoneda(currentCfg.arancel_grupal_regular)}" placeholder="Ej: $25.000">
+                                </label>
+                                <label style="font-size:12px; font-weight:600; color:var(--text-muted);">Valor comunidad/antiguos:
+                                    <input type="text" id="cfg-arancel-grupal-comunidad" class="modern-input cfg-arancel-input" value="${formatearPrecioMoneda(currentCfg.arancel_grupal_comunidad)}" placeholder="Ej: $20.000">
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN 6: MOTIVOS DE SUSPENSIÓN -->
+            <div class="cfg-accordion-card">
+                <div class="cfg-accordion-header" data-target="cfg-sec-motivos-suspension">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span style="font-size:1.2em;">⛔</span>
+                        <span style="font-size:1.05em; font-weight:700; color:var(--text-main);">6. Motivos de Suspensión</span>
+                    </div>
+                    <span class="cfg-accordion-arrow" id="arrow-cfg-sec-motivos-suspension">▶</span>
+                </div>
+                <div id="cfg-sec-motivos-suspension" class="cfg-accordion-body" style="display:none;">
+                    <p style="color:var(--text-muted); font-size:0.9em; margin:0 0 14px 0;">Configura los motivos predeterminados para suspender admisiones o altas. Estos motivos poblarán automáticamente el selector en los modales de suspensión.</p>
+                    
+                    <div id="cfg-motivos-suspension-list" style="display:flex; flex-direction:column; gap:8px; margin-bottom:14px;"></div>
+                    
+                    <div style="display:flex; gap:10px; max-width:520px;">
+                        <input type="text" id="cfg-new-motivo-input" class="modern-input" placeholder="Nuevo motivo de suspensión...">
+                        <button type="button" id="btn-add-motivo-cfg" class="btn-primary" style="white-space:nowrap; padding:0 16px;">+ Agregar</button>
                     </div>
                 </div>
             </div>
@@ -257,6 +323,7 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
         </div>`; 
 
     renderTagsAdmin();
+    renderMotivosAdmin();
 
     // Toggle de Acordeones
     cont.querySelectorAll('.cfg-accordion-header').forEach(header => {
@@ -291,6 +358,21 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
         } catch(e) {}
     };
 
+    const autoGuardarMotivos = async () => {
+        try {
+            await setDoc(doc(db, "configuracion", "general"), { motivos_suspension: motivosList }, { merge: true });
+            if (typeof configApp === 'object') {
+                configApp.motivos_suspension = [...motivosList];
+            }
+            if (typeof window.poblarSelectMotivosSuspension === 'function') {
+                window.poblarSelectMotivosSuspension();
+            }
+            if (typeof cargarConfig === 'function') await cargarConfig();
+        } catch(e) {
+            console.error("Error al guardar motivos:", e);
+        }
+    };
+
     const handleAddTag = async () => {
         const inp = document.getElementById('cfg-new-tag-input');
         const val = (inp?.value || '').trim();
@@ -323,6 +405,54 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
         }
     });
 
+    const handleAddMotivo = async () => {
+        const inp = document.getElementById('cfg-new-motivo-input');
+        const val = (inp?.value || '').trim();
+        if (val && !motivosList.includes(val)) {
+            motivosList.push(val);
+            inp.value = '';
+            renderMotivosAdmin();
+            await autoGuardarMotivos();
+            alert(`Motivo "${val}" agregado con éxito.`);
+        }
+    };
+
+    document.getElementById('btn-add-motivo-cfg')?.addEventListener('click', handleAddMotivo);
+    document.getElementById('cfg-new-motivo-input')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleAddMotivo();
+        }
+    });
+
+    document.getElementById('cfg-motivos-suspension-list')?.addEventListener('click', async (e) => {
+        const btnDel = e.target.closest('.btn-del-motivo-cfg');
+        const btnEdit = e.target.closest('.btn-edit-motivo-cfg');
+
+        if (btnDel) {
+            const idx = parseInt(btnDel.dataset.idx, 10);
+            if (!isNaN(idx)) {
+                const motivoEliminar = motivosList[idx];
+                if (confirm(`¿Eliminar el motivo de suspensión "${motivoEliminar}"?`)) {
+                    motivosList.splice(idx, 1);
+                    renderMotivosAdmin();
+                    await autoGuardarMotivos();
+                }
+            }
+        } else if (btnEdit) {
+            const idx = parseInt(btnEdit.dataset.idx, 10);
+            if (!isNaN(idx)) {
+                const motivoActual = motivosList[idx];
+                const nuevoValor = prompt("Editar motivo de suspensión:", motivoActual);
+                if (nuevoValor !== null && nuevoValor.trim() && nuevoValor.trim() !== motivoActual) {
+                    motivosList[idx] = nuevoValor.trim();
+                    renderMotivosAdmin();
+                    await autoGuardarMotivos();
+                }
+            }
+        }
+    });
+
     document.getElementById('btn-guardar-cfg')?.addEventListener('click', async (e) => { 
         if (typeof setBotonCargando === 'function') setBotonCargando(e.target, true, 'Guardando ajustes...'); 
         const updatedData = { 
@@ -343,24 +473,30 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
             texto_nombre_agendar: document.getElementById('cfg-nombre-agendar')?.value || '', 
             texto_opciones_multiples: document.getElementById('cfg-txt-opt-mul')?.value || '', 
             texto_profe: document.getElementById('cfg-txt-p')?.value || '', 
-            texto_alumno: document.getElementById('cfg-txt-alumno')?.value || '',
+            texto_alumno: document.getElementById('cfg-txt-alumno')?.value || '', 
             texto_conf_alumno: document.getElementById('cfg-txt-conf-a')?.value || '', 
             texto_cancela_alumno: document.getElementById('cfg-txt-cancela')?.value || '', 
             texto_prealta: document.getElementById('cfg-txt-prealta')?.value || '', 
-            texto_prealta_alumno: document.getElementById('cfg-txt-prealta-alumno')?.value || '',
-            texto_alta_confirmada: document.getElementById('cfg-txt-alta-conf')?.value || '',
-            arancel_individual_suelta: formatearPrecioMoneda(document.getElementById('cfg-arancel-ind-suelta')?.value || ''),
-            arancel_individual_quincenal: formatearPrecioMoneda(document.getElementById('cfg-arancel-ind-quincenal')?.value || ''),
-            arancel_individual_fullpack: formatearPrecioMoneda(document.getElementById('cfg-arancel-ind-fullpack')?.value || ''),
-            arancel_individual_fullpack_comunidad: formatearPrecioMoneda(document.getElementById('cfg-arancel-ind-fullpack-comunidad')?.value || ''),
-            arancel_ensamble_regular: formatearPrecioMoneda(document.getElementById('cfg-arancel-ens-regular')?.value || ''),
-            arancel_ensamble_actual: formatearPrecioMoneda(document.getElementById('cfg-arancel-ens-actual')?.value || ''),
-            arancel_ensamble_comunidad: formatearPrecioMoneda(document.getElementById('cfg-arancel-ens-comunidad')?.value || ''),
-            perfil_psicologico_opciones: tagsList
-        };
+            texto_prealta_alumno: document.getElementById('cfg-txt-prealta-alumno')?.value || '', 
+            texto_alta_confirmada: document.getElementById('cfg-txt-alta-conf')?.value || '', 
+            arancel_individual_suelta: formatearPrecioMoneda(document.getElementById('cfg-arancel-ind-suelta')?.value || ''), 
+            arancel_individual_quincenal: formatearPrecioMoneda(document.getElementById('cfg-arancel-ind-quincenal')?.value || ''), 
+            arancel_individual_fullpack: formatearPrecioMoneda(document.getElementById('cfg-arancel-ind-fullpack')?.value || ''), 
+            arancel_individual_fullpack_comunidad: formatearPrecioMoneda(document.getElementById('cfg-arancel-ind-fullpack-comunidad')?.value || ''), 
+            arancel_ensamble_regular: formatearPrecioMoneda(document.getElementById('cfg-arancel-ens-regular')?.value || ''), 
+            arancel_ensamble_actual: formatearPrecioMoneda(document.getElementById('cfg-arancel-ens-actual')?.value || ''), 
+            arancel_ensamble_comunidad: formatearPrecioMoneda(document.getElementById('cfg-arancel-ens-comunidad')?.value || ''), 
+            arancel_grupal_regular: formatearPrecioMoneda(document.getElementById('cfg-arancel-grupal-regular')?.value || ''), 
+            arancel_grupal_comunidad: formatearPrecioMoneda(document.getElementById('cfg-arancel-grupal-comunidad')?.value || ''), 
+            perfil_psicologico_opciones: tagsList,
+            motivos_suspension: motivosList
+        }; 
         await setDoc(doc(db, "configuracion", "general"), updatedData, { merge: true }); 
         if (typeof configApp === 'object') {
             Object.assign(configApp, updatedData);
+        }
+        if (typeof window.poblarSelectMotivosSuspension === 'function') {
+            window.poblarSelectMotivosSuspension();
         }
         if (typeof cargarConfig === 'function') await cargarConfig(); 
         if (typeof setBotonCargando === 'function') setBotonCargando(e.target, false); 
@@ -775,6 +911,79 @@ export async function cargarABM(coleccion, titulo, cont) {
                         </div>
                     `; 
                 }); 
+            } else if (coleccion === 'tipos_suscripcion') {
+                let currentCfg = defaultCfg;
+                try {
+                    const cfgSnap = await getDoc(doc(db, "configuracion", "general"));
+                    if (cfgSnap.exists()) currentCfg = { ...defaultCfg, ...cfgSnap.data() };
+                } catch(e) {}
+
+                qS.forEach(d => {
+                    const dt = d.data();
+                    const displayNom = dt.nombre || dt.email || d.id;
+                    const nomNorm = (displayNom || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+                    let emoji = '🎫';
+                    let arancelesTags = [];
+
+                    if (nomNorm.includes('individual')) {
+                        emoji = '🎹';
+                        const suelta = dt.arancel_suelta || dt.arancel_individual_suelta || currentCfg.arancel_individual_suelta || '$15.000';
+                        const quincenal = dt.arancel_quincenal || dt.arancel_individual_quincenal || currentCfg.arancel_individual_quincenal || '$25.000';
+                        const fullpack = dt.arancel_fullpack || dt.arancel_individual_fullpack || currentCfg.arancel_individual_fullpack || '$45.000';
+                        const fullpackComunidad = dt.arancel_fullpack_comunidad || dt.arancel_individual_fullpack_comunidad || currentCfg.arancel_individual_fullpack_comunidad || '$40.000';
+
+                        arancelesTags.push(`<span class="profile-tag-badge" style="background:#f8fafc; color:var(--text-main); border-color:var(--border-color); font-size:12px; padding:4px 9px;">Clase Suelta: <strong style="color:var(--accent-teal);">${formatearPrecioMoneda(suelta)}</strong></span>`);
+                        arancelesTags.push(`<span class="profile-tag-badge" style="background:#f8fafc; color:var(--text-main); border-color:var(--border-color); font-size:12px; padding:4px 9px;">Quincenal (2 clases): <strong style="color:var(--accent-teal);">${formatearPrecioMoneda(quincenal)}</strong></span>`);
+                        arancelesTags.push(`<span class="profile-tag-badge" style="background:#f8fafc; color:var(--text-main); border-color:var(--border-color); font-size:12px; padding:4px 9px;">Full Pack (Mensual): <strong style="color:var(--accent-teal);">${formatearPrecioMoneda(fullpack)}</strong></span>`);
+                        arancelesTags.push(`<span class="profile-tag-badge" style="background:#f0fdf4; color:#166534; border-color:#bbf7d0; font-size:12px; padding:4px 9px;">Full Pack Comunidad: <strong style="color:#15803d;">${formatearPrecioMoneda(fullpackComunidad)}</strong></span>`);
+                    } else if (nomNorm.includes('ensamble')) {
+                        emoji = '🎸';
+                        const regular = dt.arancel_regular || dt.arancel_ensamble_regular || currentCfg.arancel_ensamble_regular || '$28.000';
+                        const mandalorian = dt.arancel_mandalorian || dt.arancel_ensamble_actual || currentCfg.arancel_ensamble_actual || '$35.000';
+                        const comunidad = dt.arancel_comunidad || dt.arancel_ensamble_comunidad || currentCfg.arancel_ensamble_comunidad || '$30.000';
+
+                        arancelesTags.push(`<span class="profile-tag-badge" style="background:#f8fafc; color:var(--text-main); border-color:var(--border-color); font-size:12px; padding:4px 9px;">Ensamble Regular: <strong style="color:var(--accent-teal);">${formatearPrecioMoneda(regular)}</strong></span>`);
+                        arancelesTags.push(`<span class="profile-tag-badge" style="background:#f8fafc; color:var(--text-main); border-color:var(--border-color); font-size:12px; padding:4px 9px;">Ensamble Mandalorian: <strong style="color:var(--accent-teal);">${formatearPrecioMoneda(mandalorian)}</strong></span>`);
+                        arancelesTags.push(`<span class="profile-tag-badge" style="background:#f0fdf4; color:#166534; border-color:#bbf7d0; font-size:12px; padding:4px 9px;">Comunidad / Antiguos: <strong style="color:#15803d;">${formatearPrecioMoneda(comunidad)}</strong></span>`);
+                    } else if (nomNorm.includes('grupal')) {
+                        emoji = '👥';
+                        const regular = dt.arancel_regular || dt.arancel_grupal_regular || currentCfg.arancel_grupal_regular || '$25.000';
+                        const comunidad = dt.arancel_comunidad || dt.arancel_grupal_comunidad || currentCfg.arancel_grupal_comunidad || '$20.000';
+
+                        arancelesTags.push(`<span class="profile-tag-badge" style="background:#f8fafc; color:var(--text-main); border-color:var(--border-color); font-size:12px; padding:4px 9px;">Arancel Regular: <strong style="color:var(--accent-teal);">${formatearPrecioMoneda(regular)}</strong></span>`);
+                        arancelesTags.push(`<span class="profile-tag-badge" style="background:#f0fdf4; color:#166534; border-color:#bbf7d0; font-size:12px; padding:4px 9px;">Arancel Comunidad: <strong style="color:#15803d;">${formatearPrecioMoneda(comunidad)}</strong></span>`);
+                    } else {
+                        const regular = dt.arancel_regular || currentCfg.valor_clase || '$25.000';
+                        const comunidad = dt.arancel_comunidad || '';
+                        arancelesTags.push(`<span class="profile-tag-badge" style="background:#f8fafc; color:var(--text-main); border-color:var(--border-color); font-size:12px; padding:4px 9px;">Arancel: <strong style="color:var(--accent-teal);">${formatearPrecioMoneda(regular)}</strong></span>`);
+                        if (comunidad) {
+                            arancelesTags.push(`<span class="profile-tag-badge" style="background:#f0fdf4; color:#166534; border-color:#bbf7d0; font-size:12px; padding:4px 9px;">Comunidad: <strong style="color:#15803d;">${formatearPrecioMoneda(comunidad)}</strong></span>`);
+                        }
+                    }
+
+                    h += `
+                        <div class="row-item abm-row" style="padding:16px 20px; display:flex; flex-direction:column; gap:10px; margin-bottom:12px; cursor:pointer;" onclick="window.abrirEdicionABM('${d.id}', '${coleccion}', '${displayNom}')">
+                            <div style="display:flex; justify-content:space-between; align-items:center; width:100%; flex-wrap:wrap; gap:10px;">
+                                <div style="display:flex; align-items:center; gap:10px;">
+                                    <span style="font-size:1.3em;">${emoji}</span>
+                                    <strong style="color:var(--text-main); font-size:15.5px;">${displayNom}</strong>
+                                    <span class="profile-tag-badge" style="background:#e0f2fe; color:#0369a1; border-color:#bae6fd; font-size:11px;">Suscripción</span>
+                                </div>
+                                <div style="display:flex; gap:8px; align-items:center;">
+                                    <button type="button" class="btn-app btn-secondary" style="font-size:11.5px; height:28px; padding:0 10px; font-weight:600;" onclick="event.stopPropagation(); window.abrirEdicionABM('${d.id}', '${coleccion}', '${displayNom}')">✏️ Editar Aranceles</button>
+                                    <button type="button" class="btn-row-action" title="Eliminar Suscripción" onclick="event.stopPropagation(); window.eliminarABM('${d.id}', '${coleccion}')">🗑️</button>
+                                </div>
+                            </div>
+
+                            <!-- LEYENDA DE ARANCELES DENTRO DEL CUADRADO -->
+                            <div style="background:var(--hover-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; display:flex; flex-wrap:wrap; gap:8px 12px; align-items:center;">
+                                <span style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">💵 Aranceles Asociados:</span>
+                                ${arancelesTags.join('')}
+                            </div>
+                        </div>
+                    `;
+                });
             } else {
                 qS.forEach(d => { 
                     const dt = d.data(); 
@@ -806,10 +1015,12 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
 
     const divUser = document.getElementById('div-abm-edit-usuario');
     const divProfe = document.getElementById('div-abm-edit-profe');
+    const divSusc = document.getElementById('div-abm-edit-suscripcion');
 
     if (col === 'usuarios_sistema') {
         if (divUser) divUser.style.display = 'block';
         if (divProfe) divProfe.style.display = 'none';
+        if (divSusc) divSusc.style.display = 'none';
 
         // 1. Cargar catálogo de instrumentos en el select de skills del usuario
         const selSkillsUser = document.getElementById('abm-user-skills');
@@ -973,6 +1184,7 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
     } else if (col === 'profesores') { 
         if (divUser) divUser.style.display = 'none';
         if (divProfe) divProfe.style.display = 'block';
+        if (divSusc) divSusc.style.display = 'none';
 
         // 1. Cargar catálogo de instrumentos en el select de skills
         const selSkills = document.getElementById('abm-edit-skills');
@@ -1025,9 +1237,85 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
         } else if (typeof window.syncSelectToChips === 'function') {
             window.syncSelectToChips('abm-edit-skills', 'chips-abm-edit-skills');
         }
+    } else if (col === 'tipos_suscripcion') {
+        if (divUser) divUser.style.display = 'none';
+        if (divProfe) divProfe.style.display = 'none';
+        if (divSusc) divSusc.style.display = 'block';
+
+        let currentCfg = defaultCfg;
+        try {
+            const cfgSnap = await getDoc(doc(db, "configuracion", "general"));
+            if (cfgSnap.exists()) currentCfg = { ...defaultCfg, ...cfgSnap.data() };
+        } catch(e) {}
+
+        let dt = {};
+        if (id) {
+            try {
+                const sDoc = await getDoc(doc(db, "tipos_suscripcion", id));
+                if (sDoc.exists()) dt = sDoc.data();
+            } catch(e) {}
+        }
+
+        const inpSuelta = document.getElementById('abm-susc-ind-suelta');
+        const inpQuincenal = document.getElementById('abm-susc-ind-quincenal');
+        const inpFullpack = document.getElementById('abm-susc-ind-fullpack');
+        const inpFullpackComunidad = document.getElementById('abm-susc-ind-fullpack-comunidad');
+
+        const inpEnsRegular = document.getElementById('abm-susc-ens-regular');
+        const inpEnsMandalorian = document.getElementById('abm-susc-ens-mandalorian');
+        const inpEnsComunidad = document.getElementById('abm-susc-ens-comunidad');
+
+        const inpGrpRegular = document.getElementById('abm-susc-grupal-regular');
+        const inpGrpComunidad = document.getElementById('abm-susc-grupal-comunidad');
+
+        if (inpSuelta) inpSuelta.value = formatearPrecioMoneda(dt.arancel_suelta || dt.arancel_individual_suelta || currentCfg.arancel_individual_suelta || '$15.000');
+        if (inpQuincenal) inpQuincenal.value = formatearPrecioMoneda(dt.arancel_quincenal || dt.arancel_individual_quincenal || currentCfg.arancel_individual_quincenal || '$25.000');
+        if (inpFullpack) inpFullpack.value = formatearPrecioMoneda(dt.arancel_fullpack || dt.arancel_individual_fullpack || currentCfg.arancel_individual_fullpack || '$45.000');
+        if (inpFullpackComunidad) inpFullpackComunidad.value = formatearPrecioMoneda(dt.arancel_fullpack_comunidad || dt.arancel_individual_fullpack_comunidad || currentCfg.arancel_individual_fullpack_comunidad || '$40.000');
+
+        if (inpEnsRegular) inpEnsRegular.value = formatearPrecioMoneda(dt.arancel_regular || dt.arancel_ensamble_regular || currentCfg.arancel_ensamble_regular || '$28.000');
+        if (inpEnsMandalorian) inpEnsMandalorian.value = formatearPrecioMoneda(dt.arancel_mandalorian || dt.arancel_ensamble_actual || currentCfg.arancel_ensamble_actual || '$35.000');
+        if (inpEnsComunidad) inpEnsComunidad.value = formatearPrecioMoneda(dt.arancel_comunidad || dt.arancel_ensamble_comunidad || currentCfg.arancel_ensamble_comunidad || '$30.000');
+
+        if (inpGrpRegular) inpGrpRegular.value = formatearPrecioMoneda(dt.arancel_regular || dt.arancel_grupal_regular || currentCfg.arancel_grupal_regular || currentCfg.valor_clase || '$25.000');
+        if (inpGrpComunidad) inpGrpComunidad.value = formatearPrecioMoneda(dt.arancel_comunidad || dt.arancel_grupal_comunidad || currentCfg.arancel_grupal_comunidad || '$20.000');
+
+        const actualizarBloquesSuscripcion = (nombreActual) => {
+            const nomNorm = (nombreActual || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const bInd = document.getElementById('abm-susc-bloque-individual');
+            const bEns = document.getElementById('abm-susc-bloque-ensamble');
+            const bGrp = document.getElementById('abm-susc-bloque-grupal');
+
+            if (nomNorm.includes('individual')) {
+                if (bInd) bInd.style.display = 'block';
+                if (bEns) bEns.style.display = 'none';
+                if (bGrp) bGrp.style.display = 'none';
+            } else if (nomNorm.includes('ensamble')) {
+                if (bInd) bInd.style.display = 'none';
+                if (bEns) bEns.style.display = 'block';
+                if (bGrp) bGrp.style.display = 'none';
+            } else {
+                if (bInd) bInd.style.display = 'none';
+                if (bEns) bEns.style.display = 'none';
+                if (bGrp) bGrp.style.display = 'block';
+            }
+        };
+
+        const inpNom = document.getElementById('abm-edit-nombre');
+        if (inpNom) {
+            inpNom.oninput = (e) => actualizarBloquesSuscripcion(e.target.value);
+        }
+        actualizarBloquesSuscripcion(nom || inpNom?.value || '');
+
+        document.querySelectorAll('#div-abm-edit-suscripcion .cfg-arancel-input').forEach(inp => {
+            inp.onblur = (e) => {
+                if (e.target.value) e.target.value = formatearPrecioMoneda(e.target.value);
+            };
+        });
     } else { 
         if (divUser) divUser.style.display = 'none';
         if (divProfe) divProfe.style.display = 'none';
+        if (divSusc) divSusc.style.display = 'none';
     } 
     document.getElementById('modal-abm-edit')?.showModal(); 
 }
@@ -1182,6 +1470,72 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
                 await addDoc(collection(db, "profesores"), dataProfe);
             }
             alert('✅ Profesor guardado correctamente.');
+
+        } else if (col === 'tipos_suscripcion') {
+            const nomNorm = nomVal.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const docData = {
+                nombre: nomVal,
+                fecha_actualizacion: new Date().toISOString()
+            };
+            const cfgUpdate = {};
+
+            if (nomNorm.includes('individual')) {
+                const suelta = formatearPrecioMoneda((document.getElementById('abm-susc-ind-suelta')?.value || '').trim());
+                const quincenal = formatearPrecioMoneda((document.getElementById('abm-susc-ind-quincenal')?.value || '').trim());
+                const fullpack = formatearPrecioMoneda((document.getElementById('abm-susc-ind-fullpack')?.value || '').trim());
+                const fullpackComunidad = formatearPrecioMoneda((document.getElementById('abm-susc-ind-fullpack-comunidad')?.value || '').trim());
+
+                docData.arancel_suelta = suelta;
+                docData.arancel_quincenal = quincenal;
+                docData.arancel_fullpack = fullpack;
+                docData.arancel_fullpack_comunidad = fullpackComunidad;
+
+                cfgUpdate.arancel_individual_suelta = suelta;
+                cfgUpdate.arancel_individual_quincenal = quincenal;
+                cfgUpdate.arancel_individual_fullpack = fullpack;
+                cfgUpdate.arancel_individual_fullpack_comunidad = fullpackComunidad;
+            } else if (nomNorm.includes('ensamble')) {
+                const regular = formatearPrecioMoneda((document.getElementById('abm-susc-ens-regular')?.value || '').trim());
+                const mandalorian = formatearPrecioMoneda((document.getElementById('abm-susc-ens-mandalorian')?.value || '').trim());
+                const comunidad = formatearPrecioMoneda((document.getElementById('abm-susc-ens-comunidad')?.value || '').trim());
+
+                docData.arancel_regular = regular;
+                docData.arancel_mandalorian = mandalorian;
+                docData.arancel_comunidad = comunidad;
+
+                cfgUpdate.arancel_ensamble_regular = regular;
+                cfgUpdate.arancel_ensamble_actual = mandalorian;
+                cfgUpdate.arancel_ensamble_comunidad = comunidad;
+            } else {
+                const regular = formatearPrecioMoneda((document.getElementById('abm-susc-grupal-regular')?.value || '').trim());
+                const comunidad = formatearPrecioMoneda((document.getElementById('abm-susc-grupal-comunidad')?.value || '').trim());
+
+                docData.arancel_regular = regular;
+                docData.arancel_comunidad = comunidad;
+
+                cfgUpdate.arancel_grupal_regular = regular;
+                cfgUpdate.arancel_grupal_comunidad = comunidad;
+            }
+
+            if (id) {
+                await updateDoc(doc(db, "tipos_suscripcion", id), docData);
+            } else {
+                docData.fecha_creacion = new Date().toISOString();
+                await addDoc(collection(db, "tipos_suscripcion"), docData);
+            }
+
+            if (Object.keys(cfgUpdate).length > 0) {
+                try {
+                    await setDoc(doc(db, "configuracion", "general"), cfgUpdate, { merge: true });
+                    if (window.configApp) {
+                        Object.assign(window.configApp, cfgUpdate);
+                    }
+                } catch(errCfg) {
+                    console.warn("No se pudo sincronizar configuracion/general:", errCfg);
+                }
+            }
+
+            alert(`✅ Suscripción "${nomVal}" y aranceles asociados guardados correctamente.`);
 
         } else {
             const simpleData = { nombre: nomVal };

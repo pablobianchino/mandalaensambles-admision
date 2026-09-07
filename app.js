@@ -13,7 +13,7 @@ import {
     configNodosFlujoCoordinador,
     esAlumnoAltaFinalizada,
     esAlumnoAltaConfirmadaIncompleta
-} from "./src/config/constants.js?v=6.5.1";
+} from "./src/config/constants.js?v=6.6.5";
 
 import { 
     app, 
@@ -34,7 +34,7 @@ import {
     GoogleAuthProvider, 
     onAuthStateChanged, 
     signOut 
-} from "./src/config/firebase.js?v=6.5.1";
+} from "./src/config/firebase.js?v=6.6.5";
 
 import {
     limpiarHoraParaChip,
@@ -48,7 +48,7 @@ import {
     extraerDisponibilidadMultiRango,
     normalizarHora,
     inicializarAutocompletadoHorarios
-} from "./src/ui/horarios.ui.js?v=6.5.1";
+} from "./src/ui/horarios.ui.js?v=6.6.5";
 
 import {
     getEmojiInstrumento,
@@ -75,7 +75,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=6.5.1";
+} from "./src/services/calendar.service.js?v=6.6.5";
 
 import {
     matchCantidadActual,
@@ -108,11 +108,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=6.5.1";
+} from "./src/modules/match.module.js?v=6.6.5";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=6.5.1";
+} from "./src/modules/profesor.module.js?v=6.6.5";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -129,15 +129,20 @@ import {
     copiarFilaExcelFacturacion,
     copiarFilaExcelFacturacionAdmision,
     abrirModalAvisoPrealtaAlumno,
-    copiarAvisoPrealtaAlumno
-} from "./src/modules/altas.module.js?v=6.5.1";
+    copiarAvisoPrealtaAlumno,
+    renderAltasAgrupadas,
+    aprobarTodoGrupoAction,
+    confirmarInicioGrupoAction,
+    confirmarAlumnoAltaAction,
+    generarChecklistAltaHtml
+} from "./src/modules/altas.module.js?v=6.6.5";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=6.5.1";
+} from "./src/modules/dashboard.module.js?v=6.6.5";
 
 import {
     renderConfigHub,
@@ -146,20 +151,23 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=6.5.1";
+} from "./src/modules/abm.module.js?v=6.6.5";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=6.5.1";
+} from "./src/modules/inbox.module.js?v=6.6.5";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=6.5.1";
+} from "./src/modules/csv.module.js?v=6.6.5";
+
+window.generarBotonesPrincipalesVisibles = generarBotonesPrincipalesVisibles;
+window.generarBotonesAccion = generarBotonesAccion;
 
 let agrupadorActual = 'ninguno';
 let filtrosSeleccionados = {
@@ -827,7 +835,7 @@ window.alert = function(msg, tipo = '') {
 // ================================================================
 // MODAL DE CONFIRMACIÓN CUSTOM — Punto 6 (reemplaza confirm() nativo)
 // ================================================================
-window.confirmar = function(titulo, descripcion = '', textoBoton = 'Confirmar', icono = '⚠️', textoCancelar = 'Cancelar') {
+window.confirmar = function(titulo, descripcion = '', textoBoton = 'Confirmar', icono = '⚠️', textoCancelar = 'Cancelar', colorBoton = '') {
     return new Promise((resolve) => {
         const modal = document.getElementById('modal-confirmar-accion');
         if (!modal) { resolve(window._originalConfirm ? window._originalConfirm(titulo) : false); return; }
@@ -840,6 +848,16 @@ window.confirmar = function(titulo, descripcion = '', textoBoton = 'Confirmar', 
 
         const btnOk = document.getElementById('confirmar-btn-ok');
         const btnCancelar = document.getElementById('confirmar-btn-cancelar');
+
+        if (colorBoton) {
+            btnOk.style.background = colorBoton;
+        } else if (icono === '✅' || icono === '🚀' || icono === '🧩' || (textoBoton.toLowerCase().includes('confirmar') && !titulo.toLowerCase().includes('eliminar') && !titulo.toLowerCase().includes('borrar'))) {
+            btnOk.style.background = '#16a34a';
+        } else if (icono === '🗑️' || titulo.toLowerCase().includes('eliminar') || titulo.toLowerCase().includes('borrar') || textoBoton.toLowerCase().includes('eliminar')) {
+            btnOk.style.background = 'var(--accent-red, #c2563b)';
+        } else {
+            btnOk.style.background = 'var(--accent-teal, #007b8f)';
+        }
 
         const clonOk = btnOk.cloneNode(true);
         const clonCancelar = btnCancelar.cloneNode(true);
@@ -1377,6 +1395,9 @@ window.toggleInfAccordion = function(secId) {
 };
 
 export function crearEntradaHistorial(texto, tipo = 'sistema', autor = null) {
+    let textoFinal = (texto || '').trim();
+    if (!textoFinal) return null;
+
     const now = new Date();
     const dia = now.getDate();
     const mes = now.getMonth() + 1;
@@ -1394,7 +1415,6 @@ export function crearEntradaHistorial(texto, tipo = 'sistema', autor = null) {
         }
     }
     
-    let textoFinal = (texto || '').trim();
     if (!textoFinal.startsWith('[')) {
         textoFinal = `[${fechaStr}] ${textoFinal}`;
     }
@@ -1409,15 +1429,49 @@ export function crearEntradaHistorial(texto, tipo = 'sistema', autor = null) {
 }
 window.crearEntradaHistorial = crearEntradaHistorial;
 
+export function normalizarHistorial(arr) {
+    if (!Array.isArray(arr)) return [];
+    return arr.map((item, idx) => {
+        if (!item) return null;
+        if (typeof item === 'string') {
+            const str = item.trim();
+            if (!str) return null;
+            const matchFecha = str.match(/^\[(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}(?:\s+\d{1,2}:\d{2})?)\]\s*(.*)/s);
+            return {
+                id: Date.now() - (idx * 1000) - Math.floor(Math.random() * 500),
+                fecha: matchFecha ? matchFecha[1] : '',
+                texto: str,
+                autor: '',
+                tipo: 'sistema'
+            };
+        } else if (typeof item === 'object') {
+            const rawTexto = (item.texto || item.mensaje || item.nota || '').trim();
+            if (!rawTexto) return null;
+            return {
+                id: item.id || (Date.now() - (idx * 1000)),
+                fecha: item.fecha || '',
+                texto: rawTexto,
+                autor: item.autor || item.creador || '',
+                tipo: item.tipo || 'sistema'
+            };
+        }
+        return null;
+    }).filter(Boolean);
+}
+window.normalizarHistorial = normalizarHistorial;
+
 function renderHistorial() {
     const container = document.getElementById('lista-historial'); 
     if (!container) return;
     container.innerHTML = '';
+    
+    historialActual = normalizarHistorial(historialActual);
+
     if (historialActual.length === 0) { 
         container.innerHTML = '<p style="color:var(--text-muted); font-size:13px; margin:0;">No hay registros en el historial.</p>'; 
         return; 
     }
-    const sorted = [...historialActual].sort((a, b) => b.id - a.id);
+    const sorted = [...historialActual].sort((a, b) => (b.id || 0) - (a.id || 0));
     sorted.forEach(nota => {
         const textoLimpio = (nota.texto || '').replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
         
@@ -1427,6 +1481,8 @@ function renderHistorial() {
             badgeTipoHtml = '<span style="background:rgba(37,107,187,0.12); color:#256bbb; font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px; border:1px solid rgba(37,107,187,0.25);">✅ Agenda</span>';
         } else if (tipo === 'match') {
             badgeTipoHtml = '<span style="background:rgba(142,68,173,0.12); color:#8e44ad; font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px; border:1px solid rgba(142,68,173,0.25);">👥 Match</span>';
+        } else if (tipo === 'coordinacion') {
+            badgeTipoHtml = '<span style="background:rgba(142,68,173,0.14); color:#6c3483; font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px; border:1px solid rgba(142,68,173,0.3);">🤝 Coordinación</span>';
         } else if (tipo === 'alta') {
             badgeTipoHtml = '<span style="background:rgba(49,163,100,0.12); color:#31a364; font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px; border:1px solid rgba(49,163,100,0.25);">🚀 Alta</span>';
         } else if (tipo === 'suspension') {
@@ -1445,24 +1501,137 @@ function renderHistorial() {
 
         container.innerHTML += `
             <div style="background:var(--hover-bg); border:1px solid var(--border-color); padding:10px 12px; border-radius:8px; position:relative; display:flex; flex-direction:column; gap:4px;">
-                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding-right:50px;">
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding-right:60px;">
                     <span style="font-size:11px; color:var(--text-muted); font-weight:600;">🕒 ${nota.fecha || ''}</span>
                     ${autorHtml ? '<span style="opacity:0.4;">•</span>' + autorHtml : ''}
                     ${badgeTipoHtml}
                 </div>
                 <div style="font-size:12.5px; color:var(--text-main); line-height:1.4;">${textoLimpio}</div>
-                <div style="position:absolute; top:8px; right:8px; display:flex; gap:5px;">
-                    <button type="button" class="btn-editar-nota" data-id="${nota.id}" style="background:transparent; border:none; cursor:pointer; font-size:1.05em; padding:2px;" title="Editar">✏️</button>
-                    <button type="button" class="btn-eliminar-nota" data-id="${nota.id}" style="background:transparent; border:none; cursor:pointer; font-size:1.05em; padding:2px;" title="Eliminar">❌</button>
+                <div style="position:absolute; top:8px; right:8px; display:flex; gap:6px;">
+                    <button type="button" class="btn-editar-nota" onclick="window.editarNotaHistorial('${nota.id}')" style="background:var(--card-bg, #ffffff); border:1px solid var(--border-color, #e2e8f0); border-radius:4px; cursor:pointer; font-size:0.95em; padding:2px 5px;" title="Editar nota">✏️</button>
+                    <button type="button" class="btn-eliminar-nota" onclick="window.eliminarNotaHistorial('${nota.id}')" style="background:var(--card-bg, #ffffff); border:1px solid var(--border-color, #e2e8f0); border-radius:4px; cursor:pointer; font-size:0.95em; padding:2px 5px;" title="Eliminar nota">❌</button>
                 </div>
             </div>`;
     });
 }
+window.renderHistorial = renderHistorial;
+
+window.eliminarNotaHistorial = async function(notaId) {
+    if (!notaId) return;
+    const notaIdx = historialActual.findIndex(n => String(n.id) === String(notaId));
+    if (notaIdx === -1) return;
+
+    const nota = historialActual[notaIdx];
+    const resumen = (nota.texto || '').replace(/<[^>]+>/g, '').substring(0, 60);
+    const confirma = await (window.confirmar 
+        ? window.confirmar('Eliminar nota', `¿Estás seguro de que deseas eliminar esta nota del historial?\n\n"${resumen}..."`, 'Eliminar nota') 
+        : Promise.resolve(confirm(`¿Estás seguro de que deseas eliminar esta nota del historial?\n\n"${resumen}..."`)));
+        
+    if (!confirma) return;
+
+    historialActual.splice(notaIdx, 1);
+    renderHistorial();
+
+    const alumnoId = document.getElementById('alumno-id')?.value;
+    if (alumnoId && !alumnoId.startsWith('test-')) {
+        try {
+            await updateDoc(doc(db, "alumnos", alumnoId), { historial: historialActual });
+            mostrarToast('Nota eliminada del historial.', 'info');
+        } catch(err) {
+            console.error("Error al eliminar nota en Firestore:", err);
+            alert("Error al actualizar historial en Firestore: " + err.message);
+        }
+    } else {
+        mostrarToast('Nota eliminada.', 'info');
+    }
+};
+
+window.editarNotaHistorial = async function(notaId) {
+    if (!notaId) return;
+    const nota = historialActual.find(n => String(n.id) === String(notaId));
+    if (!nota) return;
+
+    let textoBase = (nota.texto || '').trim();
+    const matchPrefijo = textoBase.match(/^(\[\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}(?:\s+\d{1,2}:\d{2})?\]\s*)(.*)/s);
+    let prefijoFecha = '';
+    let cuerpoTexto = textoBase;
+    if (matchPrefijo) {
+        prefijoFecha = matchPrefijo[1];
+        cuerpoTexto = matchPrefijo[2];
+    }
+
+    const nuevoTexto = prompt("Editar contenido de la nota:", cuerpoTexto);
+    if (nuevoTexto === null) return;
+    if (!nuevoTexto.trim()) {
+        alert("La nota no puede estar vacía. Si deseas quitarla, podés usar el botón de eliminar (❌).");
+        return;
+    }
+
+    nota.texto = prefijoFecha ? `${prefijoFecha}${nuevoTexto.trim()}` : nuevoTexto.trim();
+    if (!nota.autor && window.usuarioActual) {
+        nota.autor = window.usuarioActual.nombre || window.usuarioActual.email || 'Operador';
+    }
+
+    renderHistorial();
+
+    const alumnoId = document.getElementById('alumno-id')?.value;
+    if (alumnoId && !alumnoId.startsWith('test-')) {
+        try {
+            await updateDoc(doc(db, "alumnos", alumnoId), { historial: historialActual });
+            mostrarToast('Nota actualizada con éxito.', 'success');
+        } catch(err) {
+            console.error("Error al actualizar nota en Firestore:", err);
+            alert("Error al guardar cambios en Firestore: " + err.message);
+        }
+    } else {
+        mostrarToast('Nota actualizada.', 'success');
+    }
+};
+
+export function poblarSelectMotivosSuspension() {
+    const sel = document.getElementById('susp-motivo');
+    if (!sel) return;
+    const motivos = Array.isArray(configApp.motivos_suspension) && configApp.motivos_suspension.length > 0
+        ? configApp.motivos_suspension
+        : (defaultCfg.motivos_suspension || ['Arrepentido', 'No responde', 'No se logra acordar agenda por falta de disponibilidad', 'Problemas económicos', 'Horarios incompatibles', 'Otro']);
+
+    const currentVal = sel.value;
+    sel.innerHTML = `<option value="">Seleccione...</option>` + 
+        motivos.map(m => `<option value="${m}">${m}</option>`).join('');
+    if (currentVal && motivos.includes(currentVal)) {
+        sel.value = currentVal;
+    }
+}
+window.poblarSelectMotivosSuspension = poblarSelectMotivosSuspension;
 
 async function cargarConfig() { 
     const docSnap = await getDoc(doc(db, "configuracion", "general")); 
     const nuevaCfg = docSnap.exists() ? { ...defaultCfg, ...docSnap.data() } : defaultCfg;
+
+    // Sincronizar aranceles desde tipos_suscripcion si existen
+    try {
+        const suscSnap = await getDocs(collection(db, "tipos_suscripcion"));
+        suscSnap.forEach(d => {
+            const dt = d.data();
+            const nomNorm = (dt.nombre || d.id || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            if (nomNorm.includes('individual')) {
+                if (dt.arancel_suelta) nuevaCfg.arancel_individual_suelta = dt.arancel_suelta;
+                if (dt.arancel_quincenal) nuevaCfg.arancel_individual_quincenal = dt.arancel_quincenal;
+                if (dt.arancel_fullpack) nuevaCfg.arancel_individual_fullpack = dt.arancel_fullpack;
+                if (dt.arancel_fullpack_comunidad) nuevaCfg.arancel_individual_fullpack_comunidad = dt.arancel_fullpack_comunidad;
+            } else if (nomNorm.includes('ensamble')) {
+                if (dt.arancel_regular) nuevaCfg.arancel_ensamble_regular = dt.arancel_regular;
+                if (dt.arancel_mandalorian) nuevaCfg.arancel_ensamble_actual = dt.arancel_mandalorian;
+                if (dt.arancel_comunidad) nuevaCfg.arancel_ensamble_comunidad = dt.arancel_comunidad;
+            } else if (nomNorm.includes('grupal')) {
+                if (dt.arancel_regular) nuevaCfg.arancel_grupal_regular = dt.arancel_regular;
+                if (dt.arancel_comunidad) nuevaCfg.arancel_grupal_comunidad = dt.arancel_comunidad;
+            }
+        });
+    } catch(e) {}
+
     Object.assign(configApp, nuevaCfg);
+    poblarSelectMotivosSuspension();
 }
 
 export function convertirHtmlATextoPlano(html) {
@@ -2089,7 +2258,15 @@ export function esUsuarioAdministrador() {
     const u = window.usuarioActual || {};
     const roles = Array.isArray(u.roles) ? u.roles : [u.rol || ''];
     const email = (u.email || '').toLowerCase().trim();
-    return roles.includes('admin') || u.rol === 'admin' || email === 'productora.mandalahouse@gmail.com' || email === 'pablobianchino@gmail.com' || window.modoRolActivo === 'admin' || window.modoRolActivo === 'multi';
+    const tienePermisoAdmin = roles.includes('admin') || u.rol === 'admin' || email === 'productora.mandalahouse@gmail.com' || email === 'pablobianchino@gmail.com';
+    if (!tienePermisoAdmin) return false;
+
+    // Si la cuenta tiene privilegios admin pero el usuario cambió expresamente a un rol operativo en el selector:
+    const modo = (window.modoRolActivo || '').toLowerCase().trim();
+    if (modo && modo !== 'admin' && modo !== 'multi') {
+        return false;
+    }
+    return true;
 }
 window.esUsuarioAdministrador = esUsuarioAdministrador;
 
@@ -2169,12 +2346,19 @@ function actualizarBulkBar() {
 
         const u = window.usuarioActual || {};
         const rolesArr = Array.isArray(u.roles) && u.roles.length > 0 ? u.roles : [u.rol || ''];
-        const puedeArmarGrupos = rolesArr.includes('admin') || rolesArr.includes('coordinador_grupos');
+        const modo = (window.modoRolActivo || '').toLowerCase();
+        const puedeArmarGrupos = rolesArr.includes('admin') || rolesArr.includes('coordinador_grupos') || rolesArr.includes('coordinador') || rolesArr.some(r => (r || '').toLowerCase().includes('coord')) || modo === 'admin' || modo === 'coordinador_grupos' || modo === 'coordinador' || modo === 'multi';
 
-        // Nueva Propuesta de Grupo: SOLO para Coordinador de Grupos y Administrador
+        // Nueva Propuesta de Grupo / Clase: solo para Coordinador y Administrador con alumnos en Lista de Espera (admisión finalizada)
         if (btnProp) {
-            const vistaApta = (estadoActualVista === 'Lista de Espera' || selectedBulkIds.length >= 2);
-            btnProp.style.display = (puedeArmarGrupos && vistaApta) ? 'inline-block' : 'none';
+            const todosEnEspera = selectedBulkIds.length > 0 && selectedBulkIds.every(id => {
+                const al = (cachedAlumnosData || []).find(a => a.id === id);
+                if (!al) return false;
+                const est = (al.estado_agenda || '').toLowerCase();
+                return est === 'lista de espera';
+            });
+            btnProp.textContent = selectedBulkIds.length === 1 ? '✨ Nueva Propuesta de Clase' : `✨ Nueva Propuesta de Grupo (${selectedBulkIds.length})`;
+            btnProp.style.display = (puedeArmarGrupos && todosEnEspera) ? 'inline-block' : 'none';
         }
         
         // Devolver a Espera masivo disponible en vistas de Altas o Match
@@ -2256,6 +2440,7 @@ if (btnBulkDevolver) {
 // Botón Suspender Masivo: Alineado con modal-suspender
 document.getElementById('btn-bulk-suspender')?.addEventListener('click', () => {
     if (selectedBulkIds.length === 0) return;
+    poblarSelectMotivosSuspension();
     document.getElementById('susp-alumno-id').value = 'bulk';
     document.getElementById('susp-motivo').value = '';
     const detEl = document.getElementById('susp-detalle-adicional');
@@ -2616,7 +2801,7 @@ const btnBulkCopiarFact = document.getElementById('btn-bulk-copiar-fact');
 if (btnBulkCopiarFact) btnBulkCopiarFact.addEventListener('click', window.copiarSeleccionExcelFacturacion);
 
 // =======================================================================
-// NUEVA PROPUESTA DE GRUPO MANUAL (DESDE LISTA DE ESPERA)
+// NUEVA PROPUESTA DE GRUPO / CLASE MANUAL (DESDE LISTA DE ESPERA / MATCH)
 // =======================================================================
 
 const btnBulkProp = document.getElementById('btn-bulk-propuesta-grupo');
@@ -2624,20 +2809,37 @@ if (btnBulkProp) {
     btnBulkProp.addEventListener('click', async () => {
         const u = window.usuarioActual || {};
         const rolesArr = Array.isArray(u.roles) && u.roles.length > 0 ? u.roles : [u.rol || ''];
-        const puedeArmarGrupos = rolesArr.includes('admin') || rolesArr.includes('coordinador_grupos');
-        if (!puedeArmarGrupos) {
-            alert('Solo el Coordinador de Grupos y Administrador pueden armar propuestas de grupo.');
+        const modo = (window.modoRolActivo || '').toLowerCase();
+        const esCoordinador = rolesArr.includes('admin') || rolesArr.includes('coordinador_grupos') || rolesArr.includes('coordinador') || rolesArr.some(r => (r || '').toLowerCase().includes('coord')) || modo === 'admin' || modo === 'coordinador_grupos' || modo === 'coordinador' || modo === 'multi';
+        if (!esCoordinador) {
+            alert('Solo el Coordinador de Grupos y Administrador pueden armar propuestas de grupo o clase.');
             return;
         }
-        if (window.matchAlumnosSeleccionados && window.matchAlumnosSeleccionados.size >= 2) {
+        if (window.matchAlumnosSeleccionados && window.matchAlumnosSeleccionados.size >= 1) {
             selectedBulkIds = Array.from(window.matchAlumnosSeleccionados);
             window.selectedBulkIds = selectedBulkIds;
         }
-        if (selectedBulkIds.length < 2) {
-            alert('Por favor seleccioná al menos 2 alumnos para armar una propuesta de grupo.');
+        if (selectedBulkIds.length < 1) {
+            alert('Por favor seleccioná al menos 1 alumno para armar una propuesta.');
             return;
         }
-        await abrirModalPrealtaGrupal(selectedBulkIds);
+        const noEstanEnEspera = selectedBulkIds.map(id => (cachedAlumnosData || []).find(a => a.id === id)).filter(al => {
+            const est = (al?.estado_agenda || '').toLowerCase();
+            return est !== 'lista de espera';
+        });
+        if (noEstanEnEspera.length > 0) {
+            alert('Solo se pueden armar propuestas de grupo o clase con alumnos que ya tengan la admisión finalizada (en Lista de Espera).');
+            return;
+        }
+        if (selectedBulkIds.length > 1) {
+            if (window.abrirModalPrealtaGrupal) {
+                await window.abrirModalPrealtaGrupal(selectedBulkIds, '', configApp, true);
+            }
+        } else {
+            if (window.abrirModalPrealta) {
+                await window.abrirModalPrealta(selectedBulkIds[0], '', '', {}, { esPropuesta: true });
+            }
+        }
     });
 }
 
@@ -2729,75 +2931,30 @@ if (btnConfirmarImportacion) {
 
 let alumnosPropuestaManualCache = [];
 
-async function abrirModalNuevaPropuestaGrupoManual() {
-    alumnosPropuestaManualCache = [];
-    for (const id of selectedBulkIds) {
-        try {
-            const snap = await getDoc(doc(db, "alumnos", id));
-            if (snap.exists()) alumnosPropuestaManualCache.push({ id: snap.id, ...snap.data() });
-        } catch(e) {}
+export async function abrirModalNuevaPropuestaGrupoManual(ids = null) {
+    const idsToUse = (Array.isArray(ids) && ids.length > 0) ? ids : selectedBulkIds;
+    if (!idsToUse || idsToUse.length === 0) {
+        return alert("Por favor seleccioná al menos 1 alumno para armar una propuesta.");
     }
-
-    if (alumnosPropuestaManualCache.length === 0) return;
-
-    // Cargar profesores en select
-    const selProfe = document.getElementById('propuesta-manual-profe');
-    if (selProfe) {
-        try {
-            const qP = await getDocs(collection(db, "profesores"));
-            let profesList = [];
-            qP.forEach(d => {
-                const dt = d.data();
-                if (dt.activo !== false && dt.estado !== 'inactivo') {
-                    profesList.push({ id: d.id, ...dt });
-                }
-            });
-            selProfe.innerHTML = '<option value="">Seleccionar profesor...</option>' + profesList.map(p => {
-                const skillsStr = (p.skills || []).join(', ');
-                return `<option value="${p.id}" data-nombre="${p.nombre}">${p.nombre} ${skillsStr ? `(${skillsStr})` : ''}</option>`;
-            }).join('');
-        } catch(e) {}
-    }
-
-    // Renderizar lista de alumnos e instrumento asignado
-    const contAl = document.getElementById('propuesta-manual-alumnos-container');
-    if (contAl) {
-        contAl.innerHTML = alumnosPropuestaManualCache.map(al => {
-            const insts = Array.isArray(al.instrumento) ? al.instrumento : (al.instrumento ? [al.instrumento] : ['Varios']);
-            const optionsInst = insts.map(i => `<option value="${i}">${i}</option>`).join('');
-            return `
-                <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 10px; background:var(--hover-bg); border-radius:8px; border:1px solid var(--border-color); gap:10px; flex-wrap:wrap;">
-                    <div>
-                        <div style="font-weight:700; font-size:13px; color:var(--text-main);">👤 ${al.nombre}</div>
-                        <div style="font-size:11px; color:var(--text-muted);">${al.edad ? al.edad + 'a • ' : ''}${al.nivel || '-'} • ${al.tipo_suscripcion || ''}</div>
-                    </div>
-                    <div style="display:flex; align-items:center; gap:6px;">
-                        <span style="font-size:11px; color:var(--text-muted); font-weight:600;">Instrumento:</span>
-                        <select class="propuesta-manual-inst-alumno modern-input" data-alumno-id="${al.id}" style="width:auto; padding:4px 8px; font-size:12px;">
-                            ${optionsInst}
-                        </select>
-                    </div>
-                </div>
-            `;
-        }).join('');
-    }
-
-    actualizarSugerenciaNombreGrupoManual();
-    validarPropuestaManualMatch();
-
-    // Listeners para auto-actualización
-    ['propuesta-manual-profe', 'propuesta-manual-dia', 'propuesta-manual-hora-inicio', 'propuesta-manual-hora-fin'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            el.onchange = () => {
-                actualizarSugerenciaNombreGrupoManual();
-                validarPropuestaManualMatch();
-            };
+    if (idsToUse.length > 1) {
+        if (window.abrirModalPrealtaGrupal) {
+            await window.abrirModalPrealtaGrupal(idsToUse, '', configApp, true);
         }
-    });
-
-    document.getElementById('modal-nueva-propuesta-grupo').showModal();
+    } else {
+        if (window.abrirModalPrealta) {
+            await window.abrirModalPrealta(idsToUse[0], '', '', {}, { esPropuesta: true });
+        }
+    }
 }
+window.abrirModalNuevaPropuestaGrupoManual = abrirModalNuevaPropuestaGrupoManual;
+window.abrirModalNuevaPropuestaGrupo = abrirModalNuevaPropuestaGrupoManual;
+
+// Listener para confirmación con notas en validación
+document.getElementById('btn-guardar-confirmacion-validacion')?.addEventListener('click', () => {
+    if (typeof window.ejecutarGuardarNotaValidacion === 'function') {
+        window.ejecutarGuardarNotaValidacion();
+    }
+});
 
 function actualizarSugerenciaNombreGrupoManual() {
     const selProfe = document.getElementById('propuesta-manual-profe');
@@ -3635,7 +3792,7 @@ function getModuloSubtabs() {
         'Match': [
             { vista: 'Match - Pendientes', label: 'Armar Grupos y Clases', icon: '🔍', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'lista de espera').length },
             { vista: 'Match - Solicitudes Profes', label: 'Solicitudes de Profes', icon: '📩', countFn: () => cachedSolicitudesVacantesCount, className: 'tab-badge-solicitudes' },
-            { vista: 'Match - En Validacion', label: 'Grupos en Validación', icon: '👥', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'validando grupo').length },
+            { vista: 'Match - En Validacion', label: 'Grupos y Alumnos en Validación', icon: '👥', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'validando grupo').length },
             { vista: 'Ajustes Match', label: 'Reglas y Tolerancias', icon: '⚙️' }
         ]
     };
@@ -4163,8 +4320,13 @@ export function configurarSidebarPorPermisos() {
 
     const btnNuevoAlumno = document.getElementById('btn-nuevo-alumno');
     if (btnNuevoAlumno) {
-        const puedeCrear = esAdminActivo || mods.includes('admisiones') || modo === 'admisor';
-        btnNuevoAlumno.style.display = (modo === 'evaluador' || modo === 'profesor') ? 'none' : (puedeCrear ? 'block' : 'none');
+        const rolesUser = Array.isArray(usuario.roles) && usuario.roles.length > 0
+            ? usuario.roles
+            : [(usuario.rol || '')];
+        const modoLower = (modo || '').toLowerCase();
+        const esCoordinador = modoLower === 'coordinador' || modoLower === 'coordinador_grupos' || rolesUser.includes('coordinador') || rolesUser.includes('coordinador_grupos') || rolesUser.some(r => (r || '').toLowerCase().includes('coord'));
+        const puedeCrear = esAdminActivo || mods.includes('admisiones') || modoLower === 'admisor' || modoLower === 'admisiones' || esCoordinador || rolesUser.includes('admisor') || rolesUser.includes('admisiones');
+        btnNuevoAlumno.style.display = (modoLower === 'evaluador' || modoLower === 'profesor' || modoLower === 'docente') ? 'none' : (puedeCrear ? 'block' : 'none');
     }
 
     const modIdMap = {
@@ -4605,7 +4767,29 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
             } else if (vista === 'Altas - Finalizadas') {
                 dataFiltrada = allData.filter(d => esAlumnoAltaFinalizada(d));
             }
-            renderListaFilas('lista-generica', dataFiltrada, 'all', null);
+            if (vista.startsWith('Altas -')) {
+                const queryStr = (document.getElementById('input-buscador-general')?.value || '').trim().toLowerCase();
+                let datosAltas = dataFiltrada;
+                if (queryStr) {
+                    const qNorm = queryStr.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    const qNum = queryStr.replace(/\D/g, '');
+                    datosAltas = datosAltas.filter(al => {
+                        const nom = (al.nombre || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                        if (nom.includes(qNorm)) return true;
+                        if (qNum && (al.celular || '').replace(/\D/g, '').includes(qNum)) return true;
+                        const insts = Array.isArray(al.instrumento) ? al.instrumento.join(' ') : (al.instrumento || '');
+                        if (insts.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(qNorm)) return true;
+                        const prof = (al.reserva_profe_nombre || al.profesor_asignado || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                        if (prof.includes(qNorm)) return true;
+                        const grp = (al.grupo_asignado || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                        if (grp.includes(qNorm)) return true;
+                        return false;
+                    });
+                }
+                await renderAltasAgrupadas(contLista, datosAltas, vista, { cargarVista, setBotonCargando, configApp, generarBotonesPrincipalesVisibles, generarBotonesAccion });
+            } else {
+                renderListaFilas('lista-generica', dataFiltrada, 'all', null);
+            }
         } catch(e) {}
     } else if (vista.startsWith('Suspendidos')) {
         try {
@@ -5460,7 +5644,7 @@ document.addEventListener('click', async (e) => {
         const wrap = target.closest('.dropdown-menu-wrapper');
         if (wrap && wrap.id !== 'modal-acciones-dropdown') {
             wrap.classList.remove('show');
-            const pRow = wrap.closest('.row-item, .swipe-wrapper, .group-card-l1, .group-card-l2, .tray-chip');
+            const pRow = wrap.closest('.row-item, .swipe-wrapper, .group-card-l1, .group-card-l2, .tray-chip, .group-member-row, .group-box-card');
             if (pRow) pRow.classList.remove('has-open-dropdown');
         }
     }
@@ -5470,7 +5654,7 @@ document.addEventListener('click', async (e) => {
         document.querySelectorAll('.dropdown-menu-wrapper.show').forEach(d => {
             if (d.id !== 'modal-acciones-dropdown') {
                 d.classList.remove('show');
-                const pRow = d.closest('.row-item, .swipe-wrapper, .group-card-l1, .group-card-l2, .tray-chip');
+                const pRow = d.closest('.row-item, .swipe-wrapper, .group-card-l1, .group-card-l2, .tray-chip, .group-member-row, .group-box-card');
                 if (pRow) pRow.classList.remove('has-open-dropdown');
             }
         });
@@ -5562,11 +5746,11 @@ document.addEventListener('click', async (e) => {
                 document.querySelectorAll('.dropdown-menu-wrapper.show').forEach(d => {
                     if (d !== wrapper && d.id !== 'modal-acciones-dropdown') {
                         d.classList.remove('show');
-                        const pRow = d.closest('.row-item, .swipe-wrapper, .group-card-l1, .group-card-l2, .tray-chip');
+                        const pRow = d.closest('.row-item, .swipe-wrapper, .group-card-l1, .group-card-l2, .tray-chip, .group-member-row, .group-box-card');
                         if (pRow) pRow.classList.remove('has-open-dropdown');
                     }
                 });
-                const parentRow = wrapper.closest('.row-item, .swipe-wrapper, .group-card-l1, .group-card-l2, .tray-chip');
+                const parentRow = wrapper.closest('.row-item, .swipe-wrapper, .group-card-l1, .group-card-l2, .tray-chip, .group-member-row, .group-box-card');
                 if (!isShown) {
                     wrapper.classList.add('show');
                     if (parentRow) parentRow.classList.add('has-open-dropdown');
@@ -6014,12 +6198,21 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    // Botón Iniciar / Editar Pre-Alta (Individual o Directo desde Lista de Espera / En Curso)
-    if (target.classList.contains('btn-abrir-prealta') || target.classList.contains('btn-editar-prealta')) {
-        const id = target.getAttribute('data-id');
-        const esEdicion = target.classList.contains('btn-editar-prealta');
-        const inicioPrev = target.getAttribute('data-inicio');
-        const grupoPrev = target.getAttribute('data-grupo');
+    // Botón Armar Propuesta de Clase (Individual desde Lista de Espera)
+    if (target.classList.contains('btn-abrir-propuesta-espera') || target.closest('.btn-abrir-propuesta-espera')) {
+        const btn = target.classList.contains('btn-abrir-propuesta-espera') ? target : target.closest('.btn-abrir-propuesta-espera');
+        const id = btn.getAttribute('data-id');
+        await abrirModalPrealta(id, '', '', { configApp, setBotonCargando, esPropuesta: true });
+        return;
+    }
+
+    // Botón Iniciar / Editar Pre-Alta (Individual o Directo desde Altas Pendientes / En Curso)
+    if (target.classList.contains('btn-abrir-prealta') || target.classList.contains('btn-editar-prealta') || target.closest('.btn-abrir-prealta') || target.closest('.btn-editar-prealta')) {
+        const btn = target.closest('.btn-abrir-prealta') || target.closest('.btn-editar-prealta') || target;
+        const id = btn.getAttribute('data-id');
+        const esEdicion = btn.classList.contains('btn-editar-prealta');
+        const inicioPrev = btn.getAttribute('data-inicio');
+        const grupoPrev = btn.getAttribute('data-grupo');
         await abrirModalPrealta(id, grupoPrev || '', inicioPrev || '', { configApp, setBotonCargando, esEdicion });
         return;
     }
@@ -6040,17 +6233,19 @@ document.addEventListener('click', async (e) => {
     }
 
     // Botón Iniciar Pre-Alta Grupal / Masivo
-    if (target.classList.contains('btn-iniciar-prealta-grupo') || target.id === 'btn-bulk-prealta') {
-        const idsRaw = target.getAttribute('data-ids');
+    if (target.classList.contains('btn-iniciar-prealta-grupo') || target.id === 'btn-bulk-prealta' || target.closest('.btn-iniciar-prealta-grupo') || target.closest('#btn-bulk-prealta')) {
+        const btn = target.closest('.btn-iniciar-prealta-grupo') || target.closest('#btn-bulk-prealta') || target;
+        const idsRaw = btn.getAttribute('data-ids');
         const ids = idsRaw ? idsRaw.split(',').filter(Boolean) : [...selectedBulkIds];
-        const grupoNom = target.getAttribute('data-grupo') || '';
+        const grupoNom = btn.getAttribute('data-grupo') || '';
         await abrirModalPrealtaGrupal(ids, grupoNom, configApp);
         return;
     }
 
     // Botón Seleccionar Todo el Grupo
-    if (target.classList.contains('btn-seleccionar-todo-grupo')) {
-        const ids = (target.getAttribute('data-ids') || '').split(',').filter(Boolean);
+    if (target.classList.contains('btn-seleccionar-todo-grupo') || target.closest('.btn-seleccionar-todo-grupo')) {
+        const btn = target.closest('.btn-seleccionar-todo-grupo') || target;
+        const ids = (btn.getAttribute('data-ids') || '').split(',').filter(Boolean);
         ids.forEach(id => {
             if (!selectedBulkIds.includes(id)) selectedBulkIds.push(id);
             const chk = document.querySelector(`.bulk-chk[data-id="${id}"]`);
@@ -6097,8 +6292,9 @@ document.addEventListener('click', async (e) => {
     }
 
     // Botón Confirmar Alta (Abre modal Suscripción Abonada)
-    if (target.classList.contains('btn-abrir-confirmar-alta')) {
-        const id = target.getAttribute('data-id');
+    if (target.classList.contains('btn-abrir-confirmar-alta') || target.closest('.btn-abrir-confirmar-alta')) {
+        const btn = target.closest('.btn-abrir-confirmar-alta') || target;
+        const id = btn.getAttribute('data-id');
         document.getElementById('conf-alta-alumno-id').value = id;
         document.getElementById('modal-confirmar-alta').showModal();
         return;
@@ -6139,8 +6335,9 @@ document.addEventListener('click', async (e) => {
         return;
     }
     // Acción directa: Finalizar Alta
-    if (target.classList.contains('btn-finalizar-alta-directa')) {
-        const id = target.getAttribute('data-id');
+    if (target.classList.contains('btn-finalizar-alta-directa') || target.closest('.btn-finalizar-alta-directa')) {
+        const btn = target.closest('.btn-finalizar-alta-directa') || target;
+        const id = btn.getAttribute('data-id');
         const ok = await window.confirmar('¿Finalizar Alta?', 'Se marcará el checklist completo, se actualizará el evento en Google Calendar y el ciclo de admisión quedará cerrado.', '🏁 Finalizar Alta', '🏆');
         if (ok) {
             const alDoc = await getDoc(doc(db, "alumnos", id));
@@ -6286,8 +6483,9 @@ document.addEventListener('click', async (e) => {
         return; 
     }
 
-    if (target.classList.contains('btn-buscar-agenda')) { 
-        alumnoIdActual = target.getAttribute('data-id'); 
+    if (target.classList.contains('btn-buscar-agenda') || target.closest('.btn-buscar-agenda')) { 
+        const btnAgenda = target.closest('.btn-buscar-agenda') || target;
+        alumnoIdActual = btnAgenda.getAttribute('data-id'); 
         const modal = document.getElementById('modal-agenda'), resDiv = document.getElementById('resultados-agenda'); 
         resDiv.innerHTML = ''; 
         const hoy = new Date(), d7 = new Date(); 
@@ -6298,6 +6496,7 @@ document.addEventListener('click', async (e) => {
         try { 
             const alDoc = await getDoc(doc(db, "alumnos", alumnoIdActual));
             const al = alDoc.exists() ? alDoc.data() : {};
+            const disp = al.disponibilidad || {};
 
             // 1. Resumen Visual del Alumno y su Disponibilidad Semanal
             const infoAlumnoBox = document.getElementById('info-alumno-agenda');
@@ -6506,7 +6705,10 @@ document.addEventListener('click', async (e) => {
             await refrescarProfesoresEntrevista(instActual);
             resDiv.innerHTML = '<p style="color:var(--text-muted); font-size:13px;">Selecciona el rango y haz clic en Buscar Agenda.</p>'; 
             modal.showModal(); 
-        } catch(err) {} 
+        } catch(err) {
+            console.error("Error al abrir modal de agenda:", err);
+            alert("❌ Error al abrir agenda: " + (err.message || err));
+        } 
         return; 
     }
     if (target.id === 'btn-ejecutar-busqueda') { 
@@ -6965,6 +7167,7 @@ document.addEventListener('click', async (e) => {
         target.classList.contains('btn-suspender') || target.closest('.btn-suspender') ||
         target.classList.contains('btn-suspender-espera') || target.closest('.btn-suspender-espera')) { 
         const btn = target.closest('.btn-abrir-suspender') || target.closest('.btn-suspender') || target.closest('.btn-suspender-espera') || target;
+        poblarSelectMotivosSuspension();
         document.getElementById('susp-alumno-id').value = btn.getAttribute('data-id'); 
         document.getElementById('susp-motivo').value = ""; 
         const detEl = document.getElementById('susp-detalle-adicional');
@@ -7257,9 +7460,11 @@ document.addEventListener('click', async (e) => {
         const roles = Array.isArray(window.usuarioActual?.roles) && window.usuarioActual.roles.length > 0
             ? window.usuarioActual.roles
             : [window.usuarioActual?.rol || 'admisiones'];
-        const puedeCrear = roles.includes('admin') || roles.includes('admisiones') || roles.includes('admisor');
+        const modoActivo = (window.modoRolActivo || '').toLowerCase();
+        const esCoordinador = modoActivo === 'coordinador' || modoActivo === 'coordinador_grupos' || roles.includes('coordinador') || roles.includes('coordinador_grupos') || roles.some(r => (r || '').toLowerCase().includes('coord'));
+        const puedeCrear = roles.includes('admin') || roles.includes('admisiones') || roles.includes('admisor') || esCoordinador || modoActivo === 'admin' || modoActivo === 'admisor' || modoActivo === 'multi';
         if (!puedeCrear) {
-            alert('⛔ Solo los administradores y el equipo de admisión pueden crear nuevos alumnos.');
+            alert('⛔ No tienes permisos para crear nuevos alumnos.');
             return;
         }
         const wrap = document.getElementById('form-alumno-wrapper'); 
@@ -7649,13 +7854,17 @@ window.editarAlumnoModalDirecto = async function(id) {
     }
 };
 
-window.abrirModalPrealta = async function(id, esEdicion = false, inicioPrev = null, grupoPrev = null, options = {}) {
-    const opts = (typeof options === 'object' && options !== null) ? options : {};
-    await abrirModalPrealta(id, grupoPrev || '', inicioPrev || '', { configApp, setBotonCargando, esEdicion: Boolean(esEdicion), ...opts });
+window.abrirModalPrealta = async function(id, esEdicion = false, inicioPrev = null, grupoPrev = null, options = {}, esPropuesta = false) {
+    let opts = (typeof options === 'object' && options !== null) ? { ...options } : {};
+    if (typeof esEdicion === 'object' && esEdicion !== null) {
+        opts = { ...esEdicion, ...opts };
+    }
+    if (esPropuesta === true || opts.esPropuesta === true) opts.esPropuesta = true;
+    await abrirModalPrealta(id, grupoPrev || '', inicioPrev || '', { configApp, setBotonCargando, esEdicion: Boolean(opts.esEdicion), ...opts });
 };
 
-window.abrirModalPrealtaGrupal = async function(ids, grupoNom = '', cfg = null) {
-    await abrirModalPrealtaGrupal(ids, grupoNom, cfg || configApp);
+window.abrirModalPrealtaGrupal = async function(ids, grupoNom = '', cfg = null, esPropuesta = false) {
+    await abrirModalPrealtaGrupal(ids, grupoNom, cfg || configApp, Boolean(esPropuesta));
 };
 
 window.abrirFichaAlumnoDocente = async function(id) {

@@ -22,7 +22,7 @@ import {
     eliminarEventoAltaSeguro,
     validarConflictoCalendarEnVivo,
     obtenerEventosProfesoresParaSlot
-} from "../services/calendar.service.js?v=6.5.1";
+} from "../services/calendar.service.js?v=6.6.3";
 import { calcularProximaFechaDiaHora } from "./match.module.js";
 import { parsearNomenclaturaGrupoOClase } from "./profesor.module.js";
 
@@ -607,8 +607,25 @@ export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg
     const profeSugerido = opts.profeIdSugerido || '';
     const sol = (opts.esMatchSolicitud && opts.solicitud) ? opts.solicitud : null;
     const esMatchSolicitud = Boolean(sol);
+    const esPropuesta = Boolean(opts.esPropuesta);
 
     document.getElementById('prealta-alumno-id').value = id;
+    const hiddenProp = document.getElementById('prealta-es-propuesta');
+    if (hiddenProp) hiddenProp.value = esPropuesta ? 'true' : 'false';
+
+    const btnGuardarPrealta = document.getElementById('btn-guardar-prealta');
+    if (btnGuardarPrealta) {
+        if (esPropuesta) {
+            btnGuardarPrealta.textContent = '🧩 Crear Propuesta en Validación';
+            btnGuardarPrealta.style.background = 'var(--accent-teal, #007b8f)';
+        } else if (esEdicionParam) {
+            btnGuardarPrealta.textContent = '💾 Guardar Cambios';
+            btnGuardarPrealta.style.background = '';
+        } else {
+            btnGuardarPrealta.textContent = '🚀 Iniciar Pre-Alta y Agendar';
+            btnGuardarPrealta.style.background = '';
+        }
+    }
     
     const tipoSusc = detectarTipoSuscripcion(al.tipo_suscripcion || '');
     const esIndividual = tipoSusc === 'individual';
@@ -616,9 +633,12 @@ export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg
     const esEdicion = esEdicionParam || al.estado_agenda === 'Pre-alta Iniciada' || al.estado_agenda === 'Pre-alta iniciada' || esAltaConfirmada;
     const vieneDeMatch = Boolean(al.horario_match && al.horario_match !== al.reserva_fecha_texto);
 
-    const tituloTexto = esAltaConfirmada 
+    let tituloTexto = esAltaConfirmada 
         ? `Modificar Alta — ${al.nombre || 'Alumno'}`
         : `${esEdicion ? 'Editar' : 'Iniciar'} Pre-Alta — ${al.nombre || 'Alumno'}`;
+    if (esPropuesta) {
+        tituloTexto = `🧩 Nueva Propuesta de Clase (${al.nombre || 'Alumno'})`;
+    }
     document.getElementById('titulo-prealta').textContent = tituloTexto;
     
     const campoGrupo = document.getElementById('prealta-campo-grupo');
@@ -649,7 +669,7 @@ export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg
             fVal = calcularProximaFechaDiaHora(diaCod, horaIni);
         }
         grupoVal = sol.grupoNombre || grupoPrev || '';
-    } else if (esEdicion || esAltaConfirmada) {
+    } else if (esEdicion || esAltaConfirmada || !esPropuesta) {
         if (inicioPrev) fVal = isoToDatetimeLocal(inicioPrev);
         else if (al.fecha_inicio_clases) fVal = isoToDatetimeLocal(al.fecha_inicio_clases);
         else if (al.fecha_sugerida_inicio) fVal = isoToDatetimeLocal(al.fecha_sugerida_inicio);
@@ -659,8 +679,35 @@ export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg
     document.getElementById('prealta-fecha-inicio').value = fVal;
     document.getElementById('prealta-grupo').value = grupoVal;
 
+    const campoPackInd = document.getElementById('prealta-campo-pack-individual');
     if (esIndividual) {
         if (campoInst) campoInst.style.display = 'block';
+        if (campoPackInd) {
+            // La modalidad / pack de clases SOLO se muestra en la acción de iniciar pre-alta.
+            // Para armar la propuesta / grupo NO interesa el valor ni cuántas clases son.
+            if (!esPropuesta) {
+                campoPackInd.style.display = 'block';
+                const tagSuelta = document.getElementById('prealta-arancel-suelta-tag');
+                const tagQuincenal = document.getElementById('prealta-arancel-quincenal-tag');
+                const tagFullpack = document.getElementById('prealta-arancel-fullpack-tag');
+                if (tagSuelta) tagSuelta.textContent = formatearPrecioMoneda(configApp.arancel_individual_suelta) || '$15.000';
+                if (tagQuincenal) tagQuincenal.textContent = formatearPrecioMoneda(configApp.arancel_individual_quincenal) || '$25.000';
+                if (tagFullpack) tagFullpack.textContent = formatearPrecioMoneda(configApp.arancel_individual_fullpack) || '$45.000';
+
+                const modExistente = al.modalidad_individual || (
+                    (al.tipo_suscripcion || '').toLowerCase().includes('suelta') ? 'suelta' :
+                    (al.tipo_suscripcion || '').toLowerCase().includes('quincenal') ? 'quincenal' : 'fullpack'
+                );
+                const radioSel = document.querySelector(`input[name="prealta-pack-individual"][value="${modExistente}"]`);
+                if (radioSel) radioSel.checked = true;
+                else {
+                    const defaultRadio = document.querySelector('input[name="prealta-pack-individual"][value="fullpack"]');
+                    if (defaultRadio) defaultRadio.checked = true;
+                }
+            } else {
+                campoPackInd.style.display = 'none';
+            }
+        }
         if (wrapLista) wrapLista.style.display = 'none';
         if (campoGrupo) campoGrupo.style.display = 'none';
         const campoTipoEns = document.getElementById('prealta-campo-tipo-ensamble');
@@ -698,6 +745,7 @@ export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg
         document.getElementById('prealta-grupo').value = 'Clase Individual';
     } else {
         if (campoInst) campoInst.style.display = 'none';
+        if (campoPackInd) campoPackInd.style.display = 'none';
         
         // Modalidad Ensamble: visible si tipo_suscripcion es ensamble o la solicitud es ensamble
         const campoTipoEns = document.getElementById('prealta-campo-tipo-ensamble');
@@ -794,7 +842,9 @@ export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg
 
     const banner = document.getElementById('prealta-info-banner');
     banner.style.display = 'block';
-    if (esMatchSolicitud && sol) {
+    if (esPropuesta) {
+        banner.innerHTML = `🧩 <strong>Nueva Propuesta de Clase:</strong> Selecciona día, hora y profesor disponible para armar la propuesta en validación. No se agendará en Google Calendar hasta que se apruebe.`;
+    } else if (esMatchSolicitud && sol) {
         banner.innerHTML = `🎯 <strong>Pre-Alta desde Solicitud Docente (${sol.grupoNombre}):</strong> Docente: <strong>${sol.profesorNombre}</strong> • Horario: <strong>${sol.horario}</strong> • Instrumento: <strong>${opts.instSugerido || sol.instrumento}</strong>`;
     } else if (esAltaConfirmada) {
         banner.innerHTML = `✏️ <strong>Modificar Alta de ${al.nombre} (${al.estado_agenda}):</strong> Podés forzar la edición del profesor, grupo y horario de inicio.`;
@@ -818,8 +868,22 @@ export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg
 // -----------------------------------------------------------------------
 // Abrir Modal Pre-alta Grupal / Masivo
 // -----------------------------------------------------------------------
-export async function abrirModalPrealtaGrupal(ids, grupoNom = '', cfg = defaultCfg) {
+export async function abrirModalPrealtaGrupal(ids, grupoNom = '', cfg = defaultCfg, esPropuesta = false) {
     if (!ids || ids.length === 0) return alert("No hay alumnos seleccionados.");
+
+    const hiddenProp = document.getElementById('prealta-es-propuesta');
+    if (hiddenProp) hiddenProp.value = esPropuesta ? 'true' : 'false';
+
+    const btnGuardarPrealta = document.getElementById('btn-guardar-prealta');
+    if (btnGuardarPrealta) {
+        if (esPropuesta) {
+            btnGuardarPrealta.textContent = '🧩 Crear Propuesta en Validación';
+            btnGuardarPrealta.style.background = 'var(--accent-teal, #007b8f)';
+        } else {
+            btnGuardarPrealta.textContent = '🚀 Iniciar Pre-Alta y Agendar';
+            btnGuardarPrealta.style.background = '';
+        }
+    }
 
     const alumnosList = [];
     for (let id of ids) {
@@ -832,24 +896,39 @@ export async function abrirModalPrealtaGrupal(ids, grupoNom = '', cfg = defaultC
     const profeActualId = primerAl.reserva_profe_id || primerAl.profesor_id || '';
 
     document.getElementById('prealta-alumno-id').value = ids.join(',');
-    document.getElementById('titulo-prealta').textContent = `Iniciar Pre-Alta Grupal (${ids.length} alumnos)`;
+    document.getElementById('titulo-prealta').textContent = esPropuesta
+        ? (ids.length > 1 ? `🧩 Nueva Propuesta de Grupo (${ids.length} alumnos)` : `🧩 Nueva Propuesta de Clase`)
+        : `Iniciar Pre-Alta Grupal (${ids.length} alumnos)`;
     
     const campoGrupo = document.getElementById('prealta-campo-grupo');
     const campoProfe = document.getElementById('prealta-campo-profe');
     const campoInst = document.getElementById('prealta-campo-instrumento');
     if (campoInst) campoInst.style.display = 'none';
+    const campoPackInd = document.getElementById('prealta-campo-pack-individual');
+    if (campoPackInd) campoPackInd.style.display = 'none';
     const campoTipoEns = document.getElementById('prealta-campo-tipo-ensamble');
     const todosEnsambles = alumnosList.every(a => detectarTipoSuscripcion(a.tipo_suscripcion || '') === 'ensamble');
     if (campoTipoEns) campoTipoEns.style.display = todosEnsambles ? 'block' : 'none';
 
     const tipoSuscGrupal = todosEnsambles ? 'ensamble' : 'grupal';
 
-    // Fecha, Profesor y Grupo inician vacíos para nueva pre-alta grupal
-    document.getElementById('prealta-fecha-inicio').value = '';
-    document.getElementById('prealta-grupo').value = '';
+    let fValGrupal = '';
+    let grupoValGrupal = grupoNom || primerAl.grupo_asignado || '';
+    if (!esPropuesta) {
+        if (primerAl.fecha_inicio_clases) fValGrupal = isoToDatetimeLocal(primerAl.fecha_inicio_clases);
+        else if (primerAl.fecha_sugerida_inicio) fValGrupal = isoToDatetimeLocal(primerAl.fecha_sugerida_inicio);
+        else if (primerAl.dia_match && primerAl.horario_inicio_match) fValGrupal = calcularProximaFechaDiaHora(primerAl.dia_match, primerAl.horario_inicio_match);
+    }
+    document.getElementById('prealta-fecha-inicio').value = fValGrupal;
+    document.getElementById('prealta-grupo').value = grupoValGrupal;
     const selectProfe = document.getElementById('prealta-profe-select');
     if (selectProfe) {
-        selectProfe.innerHTML = '<option value="">Seleccionar profesor...</option>';
+        if (fValGrupal && profeActualId) {
+            await refrescarProfesoresPrealta(tipoSuscGrupal, '', profeActualId, cfg);
+            asegurarOpcionProfesor(selectProfe, profeActualId, primerAl.reserva_profe_nombre || primerAl.profesor_asignado || 'Docente');
+        } else {
+            selectProfe.innerHTML = '<option value="">Seleccionar profesor...</option>';
+        }
     }
 
     await renderListaInstrumentosAlumnos(alumnosList, cfg);
@@ -892,12 +971,15 @@ export async function abrirModalPrealtaGrupal(ids, grupoNom = '', cfg = defaultC
     });
 
     const banner = document.getElementById('prealta-info-banner');
-    if (primerAl.horario_match && primerAl.horario_match !== primerAl.reserva_fecha_texto) {
+    if (banner) {
         banner.style.display = 'block';
-        banner.innerHTML = `👥 <strong>Grupo:</strong> ${grupoNom || primerAl.grupo_asignado || '-'} • 🎯 <strong>Horario Match:</strong> ${primerAl.horario_match} • 👨‍🏫 <strong>Profesor Asignado:</strong> ${primerAl.reserva_profe_nombre || primerAl.profesor_asignado || '-'}`;
-    } else {
-        banner.style.display = 'block';
-        banner.innerHTML = `👥 <strong>Grupo:</strong> ${grupoNom || primerAl.grupo_asignado || '-'} • ℹ️ <strong>Pre-Alta Grupal desde Lista de Espera (${alumnosList.length} alumnos)</strong>`;
+        if (esPropuesta) {
+            banner.innerHTML = `💡 <strong>Propuesta para Validación:</strong> Al guardar, los alumnos pasarán a <strong>"Grupos y Alumnos en Validación"</strong> para que el coordinador confirme disponibilidad.<br><span style="color:#0f766e; font-weight:700;">🚫 NO se genera ningún evento en Google Calendar en esta instancia.</span>`;
+        } else if (primerAl.horario_match && primerAl.horario_match !== primerAl.reserva_fecha_texto) {
+            banner.innerHTML = `👥 <strong>Grupo:</strong> ${grupoNom || primerAl.grupo_asignado || '-'} • 🎯 <strong>Horario Match:</strong> ${primerAl.horario_match} • 👨‍🏫 <strong>Profesor Asignado:</strong> ${primerAl.reserva_profe_nombre || primerAl.profesor_asignado || '-'}`;
+        } else {
+            banner.innerHTML = `📅 <strong>Pre-Alta Oficial:</strong> Se sincronizará el evento recurrente en Google Calendar con estado ❓ y los alumnos avanzarán a "Altas en Curso".`;
+        }
     }
 
     const fValActual = document.getElementById('prealta-fecha-inicio')?.value;
@@ -1029,6 +1111,8 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
         } catch(e) {}
     }
 
+    const esPropuesta = document.getElementById('prealta-es-propuesta')?.value === 'true' || Boolean(callbacks?.esPropuesta);
+
     // Validar conflicto estricto en Google Calendar (Aulas libres, Baterías libres y Profesor libre)
     const tieneBateria = alumnosList.some(al => {
         const insts = Array.isArray(al.instrumento) ? al.instrumento : [al.instrumento || ''];
@@ -1040,8 +1124,8 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
     const eventoIdExistente = optProfeSel ? (optProfeSel.dataset.eventoId || null) : null;
     const eventoSummaryExistente = optProfeSel ? (optProfeSel.dataset.eventoSummary || '') : '';
 
-    // Si NO es suma a grupo existente, verificamos conflicto live en Google Calendar
-    if (!esSumaGrupoExistente) {
+    // Si NO es propuesta y NO es suma a grupo existente, verificamos conflicto live en Google Calendar
+    if (!esPropuesta && !esSumaGrupoExistente) {
         if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, true, 'Verificando agenda...');
         try {
             const valCal = await validarConflictoCalendarEnVivo({
@@ -1080,17 +1164,19 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
     // Restaurar estado del botón antes de mostrar confirmación para que no diga "Guardando..." en el fondo
     if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
 
-    const confAgenda = await window.confirmar(
-        `📅 Sincronizar agenda en Google Calendar`,
-        `Se ${esSumaGrupoExistente ? 'actualizará la clase existente' : 'creará o actualizará la clase'} en Google Calendar:\n\n• Alumnos: ${ids.length > 1 ? ids.length + ' alumnos' : (primerAl.nombre || 'Alumno')}\n• Modalidad: ${textoModalidad}\n• Inicio: ${fInicioTexto}\n• Docente: ${docNom}\n\n¿Confirmás sincronizar en Google Calendar y guardar?`,
-        '📅 Sincronizar y Guardar'
-    );
-    if (!confAgenda) {
-        if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
-        return;
+    if (!esPropuesta) {
+        const confAgenda = await window.confirmar(
+            `📅 Sincronizar agenda en Google Calendar`,
+            `Se ${esSumaGrupoExistente ? 'actualizará la clase existente' : 'creará o actualizará la clase'} en Google Calendar:\n\n• Alumnos: ${ids.length > 1 ? ids.length + ' alumnos' : (primerAl.nombre || 'Alumno')}\n• Modalidad: ${textoModalidad}\n• Inicio: ${fInicioTexto}\n• Docente: ${docNom}\n\n¿Confirmás sincronizar en Google Calendar y guardar?`,
+            '📅 Sincronizar y Guardar'
+        );
+        if (!confAgenda) {
+            if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
+            return;
+        }
     }
 
-    // El usuario confirmó: activar estado de guardado únicamente en el botón
+    // Activar estado de guardado únicamente en el botón
     if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, true, 'Guardando...');
 
     const fIso = dateObj.toISOString();
@@ -1165,15 +1251,61 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
         }
 
         const esAltaPrevia = ['Alta Efectiva', 'Alta Ilegal', 'Alta Finalizada'].includes(al.estado_agenda);
-        const estadoFinal = esAltaPrevia ? al.estado_agenda : "Pre-alta Iniciada";
+        let estadoFinal = esAltaPrevia ? al.estado_agenda : "Pre-alta Iniciada";
+        if (esPropuesta) {
+            estadoFinal = "Validando Grupo";
+        }
 
-        if (!evSincronizado || esIndividual) {
-            if (esAltaPrevia) {
-                // Si el alta ya está confirmada, no debe llevar signo de pregunta ❓
-                evSincronizado = await sincronizarEventoAltaConfirmadaCalendar(alParaSync, esIndividual, alumnosDelGrupo);
+        let modInd = 'fullpack';
+        let cantClasesInd = 4;
+        let arancelInd = '';
+        if (esIndividual) {
+            const packRadio = document.querySelector('input[name="prealta-pack-individual"]:checked');
+            if (packRadio) modInd = packRadio.value;
+            const cfg = callbacks.configApp || defaultCfg;
+            if (modInd === 'suelta') {
+                cantClasesInd = 1;
+                arancelInd = cfg.arancel_individual_suelta || '$15.000';
+            } else if (modInd === 'quincenal') {
+                cantClasesInd = 2;
+                arancelInd = cfg.arancel_individual_quincenal || '$25.000';
             } else {
-                // Pre-alta iniciada lleva el emoji ❓
-                evSincronizado = await sincronizarEventoPrealtaCalendar(alParaSync, esIndividual, fIso, fIsoEnd, alumnosDelGrupo);
+                cantClasesInd = 4;
+                arancelInd = cfg.arancel_individual_fullpack || '$45.000';
+            }
+        }
+
+        if (!esPropuesta) {
+            let opcionesAlta = {};
+            if (esIndividual) {
+                if (modInd === 'suelta') {
+                    opcionesAlta.esRecurrente = false;
+                } else if (modInd === 'quincenal') {
+                    if (window.confirmar) {
+                        const soloUnaClase = await window.confirmar(
+                            'Modalidad de Clase Quincenal en Google Calendar',
+                            `La clase individual de "${al.nombre || 'Alumno'}" es Quincenal.\n\n¿Deseas generar el evento como RECURRENTE en Google Calendar o agendar solo la primera clase puntual para que el docente coordine las fechas siguientes?`,
+                            '📅 Solo primera clase puntual',
+                            '❓',
+                            '🔄 Recurrente en Calendar'
+                        );
+                        opcionesAlta.esRecurrente = !soloUnaClase;
+                    } else {
+                        opcionesAlta.esRecurrente = false;
+                    }
+                } else {
+                    opcionesAlta.esRecurrente = true;
+                }
+            }
+
+            if (!evSincronizado || esIndividual) {
+                if (esAltaPrevia) {
+                    // Si el alta ya está confirmada, no debe llevar signo de pregunta ❓
+                    evSincronizado = await sincronizarEventoAltaConfirmadaCalendar(alParaSync, esIndividual, alumnosDelGrupo, callbacks.configApp || defaultCfg, opcionesAlta);
+                } else {
+                    // Pre-alta iniciada lleva el emoji ❓
+                    evSincronizado = await sincronizarEventoPrealtaCalendar(alParaSync, esIndividual, fIso, fIsoEnd, alumnosDelGrupo, callbacks.configApp || defaultCfg);
+                }
             }
         }
 
@@ -1197,7 +1329,22 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
             horario_match: `${mapaDiasCodigos[diaCodigo] || diaCodigo} ${horaInicioStr} a ${horaFinStr} hs`
         };
 
-        if (!esIndividual) {
+        if (esPropuesta) {
+            updates.estado_validacion_alumno = "pendiente";
+        }
+
+        if (esIndividual) {
+            if (!esPropuesta) {
+                updates.modalidad_individual = modInd;
+                updates.cantidad_clases_individual = cantClasesInd;
+                updates.valor_arancel = formatearPrecioMoneda(arancelInd);
+                if (modInd === 'suelta') updates.tipo_suscripcion = 'Clase Individual Suelta';
+                else if (modInd === 'quincenal') updates.tipo_suscripcion = 'Clase Individual Quincenal';
+                else updates.tipo_suscripcion = 'Clase Individual Full Pack';
+            } else {
+                updates.tipo_suscripcion = al.tipo_suscripcion || 'Clase Individual';
+            }
+        } else {
             updates.tipo_suscripcion = tipoEnsVal;
             updates.tipo_ensamble = tipoEnsVal;
             updates.modalidad_ensamble = tipoEnsVal;
@@ -1208,20 +1355,25 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
             updates.calendario_evento_alta = evSincronizado.calendar;
         }
 
-        if (!al.fecha_prealta) updates.fecha_prealta = new Date().toISOString();
-        if (!al.checklist_alta && !esAltaPrevia) updates.checklist_alta = [false, false, false, false];
+        if (!al.fecha_prealta && !esPropuesta) updates.fecha_prealta = new Date().toISOString();
+        if (!al.checklist_alta && !esAltaPrevia && !esPropuesta) updates.checklist_alta = [false, false, false, false];
         
         const hist = al.historial || [];
         const fnHist = window.crearEntradaHistorial || ((txt, tipo) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema' }));
-        const accionDesc = esAltaPrevia 
-            ? `Datos de cursada actualizados: ${updates.horario_match} con Profe ${finalProfeNombre || '-'}.`
-            : `Pre-Alta iniciada para "${finalGrupo}" con Profe ${finalProfeNombre || '-'} (Inicio: ${updates.horario_match}). Evento sincronizado en Calendar.`;
-        hist.push(fnHist(accionDesc, 'alta'));
+        let accionDesc = '';
+        if (esPropuesta) {
+            accionDesc = `Propuesta de grupo "${finalGrupo}" creada en validación (${updates.horario_match}) con Profe ${finalProfeNombre || '-'}.`;
+        } else if (esAltaPrevia) {
+            accionDesc = `Datos de cursada actualizados: ${updates.horario_match} con Profe ${finalProfeNombre || '-'}.`;
+        } else {
+            accionDesc = `Pre-Alta iniciada para "${finalGrupo}" con Profe ${finalProfeNombre || '-'} (Inicio: ${updates.horario_match}). Evento sincronizado en Calendar.`;
+        }
+        hist.push(fnHist(accionDesc, esPropuesta ? 'match' : 'alta'));
         updates.historial = hist;
 
         await updateDoc(doc(db, "alumnos", id), updates);
 
-        if (typeof generarTextoConHistorial === 'function') {
+        if (!esPropuesta && typeof generarTextoConHistorial === 'function') {
             const dataText = await generarTextoConHistorial(id, esAltaPrevia ? 'texto_alta_confirmada' : 'texto_prealta', updates.horario_match, finalProfeId, finalProfeNombre);
             textosCopiados.push(`--- ${al.nombre} ---\n${dataText.txt}`);
         }
@@ -1236,7 +1388,7 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
     document.getElementById('modal-iniciar-prealta')?.close();
 
     // Recargar vista reactivamente con los datos actualizados
-    const vistaDestino = estadoActualVista || window.estadoActualVista || 'Altas - En Curso';
+    const vistaDestino = esPropuesta ? 'Match - En Validacion' : (estadoActualVista || window.estadoActualVista || 'Altas - En Curso');
     if (typeof cargarVista === 'function') {
         await cargarVista(vistaDestino);
     } else if (typeof window.cargarVistaGlobal === 'function') {
@@ -1245,7 +1397,11 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
 
     ocultarLoader();
     if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
-    alert(`✅ Datos guardados exitosamente para ${ids.length} alumno(s).\nEvento sincronizado en Google Calendar y texto copiado.`);
+    if (esPropuesta) {
+        alert(`✅ Propuesta creada con éxito para ${ids.length} alumno(s).\nLos alumnos pasaron a "Grupos y Alumnos en Validación".`);
+    } else {
+        alert(`✅ Datos guardados exitosamente para ${ids.length} alumno(s).\nEvento sincronizado en Google Calendar y texto copiado.`);
+    }
 }
 
 // -----------------------------------------------------------------------
@@ -1515,6 +1671,9 @@ export function formatearPrecioMoneda(val) {
 // Abrir Modal de Aviso de Pre-Alta para Alumno (con selector de arancel)
 // -----------------------------------------------------------------------
 export async function abrirModalAvisoPrealtaAlumno(id, cfg = defaultCfg) {
+    if (!cfg || cfg === defaultCfg) {
+        cfg = window.configApp || defaultCfg;
+    }
     const alDoc = await getDoc(doc(db, "alumnos", id));
     if (!alDoc.exists()) return alert("Alumno no encontrado.");
     const al = alDoc.data();
@@ -1542,6 +1701,7 @@ export async function abrirModalAvisoPrealtaAlumno(id, cfg = defaultCfg) {
 
     const tipoSusc = detectarTipoSuscripcion(al.tipo_suscripcion || '');
     const esIndividual = tipoSusc === 'individual';
+    const esGrupal = tipoSusc === 'grupal' || (al.tipo_suscripcion || '').toLowerCase().includes('grupal');
     const nombreAlumno = al.nombre || 'Alumno';
     const nombreProfe = al.reserva_profe_nombre || al.profesor_asignado || '-';
     
@@ -1610,6 +1770,13 @@ export async function abrirModalAvisoPrealtaAlumno(id, cfg = defaultCfg) {
                 Full Pack (Mensual) <span id="label-monto-fullpack" style="color:var(--accent-teal); margin-left:auto; font-weight:700;">${formatearPrecioMoneda(cfg.arancel_individual_fullpack) || '$45.000'}</span>
             </label>
         `;
+    } else if (esGrupal) {
+        opcContainer.innerHTML = `
+            <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; cursor:pointer; font-weight:600; text-transform:none; color:var(--text-main); margin:0;">
+                <input type="radio" name="opt-arancel-modalidad" value="grupal" checked style="accent-color:var(--accent-teal);">
+                👥 Clase Grupal <span id="label-monto-grupal" style="color:var(--accent-teal); margin-left:auto; font-weight:700;">${formatearPrecioMoneda(cfg.arancel_grupal_regular) || '$25.000'}</span>
+            </label>
+        `;
     } else {
         opcContainer.innerHTML = `
             <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; cursor:pointer; font-weight:600; text-transform:none; color:var(--text-main); margin:0;">
@@ -1634,6 +1801,8 @@ export async function abrirModalAvisoPrealtaAlumno(id, cfg = defaultCfg) {
         let suscripcionParaMsg = '';
         if (esIndividual) {
             suscripcionParaMsg = tieneInstrumentoEnTemplate ? 'Clase Individual' : `Clase Individual (${instNom || 'Instrumento'})`;
+        } else if (esGrupal) {
+            suscripcionParaMsg = tieneInstrumentoEnTemplate ? 'Clase Grupal' : `Clase Grupal (${instNom || 'Instrumento'})`;
         } else if (mod === 'ensamble') {
             suscripcionParaMsg = tieneInstrumentoEnTemplate ? 'Ensamble' : `Ensamble (${instNom || 'Instrumento'})`;
         } else {
@@ -1673,27 +1842,32 @@ export async function abrirModalAvisoPrealtaAlumno(id, cfg = defaultCfg) {
         let montoCalculado = '';
         const esComunidad = chkComunidad.checked;
         const rad = document.querySelector('input[name="opt-arancel-modalidad"]:checked');
-        const mod = rad ? rad.value : (esIndividual ? 'fullpack' : 'ensamble');
+        const mod = rad ? rad.value : (esIndividual ? 'fullpack' : (esGrupal ? 'grupal' : 'ensamble'));
+
+        if (chkComunidadLabel) chkComunidadLabel.style.display = 'flex';
 
         if (esIndividual) {
-            if (chkComunidadLabel) chkComunidadLabel.style.display = (mod === 'fullpack') ? 'flex' : 'none';
             if (mod === 'suelta') {
                 montoCalculado = formatearPrecioMoneda(cfg.arancel_individual_suelta) || '$15.000';
             } else if (mod === 'quincenal') {
                 montoCalculado = formatearPrecioMoneda(cfg.arancel_individual_quincenal) || '$25.000';
             } else {
                 montoCalculado = esComunidad
-                    ? (formatearPrecioMoneda(cfg.arancel_individual_fullpack_comunidad) || formatearPrecioMoneda(cfg.arancel_individual_fullpack) || '$40.000')
+                    ? (formatearPrecioMoneda(cfg.arancel_individual_fullpack_comunidad) || '$40.000')
                     : (formatearPrecioMoneda(cfg.arancel_individual_fullpack) || '$45.000');
             }
+        } else if (esGrupal) {
+            montoCalculado = esComunidad
+                ? (formatearPrecioMoneda(cfg.arancel_grupal_comunidad) || '$20.000')
+                : (formatearPrecioMoneda(cfg.arancel_grupal_regular) || '$25.000');
         } else {
             if (mod === 'ensamble') {
-                if (chkComunidadLabel) chkComunidadLabel.style.display = 'none';
-                montoCalculado = formatearPrecioMoneda(cfg.arancel_ensamble_regular) || '$28.000';
-            } else {
-                if (chkComunidadLabel) chkComunidadLabel.style.display = 'flex';
                 montoCalculado = esComunidad
-                    ? (formatearPrecioMoneda(cfg.arancel_ensamble_comunidad) || formatearPrecioMoneda(cfg.arancel_ensamble_actual) || '$30.000')
+                    ? (formatearPrecioMoneda(cfg.arancel_ensamble_comunidad) || formatearPrecioMoneda(cfg.arancel_ensamble_regular) || '$28.000')
+                    : (formatearPrecioMoneda(cfg.arancel_ensamble_regular) || '$28.000');
+            } else {
+                montoCalculado = esComunidad
+                    ? (formatearPrecioMoneda(cfg.arancel_ensamble_comunidad) || '$30.000')
                     : (formatearPrecioMoneda(cfg.arancel_ensamble_actual) || '$35.000');
             }
         }
@@ -1710,6 +1884,18 @@ export async function abrirModalAvisoPrealtaAlumno(id, cfg = defaultCfg) {
                 ? (formatearPrecioMoneda(cfg.arancel_individual_fullpack_comunidad) || '$40.000')
                 : (formatearPrecioMoneda(cfg.arancel_individual_fullpack) || '$45.000');
         }
+        const labelGrupal = document.getElementById('label-monto-grupal');
+        if (labelGrupal) {
+            labelGrupal.textContent = esComunidad
+                ? (formatearPrecioMoneda(cfg.arancel_grupal_comunidad) || '$20.000')
+                : (formatearPrecioMoneda(cfg.arancel_grupal_regular) || '$25.000');
+        }
+        const labelEnsambleRegular = document.getElementById('label-monto-ensamble-regular');
+        if (labelEnsambleRegular) {
+            labelEnsambleRegular.textContent = esComunidad
+                ? (formatearPrecioMoneda(cfg.arancel_ensamble_comunidad) || '$28.000')
+                : (formatearPrecioMoneda(cfg.arancel_ensamble_regular) || '$28.000');
+        }
 
         inputMonto.value = montoCalculado;
         renderizarTextoPreview(montoCalculado, mod, esComunidad);
@@ -1722,7 +1908,7 @@ export async function abrirModalAvisoPrealtaAlumno(id, cfg = defaultCfg) {
     chkComunidad.onchange = actualizarMontoYPreview;
     inputMonto.oninput = () => {
         const rad = document.querySelector('input[name="opt-arancel-modalidad"]:checked');
-        const mod = rad ? rad.value : (esIndividual ? 'fullpack' : 'ensamble');
+        const mod = rad ? rad.value : (esIndividual ? 'fullpack' : (esGrupal ? 'grupal' : 'ensamble'));
         renderizarTextoPreview(inputMonto.value, mod, chkComunidad.checked);
     };
 
@@ -1765,6 +1951,781 @@ export async function copiarAvisoPrealtaAlumno(id) {
     }
 }
 
+// -----------------------------------------------------------------------
+// Render de Vistas de Altas Agrupadas (Tarjetas de Grupo y Clases Individuales)
+// -----------------------------------------------------------------------
+// -----------------------------------------------------------------------
+// Aprobar Todo el Grupo (Dar Alta Efectiva a todos los integrantes pendientes y actualizar Calendar sin pendientes)
+// -----------------------------------------------------------------------
+export async function aprobarTodoGrupoAction(grupoNombre, vista, callbacks = {}) {
+    try {
+        const qSnap = await getDocs(query(collection(db, "alumnos"), where("grupo_asignado", "==", grupoNombre)));
+        const miembros = [];
+        qSnap.forEach(d => {
+            const data = d.data();
+            if (!['Alta Finalizada', 'Alta Suspendida', 'Agenda suspendida', 'Inactivo'].includes(data.estado_agenda)) {
+                miembros.push({ id: d.id, ...data });
+            }
+        });
+
+        if (miembros.length === 0) {
+            alert(`No se encontraron alumnos activos para el grupo "${grupoNombre}".`);
+            return;
+        }
+
+        const pendientes = miembros.filter(m => {
+            const st = (m.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+            return !['alta confirmada', 'alta efectiva', 'alta finalizada'].includes(st);
+        });
+
+        const confirmarFn = window.confirmar || ((t, d, b, i) => Promise.resolve(confirm(`${t}\n\n${d}`)));
+        const ok = await confirmarFn(
+            `Aprobar Todo el Grupo: ${grupoNombre}`,
+            `¿Aprobar y confirmar el alta de todos los integrantes de "${grupoNombre}" (${miembros.length} alumnos)?\n\n• Se marcarán en Alta Efectiva (${pendientes.length} pendiente(s) pasan a confirmados con pago abonado).\n• Se actualizará Google Calendar como grupo activo oficial sin pendientes.`,
+            '✅ Aprobar Grupo Completo',
+            '✅'
+        );
+        if (!ok) return;
+
+        if (typeof window.mostrarIndicadorCarga === 'function') {
+            window.mostrarIndicadorCarga(`Aprobando grupo "${grupoNombre}"...`);
+        }
+
+        const ahoraIso = new Date().toISOString();
+        const fnHist = window.crearEntradaHistorial || ((txt, t) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: t || 'sistema' }));
+
+        // 1. Actualizar en Firestore a todos los miembros pendientes a Alta Efectiva
+        for (const m of pendientes) {
+            const hist = m.historial || [];
+            hist.push(fnHist(`Alta confirmada en grupo "${grupoNombre}" (Aprobación grupal completa).`, 'alta'));
+            const checksExistentes = (Array.isArray(m.checklist_alta) && m.checklist_alta.length > 0)
+                ? m.checklist_alta
+                : [false, false, false, false];
+
+            await updateDoc(doc(db, "alumnos", m.id), {
+                estado_agenda: "Alta Efectiva",
+                fecha_alta_confirmada: ahoraIso,
+                checklist_alta: checksExistentes,
+                historial: hist
+            });
+        }
+
+        // 2. Obtener lista fresca de todos los miembros actualizados desde Firestore
+        const freshSnap = await getDocs(query(collection(db, "alumnos"), where("grupo_asignado", "==", grupoNombre)));
+        const miembrosActualizados = [];
+        freshSnap.forEach(d => {
+            const data = d.data();
+            if (!['Alta Finalizada', 'Alta Suspendida', 'Agenda suspendida', 'Inactivo'].includes(data.estado_agenda)) {
+                miembrosActualizados.push({ id: d.id, ...data });
+            }
+        });
+
+        // 3. Sincronizar Google Calendar con todos los confirmados (cantPendientes = 0)
+        const primerAl = miembrosActualizados[0] || miembros[0];
+        const cfg = callbacks.configApp || defaultCfg;
+        await sincronizarEventoAltaConfirmadaCalendar(primerAl, false, miembrosActualizados, cfg, { esRecurrente: true });
+
+        if (typeof window.mostrarToast === 'function') {
+            window.mostrarToast(`✅ Grupo "${grupoNombre}" aprobado al 100%. Evento en Google Calendar actualizado.`, 'success');
+        } else {
+            alert(`✅ Grupo "${grupoNombre}" aprobado al 100%.\nEvento en Google Calendar actualizado.`);
+        }
+
+        if (typeof callbacks.cargarVista === 'function') await callbacks.cargarVista(vista);
+    } catch(e) {
+        console.error("Error al aprobar grupo:", e);
+        if (typeof window.mostrarToast === 'function') {
+            window.mostrarToast("Error al aprobar grupo: " + e.message, 'error');
+        } else {
+            alert("Error al aprobar grupo: " + e.message);
+        }
+    } finally {
+        if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
+    }
+}
+
+// -----------------------------------------------------------------------
+// Confirmar Inicio de Grupo (inicia oficialmente, con confirmados o todos)
+// -----------------------------------------------------------------------
+export async function confirmarInicioGrupoAction(grupoNombre, vista, callbacks = {}) {
+    try {
+        const qSnap = await getDocs(query(collection(db, "alumnos"), where("grupo_asignado", "==", grupoNombre)));
+        const miembros = [];
+        qSnap.forEach(d => {
+            const data = d.data();
+            if (!['Alta Finalizada', 'Alta Suspendida', 'Agenda suspendida', 'Inactivo'].includes(data.estado_agenda)) {
+                miembros.push({ id: d.id, ...data });
+            }
+        });
+
+        if (miembros.length === 0) return alert(`No se encontraron alumnos activos para el grupo "${grupoNombre}".`);
+
+        const confirmados = miembros.filter(m => {
+            const st = (m.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+            return ['alta confirmada', 'alta efectiva', 'alta finalizada'].includes(st);
+        });
+        const pendientes = miembros.filter(m => !confirmados.some(c => c.id === m.id));
+
+        if (confirmados.length === 0) {
+            // Si ninguno confirmó individualmente, ofrecer aprobar a todos
+            const confirmarFn = window.confirmar || ((t, d, b, i) => Promise.resolve(confirm(`${t}\n\n${d}`)));
+            const okAprobarTodo = await confirmarFn(
+                `Aprobar Grupo: ${grupoNombre}`,
+                `Ningún alumno ha sido marcado como confirmado individualmente todavía.\n\n¿Deseas aprobar a TODOS los integrantes (${miembros.length}) e iniciar el grupo?`,
+                '✅ Aprobar a Todos',
+                '✅'
+            );
+            if (okAprobarTodo) {
+                return await aprobarTodoGrupoAction(grupoNombre, vista, callbacks);
+            }
+            return;
+        }
+
+        let mensajeConfirmar = '';
+        if (pendientes.length > 0) {
+            mensajeConfirmar = `El grupo "${grupoNombre}" tiene ${confirmados.length} alumno(s) confirmado(s) y ${pendientes.length} pendiente(s) de pago.\n\n¿Deseas confirmar el inicio del grupo con los ${confirmados.length} confirmados?\n• Se creará/actualizará el evento en Google Calendar indicando los activos y los ${pendientes.length} pendientes.\n• Los integrantes pendientes permanecerán en Altas en Curso esperando su pago.`;
+        } else {
+            mensajeConfirmar = `Todos los integrantes (${confirmados.length}) del grupo "${grupoNombre}" tienen su alta confirmada.\n\n¿Confirmar inicio oficial del grupo y actualizar evento en Google Calendar?`;
+        }
+
+        const confirmarFn = window.confirmar || ((t, d, b, i) => Promise.resolve(confirm(`${t}\n\n${d}`)));
+        const okInicio = await confirmarFn(
+            `Confirmar Inicio: ${grupoNombre}`,
+            mensajeConfirmar,
+            '🚀 Confirmar Inicio',
+            '🚀'
+        );
+        if (!okInicio) return;
+
+        if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(`Confirmando inicio de "${grupoNombre}"...`);
+
+        const primerAl = confirmados[0] || miembros[0];
+        const cfg = callbacks.configApp || defaultCfg;
+
+        // Actualizar evento en Calendar
+        await sincronizarEventoAltaConfirmadaCalendar(primerAl, false, miembros, cfg, { esRecurrente: true });
+
+        if (typeof window.mostrarToast === 'function') {
+            window.mostrarToast(`🚀 ¡Grupo "${grupoNombre}" iniciado con éxito! Evento actualizado en Google Calendar.`, 'success');
+        } else {
+            alert(`🚀 ¡Grupo "${grupoNombre}" iniciado con éxito!\nEvento actualizado en Google Calendar.`);
+        }
+        if (typeof callbacks.cargarVista === 'function') await callbacks.cargarVista(vista);
+    } catch(e) {
+        if (typeof window.mostrarToast === 'function') {
+            window.mostrarToast("Error al confirmar inicio de grupo: " + e.message, 'error');
+        } else {
+            alert("Error al confirmar inicio de grupo: " + e.message);
+        }
+    } finally {
+        if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
+    }
+}
+
+export async function confirmarAlumnoAltaAction(alumnoId, alumnoNombre, grupoNombre, vista, callbacks = {}) {
+    try {
+        const confirmarFn = window.confirmar || ((t, d, b, i) => Promise.resolve(confirm(`${t}\n\n${d}`)));
+        const okConf = await confirmarFn(
+            'Confirmar Pago y Cursada Activa',
+            `¿Confirmar que ${alumnoNombre} abonó su arancel e inicia su cursada en ${grupoNombre || 'su clase individual'}?`,
+            '✅ Confirmar Alta',
+            '✅'
+        );
+        if (!okConf) return;
+
+        if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(`Confirmando a ${alumnoNombre}...`);
+
+        const dSnap = await getDoc(doc(db, "alumnos", alumnoId));
+        if (!dSnap.exists()) return;
+        const al = dSnap.data();
+
+        const hist = al.historial || [];
+        const fnHist = window.crearEntradaHistorial || ((txt, t) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: t || 'sistema' }));
+        hist.push(fnHist(`Alta confirmada (pago abonado). Alumno activo en ${grupoNombre || al.grupo_asignado || 'clase'}.`, 'alta'));
+
+        const checksExistentes = Array.isArray(al.checklist_alta) && al.checklist_alta.length > 0 
+            ? al.checklist_alta 
+            : [false, false, false, false];
+
+        await updateDoc(doc(db, "alumnos", alumnoId), {
+            estado_agenda: "Alta Efectiva",
+            fecha_alta_confirmada: new Date().toISOString(),
+            checklist_alta: checksExistentes,
+            historial: hist
+        });
+
+        // Sincronizar Calendar
+        const cfg = callbacks.configApp || defaultCfg;
+        const esInd = !grupoNombre || grupoNombre === 'Clase Individual';
+
+        let opcionesAlta = {};
+        if (esInd) {
+            const modInd = al.modalidad_individual || (
+                (al.tipo_suscripcion || '').toLowerCase().includes('suelta') ? 'suelta' :
+                (al.tipo_suscripcion || '').toLowerCase().includes('quincenal') ? 'quincenal' : ''
+            );
+            if (modInd === 'suelta') {
+                opcionesAlta.esRecurrente = false;
+            } else if (modInd === 'quincenal') {
+                const soloPuntual = await confirmarFn(
+                    'Modalidad Quincenal en Calendar',
+                    `La clase individual de ${alumnoNombre} es Quincenal.\n\n¿Deseas agendar en Google Calendar solo 1 clase puntual para que el docente coordine luego, o crear una serie recurrente?`,
+                    '📅 Solo 1 clase puntual',
+                    '📅',
+                    '🔄 Serie recurrente'
+                );
+                opcionesAlta.esRecurrente = !soloPuntual;
+            } else if (modInd === 'fullpack') {
+                opcionesAlta.esRecurrente = true;
+            } else {
+                const esRec = await confirmarFn(
+                    'Tipo de Cursada en Calendar',
+                    `¿La clase individual de ${alumnoNombre} será de cursada recurrente semanal en Google Calendar?`,
+                    '🔄 Recurrente semanal',
+                    '📅',
+                    '📅 Solo una clase puntual'
+                );
+                opcionesAlta.esRecurrente = esRec;
+            }
+        }
+
+        // Obtener lista completa y FRESCA de todos los miembros del grupo desde Firestore
+        let todosMiembrosGrupo = [];
+        if (!esInd && grupoNombre) {
+            const grpSnap = await getDocs(query(collection(db, "alumnos"), where("grupo_asignado", "==", grupoNombre)));
+            grpSnap.forEach(d => {
+                const data = d.data();
+                if (!['Alta Finalizada', 'Alta Suspendida', 'Agenda suspendida', 'Inactivo'].includes(data.estado_agenda)) {
+                    todosMiembrosGrupo.push({ id: d.id, ...data });
+                }
+            });
+        }
+
+        await sincronizarEventoAltaConfirmadaCalendar(
+            { id: alumnoId, ...al, estado_agenda: "Alta Efectiva", checklist_alta: checksExistentes }, 
+            esInd, 
+            todosMiembrosGrupo, 
+            cfg, 
+            opcionesAlta
+        );
+
+        if (typeof window.mostrarToast === 'function') {
+            window.mostrarToast(`✅ Alta confirmada para ${alumnoNombre}. Evento en Google Calendar actualizado.`, 'success');
+        } else {
+            alert(`✅ Alta confirmada para ${alumnoNombre}. Evento en Google Calendar actualizado.`);
+        }
+        if (typeof callbacks.cargarVista === 'function') await callbacks.cargarVista(vista);
+    } catch(e) {
+        if (typeof window.mostrarToast === 'function') {
+            window.mostrarToast("Error al confirmar alumno: " + e.message, 'error');
+        } else {
+            alert("Error al confirmar alumno: " + e.message);
+        }
+    } finally {
+        if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
+    }
+}
+
+// -----------------------------------------------------------------------
+// Helper para renderizar Checklist interactivo de Alta (4 pasos)
+// -----------------------------------------------------------------------
+export function generarChecklistAltaHtml(id, al) {
+    if (!id || !al) return '';
+    let rawChecks = al.checklist_alta || [false, false, false, false];
+    let checks = rawChecks.length === 5 ? rawChecks.slice(1) : (rawChecks.length === 4 ? rawChecks : [false, false, false, false]);
+    const pasostitulos = [
+        '1. Carga en Sistema',
+        '2. Profesor notificado',
+        '3. Bienvenida a alumno',
+        '4. Alumno en grupo WhatsApp'
+    ];
+    const completados = checks.filter(Boolean).length;
+    const porcentaje = Math.round((completados / 4) * 100);
+    const barColor = completados === 4 ? 'var(--accent-teal)' : (completados >= 2 ? '#e5a93d' : 'var(--accent-red)');
+
+    return `
+        <div id="chk-wrapper-${id}" class="alta-checklist-wrapper" style="margin-top:6px; margin-bottom:2px; padding:8px 12px; background:var(--hover-bg); border-radius:10px; border:1px solid var(--border-color); cursor:pointer; min-width:215px; width:100%; box-sizing:border-box; user-select:none;" onclick="event.stopPropagation(); window.toggleChecklistPill(this);" title="Clic para ver o completar los pasos del checklist">
+            <div style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:12px;">
+                <div style="display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:var(--text-main);">
+                    <span id="chk-icon-${id}" style="font-size:9px; color:#64748b; transition:transform 0.2s ease; display:inline-block;">▶</span>
+                    <span id="chk-title-${id}">📋 Checklist de Alta (${completados}/4)</span>
+                </div>
+                <span id="chk-pct-${id}" style="color:${barColor}; font-size:11.5px; font-weight:800; margin-left:auto; padding-left:16px; white-space:nowrap;">${porcentaje}%</span>
+            </div>
+            <div style="width:100%; height:5px; background:#e9e5de; border-radius:4px; overflow:hidden; margin-top:5px;">
+                <div id="chk-bar-${id}" style="width:${porcentaje}%; height:100%; background:${barColor}; transition:width 0.3s ease, background 0.3s ease;"></div>
+            </div>
+            <div id="chk-list-${id}" class="checklist-items-collapsible" style="display:none; flex-wrap:wrap; gap:8px 12px; font-size:11px; color:var(--text-muted); margin-top:9px; padding-top:8px; border-top:1px dashed var(--border-color);" onclick="event.stopPropagation();">
+                ${checks.map((chk, idx) => `
+                    <label style="display:inline-flex; align-items:center; gap:5px; margin:0; cursor:pointer; font-weight:600; text-transform:none; color:${chk ? 'var(--text-main)' : 'var(--text-muted)'};" onclick="event.stopPropagation();">
+                        <input type="checkbox" class="chk-alta-paso" data-id="${id}" data-idx="${idx}" ${chk ? 'checked' : ''} style="accent-color:var(--accent-teal); width:15px; height:15px; cursor:pointer;" onclick="event.stopPropagation();">
+                        <span style="${chk ? 'text-decoration:none;' : ''}">${pasostitulos[idx] || `Paso ${idx+1}`}</span>
+                    </label>
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
+
+function construirAccionesFilaAlta(al, id, vista, isConfirmed, nombreGrupo, callbacks = {}) {
+    const fnAccion = callbacks.generarBotonesAccion || window.generarBotonesAccion;
+    const esFinalizada = typeof window.esAlumnoAltaFinalizada === 'function' ? window.esAlumnoAltaFinalizada(al) : false;
+
+    let botonesVisibles = '';
+    let botonesSecundarios = '';
+
+    if (typeof fnAccion === 'function') {
+        const alClon = { ...al };
+        if (vista === 'Altas - Confirmadas' && (!alClon.estado_agenda || !alClon.estado_agenda.toLowerCase().includes('alta'))) {
+            alClon.estado_agenda = 'Alta Efectiva';
+        } else if (vista === 'Altas - Finalizadas' && (!alClon.estado_agenda || !alClon.estado_agenda.toLowerCase().includes('alta'))) {
+            alClon.estado_agenda = 'Alta Finalizada';
+        }
+        botonesSecundarios = fnAccion(alClon, id, true);
+    }
+
+    if (vista === 'Altas - Pendientes') {
+        if (nombreGrupo && nombreGrupo !== 'Clase Individual') {
+            botonesVisibles = `<button type="button" class="row-quick-btn secondary btn-prealta-individual-row" data-id="${id}" title="Iniciar Pre-Alta solo para este alumno">⚙️ Pre-Alta Individual</button>`;
+        } else {
+            botonesVisibles = `<button type="button" class="row-quick-btn primary btn-prealta-individual-row" data-id="${id}" title="Iniciar Pre-Alta">⚙️ Iniciar Pre-Alta</button>`;
+        }
+    } else if (vista === 'Altas - En Curso') {
+        if (!isConfirmed) {
+            botonesVisibles = `
+                <button type="button" class="row-quick-btn success btn-confirmar-alumno-row" data-id="${id}" data-nombre="${al.nombre || ''}" data-grupo="${nombreGrupo || ''}" title="Confirmar pago y marcar como alta activa">✅ Confirmar</button>
+                <button type="button" class="row-quick-btn secondary btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${nombreGrupo||al.grupo_asignado||''}" title="Editar día, horario o profesor">✏️ Editar</button>
+            `;
+        } else {
+            botonesVisibles = `
+                <button type="button" class="row-quick-btn secondary btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${nombreGrupo||al.grupo_asignado||''}" title="Editar día, horario o profesor">✏️ Editar</button>
+            `;
+        }
+    } else if (vista === 'Altas - Confirmadas') {
+        botonesVisibles = `
+            ${!esFinalizada ? `<button type="button" class="row-quick-btn primary btn-finalizar-alta-directa" data-id="${id}" title="Finalizar alta y cerrar admisión">🏁 Finalizar Alta</button>` : ''}
+            <button type="button" class="row-quick-btn secondary btn-reenviar-alta" data-id="${id}" title="Copiar texto de confirmación">💬 Copiar texto</button>
+        `;
+    } else if (vista === 'Altas - Finalizadas') {
+        botonesVisibles = `
+            <button type="button" class="row-quick-btn secondary btn-reenviar-alta" data-id="${id}" title="Copiar texto de confirmación">💬 Copiar texto</button>
+        `;
+    }
+
+    const tieneSecundarios = Boolean(botonesSecundarios && botonesSecundarios.trim().length > 0);
+
+    return `
+        <div class="row-actions-group" style="display:flex; align-items:center; gap:6px; flex-wrap:nowrap;">
+            ${botonesVisibles ? `<div class="row-quick-btns-col" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">${botonesVisibles}</div>` : ''}
+            ${tieneSecundarios ? `
+                <div class="alumno-actions row-actions-container" style="position:relative;">
+                    <button type="button" class="btn-row-action" title="Más opciones">⋮</button>
+                    <div class="dropdown-menu-wrapper">
+                        <div class="dropdown-menu">${botonesSecundarios}</div>
+                    </div>
+                </div>
+            ` : ''}
+        </div>
+    `;
+}
+
+export async function renderAltasAgrupadas(container, dataFiltrada, vista, callbacks = {}) {
+    if (!container) return;
+    container.style.display = 'flex';
+    container.innerHTML = '<div style="padding:30px; color:var(--text-muted); text-align:center;">Cargando vistas de altas...</div>';
+
+    try {
+        if (!dataFiltrada || dataFiltrada.length === 0) {
+            container.innerHTML = `
+                <div style="text-align:center; padding:50px 20px; background:white; border-radius:14px; border:1px solid var(--border-color); color:var(--text-muted); width:100%;">
+                    <div style="font-size:2.5em; margin-bottom:10px;">📋</div>
+                    <div style="font-size:16px; font-weight:700; color:var(--text-main); margin-bottom:6px;">No hay registros en ${vista}</div>
+                    <div style="font-size:13px; max-width:450px; margin:0 auto;">Cuando haya alumnos en esta etapa se mostrarán agrupados aquí.</div>
+                </div>
+            `;
+            return;
+        }
+
+        const qSnapAll = await getDocs(collection(db, "alumnos"));
+        const todosAlumnos = [];
+        qSnapAll.forEach(d => todosAlumnos.push({ id: d.id, ...d.data() }));
+
+        const esGrupoFn = (al) => {
+            const grp = (al.grupo_asignado || '').trim();
+            return grp && grp !== 'Clase Individual' && grp !== 'Individual' && !grp.startsWith('Grupo Sin');
+        };
+
+        const gruposMap = {};
+        const individuales = [];
+
+        dataFiltrada.forEach(al => {
+            if (esGrupoFn(al)) {
+                const grpNom = al.grupo_asignado.trim();
+                if (!gruposMap[grpNom]) gruposMap[grpNom] = [];
+                gruposMap[grpNom].push(al);
+            } else {
+                individuales.push(al);
+            }
+        });
+
+        let html = '';
+
+        // Renderizar Tarjetas de Grupos
+        for (const [nombreGrupo, integrantesEnVista] of Object.entries(gruposMap)) {
+            const todosMiembrosGrupo = todosAlumnos.filter(a => 
+                (a.grupo_asignado || '').trim() === nombreGrupo &&
+                !['Alta Finalizada', 'Alta Suspendida', 'Agenda suspendida', 'Inactivo'].includes(a.estado_agenda)
+            );
+            const miembrosRenderizar = (todosMiembrosGrupo.length > 0) ? todosMiembrosGrupo : integrantesEnVista;
+            const primer = miembrosRenderizar[0] || {};
+            const horario = primer.horario_match || primer.reserva_fecha_texto || 'Horario a coordinar';
+            const profeNom = primer.reserva_profe_nombre || primer.profesor_asignado || 'Docente';
+            const modalidad = primer.modalidad_ensamble || primer.tipo_ensamble || primer.tipo_suscripcion || 'Ensamble';
+
+            const confirmados = miembrosRenderizar.filter(m => {
+                const st = (m.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                return ['alta confirmada', 'alta efectiva', 'alta finalizada'].includes(st);
+            });
+            const pendientes = miembrosRenderizar.filter(m => !confirmados.some(c => c.id === m.id));
+
+            let statusChipsHtml = '';
+            let headerActionsHtml = '';
+
+            if (vista === 'Altas - Pendientes') {
+                statusChipsHtml = `<span class="group-member-status-chip status-val-ok">✅ ${miembrosRenderizar.length} Integrantes Validados</span>`;
+                const idsParam = miembrosRenderizar.map(m => m.id).join(',');
+                headerActionsHtml = `
+                    <button type="button" class="btn-primary btn-iniciar-prealta-grupo-card" data-grupo="${nombreGrupo}" data-ids="${idsParam}" style="padding:8px 16px; font-size:13px; cursor:pointer;" title="Iniciar Pre-Alta de todo el grupo y agendar en Google Calendar">
+                        ⚙️ Iniciar Pre-Alta Grupal
+                    </button>
+                    <button type="button" class="filter-chip btn-devolver-grupo-espera" data-grupo="${nombreGrupo}" data-ids="${idsParam}" style="padding:8px 12px; font-size:13px; color:var(--accent-red); border-color:rgba(194,86,59,0.3); cursor:pointer;" title="Devolver todo el grupo a Lista de Espera">
+                        ↩️ Devolver Grupo
+                    </button>
+                `;
+            } else if (vista === 'Altas - En Curso') {
+                if (confirmados.length > 0) {
+                    statusChipsHtml += `<span class="group-member-status-chip status-val-ok">🟢 ${confirmados.length} Confirmado(s)</span> `;
+                }
+                if (pendientes.length > 0) {
+                    statusChipsHtml += `<span class="group-member-status-chip status-val-pending">⏳ ${pendientes.length} Pendiente(s) de Pago</span>`;
+                }
+                if (pendientes.length > 0) {
+                    headerActionsHtml = `
+                        <button type="button" class="btn-primary btn-aprobar-todo-grupo" data-grupo="${nombreGrupo}" style="background:#16a34a; border-color:#16a34a; padding:8px 14px; font-size:13px; cursor:pointer;" title="Aprobar pago y alta de todos los integrantes del grupo">
+                            ✅ Aprobar Todo el Grupo
+                        </button>
+                        ${confirmados.length > 0 ? `
+                            <button type="button" class="filter-chip btn-confirmar-inicio-grupo" data-grupo="${nombreGrupo}" style="padding:8px 12px; font-size:13px; color:#16a34a; border-color:rgba(22,163,74,0.4); cursor:pointer;" title="Iniciar en Google Calendar solo con los integrantes confirmados">
+                                🚀 Iniciar con ${confirmados.length} Confirmado(s)
+                            </button>
+                        ` : ''}
+                        <button type="button" class="filter-chip btn-devolver-grupo-espera" data-grupo="${nombreGrupo}" data-ids="${pendientes.map(p=>p.id).join(',')}" style="padding:8px 12px; font-size:13px; color:var(--accent-red); border-color:rgba(194,86,59,0.3); cursor:pointer;" title="Devolver integrantes pendientes a Lista de Espera">
+                            ↩️ Devolver Pendientes
+                        </button>
+                    `;
+                } else {
+                    headerActionsHtml = `
+                        <button type="button" class="btn-primary btn-confirmar-inicio-grupo" data-grupo="${nombreGrupo}" style="background:#16a34a; border-color:#16a34a; padding:8px 16px; font-size:13px; cursor:pointer;" title="Confirmar inicio oficial del grupo y actualizar evento en Google Calendar">
+                            ✅ Iniciar Grupo Oficial
+                        </button>
+                    `;
+                }
+            } else {
+                statusChipsHtml = `<span class="group-member-status-chip status-val-ok">✅ ${miembrosRenderizar.length} Confirmados</span>`;
+            }
+
+            const renderFilaMiembro = (al) => {
+                const st = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                const isConfirmed = ['alta confirmada', 'alta efectiva', 'alta finalizada'].includes(st);
+                const instAsignado = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento[0] : (al.instrumento || 'Sin inst.'));
+                const emojiInst = getEmojiInstrumento(instAsignado, callbacks.configApp || defaultCfg);
+
+                let badgeEstado = '';
+                if (vista === 'Altas - Pendientes') {
+                    badgeEstado = `<span class="group-member-status-chip status-val-ok">✅ Validado</span>`;
+                } else if (vista === 'Altas - En Curso') {
+                    badgeEstado = isConfirmed
+                        ? `<span class="group-member-status-chip status-val-ok">✅ Alta Confirmada</span>`
+                        : `<span class="group-member-status-chip status-val-pending">⏳ Pendiente de Pago</span>`;
+                } else if (vista === 'Altas - Finalizadas') {
+                    badgeEstado = `<span class="group-member-status-chip status-val-ok">🏆 Alta Finalizada</span>`;
+                } else {
+                    badgeEstado = `<span class="group-member-status-chip status-val-ok">✅ Alta Confirmada</span>`;
+                }
+
+                const botonesRow = construirAccionesFilaAlta(al, al.id, vista, isConfirmed, nombreGrupo, callbacks);
+                const checklistRowHtml = (vista !== 'Altas - Pendientes') ? generarChecklistAltaHtml(al.id, al) : '';
+
+                return `
+                    <div class="group-member-row" style="padding:12px 14px; align-items:center; justify-content:space-between; gap:12px;">
+                        <div class="group-member-info" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:3px; cursor:pointer; flex:1;" onclick="window.editarAlumnoModalDirecto('${al.id}')" title="Ver ficha de ${al.nombre}">
+                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; text-align:left;">
+                                <span class="group-member-name" style="font-size:14px; font-weight:700; color:var(--text-main);">👤 ${al.nombre}</span>
+                                ${badgeEstado}
+                            </div>
+                            <div class="group-member-details" style="font-size:12px; color:var(--text-muted); display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                ${al.edad ? `<span>${al.edad} años</span> • ` : ''}
+                                ${al.nivel ? `<span class="match-student-tag nivel" style="font-size:10px; padding:2px 7px;">${al.nivel}</span> • ` : ''}
+                                <strong style="color:var(--accent-teal); font-weight:600;">${emojiInst} ${instAsignado}</strong> • 
+                                <strong style="color:var(--accent-purple); font-weight:600; font-size:12px;">🧩 ${al.tipo_suscripcion || 'Ensamble'}</strong>
+                                ${al.celular ? ` • <span>📱 ${al.celular}</span>` : ''}
+                            </div>
+                            ${checklistRowHtml}
+                        </div>
+                        <div class="group-member-actions" onclick="event.stopPropagation();" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; flex-shrink:0;">
+                            ${botonesRow}
+                        </div>
+                    </div>
+                `;
+            };
+
+            let miembrosHtml = '';
+            if (vista === 'Altas - En Curso' && confirmados.length > 0 && pendientes.length > 0) {
+                miembrosHtml += `
+                    <div style="background:#f0fdf4; padding:6px 18px; font-size:11px; font-weight:800; color:#166534; text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid #bbf7d0;">
+                        ✅ Integrantes Activos Confirmados (${confirmados.length})
+                    </div>
+                    ${confirmados.map(renderFilaMiembro).join('')}
+                    <div style="background:#fffbeb; padding:6px 18px; font-size:11px; font-weight:800; color:#92400e; text-transform:uppercase; letter-spacing:0.5px; border-top:1px solid var(--border-color); border-bottom:1px solid #fde68a;">
+                        ⏳ Integrantes Pendientes de Pago (${pendientes.length})
+                    </div>
+                    ${pendientes.map(renderFilaMiembro).join('')}
+                `;
+            } else {
+                miembrosHtml = miembrosRenderizar.map(renderFilaMiembro).join('');
+            }
+
+            html += `
+                <div class="group-box-card" style="width:100%; margin-bottom:16px;">
+                    <div class="group-box-header">
+                        <div>
+                            <div class="group-box-title">
+                                <span>🧩 ${nombreGrupo}</span>
+                                ${statusChipsHtml}
+                            </div>
+                            <div class="group-box-subtitle">
+                                <span>📅 <strong>${horario}</strong></span>
+                                <span>•</span>
+                                <span>👨‍🏫 Docente: <strong>${profeNom}</strong></span>
+                                <span>•</span>
+                                <span style="color:var(--accent-teal); font-weight:700;">🎸 ${modalidad}</span>
+                            </div>
+                        </div>
+                        <div class="group-box-actions">
+                            ${headerActionsHtml}
+                        </div>
+                    </div>
+                    <div class="group-box-members">
+                        ${miembrosHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Renderizar Clases Individuales (si existen)
+        if (individuales.length > 0) {
+            html += `
+                <div style="font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); margin:24px 0 12px 0; display:flex; align-items:center; gap:8px;">
+                    Clases Individuales <span style="flex:1; height:1px; background:var(--border-color);"></span>
+                </div>
+            `;
+
+            individuales.forEach(al => {
+                const st = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                const isConfirmed = ['alta confirmada', 'alta efectiva', 'alta finalizada'].includes(st);
+                const instAsignado = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento[0] : (al.instrumento || 'Piano'));
+                const emojiInst = getEmojiInstrumento(instAsignado, callbacks.configApp || defaultCfg);
+                const horario = al.horario_match || al.reserva_fecha_texto || 'Horario a convenir';
+                const profeNom = al.reserva_profe_nombre || al.profesor_asignado || 'Docente';
+
+                let badgeEstadoInd = '';
+                if (vista === 'Altas - Pendientes') {
+                    badgeEstadoInd = `<span class="group-member-status-chip status-val-ok">✅ Validada</span>`;
+                } else if (vista === 'Altas - En Curso') {
+                    badgeEstadoInd = isConfirmed
+                        ? `<span class="group-member-status-chip status-val-ok">✅ Alta Confirmada</span>`
+                        : `<span class="group-member-status-chip status-val-pending">⏳ Pendiente de Pago</span>`;
+                } else if (vista === 'Altas - Finalizadas') {
+                    badgeEstadoInd = `<span class="group-member-status-chip status-val-ok">🏆 Alta Finalizada</span>`;
+                } else {
+                    badgeEstadoInd = `<span class="group-member-status-chip status-val-ok">✅ Alta Confirmada</span>`;
+                }
+
+                const botonesIndiv = construirAccionesFilaAlta(al, al.id, vista, isConfirmed, 'Clase Individual', callbacks);
+                const checklistIndivHtml = (vista !== 'Altas - Pendientes') ? generarChecklistAltaHtml(al.id, al) : '';
+
+                html += `
+                    <div class="group-box-card" style="width:100%; margin-bottom:12px; border-left:4px solid var(--accent-teal);">
+                        <div class="group-member-row" style="padding:12px 14px; align-items:center; justify-content:space-between; gap:12px;">
+                            <div class="group-member-info" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:3px; cursor:pointer; flex:1;" onclick="window.editarAlumnoModalDirecto('${al.id}')" title="Ver ficha de ${al.nombre}">
+                                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; text-align:left;">
+                                    <span class="group-member-name" style="font-size:14px; font-weight:700; color:var(--text-main);">👤 ${al.nombre}</span>
+                                    ${badgeEstadoInd}
+                                    <span class="match-student-tag" style="font-size:10px; padding:2px 7px;">🎹 ${al.tipo_suscripcion || 'Clase Individual'}</span>
+                                </div>
+                                <div class="group-member-details" style="font-size:12px; color:var(--text-muted); display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                    ${al.edad ? `<span>${al.edad} años</span> • ` : ''}
+                                    ${al.nivel ? `<span class="match-student-tag nivel" style="font-size:10px; padding:2px 7px;">${al.nivel}</span> • ` : ''}
+                                    <strong style="color:var(--accent-teal); font-weight:600;">${emojiInst} ${instAsignado}</strong> • 
+                                    <span>📅 ${horario} con <strong>${profeNom}</strong></span>
+                                    ${al.celular ? ` • <span>📱 ${al.celular}</span>` : ''}
+                                </div>
+                                ${checklistIndivHtml}
+                            </div>
+                            <div class="group-member-actions" onclick="event.stopPropagation();" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; flex-shrink:0;">
+                                ${botonesIndiv}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        container.innerHTML = html;
+
+        // Registrar Event Listeners con delegación
+        container.querySelectorAll('.btn-iniciar-prealta-grupo-card').forEach(btn => {
+            btn.onclick = () => {
+                const ids = (btn.dataset.ids || '').split(',').filter(Boolean);
+                const grupo = btn.dataset.grupo || '';
+                window.abrirModalPrealtaGrupal(ids, grupo, callbacks.configApp || defaultCfg, false);
+            };
+        });
+
+        container.querySelectorAll('.btn-devolver-grupo-espera').forEach(btn => {
+            btn.onclick = async () => {
+                const ids = (btn.dataset.ids || '').split(',').filter(Boolean);
+                const grupo = btn.dataset.grupo || '';
+                if (!ids.length) return;
+                const confirmarFn = window.confirmar || ((t, d, b, i) => Promise.resolve(confirm(`${t}\n\n${d}`)));
+                const okDevolver = await confirmarFn(
+                    'Devolver Grupo a Lista de Espera',
+                    `¿Deseas devolver los integrantes del grupo "${grupo}" a Lista de Espera? Se desvincularán del grupo y se actualizará Calendar.`,
+                    '↩️ Devolver Grupo',
+                    '⚠️'
+                );
+                if (!okDevolver) return;
+
+                if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(`Devolviendo grupo "${grupo}" a espera...`);
+                try {
+                    for (const id of ids) {
+                        const dSnap = await getDoc(doc(db, "alumnos", id));
+                        if (dSnap.exists()) {
+                            const al = dSnap.data();
+                            const hist = al.historial || [];
+                            const fnHist = window.crearEntradaHistorial || ((txt, t) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: t || 'sistema' }));
+                            hist.push(fnHist(`Devuelto a Lista de Espera desde ${vista}. Desvinculado del grupo "${grupo}".`, 'alta'));
+                            await updateDoc(doc(db, "alumnos", id), {
+                                estado_agenda: "Lista de espera",
+                                grupo_asignado: "",
+                                id_evento_alta: null,
+                                historial: hist
+                            });
+                            await eliminarEventoAltaSeguro({ id, ...al }, callbacks.configApp || defaultCfg);
+                        }
+                    }
+                    if (typeof callbacks.cargarVista === 'function') await callbacks.cargarVista(vista);
+                    if (typeof window.mostrarToast === 'function') {
+                        window.mostrarToast(`↩️ Grupo "${grupo}" devuelto a Lista de Espera.`, 'info');
+                    } else {
+                        alert(`↩️ Grupo "${grupo}" devuelto a Lista de Espera.`);
+                    }
+                } catch(e) {
+                    if (typeof window.mostrarToast === 'function') {
+                        window.mostrarToast("Error al devolver grupo: " + e.message, 'error');
+                    } else {
+                        alert("Error al devolver grupo: " + e.message);
+                    }
+                } finally {
+                    if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
+                }
+            };
+        });
+
+        container.querySelectorAll('.btn-aprobar-todo-grupo').forEach(btn => {
+            btn.onclick = async () => {
+                const grupo = btn.dataset.grupo || '';
+                await aprobarTodoGrupoAction(grupo, vista, callbacks);
+            };
+        });
+
+        container.querySelectorAll('.btn-confirmar-inicio-grupo').forEach(btn => {
+            btn.onclick = async () => {
+                const grupo = btn.dataset.grupo || '';
+                await confirmarInicioGrupoAction(grupo, vista, callbacks);
+            };
+        });
+
+        container.querySelectorAll('.btn-prealta-individual-row').forEach(btn => {
+            btn.onclick = () => {
+                const id = btn.dataset.id;
+                if (id) window.abrirModalPrealta(id);
+            };
+        });
+
+        container.querySelectorAll('.btn-confirmar-alumno-row').forEach(btn => {
+            btn.onclick = async () => {
+                const id = btn.dataset.id;
+                const nom = btn.dataset.nombre || 'Alumno';
+                const grp = btn.dataset.grupo || '';
+                await confirmarAlumnoAltaAction(id, nom, grp, vista, callbacks);
+            };
+        });
+
+        container.querySelectorAll('.btn-devolver-alumno-espera-row').forEach(btn => {
+            btn.onclick = async () => {
+                const id = btn.dataset.id;
+                const nom = btn.dataset.nombre || 'Alumno';
+                const grp = btn.dataset.grupo || '';
+                const confirmarFn = window.confirmar || ((t, d, b, i) => Promise.resolve(confirm(`${t}\n\n${d}`)));
+                const okDevolverAl = await confirmarFn(
+                    'Devolver Alumno a Lista de Espera',
+                    `¿Deseas devolver a "${nom}" a Lista de Espera? Se desvinculará del grupo y se actualizará Google Calendar.`,
+                    '↩️ Devolver a Espera',
+                    '⚠️'
+                );
+                if (!okDevolverAl) return;
+
+                if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(`Moviendo a ${nom} a espera...`);
+                try {
+                    const dSnap = await getDoc(doc(db, "alumnos", id));
+                    if (dSnap.exists()) {
+                        const al = dSnap.data();
+                        const hist = al.historial || [];
+                        const fnHist = window.crearEntradaHistorial || ((txt, t) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: t || 'sistema' }));
+                        hist.push(fnHist(`Devuelto a Lista de Espera desde ${vista}${grp ? ` (Desvinculado de ${grp})` : ''}.`, 'alta'));
+                        await updateDoc(doc(db, "alumnos", id), {
+                            estado_agenda: "Lista de espera",
+                            grupo_asignado: "",
+                            id_evento_alta: null,
+                            historial: hist
+                        });
+                        await eliminarEventoAltaSeguro({ id, ...al }, callbacks.configApp || defaultCfg);
+                    }
+                    if (typeof callbacks.cargarVista === 'function') await callbacks.cargarVista(vista);
+                    if (typeof window.mostrarToast === 'function') {
+                        window.mostrarToast(`↩️ ${nom} devuelto a Lista de Espera.`, 'info');
+                    } else {
+                        alert(`↩️ ${nom} devuelto a Lista de Espera.`);
+                    }
+                } catch(e) {
+                    if (typeof window.mostrarToast === 'function') {
+                        window.mostrarToast("Error al devolver a espera: " + e.message, 'error');
+                    } else {
+                        alert("Error al devolver a espera: " + e.message);
+                    }
+                } finally {
+                    if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
+                }
+            };
+        });
+
+    } catch(err) {
+        console.error("Error al renderizar altas agrupadas:", err);
+        container.innerHTML = `<div style="padding:20px; color:var(--accent-red);">Error al cargar vista: ${err.message}</div>`;
+    }
+}
+
 // Window Global Bindings
 window.generarFilaExcelBD = generarFilaExcelBD;
 window.generarFilaExcelFacturacion = generarFilaExcelFacturacion;
@@ -1772,3 +2733,8 @@ window.copiarFilaExcelBD = copiarFilaExcelBD;
 window.copiarFilaExcelFacturacion = copiarFilaExcelFacturacion;
 window.copiarSeleccionExcelBD = copiarSeleccionExcelBD;
 window.copiarSeleccionExcelFacturacion = copiarSeleccionExcelFacturacion;
+window.renderAltasAgrupadas = renderAltasAgrupadas;
+window.aprobarTodoGrupoAction = aprobarTodoGrupoAction;
+window.confirmarInicioGrupoAction = confirmarInicioGrupoAction;
+window.confirmarAlumnoAltaAction = confirmarAlumnoAltaAction;
+window.generarChecklistAltaHtml = generarChecklistAltaHtml;

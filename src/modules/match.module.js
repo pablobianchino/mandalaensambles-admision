@@ -507,11 +507,15 @@ export function initMatchFormListeners(cfgMin = 2, cfgMax = 6, callbacks = {}) {
     // Botón armar grupo con alumnos seleccionados (desde modo Buscar Alumnos)
     document.getElementById('btn-match-armar-grupo-seleccionados')?.addEventListener('click', () => {
         const ids = Array.from(matchAlumnosSeleccionados);
-        if (ids.length < 2) {
-            return alert("Por favor selecciona al menos 2 alumnos para armar un grupo.");
+        if (ids.length < 1) {
+            return alert("Por favor selecciona al menos 1 alumno para armar una propuesta.");
         }
-        if (window.abrirModalPrealtaGrupal) {
-            window.abrirModalPrealtaGrupal(ids, '', callbacks.configApp || defaultCfg);
+        if (window.abrirModalPrealtaGrupal && ids.length > 1) {
+            window.abrirModalPrealtaGrupal(ids, '', defaultCfg, true);
+        } else if (window.abrirModalPrealta && ids.length === 1) {
+            window.abrirModalPrealta(ids[0], '', '', {}, { esPropuesta: true });
+        } else if (window.abrirModalNuevaPropuestaGrupoManual) {
+            window.abrirModalNuevaPropuestaGrupoManual(ids);
         }
     });
 
@@ -1429,7 +1433,7 @@ export function renderResultadosAlumnosMatch(candidatos = []) {
 
                 <div style="display:flex; align-items:center; justify-content:space-between; border-top:1px solid #f1f5f9; padding-top:10px; gap:8px;">
                     <button type="button" class="btn-app btn-secondary" onclick="window.editarAlumnoModalDirecto('${al.id}')" style="font-size:11.5px; padding:4px 10px; height:30px;">👁️ Ver Ficha</button>
-                    <button type="button" class="btn-app btn-primary btn-iniciar-prealta-al" data-id="${al.id}" data-profe-id="${al.profeMatchAsignado ? al.profeMatchAsignado.id : ''}" style="font-size:11.5px; padding:4px 12px; height:30px; background:var(--accent-teal);">🚀 Iniciar Pre-Alta</button>
+                    <button type="button" class="btn-app btn-primary btn-iniciar-prealta-al" data-id="${al.id}" data-profe-id="${al.profeMatchAsignado ? al.profeMatchAsignado.id : ''}" style="font-size:11.5px; padding:4px 12px; height:30px; background:var(--accent-teal);">🧩 Armar Propuesta</button>
                 </div>
             </div>
         `;
@@ -1451,7 +1455,7 @@ export function renderResultadosAlumnosMatch(candidatos = []) {
             const id = btn.getAttribute('data-id');
             const profeId = btn.getAttribute('data-profe-id') || '';
             if (window.abrirModalPrealta) {
-                window.abrirModalPrealta(id, false, null, null, { profeIdSugerido: profeId });
+                window.abrirModalPrealta(id, false, null, null, { profeIdSugerido: profeId, esPropuesta: true }, true);
             }
         });
     });
@@ -2020,7 +2024,7 @@ export function obtenerEmojiInstrumento(inst) {
 
 export async function renderMatchEnValidacion(container) {
     const tit = document.getElementById('vista-titulo');
-    if (tit) tit.innerHTML = '<span style="color:var(--text-muted); font-weight:500;">Match › </span><span style="color:var(--text-main); font-weight:700;">Grupos en Validación</span>';
+    if (tit) tit.innerHTML = '<span style="color:var(--text-muted); font-weight:500;">Match › </span><span style="color:var(--text-main); font-weight:700;">Grupos y Alumnos en Validación</span>';
     const cVista = document.getElementById('controles-vista');
     if (cVista) cVista.style.display = 'none';
     const sGen = document.getElementById('search-container-general');
@@ -2029,19 +2033,25 @@ export async function renderMatchEnValidacion(container) {
     if (contMatch) contMatch.style.display = 'none';
     
     container.style.display = 'flex';
-    container.innerHTML = '<div style="padding:20px; color:var(--text-muted); text-align:center;">Cargando grupos en validación...</div>';
+    container.innerHTML = '<div style="padding:20px; color:var(--text-muted); text-align:center;">Cargando grupos y alumnos en validación...</div>';
 
     try {
-        const qSnap = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", "Validando Grupo")));
+        const qSnap = await getDocs(collection(db, "alumnos"));
         let alumnosEnValidacion = [];
-        qSnap.forEach(d => alumnosEnValidacion.push({ id: d.id, ...d.data() }));
+        qSnap.forEach(d => {
+            const data = d.data();
+            const st = (data.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+            if (st === 'validando grupo') {
+                alumnosEnValidacion.push({ id: d.id, ...data });
+            }
+        });
 
         if (alumnosEnValidacion.length === 0) {
             container.innerHTML = `
                 <div style="text-align:center; padding:50px 20px; background:white; border-radius:14px; border:1px solid var(--border-color); color:var(--text-muted); width:100%;">
                     <div style="font-size:2.5em; margin-bottom:10px;">👥</div>
-                    <div style="font-size:16px; font-weight:700; color:var(--text-main); margin-bottom:6px;">No hay grupos en validacion</div>
-                    <div style="font-size:13px; max-width:450px; margin:0 auto;">Crea una propuesta desde <strong>"Crear Grupos / Match"</strong> para comenzar a coordinar y validar con los alumnos.</div>
+                    <div style="font-size:16px; font-weight:700; color:var(--text-main); margin-bottom:6px;">No hay grupos ni alumnos en validación</div>
+                    <div style="font-size:13px; max-width:450px; margin:0 auto;">Crea una propuesta desde <strong>"Crear Grupos / Match"</strong> o selecciona alumnos en <strong>"Lista de Espera"</strong> para comenzar a coordinar y validar.</div>
                 </div>
             `;
             return;
@@ -2098,11 +2108,10 @@ export async function renderMatchEnValidacion(container) {
                             ${tagsPsicoHtml}
                         </div>
                         <div class="group-member-actions" onclick="event.stopPropagation();" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; flex-shrink:0;">
-                            <button type="button" class="row-quick-btn secondary" onclick="window.enviarWhatsAppValidacionGrupo('${al.id}')" title="Mensaje WhatsApp">💬 WhatsApp</button>
-                            <button type="button" class="row-quick-btn ${isConfirmed ? 'primary' : 'secondary'}" onclick="window.toggleValidacionAlumnoGrupo('${al.id}', ${!isConfirmed})" title="Marcar confirmacion">
+                            <button type="button" class="row-quick-btn ${isConfirmed ? 'primary' : 'secondary'}" onclick="window.abrirModalNotaValidacionAlumno('${al.id}', ${!isConfirmed})" title="${isConfirmed ? 'Desmarcar confirmación (ingresar motivo obligatorio)' : 'Confirmar disponibilidad con notas del coordinador'}">
                                 ${isConfirmed ? '✔️ Desmarcar' : '✔️ Confirmó'}
                             </button>
-                            <button type="button" class="row-quick-btn primary" onclick="window.aprobarAlumnoIndividualPrealta('${al.id}')" title="Aprobar individualmente a Altas">🚀 Aprobar</button>
+                            <button type="button" class="row-quick-btn primary" onclick="window.aprobarAlumnoIndividualPrealta('${al.id}')" title="${isConfirmed ? 'Aprobar individualmente a Altas' : 'El alumno debe confirmar su disponibilidad antes de ser aprobado a Altas'}" style="${isConfirmed ? '' : 'opacity:0.45;'}">🚀 Aprobar</button>
                             <button type="button" class="row-quick-btn danger" onclick="window.rechazarAlumnoGrupoYVolverEspera('${al.id}')" title="Rechazar y regresar a Lista de Espera">❌</button>
                         </div>
                     </div>
@@ -2124,7 +2133,7 @@ export async function renderMatchEnValidacion(container) {
                             </div>
                         </div>
                         <div class="group-box-actions">
-                            <button type="button" class="btn-primary" onclick="window.aprobarGrupoCompletoPrealta('${nombreGrupo}')" style="padding:8px 16px; font-size:13px;">
+                            <button type="button" class="btn-primary" onclick="window.aprobarGrupoCompletoPrealta('${nombreGrupo}')" style="padding:8px 16px; font-size:13px; ${todosConfirmados ? '' : 'opacity:0.65;'}" title="${todosConfirmados ? 'Aprobar grupo a Altas Pendientes' : 'Todos los integrantes deben confirmar disponibilidad para habilitar la aprobación'}">
                                 ✅ Aprobar Grupo a Altas
                             </button>
                             <button type="button" class="filter-chip" onclick="window.desarmarGrupoValidacion('${nombreGrupo}')" style="padding:8px 12px; font-size:13px; color:var(--accent-red); border-color:rgba(194,86,59,0.3);">
@@ -2448,38 +2457,189 @@ window.abrirModalConfirmarMatchPorIndice = function(idx) {
     const grupo = matchGruposSugeridos[idx];
     if (grupo) abrirModalConfirmarMatch(grupo);
 };
-window.toggleValidacionAlumnoGrupo = async function(alumnoId, nuevoEstado) {
+
+// Modal de confirmación / desmarque con notas del coordinador
+window.abrirModalNotaValidacionAlumno = async function(alumnoId, nuevoEstado) {
     try {
-        await updateDoc(doc(db, "alumnos", alumnoId), {
-            estado_validacion_alumno: nuevoEstado ? "confirmado" : "pendiente"
-        });
-        const cont = document.getElementById('lista-generica');
-        if (cont) await renderMatchEnValidacion(cont);
+        const dSnap = await getDoc(doc(db, "alumnos", alumnoId));
+        if (!dSnap.exists()) return alert("Alumno no encontrado.");
+        const al = dSnap.data();
+
+        const inputId = document.getElementById('val-nota-alumno-id');
+        const inputAccion = document.getElementById('val-nota-accion');
+        const inputGrp = document.getElementById('val-nota-grupo-nombre');
+        const infoBox = document.getElementById('val-nota-info-box');
+        const instBox = document.getElementById('val-nota-instruccion-box');
+        const txtObs = document.getElementById('val-nota-observacion');
+        const avisoOblig = document.getElementById('val-nota-obligatorio-aviso');
+        const btnGuardar = document.getElementById('btn-guardar-confirmacion-validacion');
+        const iconoEl = document.getElementById('val-nota-icono');
+        const titEl = document.getElementById('val-nota-titulo-txt');
+
+        if (inputId) inputId.value = alumnoId;
+        if (inputAccion) inputAccion.value = nuevoEstado ? 'confirmar' : 'desmarcar';
+        if (inputGrp) inputGrp.value = al.grupo_asignado || '';
+        if (txtObs) txtObs.value = '';
+
+        const instAsignado = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || ''));
+        const emojiInst = obtenerEmojiInstrumento(instAsignado);
+        const hor = al.horario_match || al.reserva_fecha_texto || 'Horario a convenir';
+        const profeNom = al.reserva_profe_nombre || al.profesor_asignado || 'Docente';
+        const grpNom = al.grupo_asignado || 'Clase Individual';
+
+        if (infoBox) {
+            infoBox.innerHTML = `
+                <div style="font-weight:700; font-size:13.5px; color:var(--text-main); margin-bottom:3px;">👤 ${al.nombre}</div>
+                <div style="font-size:11.5px; color:var(--text-muted);">
+                    🧩 <strong>${grpNom}</strong> • ${emojiInst} ${instAsignado}<br>
+                    📅 Horario: <strong>${hor}</strong> • 👨‍🏫 Profe: <strong>${profeNom}</strong>
+                </div>
+            `;
+        }
+
+        if (nuevoEstado) {
+            // Confirmar
+            if (iconoEl) iconoEl.textContent = '✅';
+            if (titEl) titEl.textContent = 'Confirmar Disponibilidad de Alumno';
+            if (instBox) {
+                instBox.innerHTML = `El coordinador se comunicó con el alumno para validar disponibilidad. Podés registrar notas u observaciones de la conversación (opcional):`;
+            }
+            if (txtObs) txtObs.placeholder = "Ej: Hablé por teléfono, confirma asistencia los jueves 19:30 hs. Trae su propio instrumento...";
+            if (avisoOblig) avisoOblig.style.display = 'none';
+            if (btnGuardar) {
+                btnGuardar.textContent = '✅ Confirmar Disponibilidad';
+                btnGuardar.className = 'btn-primary';
+                btnGuardar.style.background = 'var(--accent-teal)';
+            }
+        } else {
+            // Desmarcar
+            if (iconoEl) iconoEl.textContent = '⚠️';
+            if (titEl) titEl.textContent = 'Desmarcar Confirmación de Alumno';
+            if (instBox) {
+                instBox.innerHTML = `<span style="color:var(--accent-red); font-weight:700;">⚠️ Atención:</span> Vas a desmarcar la confirmación previa. <strong>Es obligatorio</strong> ingresar la observación o motivo del desmarque para que quede registrado en el historial:`;
+            }
+            if (txtObs) txtObs.placeholder = "Ej: Me llamó avisando que se le superpone con la facultad y prefiere esperar otro horario...";
+            if (avisoOblig) avisoOblig.style.display = 'block';
+            if (btnGuardar) {
+                btnGuardar.textContent = '↩️ Desmarcar Confirmación';
+                btnGuardar.className = 'btn-primary';
+                btnGuardar.style.background = 'var(--accent-red)';
+            }
+        }
+
+        const modal = document.getElementById('modal-confirmar-validacion-alumno');
+        if (modal) modal.showModal();
     } catch(err) {
-        alert('Error al actualizar validacion: ' + err.message);
+        alert("Error al abrir modal de validación: " + err.message);
     }
 };
 
-window.aprobarGrupoCompletoPrealta = async function(nombreGrupo) {
-    if (!(await window.confirmar('Aprobar grupo', 'Todos sus integrantes pasarán a Altas Pendientes.', 'Aprobar Grupo'))) return;
+window.ejecutarGuardarNotaValidacion = async function() {
+    const alumnoId = document.getElementById('val-nota-alumno-id')?.value;
+    const accion = document.getElementById('val-nota-accion')?.value || 'confirmar';
+    const grpNom = document.getElementById('val-nota-grupo-nombre')?.value || '';
+    const obs = (document.getElementById('val-nota-observacion')?.value || '').trim();
+    const btnGuardar = document.getElementById('btn-guardar-confirmacion-validacion');
+
+    if (!alumnoId) return;
+
+    if (accion === 'desmarcar' && !obs) {
+        alert("⚠️ Es obligatorio ingresar una observación/motivo para desmarcar la confirmación.");
+        document.getElementById('val-nota-observacion')?.focus();
+        return;
+    }
+
+    if (btnGuardar) btnGuardar.disabled = true;
+
     try {
-        const qSnap = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", "Validando Grupo")));
-        for (const d of qSnap.docs) {
+        const alDoc = await getDoc(doc(db, "alumnos", alumnoId));
+        if (!alDoc.exists()) return;
+        const al = alDoc.data();
+
+        const hist = Array.isArray(al.historial) ? al.historial : [];
+        const fnHist = window.crearEntradaHistorial || ((txt, tipo, creador) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema', creador: creador || 'Coordinador' }));
+
+        const nombreOperador = window.usuarioActual?.nombre || 'Coordinador';
+        const labelGrupo = grpNom ? `grupo "${grpNom}"` : 'clase individual';
+
+        let textoHist = '';
+        let nuevoEstadoVal = 'pendiente';
+
+        if (accion === 'confirmar') {
+            nuevoEstadoVal = 'confirmado';
+            textoHist = obs 
+                ? `Alumno confirmó disponibilidad para ${labelGrupo}. Obs: ${obs}`
+                : `Alumno confirmó disponibilidad para ${labelGrupo}.`;
+        } else {
+            nuevoEstadoVal = 'pendiente';
+            textoHist = `Confirmación desmarcada para ${labelGrupo}. Motivo: ${obs}`;
+        }
+
+        hist.push(fnHist(textoHist, 'coordinacion', nombreOperador));
+
+        await updateDoc(doc(db, "alumnos", alumnoId), {
+            estado_validacion_alumno: nuevoEstadoVal,
+            historial: hist
+        });
+
+        document.getElementById('modal-confirmar-validacion-alumno')?.close();
+        const cont = document.getElementById('lista-generica');
+        if (cont) await renderMatchEnValidacion(cont);
+
+        mostrarToast(accion === 'confirmar' ? `✅ Alumno confirmado correctamente.` : `↩️ Confirmación desmarcada.`, "success");
+    } catch(err) {
+        alert("Error al registrar validación: " + err.message);
+    } finally {
+        if (btnGuardar) btnGuardar.disabled = false;
+    }
+};
+
+window.toggleValidacionAlumnoGrupo = function(alumnoId, nuevoEstado) {
+    window.abrirModalNotaValidacionAlumno(alumnoId, nuevoEstado);
+};
+
+window.aprobarGrupoCompletoPrealta = async function(nombreGrupo) {
+    try {
+        const qSnap = await getDocs(collection(db, "alumnos"));
+        const miembrosGrupo = [];
+        qSnap.forEach(d => {
             const data = d.data();
-            if ((data.grupo_asignado || 'Clases Individuales') === nombreGrupo) {
-                const hist = data.historial || [];
+            const st = (data.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+            if (st === 'validando grupo' && (data.grupo_asignado || 'Clases Individuales') === nombreGrupo) {
+                miembrosGrupo.push({ id: d.id, ...data });
+            }
+        });
+
+        if (miembrosGrupo.length === 0) {
+            return alert(`No se encontraron alumnos en validación para el grupo "${nombreGrupo}".`);
+        }
+
+        const sinConfirmar = miembrosGrupo.filter(m => m.estado_validacion_alumno !== 'confirmado');
+        if (sinConfirmar.length > 0) {
+            const nombres = sinConfirmar.map(s => s.nombre).join('\n• ');
+            return alert(`⚠️ No se puede aprobar el grupo "${nombreGrupo}" a Altas porque tiene ${sinConfirmar.length} alumno(s) sin confirmar disponibilidad:\n\n• ${nombres}\n\nTodos los alumnos deben estar confirmados antes de pasar a Altas.`);
+        }
+
+        if (!(await window.confirmar('Aprobar grupo a Altas', `Todos los integrantes (${miembrosGrupo.length}) del grupo "${nombreGrupo}" pasarán a Altas Pendientes.`, 'Aprobar Grupo'))) return;
+
+        if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(`Aprobando grupo "${nombreGrupo}"...`);
+        try {
+            for (const al of miembrosGrupo) {
+                const hist = Array.isArray(al.historial) ? al.historial : [];
                 const fnHist = window.crearEntradaHistorial || ((txt, tipo) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema' }));
                 hist.push(fnHist(`Validación grupal aprobada: Grupo "${nombreGrupo}" pasa a Altas Pendientes.`, 'match'));
-                await updateDoc(doc(db, "alumnos", d.id), {
+                await updateDoc(doc(db, "alumnos", al.id), {
                     estado_agenda: "Pre-alta Pendiente",
                     estado_validacion_alumno: "confirmado",
                     historial: hist
                 });
             }
-        }
-        alert(`✅ Grupo "${nombreGrupo}" aprobado con éxito. Pasó a Altas Pendientes.`);
-        if (typeof window.cargarVistaGlobal === 'function') {
-            await window.cargarVistaGlobal('Altas - Pendientes');
+            alert(`✅ Grupo "${nombreGrupo}" aprobado con éxito. Pasó a Altas Pendientes.`);
+            if (typeof window.cargarVistaGlobal === 'function') {
+                await window.cargarVistaGlobal('Altas - Pendientes');
+            }
+        } finally {
+            if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
         }
     } catch(err) {
         alert('Error al aprobar grupo: ' + err.message);
@@ -2491,11 +2651,16 @@ window.aprobarAlumnoIndividualPrealta = async function(alumnoId) {
         const alDoc = await getDoc(doc(db, "alumnos", alumnoId));
         if (!alDoc.exists()) return;
         const al = alDoc.data();
-        if (!(await window.confirmar('Aprobar alumno', 'El alumno pasará a Altas Pendientes.', 'Aprobar'))) return;
+
+        if (al.estado_validacion_alumno !== 'confirmado') {
+            return alert(`⚠️ No se puede aprobar a ${al.nombre} a Altas porque aún no ha confirmado su disponibilidad.\n\nPrimero debe confirmarse con el botón '✔️ Confirmó'.`);
+        }
+
+        if (!(await window.confirmar('Aprobar alumno', `El alumno "${al.nombre}" pasará a Altas Pendientes.`, 'Aprobar Alumno'))) return;
 
         if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(`Aprobando a ${al.nombre}...`);
         try {
-            const hist = al.historial || [];
+            const hist = Array.isArray(al.historial) ? al.historial : [];
             const fnHist = window.crearEntradaHistorial || ((txt, tipo) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema' }));
             hist.push(fnHist(`Validación individual aprobada para ${al.grupo_asignado || 'clase'}. Pasa a Altas Pendientes.`, 'match'));
 
@@ -2526,9 +2691,10 @@ window.rechazarAlumnoGrupoYVolverEspera = async function(alumnoId) {
 
         if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(`Moviendo a ${al.nombre} a Espera...`);
         try {
-            const hist = al.historial || [];
+            const hist = typeof window.normalizarHistorial === 'function' ? window.normalizarHistorial(al.historial) : (al.historial || []).filter(Boolean);
             const fnHist = window.crearEntradaHistorial || ((txt, tipo) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema' }));
-            hist.push(fnHist(`Propuesta de grupo "${al.grupo_asignado || ''}" rechazada/no disponible. Vuelve a Lista de Espera.`, 'match'));
+            const entrada = fnHist(`Propuesta de grupo "${al.grupo_asignado || ''}" rechazada/no disponible. Vuelve a Lista de Espera.`, 'match');
+            if (entrada) hist.push(entrada);
 
             await updateDoc(doc(db, "alumnos", alumnoId), {
                 estado_agenda: "Lista de espera",
@@ -2553,14 +2719,16 @@ window.desarmarGrupoValidacion = async function(nombreGrupo) {
     if (!(await window.confirmar('Desarmar grupo', 'Todos los integrantes volverán a Lista de Espera.', 'Desarmar'))) return;
     if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(`Desarmando grupo "${nombreGrupo}"...`);
     try {
-        const qSnap = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", "Validando Grupo")));
+        const qSnap = await getDocs(collection(db, "alumnos"));
 
         for (const d of qSnap.docs) {
             const data = d.data();
-            if ((data.grupo_asignado || 'Clases Individuales') === nombreGrupo) {
-                const hist = data.historial || [];
+            const st = (data.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+            if (st === 'validando grupo' && (data.grupo_asignado || 'Clases Individuales') === nombreGrupo) {
+                const hist = typeof window.normalizarHistorial === 'function' ? window.normalizarHistorial(data.historial) : (data.historial || []).filter(Boolean);
                 const fnHist = window.crearEntradaHistorial || ((txt, tipo) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema' }));
-                hist.push(fnHist(`Propuesta de grupo "${nombreGrupo}" desarmada. Alumno vuelve a Lista de Espera.`, 'match'));
+                const entrada = fnHist(`Propuesta de grupo "${nombreGrupo}" desarmada. Alumno vuelve a Lista de Espera.`, 'match');
+                if (entrada) hist.push(entrada);
                 await updateDoc(doc(db, "alumnos", d.id), {
                     estado_agenda: "Lista de espera",
                     grupo_asignado: "",
@@ -2688,8 +2856,11 @@ export async function renderMatchSolicitudesProfes(cont, configApp, callbacks = 
         const pendientes = solicitudes.filter(s => s.estado === 'Pendiente' || s.estado === 'En Proceso');
         const cubiertas = solicitudes.filter(s => s.estado === 'Cubierta' || s.estado === 'Cancelada');
 
-        const rolActual = (window.usuarioActual?.rol || configApp?.usuarioActual?.rol || 'admin').toLowerCase();
-        const puedeBuscar = ['admin', 'coordinador', 'admisor'].includes(rolActual);
+        const rolesUser = Array.isArray(window.usuarioActual?.roles) 
+            ? window.usuarioActual.roles 
+            : [(window.usuarioActual?.rol || configApp?.usuarioActual?.rol || 'admin')];
+        const modoActivo = (window.modoRolActivo || '').toLowerCase();
+        const puedeBuscar = rolesUser.some(r => ['admin', 'coordinador', 'coordinador_grupos', 'admisor', 'admisiones'].includes((r || '').toLowerCase())) || ['admin', 'coordinador', 'coordinador_grupos', 'admisor', 'admisiones', 'multi'].includes(modoActivo);
 
         if (pendientes.length === 0 && cubiertas.length === 0) {
             cont.innerHTML = `

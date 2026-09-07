@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=6.5.1">
+    <link rel="stylesheet" href="styles.css?v=6.6.4">
 
     <style>
         /* Estilos Críticos de Widget de Perfil y Popover Google-Style */
@@ -344,7 +344,7 @@
                     <button type="button" id="btn-quick-test-notif" onclick="window.abrirModalTestNotificacion()" class="btn-app btn-secondary" style="font-size:11px; height:28px; padding:0 8px; flex:1; justify-content:center; color:var(--accent-teal); border-color:var(--accent-teal); background:rgba(0,123,143,0.05); font-weight:700;" title="Probar notificación push de entrevista en celular o PC">🔔 Test Notificación</button>
                     <a href="guia-evaluadores.html" target="_blank" class="btn-app btn-secondary" style="font-size:11px; height:28px; padding:0 8px; justify-content:center; text-decoration:none; display:inline-flex; align-items:center;" title="Abrir Guía Paso a Paso para Evaluadores">📖 Guía</a>
                 </div>
-                <div id="sidebar-version-label" style="font-size: 11px; color: var(--text-light); text-align: left; font-weight: 600; padding: 2px 6px;">v6.5.1</div>
+                <div id="sidebar-version-label" style="font-size: 11px; color: var(--text-light); text-align: left; font-weight: 600; padding: 2px 6px;">v6.6.5</div>
             </div>
         </aside>
 
@@ -1021,9 +1021,9 @@
                         Ingreso a Lista de Espera directo
                     </label>
                     <div style="display:flex; gap:10px; align-items:center; width:100%;">
-                        <button type="button" id="btn-modal-nueva-suscripcion" class="btn-secondary" style="display:none; flex:1;">➕ Nueva Suscripción</button>
-                        <button type="submit" id="btn-submit-alumno" class="btn-primary" style="flex:2;">Guardar Alumno</button>
-                        <button type="button" id="btn-modal-eliminar-alumno" class="btn-secondary" style="display:none; color:var(--accent-red); border-color:var(--accent-red); font-weight:700; padding:0 14px;" title="Eliminar ficha permanentemente (Solo Administrador)">🗑️ Eliminar</button>
+                        <button type="button" id="btn-modal-nueva-suscripcion" class="btn-secondary" style="display:none; flex:1; height:42px; box-sizing:border-box;">➕ Nueva Suscripción</button>
+                        <button type="submit" id="btn-submit-alumno" class="btn-primary" style="flex:2; height:42px; box-sizing:border-box;">Guardar Alumno</button>
+                        <button type="button" id="btn-modal-eliminar-alumno" class="btn-secondary btn-modal-eliminar" style="display:none; height:42px; padding:0 18px; box-sizing:border-box;" title="Eliminar ficha permanentemente (Solo Administrador)">🗑️ Eliminar</button>
                     </div>
                 </div>
             </form>
@@ -1335,6 +1335,7 @@
             <div class="modal-drag-pill"></div>
             <h3 id="titulo-prealta" style="margin:0 0 12px 0; color:var(--text-main); font-weight:700;">Iniciar Pre-Alta</h3>
             <input type="hidden" id="prealta-alumno-id">
+            <input type="hidden" id="prealta-es-propuesta" value="false">
             <div id="prealta-info-banner" style="display:none; background:var(--hover-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 12px; font-size:12.5px; margin-bottom:15px; color:var(--text-muted); line-height:1.4;"></div>
             
             <!-- 1. Selector Tipo de Ensamble (visible SOLO si la suscripción es ensamble) -->
@@ -1359,6 +1360,28 @@
                         <option value="">Seleccionar instrumento...</option>
                     </select>
                 </label>
+            </div>
+
+            <!-- 2.1 Selector Modalidad / Pack de Clases Individuales (visible SOLO para clases individuales) -->
+            <div id="prealta-campo-pack-individual" style="display:none; margin-bottom:14px;">
+                <label style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:6px;">MODALIDAD / PACK DE CLASES</label>
+                <div style="display:flex; flex-direction:column; gap:8px; background:var(--hover-bg); padding:12px 14px; border-radius:8px; border:1px solid var(--border-color);">
+                    <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; cursor:pointer; margin:0; text-transform:none; color:var(--text-main);">
+                        <input type="radio" name="prealta-pack-individual" value="suelta" style="accent-color:var(--accent-teal);">
+                        <span>1 Clase Suelta</span>
+                        <span id="prealta-arancel-suelta-tag" style="margin-left:auto; color:var(--accent-teal); font-weight:700;">$15.000</span>
+                    </label>
+                    <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; cursor:pointer; margin:0; text-transform:none; color:var(--text-main);">
+                        <input type="radio" name="prealta-pack-individual" value="quincenal" style="accent-color:var(--accent-teal);">
+                        <span>2 Clases (Quincenal)</span>
+                        <span id="prealta-arancel-quincenal-tag" style="margin-left:auto; color:var(--accent-teal); font-weight:700;">$25.000</span>
+                    </label>
+                    <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; cursor:pointer; margin:0; text-transform:none; color:var(--text-main);">
+                        <input type="radio" name="prealta-pack-individual" value="fullpack" checked style="accent-color:var(--accent-teal);">
+                        <span>4 Clases (Full Pack Mensual)</span>
+                        <span id="prealta-arancel-fullpack-tag" style="margin-left:auto; color:var(--accent-teal); font-weight:700;">$45.000</span>
+                    </label>
+                </div>
             </div>
 
             <!-- 2. Asignación grupal por alumno -->
@@ -1448,6 +1471,37 @@
         </div>
     </dialog>
 
+    <!-- MODAL CONFIRMAR / DESMARCAR VALIDACIÓN CON NOTAS DEL COORDINADOR -->
+    <dialog id="modal-confirmar-validacion-alumno" class="modern-modal auto-height-modal" style="max-width:480px;">
+        <div style="padding:24px;">
+            <div class="modal-drag-pill"></div>
+            <h3 id="val-nota-modal-titulo" style="margin:0 0 12px 0; color:var(--text-main); font-weight:700; display:flex; align-items:center; gap:8px;">
+                <span id="val-nota-icono">✅</span> <span id="val-nota-titulo-txt">Confirmar Disponibilidad de Alumno</span>
+            </h3>
+            <input type="hidden" id="val-nota-alumno-id">
+            <input type="hidden" id="val-nota-accion" value="confirmar">
+            <input type="hidden" id="val-nota-grupo-nombre">
+            
+            <div id="val-nota-info-box" style="background:var(--hover-bg); border:1px solid var(--border-color); border-radius:10px; padding:12px; font-size:12.5px; margin-bottom:14px; color:var(--text-main); line-height:1.45;">
+            </div>
+
+            <div id="val-nota-instruccion-box" style="margin-bottom:12px; font-size:12px; color:var(--text-muted); line-height:1.4;">
+            </div>
+
+            <div style="margin-bottom:16px;">
+                <label style="font-size:12px; font-weight:700; color:var(--text-main); display:block; margin-bottom:6px;">Observaciones / Notas del Coordinador:
+                    <textarea id="val-nota-observacion" class="modern-input" style="height:90px; font-family:inherit; font-size:12.5px; line-height:1.4; resize:vertical;" placeholder="Escribe aquí las observaciones..."></textarea>
+                </label>
+                <div id="val-nota-obligatorio-aviso" style="display:none; font-size:11px; color:var(--accent-red); font-weight:600; margin-top:4px;">* La observación es obligatoria para desmarcar.</div>
+            </div>
+
+            <div style="display:flex; gap:10px; justify-content:flex-end; border-top:1px solid var(--border-color); padding-top:14px;">
+                <button type="button" class="btn-cerrar-modal" data-modal="modal-confirmar-validacion-alumno" style="padding:10px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted);">Cancelar</button>
+                <button id="btn-guardar-confirmacion-validacion" class="btn-primary" style="padding:10px 18px; font-weight:700;">✅ Confirmar</button>
+            </div>
+        </div>
+    </dialog>
+
     <!-- MODAL DE DISCREPANCIA / RESOLUCIÓN DE CALENDAR -->
     <dialog id="modal-discrepancia-calendar" class="modern-modal" style="max-width:520px; width:92%; border-radius:12px; padding:0; overflow:hidden;">
         <div style="background:var(--card-bg, #fff); padding:20px 24px; border-bottom:1px solid var(--border-color);">
@@ -1526,11 +1580,6 @@
             <label style="display:block; margin-bottom:12px; font-weight:600; font-size:13px; color:var(--text-main);">Motivo de suspensión: 
                 <select id="susp-motivo" class="modern-input" required style="margin-top:5px; width:100%;">
                     <option value="">Seleccione...</option>
-                    <option value="Arrepentido">Arrepentido</option>
-                    <option value="No responde">No responde</option>
-                    <option value="No se logra acordar agenda por falta de disponibilidad">No se logra acordar agenda por falta de disponibilidad</option>
-                    <option value="Problemas económicos">Problemas económicos</option>
-                    <option value="Otro">Otro</option>
                 </select>
             </label>
             <label style="display:block; margin-bottom:15px; font-weight:600; font-size:13px; color:var(--text-main);">Información adicional (opcional):
@@ -1637,6 +1686,66 @@
                 <div style="margin-top:15px; border-top:1px solid var(--border-color); padding-top:15px;">
                     <strong style="display:block; margin-bottom:10px; color:var(--text-muted);">Disponibilidad del Profesor:</strong>
                     <div id="contenedor-disponibilidad-profe" style="display:flex; flex-direction:column; gap:8px;"></div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN EDICIÓN DE ARANCELES PARA SUSCRIPCIONES -->
+            <div id="div-abm-edit-suscripcion" style="display:none; margin-top:14px;">
+                <div style="background:#f8fafc; border:1.5px solid rgba(0, 123, 143, 0.25); border-radius:10px; padding:14px; margin-bottom:10px;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                        <span style="font-size:1.2em;">💵</span>
+                        <strong style="color:var(--text-main); font-size:13.5px;">Aranceles Asociados a esta Suscripción</strong>
+                    </div>
+                    <p style="font-size:12px; color:var(--text-muted); margin:0 0 12px 0; line-height:1.4;">
+                        Los aranceles que configures aquí se mostrarán como leyenda en la tarjeta de suscripción y se aplicarán automáticamente a las pre-altas y mensajes.
+                    </p>
+
+                    <!-- Bloque Dinámico: Clases Individuales -->
+                    <div id="abm-susc-bloque-individual" style="display:none;">
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+                            <label style="font-size:12px; font-weight:600; color:var(--text-muted); margin:0;">Clase Suelta:
+                                <input type="text" id="abm-susc-ind-suelta" class="modern-input cfg-arancel-input" placeholder="Ej: $15.000">
+                            </label>
+                            <label style="font-size:12px; font-weight:600; color:var(--text-muted); margin:0;">Quincenal (2 clases):
+                                <input type="text" id="abm-susc-ind-quincenal" class="modern-input cfg-arancel-input" placeholder="Ej: $25.000">
+                            </label>
+                        </div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                            <label style="font-size:12px; font-weight:600; color:var(--text-muted); margin:0;">Full Pack (Mensual):
+                                <input type="text" id="abm-susc-ind-fullpack" class="modern-input cfg-arancel-input" placeholder="Ej: $45.000">
+                            </label>
+                            <label style="font-size:12px; font-weight:600; color:var(--text-muted); margin:0;">Full Pack Comunidad / Antiguos:
+                                <input type="text" id="abm-susc-ind-fullpack-comunidad" class="modern-input cfg-arancel-input" placeholder="Ej: $40.000">
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Bloque Dinámico: Ensamble -->
+                    <div id="abm-susc-bloque-ensamble" style="display:none;">
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+                            <label style="font-size:12px; font-weight:600; color:var(--text-muted); margin:0;">Ensamble Regular:
+                                <input type="text" id="abm-susc-ens-regular" class="modern-input cfg-arancel-input" placeholder="Ej: $28.000">
+                            </label>
+                            <label style="font-size:12px; font-weight:600; color:var(--text-muted); margin:0;">Ensamble Mandalorian:
+                                <input type="text" id="abm-susc-ens-mandalorian" class="modern-input cfg-arancel-input" placeholder="Ej: $35.000">
+                            </label>
+                        </div>
+                        <label style="font-size:12px; font-weight:600; color:var(--text-muted); margin:0;">Valor Comunidad / Antiguos:
+                            <input type="text" id="abm-susc-ens-comunidad" class="modern-input cfg-arancel-input" placeholder="Ej: $30.000">
+                        </label>
+                    </div>
+
+                    <!-- Bloque Dinámico: Clases Grupales y Genéricas -->
+                    <div id="abm-susc-bloque-grupal" style="display:none;">
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                            <label style="font-size:12px; font-weight:600; color:var(--text-muted); margin:0;">Arancel Regular / Mensual:
+                                <input type="text" id="abm-susc-grupal-regular" class="modern-input cfg-arancel-input" placeholder="Ej: $25.000">
+                            </label>
+                            <label style="font-size:12px; font-weight:600; color:var(--text-muted); margin:0;">Arancel Comunidad / Antiguos:
+                                <input type="text" id="abm-susc-grupal-comunidad" class="modern-input cfg-arancel-input" placeholder="Ej: $20.000">
+                            </label>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -2466,12 +2575,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=6.5.1"></script>
+    <script type="module" src="app.js?v=6.6.5"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=6.5.1').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=6.6.5').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {

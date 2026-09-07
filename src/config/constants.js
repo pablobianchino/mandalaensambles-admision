@@ -2,7 +2,7 @@
 // src/config/constants.js — Constantes globales del sistema
 // =======================================================================
 
-export const APP_VERSION = "v6.5.1";
+export const APP_VERSION = "v6.6.5";
 export const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 export const firebaseConfig = {
@@ -55,8 +55,18 @@ export const defaultCfg = {
     arancel_ensamble_regular: '',
     arancel_ensamble_actual: '',
     arancel_ensamble_comunidad: '',
+    arancel_grupal_regular: '',
+    arancel_grupal_comunidad: '',
     grupo_min_integrantes: 2,
     grupo_max_integrantes: 6,
+    motivos_suspension: [
+        'Arrepentido',
+        'No responde',
+        'No se logra acordar agenda por falta de disponibilidad',
+        'Problemas económicos',
+        'Horarios incompatibles',
+        'Otro'
+    ],
     reglas_edad_match: [
         { desde: 20, rango_min: -4, rango_max: 8 },
         { desde: 30, rango_min: -5, rango_max: 8 },
@@ -73,7 +83,7 @@ export function esAlumnoAltaFinalizada(d) {
     if (!d) return false;
     const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
     if (st === 'alta finalizada') return true;
-    if (st !== 'alta efectiva' && st !== 'alta ilegal') return false;
+    if (st !== 'alta efectiva' && st !== 'alta ilegal' && st !== 'alta confirmada') return false;
     const checks = d.checklist_alta;
     if (!Array.isArray(checks) || checks.length === 0) return false;
     const completados = checks.filter(Boolean).length;
@@ -83,7 +93,7 @@ export function esAlumnoAltaFinalizada(d) {
 export function esAlumnoAltaConfirmadaIncompleta(d) {
     if (!d) return false;
     const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-    if (st !== 'alta efectiva' && st !== 'alta ilegal') return false;
+    if (st !== 'alta efectiva' && st !== 'alta ilegal' && st !== 'alta confirmada') return false;
     return !esAlumnoAltaFinalizada(d);
 }
 
@@ -108,7 +118,7 @@ export const configNodosFlujo = [
         const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
         return st === 'lista de espera';
     }},
-    { id: 'Validando Grupo', label: 'Grupos en Validación', icon: '👥', color: 'node-purple', hexColor: '#8e44ad', vistaDestino: 'Match - En Validacion', filterFn: (d) => {
+    { id: 'Validando Grupo', label: 'Grupos y Alumnos en Validación', icon: '👥', color: 'node-purple', hexColor: '#8e44ad', vistaDestino: 'Match - En Validacion', filterFn: (d) => {
         const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
         return st === 'validando grupo';
     }},
@@ -133,7 +143,7 @@ export const configNodosFlujoCoordinador = [
         const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
         return st === 'lista de espera';
     }},
-    { id: 'Validando Grupo', label: 'Grupos en Validación', icon: '👥', color: 'node-purple', hexColor: '#8e44ad', vistaDestino: 'Match - En Validacion', filterFn: (d) => {
+    { id: 'Validando Grupo', label: 'Grupos y Alumnos en Validación', icon: '👥', color: 'node-purple', hexColor: '#8e44ad', vistaDestino: 'Match - En Validacion', filterFn: (d) => {
         const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
         return st === 'validando grupo';
     }},

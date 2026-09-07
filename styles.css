@@ -618,6 +618,15 @@ body {
     background: rgba(0, 123, 143, 0.05);
     border-color: var(--accent-teal);
 }
+.row-quick-btn.success {
+    color: #16a34a;
+    border-color: rgba(22, 163, 74, 0.3);
+    background: #ffffff;
+}
+.row-quick-btn.success:hover {
+    background: rgba(22, 163, 74, 0.08);
+    border-color: #16a34a;
+}
 .row-quick-btn.secondary {
     color: var(--text-muted);
     border-color: var(--border-color);
@@ -645,8 +654,12 @@ body {
 .alumno-actions { position: relative; z-index: 1001; }
 .row-item:has(.dropdown-menu-wrapper.show),
 .swipe-wrapper:has(.dropdown-menu-wrapper.show),
+.group-member-row:has(.dropdown-menu-wrapper.show),
+.group-box-card:has(.dropdown-menu-wrapper.show),
 .row-item.has-open-dropdown,
-.swipe-wrapper.has-open-dropdown {
+.swipe-wrapper.has-open-dropdown,
+.group-member-row.has-open-dropdown,
+.group-box-card.has-open-dropdown {
     z-index: 1000 !important;
     overflow: visible !important;
 }
@@ -1169,6 +1182,17 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
     background: #f8fafc;
     border-color: #94a3b8;
     color: #0f172a;
+}
+.btn-modal-eliminar {
+    background: #ffffff !important;
+    color: var(--accent-red) !important;
+    border: 1px solid rgba(194, 86, 59, 0.35) !important;
+    font-weight: 700 !important;
+}
+.btn-modal-eliminar:hover {
+    background: #fef2f2 !important;
+    border-color: var(--accent-red) !important;
+    color: #a3432a !important;
 }
 .btn-cerrar-modal {
     background: #ffffff;
@@ -1777,7 +1801,8 @@ label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transf
     vertical-align: middle;
 }
 
-.status-val-ok {
+.status-val-ok,
+.status-alta-confirmada {
     background: #f0fdf4;
     color: #166534;
     border: 1px solid #bbf7d0;

@@ -3,7 +3,7 @@
 // =======================================================================
 
 import { getEmojiInstrumento } from "./altas.module.js";
-import { esAlumnoAltaFinalizada } from "../config/constants.js?v=6.5.1";
+import { esAlumnoAltaFinalizada } from "../config/constants.js?v=6.6.3";
 import { db, doc, updateDoc } from "../config/firebase.js";
 
 export function getEstadoYBadge(al, getFechaReferenciaAlumno) {
@@ -133,7 +133,7 @@ export function generarBotonesPrincipalesVisibles(al, id) {
         html += `<button type="button" class="row-quick-btn primary btn-recuperar-agenda" data-id="${id}">♻️ Recuperar Agenda</button>`;
         html += `<button type="button" class="row-quick-btn secondary btn-copiar-aviso-cancelacion" data-id="${id}">💬 Avisar Cancelación a Profe</button>`;
     } else if (est === 'lista de espera') {
-        html += `<button type="button" class="row-quick-btn primary btn-abrir-prealta" data-id="${id}">⚙️ Iniciar Pre-Alta</button>`;
+        html += `<button type="button" class="row-quick-btn primary btn-abrir-propuesta-espera" data-id="${id}">🧩 Armar Propuesta</button>`;
     } else if (est === 'validando grupo') {
         const isConfirmed = al.estado_validacion_alumno === 'confirmado';
         html += `<button type="button" class="row-quick-btn secondary" onclick="window.enviarWhatsAppValidacionGrupo('${id}')">💬 WhatsApp</button>`;
@@ -214,7 +214,7 @@ export function generarBotonesAccion(al, id, esModal = false) {
             const esBici = !!al.es_bicicleta;
             const celSafe = (al.celular || al.telefono || '').replace(/'/g, "\\'");
             const nombreSafe = (al.nombre || '').replace(/'/g, "\\'");
-            html += `<button type="button" class="btn-action-primary btn-abrir-prealta" data-id="${id}">⚙️ Iniciar Pre-Alta</button>`;
+            html += `<button type="button" class="btn-action-primary btn-abrir-propuesta-espera" data-id="${id}">🧩 Armar Propuesta de Clase</button>`;
             html += `<button type="button" class="btn-action-neutral" onclick="window.abrirModalRegistrarContacto('${id}', '${nombreSafe}', '${celSafe}', ${esBici})">📞 Registrar Contacto</button>`;
             if (!esBici) {
                 html += `<button type="button" class="btn-action-neutral" onclick="window.toggleBicicletaAlumno('${id}', true, '${nombreSafe}')">🚲 Enviar a Bicicleta</button>`;
@@ -240,7 +240,7 @@ export function generarBotonesAccion(al, id, esModal = false) {
             html += `<button type="button" class="btn-action-neutral btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
             html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
             html += `<button type="button" class="btn-action-neutral btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
-        } else if (est === 'alta efectiva' || est === 'alta ilegal' || est === 'alta finalizada') {
+        } else if (est === 'alta efectiva' || est === 'alta ilegal' || est === 'alta finalizada' || est === 'alta confirmada' || est.startsWith('alta')) {
             const esFinalizada = esAlumnoAltaFinalizada(al);
             if (!esFinalizada) {
                 html += `<button type="button" class="btn-action-primary btn-finalizar-alta-directa" data-id="${id}">🏁 Finalizar Alta</button>`;
