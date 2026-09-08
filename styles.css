@@ -2871,8 +2871,31 @@ button.btn-prio-filtro.prio-proximos.active,
     background: #2563eb;
     color: #ffffff;
     padding: 1px 4px;
-    border-radius: 3px;
-    margin-left: 3px;
+}
+
+/* Chips compactos en línea para selección de profesores en buscador de agenda */
+#chips-profesores {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    margin-top: 6px !important;
+}
+#chips-profesores > div {
+    display: inline-flex !important;
+    align-items: center !important;
+    width: auto !important;
+    max-width: fit-content !important;
+    white-space: nowrap !important;
+    box-sizing: border-box !important;
+}
+.profe-schedule-multi-card {
+    background: #ffffff;
+    border: 1px solid #bae6fd;
+    border-radius: 8px;
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
 /* =======================================================================

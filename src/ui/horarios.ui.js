@@ -261,8 +261,13 @@ export function extraerDisponibilidadMultiRango(containerRef = false, hApe = '09
             const items = rangosList ? rangosList.querySelectorAll('.rango-item') : [];
             const arr = [];
             items.forEach(item => {
-                const rawI = item.querySelector('.rango-inicio')?.value || '';
-                const rawF = item.querySelector('.rango-fin')?.value || '';
+                const inpI = item.querySelector('.rango-inicio');
+                const inpF = item.querySelector('.rango-fin');
+                if (inpI && inpI.validity && inpI.validity.badInput) inpI.value = '';
+                if (inpF && inpF.validity && inpF.validity.badInput) inpF.value = '';
+
+                const rawI = inpI?.value || '';
+                const rawF = inpF?.value || '';
                 const i = normalizarHora(rawI, '');
                 const f = normalizarHora(rawF, '');
                 if (i || f) {
@@ -321,6 +326,23 @@ export function inicializarAutocompletadoHorarios() {
             }
         }
         inputDigitsMap.set(target, '');
+
+        // Si el control quedó con formato incompleto (ej: minutos solos --:00 o badInput), limpiar completamente
+        if (target.validity && target.validity.badInput) {
+            target.value = '';
+            target.dispatchEvent(new Event('input', { bubbles: true }));
+            target.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    }, true);
+
+    // Prevenir que un input time incompleto bloquee el submit del formulario con "An invalid form control is not focusable"
+    document.addEventListener('invalid', (e) => {
+        const target = e.target;
+        if (target && target.type === 'time') {
+            target.value = '';
+            e.preventDefault();
+            e.stopPropagation();
+        }
     }, true);
 }
 

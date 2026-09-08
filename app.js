@@ -13,7 +13,7 @@ import {
     configNodosFlujoCoordinador,
     esAlumnoAltaFinalizada,
     esAlumnoAltaConfirmadaIncompleta
-} from "./src/config/constants.js?v=6.6.9";
+} from "./src/config/constants.js?v=6.7.0";
 
 import { 
     app, 
@@ -34,7 +34,7 @@ import {
     GoogleAuthProvider, 
     onAuthStateChanged, 
     signOut 
-} from "./src/config/firebase.js?v=6.6.9";
+} from "./src/config/firebase.js?v=6.7.0";
 
 import {
     limpiarHoraParaChip,
@@ -48,7 +48,7 @@ import {
     extraerDisponibilidadMultiRango,
     normalizarHora,
     inicializarAutocompletadoHorarios
-} from "./src/ui/horarios.ui.js?v=6.6.9";
+} from "./src/ui/horarios.ui.js?v=6.7.0";
 
 import {
     getEmojiInstrumento,
@@ -75,7 +75,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=6.6.9";
+} from "./src/services/calendar.service.js?v=6.7.0";
 
 import {
     matchCantidadActual,
@@ -108,11 +108,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=6.6.9";
+} from "./src/modules/match.module.js?v=6.7.0";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=6.6.9";
+} from "./src/modules/profesor.module.js?v=6.7.0";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -135,14 +135,14 @@ import {
     confirmarInicioGrupoAction,
     confirmarAlumnoAltaAction,
     generarChecklistAltaHtml
-} from "./src/modules/altas.module.js?v=6.6.9";
+} from "./src/modules/altas.module.js?v=6.7.0";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=6.6.9";
+} from "./src/modules/dashboard.module.js?v=6.7.0";
 
 import {
     renderConfigHub,
@@ -151,20 +151,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=6.6.9";
+} from "./src/modules/abm.module.js?v=6.7.0";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=6.6.9";
+} from "./src/modules/inbox.module.js?v=6.7.0";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=6.6.9";
+} from "./src/modules/csv.module.js?v=6.7.0";
 
 window.generarBotonesPrincipalesVisibles = generarBotonesPrincipalesVisibles;
 window.generarBotonesAccion = generarBotonesAccion;
@@ -738,17 +738,21 @@ function syncSelectToChips(selectId, containerId) {
     if (!container) {
         container = document.createElement('div');
         container.id = containerId;
-        container.style.display = 'flex';
-        container.style.flexWrap = 'wrap';
-        container.style.gap = '8px';
-        container.style.marginTop = '8px';
         select.parentNode.insertBefore(container, select.nextSibling);
     }
+    container.style.display = 'flex';
+    container.style.flexWrap = 'wrap';
+    container.style.gap = '8px';
+    container.style.marginTop = '6px';
     container.innerHTML = '';
     Array.from(select.options).forEach(opt => {
         if(opt.value === "") return;
         const chip = document.createElement('div');
         chip.textContent = opt.text;
+        chip.style.display = 'inline-flex';
+        chip.style.alignItems = 'center';
+        chip.style.width = 'fit-content';
+        chip.style.whiteSpace = 'nowrap';
         chip.style.padding = '8px 14px';
         chip.style.border = '1px solid var(--border-color)';
         chip.style.borderRadius = '20px';
@@ -6573,14 +6577,14 @@ document.addEventListener('click', async (e) => {
                 const suscStr = al.tipo_suscripcion || 'Ensamble';
 
                 let gridHtml = '';
+                const profesArray = Array.isArray(profeMatchData) ? profeMatchData : (profeMatchData ? [profeMatchData] : []);
                 diasOrdenAgenda.forEach(d => {
                     const rangos = normalizarRangosTexto(disp[d.key]);
                     const hasDisp = rangos.length > 0;
                     
                     let isMatch = false;
-                    if (hasDisp && profeMatchData && profeMatchData.disponibilidad) {
-                        const pRangos = normalizarRangosTexto(profeMatchData.disponibilidad[d.key]);
-                        if (pRangos.length > 0) isMatch = true;
+                    if (hasDisp && profesArray.length > 0) {
+                        isMatch = profesArray.some(pr => pr.disponibilidad && normalizarRangosTexto(pr.disponibilidad[d.key]).length > 0);
                     }
 
                     let cls = 'disp-day-agenda-card';
@@ -6654,15 +6658,57 @@ document.addEventListener('click', async (e) => {
                 if (!selectProfe) return;
 
                 const selectedIds = Array.from(selectProfe.selectedOptions).map(o => o.value).filter(v => v);
+                const profesSeleccionados = selectedIds.map(pId => window._mapaProfesoresAgenda?.[pId]).filter(p => p && p.disponibilidad);
                 
-                if (selectedIds.length === 1) {
-                    const pId = selectedIds[0];
-                    const profe = window._mapaProfesoresAgenda[pId];
-                    if (profe && profe.disponibilidad) {
-                        profesorSeleccionadoActivo = profe;
-                        box.style.display = 'flex';
-                        box.className = 'profe-schedule-agenda-box';
+                if (profesSeleccionados.length === 1) {
+                    const profe = profesSeleccionados[0];
+                    profesorSeleccionadoActivo = profe;
+                    box.style.display = 'flex';
+                    box.className = 'profe-schedule-agenda-box';
 
+                    const diasMatch = [];
+                    const pDisp = profe.disponibilidad || {};
+
+                    const pillsHtml = diasOrdenAgenda.map(d => {
+                        const pRangos = normalizarRangosTexto(pDisp[d.key]);
+                        if (pRangos.length === 0) return '';
+                        const alTieneDia = normalizarRangosTexto(disp[d.key]).length > 0;
+                        if (alTieneDia) diasMatch.push(d.label);
+
+                        return `
+                            <div class="profe-schedule-pill ${alTieneDia ? 'is-match' : ''}">
+                                <strong>${d.label}:</strong> ${pRangos.join(', ')}
+                            </div>
+                        `;
+                    }).filter(x => x).join('');
+
+                    box.innerHTML = `
+                        <div class="profe-schedule-agenda-header">
+                            <div style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:800; color:#0369a1;">
+                                <span>👤</span>
+                                <span>Disponibilidad habitual de <strong>${profe.nombre}</strong> (según Config):</span>
+                            </div>
+                            ${diasMatch.length > 0 ? `
+                                <span style="font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:12px; background:#e0f2fe; color:#0284c7; border:1px solid #7dd3fc;">⚡ Coincide en ${diasMatch.join(', ')}</span>
+                            ` : `
+                                <span style="font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:12px; background:#fef2f2; color:#ef4444; border:1px solid #fca5a5;">⚠️ Sin coincidencia directa de días</span>
+                            `}
+                        </div>
+                        <div style="display:flex; flex-wrap:wrap; gap:5px;">
+                            ${pillsHtml || '<div style="font-size:11.5px; color:#64748b;">Sin franjas horarias cargadas en Config.</div>'}
+                        </div>
+                    `;
+
+                    renderResumenAlumnoAgenda(profe);
+                    return;
+                }
+
+                if (profesSeleccionados.length > 1) {
+                    profesorSeleccionadoActivo = null;
+                    box.style.display = 'flex';
+                    box.className = 'profe-schedule-agenda-box';
+
+                    const cardsHtml = profesSeleccionados.map(profe => {
                         const diasMatch = [];
                         const pDisp = profe.disponibilidad || {};
 
@@ -6679,26 +6725,40 @@ document.addEventListener('click', async (e) => {
                             `;
                         }).filter(x => x).join('');
 
-                        box.innerHTML = `
-                            <div class="profe-schedule-agenda-header">
-                                <div style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:800; color:#0369a1;">
-                                    <span>👤</span>
-                                    <span>Disponibilidad habitual de <strong>${profe.nombre}</strong> (según Config):</span>
+                        return `
+                            <div class="profe-schedule-multi-card">
+                                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                                    <div style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:800; color:#0369a1;">
+                                        <span>👤</span>
+                                        <span>Disponibilidad de <strong>${profe.nombre}</strong>:</span>
+                                    </div>
+                                    ${diasMatch.length > 0 ? `
+                                        <span style="font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:12px; background:#e0f2fe; color:#0284c7; border:1px solid #7dd3fc;">⚡ Coincide en ${diasMatch.join(', ')}</span>
+                                    ` : `
+                                        <span style="font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:12px; background:#fef2f2; color:#ef4444; border:1px solid #fca5a5;">⚠️ Sin coincidencia directa</span>
+                                    `}
                                 </div>
-                                ${diasMatch.length > 0 ? `
-                                    <span style="font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:12px; background:#e0f2fe; color:#0284c7; border:1px solid #7dd3fc;">⚡ Coincide en ${diasMatch.join(', ')}</span>
-                                ` : `
-                                    <span style="font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:12px; background:#fef2f2; color:#ef4444; border:1px solid #fca5a5;">⚠️ Sin coincidencia directa de días</span>
-                                `}
-                            </div>
-                            <div style="display:flex; flex-wrap:wrap; gap:5px;">
-                                ${pillsHtml || '<div style="font-size:11.5px; color:#64748b;">Sin franjas horarias cargadas en Config.</div>'}
+                                <div style="display:flex; flex-wrap:wrap; gap:5px; margin-top:2px;">
+                                    ${pillsHtml || '<div style="font-size:11.5px; color:#64748b;">Sin franjas horarias cargadas en Config.</div>'}
+                                </div>
                             </div>
                         `;
+                    }).join('');
 
-                        renderResumenAlumnoAgenda(profe);
-                        return;
-                    }
+                    box.innerHTML = `
+                        <div class="profe-schedule-agenda-header">
+                            <div style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:800; color:#0369a1;">
+                                <span>👥</span>
+                                <span>Disponibilidad habitual de los <strong>${profesSeleccionados.length} evaluadores seleccionados</strong> (según Config):</span>
+                            </div>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:8px; max-height:220px; overflow-y:auto; padding-right:2px;">
+                            ${cardsHtml}
+                        </div>
+                    `;
+
+                    renderResumenAlumnoAgenda(profesSeleccionados);
+                    return;
                 }
 
                 box.style.display = 'none';
