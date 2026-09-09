@@ -1839,6 +1839,78 @@ function getFechaReferenciaAlumno(al) {
 const getEstadoYBadgeLocal = (al) => getEstadoYBadge(al, getFechaReferenciaAlumno);
 
 // =======================================================================
+// HELPER UNIFICADO: OBTENER FECHA DE INGRESO / POSTULACIÓN DEL ALUMNO
+// =======================================================================
+function parsearFechaCualquierOrigen(val) {
+    if (!val) return null;
+    if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
+    if (typeof val === 'number') {
+        if (val > 1577836800000 && val < 2524608000000) {
+            const d = new Date(val);
+            if (!isNaN(d.getTime())) return d;
+        }
+        return null;
+    }
+    if (typeof val === 'string') {
+        const str = val.trim();
+        if (!str) return null;
+        if (str.includes('-')) {
+            const dIso = new Date(str);
+            if (!isNaN(dIso.getTime())) return dIso;
+        }
+        const m = str.match(/(?:^|\[|\s)(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})(?:\s+(\d{1,2}):(\d{2}))?/);
+        if (m) {
+            const dia = parseInt(m[1], 10);
+            const mes = parseInt(m[2], 10) - 1;
+            let anio = parseInt(m[3], 10);
+            if (anio < 100) anio += 2000;
+            const hora = m[4] ? parseInt(m[4], 10) : 12;
+            const min = m[5] ? parseInt(m[5], 10) : 0;
+            const dLat = new Date(anio, mes, dia, hora, min);
+            if (!isNaN(dLat.getTime())) return dLat;
+        }
+    }
+    return null;
+}
+
+export function obtenerFechaIngresoAlumno(al) {
+    if (!al) return null;
+    const campos = [
+        al.fecha_ingreso,
+        al.fecha_creacion,
+        al.createdAt,
+        al.fecha,
+        al.timestamp,
+        al.fecha_ingreso_espera,
+        al.informe_entrevista?.fecha_evaluacion
+    ];
+    for (let i = 0; i < campos.length; i++) {
+        const p = parsearFechaCualquierOrigen(campos[i]);
+        if (p) return p;
+    }
+
+    if (Array.isArray(al.historial) && al.historial.length > 0) {
+        for (let i = 0; i < al.historial.length; i++) {
+            const h = al.historial[i];
+            if (!h) continue;
+            if (typeof h === 'string') {
+                const p = parsearFechaCualquierOrigen(h);
+                if (p) return p;
+            } else if (typeof h === 'object') {
+                const p1 = parsearFechaCualquierOrigen(h.fecha_iso || h.fecha || h.texto);
+                if (p1) return p1;
+                if (typeof h.id === 'number') {
+                    const p2 = parsearFechaCualquierOrigen(h.id);
+                    if (p2) return p2;
+                }
+            }
+        }
+    }
+    return null;
+}
+window.obtenerFechaIngresoAlumno = obtenerFechaIngresoAlumno;
+
+// =======================================================================
 // CÁLCULO DE MÉTRICAS DE SEGUIMIENTO EN LISTA DE ESPERA & SEMÁFORO
 // =======================================================================
 export function calcularMetricasEspera(al) {
@@ -1849,10 +1921,8 @@ export function calcularMetricasEspera(al) {
     let fechaIngreso = null;
     if (al.fecha_ingreso_espera) {
         fechaIngreso = new Date(al.fecha_ingreso_espera);
-    } else if (al.informe_entrevista?.fecha_evaluacion) {
-        fechaIngreso = new Date(al.informe_entrevista.fecha_evaluacion);
-    } else if (al.fecha_creacion) {
-        fechaIngreso = new Date(al.fecha_creacion);
+    } else {
+        fechaIngreso = obtenerFechaIngresoAlumno(al);
     }
 
     let diasEsperando = 0;
@@ -1932,6 +2002,31 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
     const botonesSecundarios = generarBotonesAccion(al, id);
 
     let datosAlumnoParts = [];
+
+    // Fecha de ingreso visible: EXCLUSIVA para la vista Inbox Sin Agendar (Inbox - Pendientes)
+    const esVistaSinAgendar = (vista === 'Inbox - Pendientes' || estadoActualVista === 'Inbox - Pendientes');
+    if (esVistaSinAgendar) {
+        const fechaIng = obtenerFechaIngresoAlumno(al);
+        if (fechaIng) {
+            const diaStr = String(fechaIng.getDate()).padStart(2, '0');
+            const mesStr = String(fechaIng.getMonth() + 1).padStart(2, '0');
+            const anioStr = fechaIng.getFullYear();
+            const diffDias = Math.max(0, Math.floor((Date.now() - fechaIng.getTime()) / (1000 * 60 * 60 * 24)));
+            const antiguedadTxt = diffDias === 0 ? 'hoy' : (diffDias === 1 ? 'ayer' : `hace ${diffDias}d`);
+
+            let badgeClass = 'badge-ingreso-normal';
+            if (diffDias >= 5) {
+                badgeClass = 'badge-ingreso-urgente';
+            } else if (diffDias >= 3) {
+                badgeClass = 'badge-ingreso-alerta';
+            } else if (diffDias === 0 || diffDias === 1) {
+                badgeClass = 'badge-ingreso-reciente';
+            }
+
+            datosAlumnoParts.push(`<span class="badge-fecha-ingreso ${badgeClass}" title="Fecha de ingreso: ${diaStr}/${mesStr}/${anioStr}">📅 Ingreso: ${diaStr}/${mesStr}/${anioStr} <span class="badge-ingreso-tiempo">(${antiguedadTxt})</span></span>`);
+        }
+    }
+
     if (edad) datosAlumnoParts.push(edad);
     if (al.nivel) datosAlumnoParts.push(`<span class="match-student-tag nivel" style="font-size:10px; padding:2px 7px;">${al.nivel}</span>`);
     if (instStr) datosAlumnoParts.push(`<strong style="color:var(--accent-teal); font-weight:600;">${emojiInst} ${instStr}</strong>`);
@@ -3255,6 +3350,15 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
             if (filtroAlarmaActual === 'Criticos') return info.nivelUrgencia === 'urgente-24' || info.nivelUrgencia === 'urgente-48';
             if (filtroAlarmaActual === 'AlDia') return info.nivelUrgencia === 'programado' || info.nivelUrgencia === 'normal';
             return true;
+        });
+    }
+
+    // Ordenamiento cronológico FIFO (del más viejo al más nuevo) exclusivo para la vista Inbox Sin Agendar
+    if (estadoActualVista === 'Inbox - Pendientes') {
+        filtrados.sort((a, b) => {
+            const fA = typeof obtenerFechaIngresoAlumno === 'function' ? (obtenerFechaIngresoAlumno(a)?.getTime() || Infinity) : Infinity;
+            const fB = typeof obtenerFechaIngresoAlumno === 'function' ? (obtenerFechaIngresoAlumno(b)?.getTime() || Infinity) : Infinity;
+            return fA - fB;
         });
     }
 
@@ -4802,6 +4906,15 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
             } else if (vista === 'Altas - Finalizadas') {
                 dataFiltrada = allData.filter(d => esAlumnoAltaFinalizada(d));
             }
+
+            if (vista === 'Inbox - Pendientes') {
+                dataFiltrada.sort((a, b) => {
+                    const fA = typeof obtenerFechaIngresoAlumno === 'function' ? (obtenerFechaIngresoAlumno(a)?.getTime() || Infinity) : Infinity;
+                    const fB = typeof obtenerFechaIngresoAlumno === 'function' ? (obtenerFechaIngresoAlumno(b)?.getTime() || Infinity) : Infinity;
+                    return fA - fB;
+                });
+            }
+
             if (vista.startsWith('Altas -')) {
                 const queryStr = (document.getElementById('input-buscador-general')?.value || '').trim().toLowerCase();
                 let datosAltas = dataFiltrada;
@@ -4846,7 +4959,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
         }
     } else if (vista === 'Lista de Espera') {
         const btnSyncEspera = document.getElementById('btn-sync-espera-csv');
-        if (btnSyncEspera) btnSyncEspera.style.display = 'inline-flex';
+        if (btnSyncEspera) btnSyncEspera.style.display = 'none';
         try {
             if (!agrupadoresEsperaInicializados) {
                 agrupadorNivel1 = 'suscripcion';
