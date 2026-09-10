@@ -131,9 +131,12 @@ export function generarBotonesPrincipalesVisibles(al, id) {
         html += `<button type="button" class="row-quick-btn secondary btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
     } else if (est === 'agenda suspendida') {
         html += `<button type="button" class="row-quick-btn primary btn-recuperar-agenda" data-id="${id}">♻️ Recuperar Agenda</button>`;
-        html += `<button type="button" class="row-quick-btn secondary btn-copiar-aviso-cancelacion" data-id="${id}">💬 Avisar Cancelación a Profe</button>`;
     } else if (est === 'lista de espera') {
-        html += `<button type="button" class="row-quick-btn primary btn-abrir-propuesta-espera" data-id="${id}">🧩 Armar Propuesta</button>`;
+        const esBici = !!al.es_bicicleta;
+        html += `<button type="button" class="row-quick-btn secondary btn-ver-informe-espera" data-id="${id}">👁️ Ver Informe</button>`;
+        if (!esBici) {
+            html += `<button type="button" class="row-quick-btn primary btn-abrir-propuesta-espera" data-id="${id}">🧩 Armar Propuesta</button>`;
+        }
     } else if (est === 'validando grupo') {
         const isConfirmed = al.estado_validacion_alumno === 'confirmado';
         html += `<button type="button" class="row-quick-btn secondary" onclick="window.enviarWhatsAppValidacionGrupo('${id}')">💬 WhatsApp</button>`;
@@ -214,6 +217,7 @@ export function generarBotonesAccion(al, id, esModal = false) {
             const esBici = !!al.es_bicicleta;
             const celSafe = (al.celular || al.telefono || '').replace(/'/g, "\\'");
             const nombreSafe = (al.nombre || '').replace(/'/g, "\\'");
+            html += `<button type="button" class="btn-action-primary btn-ver-informe-espera" data-id="${id}">👁️ Ver Informe</button>`;
             html += `<button type="button" class="btn-action-primary btn-abrir-propuesta-espera" data-id="${id}">🧩 Armar Propuesta de Clase</button>`;
             html += `<button type="button" class="btn-action-neutral" onclick="window.abrirModalRegistrarContacto('${id}', '${nombreSafe}', '${celSafe}', ${esBici})">📞 Registrar Contacto</button>`;
             if (!esBici) {
@@ -221,7 +225,6 @@ export function generarBotonesAccion(al, id, esModal = false) {
             } else {
                 html += `<button type="button" class="btn-action-neutral" onclick="window.toggleBicicletaAlumno('${id}', false, '${nombreSafe}')">↩️ Quitar de Bicicleta</button>`;
             }
-            html += `<button type="button" class="btn-action-neutral btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Agenda WS</button>`;
             html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
             html += `<button type="button" class="btn-action-neutral btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
         } else if (est === 'validando grupo') {
@@ -296,7 +299,6 @@ export function generarBotonesAccion(al, id, esModal = false) {
         } else {
             html += `<button type="button" class="dropdown-item" onclick="window.toggleBicicletaAlumno('${id}', false, '${nombreSafe}')">↩️ Quitar de Bicicleta</button>`;
         }
-        html += `<button type="button" class="dropdown-item btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Agenda WS</button>`;
         html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
         html += `<button type="button" class="dropdown-item btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
     } else if (est === 'validando grupo') {

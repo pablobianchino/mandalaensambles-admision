@@ -2248,7 +2248,7 @@ export function generarChecklistAltaHtml(id, al) {
     const barColor = completados === 4 ? 'var(--accent-teal)' : (completados >= 2 ? '#e5a93d' : 'var(--accent-red)');
 
     return `
-        <div id="chk-wrapper-${id}" class="alta-checklist-wrapper" style="margin-top:6px; margin-bottom:2px; padding:8px 12px; background:var(--hover-bg); border-radius:10px; border:1px solid var(--border-color); cursor:pointer; min-width:215px; width:100%; box-sizing:border-box; user-select:none;" onclick="event.stopPropagation(); window.toggleChecklistPill(this);" title="Clic para ver o completar los pasos del checklist">
+        <div id="chk-wrapper-${id}" class="alta-checklist-wrapper" style="margin-top:6px; margin-bottom:2px; padding:8px 12px; background:var(--hover-bg); border-radius:10px; border:1px solid var(--border-color); cursor:pointer; min-width:215px; width:100%; box-sizing:border-box; user-select:none; height:auto; min-height:auto;" onclick="event.stopPropagation(); window.toggleChecklistPill(this);" title="Clic para ver o completar los pasos del checklist">
             <div style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:12px;">
                 <div style="display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:var(--text-main);">
                     <span id="chk-icon-${id}" style="font-size:9px; color:#64748b; transition:transform 0.2s ease; display:inline-block;">▶</span>

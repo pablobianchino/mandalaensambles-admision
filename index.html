@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=6.7.2">
+    <link rel="stylesheet" href="styles.css?v=6.7.7">
 
     <style>
         /* Estilos Críticos de Widget de Perfil y Popover Google-Style */
@@ -131,11 +131,14 @@
             margin-top: 2px;
             word-break: break-all;
         }
-        .popover-body {
-            padding: 14px 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
+        .google-profile-popover .popover-body {
+            padding: 14px 16px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            flex-wrap: nowrap !important;
+            gap: 12px !important;
+            max-height: none !important;
+            overflow-y: visible !important;
         }
         .role-switch-section {
             background: #f8fafc;
@@ -344,7 +347,7 @@
                     <button type="button" id="btn-quick-test-notif" onclick="window.abrirModalTestNotificacion()" class="btn-app btn-secondary" style="font-size:11px; height:28px; padding:0 8px; flex:1; justify-content:center; color:var(--accent-teal); border-color:var(--accent-teal); background:rgba(0,123,143,0.05); font-weight:700;" title="Probar notificación push de entrevista en celular o PC">🔔 Test Notificación</button>
                     <a href="guia-evaluadores.html" target="_blank" class="btn-app btn-secondary" style="font-size:11px; height:28px; padding:0 8px; justify-content:center; text-decoration:none; display:inline-flex; align-items:center;" title="Abrir Guía Paso a Paso para Evaluadores">📖 Guía</a>
                 </div>
-                <div id="sidebar-version-label" style="font-size: 11px; color: var(--text-light); text-align: left; font-weight: 600; padding: 2px 6px;">v6.7.2</div>
+                <div id="sidebar-version-label" style="font-size: 11px; color: var(--text-light); text-align: left; font-weight: 600; padding: 2px 6px;">v6.7.6</div>
             </div>
         </aside>
 
@@ -964,39 +967,49 @@
                                     <div id="modal-informe-evaluador-val" style="font-size:13px; font-weight:700; color:var(--accent-teal); margin-top:2px;">-</div>
                                 </div>
                             </div>
-                            <button type="button" id="btn-corregir-entrevista-admin" class="btn-app btn-secondary" style="display:none; font-size:11.5px; font-weight:700; padding:4px 10px; height:30px; border-color:var(--border-color); cursor:pointer;" title="Solo Administrador: Corregir manualmente">
-                                ✏️ Corregir Datos (Admin)
+                            <button type="button" id="btn-corregir-entrevista-admin" class="btn-app btn-secondary" style="display:none; font-size:11.5px; font-weight:700; padding:4px 10px; height:30px; border-color:var(--border-color); cursor:pointer;" title="Corregir manualmente evaluador y fecha">
+                                🛠️ Corregir Datos
                             </button>
                         </div>
 
                         <div id="modal-informe-entrevista-edit" style="display:none; background:#fff; border:1px solid var(--accent-teal); border-radius:8px; padding:12px; flex-direction:column; gap:10px;">
                             <div style="font-size:11.5px; font-weight:800; color:var(--accent-teal); text-transform:uppercase; display:flex; align-items:center; gap:6px;">
-                                🛠️ Corrección Manual de Entrevista (Administrador)
+                                🛠️ Corrección Manual de Entrevista
                             </div>
-                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; align-items:flex-end;">
                                 <div>
-                                    <label style="font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:3px; display:block;">📅 Fecha y Hora de Entrevista</label>
-                                    <input type="text" id="modal-informe-fecha-edit-input" class="modern-input" placeholder="Ej: Lunes 24/8 16:30hs" style="height:32px; font-size:12px; font-weight:600; width:100%;">
+                                    <label style="font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:4px; display:block;">📅 Fecha y Hora de Entrevista</label>
+                                    <input type="text" id="modal-informe-fecha-edit-input" class="modern-input" placeholder="Ej: Lunes 24/8 16:30hs" style="height:38px; padding:6px 12px; font-size:13px; font-weight:600; width:100%; box-sizing:border-box;">
                                 </div>
                                 <div>
-                                    <label style="font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:3px; display:block;">👨‍🏫 Evaluador a Cargo</label>
-                                    <div style="display:flex; gap:6px;">
-                                        <select id="modal-informe-evaluador-select" class="modern-input" style="height:32px; font-size:12px; font-weight:600; flex:1;">
+                                    <label style="font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:4px; display:block;">👨‍🏫 Evaluador a Cargo</label>
+                                    <div style="display:flex; gap:6px; align-items:center;">
+                                        <select id="modal-informe-evaluador-select" class="modern-input" style="height:38px; padding:6px 12px; font-size:13px; font-weight:600; flex:1; box-sizing:border-box; line-height:normal;">
                                             <option value="">Seleccionar evaluador...</option>
                                         </select>
-                                        <input type="text" id="modal-informe-evaluador-custom-input" class="modern-input" placeholder="O escribir nombre..." style="height:32px; font-size:12px; flex:1; display:none;">
-                                        <button type="button" id="btn-toggle-evaluador-custom" class="btn-app btn-secondary" style="font-size:11px; height:32px; padding:0 8px; cursor:pointer;" title="Alternar entre lista o escribir nombre libre">✏️</button>
+                                        <input type="text" id="modal-informe-evaluador-custom-input" class="modern-input" placeholder="O escribir nombre..." style="height:38px; padding:6px 12px; font-size:13px; flex:1; display:none; box-sizing:border-box;">
+                                        <button type="button" id="btn-toggle-evaluador-custom" class="btn-app btn-secondary" style="font-size:13px; height:38px; width:38px; padding:0; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0;" title="Alternar entre lista o escribir nombre libre">✏️</button>
                                     </div>
                                 </div>
                             </div>
-                            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:4px;">
-                                <button type="button" id="btn-cancelar-entrevista-admin" class="btn-app btn-secondary" style="height:30px; font-size:11.5px; padding:0 12px; cursor:pointer;">✖ Cancelar</button>
-                                <button type="button" id="btn-guardar-entrevista-admin" class="btn-app btn-primary" style="height:30px; font-size:11.5px; padding:0 14px; background:var(--accent-teal); cursor:pointer;">💾 Guardar Corrección</button>
+                            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+                                <button type="button" id="btn-cancelar-entrevista-admin" class="btn-app btn-secondary" style="height:34px; font-size:12px; padding:0 14px; cursor:pointer;">✖ Cancelar</button>
+                                <button type="button" id="btn-guardar-entrevista-admin" class="btn-app btn-primary" style="height:34px; font-size:12px; padding:0 16px; background:var(--accent-teal); cursor:pointer;">💾 Guardar Corrección</button>
                             </div>
                         </div>
                     </div>
                     <div id="aviso-informe-bloqueado" style="display:none; background:var(--hover-bg); color:var(--accent-red); padding:10px; border-radius:8px; margin-bottom:15px; font-weight:600; font-size:13px;">
                         ⚠️ El informe de admisión solo se puede completar una vez que la entrevista esté confirmada.
+                    </div>
+
+                    <!-- BARRA DE INFORMES MÚLTIPLES -->
+                    <div id="ficha-informes-mult-header" style="display:flex; justify-content:space-between; align-items:center; border-top:1px dashed var(--border-color); padding-top:12px; margin-top:5px; margin-bottom:10px;">
+                        <span style="font-size:12.5px; font-weight:800; color:var(--text-main); display:flex; align-items:center; gap:6px;">
+                            <span>📑</span> Informes de Admisión Registrados (<span id="ficha-informes-count">1</span>)
+                        </span>
+                        <button type="button" id="btn-sumar-otro-informe" class="btn-app btn-secondary" style="background:#f0fdf4; color:#166534; border-color:#bbf7d0; font-size:11.5px; font-weight:700; padding:4px 10px; height:30px; display:inline-flex; align-items:center; gap:6px; cursor:pointer;" title="Sumar un nuevo informe de entrevista para este alumno">
+                            ➕ Sumar Otro Informe
+                        </button>
                     </div>
                     
                     <div id="ficha-informe-entrevista-structured" style="display:flex; flex-direction:column; gap:10px; margin-bottom:15px;"></div>
@@ -1044,6 +1057,49 @@
         </div>
     </dialog>
 
+    <dialog id="modal-editar-nota-historial" class="modern-modal auto-height-modal" style="max-width:480px; width:90%;">
+        <div style="padding:24px;">
+            <div class="modal-drag-pill"></div>
+            <h3 style="margin:0 0 15px 0; color:var(--text-main); font-size:16px; font-weight:800; display:flex; align-items:center; gap:6px;">
+                <span>✏️</span> Editar Nota del Historial
+            </h3>
+            <input type="hidden" id="edit-nota-id">
+            <input type="hidden" id="edit-nota-prefijo">
+            <div id="edit-nota-info-fecha" style="font-size:11.5px; color:var(--text-muted); margin-bottom:8px;"></div>
+            <textarea id="edit-nota-cuerpo" rows="4" class="modern-input" placeholder="Escribe el contenido de la nota..." style="resize:vertical; font-family:inherit; font-size:13px; width:100%; box-sizing:border-box;"></textarea>
+            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
+                <button type="button" class="btn-cerrar-modal" data-modal="modal-editar-nota-historial" style="padding:10px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted);">Cancelar</button>
+                <button type="button" id="btn-guardar-edicion-nota" class="btn-primary" style="background:var(--accent-teal);">💾 Guardar Cambios</button>
+            </div>
+        </div>
+    </dialog>
+
+    <dialog id="modal-editar-contacto-dias" class="modern-modal auto-height-modal" style="max-width:440px; width:90%;">
+        <div style="padding:24px;">
+            <div class="modal-drag-pill"></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h3 style="margin:0; font-size:16px; font-weight:800; color:var(--text-main); display:flex; align-items:center; gap:6px;">
+                    <span>⏱️</span> Ajustar Días sin Contacto
+                </h3>
+                <button type="button" class="btn-cerrar-modal" data-modal="modal-editar-contacto-dias" style="background:transparent; border:none; cursor:pointer; font-size:1.5em; color:#9a9388; line-height:1;">&times;</button>
+            </div>
+            <p style="font-size:12.5px; color:var(--text-muted); margin-bottom:14px; line-height:1.4;">
+                Alumno: <strong id="edit-contacto-alumno-nombre" style="color:var(--text-main);">-</strong><br>
+                <span style="font-size:11px;">Permiso exclusivo de Coordinador y Administrador.</span>
+            </p>
+            <input type="hidden" id="edit-contacto-alumno-id">
+            <div style="margin-bottom:15px;">
+                <label style="font-size:11px; font-weight:800; text-transform:uppercase; color:var(--text-muted); display:block; margin-bottom:6px;">Días transcurridos sin contacto</label>
+                <input type="number" id="edit-contacto-dias-val" class="modern-input" min="0" placeholder="Ej: 8" style="height:38px; font-size:14px; font-weight:700; width:100%; box-sizing:border-box;">
+                <span style="font-size:11px; color:var(--text-muted); display:block; margin-top:5px;">Al guardar, la fecha de último contacto se calculará restando estos días a la fecha actual.</span>
+            </div>
+            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
+                <button type="button" class="btn-cerrar-modal" data-modal="modal-editar-contacto-dias" style="padding:10px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted);">Cancelar</button>
+                <button type="button" id="btn-guardar-contacto-dias" class="btn-primary" style="background:var(--accent-teal);">💾 Guardar Días</button>
+            </div>
+        </div>
+    </dialog>
+
     <dialog id="modal-informe-admision" class="modern-modal" style="width: 95%; max-width: 780px;">
         <div style="padding: 24px; max-height: 88vh; overflow-y: auto; display: flex; flex-direction: column;">
             <div class="modal-drag-pill"></div>
@@ -1060,7 +1116,9 @@
 
             <!-- CAJA FECHA Y EVALUADOR SUPERIOR -->
             <input type="hidden" id="informe-final-alumno-id">
-            <div style="background:var(--hover-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; margin-bottom:14px; display:flex; flex-wrap:wrap; gap:12px 24px; align-items:center;">
+            <input type="hidden" id="informe-final-report-index" value="">
+            
+            <div id="inf-modal-box-fecha-eval-readonly" style="background:var(--hover-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; margin-bottom:14px; display:flex; flex-wrap:wrap; gap:12px 24px; align-items:center;">
                 <div>
                     <span style="font-size:10.5px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">📅 Fecha y Hora de Entrevista</span>
                     <div id="inf-modal-fecha-val" style="font-size:13px; font-weight:700; color:var(--text-main); margin-top:2px;">-</div>
@@ -1068,6 +1126,25 @@
                 <div>
                     <span style="font-size:10.5px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">👨‍🏫 Evaluador a Cargo</span>
                     <div id="inf-modal-evaluador-val" style="font-size:13px; font-weight:700; color:var(--accent-teal); margin-top:2px;">-</div>
+                </div>
+            </div>
+
+            <!-- CAJA EDITABLE MANUAL CUANDO SE SUMA OTRO INFORME -->
+            <div id="inf-modal-box-fecha-eval-editable" style="display:none; background:#f0fdfa; border:1px solid var(--accent-teal); border-radius:8px; padding:12px 14px; margin-bottom:14px; flex-direction:column; gap:10px;">
+                <div style="font-size:11.5px; font-weight:800; color:var(--accent-teal); text-transform:uppercase; display:flex; align-items:center; gap:6px;">
+                    ➕ Carga Manual de Entrevista Adicional
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; align-items:flex-end;">
+                    <div>
+                        <label style="font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:4px; display:block;">📅 Fecha y Hora de Entrevista <span style="color:#ef4444;">*</span></label>
+                        <input type="text" id="inf-modal-manual-fecha" class="modern-input" placeholder="Ej: Lunes 24/8 16:30hs" style="height:38px; padding:6px 12px; font-size:13px; font-weight:600; width:100%; box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:4px; display:block;">👨‍🏫 Evaluador a Cargo <span style="color:#ef4444;">*</span></label>
+                        <select id="inf-modal-manual-evaluador" class="modern-input" style="height:38px; padding:6px 12px; font-size:13px; font-weight:600; width:100%; box-sizing:border-box; line-height:normal;">
+                            <option value="">Seleccionar evaluador...</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -1113,7 +1190,7 @@
                 </div>
             </div>
 
-            <!-- SECCIONES DESPLEGABLES (ACORDEÓN - OPCIÓN A) -->
+            <!-- SECCIONES DESPLEGABLES (ACORDEÓN REORGANIZADO DEL 1 AL 5) -->
             <div style="display:flex; flex-direction:column; gap:8px;">
 
                 <!-- BLOQUE 1: MOTIVACIÓN Y EXPECTATIVAS -->
@@ -1167,16 +1244,39 @@
                     </div>
                 </div>
 
-                <!-- BLOQUE 3: PREGUNTAS CLAVE & REQUISITOS -->
+                <!-- BLOQUE 3: PERFIL PSICOEMOCIONAL -->
                 <div class="inf-accordion-card" id="inf-sec-3">
                     <div class="inf-accordion-header" onclick="window.toggleInfAccordion('inf-sec-3')">
                         <div class="inf-accordion-title">
                             <span class="inf-step-badge">3</span>
-                            <span>Preguntas Clave, Requisitos y Cierre</span>
+                            <span>Perfil Psicoemocional</span>
                         </div>
                         <span id="inf-chevron-3" class="inf-chevron" style="font-size:11px; color:#64748b;">▲</span>
                     </div>
                     <div id="inf-body-3" class="inf-accordion-body">
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            <label style="font-size:12px; font-weight:700; color:var(--text-main);">Detalle y Observaciones del Perfil Psicoemocional</label>
+                            <div id="inf-psicoemocional-editor" style="height: 100px; background:#fff; border-radius:8px;"></div>
+                            <span style="font-size:11px; color:var(--text-muted); margin-top:2px;">Anotar dinámicas vinculares, apertura, tolerancia a la frustración, escucha y afinidad grupal.</span>
+                        </div>
+
+                        <div style="display:flex; flex-direction:column; gap:6px; margin-top:6px;">
+                            <label style="font-size:12px; font-weight:700; color:var(--text-main);">Etiquetas y Rasgos Observados <span style="color:#ef4444;">*</span></label>
+                            <div id="informe-perfil-psicologico-chips" class="profile-tags-wrapper"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BLOQUE 4: PREGUNTAS CLAVE & REQUISITOS -->
+                <div class="inf-accordion-card" id="inf-sec-4">
+                    <div class="inf-accordion-header" onclick="window.toggleInfAccordion('inf-sec-4')">
+                        <div class="inf-accordion-title">
+                            <span class="inf-step-badge">4</span>
+                            <span>Preguntas Clave, Requisitos y Cierre</span>
+                        </div>
+                        <span id="inf-chevron-4" class="inf-chevron" style="font-size:11px; color:#64748b;">▲</span>
+                    </div>
+                    <div id="inf-body-4" class="inf-accordion-body">
                         <div id="inf-preguntas-condicionales-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:12px;">
                             <div id="inf-card-cantante" style="background:#fffbeb; padding:12px 14px; border-radius:8px; border:1px solid #fde68a; display:none; flex-direction:column; gap:6px;">
                                 <label style="font-size:12px; font-weight:700; color:#92400e; display:block;">🎤 COMPARTIR VOCES</label>
@@ -1225,33 +1325,19 @@
                     </div>
                 </div>
 
-                <!-- BLOQUE 4: DISPONIBILIDAD HORARIA -->
-                <div class="inf-accordion-card" id="inf-sec-4">
-                    <div class="inf-accordion-header" onclick="window.toggleInfAccordion('inf-sec-4')">
-                        <div class="inf-accordion-title">
-                            <span class="inf-step-badge">4</span>
-                            <span>Disponibilidad Horaria</span>
-                        </div>
-                        <span id="inf-chevron-4" class="inf-chevron" style="font-size:11px; color:#64748b;">▲</span>
-                    </div>
-                    <div id="inf-body-4" class="inf-accordion-body">
-                        <div id="informe-disp-container" style="max-height: 260px; overflow-y: auto; padding-right: 4px; border:1px solid var(--border-color); border-radius:8px; padding:10px; background:#fdfdfd;">
-                            <!-- Se inyecta dinámicamente -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- BLOQUE 5: PERFIL EMOCIONAL -->
+                <!-- BLOQUE 5: DISPONIBILIDAD HORARIA -->
                 <div class="inf-accordion-card" id="inf-sec-5">
                     <div class="inf-accordion-header" onclick="window.toggleInfAccordion('inf-sec-5')">
                         <div class="inf-accordion-title">
                             <span class="inf-step-badge">5</span>
-                            <span>Perfil Emocional</span>
+                            <span>Disponibilidad Horaria</span>
                         </div>
                         <span id="inf-chevron-5" class="inf-chevron" style="font-size:11px; color:#64748b;">▲</span>
                     </div>
                     <div id="inf-body-5" class="inf-accordion-body">
-                        <div id="informe-perfil-psicologico-chips" class="profile-tags-wrapper"></div>
+                        <div id="informe-disp-container" style="max-height: 260px; overflow-y: auto; padding-right: 4px; border:1px solid var(--border-color); border-radius:8px; padding:10px; background:#fdfdfd;">
+                            <!-- Se inyecta dinámicamente -->
+                        </div>
                     </div>
                 </div>
 
@@ -1574,9 +1660,10 @@
 
     <dialog id="modal-suspender" class="modern-modal auto-height-modal" style="max-width:440px; width:90%;">
         <div style="padding:24px;">
-            <div class="modal-drag-pill"></div>
-            <h3 style="margin:0 0 15px 0; color:var(--text-main);">Suspender Alumno</h3>
+            <h3 id="susp-titulo-modal" style="margin:0 0 15px 0; color:var(--text-main);">Suspender Alumno</h3>
             <input type="hidden" id="susp-alumno-id">
+            <input type="hidden" id="susp-modo-edicion" value="false">
+            <input type="hidden" id="susp-nota-id" value="">
             <label style="display:block; margin-bottom:12px; font-weight:600; font-size:13px; color:var(--text-main);">Motivo de suspensión: 
                 <select id="susp-motivo" class="modern-input" required style="margin-top:5px; width:100%;">
                     <option value="">Seleccione...</option>
@@ -2655,12 +2742,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=6.7.2"></script>
+    <script type="module" src="app.js?v=6.7.7"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=6.7.2').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=6.7.7').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {

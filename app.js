@@ -916,12 +916,16 @@ const quill = new Quill('#editor-container', { theme: 'snow', modules: { toolbar
 const quillInforme = new Quill('#informe-editor-container', { theme: 'snow', modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] } });
 let quillInfMotivacion = null;
 let quillInfDiagnostico = null;
+let quillInfPsicoemocional = null;
 try {
     if (document.getElementById('inf-motivacion-editor')) {
         quillInfMotivacion = new Quill('#inf-motivacion-editor', { theme: 'snow', modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] } });
     }
     if (document.getElementById('inf-diagnostico-editor')) {
         quillInfDiagnostico = new Quill('#inf-diagnostico-editor', { theme: 'snow', modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] } });
+    }
+    if (document.getElementById('inf-psicoemocional-editor')) {
+        quillInfPsicoemocional = new Quill('#inf-psicoemocional-editor', { theme: 'snow', modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] } });
     }
 } catch(e) { console.error("Error init Quill interview editors:", e); }
 
@@ -1001,6 +1005,14 @@ if (quillInfMotivacion && quillInfMotivacion.on) {
 }
 if (quillInfDiagnostico && quillInfDiagnostico.on) {
     quillInfDiagnostico.on('text-change', () => {
+        const d = document.getElementById('modal-informe-admision');
+        if (d) d.dataset.modificado = 'true';
+        window._modalEditandoModificado = true;
+        window._fichaAlumnoModificada = true;
+    });
+}
+if (quillInfPsicoemocional && quillInfPsicoemocional.on) {
+    quillInfPsicoemocional.on('text-change', () => {
         const d = document.getElementById('modal-informe-admision');
         if (d) d.dataset.modificado = 'true';
         window._modalEditandoModificado = true;
@@ -1565,6 +1577,66 @@ window.editarNotaHistorial = async function(notaId) {
     if (!nota) return;
 
     let textoBase = (nota.texto || '').trim();
+    const esSuspension = (nota.tipo === 'suspension') || 
+        textoBase.toLowerCase().includes('alumno suspendido') || 
+        textoBase.toLowerCase().includes('motivo:');
+
+    if (esSuspension) {
+        // Abrir modal de suspensión para editar motivo y detalle
+        const modalSusp = document.getElementById('modal-suspender');
+        if (!modalSusp) return;
+        poblarSelectMotivosSuspension();
+
+        const alId = document.getElementById('alumno-id')?.value || '';
+        document.getElementById('susp-alumno-id').value = alId;
+        document.getElementById('susp-modo-edicion').value = 'true';
+        document.getElementById('susp-nota-id').value = String(notaId);
+
+        const h3 = document.getElementById('susp-titulo-modal');
+        if (h3) h3.innerHTML = '<span>✏️</span> Editar Motivo de Suspensión';
+        const btnGuardar = document.getElementById('btn-guardar-suspension');
+        if (btnGuardar) btnGuardar.textContent = '💾 Guardar Cambios';
+
+        // Intentar extraer el motivo previo si está formateado como: Motivo: X (Detalle: Y)
+        const matchMotivo = textoBase.match(/Motivo:\s*([^\(]+?)(?:\s*\(Detalle:\s*(.+?)\))?(?:\.|$)/i);
+        if (matchMotivo) {
+            const motivoPrev = (matchMotivo[1] || '').trim();
+            const detPrev = (matchMotivo[2] || '').trim();
+            const sel = document.getElementById('susp-motivo');
+            if (sel) {
+                let found = false;
+                for (let opt of sel.options) {
+                    if (opt.value === motivoPrev || opt.value.toLowerCase() === motivoPrev.toLowerCase()) {
+                        sel.value = opt.value;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found && motivoPrev) {
+                    const newOpt = document.createElement('option');
+                    newOpt.value = motivoPrev;
+                    newOpt.textContent = motivoPrev;
+                    sel.appendChild(newOpt);
+                    sel.value = motivoPrev;
+                }
+            }
+            const detEl = document.getElementById('susp-detalle-adicional');
+            if (detEl) detEl.value = detPrev || '';
+        } else {
+            const sel = document.getElementById('susp-motivo');
+            if (sel) sel.value = '';
+            const detEl = document.getElementById('susp-detalle-adicional');
+            if (detEl) detEl.value = '';
+        }
+
+        modalSusp.showModal();
+        return;
+    }
+
+    // Nota estándar: abrir #modal-editar-nota-historial (sin prompt nativo)
+    const modalEdit = document.getElementById('modal-editar-nota-historial');
+    if (!modalEdit) return;
+
     const matchPrefijo = textoBase.match(/^(\[\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}(?:\s+\d{1,2}:\d{2})?\]\s*)(.*)/s);
     let prefijoFecha = '';
     let cuerpoTexto = textoBase;
@@ -1573,14 +1645,39 @@ window.editarNotaHistorial = async function(notaId) {
         cuerpoTexto = matchPrefijo[2];
     }
 
-    const nuevoTexto = prompt("Editar contenido de la nota:", cuerpoTexto);
-    if (nuevoTexto === null) return;
-    if (!nuevoTexto.trim()) {
+    document.getElementById('edit-nota-id').value = String(notaId);
+    document.getElementById('edit-nota-prefijo').value = prefijoFecha;
+    
+    const infoFechaEl = document.getElementById('edit-nota-info-fecha');
+    if (infoFechaEl) {
+        infoFechaEl.textContent = nota.fecha ? `Fecha registrada: ${nota.fecha} ${nota.autor ? '• ' + nota.autor : ''}` : '';
+    }
+
+    const txtArea = document.getElementById('edit-nota-cuerpo');
+    if (txtArea) {
+        txtArea.value = cuerpoTexto;
+        setTimeout(() => txtArea.focus(), 150);
+    }
+
+    modalEdit.showModal();
+};
+
+document.getElementById('btn-guardar-edicion-nota')?.addEventListener('click', async () => {
+    const notaId = document.getElementById('edit-nota-id')?.value;
+    const prefijoFecha = document.getElementById('edit-nota-prefijo')?.value || '';
+    const cuerpoTexto = (document.getElementById('edit-nota-cuerpo')?.value || '').trim();
+
+    if (!notaId) return;
+    if (!cuerpoTexto) {
         alert("La nota no puede estar vacía. Si deseas quitarla, podés usar el botón de eliminar (❌).");
+        document.getElementById('edit-nota-cuerpo')?.focus();
         return;
     }
 
-    nota.texto = prefijoFecha ? `${prefijoFecha}${nuevoTexto.trim()}` : nuevoTexto.trim();
+    const nota = historialActual.find(n => String(n.id) === String(notaId));
+    if (!nota) return;
+
+    nota.texto = prefijoFecha ? `${prefijoFecha}${cuerpoTexto}` : cuerpoTexto;
     if (!nota.autor && window.usuarioActual) {
         nota.autor = window.usuarioActual.nombre || window.usuarioActual.email || 'Operador';
     }
@@ -1599,7 +1696,9 @@ window.editarNotaHistorial = async function(notaId) {
     } else {
         mostrarToast('Nota actualizada.', 'success');
     }
-};
+
+    document.getElementById('modal-editar-nota-historial')?.close();
+});
 
 export function poblarSelectMotivosSuspension() {
     const sel = document.getElementById('susp-motivo');
@@ -1844,6 +1943,14 @@ const getEstadoYBadgeLocal = (al) => getEstadoYBadge(al, getFechaReferenciaAlumn
 function parsearFechaCualquierOrigen(val) {
     if (!val) return null;
     if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
+    if (typeof val.toDate === 'function') {
+        const d = val.toDate();
+        if (d instanceof Date && !isNaN(d.getTime())) return d;
+    }
+    if (typeof val === 'object' && typeof val.seconds === 'number') {
+        const d = new Date(val.seconds * 1000);
+        if (!isNaN(d.getTime())) return d;
+    }
     if (typeof val === 'number') {
         if (val > 1577836800000 && val < 2524608000000) {
             const d = new Date(val);
@@ -1854,10 +1961,25 @@ function parsearFechaCualquierOrigen(val) {
     if (typeof val === 'string') {
         const str = val.trim();
         if (!str) return null;
-        if (str.includes('-')) {
-            const dIso = new Date(str);
-            if (!isNaN(dIso.getTime())) return dIso;
+
+        // YYYY-MM-DD o YYYY-MM-DD HH:mm:ss
+        const isoMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+        if (isoMatch) {
+            const anio = parseInt(isoMatch[1], 10);
+            const mes = parseInt(isoMatch[2], 10) - 1;
+            const dia = parseInt(isoMatch[3], 10);
+            const hora = isoMatch[4] !== undefined ? parseInt(isoMatch[4], 10) : 12;
+            const min = isoMatch[5] !== undefined ? parseInt(isoMatch[5], 10) : 0;
+            const sec = isoMatch[6] !== undefined ? parseInt(isoMatch[6], 10) : 0;
+            if (str.includes('Z') || str.match(/[+-]\d{2}:\d{2}$/)) {
+                const dIso = new Date(str);
+                if (!isNaN(dIso.getTime())) return dIso;
+            }
+            const dLocal = new Date(anio, mes, dia, hora, min, sec);
+            if (!isNaN(dLocal.getTime())) return dLocal;
         }
+
+        // DD/MM/YYYY o DD-MM-YYYY
         const m = str.match(/(?:^|\[|\s)(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})(?:\s+(\d{1,2}):(\d{2}))?/);
         if (m) {
             const dia = parseInt(m[1], 10);
@@ -1869,20 +1991,43 @@ function parsearFechaCualquierOrigen(val) {
             const dLat = new Date(anio, mes, dia, hora, min);
             if (!isNaN(dLat.getTime())) return dLat;
         }
+
+        const dFallback = new Date(str);
+        if (!isNaN(dFallback.getTime())) return dFallback;
     }
     return null;
 }
 
+export function calcularDiasCalendario(fechaDesde, fechaHasta = new Date()) {
+    if (!fechaDesde) return 0;
+    const fD = (fechaDesde instanceof Date) ? fechaDesde : parsearFechaCualquierOrigen(fechaDesde);
+    if (!fD || isNaN(fD.getTime())) return 0;
+    const fH = (fechaHasta instanceof Date) ? fechaHasta : parsearFechaCualquierOrigen(fechaHasta);
+    if (!fH || isNaN(fH.getTime())) return 0;
+
+    const midD = new Date(fD.getFullYear(), fD.getMonth(), fD.getDate()).getTime();
+    const midH = new Date(fH.getFullYear(), fH.getMonth(), fH.getDate()).getTime();
+    return Math.max(0, Math.round((midH - midD) / (24 * 60 * 60 * 1000)));
+}
+window.calcularDiasCalendario = calcularDiasCalendario;
+
 export function obtenerFechaIngresoAlumno(al) {
     if (!al) return null;
+
+    // Caso específico para Faustino Alvarez solicitado por Coordinación
+    if (al.nombre && al.nombre.toLowerCase().includes('faustino') && al.nombre.toLowerCase().includes('alvarez')) {
+        return new Date('2026-09-02T12:50:00');
+    }
+
     const campos = [
+        al.fecha_ingreso_espera,
+        al.informe_entrevista?.fecha_evaluacion,
+        al.fecha_admision_finalizada,
         al.fecha_ingreso,
         al.fecha_creacion,
         al.createdAt,
         al.fecha,
-        al.timestamp,
-        al.fecha_ingreso_espera,
-        al.informe_entrevista?.fecha_evaluacion
+        al.timestamp
     ];
     for (let i = 0; i < campos.length; i++) {
         const p = parsearFechaCualquierOrigen(campos[i]);
@@ -1890,21 +2035,26 @@ export function obtenerFechaIngresoAlumno(al) {
     }
 
     if (Array.isArray(al.historial) && al.historial.length > 0) {
+        let minFecha = null;
         for (let i = 0; i < al.historial.length; i++) {
             const h = al.historial[i];
             if (!h) continue;
+            let p = null;
             if (typeof h === 'string') {
-                const p = parsearFechaCualquierOrigen(h);
-                if (p) return p;
+                p = parsearFechaCualquierOrigen(h);
             } else if (typeof h === 'object') {
-                const p1 = parsearFechaCualquierOrigen(h.fecha_iso || h.fecha || h.texto);
-                if (p1) return p1;
-                if (typeof h.id === 'number') {
-                    const p2 = parsearFechaCualquierOrigen(h.id);
-                    if (p2) return p2;
+                p = parsearFechaCualquierOrigen(h.fecha_iso || h.fecha || h.texto);
+                if (!p && typeof h.id === 'number') {
+                    p = parsearFechaCualquierOrigen(h.id);
+                }
+            }
+            if (p && !isNaN(p.getTime())) {
+                if (!minFecha || p.getTime() < minFecha.getTime()) {
+                    minFecha = p;
                 }
             }
         }
+        if (minFecha) return minFecha;
     }
     return null;
 }
@@ -1914,43 +2064,68 @@ window.obtenerFechaIngresoAlumno = obtenerFechaIngresoAlumno;
 // CÁLCULO DE MÉTRICAS DE SEGUIMIENTO EN LISTA DE ESPERA & SEMÁFORO
 // =======================================================================
 export function calcularMetricasEspera(al) {
-    const ahora = Date.now();
-    const MS_POR_DIA = 24 * 60 * 60 * 1000;
+    const ahora = new Date();
+
+    // 0. Caso Faustino Alvarez
+    if (al.nombre && al.nombre.toLowerCase().includes('faustino') && al.nombre.toLowerCase().includes('alvarez')) {
+        if (!al.fecha_ultimo_contacto && (al.dias_contacto_manual === undefined || al.dias_contacto_manual === null)) {
+            const fAdmFaustino = new Date('2026-09-02T12:50:00');
+            const dFaustino = calcularDiasCalendario(fAdmFaustino, ahora);
+            return {
+                diasEsperando: dFaustino,
+                diasContacto: dFaustino,
+                claseSemaforo: dFaustino >= 30 ? 'rojo' : (dFaustino >= 15 ? 'amarillo' : 'blanco')
+            };
+        }
+    }
 
     // 1. Días esperando (acumulativo continuo, nunca se resetea)
     let fechaIngreso = null;
     if (al.fecha_ingreso_espera) {
-        fechaIngreso = new Date(al.fecha_ingreso_espera);
+        fechaIngreso = parsearFechaCualquierOrigen(al.fecha_ingreso_espera);
     } else {
         fechaIngreso = obtenerFechaIngresoAlumno(al);
     }
 
     let diasEsperando = 0;
     if (fechaIngreso && !isNaN(fechaIngreso.getTime())) {
-        diasEsperando = Math.max(0, Math.floor((ahora - fechaIngreso.getTime()) / MS_POR_DIA));
+        diasEsperando = calcularDiasCalendario(fechaIngreso, ahora);
     } else if (typeof al.dias_esperando_historico === 'number') {
         diasEsperando = al.dias_esperando_historico;
     }
 
     // 2. Días último contacto (reseteable cada vez que se contacta)
-    let fechaContacto = null;
-    if (al.fecha_ultimo_contacto) {
-        fechaContacto = new Date(al.fecha_ultimo_contacto);
+    let diasContacto = diasEsperando;
+    if (al.dias_contacto_manual !== undefined && al.dias_contacto_manual !== null && !isNaN(Number(al.dias_contacto_manual))) {
+        diasContacto = Number(al.dias_contacto_manual);
+    } else if (al.fecha_ultimo_contacto) {
+        const fechaContacto = parsearFechaCualquierOrigen(al.fecha_ultimo_contacto);
+        if (fechaContacto && !isNaN(fechaContacto.getTime())) {
+            diasContacto = calcularDiasCalendario(fechaContacto, ahora);
+        }
     } else {
-        const notasContacto = Array.isArray(al.historial) ? al.historial.filter(h => h && h.tipo === 'contacto') : [];
+        // Buscar exclusivamente notas registradas con tipo === 'contacto'
+        const notasContacto = Array.isArray(al.historial) ? al.historial.filter(h => h && (h.tipo === 'contacto' || (h.texto && h.texto.includes('📞 [Contacto]')))) : [];
         if (notasContacto.length > 0) {
-            const ultimaNota = notasContacto[notasContacto.length - 1];
-            if (ultimaNota.fecha_iso) {
-                fechaContacto = new Date(ultimaNota.fecha_iso);
+            let maxFecha = null;
+            notasContacto.forEach(nc => {
+                const f = parsearFechaCualquierOrigen(nc.fecha_iso || nc.fecha || nc.id);
+                if (f && !isNaN(f.getTime())) {
+                    if (!maxFecha || f.getTime() > maxFecha.getTime()) maxFecha = f;
+                }
+            });
+            if (maxFecha) {
+                diasContacto = calcularDiasCalendario(maxFecha, ahora);
+            }
+        } else {
+            // Si nunca se contactó en espera, parte desde que finalizó la admisión o ingresó a espera
+            const fechaFinAdm = parsearFechaCualquierOrigen(al.informe_entrevista?.fecha_evaluacion || al.fecha_admision_finalizada || al.fecha_ingreso_espera || fechaIngreso);
+            if (fechaFinAdm && !isNaN(fechaFinAdm.getTime())) {
+                diasContacto = calcularDiasCalendario(fechaFinAdm, ahora);
+            } else if (typeof al.dias_contacto_historico === 'number') {
+                diasContacto = al.dias_contacto_historico;
             }
         }
-    }
-
-    let diasContacto = diasEsperando;
-    if (fechaContacto && !isNaN(fechaContacto.getTime())) {
-        diasContacto = Math.max(0, Math.floor((ahora - fechaContacto.getTime()) / MS_POR_DIA));
-    } else if (typeof al.dias_contacto_historico === 'number') {
-        diasContacto = al.dias_contacto_historico;
     }
 
     // 3. Semáforo: <15 días blanco, 15-30 días amarillo, >30 días rojo
@@ -1990,12 +2165,121 @@ export function getOrigenSuspension(al) {
 }
 window.getOrigenSuspension = getOrigenSuspension;
 
+export async function obtenerListaEvaluadoresActivos() {
+    const nombresVistos = new Set();
+    const lista = [];
+
+    // 1. Profesores con aptitud o rol de entrevista/evaluador
+    try {
+        const pSnap = await getDocs(collection(db, "profesores"));
+        pSnap.forEach(p => {
+            const pData = p.data();
+            if (pData.activo === false || pData.estado === 'inactivo') return;
+            const rolesArr = Array.isArray(pData.roles) ? pData.roles : [pData.rol || ''];
+            const esEval = pData.entrevista === true || rolesArr.includes('evaluador') || pData.esEvaluador === true;
+            if (esEval && pData.nombre && pData.nombre.trim()) {
+                const nom = pData.nombre.trim();
+                const key = nom.toLowerCase();
+                if (!nombresVistos.has(key)) {
+                    nombresVistos.add(key);
+                    lista.push({ id: p.id, nombre: nom });
+                }
+            }
+        });
+    } catch(e) {
+        console.error("Error al cargar profesores evaluadores:", e);
+    }
+
+    // 2. Usuarios del sistema con rol evaluador
+    try {
+        const uSnap = await getDocs(collection(db, "usuarios_sistema"));
+        uSnap.forEach(u => {
+            const uData = u.data();
+            if (uData.activo === false) return;
+            const rolesArr = Array.isArray(uData.roles) ? uData.roles : [uData.rol || ''];
+            const esEval = rolesArr.includes('evaluador') || uData.entrevista === true;
+            if (esEval && uData.nombre && uData.nombre.trim()) {
+                const nom = uData.nombre.trim();
+                const key = nom.toLowerCase();
+                if (!nombresVistos.has(key)) {
+                    nombresVistos.add(key);
+                    lista.push({ id: u.id, nombre: nom });
+                }
+            }
+        });
+    } catch(e) {
+        console.error("Error al cargar usuarios evaluadores:", e);
+    }
+
+    lista.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    return lista;
+}
+window.obtenerListaEvaluadoresActivos = obtenerListaEvaluadoresActivos;
+
+// Helper para renderizar listas compactas con máximo 2 items y popover "+N más"
+export function renderizarItemsConMax2(items, renderPillFn, tipoLabel, studentId) {
+    if (!Array.isArray(items) || items.length === 0) return '';
+    if (items.length <= 2) {
+        return items.map((item, idx) => renderPillFn(item, idx)).join(' ');
+    }
+    const visibles = items.slice(0, 2);
+    const extras = items.slice(2);
+    const popoverId = `popover-${tipoLabel.replace(/\s+/g, '-').toLowerCase()}-${studentId}`;
+    
+    return `
+        <span class="compact-group-wrapper" style="position:relative; display:inline-flex; align-items:center; gap:4px; vertical-align:middle;">
+            ${visibles.map((item, idx) => renderPillFn(item, idx)).join(' ')}
+            <button type="button" class="btn-more-items" onclick="event.stopPropagation(); window.togglePopoverCompacto('${popoverId}');" title="Ver ${extras.length} más de ${tipoLabel}">
+                +${extras.length} más ▾
+            </button>
+            <div id="${popoverId}" class="popover-dropdown" style="display:none;" onclick="event.stopPropagation();">
+                <div class="popover-dropdown-header">
+                    <span>${tipoLabel} (${items.length})</span>
+                    <button type="button" class="btn-cerrar-popover" onclick="event.stopPropagation(); window.togglePopoverCompacto('${popoverId}');">✕</button>
+                </div>
+                <div class="popover-dropdown-body">
+                    ${items.map((item, idx) => renderPillFn(item, idx, true)).join(' ')}
+                </div>
+            </div>
+        </span>
+    `;
+}
+window.renderizarItemsConMax2 = renderizarItemsConMax2;
+
+window.togglePopoverCompacto = function(popoverId) {
+    const el = document.getElementById(popoverId);
+    if (!el) return;
+    const isVisible = el.style.display === 'block';
+    document.querySelectorAll('.popover-dropdown').forEach(p => p.style.display = 'none');
+    if (!isVisible) {
+        el.style.display = 'block';
+    }
+};
+
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.popover-dropdown') && !e.target.closest('.btn-more-items')) {
+        document.querySelectorAll('.popover-dropdown').forEach(p => p.style.display = 'none');
+    }
+});
+
 function generarFilaAlumno(al, id, vista, isKanban = false) {
     const info = getEstadoYBadgeLocal(al);
-    let instArray = Array.isArray(al.instrumento) ? al.instrumento : (al.instrumento ? [al.instrumento] : []);
-    let emojiInst = instArray.length > 0 ? obtenerEmojiInstrumento(instArray[0]) : '🎵';
-    let instStr = instArray.join(', ');
-    let suscStr = al.tipo_suscripcion || ''; 
+    let instArray = Array.isArray(al.instrumento) ? al.instrumento : (al.instrumento ? String(al.instrumento).split(',').map(s => s.trim()).filter(Boolean) : []);
+    let instHtml = renderizarItemsConMax2(instArray, (inst) => {
+        const emo = obtenerEmojiInstrumento(inst);
+        return `<strong style="color:var(--accent-teal); font-weight:600; white-space:nowrap;">${emo} ${inst}</strong>`;
+    }, 'Instrumentos', id);
+
+    let suscArray = Array.isArray(al.tipo_suscripcion) ? al.tipo_suscripcion : (al.tipo_suscripcion ? String(al.tipo_suscripcion).split(',').map(s => s.trim()).filter(Boolean) : []);
+    let suscHtml = renderizarItemsConMax2(suscArray, (susc) => {
+        return `<strong style="color:var(--accent-purple); font-weight:600; white-space:nowrap;">🧩 ${susc}</strong>`;
+    }, 'Suscripciones', id);
+
+    let nivelArray = Array.isArray(al.nivel) ? al.nivel : (al.nivel ? [al.nivel] : []);
+    let nivelHtml = renderizarItemsConMax2(nivelArray, (niv) => {
+        return `<span class="match-student-tag nivel" style="font-size:10px; padding:2px 7px; white-space:nowrap;">${niv}</span>`;
+    }, 'Niveles', id);
+
     let edad = al.edad ? al.edad + ' años' : '';
 
     const botonesVisibles = generarBotonesPrincipalesVisibles(al, id);
@@ -2011,7 +2295,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
             const diaStr = String(fechaIng.getDate()).padStart(2, '0');
             const mesStr = String(fechaIng.getMonth() + 1).padStart(2, '0');
             const anioStr = fechaIng.getFullYear();
-            const diffDias = Math.max(0, Math.floor((Date.now() - fechaIng.getTime()) / (1000 * 60 * 60 * 24)));
+            const diffDias = calcularDiasCalendario(fechaIng);
             const antiguedadTxt = diffDias === 0 ? 'hoy' : (diffDias === 1 ? 'ayer' : `hace ${diffDias}d`);
 
             let badgeClass = 'badge-ingreso-normal';
@@ -2028,17 +2312,20 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
     }
 
     if (edad) datosAlumnoParts.push(edad);
-    if (al.nivel) datosAlumnoParts.push(`<span class="match-student-tag nivel" style="font-size:10px; padding:2px 7px;">${al.nivel}</span>`);
-    if (instStr) datosAlumnoParts.push(`<strong style="color:var(--accent-teal); font-weight:600;">${emojiInst} ${instStr}</strong>`);
-    if (suscStr) datosAlumnoParts.push(`<strong style="color:var(--accent-purple); font-weight:600;">🧩 ${suscStr}</strong>`);
+    if (nivelHtml) datosAlumnoParts.push(nivelHtml);
+    if (instHtml) datosAlumnoParts.push(instHtml);
+    if (suscHtml) datosAlumnoParts.push(suscHtml);
 
     let filaDatosHtml = datosAlumnoParts.length > 0
         ? `<div class="row-sub-line" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:12px; color:var(--text-muted);">${datosAlumnoParts.join(' • ')}</div>`
         : '';
 
     let tagsHtml = '';
-    if (Array.isArray(al.perfil_psicologico) && al.perfil_psicologico.length > 0) {
-        tagsHtml = `<div class="row-sub-line" style="display:flex; flex-wrap:wrap; gap:4px; margin-top:2px;">${al.perfil_psicologico.map(t => `<span class="profile-tag-badge" style="font-size:9.5px; padding:1px 6px;">🧠 ${t}</span>`).join('')}</div>`;
+    const perfilArray = Array.isArray(al.perfil_psicologico) ? al.perfil_psicologico : [];
+    if (perfilArray.length > 0) {
+        tagsHtml = `<div class="row-sub-line" style="display:flex; flex-wrap:wrap; gap:4px; margin-top:2px;">` +
+            renderizarItemsConMax2(perfilArray, (t) => `<span class="profile-tag-badge" style="font-size:9.5px; padding:1px 6px; white-space:nowrap;">🧠 ${t}</span>`, 'Perfil Psicoemocional', id) +
+            `</div>`;
     }
 
     let suspInfoHtml = '';
@@ -2070,10 +2357,11 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
     if (isKanban) {
         let opcionesKanbanHtml = '';
         if (al.opciones_propuestas && al.opciones_propuestas.length > 1) {
+            const opcKanbanStr = renderizarItemsConMax2(al.opciones_propuestas, (o) => `<span style="font-size:10px; color:var(--text-muted);"><strong>${o.letra || '-'}:</strong> ${o.fechaTexto}</span>`, 'Opciones', id);
             opcionesKanbanHtml = `
                 <div style="font-size:11px; color:var(--accent-teal); margin-top:5px; line-height:1.3; background:var(--hover-bg); padding:4px 6px; border-radius:6px; border:1px solid var(--border-color);">
-                    <div style="font-weight:700;">📅 ${al.opciones_propuestas.length} Opciones:</div>
-                    ${al.opciones_propuestas.map(o => `<div style="color:var(--text-muted); font-size:10px;"><strong>${o.letra || '-'}:</strong> ${o.fechaTexto}</div>`).join('')}
+                    <div style="font-weight:700;">📅 Opciones:</div>
+                    ${opcKanbanStr}
                 </div>
             `;
         }
@@ -2110,10 +2398,11 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
     dispHtml += '</div></div>';
 
     const tieneSecundarios = botonesSecundarios && botonesSecundarios.trim().length > 0;
+    const esBiciRow = !!al.es_bicicleta;
     let menuAcciones = `
         <div class="row-actions-group">
             ${botonesVisibles ? `<div class="row-quick-btns-col">${botonesVisibles}</div>` : ''}
-            ${tieneSecundarios ? `
+            ${(!esBiciRow && tieneSecundarios) ? `
                 <div class="alumno-actions row-actions-container">
                     <button type="button" class="btn-row-action" title="Más opciones">⋮</button>
                     <div class="dropdown-menu-wrapper">
@@ -2127,7 +2416,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
     let checklistAdmisionHtml = '';
     const rawEstadoAdm = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
     const esPendienteAlumno = rawEstadoAdm === 'pendiente validacion por alumno';
-    if (esPendienteAlumno || al.checklist_admision) {
+    if (esPendienteAlumno) {
         const checksAdm = al.checklist_admision || [false, false];
         const pasosAdm = [
             '1. Clase de admisión abonada',
@@ -2163,7 +2452,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
 
     let checklistHtml = '';
     const esAltaConfirmadaOFinalizada = al.estado_agenda === 'Alta Efectiva' || al.estado_agenda === 'Alta Ilegal' || al.estado_agenda === 'Alta Finalizada';
-    if (esAltaConfirmadaOFinalizada || al.checklist_alta) {
+    if (esAltaConfirmadaOFinalizada) {
         let rawChecks = al.checklist_alta || [false, false, false, false];
         let checks = rawChecks.length === 5 ? rawChecks.slice(1) : (rawChecks.length === 4 ? rawChecks : [false, false, false, false]);
         const pasostitulos = [
@@ -2202,11 +2491,12 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
 
     let fechaMetaHtml = '';
     if (al.opciones_propuestas && al.opciones_propuestas.length > 1) {
+        const opcHtml = renderizarItemsConMax2(al.opciones_propuestas, (o) => `<span style="display:inline-block; margin-right:4px;"><strong>${o.letra || '-'}:</strong> ${o.fechaTexto}</span>`, 'Opciones propuestas', id);
         fechaMetaHtml = `
             <div style="margin-top:3px; background:rgba(0, 123, 143, 0.07); border:1px solid rgba(0, 123, 143, 0.2); border-radius:6px; padding:4px 8px;">
-                <div style="font-size:11px; color:var(--accent-teal); font-weight:700;">📅 ${al.opciones_propuestas.length} Opciones propuestas:</div>
+                <div style="font-size:11px; color:var(--accent-teal); font-weight:700;">📅 Opciones propuestas:</div>
                 <div style="font-size:10.5px; color:var(--text-main); line-height:1.35; margin-top:2px;">
-                    ${al.opciones_propuestas.map(o => `<div><strong>${o.letra || '-'}:</strong> ${o.fechaTexto}</div>`).join('')}
+                    ${opcHtml}
                 </div>
             </div>
         `;
@@ -2268,14 +2558,21 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                                 const esBici = !!al.es_bicicleta;
                                 const celSafe = (al.celular || al.telefono || '').replace(/'/g, "\\'");
                                 const nombreSafe = (al.nombre || '').replace(/'/g, "\\'");
+                                const esAdminOCoord = window.usuarioActual?.rol === 'admin' || window.usuarioActual?.rol === 'coordinador' || window.usuarioActual?.rol_activo === 'admin' || window.usuarioActual?.rol_activo === 'coordinador';
+
+                                const contactoBadgeAttr = esAdminOCoord 
+                                    ? `class="badge-dias-contacto ${met.claseSemaforo} editable" onclick="event.stopPropagation(); window.abrirModalEditarContacto('${id}', '${nombreSafe}', ${met.diasContacto});" title="✏️ Clic para corregir manualmente los días sin contacto (Admin/Coordinador)"`
+                                    : `class="badge-dias-contacto ${met.claseSemaforo}" title="Días desde el último contacto con el alumno (reseteable a 0)"`;
+                                const contactoLabelTxt = esAdminOCoord ? 'Último cont. ✏️' : 'Último cont.';
+
                                 return `
                                     <div class="espera-metricas-col">
                                         <div class="badge-dias-espera" title="Días en Lista de Espera (acumulativo continuo, nunca se resetea)">
                                             <span class="badge-dias-espera-label">Esperando</span>
                                             <span class="badge-dias-espera-val">${met.diasEsperando}d</span>
                                         </div>
-                                        <div class="badge-dias-contacto ${met.claseSemaforo}" title="Días desde el último contacto con el alumno (reseteable a 0)">
-                                            <span class="badge-dias-contacto-label">Último cont.</span>
+                                        <div ${contactoBadgeAttr}>
+                                            <span class="badge-dias-contacto-label">${contactoLabelTxt}</span>
                                             <span class="badge-dias-contacto-val">${met.diasContacto}d</span>
                                         </div>
                                         <button type="button" class="btn-contactar-fila" onclick="event.stopPropagation(); window.abrirModalRegistrarContacto('${id}', '${nombreSafe}', '${celSafe}', ${esBici});" title="Registrar lo conversado y resetear contador a 0 días">
@@ -2297,10 +2594,8 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                         })()}
                     </div>
 
-                    <!-- Columna 3: Grilla Semanal Fija -->
-                    ${dispHtml}
-                    ${checklistAdmisionHtml}
-                    ${checklistHtml}
+                    <!-- Columna 3: Grilla Semanal Fija o Checklist según estado -->
+                    ${checklistAdmisionHtml ? checklistAdmisionHtml : (checklistHtml ? checklistHtml : dispHtml)}
 
                     <!-- Columna 4: Meta & Agenda / Prioridad -->
                     <div class="row-meta">
@@ -4684,10 +4979,13 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
     if (vista.startsWith('Altas')) bottomVista = 'Altas - Pendientes';
     const bottomMatch = document.querySelector(`.bottom-nav-item[data-vista="${bottomVista}"]`);
     if(bottomMatch) bottomMatch.classList.add('active');
-    
     const vResumen = document.getElementById('vista-resumen'), vResumenTime = document.getElementById('vista-resumen-timeline'), contLista = document.getElementById('lista-generica'), contKanban = document.getElementById('kanban-generico'), contEstad = document.getElementById('estadisticas-container');
     const formWrapper = document.getElementById('form-alumno-wrapper'), cv = document.getElementById('controles-vista');
-    if (formWrapper) { formWrapper.style.display = 'none'; document.getElementById('modal-alta-alumno').appendChild(formWrapper); }
+    const modalAlta = document.getElementById('modal-alta-alumno');
+    if (formWrapper && (!modalAlta || !modalAlta.open)) { 
+        formWrapper.style.display = 'none'; 
+        if (modalAlta && !modalAlta.contains(formWrapper)) modalAlta.appendChild(formWrapper); 
+    }
     
     // Ocultar botones CSV de toda la app y resetear barra bulk flotante
     const btnCSVEl = document.getElementById('btn-carga-masiva');
@@ -6059,19 +6357,73 @@ document.addEventListener('click', async (e) => {
     if (target.classList.contains('btn-admision-finalizada') || target.closest('.btn-admision-finalizada')) { 
         const btn = target.classList.contains('btn-admision-finalizada') ? target : target.closest('.btn-admision-finalizada');
         const id = btn.getAttribute('data-id'); 
+        const esNuevoInformeAdicional = btn.getAttribute('data-nuevo-informe') === 'true';
+        const reportIndexAttr = btn.getAttribute('data-report-index');
+        
         document.getElementById('informe-final-alumno-id').value = id;
         try {
             const alDoc = await getDoc(doc(db, "alumnos", id));
             if (!alDoc.exists()) return alert("Alumno no encontrado.");
             const al = alDoc.data();
-            const inf = al.informe_entrevista || {};
-            const esNuevoInforme = !al.informe_entrevista;
-
-            // 0. Caja Fecha y Evaluador Superior
-            const elFechaTop = document.getElementById('inf-modal-fecha-val');
-            const elEvalTop = document.getElementById('inf-modal-evaluador-val');
-            if (elFechaTop) elFechaTop.textContent = formatearFechaHoraEstandar(al.reserva_inicio || al.informe_entrevista?.fecha_evaluacion || al.reserva_fecha_texto);
-            if (elEvalTop) elEvalTop.textContent = al.reserva_profe_nombre || al.informe_entrevista?.evaluador_nombre || '-';
+            
+            const arrInformesExistentes = Array.isArray(al.informes_entrevista) && al.informes_entrevista.length > 0
+                ? al.informes_entrevista
+                : (al.informe_entrevista ? [al.informe_entrevista] : []);
+            
+            let inf = {};
+            let esNuevoInforme = false;
+            
+            const boxReadonly = document.getElementById('inf-modal-box-fecha-eval-readonly');
+            const boxEditable = document.getElementById('inf-modal-box-fecha-eval-editable');
+            const inpRepIndex = document.getElementById('informe-final-report-index');
+            
+            if (esNuevoInformeAdicional) {
+                esNuevoInforme = true;
+                inf = {};
+                if (inpRepIndex) inpRepIndex.value = 'nuevo';
+                if (boxReadonly) boxReadonly.style.display = 'none';
+                if (boxEditable) {
+                    boxEditable.style.display = 'flex';
+                    const inpManFecha = document.getElementById('inf-modal-manual-fecha');
+                    const selManEval = document.getElementById('inf-modal-manual-evaluador');
+                    if (inpManFecha) inpManFecha.value = '';
+                    if (selManEval) {
+                        selManEval.innerHTML = '<option value="">Seleccionar evaluador...</option>';
+                        try {
+                            const evals = await obtenerListaEvaluadoresActivos();
+                            evals.forEach(ev => {
+                                const opt = document.createElement('option');
+                                opt.value = ev.nombre;
+                                opt.dataset.profeId = ev.id;
+                                opt.textContent = ev.nombre;
+                                selManEval.appendChild(opt);
+                            });
+                        } catch(e) { console.error("Error cargando evaluadores para nuevo informe:", e); }
+                    }
+                }
+            } else if (reportIndexAttr !== null && reportIndexAttr !== '' && !isNaN(parseInt(reportIndexAttr, 10))) {
+                const idx = parseInt(reportIndexAttr, 10);
+                inf = arrInformesExistentes[idx] || al.informe_entrevista || {};
+                if (inpRepIndex) inpRepIndex.value = idx;
+                if (boxReadonly) boxReadonly.style.display = 'flex';
+                if (boxEditable) boxEditable.style.display = 'none';
+                
+                const elFechaTop = document.getElementById('inf-modal-fecha-val');
+                const elEvalTop = document.getElementById('inf-modal-evaluador-val');
+                if (elFechaTop) elFechaTop.textContent = formatearFechaHoraEstandar(inf.fecha_evaluacion || al.reserva_inicio || al.reserva_fecha_texto);
+                if (elEvalTop) elEvalTop.textContent = inf.evaluador_nombre || al.reserva_profe_nombre || '-';
+            } else {
+                inf = al.informe_entrevista || {};
+                esNuevoInforme = !al.informe_entrevista;
+                if (inpRepIndex) inpRepIndex.value = '';
+                if (boxReadonly) boxReadonly.style.display = 'flex';
+                if (boxEditable) boxEditable.style.display = 'none';
+                
+                const elFechaTop = document.getElementById('inf-modal-fecha-val');
+                const elEvalTop = document.getElementById('inf-modal-evaluador-val');
+                if (elFechaTop) elFechaTop.textContent = formatearFechaHoraEstandar(al.reserva_inicio || al.informe_entrevista?.fecha_evaluacion || al.reserva_fecha_texto);
+                if (elEvalTop) elEvalTop.textContent = al.reserva_profe_nombre || al.informe_entrevista?.evaluador_nombre || '-';
+            }
 
             // 1. Cabecera Pre-cargada y Editable
             const inpNombre = document.getElementById('inf-nombre');
@@ -6149,7 +6501,13 @@ document.addEventListener('click', async (e) => {
             const txtArtistas = document.getElementById('inf-artistas');
             if (txtArtistas) txtArtistas.value = inf.artistas_estilos || '';
 
-            // 4. Bloque 3: Preguntas Clave & Requisitos
+            // 4. Bloque 3: Perfil Psicoemocional (Detalle escrito + Tags)
+            if (quillInfPsicoemocional) {
+                quillInfPsicoemocional.root.innerHTML = inf.perfil_psicoemocional_detalle || inf.psicoemocional_detalle || '';
+            }
+            renderChipsPerfilPsicologico('informe-perfil-psicologico-chips', esNuevoInforme ? [] : (inf.perfil_psicologico || al.perfil_psicologico || []));
+
+            // 5. Bloque 4: Preguntas Clave & Requisitos
             actualizarCondicionalesPunto3();
 
             const selCantante = document.getElementById('inf-cantante-voces');
@@ -6166,12 +6524,9 @@ document.addEventListener('click', async (e) => {
             if (chkRequisitos) chkRequisitos.checked = esNuevoInforme ? false : Boolean(inf.requisitos_aceptados);
             if (chkCierre) chkCierre.checked = esNuevoInforme ? false : Boolean(inf.cierre_espera_notificado);
 
-            // 5. Bloque 4: Disponibilidad Horaria
+            // 6. Bloque 5: Disponibilidad Horaria
             renderContenedorDisponibilidad('informe-disp-container', false);
             poblarDisponibilidadMultiRango(al.disponibilidad || {}, 'informe-disp-container');
-
-            // 6. Bloque 5: Perfil Emocional
-            renderChipsPerfilPsicologico('informe-perfil-psicologico-chips', al.perfil_psicologico || inf.perfil_psicologico || []);
 
             // Abrir todos los acordeones por defecto
             [1, 2, 3, 4, 5].forEach(n => {
@@ -6199,6 +6554,7 @@ document.addEventListener('click', async (e) => {
             alert("✅ ¡Informe de prueba simulado guardado con éxito!\n\nEn un caso real con alumno oficial, la entrevista quedaría registrada y el alumno pasaría a Lista de Espera.");
             return;
         }
+        const repIdx = document.getElementById('informe-final-report-index')?.value || '';
         const nombre = document.getElementById('inf-nombre').value.trim();
         const edadVal = document.getElementById('inf-edad').value.trim();
         const edad = edadVal ? parseInt(edadVal, 10) : null;
@@ -6216,6 +6572,9 @@ document.addEventListener('click', async (e) => {
         const diagnosticoTexto = quillInfDiagnostico ? quillInfDiagnostico.getText().trim() : '';
         const artistas = document.getElementById('inf-artistas').value.trim();
         
+        const psicoemocionalDetalle = quillInfPsicoemocional ? quillInfPsicoemocional.root.innerHTML.trim() : '';
+        const tags = getPerfilPsicologicoSeleccionado('informe-perfil-psicologico-chips');
+
         const cardCantante = document.getElementById('inf-card-cantante');
         const cardTonalidades = document.getElementById('inf-card-tonalidades');
         let cantanteVoces = document.getElementById('inf-cantante-voces').value;
@@ -6223,7 +6582,7 @@ document.addEventListener('click', async (e) => {
 
         if (cardCantante && cardCantante.style.display !== 'none') {
             if (!cantanteVoces) {
-                alert("⚠️ Es obligatorio responder la pregunta de Compartir Voces (Bloque 3).");
+                alert("⚠️ Es obligatorio responder la pregunta de Compartir Voces (Bloque 4).");
                 return;
             }
         } else {
@@ -6232,7 +6591,7 @@ document.addEventListener('click', async (e) => {
 
         if (cardTonalidades && cardTonalidades.style.display !== 'none') {
             if (!cambioTonalidades) {
-                alert("⚠️ Es obligatorio responder la pregunta sobre Tonalidades (Bloque 3).");
+                alert("⚠️ Es obligatorio responder la pregunta sobre Tonalidades (Bloque 4).");
                 return;
             }
         } else {
@@ -6241,7 +6600,6 @@ document.addEventListener('click', async (e) => {
 
         const chkRequisitos = document.getElementById('inf-chk-requisitos').checked;
         const chkCierre = document.getElementById('inf-chk-cierre').checked;
-        const tags = getPerfilPsicologicoSeleccionado('informe-perfil-psicologico-chips');
 
         // VALIDACIONES OBLIGATORIAS
         if (!nivel) {
@@ -6268,17 +6626,32 @@ document.addEventListener('click', async (e) => {
             alert("⚠️ Es obligatorio completar la Zona de Confort / Artistas referentes (Bloque 2).");
             return;
         }
+        if (!tags || tags.length === 0) {
+            alert("⚠️ Es obligatorio seleccionar al menos una etiqueta de perfil psicoemocional (Bloque 3).");
+            return;
+        }
         if (!chkRequisitos) {
-            alert("⚠️ Debe confirmar los Requisitos explicados y aceptados (Bloque 3).");
+            alert("⚠️ Debe confirmar los Requisitos explicados y aceptados (Bloque 4).");
             return;
         }
         if (!chkCierre) {
-            alert("⚠️ Debe confirmar el Cierre y notificación de Lista de Espera (Bloque 3).");
+            alert("⚠️ Debe confirmar el Cierre y notificación de Lista de Espera (Bloque 4).");
             return;
         }
-        if (!tags || tags.length === 0) {
-            alert("⚠️ Es obligatorio seleccionar al menos una etiqueta de perfil emocional (Bloque 5).");
-            return;
+
+        // Validación de fecha y evaluador si es nuevo informe manual
+        let manualFecha = '';
+        let manualEvalNom = '';
+        let manualEvalId = '';
+        if (repIdx === 'nuevo') {
+            manualFecha = document.getElementById('inf-modal-manual-fecha')?.value.trim();
+            const selManEval = document.getElementById('inf-modal-manual-evaluador');
+            manualEvalNom = selManEval?.value.trim();
+            manualEvalId = selManEval?.selectedOptions[0]?.dataset?.profeId || '';
+            if (!manualFecha || !manualEvalNom) {
+                alert("⚠️ Debe ingresar la fecha y seleccionar el evaluador para la nueva entrevista.");
+                return;
+            }
         }
 
         const btn = target;
@@ -6297,32 +6670,66 @@ document.addEventListener('click', async (e) => {
             const tagsTxt = ` [Perfil: ${tags.join(', ')}]`;
             const dispTxt = cambioDisp ? ' • Disponibilidad horaria actualizada.' : '';
             const nivelTxt = nivel !== al.nivel ? ` • Nivel asignado: ${nivel}.` : '';
-            hist.push(crearEntradaHistorial(`Informe de Entrevista registrado/actualizado.${nivelTxt}${tagsTxt}${dispTxt} Alumno en Lista de Espera.`, 'informe'));
+            const tipoHistTxt = repIdx === 'nuevo' ? 'Nuevo informe adicional de entrevista registrado' : 'Informe de Entrevista registrado/actualizado';
+            hist.push(crearEntradaHistorial(`${tipoHistTxt}.${nivelTxt}${tagsTxt}${dispTxt} Alumno en Lista de Espera.`, 'informe'));
             
+            let arrInformes = Array.isArray(al.informes_entrevista) ? [...al.informes_entrevista] : (al.informe_entrevista ? [al.informe_entrevista] : []);
+            
+            let fechaEval = '';
+            let evaluadorNom = '';
+            let evaluadorId = '';
+
+            if (repIdx === 'nuevo') {
+                fechaEval = manualFecha;
+                evaluadorNom = manualEvalNom;
+                evaluadorId = manualEvalId;
+            } else if (repIdx !== '' && !isNaN(parseInt(repIdx, 10)) && arrInformes[parseInt(repIdx, 10)]) {
+                const prev = arrInformes[parseInt(repIdx, 10)];
+                fechaEval = prev.fecha_evaluacion || new Date().toISOString();
+                evaluadorNom = prev.evaluador_nombre || al.reserva_profe_nombre || window.usuarioActual?.nombre || 'Evaluador';
+                evaluadorId = prev.evaluador_id || al.reserva_profe_id || '';
+            } else {
+                fechaEval = al.informe_entrevista?.fecha_evaluacion || al.reserva_inicio || al.reserva_fecha_texto || new Date().toISOString();
+                evaluadorNom = al.informe_entrevista?.evaluador_nombre || al.reserva_profe_nombre || window.usuarioActual?.nombre || 'Evaluador';
+                evaluadorId = al.informe_entrevista?.evaluador_id || al.reserva_profe_id || window.usuarioActual?.id || '';
+            }
+
             const informeEntrevista = {
-                fecha_evaluacion: al.informe_entrevista?.fecha_evaluacion || new Date().toISOString(),
+                id: (repIdx !== '' && repIdx !== 'nuevo' && arrInformes[parseInt(repIdx, 10)]?.id) || ('inf_' + Date.now()),
+                fecha_evaluacion: fechaEval,
                 fecha_actualizacion: new Date().toISOString(),
-                evaluador_nombre: window.usuarioActual?.nombre || al.reserva_profe_nombre || 'Evaluador',
-                evaluador_id: window.usuarioActual?.id || al.reserva_profe_id || '',
+                evaluador_nombre: evaluadorNom,
+                evaluador_id: evaluadorId,
                 nivel_asignado: nivel,
                 profesion: profesion,
                 motivacion_expectativas: motivacion,
                 propuesta_mandala_acordada: chkPropuesta,
                 diagnostico_tecnico: diagnostico,
                 artistas_estilos: artistas,
+                perfil_psicoemocional_detalle: psicoemocionalDetalle,
+                perfil_psicologico: tags,
                 disp_compartir_cantante: cantanteVoces,
                 cambio_tonalidades: cambioTonalidades,
                 requisitos_aceptados: chkRequisitos,
-                cierre_espera_notificado: chkCierre,
-                perfil_psicologico: tags
+                cierre_espera_notificado: chkCierre
             };
+
+            if (repIdx === 'nuevo') {
+                arrInformes.unshift(informeEntrevista);
+            } else if (repIdx !== '' && !isNaN(parseInt(repIdx, 10)) && arrInformes[parseInt(repIdx, 10)]) {
+                arrInformes[parseInt(repIdx, 10)] = informeEntrevista;
+            } else {
+                if (arrInformes.length === 0) arrInformes = [informeEntrevista];
+                else arrInformes[0] = informeEntrevista;
+            }
 
             const informeAdmisionTexto = `<strong>Nivel:</strong> ${nivel}<br><strong>Motivación:</strong> ${motivacion}<br><strong>Diagnóstico:</strong> ${diagnostico}<br><strong>Artistas:</strong> ${artistas}`;
 
             const updatePayload = { 
                 estado_agenda: "Lista de espera",
                 nivel: nivel,
-                informe_entrevista: informeEntrevista,
+                informe_entrevista: arrInformes[0],
+                informes_entrevista: arrInformes,
                 informe_admision: informeAdmisionTexto,
                 perfil_psicologico: tags,
                 instrumento: instrumentosSeleccionados,
@@ -6348,6 +6755,16 @@ document.addEventListener('click', async (e) => {
             alert("Error al guardar: " + err.message);
         }
         setBotonCargando(btn, false);
+        return;
+    }
+
+    // Botón Ver Informe (Directo desde Lista de Espera a pestaña Informe de Admisión)
+    if (target.classList.contains('btn-ver-informe-espera') || target.closest('.btn-ver-informe-espera')) {
+        const btn = target.classList.contains('btn-ver-informe-espera') ? target : target.closest('.btn-ver-informe-espera');
+        const id = btn.getAttribute('data-id');
+        if (id) {
+            await window.editarAlumnoModalDirecto(id, 'tab-informe');
+        }
         return;
     }
 
@@ -7378,12 +7795,16 @@ document.addEventListener('click', async (e) => {
         const btn = target.closest('.btn-abrir-suspender') || target.closest('.btn-suspender') || target.closest('.btn-suspender-espera') || target;
         poblarSelectMotivosSuspension();
         document.getElementById('susp-alumno-id').value = btn.getAttribute('data-id'); 
+        document.getElementById('susp-modo-edicion').value = ""; 
+        document.getElementById('susp-nota-id').value = ""; 
         document.getElementById('susp-motivo').value = ""; 
         const detEl = document.getElementById('susp-detalle-adicional');
         if (detEl) detEl.value = "";
         const modal = document.getElementById('modal-suspender');
-        const h3 = modal?.querySelector('h3');
-        if (h3) h3.textContent = 'Suspender Alumno';
+        const h3 = document.getElementById('susp-titulo-modal') || modal?.querySelector('h3');
+        if (h3) h3.innerHTML = '<span>🛑</span> Suspender Alumno';
+        const btnGuardar = document.getElementById('btn-guardar-suspension');
+        if (btnGuardar) btnGuardar.textContent = 'Confirmar Suspensión';
         modal.showModal(); 
         return; 
     }
@@ -7391,7 +7812,53 @@ document.addEventListener('click', async (e) => {
         const id = document.getElementById('susp-alumno-id').value;
         const mtv = document.getElementById('susp-motivo').value; 
         const det = document.getElementById('susp-detalle-adicional')?.value?.trim() || "";
+        const esModoEdicion = document.getElementById('susp-modo-edicion')?.value === 'true';
+        const editNotaId = document.getElementById('susp-nota-id')?.value;
+
         if(!mtv) return alert("Seleccione motivo"); 
+
+        if (esModoEdicion) {
+            setBotonCargando(target, true, 'Guardando cambios...');
+            try {
+                const motivoCompleto = det ? `${mtv} (Detalle: ${det})` : mtv;
+                const alId = id || document.getElementById('alumno-id')?.value;
+                if (!alId) throw new Error("ID de alumno no encontrado.");
+
+                if (editNotaId && Array.isArray(historialActual)) {
+                    const nota = historialActual.find(n => String(n.id) === String(editNotaId));
+                    if (nota) {
+                        const matchPrefijo = (nota.texto || '').match(/^(\[\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}(?:\s+\d{1,2}:\d{2})?\]\s*)/s);
+                        const prefijo = matchPrefijo ? matchPrefijo[1] : '';
+                        nota.texto = `${prefijo}Alumno suspendido. Motivo: ${motivoCompleto}. Eventos y cupos liberados.`;
+                        renderHistorial();
+                    }
+                }
+
+                await updateDoc(doc(db, "alumnos", alId), {
+                    motivo_suspension: motivoCompleto,
+                    motivo_suspension_cat: mtv,
+                    detalle_suspension: det || null,
+                    historial: historialActual
+                });
+
+                document.getElementById('modal-suspender')?.close();
+                document.getElementById('susp-modo-edicion').value = '';
+                document.getElementById('susp-nota-id').value = '';
+                const h3Reset = document.getElementById('susp-titulo-modal');
+                if (h3Reset) h3Reset.innerHTML = '<span>🛑</span> Suspender Alumno';
+                target.textContent = 'Confirmar Suspensión';
+
+                mostrarToast("✅ Motivo de suspensión actualizado con éxito.", "success");
+                await cargarVista(estadoActualVista);
+            } catch(err) {
+                console.error("Error al actualizar suspensión:", err);
+                alert("Error al actualizar suspensión: " + err.message);
+            } finally {
+                setBotonCargando(target, false);
+            }
+            return;
+        }
+
         setBotonCargando(target, true, 'Guardando suspensión...'); 
         try { 
             if (id === 'bulk') {
@@ -8036,7 +8503,7 @@ window.abrirModalInformeAdmisionDirecto = async function(id) {
     fakeBtn.remove();
 };
 
-window.editarAlumnoModalDirecto = async function(id) {
+window.editarAlumnoModalDirecto = async function(id, tabDestino = null) {
     const modal = document.getElementById('modal-alta-alumno');
     const wrap = document.getElementById('form-alumno-wrapper');
     if (!wrap || !modal) return;
@@ -8054,6 +8521,19 @@ window.editarAlumnoModalDirecto = async function(id) {
 
     await llenarFormularioAlumno(id, false);
     document.getElementById('container-ingreso-directo').style.display = 'none';
+
+    if (tabDestino) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+        const targetBtn = document.querySelector(`.tab-btn[data-target="${tabDestino}"]`);
+        const targetContent = document.getElementById(tabDestino);
+        if (targetBtn) {
+            targetBtn.classList.add('active');
+            targetBtn.style.display = 'inline-flex';
+        }
+        if (targetContent) targetContent.style.display = 'block';
+    }
+
     if (!modal.open) {
         try {
             modal.showModal();
@@ -8061,6 +8541,41 @@ window.editarAlumnoModalDirecto = async function(id) {
             modal.setAttribute('open', '');
         }
     }
+};
+
+window.abrirFichaAlumnoEnTab = function(id, tabDestino = 'tab-informe') {
+    return window.editarAlumnoModalDirecto(id, tabDestino);
+};
+
+window.editarInformeEspecifico = function(alumnoId, reportIndex = 0) {
+    document.getElementById('modal-alta-alumno')?.close();
+    const fakeBtn = document.createElement('button');
+    fakeBtn.setAttribute('data-id', alumnoId);
+    fakeBtn.setAttribute('data-report-index', reportIndex);
+    fakeBtn.classList.add('btn-admision-finalizada');
+    document.body.appendChild(fakeBtn);
+    fakeBtn.click();
+    fakeBtn.remove();
+};
+
+window.sumarNuevoInformeAlumno = function(alumnoId) {
+    document.getElementById('modal-alta-alumno')?.close();
+    const fakeBtn = document.createElement('button');
+    fakeBtn.setAttribute('data-id', alumnoId);
+    fakeBtn.setAttribute('data-nuevo-informe', 'true');
+    fakeBtn.classList.add('btn-admision-finalizada');
+    document.body.appendChild(fakeBtn);
+    fakeBtn.click();
+    fakeBtn.remove();
+};
+
+window.toggleFichaInformeAccordion = function(bodyId, chevId) {
+    const b = document.getElementById(bodyId);
+    const c = document.getElementById(chevId);
+    if (!b) return;
+    const isClosed = b.style.display === 'none' || !b.style.display;
+    b.style.display = isClosed ? 'flex' : 'none';
+    if (c) c.textContent = isClosed ? '▲' : '▼';
 };
 
 window.abrirModalPrealta = async function(id, esEdicion = false, inicioPrev = null, grupoPrev = null, options = {}, esPropuesta = false) {
@@ -8120,81 +8635,211 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
     historialActual = d.historial || []; 
     renderHistorial(); 
     
-    // Renderizar informe estructurado de entrevista si existe o legacy
+    // Renderizar informes estructurados de entrevista (acordeón si hay múltiples, o vista directa si hay 1)
     const contStruct = document.getElementById('ficha-informe-entrevista-structured');
     const wrapLegacy = document.getElementById('ficha-informe-legacy-wrapper');
-    const inf = d.informe_entrevista || (d.informe_admision ? {
-        nivel_asignado: d.nivel || '',
-        profesion: d.profesion || '',
-        motivacion_expectativas: '',
-        diagnostico_tecnico: d.informe_admision || '',
-        artistas_estilos: '',
-        disp_compartir_cantante: 'no_aplica',
-        cambio_tonalidades: 'no_aplica',
-        requisitos_aceptados: true,
-        cierre_espera_notificado: true,
-        perfil_psicologico: d.perfil_psicologico || []
-    } : null);
+    const headerMultInf = document.getElementById('ficha-informes-mult-header');
+    const elCountInf = document.getElementById('ficha-informes-count');
+    const btnSumarOtro = document.getElementById('btn-sumar-otro-informe');
 
-    if (inf && contStruct) {
+    const arrInformes = Array.isArray(d.informes_entrevista) && d.informes_entrevista.length > 0
+        ? d.informes_entrevista
+        : (d.informe_entrevista ? [d.informe_entrevista] : (d.informe_admision ? [{
+            nivel_asignado: d.nivel || '',
+            profesion: d.profesion || '',
+            motivacion_expectativas: '',
+            diagnostico_tecnico: d.informe_admision || '',
+            artistas_estilos: '',
+            perfil_psicoemocional_detalle: '',
+            disp_compartir_cantante: 'no_aplica',
+            cambio_tonalidades: 'no_aplica',
+            requisitos_aceptados: true,
+            cierre_espera_notificado: true,
+            perfil_psicologico: d.perfil_psicologico || []
+        }] : []));
+
+    if (elCountInf) elCountInf.textContent = arrInformes.length;
+
+    const rolesActual = Array.isArray(window.usuarioActual?.roles) && window.usuarioActual.roles.length > 0
+        ? window.usuarioActual.roles
+        : [window.usuarioActual?.rol || 'admisiones'];
+    const puedeGestionarInforme = !modoLectura && (rolesActual.includes('admin') || rolesActual.includes('coordinador') || rolesActual.includes('coordinador_grupos') || rolesActual.includes('admisiones') || rolesActual.includes('admisor'));
+
+    if (btnSumarOtro) {
+        btnSumarOtro.style.display = (puedeGestionarInforme && (d.estado_agenda === 'Lista de espera' || arrInformes.length > 0)) ? 'inline-flex' : 'none';
+        btnSumarOtro.onclick = () => window.sumarNuevoInformeAlumno(id);
+    }
+    if (headerMultInf) {
+        headerMultInf.style.display = (arrInformes.length > 0 || d.estado_agenda === 'Lista de espera') ? 'flex' : 'none';
+    }
+
+    if (arrInformes.length > 0 && contStruct) {
         contStruct.style.display = 'flex';
         if (wrapLegacy) wrapLegacy.style.display = 'none';
 
-        contStruct.innerHTML = `
-            <div style="background:var(--hover-bg); border:1px solid var(--border-color); border-radius:10px; padding:14px; display:flex; flex-direction:column; gap:10px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:8px;">
-                    <strong style="color:var(--text-main); font-size:13px;">📋 Informe de Entrevista & Nivelación</strong>
-                    <span class="status-badge bg-blue" style="font-size:10px;">${inf.nivel_asignado || d.nivel || 'Nivel Asignado'}</span>
-                </div>
+        if (arrInformes.length > 1) {
+            // ACORDEÓN DE MÚLTIPLES INFORMES
+            contStruct.innerHTML = arrInformes.map((infItem, idx) => {
+                const num = arrInformes.length - idx;
+                const isReciente = idx === 0;
+                const bodyId = `ficha-inf-body-${idx}`;
+                const chevId = `ficha-inf-chev-${idx}`;
+                const fechaTxt = formatearFechaHoraEstandar(infItem.fecha_evaluacion || d.reserva_inicio || d.reserva_fecha_texto);
+                const evalTxt = infItem.evaluador_nombre || d.reserva_profe_nombre || 'Docente';
+                const nivelTxt = infItem.nivel_asignado || d.nivel || 'Nivel';
                 
-                ${inf.profesion ? `<div><span style="font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">💼 Profesión / Ocupación:</span><div style="font-size:12.5px; font-weight:600; color:var(--text-main); margin-top:2px;">${inf.profesion}</div></div>` : ''}
+                return `
+                    <div style="border:1px solid var(--border-color); border-radius:10px; background:#fff; overflow:hidden; transition:all 0.2s;">
+                        <div onclick="window.toggleFichaInformeAccordion('${bodyId}', '${chevId}')" style="padding:12px 14px; background:#f8fafc; display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none;">
+                            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                                <span style="background:${isReciente ? '#e2e8f0' : '#f1f5f9'}; color:${isReciente ? '#0f172a' : '#64748b'}; font-size:11px; font-weight:800; padding:2px 7px; border-radius:6px;">
+                                    Informe #${num} ${isReciente ? '(Reciente)' : ''}
+                                </span>
+                                <span style="font-size:13px; font-weight:700; color:var(--text-main);">👨‍🏫 Evaluador: <strong>${evalTxt}</strong></span>
+                                <span style="font-size:12px; color:var(--text-muted);">📅 ${fechaTxt}</span>
+                                <span class="status-badge bg-blue" style="font-size:10px;">${nivelTxt}</span>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                ${puedeGestionarInforme ? `
+                                    <button type="button" title="Editar este informe" onclick="event.stopPropagation(); window.editarInformeEspecifico('${id}', ${idx});" style="background:#fff; border:1px solid #cbd5e1; width:28px; height:28px; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:13px;">✏️</button>
+                                ` : ''}
+                                <span id="${chevId}" style="font-size:11px; color:#64748b;">▼</span>
+                            </div>
+                        </div>
 
-                ${inf.motivacion_expectativas ? `
-                <div>
-                    <span style="font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">1. Motivación, Intereses y Expectativas:</span>
-                    <div style="font-size:12.5px; color:var(--text-main); background:#fff; padding:8px 10px; border-radius:6px; border:1px solid var(--border-color); margin-top:3px; line-height:1.4;">${inf.motivacion_expectativas}</div>
-                </div>` : ''}
+                        <div id="${bodyId}" style="display:none; padding:14px; border-top:1px solid var(--border-color); flex-direction:column; gap:10px; background:#fff;">
+                            ${infItem.profesion ? `<div><span style="font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">💼 Profesión / Ocupación:</span><div style="font-size:12.5px; font-weight:600; color:var(--text-main); margin-top:2px;">${infItem.profesion}</div></div>` : ''}
 
-                <div>
-                    <span style="font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">2. Diagnóstico Técnico & Plasticidad:</span>
-                    <div style="font-size:12.5px; color:var(--text-main); background:#fff; padding:8px 10px; border-radius:6px; border:1px solid var(--border-color); margin-top:3px; line-height:1.4;">${inf.diagnostico_tecnico || '-'}</div>
-                </div>
+                            ${infItem.motivacion_expectativas ? `
+                            <div>
+                                <span style="font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">1. Motivación, Intereses y Expectativas:</span>
+                                <div style="font-size:12.5px; color:var(--text-main); background:#fff; padding:8px 10px; border-radius:6px; border:1px solid var(--border-color); margin-top:3px; line-height:1.4;">${infItem.motivacion_expectativas}</div>
+                            </div>` : ''}
 
-                ${inf.artistas_estilos ? `
-                <div>
-                    <span style="font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">🎵 Zona de Confort / Artistas Referentes:</span>
-                    <div style="font-size:12.5px; font-weight:600; color:var(--accent-teal); background:#fff; padding:6px 10px; border-radius:6px; border:1px solid var(--border-color); margin-top:3px;">${inf.artistas_estilos}</div>
-                </div>` : ''}
+                            <div>
+                                <span style="font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">2. Diagnóstico Técnico & Plasticidad:</span>
+                                <div style="font-size:12.5px; color:var(--text-main); background:#fff; padding:8px 10px; border-radius:6px; border:1px solid var(--border-color); margin-top:3px; line-height:1.4;">${infItem.diagnostico_tecnico || '-'}</div>
+                            </div>
 
-                ${(inf.disp_compartir_cantante && inf.disp_compartir_cantante !== 'no_aplica') || (inf.cambio_tonalidades && inf.cambio_tonalidades !== 'no_aplica') ? `
-                <div style="display:grid; grid-template-columns:${(inf.disp_compartir_cantante && inf.disp_compartir_cantante !== 'no_aplica') && (inf.cambio_tonalidades && inf.cambio_tonalidades !== 'no_aplica') ? '1fr 1fr' : '1fr'}; gap:8px; font-size:11.5px; margin-top:4px;">
-                    ${inf.disp_compartir_cantante && inf.disp_compartir_cantante !== 'no_aplica' ? `
-                    <div style="padding:6px 8px; background:#fff; border-radius:6px; border:1px solid var(--border-color);">
-                        <span style="color:var(--text-muted); font-weight:700;">🎤 COMPARTIR VOCES:</span>
-                        <div style="font-weight:600; color:var(--text-main); margin-top:2px;">${inf.disp_compartir_cantante === 'compartir' ? '✅ Dispuesto a compartir y armar voces' : (inf.disp_compartir_cantante === 'solo' ? '⚠️ Prefiere cantar solo' : (inf.disp_compartir_cantante === 'ambos' ? '✅ Abierto a ambas' : '-'))}</div>
-                    </div>` : ''}
-                    ${inf.cambio_tonalidades && inf.cambio_tonalidades !== 'no_aplica' ? `
-                    <div style="padding:6px 8px; background:#fff; border-radius:6px; border:1px solid var(--border-color);">
-                        <span style="color:var(--text-muted); font-weight:700;">🎼 TONALIDADES:</span>
-                        <div style="font-weight:600; color:var(--text-main); margin-top:2px;">${inf.cambio_tonalidades === 'sabe_dispuesto' ? '✅ Sabe transportar y dispuesto' : (inf.cambio_tonalidades === 'dispuesto_aprender' ? '🌱 Dispuesto a aprender' : (inf.cambio_tonalidades === 'prefiere_original' ? '⚠️ Prefiere original' : '-'))}</div>
-                    </div>` : ''}
-                </div>` : ''}
+                            <!-- PUNTO 3: PERFIL PSICOEMOCIONAL -->
+                            <div style="background:#f8fafc; border:1px solid var(--border-color); border-radius:8px; padding:12px; display:flex; flex-direction:column; gap:8px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <span style="font-size:11.5px; color:var(--text-main); font-weight:800; text-transform:uppercase; display:flex; align-items:center; gap:6px;">
+                                        <span>🧠</span> 3. Perfil Psicoemocional
+                                    </span>
+                                </div>
+                                ${infItem.perfil_psicoemocional_detalle ? `
+                                    <div style="font-size:12.5px; color:#334155; line-height:1.4; background:#fff; padding:8px 10px; border-radius:6px; border:1px solid #cbd5e1;">
+                                        ${infItem.perfil_psicoemocional_detalle}
+                                    </div>
+                                ` : ''}
+                                ${Array.isArray(infItem.perfil_psicologico) && infItem.perfil_psicologico.length > 0 ? `
+                                    <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:2px;">
+                                        ${infItem.perfil_psicologico.map(t => `<span class="profile-tag-badge" style="font-size:10px; padding:2px 7px;">${t}</span>`).join('')}
+                                    </div>
+                                ` : ''}
+                            </div>
 
-                ${Array.isArray(inf.perfil_psicologico) && inf.perfil_psicologico.length > 0 ? `
-                <div style="margin-top:2px;">
-                    <span style="font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">🧠 Perfil Emocional:</span>
-                    <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:4px;">
-                        ${inf.perfil_psicologico.map(t => `<span class="profile-tag-badge" style="font-size:10px; padding:2px 7px;">${t}</span>`).join('')}
+                            ${infItem.artistas_estilos ? `
+                            <div>
+                                <span style="font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">🎵 Zona de Confort / Artistas Referentes:</span>
+                                <div style="font-size:12.5px; font-weight:600; color:var(--accent-teal); background:#fff; padding:6px 10px; border-radius:6px; border:1px solid var(--border-color); margin-top:3px;">${infItem.artistas_estilos}</div>
+                            </div>` : ''}
+
+                            ${(infItem.disp_compartir_cantante && infItem.disp_compartir_cantante !== 'no_aplica') || (infItem.cambio_tonalidades && infItem.cambio_tonalidades !== 'no_aplica') ? `
+                            <div style="display:grid; grid-template-columns:${(infItem.disp_compartir_cantante && infItem.disp_compartir_cantante !== 'no_aplica') && (infItem.cambio_tonalidades && infItem.cambio_tonalidades !== 'no_aplica') ? '1fr 1fr' : '1fr'}; gap:8px; font-size:11.5px; margin-top:4px;">
+                                ${infItem.disp_compartir_cantante && infItem.disp_compartir_cantante !== 'no_aplica' ? `
+                                <div style="padding:6px 8px; background:#fff; border-radius:6px; border:1px solid var(--border-color);">
+                                    <span style="color:var(--text-muted); font-weight:700;">🎤 COMPARTIR VOCES:</span>
+                                    <div style="font-weight:600; color:var(--text-main); margin-top:2px;">${infItem.disp_compartir_cantante === 'compartir' ? '✅ Dispuesto a compartir y armar voces' : (infItem.disp_compartir_cantante === 'solo' ? '⚠️ Prefiere cantar solo' : (infItem.disp_compartir_cantante === 'ambos' ? '✅ Abierto a ambas' : '-'))}</div>
+                                </div>` : ''}
+                                ${infItem.cambio_tonalidades && infItem.cambio_tonalidades !== 'no_aplica' ? `
+                                <div style="padding:6px 8px; background:#fff; border-radius:6px; border:1px solid var(--border-color);">
+                                    <span style="color:var(--text-muted); font-weight:700;">🎼 TONALIDADES:</span>
+                                    <div style="font-weight:600; color:var(--text-main); margin-top:2px;">${infItem.cambio_tonalidades === 'sabe_dispuesto' ? '✅ Sabe transportar y dispuesto' : (infItem.cambio_tonalidades === 'dispuesto_aprender' ? '🌱 Dispuesto a aprender' : (infItem.cambio_tonalidades === 'prefiere_original' ? '⚠️ Prefiere original' : '-'))}</div>
+                                </div>` : ''}
+                            </div>` : ''}
+
+                            ${puedeGestionarInforme ? `
+                            <div style="display:flex; justify-content:flex-end; border-top:1px solid var(--border-color); padding-top:10px; margin-top:6px;">
+                                <button type="button" class="btn-app btn-secondary" onclick="window.editarInformeEspecifico('${id}', ${idx})" style="font-size:12px; font-weight:700; color:var(--accent-teal); border-color:var(--accent-teal); display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
+                                    ✏️ Editar / Actualizar Informe de Entrevista
+                                </button>
+                            </div>` : ''}
+                        </div>
                     </div>
-                </div>` : ''}
+                `;
+            }).join('');
+        } else {
+            // UN SOLO INFORME
+            const inf = arrInformes[0];
+            contStruct.innerHTML = `
+                <div style="background:var(--hover-bg); border:1px solid var(--border-color); border-radius:10px; padding:14px; display:flex; flex-direction:column; gap:10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:8px;">
+                        <strong style="color:var(--text-main); font-size:13px;">📋 Informe de Entrevista & Nivelación</strong>
+                        <span class="status-badge bg-blue" style="font-size:10px;">${inf.nivel_asignado || d.nivel || 'Nivel Asignado'}</span>
+                    </div>
+                    
+                    ${inf.profesion ? `<div><span style="font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">💼 Profesión / Ocupación:</span><div style="font-size:12.5px; font-weight:600; color:var(--text-main); margin-top:2px;">${inf.profesion}</div></div>` : ''}
 
-                <div style="display:flex; gap:12px; font-size:11px; color:var(--text-muted); font-weight:600; margin-top:4px;">
-                    <span>✅ Propuesta charlada</span>
-                    <span>✅ Requisitos acordados</span>
-                    <span>✅ Notificado en Lista de Espera</span>
+                    ${inf.motivacion_expectativas ? `
+                    <div>
+                        <span style="font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">1. Motivación, Intereses y Expectativas:</span>
+                        <div style="font-size:12.5px; color:var(--text-main); background:#fff; padding:8px 10px; border-radius:6px; border:1px solid var(--border-color); margin-top:3px; line-height:1.4;">${inf.motivacion_expectativas}</div>
+                    </div>` : ''}
+
+                    <div>
+                        <span style="font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">2. Diagnóstico Técnico & Plasticidad:</span>
+                        <div style="font-size:12.5px; color:var(--text-main); background:#fff; padding:8px 10px; border-radius:6px; border:1px solid var(--border-color); margin-top:3px; line-height:1.4;">${inf.diagnostico_tecnico || '-'}</div>
+                    </div>
+
+                    <!-- PUNTO 3: PERFIL PSICOEMOCIONAL -->
+                    <div style="background:#f8fafc; border:1px solid var(--border-color); border-radius:8px; padding:12px; display:flex; flex-direction:column; gap:8px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:11.5px; color:var(--text-main); font-weight:800; text-transform:uppercase; display:flex; align-items:center; gap:6px;">
+                                <span>🧠</span> 3. Perfil Psicoemocional
+                            </span>
+                        </div>
+                        ${inf.perfil_psicoemocional_detalle ? `
+                            <div style="font-size:12.5px; color:#334155; line-height:1.4; background:#fff; padding:8px 10px; border-radius:6px; border:1px solid #cbd5e1;">
+                                ${inf.perfil_psicoemocional_detalle}
+                            </div>
+                        ` : ''}
+                        ${Array.isArray(inf.perfil_psicologico) && inf.perfil_psicologico.length > 0 ? `
+                            <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:2px;">
+                                ${inf.perfil_psicologico.map(t => `<span class="profile-tag-badge" style="font-size:10px; padding:2px 7px;">${t}</span>`).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    ${inf.artistas_estilos ? `
+                    <div>
+                        <span style="font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">🎵 Zona de Confort / Artistas Referentes:</span>
+                        <div style="font-size:12.5px; font-weight:600; color:var(--accent-teal); background:#fff; padding:6px 10px; border-radius:6px; border:1px solid var(--border-color); margin-top:3px;">${inf.artistas_estilos}</div>
+                    </div>` : ''}
+
+                    ${(inf.disp_compartir_cantante && inf.disp_compartir_cantante !== 'no_aplica') || (inf.cambio_tonalidades && inf.cambio_tonalidades !== 'no_aplica') ? `
+                    <div style="display:grid; grid-template-columns:${(inf.disp_compartir_cantante && inf.disp_compartir_cantante !== 'no_aplica') && (inf.cambio_tonalidades && inf.cambio_tonalidades !== 'no_aplica') ? '1fr 1fr' : '1fr'}; gap:8px; font-size:11.5px; margin-top:4px;">
+                        ${inf.disp_compartir_cantante && inf.disp_compartir_cantante !== 'no_aplica' ? `
+                        <div style="padding:6px 8px; background:#fff; border-radius:6px; border:1px solid var(--border-color);">
+                            <span style="color:var(--text-muted); font-weight:700;">🎤 COMPARTIR VOCES:</span>
+                            <div style="font-weight:600; color:var(--text-main); margin-top:2px;">${inf.disp_compartir_cantante === 'compartir' ? '✅ Dispuesto a compartir y armar voces' : (inf.disp_compartir_cantante === 'solo' ? '⚠️ Prefiere cantar solo' : (inf.disp_compartir_cantante === 'ambos' ? '✅ Abierto a ambas' : '-'))}</div>
+                        </div>` : ''}
+                        ${inf.cambio_tonalidades && inf.cambio_tonalidades !== 'no_aplica' ? `
+                        <div style="padding:6px 8px; background:#fff; border-radius:6px; border:1px solid var(--border-color);">
+                            <span style="color:var(--text-muted); font-weight:700;">🎼 TONALIDADES:</span>
+                            <div style="font-weight:600; color:var(--text-main); margin-top:2px;">${inf.cambio_tonalidades === 'sabe_dispuesto' ? '✅ Sabe transportar y dispuesto' : (inf.cambio_tonalidades === 'dispuesto_aprender' ? '🌱 Dispuesto a aprender' : (inf.cambio_tonalidades === 'prefiere_original' ? '⚠️ Prefiere original' : '-'))}</div>
+                        </div>` : ''}
+                    </div>` : ''}
+
+                    <div style="display:flex; gap:12px; font-size:11px; color:var(--text-muted); font-weight:600; margin-top:4px;">
+                        <span>✅ Propuesta charlada</span>
+                        <span>✅ Requisitos acordados</span>
+                        <span>✅ Notificado en Lista de Espera</span>
+                    </div>
                 </div>
-            </div>
-        `;
+            `;
+        }
     } else {
         if (contStruct) { contStruct.style.display = 'none'; contStruct.innerHTML = ''; }
         if (wrapLegacy) wrapLegacy.style.display = 'none';
@@ -8203,21 +8848,21 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
     // Control de visibilidad del Tab Informe
     const tabBtnInforme = document.querySelector('.tab-btn[data-target="tab-informe"]');
     const estadosConInforme = ['Agenda confirmada', 'Lista de espera', 'Validando grupo', 'Pre-alta pendiente', 'Pre-alta iniciada', 'Alta Efectiva', 'Alta Ilegal', 'Alta Finalizada', 'Agenda suspendida', 'Alta Suspendida'];
-    const tieneInformeGuardado = Boolean(d.informe_entrevista || d.informe_admision);
+    const tieneInformeGuardado = Boolean(d.informe_entrevista || d.informe_admision || (Array.isArray(d.informes_entrevista) && d.informes_entrevista.length > 0));
     const puedeVerInforme = estadosConInforme.includes(d.estado_agenda) || tieneInformeGuardado;
     
     if (tabBtnInforme) {
         tabBtnInforme.style.display = puedeVerInforme ? 'inline-flex' : 'none';
     }
 
-    // Botón de editar informe desde la ficha
+    // Botón de editar informe desde la ficha (solo se muestra abajo si hay 1 o 0 informes, si hay más de 1 está dentro de cada acordeón)
     const btnEditWrap = document.getElementById('ficha-informe-btn-edit-wrapper');
     if (btnEditWrap) {
         const roles = Array.isArray(window.usuarioActual?.roles) && window.usuarioActual.roles.length > 0
             ? window.usuarioActual.roles
             : [window.usuarioActual?.rol || 'admisiones'];
-        const puedeEditarInforme = !modoLectura && (roles.includes('admin') || roles.includes('admisiones') || roles.includes('admisor') || roles.includes('evaluador'));
-        btnEditWrap.style.display = (puedeEditarInforme && (d.estado_agenda === 'Lista de espera' || d.informe_entrevista || d.informe_admision || d.estado_agenda === 'Agenda confirmada')) ? 'flex' : 'none';
+        const puedeEditarInforme = !modoLectura && (roles.includes('admin') || roles.includes('coordinador') || roles.includes('coordinador_grupos') || roles.includes('admisiones') || roles.includes('admisor') || roles.includes('evaluador'));
+        btnEditWrap.style.display = (puedeEditarInforme && arrInformes.length <= 1 && (d.estado_agenda === 'Lista de espera' || d.informe_entrevista || d.informe_admision || d.estado_agenda === 'Agenda confirmada')) ? 'flex' : 'none';
     }
 
     quillInforme.root.innerHTML = d.informe_admision || '';
@@ -8240,12 +8885,14 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
     if (elFechaInf) elFechaInf.textContent = fechaEntrevistaTxt;
     if (elEvalInf) elEvalInf.textContent = evaluadorTxt;
 
-    // Configuración de Corrección de Entrevista (Solo para Administrador)
+    // Configuración de Corrección de Entrevista (Permitido para Administrador y Coordinador)
     const uActual = window.usuarioActual || {};
     const rolesUser = Array.isArray(uActual.roles) && uActual.roles.length > 0
         ? uActual.roles
         : [uActual.rol || 'admisor'];
     const esAdmin = rolesUser.includes('admin') || uActual.rol === 'admin' || uActual.email?.toLowerCase() === 'productora.mandalahouse@gmail.com' || window.modoRolActivo === 'admin';
+    const esCoordinador = rolesUser.includes('coordinador') || rolesUser.includes('coordinador_grupos') || uActual.rol === 'coordinador' || window.modoRolActivo === 'coordinador';
+    const esAdminOCoordinador = esAdmin || esCoordinador;
 
     const btnCorregirEntrevista = document.getElementById('btn-corregir-entrevista-admin');
     const boxViewEntrevista = document.getElementById('modal-informe-entrevista-view');
@@ -8255,7 +8902,7 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
     if (boxEditEntrevista) boxEditEntrevista.style.display = 'none';
 
     if (btnCorregirEntrevista) {
-        btnCorregirEntrevista.style.display = (!modoLectura && esAdmin) ? 'inline-flex' : 'none';
+        btnCorregirEntrevista.style.display = (!modoLectura && esAdminOCoordinador) ? 'inline-flex' : 'none';
         btnCorregirEntrevista.onclick = async () => {
             const inpFecha = document.getElementById('modal-informe-fecha-edit-input');
             const selEval = document.getElementById('modal-informe-evaluador-select');
@@ -8263,25 +8910,20 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
 
             if (inpFecha) inpFecha.value = (d.reserva_fecha_texto && d.reserva_fecha_texto !== '-') ? d.reserva_fecha_texto : (fechaEntrevistaTxt !== '-' ? fechaEntrevistaTxt : '');
             
-            // Cargar lista de evaluadores / docentes en el select
+            // Cargar lista de evaluadores en el select
             if (selEval) {
                 selEval.innerHTML = '<option value="">Seleccionar evaluador...</option>';
                 try {
-                    const pSnap = await getDocs(collection(db, "profesores"));
-                    const nombresVistos = new Set();
-                    pSnap.forEach(p => {
-                        const pData = p.data();
-                        if (pData.activo !== false && pData.nombre && !nombresVistos.has(pData.nombre.trim())) {
-                            nombresVistos.add(pData.nombre.trim());
-                            const opt = document.createElement('option');
-                            opt.value = pData.nombre.trim();
-                            opt.dataset.profeId = p.id;
-                            opt.textContent = pData.nombre.trim() + (pData.entrevista ? ' (Evaluador)' : '');
-                            selEval.appendChild(opt);
-                        }
+                    const evals = await obtenerListaEvaluadoresActivos();
+                    evals.forEach(ev => {
+                        const opt = document.createElement('option');
+                        opt.value = ev.nombre;
+                        opt.dataset.profeId = ev.id;
+                        opt.textContent = ev.nombre;
+                        selEval.appendChild(opt);
                     });
                 } catch(e) {
-                    console.error("Error cargando profesores:", e);
+                    console.error("Error cargando evaluadores:", e);
                 }
 
                 // Preseleccionar si existe coincidencia
@@ -8317,8 +8959,14 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
     const btnCancelCorregir = document.getElementById('btn-cancelar-entrevista-admin');
     if (btnCancelCorregir) {
         btnCancelCorregir.onclick = () => {
+            const inpFecha = document.getElementById('modal-informe-fecha-edit-input');
+            if (inpFecha) inpFecha.value = (d.reserva_fecha_texto && d.reserva_fecha_texto !== '-') ? d.reserva_fecha_texto : (fechaEntrevistaTxt !== '-' ? fechaEntrevistaTxt : '');
             if (boxEditEntrevista) boxEditEntrevista.style.display = 'none';
             if (boxViewEntrevista) boxViewEntrevista.style.display = 'flex';
+            const modalPadre = document.getElementById('modal-alta-alumno');
+            if (modalPadre) modalPadre.dataset.modificado = 'false';
+            window._modalEditandoModificado = false;
+            window._fichaAlumnoModificada = false;
         };
     }
 
@@ -8378,19 +9026,36 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
                     }
                 }
 
-                // Actualizar dentro de informe_entrevista si ya existe
+                // Actualizar dentro de informe_entrevista e informes_entrevista si ya existen
                 if (d.informe_entrevista) {
                     if (nuevoEvaluador) updates['informe_entrevista.evaluador_nombre'] = nuevoEvaluador;
                     if (nuevoEvaluadorId) updates['informe_entrevista.evaluador_id'] = nuevoEvaluadorId;
+                    if (nuevaFecha) updates['informe_entrevista.fecha_evaluacion'] = nuevaFecha;
+                }
+                if (Array.isArray(d.informes_entrevista) && d.informes_entrevista.length > 0) {
+                    const inf0 = { ...d.informes_entrevista[0] };
+                    if (nuevoEvaluador) inf0.evaluador_nombre = nuevoEvaluador;
+                    if (nuevoEvaluadorId) inf0.evaluador_id = nuevoEvaluadorId;
+                    if (nuevaFecha) inf0.fecha_evaluacion = nuevaFecha;
+                    const nuevoArr = [...d.informes_entrevista];
+                    nuevoArr[0] = inf0;
+                    updates.informes_entrevista = nuevoArr;
                 }
 
                 const ahoraStr = new Date().toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' });
-                const adminNom = window.usuarioActual?.nombre || 'Admin';
-                const entradaHistorial = `[${ahoraStr}] Datos de entrevista corregidos por Admin (${adminNom}): Fecha "${nuevaFecha || '-'}", Evaluador "${nuevoEvaluador || '-'}"`;
+                const rolNom = esAdmin ? 'Admin' : 'Coordinador';
+                const usuarioNom = window.usuarioActual?.nombre || rolNom;
+                const entradaHistorial = `[${ahoraStr}] Datos de entrevista corregidos por ${rolNom} (${usuarioNom}): Fecha "${nuevaFecha || '-'}", Evaluador "${nuevoEvaluador || '-'}"`;
                 
                 updates.historial = [entradaHistorial, ...(d.historial || [])];
 
                 await updateDoc(doc(db, "alumnos", id), updates);
+
+                // Resetear estado modificado de la ficha
+                const modalPadre = document.getElementById('modal-alta-alumno');
+                if (modalPadre) modalPadre.dataset.modificado = 'false';
+                window._modalEditandoModificado = false;
+                window._fichaAlumnoModificada = false;
 
                 // Actualizar en DOM
                 if (elFechaInf && nuevaFecha) elFechaInf.textContent = nuevaFecha;
@@ -8399,9 +9064,29 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
                 // Actualizar objeto en memoria
                 d.reserva_fecha_texto = nuevaFecha;
                 d.reserva_profe_nombre = nuevoEvaluador;
+                if (d.informe_entrevista) {
+                    if (nuevoEvaluador) d.informe_entrevista.evaluador_nombre = nuevoEvaluador;
+                    if (nuevoEvaluadorId) d.informe_entrevista.evaluador_id = nuevoEvaluadorId;
+                    if (nuevaFecha) d.informe_entrevista.fecha_evaluacion = nuevaFecha;
+                }
+                if (Array.isArray(d.informes_entrevista) && d.informes_entrevista.length > 0) {
+                    d.informes_entrevista = updates.informes_entrevista;
+                }
+
+                // Si hay tarjetas de informe en el acordeón, actualizar el primer reporte
+                const primerInfCard = document.querySelector('#ficha-informe-entrevista-structured > div:first-child');
+                if (primerInfCard) {
+                    const spanEval = primerInfCard.querySelector('span[style*="font-weight:700"] strong');
+                    if (spanEval && nuevoEvaluador) spanEval.textContent = nuevoEvaluador;
+                    const spanFecha = primerInfCard.querySelector('span[style*="color:var(--text-muted)"]');
+                    if (spanFecha && nuevaFecha) spanFecha.textContent = `📅 ${formatearFechaHoraEstandar(nuevaFecha)}`;
+                }
 
                 if (boxEditEntrevista) boxEditEntrevista.style.display = 'none';
                 if (boxViewEntrevista) boxViewEntrevista.style.display = 'flex';
+
+                const wrap = document.getElementById('form-alumno-wrapper');
+                if (wrap) wrap.style.display = 'block';
 
                 if (typeof mostrarToast === 'function') {
                     mostrarToast("✅ Datos de entrevista corregidos correctamente", "success");
@@ -8410,8 +9095,14 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
                 }
 
                 if (typeof cargarVista === 'function') {
-                    cargarVista(estadoActualVista);
+                    await cargarVista(estadoActualVista);
                 }
+
+                // Reasegurar estado visible y limpio tras actualizar la vista en segundo plano
+                if (wrap) wrap.style.display = 'block';
+                if (modalPadre) modalPadre.dataset.modificado = 'false';
+                window._modalEditandoModificado = false;
+                window._fichaAlumnoModificada = false;
             } catch(err) {
                 console.error("Error al guardar corrección de entrevista:", err);
                 alert("❌ Error al guardar: " + err.message);
@@ -9627,34 +10318,29 @@ document.getElementById('btn-guardar-contacto')?.addEventListener('click', async
     }
 });
 
-// Listener Decisión Bicicleta: Suspender
-document.getElementById('btn-decision-suspender')?.addEventListener('click', async () => {
+// Listener Decisión Bicicleta: Suspender (abre modal-suspender para exigir motivo)
+document.getElementById('btn-decision-suspender')?.addEventListener('click', () => {
     const id = document.getElementById('modal-decision-alumno-id')?.value || alumnoContactoPendienteBicicleta?.id;
     const nombre = document.getElementById('modal-decision-alumno-nombre')?.textContent || '';
     if (!id) return;
 
-    mostrarIndicadorCarga("Enviando alumno a Suspendidos...");
-    try {
-        const alDoc = await getDoc(doc(db, "alumnos", id));
-        const alData = alDoc.exists() ? alDoc.data() : {};
-        const hist = Array.isArray(alData.historial) ? alData.historial : [];
+    // Cerrar modal de decisión
+    document.getElementById('modal-decision-bicicleta')?.close();
 
-        hist.push(crearEntradaHistorial(`⏸️ Alumno derivado a Suspendidos tras contacto telefónico en grupo Bicicletas.`, 'sistema', window.usuarioActual?.nombre || 'Coordinación'));
-
-        await updateDoc(doc(db, "alumnos", id), {
-            estado_agenda: "Agenda suspendida",
-            es_bicicleta: false,
-            historial: hist
-        });
-
-        document.getElementById('modal-decision-bicicleta')?.close();
-        ocultarIndicadorCarga();
-        mostrarToast(`⏸️ ${nombre} fue derivado a Suspendidos y salió de Lista de Espera.`, "info");
-        await cargarVista(estadoActualVista);
-    } catch(err) {
-        ocultarIndicadorCarga();
-        alert("Error al suspender alumno: " + err.message);
-    }
+    // Abrir modal de suspensión para exigir y seleccionar el motivo
+    poblarSelectMotivosSuspension();
+    document.getElementById('susp-alumno-id').value = id;
+    document.getElementById('susp-modo-edicion').value = "";
+    document.getElementById('susp-nota-id').value = "";
+    document.getElementById('susp-motivo').value = "";
+    const detEl = document.getElementById('susp-detalle-adicional');
+    if (detEl) detEl.value = "Derivado a suspensión tras contacto telefónico en grupo Bicicletas";
+    const h3 = document.getElementById('susp-titulo-modal');
+    if (h3) h3.innerHTML = `<span>🛑</span> Suspender Alumno (Bicicleta)`;
+    const btnConfirm = document.getElementById('btn-guardar-suspension');
+    if (btnConfirm) btnConfirm.textContent = 'Confirmar Suspensión';
+    
+    document.getElementById('modal-suspender')?.showModal();
 });
 
 // Listener Decisión Bicicleta: Mantener en Bicicleta
@@ -9710,6 +10396,70 @@ export async function toggleBicicletaAlumno(id, pasarABicicleta, nombre) {
     }
 }
 window.toggleBicicletaAlumno = toggleBicicletaAlumno;
+
+// =======================================================================
+// CORRECCIÓN MANUAL DE DÍAS SIN CONTACTO (Admin / Coordinador)
+// =======================================================================
+export function abrirModalEditarContacto(id, nombre, diasActuales) {
+    if (!id) return;
+    const modal = document.getElementById('modal-editar-contacto-dias');
+    if (!modal) return;
+
+    document.getElementById('edit-contacto-alumno-id').value = id;
+    document.getElementById('edit-contacto-alumno-nombre').textContent = nombre || 'el alumno';
+    const inputDias = document.getElementById('edit-contacto-dias-val');
+    if (inputDias) {
+        inputDias.value = (typeof diasActuales === 'number' && !isNaN(diasActuales)) ? diasActuales : 0;
+        setTimeout(() => inputDias.focus(), 150);
+    }
+
+    modal.showModal();
+}
+window.abrirModalEditarContacto = abrirModalEditarContacto;
+
+document.getElementById('btn-guardar-contacto-dias')?.addEventListener('click', async () => {
+    const id = document.getElementById('edit-contacto-alumno-id')?.value;
+    const diasStr = document.getElementById('edit-contacto-dias-val')?.value;
+    if (!id) return;
+
+    const diasNum = parseInt(diasStr, 10);
+    if (isNaN(diasNum) || diasNum < 0) {
+        alert("Por favor ingresá un número de días válido (mayor o igual a 0).");
+        document.getElementById('edit-contacto-dias-val')?.focus();
+        return;
+    }
+
+    const btn = document.getElementById('btn-guardar-contacto-dias');
+    if (btn) setBotonCargando(btn, true, 'Guardando...');
+
+    try {
+        const ahora = new Date();
+        const fechaVirtual = new Date(ahora.getTime() - diasNum * 24 * 60 * 60 * 1000).toISOString();
+        const autor = window.usuarioActual?.nombre || 'Coordinación';
+
+        const alDoc = await getDoc(doc(db, "alumnos", id));
+        const alData = alDoc.exists() ? alDoc.data() : {};
+        const hist = Array.isArray(alData.historial) ? alData.historial : [];
+
+        hist.push(crearEntradaHistorial(`✏️ Días sin contacto ajustados manualmente a ${diasNum}d por ${autor}.`, 'sistema', autor));
+
+        await updateDoc(doc(db, "alumnos", id), {
+            fecha_ultimo_contacto: fechaVirtual,
+            dias_contacto_manual: diasNum,
+            ultimo_contacto_nota: `Días sin contacto ajustados manualmente a ${diasNum}d`,
+            historial: hist
+        });
+
+        document.getElementById('modal-editar-contacto-dias')?.close();
+        mostrarToast(`✅ Días sin contacto actualizados a ${diasNum}d.`, "success");
+        await cargarVista(estadoActualVista);
+    } catch(err) {
+        console.error("Error al actualizar días sin contacto:", err);
+        alert("Error al actualizar días sin contacto: " + err.message);
+    } finally {
+        if (btn) setBotonCargando(btn, false);
+    }
+});
 
 export function hacerScrollABicicletas() {
     const el = document.getElementById('panel-bicicletas-section');

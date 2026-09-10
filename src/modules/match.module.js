@@ -2983,96 +2983,182 @@ export async function renderMatchSolicitudesProfes(cont, configApp, callbacks = 
                 `;
             }
 
-            html += `<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:16px;">`;
+            // Agrupar pendientes por profesor y ordenar cronológicamente por día y horario
+            const MAP_DIAS = {
+                'l': 1, 'lu': 1, 'lun': 1, 'lunes': 1,
+                'm': 2, 'ma': 2, 'mar': 2, 'martes': 2,
+                'mi': 3, 'mie': 3, 'mié': 3, 'miercoles': 3, 'miércoles': 3, 'x': 3,
+                'j': 4, 'ju': 4, 'jue': 4, 'jueves': 4,
+                'v': 5, 'vi': 5, 'vie': 5, 'viernes': 5,
+                's': 6, 'sa': 6, 'sab': 6, 'sábado': 6, 'sabado': 6,
+                'd': 7, 'do': 7, 'dom': 7, 'domingo': 7
+            };
+
+            const getOrdenDia = (sol) => {
+                if (sol.diaCod) {
+                    const d = String(sol.diaCod).trim().toLowerCase();
+                    if (MAP_DIAS[d]) return MAP_DIAS[d];
+                }
+                const h = (sol.horario || '').toLowerCase().trim();
+                for (const k of Object.keys(MAP_DIAS)) {
+                    if (h.startsWith(k) || h.includes(k + ' ')) return MAP_DIAS[k];
+                }
+                return 99;
+            };
+
+            const getMinutosHora = (sol) => {
+                if (sol.horaInicio) {
+                    const parts = String(sol.horaInicio).split(':');
+                    if (parts.length >= 2) {
+                        return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+                    }
+                }
+                const match = (sol.horario || '').match(/(\d{1,2}):?(\d{2})?/);
+                if (match) {
+                    const hh = parseInt(match[1], 10);
+                    const mm = match[2] ? parseInt(match[2], 10) : 0;
+                    return hh * 60 + mm;
+                }
+                return 9999;
+            };
+
+            const gruposPorProfe = {};
             pendientes.forEach(sol => {
-                const durMin = sol.duracionMinutos || (sol.tipoGrupo === 'Ensamble Mandalorian' ? 90 : 60);
-                const durBadge = durMin === 90 
-                    ? '<span class="status-badge" style="background:#f3e8ff; color:#7e22ce; font-weight:700; font-size:11px;">⏱️ 90 min (1.5h)</span>'
-                    : '<span class="status-badge" style="background:#e0f2fe; color:#0369a1; font-weight:700; font-size:11px;">⏱️ 60 min</span>';
+                const profe = (sol.profesorNombre || 'Sin Docente Asignado').trim();
+                if (!gruposPorProfe[profe]) gruposPorProfe[profe] = [];
+                gruposPorProfe[profe].push(sol);
+            });
 
-                const instsArray = sol.instrumentosArray || (sol.instrumento ? sol.instrumento.split(',').map(s => s.trim()) : []);
-                const chipsInstHtml = instsArray.map(inst => {
-                    const emoji = getEmojiParaInstrumento(inst);
-                    return `<span class="match-student-tag" style="font-size:11.5px; font-weight:600;">${emoji} ${inst}</span>`;
-                }).join(' ');
+            const listaProfes = Object.keys(gruposPorProfe).sort((a, b) => a.localeCompare(b));
 
-                const nivelesStr = sol.nivel || 'Cualquiera';
+            listaProfes.forEach(profe => {
+                gruposPorProfe[profe].sort((a, b) => {
+                    const diaA = getOrdenDia(a);
+                    const diaB = getOrdenDia(b);
+                    if (diaA !== diaB) return diaA - diaB;
+                    return getMinutosHora(a) - getMinutosHora(b);
+                });
+            });
 
+            window.toggleMatchSolAccordion = function(bodyId, iconId) {
+                const body = document.getElementById(bodyId);
+                const icon = document.getElementById(iconId);
+                if (!body) return;
+                const isClosed = (body.style.display === 'none' || !body.style.display);
+                if (isClosed) {
+                    body.style.display = 'flex';
+                    if (icon) icon.textContent = '▲';
+                } else {
+                    body.style.display = 'none';
+                    if (icon) icon.textContent = '▼';
+                }
+            };
+
+            html += `<div style="display:flex; flex-direction:column; gap:16px;">`;
+            listaProfes.forEach((profe, pIdx) => {
+                const sols = gruposPorProfe[profe];
                 html += `
-                    <div class="match-card" style="display:flex; flex-direction:column; justify-content:space-between; padding:16px; border-radius:12px; border:1px solid var(--border-color); background:#ffffff; box-shadow:0 2px 8px rgba(0,0,0,0.04); position:relative; min-height:260px; border-top:4px solid #e5a93d;">
-                        <div>
-                            <!-- Top: Checkbox, Nombre del Grupo/Clase y Estado -->
-                            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:10px;">
-                                <div style="display:flex; align-items:flex-start; gap:10px;">
-                                    ${puedeBuscar ? `
-                                        <input type="checkbox" class="chk-solicitud-item" data-id="${sol.id}" style="width:18px; height:18px; cursor:pointer; accent-color:var(--accent-teal); margin-top:2px;">
-                                    ` : ''}
-                                    <div>
-                                        <div style="font-family:monospace; font-size:16px; font-weight:800; color:var(--accent-teal); line-height:1.2;">${sol.grupoNombre}</div>
-                                        <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">
-                                            👨‍🏫 Profe: <strong style="color:var(--text-main);">${sol.profesorNombre}</strong>
-                                        </div>
-                                    </div>
-                                </div>
-                                <span class="status-val-pending" style="font-size:11px; font-weight:700;">⏳ ${sol.estado}</span>
+                    <div class="profe-group-block" style="border:1px solid var(--border-color); border-radius:12px; background:#ffffff; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.02);">
+                        <div class="profe-group-header" style="background:linear-gradient(90deg, #f0fdfa 0%, #ffffff 100%); padding:12px 18px; border-bottom:1px solid #ccfbf1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                            <div style="font-size:14.5px; font-weight:800; color:var(--accent-teal); display:flex; align-items:center; gap:8px;">
+                                <span>👨‍🏫</span> Profesor: <strong style="color:var(--text-main);">${profe}</strong>
+                                <span style="background:var(--accent-teal); color:#fff; font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px;">${sols.length} solicitud${sols.length > 1 ? 'es' : ''}</span>
                             </div>
-
-                            <!-- Badges de Tipo, Coordinación y Duración -->
-                            <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;">
-                                <span class="status-badge" style="background:#fef3c7; color:#92400e; font-weight:700; font-size:11px;">${sol.tipoGrupo || 'Grupo'}</span>
-                                ${sol.creadoPorCoordinador ? `<span class="status-badge" style="background:#f0fdf4; color:#166534; font-weight:700; font-size:11px;">👔 Coordinación</span>` : ''}
-                                ${durBadge}
-                            </div>
-
-                            <!-- FECHA / HORARIO -->
-                            <div style="background:#f0fdfa; border:1px solid #ccfbf1; border-radius:8px; padding:7px 10px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
-                                <div style="display:flex; align-items:center; gap:6px;">
-                                    <span style="font-size:14px;">📅</span>
-                                    <div>
-                                        <div style="font-weight:700; font-size:12.5px; color:var(--accent-teal);">${sol.horario || 'Sin horario'}</div>
-                                        ${sol.fechaCreacion ? `<div style="font-size:10px; color:var(--text-muted);">Creada: ${new Date(sol.fechaCreacion).toLocaleDateString()}</div>` : ''}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Instrumentos, Niveles y Edad -->
-                            <div style="background:#f8fafc; border-radius:8px; padding:8px 10px; margin-bottom:10px; font-size:11.5px;">
-                                <div style="color:var(--text-muted); margin-bottom:4px; font-weight:600;">🎯 Requisitos:</div>
-                                <div style="display:flex; flex-wrap:wrap; gap:5px; align-items:center;">
-                                    ${chipsInstHtml}
-                                    <span class="match-student-tag nivel" style="font-size:11px;">📚 ${nivelesStr}</span>
-                                    ${(sol.rangoEdadTexto || (sol.edadMin || sol.edadMax)) ? `<span class="match-chip" style="background:#fdf2f8; color:#be185d; font-size:11px; padding:2px 7px; border-radius:6px; font-weight:700;">🎂 ${sol.rangoEdadTexto || ((sol.edadMin && sol.edadMax) ? `${sol.edadMin}-${sol.edadMax} años` : (sol.edadMin ? `≥ ${sol.edadMin} años` : `≤ ${sol.edadMax} años`))}</span>` : ''}
-                                </div>
-                            </div>
-
-                            <!-- Observaciones (si existen) -->
-                            ${sol.observaciones ? `
-                                <div style="font-size:11.5px; color:var(--text-muted); background:var(--hover-bg); padding:6px 10px; border-radius:6px; border:1px solid var(--border-color); margin-bottom:10px; font-style:italic;">
-                                    📝 "${sol.observaciones}"
-                                </div>
-                            ` : ''}
+                            <span style="font-size:12px; color:var(--text-muted); font-weight:600;">Ordenadas cronológicamente por día y hora</span>
                         </div>
 
-                        <!-- Footer con Botones de Acción -->
-                        <div style="display:flex; align-items:center; justify-content:space-between; border-top:1px solid #f1f5f9; padding-top:10px; gap:8px; margin-top:8px;">
-                            <div style="display:flex; gap:6px; align-items:center;">
-                                <button type="button" class="btn-app btn-secondary btn-finalizar-sol-directo" data-id="${sol.id}" data-grupo="${sol.grupoNombre}" data-profe="${sol.profesorNombre || ''}" style="font-size:11.5px; padding:4px 8px; height:30px; color:#059669; border-color:#a7f3d0; background:#ecfdf5; font-weight:700;" title="Finalizar solicitud">
-                                    🏁 Finalizar
-                                </button>
-                                <button type="button" class="btn-app btn-secondary btn-editar-sol-directo" data-id="${sol.id}" style="font-size:11.5px; padding:4px 8px; height:30px;" title="Editar solicitud">
-                                    ✏️ Editar
-                                </button>
-                                <button type="button" class="btn-app btn-secondary btn-eliminar-sol-directo" data-id="${sol.id}" data-grupo="${sol.grupoNombre}" style="font-size:11.5px; padding:4px 8px; height:30px; color:var(--accent-red); border-color:#fca5a5;" title="Eliminar solicitud">
-                                    🗑️
-                                </button>
+                        <div class="solicitudes-accordion-column" style="padding:12px 18px; display:flex; flex-direction:column; gap:8px;">
+                `;
+
+                sols.forEach((sol, sIdx) => {
+                    const bodyId = `sol-acc-body-${pIdx}-${sIdx}`;
+                    const iconId = `sol-acc-icon-${pIdx}-${sIdx}`;
+
+                    const durMin = sol.duracionMinutos || (sol.tipoGrupo === 'Ensamble Mandalorian' ? 90 : 60);
+                    const durBadge = durMin === 90 
+                        ? '<span class="status-badge" style="background:#f3e8ff; color:#7e22ce; font-weight:700; font-size:11px;">⏱️ 90 min (1.5h)</span>'
+                        : '<span class="status-badge" style="background:#e0f2fe; color:#0369a1; font-weight:700; font-size:11px;">⏱️ 60 min</span>';
+
+                    const instsArray = sol.instrumentosArray || (sol.instrumento ? sol.instrumento.split(',').map(s => s.trim()) : []);
+                    const chipsInstHtml = instsArray.map(inst => {
+                        const emoji = getEmojiParaInstrumento(inst);
+                        return `<span class="match-student-tag" style="font-size:11.5px; font-weight:600;">${emoji} ${inst}</span>`;
+                    }).join(' ');
+
+                    const nivelesStr = sol.nivel || 'Cualquiera';
+
+                    html += `
+                        <div class="sol-item-accordion" style="border:1px solid var(--border-color); border-radius:10px; background:#ffffff; transition:border-color 0.15s;">
+                            <!-- Header Acordeón Inicialmente Cerrado -->
+                            <div class="sol-item-header" onclick="window.toggleMatchSolAccordion('${bodyId}', '${iconId}')" style="padding:10px 14px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none; background:#ffffff; border-radius:10px; gap:10px;">
+                                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                                    ${puedeBuscar ? `
+                                        <input type="checkbox" class="chk-solicitud-item" data-id="${sol.id}" onclick="event.stopPropagation();" style="width:18px; height:18px; cursor:pointer; accent-color:var(--accent-teal); margin:0;">
+                                    ` : ''}
+                                    <span style="font-family:monospace; font-size:15px; font-weight:800; color:var(--accent-teal);">${sol.grupoNombre}</span>
+                                    <span style="background:#f1f5f9; color:#475569; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:700; border:1px solid #e2e8f0;">${sol.tipoGrupo || 'Grupo'}</span>
+                                    <span style="background:#f8fafc; color:#334155; font-size:11.5px; font-weight:600; display:flex; align-items:center; gap:4px; padding:2px 6px; border-radius:4px;">📅 ${sol.horario || 'Sin horario'}</span>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+                                    <span class="status-val-pending" style="font-size:11px; font-weight:700; color:#d97706; background:#fef3c7; padding:2px 7px; border-radius:4px;">⏳ ${sol.estado}</span>
+                                    <span id="${iconId}" style="font-size:10px; color:#64748b; transition:0.2s;">▼</span>
+                                </div>
                             </div>
-                            ${puedeBuscar ? `
-                                <button type="button" class="btn-primary btn-buscar-matches-sol" data-id="${sol.id}" style="font-size:11.5px; padding:5px 12px; height:30px; font-weight:700;">
-                                    🔍 Buscar Matches
-                                </button>
-                            ` : `
-                                <span style="font-size:11.5px; color:var(--text-muted); font-style:italic;">Solo Coordinación</span>
-                            `}
+
+                            <!-- Body Acordeón Desplegable (Cerrado por defecto) -->
+                            <div class="sol-item-body" id="${bodyId}" style="display:none; padding:14px 16px; border-top:1px solid var(--border-color); flex-direction:column; gap:10px; background:#fafaf9; border-radius:0 0 10px 10px;">
+                                <!-- Badges de Tipo, Coordinación y Duración -->
+                                <div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
+                                    <span class="status-badge" style="background:#fef3c7; color:#92400e; font-weight:700; font-size:11px;">${sol.tipoGrupo || 'Grupo'}</span>
+                                    ${sol.creadoPorCoordinador ? `<span class="status-badge" style="background:#f0fdf4; color:#166534; font-weight:700; font-size:11px;">👔 Coordinación</span>` : ''}
+                                    ${durBadge}
+                                    ${sol.fechaCreacion ? `<span style="font-size:11px; color:var(--text-muted); margin-left:auto;">Creada: ${new Date(sol.fechaCreacion).toLocaleDateString()}</span>` : ''}
+                                </div>
+
+                                <!-- Instrumentos, Niveles y Edad -->
+                                <div style="background:#ffffff; border:1px solid var(--border-color); border-radius:8px; padding:8px 12px; font-size:11.5px;">
+                                    <div style="color:var(--text-muted); margin-bottom:4px; font-weight:600;">🎯 Requisitos:</div>
+                                    <div style="display:flex; flex-wrap:wrap; gap:5px; align-items:center;">
+                                        ${chipsInstHtml}
+                                        <span class="match-student-tag nivel" style="font-size:11px;">📚 ${nivelesStr}</span>
+                                        ${(sol.rangoEdadTexto || (sol.edadMin || sol.edadMax)) ? `<span class="match-chip" style="background:#fdf2f8; color:#be185d; font-size:11px; padding:2px 7px; border-radius:6px; font-weight:700;">🎂 ${sol.rangoEdadTexto || ((sol.edadMin && sol.edadMax) ? `${sol.edadMin}-${sol.edadMax} años` : (sol.edadMin ? `≥ ${sol.edadMin} años` : `≤ ${sol.edadMax} años`))}</span>` : ''}
+                                    </div>
+                                </div>
+
+                                <!-- Observaciones -->
+                                ${sol.observaciones ? `
+                                    <div style="font-size:11.5px; color:var(--text-muted); background:#ffffff; padding:6px 10px; border-radius:6px; border:1px solid var(--border-color); font-style:italic;">
+                                        📝 "${sol.observaciones}"
+                                    </div>
+                                ` : ''}
+
+                                <!-- Footer con Botones de Acción -->
+                                <div style="display:flex; align-items:center; justify-content:space-between; border-top:1px solid #e2e8f0; padding-top:10px; gap:8px; margin-top:4px;">
+                                    <div style="display:flex; gap:6px; align-items:center;">
+                                        <button type="button" class="btn-app btn-secondary btn-finalizar-sol-directo" data-id="${sol.id}" data-grupo="${sol.grupoNombre}" data-profe="${sol.profesorNombre || ''}" style="font-size:11.5px; padding:4px 8px; height:30px; color:#059669; border-color:#a7f3d0; background:#ecfdf5; font-weight:700;" title="Finalizar solicitud">
+                                            🏁 Finalizar
+                                        </button>
+                                        <button type="button" class="btn-app btn-secondary btn-editar-sol-directo" data-id="${sol.id}" style="font-size:11.5px; padding:4px 8px; height:30px;" title="Editar solicitud">
+                                            ✏️ Editar
+                                        </button>
+                                        <button type="button" class="btn-app btn-secondary btn-eliminar-sol-directo" data-id="${sol.id}" data-grupo="${sol.grupoNombre}" style="font-size:11.5px; padding:4px 8px; height:30px; color:var(--accent-red); border-color:#fca5a5;" title="Eliminar solicitud">
+                                            🗑️
+                                        </button>
+                                    </div>
+                                    ${puedeBuscar ? `
+                                        <button type="button" class="btn-primary btn-buscar-matches-sol" data-id="${sol.id}" style="font-size:11.5px; padding:5px 12px; height:30px; font-weight:700;">
+                                            🔍 Buscar Matches
+                                        </button>
+                                    ` : `
+                                        <span style="font-size:11.5px; color:var(--text-muted); font-style:italic;">Solo Coordinación</span>
+                                    `}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `
                         </div>
                     </div>
                 `;
