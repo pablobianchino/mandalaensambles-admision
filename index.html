@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=6.7.7">
+    <link rel="stylesheet" href="styles.css?v=6.7.9">
 
     <style>
         /* Estilos Críticos de Widget de Perfil y Popover Google-Style */
@@ -1163,6 +1163,10 @@
                 <div class="inf-banner-item" style="max-width:90px;">
                     <label class="inf-banner-label">Edad</label>
                     <input type="number" id="inf-edad" class="modern-input" style="padding:5px 8px; font-size:12.5px; height:32px; font-weight:700; background:#fff;">
+                </div>
+                <div class="inf-banner-item">
+                    <label class="inf-banner-label" style="color:var(--accent-teal);">¿En qué zona vive? <span style="color:#ef4444;">*</span></label>
+                    <input type="text" id="inf-zona" class="modern-input" required placeholder="Ej: Palermo, Belgrano, Olivos..." style="padding:5px 8px; font-size:12.5px; height:32px; font-weight:600; background:#fff;">
                 </div>
                 <div class="inf-banner-item">
                     <label class="inf-banner-label">Profesión (Opcional)</label>
@@ -2742,12 +2746,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=6.7.7"></script>
+    <script type="module" src="app.js?v=6.7.9"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=6.7.7').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=6.7.9').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {

@@ -190,6 +190,7 @@ let agrupadorNivel1 = 'ninguno';
 let agrupadorNivel2 = 'ninguno';
 let agrupadorNivel3 = 'ninguno';
 let agrupadoresEsperaInicializados = false;
+let ultimaVistaAgrupadoresConfigurada = null;
 
 window.toggleGroupCollapsible = function(contentId, iconId) {
     const contentEl = document.getElementById(contentId);
@@ -4128,38 +4129,8 @@ function getModuloSubtabs() {
                 }).length 
             }
         ];
-    } else if (rol === 'admisiones' || rol === 'admisor') {
-        inboxTabs = [
-            { 
-                vista: 'Inbox - Pendientes', 
-                label: 'Sin Agendar', 
-                icon: '⏳', 
-                countFn: (alumnos) => alumnos.filter(d => {
-                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-                    return st === 'pendiente procesar' || st === 'sin agendar';
-                }).length 
-            },
-            { 
-                vista: 'Inbox - Validar Alumno', 
-                label: 'Validar por Alumno', 
-                icon: '🧑‍🎓', 
-                countFn: (alumnos) => alumnos.filter(d => {
-                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-                    return st === 'pendiente validacion por alumno';
-                }).length 
-            },
-            { 
-                vista: 'Inbox - Altas Pendientes', 
-                label: 'Altas Pendientes de Acción', 
-                icon: '🚀', 
-                countFn: (alumnos) => alumnos.filter(d => {
-                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-                    return st === 'pre-alta pendiente' || st === 'pre-alta iniciada' || esAlumnoAltaConfirmadaIncompleta(d);
-                }).length 
-            }
-        ];
     } else {
-        // Admin: Todos los subtabs
+        // Admin, Coordinador y Admisiones: Todos los subtabs de Inbox
         inboxTabs = [
             { 
                 vista: 'Inbox - Pendientes', 
@@ -4195,15 +4166,6 @@ function getModuloSubtabs() {
                 countFn: (alumnos) => alumnos.filter(d => {
                     const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
                     return st === 'agenda confirmada' || st === 'entrevista confirmada';
-                }).length 
-            },
-            { 
-                vista: 'Inbox - Altas Pendientes', 
-                label: 'Altas Pendientes', 
-                icon: '🚀', 
-                countFn: (alumnos) => alumnos.filter(d => {
-                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-                    return st === 'pre-alta pendiente' || st === 'pre-alta iniciada' || esAlumnoAltaConfirmadaIncompleta(d);
                 }).length 
             }
         ];
@@ -4897,6 +4859,37 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
         if (contBusqueda) contBusqueda.style.display = 'none';
     }
 
+    // Configuración automática de agrupadores por defecto al ingresar a una vista
+    if (vista !== ultimaVistaAgrupadoresConfigurada) {
+        ultimaVistaAgrupadoresConfigurada = vista;
+        const s1 = document.getElementById('select-agrupador-1');
+        const s2 = document.getElementById('select-agrupador-2');
+        const s3 = document.getElementById('select-agrupador-3');
+
+        if (['Inbox - Validar Evaluador', 'Inbox - Validar Alumno', 'Inbox - Confirmadas', 'Inbox - Finalizar Admision'].includes(vista)) {
+            agrupadorNivel1 = 'profe';
+            agrupadorNivel2 = 'ninguno';
+            agrupadorNivel3 = 'ninguno';
+            if (s1) s1.value = 'profe';
+            if (s2) s2.value = 'ninguno';
+            if (s3) s3.value = 'ninguno';
+        } else if (vista === 'Lista de Espera') {
+            agrupadorNivel1 = 'suscripcion';
+            agrupadorNivel2 = 'nivel';
+            agrupadorNivel3 = 'ninguno';
+            if (s1) s1.value = 'suscripcion';
+            if (s2) s2.value = 'nivel';
+            if (s3) s3.value = 'ninguno';
+        } else if (vista === 'Inbox - Pendientes') {
+            agrupadorNivel1 = 'ninguno';
+            agrupadorNivel2 = 'ninguno';
+            agrupadorNivel3 = 'ninguno';
+            if (s1) s1.value = 'ninguno';
+            if (s2) s2.value = 'ninguno';
+            if (s3) s3.value = 'ninguno';
+        }
+    }
+
     estadoActualVista = vista; 
     
     let modulo = null;
@@ -5042,6 +5035,12 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
 
     if (esVistaConLista) { 
         cv.style.display = 'flex'; 
+        const s1 = document.getElementById('select-agrupador-1');
+        const s2 = document.getElementById('select-agrupador-2');
+        const s3 = document.getElementById('select-agrupador-3');
+        if (s1 && s1.value !== agrupadorNivel1) s1.value = agrupadorNivel1;
+        if (s2 && s2.value !== agrupadorNivel2) s2.value = agrupadorNivel2;
+        if (s3 && s3.value !== agrupadorNivel3) s3.value = agrupadorNivel3;
         renderFiltrosChips(); 
         if (searchVista) searchVista.style.display = 'block'; 
         mostrarSkeleton('lista-generica', 6);
@@ -5259,15 +5258,6 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
         const btnSyncEspera = document.getElementById('btn-sync-espera-csv');
         if (btnSyncEspera) btnSyncEspera.style.display = 'none';
         try {
-            if (!agrupadoresEsperaInicializados) {
-                agrupadorNivel1 = 'suscripcion';
-                agrupadorNivel2 = 'nivel';
-                const s1 = document.getElementById('select-agrupador-1');
-                const s2 = document.getElementById('select-agrupador-2');
-                if (s1) s1.value = 'suscripcion';
-                if (s2) s2.value = 'nivel';
-                agrupadoresEsperaInicializados = true;
-            }
             const qSnap = await getDocs(collection(db, "alumnos")); let allData = []; qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
             actualizarBadgesYNavegacion(allData);
             renderSegmentedTabs(vista);
@@ -6428,12 +6418,14 @@ document.addEventListener('click', async (e) => {
             // 1. Cabecera Pre-cargada y Editable
             const inpNombre = document.getElementById('inf-nombre');
             const inpEdad = document.getElementById('inf-edad');
+            const inpZona = document.getElementById('inf-zona');
             const inpProf = document.getElementById('inf-profesion');
             const selSusc = document.getElementById('inf-suscripcion');
             const selNivel = document.getElementById('inf-nivel');
 
             if (inpNombre) inpNombre.value = al.nombre || '';
             if (inpEdad) inpEdad.value = al.edad || '';
+            if (inpZona) inpZona.value = al.zona_vive || al.zona || al.barrio || inf.zona_vive || inf.zona || '';
             if (inpProf) inpProf.value = al.profesion || inf.profesion || '';
 
             // Cargar select multi-instrumentos
@@ -6558,6 +6550,7 @@ document.addEventListener('click', async (e) => {
         const nombre = document.getElementById('inf-nombre').value.trim();
         const edadVal = document.getElementById('inf-edad').value.trim();
         const edad = edadVal ? parseInt(edadVal, 10) : null;
+        const zona = (document.getElementById('inf-zona')?.value || '').trim();
         const profesion = document.getElementById('inf-profesion').value.trim();
         const suscripcion = document.getElementById('inf-suscripcion').value;
         const nivel = document.getElementById('inf-nivel').value;
@@ -6602,6 +6595,11 @@ document.addEventListener('click', async (e) => {
         const chkCierre = document.getElementById('inf-chk-cierre').checked;
 
         // VALIDACIONES OBLIGATORIAS
+        if (!zona) {
+            alert("⚠️ Es obligatorio completar el campo '¿En qué zona vive?' en Datos del Alumno.");
+            document.getElementById('inf-zona')?.focus();
+            return;
+        }
         if (!nivel) {
             alert("⚠️ Es obligatorio asignar el Nivel del alumno (Inicial I, Inicial II, Intermedio o Avanzado).");
             return;
@@ -6701,6 +6699,7 @@ document.addEventListener('click', async (e) => {
                 evaluador_nombre: evaluadorNom,
                 evaluador_id: evaluadorId,
                 nivel_asignado: nivel,
+                zona_vive: zona,
                 profesion: profesion,
                 motivacion_expectativas: motivacion,
                 propuesta_mandala_acordada: chkPropuesta,
@@ -6736,6 +6735,10 @@ document.addEventListener('click', async (e) => {
                 historial: hist
             };
 
+            if (zona) {
+                updatePayload.zona_vive = zona;
+                updatePayload.zona = zona;
+            }
             if (profesion) updatePayload.profesion = profesion;
             if (nombre) updatePayload.nombre = nombre;
             if (edad !== null) updatePayload.edad = edad;
@@ -8375,12 +8378,14 @@ window.abrirFichaSimuladaTest = async function(testId) {
 
         const inpNombre = document.getElementById('inf-nombre');
         const inpEdad = document.getElementById('inf-edad');
+        const inpZona = document.getElementById('inf-zona');
         const inpProf = document.getElementById('inf-profesion');
         const selSusc = document.getElementById('inf-suscripcion');
         const selNivel = document.getElementById('inf-nivel');
 
         if (inpNombre) inpNombre.value = 'Mateo Barrios';
         if (inpEdad) inpEdad.value = '13';
+        if (inpZona) inpZona.value = 'Palermo';
         if (inpProf) inpProf.value = 'Estudiante Secundario (1er año)';
 
         // Suscripción y Nivel
@@ -8708,6 +8713,7 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
                         </div>
 
                         <div id="${bodyId}" style="display:none; padding:14px; border-top:1px solid var(--border-color); flex-direction:column; gap:10px; background:#fff;">
+                            ${(infItem.zona_vive || infItem.zona || d.zona_vive || d.zona) ? `<div><span style="font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">📍 Zona donde vive:</span><div style="font-size:12.5px; font-weight:600; color:var(--text-main); margin-top:2px;">${infItem.zona_vive || infItem.zona || d.zona_vive || d.zona}</div></div>` : ''}
                             ${infItem.profesion ? `<div><span style="font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">💼 Profesión / Ocupación:</span><div style="font-size:12.5px; font-weight:600; color:var(--text-main); margin-top:2px;">${infItem.profesion}</div></div>` : ''}
 
                             ${infItem.motivacion_expectativas ? `
@@ -8780,6 +8786,7 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
                         <span class="status-badge bg-blue" style="font-size:10px;">${inf.nivel_asignado || d.nivel || 'Nivel Asignado'}</span>
                     </div>
                     
+                    ${(inf.zona_vive || inf.zona || d.zona_vive || d.zona) ? `<div><span style="font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">📍 Zona donde vive:</span><div style="font-size:12.5px; font-weight:600; color:var(--text-main); margin-top:2px;">${inf.zona_vive || inf.zona || d.zona_vive || d.zona}</div></div>` : ''}
                     ${inf.profesion ? `<div><span style="font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">💼 Profesión / Ocupación:</span><div style="font-size:12.5px; font-weight:600; color:var(--text-main); margin-top:2px;">${inf.profesion}</div></div>` : ''}
 
                     ${inf.motivacion_expectativas ? `
