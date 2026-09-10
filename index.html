@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=6.7.9">
+    <link rel="stylesheet" href="styles.css?v=6.8.0">
 
     <style>
         /* Estilos Críticos de Widget de Perfil y Popover Google-Style */
@@ -1165,10 +1165,6 @@
                     <input type="number" id="inf-edad" class="modern-input" style="padding:5px 8px; font-size:12.5px; height:32px; font-weight:700; background:#fff;">
                 </div>
                 <div class="inf-banner-item">
-                    <label class="inf-banner-label" style="color:var(--accent-teal);">¿En qué zona vive? <span style="color:#ef4444;">*</span></label>
-                    <input type="text" id="inf-zona" class="modern-input" required placeholder="Ej: Palermo, Belgrano, Olivos..." style="padding:5px 8px; font-size:12.5px; height:32px; font-weight:600; background:#fff;">
-                </div>
-                <div class="inf-banner-item">
                     <label class="inf-banner-label">Profesión (Opcional)</label>
                     <input type="text" id="inf-profesion" class="modern-input" placeholder="Ej: Diseñador, Médico..." style="padding:5px 8px; font-size:12.5px; height:32px; background:#fff;">
                 </div>
@@ -1224,12 +1220,12 @@
                     </div>
                 </div>
 
-                <!-- BLOQUE 2: EVALUACIÓN TÉCNICA & PLASTICIDAD -->
+                <!-- BLOQUE 2: EVALUACIÓN TÉCNICA Y PLASTICIDAD -->
                 <div class="inf-accordion-card" id="inf-sec-2">
                     <div class="inf-accordion-header" onclick="window.toggleInfAccordion('inf-sec-2')">
                         <div class="inf-accordion-title">
                             <span class="inf-step-badge">2</span>
-                            <span>Evaluación Técnica y Plasticidad (Tocar algo)</span>
+                            <span>Evaluación técnica y Plasticidad</span>
                         </div>
                         <span id="inf-chevron-2" class="inf-chevron" style="font-size:11px; color:#64748b;">▲</span>
                     </div>
@@ -1245,6 +1241,107 @@
                             <input type="text" id="inf-artistas" class="modern-input" style="font-size:12.5px;" placeholder="Ej: Spinetta, Red Hot Chili Peppers, Charly, Daft Punk (pedir artistas, no canciones)">
                             <span style="font-size:11px; color:var(--text-muted);">Anotar artistas para definir su perfil estético y encontrar compatibilidad en el match.</span>
                         </div>
+
+                        <!-- COMPARTIR VOCES (EXCLUSIVO PARA CANTO - OBLIGATORIO) -->
+                        <div id="inf-card-cantante" style="background:#fffbeb; padding:12px 14px; border-radius:8px; border:1px solid #fde68a; display:none; flex-direction:column; gap:6px;">
+                            <label style="font-size:12px; font-weight:700; color:#92400e; display:flex; align-items:center; justify-content:space-between;">
+                                <span>🎤 COMPARTIR VOCES EN ENSAMBLE <span style="color:#ef4444;">*</span></span>
+                                <span style="font-size:10px; font-weight:700; background:#fef3c7; color:#b45309; padding:1px 6px; border-radius:4px;">Obligatorio para Canto</span>
+                            </label>
+                            <select id="inf-cantante-voces" class="modern-input" style="font-size:12.5px; min-height:38px; padding:6px 10px; line-height:1.35; background:#fff; width:100%; font-weight:600;">
+                                <option value="">Seleccionar opción...</option>
+                                <option value="compartir">Dispuesto a compartir con otro cantante y armar voces</option>
+                                <option value="solo">Prefiere cantar solo/a</option>
+                                <option value="ambos">Abierto a ambas opciones</option>
+                            </select>
+                        </div>
+
+                        <!-- APARTADO TÉCNICA DE CANTO (REGISTROS VOCALES) - CONDICIONAL A CANTO (OPCIONAL) -->
+                        <div id="canto-tech-section" style="background:linear-gradient(180deg, #fdf4ff 0%, #faf5ff 100%); border:1.5px solid #e9d5ff; border-radius:10px; padding:14px; display:none; flex-direction:column; gap:12px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; border-bottom:1px solid #ebd5ff; padding-bottom:8px;">
+                                <div style="font-size:13px; font-weight:800; color:#6b21a8; display:flex; align-items:center; gap:6px;">
+                                    <span>🎼</span>
+                                    <span>Técnica de Canto — Registros Vocales</span>
+                                    <span style="background:#f3e8ff; color:#7e22ce; font-size:10px; font-weight:700; padding:1px 7px; border-radius:10px; border:1px solid #d8b4fe;">Opcional</span>
+                                </div>
+                                
+                                <!-- Toggle Femenino / Masculino -->
+                                <div style="display:flex; align-items:center; gap:6px;">
+                                    <span style="font-size:11px; color:#6b21a8; font-weight:700;">Configuración:</span>
+                                    <div style="display:flex; gap:4px; background:#fff; padding:2px; border-radius:6px; border:1px solid #d8b4fe;">
+                                        <button type="button" id="btn-canto-gen-fem" onclick="window.setGeneroVocalCanto('fem')" style="border:none; background:#7c3aed; color:#fff; padding:4px 10px; font-size:11px; font-weight:700; border-radius:4px; cursor:pointer; font-family:inherit;">👩 FEMENINO</button>
+                                        <button type="button" id="btn-canto-gen-masc" onclick="window.setGeneroVocalCanto('masc')" style="border:none; background:transparent; color:#64748b; padding:4px 10px; font-size:11px; font-weight:700; border-radius:4px; cursor:pointer; font-family:inherit;">👨 MASCULINO</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="display:grid; grid-template-columns:1fr; gap:8px;">
+                                <!-- 1. Voz de pecho -->
+                                <div style="background:#fff; border:1px solid #e9d5ff; border-radius:6px; padding:8px 10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                                    <div style="display:flex; align-items:center; gap:8px;">
+                                        <span style="font-size:12px; font-weight:700; color:#3b0764;">1. Voz de Pecho</span>
+                                        <span id="canto-std-pecho" style="background:#fef08a; color:#854d0e; font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; border:1px solid #fde047;">★ STD: sol3</span>
+                                    </div>
+                                    <div style="display:flex; align-items:center; gap:6px; font-size:11.5px;">
+                                        <span style="color:var(--text-muted);">Desde:</span>
+                                        <select id="canto-pecho-desde" class="select-nota-canto" style="height:28px; padding:2px 6px; border-radius:4px; border:1px solid #cbd5e1; font-family:monospace; font-size:11.5px;"></select>
+                                        <span style="color:var(--text-muted); margin-left:4px;">Hasta / Pasaje:</span>
+                                        <select id="canto-pecho-hasta" class="select-nota-canto" style="height:28px; padding:2px 6px; border-radius:4px; border:1px solid #cbd5e1; font-family:monospace; font-size:11.5px;"></select>
+                                    </div>
+                                </div>
+
+                                <!-- 2. Voz de cabeza -->
+                                <div style="background:#fff; border:1px solid #e9d5ff; border-radius:6px; padding:8px 10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                                    <div style="display:flex; align-items:center; gap:8px;">
+                                        <span style="font-size:12px; font-weight:700; color:#3b0764;">2. Voz de Cabeza</span>
+                                        <span id="canto-std-cabeza" style="background:#fef08a; color:#854d0e; font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; border:1px solid #fde047;">★ STD: fa4</span>
+                                    </div>
+                                    <div style="display:flex; align-items:center; gap:6px; font-size:11.5px;">
+                                        <span style="color:var(--text-muted);">Desde:</span>
+                                        <select id="canto-cabeza-desde" class="select-nota-canto" style="height:28px; padding:2px 6px; border-radius:4px; border:1px solid #cbd5e1; font-family:monospace; font-size:11.5px;"></select>
+                                        <span style="color:var(--text-muted); margin-left:4px;">Hasta:</span>
+                                        <select id="canto-cabeza-hasta" class="select-nota-canto" style="height:28px; padding:2px 6px; border-radius:4px; border:1px solid #cbd5e1; font-family:monospace; font-size:11.5px;"></select>
+                                    </div>
+                                </div>
+
+                                <!-- 3. Voz mixta -->
+                                <div style="background:#fff; border:1px solid #e9d5ff; border-radius:6px; padding:8px 10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                                    <div style="display:flex; align-items:center; gap:8px;">
+                                        <span style="font-size:12px; font-weight:700; color:#3b0764;">3. Voz Mixta</span>
+                                        <span id="canto-std-mixta" style="background:#fef08a; color:#854d0e; font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; border:1px solid #fde047;">★ STD: mi4</span>
+                                    </div>
+                                    <div style="display:flex; align-items:center; gap:8px; font-size:11.5px;">
+                                        <span style="color:var(--text-muted);">Pasaje:</span>
+                                        <select id="canto-mixta-pasaje" class="select-nota-canto" style="height:28px; padding:2px 6px; border-radius:4px; border:1px solid #cbd5e1; font-family:monospace; font-size:11.5px;"></select>
+                                        <span style="color:var(--text-muted); font-weight:700; margin-left:4px;">Cualidad:</span>
+                                        <div style="display:flex; gap:4px;">
+                                            <button type="button" class="btn-chip-canto-cualidad" id="btn-canto-cual-liviana" onclick="window.setCualidadMixtaCanto('liviana')" style="padding:3px 8px; border-radius:4px; border:1px solid #cbd5e1; background:#fff; font-size:11px; font-weight:600; cursor:pointer;">Liviana</button>
+                                            <button type="button" class="btn-chip-canto-cualidad" id="btn-canto-cual-potente" onclick="window.setCualidadMixtaCanto('potente')" style="padding:3px 8px; border-radius:4px; border:1px solid #cbd5e1; background:#fff; font-size:11px; font-weight:600; cursor:pointer;">Potente</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 4. Frito vocal -->
+                                <div style="background:#fff; border:1px solid #e9d5ff; border-radius:6px; padding:8px 10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                                    <div>
+                                        <span style="font-size:12px; font-weight:700; color:#3b0764;">4. Frito Vocal (Vocal Fry)</span>
+                                        <div style="font-size:10.5px; color:var(--text-muted);">Emisión sub-armónica relajada</div>
+                                    </div>
+                                    <div style="display:flex; gap:4px;">
+                                        <button type="button" class="btn-chip-canto-frito" id="btn-canto-frito-si" onclick="window.setFritoVocalCanto('si')" style="padding:3px 8px; border-radius:4px; border:1px solid #cbd5e1; background:#fff; font-size:11px; font-weight:600; cursor:pointer;">✅ Sí</button>
+                                        <button type="button" class="btn-chip-canto-frito" id="btn-canto-frito-no" onclick="window.setFritoVocalCanto('no')" style="padding:3px 8px; border-radius:4px; border:1px solid #cbd5e1; background:#fff; font-size:11px; font-weight:600; cursor:pointer;">❌ No</button>
+                                        <button type="button" class="btn-chip-canto-frito active" id="btn-canto-frito-none" onclick="window.setFritoVocalCanto('sin_evaluar')" style="padding:3px 8px; border-radius:4px; border:1px solid #7c3aed; background:#7c3aed; color:#fff; font-size:11px; font-weight:600; cursor:pointer;">➖ Sin evaluar</button>
+                                    </div>
+                                </div>
+
+                                <!-- 5. Observaciones vocales adicionales -->
+                                <div style="display:flex; flex-direction:column; gap:3px;">
+                                    <label style="font-size:11px; font-weight:700; color:#6b21a8;">Observaciones Técnicas Vocales (Opcional)</label>
+                                    <input type="text" id="canto-obs-vocales" class="modern-input" placeholder="Ej: Buen apoyo diafragmático, afinación estable en medios..." style="height:32px; font-size:11.5px; background:#fff;">
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
 
@@ -1281,26 +1378,26 @@
                         <span id="inf-chevron-4" class="inf-chevron" style="font-size:11px; color:#64748b;">▲</span>
                     </div>
                     <div id="inf-body-4" class="inf-accordion-body">
-                        <div id="inf-preguntas-condicionales-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:12px;">
-                            <div id="inf-card-cantante" style="background:#fffbeb; padding:12px 14px; border-radius:8px; border:1px solid #fde68a; display:none; flex-direction:column; gap:6px;">
-                                <label style="font-size:12px; font-weight:700; color:#92400e; display:block;">🎤 COMPARTIR VOCES</label>
-                                <select id="inf-cantante-voces" class="modern-input" style="font-size:12.5px; min-height:42px; padding:6px 10px; line-height:1.35; background:#fff; width:100%;">
-                                    <option value="">Seleccionar opción...</option>
-                                    <option value="compartir">Dispuesto a compartir con otro cantante y armar voces</option>
-                                    <option value="solo">Prefiere cantar solo/a</option>
-                                    <option value="ambos">Abierto a ambas opciones</option>
-                                </select>
-                            </div>
+                        
+                        <!-- TONALIDADES (SOLO GUITARRA Y BAJO) -->
+                        <div id="inf-card-tonalidades" style="background:#eff6ff; padding:12px 14px; border-radius:8px; border:1px solid #bfdbfe; display:none; flex-direction:column; gap:6px;">
+                            <label style="font-size:12px; font-weight:700; color:#1e40af; display:block;">🎼 TONALIDADES Y TRANSPOSICIÓN <span style="color:#ef4444;">*</span></label>
+                            <select id="inf-cambio-tonalidades" class="modern-input" style="font-size:12.5px; min-height:42px; padding:6px 10px; line-height:1.35; background:#fff; width:100%;">
+                                <option value="">Seleccionar opción...</option>
+                                <option value="sabe_dispuesto">Sabe transportar y está 100% dispuesto</option>
+                                <option value="dispuesto_aprender">Está dispuesto a aprender en el proceso</option>
+                                <option value="prefiere_original">Prefiere tocar únicamente en tonalidad original</option>
+                            </select>
+                        </div>
 
-                            <div id="inf-card-tonalidades" style="background:#eff6ff; padding:12px 14px; border-radius:8px; border:1px solid #bfdbfe; display:none; flex-direction:column; gap:6px;">
-                                <label style="font-size:12px; font-weight:700; color:#1e40af; display:block;">🎼 TONALIDADES</label>
-                                <select id="inf-cambio-tonalidades" class="modern-input" style="font-size:12.5px; min-height:42px; padding:6px 10px; line-height:1.35; background:#fff; width:100%;">
-                                    <option value="">Seleccionar opción...</option>
-                                    <option value="sabe_dispuesto">Sabe transportar y está 100% dispuesto</option>
-                                    <option value="dispuesto_aprender">Está dispuesto a aprender en el proceso</option>
-                                    <option value="prefiere_original">Prefiere tocar únicamente en tonalidad original</option>
-                                </select>
-                            </div>
+                        <!-- ¿EN QUÉ ZONA VIVE? (REUBICADO ANTES DE LOS CHECKS - OBLIGATORIO) -->
+                        <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:10px; padding:12px 14px; display:flex; flex-direction:column; gap:5px; margin-top:2px;">
+                            <label style="font-size:12px; font-weight:700; color:var(--text-main); display:flex; align-items:center; justify-content:space-between;">
+                                <span>📍 ¿En qué zona vive? <span style="color:#ef4444;">*</span></span>
+                                <span style="font-size:10.5px; color:#ef4444; font-weight:700; background:#fef2f2; padding:1px 6px; border-radius:4px;">Obligatorio</span>
+                            </label>
+                            <input type="text" id="inf-zona" class="modern-input" required placeholder="Ej: Palermo, Belgrano, Olivos, Caballito..." style="height:36px; font-size:12.5px; font-weight:600; background:#fff;">
+                            <span style="font-size:11px; color:var(--text-muted);">Relevante para evaluar logística de traslados a la sede o coordinación de grupos.</span>
                         </div>
 
                         <div style="display:flex; flex-direction:column; gap:10px; margin-top:4px;">
@@ -2746,12 +2843,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=6.7.9"></script>
+    <script type="module" src="app.js?v=6.8.0"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=6.7.9').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=6.8.0').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {

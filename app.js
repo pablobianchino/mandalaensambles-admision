@@ -1287,35 +1287,142 @@ export function formatearFechaHoraEstandar(val) {
     const min = d.getMinutes().toString().padStart(2, '0');
     return `${nomDia} ${dia}/${mes} ${hora}:${min}hs`;
 }
+export const NOTAS_CANTO_ESCALA = [
+    'do2', 're2', 'mi2', 'fa2', 'sol2', 'la2', 'si2',
+    'do3', 're3', 'mi3', 'fa3', 'sol3', 'la3', 'si3',
+    'do4', 're4', 'mi4', 'fa4', 'sol4', 'la4', 'si4',
+    'do5', 're5', 'mi5', 'fa5', 'sol5', 'la5', 'si5',
+    'do6', 're6'
+];
+
+export let cantoGeneroVocalActual = 'fem';
+export let cantoCualidadMixta = null;
+export let cantoFritoVocal = 'sin_evaluar';
+
+export function setGeneroVocalCanto(gen) {
+    cantoGeneroVocalActual = gen || 'fem';
+    const btnFem = document.getElementById('btn-canto-gen-fem');
+    const btnMasc = document.getElementById('btn-canto-gen-masc');
+    const stdPecho = document.getElementById('canto-std-pecho');
+    const stdCabeza = document.getElementById('canto-std-cabeza');
+    const stdMixta = document.getElementById('canto-std-mixta');
+
+    if (btnFem && btnMasc) {
+        if (cantoGeneroVocalActual === 'fem') {
+            btnFem.style.background = '#7c3aed';
+            btnFem.style.color = '#fff';
+            btnMasc.style.background = 'transparent';
+            btnMasc.style.color = '#64748b';
+        } else {
+            btnMasc.style.background = '#7c3aed';
+            btnMasc.style.color = '#fff';
+            btnFem.style.background = 'transparent';
+            btnFem.style.color = '#64748b';
+        }
+    }
+
+    if (stdPecho) stdPecho.textContent = `★ STD: ${cantoGeneroVocalActual === 'fem' ? 'sol3' : 'la2'}`;
+    if (stdCabeza) stdCabeza.textContent = `★ STD: ${cantoGeneroVocalActual === 'fem' ? 'fa4' : 'do4'}`;
+    if (stdMixta) stdMixta.textContent = `★ STD: ${cantoGeneroVocalActual === 'fem' ? 'mi4' : 'la3'}`;
+}
+window.setGeneroVocalCanto = setGeneroVocalCanto;
+
+export function setCualidadMixtaCanto(cual) {
+    if (cantoCualidadMixta === cual) {
+        cantoCualidadMixta = null;
+    } else {
+        cantoCualidadMixta = cual;
+    }
+    const btnLiv = document.getElementById('btn-canto-cual-liviana');
+    const btnPot = document.getElementById('btn-canto-cual-potente');
+
+    if (btnLiv) {
+        const isLiv = cantoCualidadMixta === 'liviana';
+        btnLiv.style.background = isLiv ? '#7c3aed' : '#fff';
+        btnLiv.style.color = isLiv ? '#fff' : '#334155';
+        btnLiv.style.borderColor = isLiv ? '#7c3aed' : '#cbd5e1';
+    }
+    if (btnPot) {
+        const isPot = cantoCualidadMixta === 'potente';
+        btnPot.style.background = isPot ? '#7c3aed' : '#fff';
+        btnPot.style.color = isPot ? '#fff' : '#334155';
+        btnPot.style.borderColor = isPot ? '#7c3aed' : '#cbd5e1';
+    }
+}
+window.setCualidadMixtaCanto = setCualidadMixtaCanto;
+
+export function setFritoVocalCanto(frito) {
+    cantoFritoVocal = frito || 'sin_evaluar';
+    const btnSi = document.getElementById('btn-canto-frito-si');
+    const btnNo = document.getElementById('btn-canto-frito-no');
+    const btnNone = document.getElementById('btn-canto-frito-none');
+
+    const btns = [
+        { el: btnSi, val: 'si', bg: '#059669', border: '#059669' },
+        { el: btnNo, val: 'no', bg: '#dc2626', border: '#dc2626' },
+        { el: btnNone, val: 'sin_evaluar', bg: '#7c3aed', border: '#7c3aed' }
+    ];
+
+    btns.forEach(b => {
+        if (!b.el) return;
+        if (b.val === cantoFritoVocal) {
+            b.el.style.background = b.bg;
+            b.el.style.color = '#fff';
+            b.el.style.borderColor = b.border;
+        } else {
+            b.el.style.background = '#fff';
+            b.el.style.color = '#334155';
+            b.el.style.borderColor = '#cbd5e1';
+        }
+    });
+}
+window.setFritoVocalCanto = setFritoVocalCanto;
+
+export function cargarOpcionesNotasCanto() {
+    const ids = [
+        'canto-pecho-desde',
+        'canto-pecho-hasta',
+        'canto-cabeza-desde',
+        'canto-cabeza-hasta',
+        'canto-mixta-pasaje'
+    ];
+    ids.forEach(id => {
+        const sel = document.getElementById(id);
+        if (!sel || sel.options.length > 1) return;
+        sel.innerHTML = '<option value="">--</option>';
+        NOTAS_CANTO_ESCALA.forEach(n => {
+            const opt = document.createElement('option');
+            opt.value = n;
+            opt.textContent = n;
+            sel.appendChild(opt);
+        });
+    });
+}
+window.cargarOpcionesNotasCanto = cargarOpcionesNotasCanto;
+
 export function actualizarCondicionalesPunto3() {
     const selInst = document.getElementById('inf-instrumento');
     const insts = selInst ? Array.from(selInst.selectedOptions).map(o => (o.value || '').toLowerCase()) : [];
     const esCantante = insts.some(i => i.includes('canto') || i.includes('voz') || i.includes('vocal') || i.includes('cantante'));
     
-    // Detectar si el instrumento es batería / percusión
-    const esBateria = insts.some(i => i.includes('bateria') || i.includes('batería') || i.includes('percusion') || i.includes('percusión') || i.includes('cajon') || i.includes('cajón'));
-    const tieneOtroArmonico = insts.some(i => 
-        i.includes('guitarra') || i.includes('bajo') || i.includes('piano') || i.includes('teclado') || 
-        i.includes('canto') || i.includes('voz') || i.includes('vocal') || i.includes('violin') || i.includes('saxo') || i.includes('flauta') || i.includes('trompeta') || i.includes('ukelele')
-    );
-    
+    // Regla estricta: el campo de tonalidades SOLO aplica a guitarra y bajo. Cajón, batería y canto NO va.
+    const tieneGuitarraOBajo = insts.some(i => i.includes('guitarra') || i.includes('bajo'));
     const nivel = (document.getElementById('inf-nivel')?.value || '').toLowerCase();
     const esIntermedioOAvanzado = nivel.includes('intermedio') || nivel.includes('avanzado');
-    
-    // Si el alumno toca batería (y no tiene otro instrumento armónico), NO aplica la pregunta de tonalidades sin importar el nivel
-    const aplicaTonalidades = esIntermedioOAvanzado && (!esBateria || tieneOtroArmonico);
+    const aplicaTonalidades = esIntermedioOAvanzado && tieneGuitarraOBajo;
     
     const cardCantante = document.getElementById('inf-card-cantante');
+    const secTecnicaCanto = document.getElementById('canto-tech-section');
     const cardTonalidades = document.getElementById('inf-card-tonalidades');
-    const grid = document.getElementById('inf-preguntas-condicionales-grid');
     
     if (cardCantante) cardCantante.style.display = esCantante ? 'flex' : 'none';
+    if (secTecnicaCanto) secTecnicaCanto.style.display = esCantante ? 'flex' : 'none';
     if (cardTonalidades) cardTonalidades.style.display = aplicaTonalidades ? 'flex' : 'none';
-    if (grid) grid.style.display = (esCantante || aplicaTonalidades) ? 'grid' : 'none';
 }
 window.actualizarCondicionalesPunto3 = actualizarCondicionalesPunto3;
 
 setTimeout(() => {
+    cargarOpcionesNotasCanto();
     document.getElementById('inf-instrumento')?.addEventListener('change', actualizarCondicionalesPunto3);
     document.getElementById('inf-nivel')?.addEventListener('change', actualizarCondicionalesPunto3);
 }, 300);
@@ -6500,6 +6607,7 @@ document.addEventListener('click', async (e) => {
             renderChipsPerfilPsicologico('informe-perfil-psicologico-chips', esNuevoInforme ? [] : (inf.perfil_psicologico || al.perfil_psicologico || []));
 
             // 5. Bloque 4: Preguntas Clave & Requisitos
+            cargarOpcionesNotasCanto();
             actualizarCondicionalesPunto3();
 
             const selCantante = document.getElementById('inf-cantante-voces');
@@ -6515,6 +6623,36 @@ document.addEventListener('click', async (e) => {
             }
             if (chkRequisitos) chkRequisitos.checked = esNuevoInforme ? false : Boolean(inf.requisitos_aceptados);
             if (chkCierre) chkCierre.checked = esNuevoInforme ? false : Boolean(inf.cierre_espera_notificado);
+
+            // Cargar datos de Técnica de Canto (opcional)
+            const tc = (esNuevoInforme ? null : (inf.tecnica_canto || al.tecnica_canto)) || null;
+            if (tc) {
+                setGeneroVocalCanto(tc.genero || 'fem');
+                const selPD = document.getElementById('canto-pecho-desde');
+                const selPH = document.getElementById('canto-pecho-hasta');
+                const selCD = document.getElementById('canto-cabeza-desde');
+                const selCH = document.getElementById('canto-cabeza-hasta');
+                const selMP = document.getElementById('canto-mixta-pasaje');
+                const inpObs = document.getElementById('canto-obs-vocales');
+                if (selPD) selPD.value = tc.pecho_desde || '';
+                if (selPH) selPH.value = tc.pecho_hasta || '';
+                if (selCD) selCD.value = tc.cabeza_desde || '';
+                if (selCH) selCH.value = tc.cabeza_hasta || '';
+                if (selMP) selMP.value = tc.mixta_pasaje || '';
+                if (inpObs) inpObs.value = tc.observaciones || '';
+                setCualidadMixtaCanto(tc.mixta_cualidad || null);
+                setFritoVocalCanto(tc.frito_vocal || 'sin_evaluar');
+            } else {
+                setGeneroVocalCanto('fem');
+                ['canto-pecho-desde', 'canto-pecho-hasta', 'canto-cabeza-desde', 'canto-cabeza-hasta', 'canto-mixta-pasaje'].forEach(cid => {
+                    const el = document.getElementById(cid);
+                    if (el) el.value = '';
+                });
+                const inpObs = document.getElementById('canto-obs-vocales');
+                if (inpObs) inpObs.value = '';
+                setCualidadMixtaCanto(null);
+                setFritoVocalCanto('sin_evaluar');
+            }
 
             // 6. Bloque 5: Disponibilidad Horaria
             renderContenedorDisponibilidad('informe-disp-container', false);
@@ -6575,7 +6713,7 @@ document.addEventListener('click', async (e) => {
 
         if (cardCantante && cardCantante.style.display !== 'none') {
             if (!cantanteVoces) {
-                alert("⚠️ Es obligatorio responder la pregunta de Compartir Voces (Bloque 4).");
+                alert("⚠️ Es obligatorio responder la pregunta de Compartir Voces (Bloque 2).");
                 return;
             }
         } else {
@@ -6591,12 +6729,28 @@ document.addEventListener('click', async (e) => {
             cambioTonalidades = 'no_aplica';
         }
 
+        // Datos opcionales de Técnica de Canto (solo si aplica Canto)
+        let tecnicaCanto = null;
+        if (cardCantante && cardCantante.style.display !== 'none') {
+            tecnicaCanto = {
+                genero: cantoGeneroVocalActual || 'fem',
+                pecho_desde: document.getElementById('canto-pecho-desde')?.value || '',
+                pecho_hasta: document.getElementById('canto-pecho-hasta')?.value || '',
+                cabeza_desde: document.getElementById('canto-cabeza-desde')?.value || '',
+                cabeza_hasta: document.getElementById('canto-cabeza-hasta')?.value || '',
+                mixta_pasaje: document.getElementById('canto-mixta-pasaje')?.value || '',
+                mixta_cualidad: cantoCualidadMixta || '',
+                frito_vocal: cantoFritoVocal || 'sin_evaluar',
+                observaciones: document.getElementById('canto-obs-vocales')?.value.trim() || ''
+            };
+        }
+
         const chkRequisitos = document.getElementById('inf-chk-requisitos').checked;
         const chkCierre = document.getElementById('inf-chk-cierre').checked;
 
         // VALIDACIONES OBLIGATORIAS
         if (!zona) {
-            alert("⚠️ Es obligatorio completar el campo '¿En qué zona vive?' en Datos del Alumno.");
+            alert("⚠️ Es obligatorio completar el campo '¿En qué zona vive?' (Bloque 4).");
             document.getElementById('inf-zona')?.focus();
             return;
         }
@@ -6709,6 +6863,7 @@ document.addEventListener('click', async (e) => {
                 perfil_psicologico: tags,
                 disp_compartir_cantante: cantanteVoces,
                 cambio_tonalidades: cambioTonalidades,
+                tecnica_canto: tecnicaCanto,
                 requisitos_aceptados: chkRequisitos,
                 cierre_espera_notificado: chkCierre
             };
@@ -6735,6 +6890,9 @@ document.addEventListener('click', async (e) => {
                 historial: hist
             };
 
+            if (tecnicaCanto) {
+                updatePayload.tecnica_canto = tecnicaCanto;
+            }
             if (zona) {
                 updatePayload.zona_vive = zona;
                 updatePayload.zona = zona;
@@ -8410,6 +8568,15 @@ window.abrirFichaSimuladaTest = async function(testId) {
         const txtArtistas = document.getElementById('inf-artistas');
         if (txtArtistas) txtArtistas.value = 'Spinetta, Red Hot Chili Peppers, Charly García';
 
+        // Instrumento de Mateo: Batería
+        const selInst = document.getElementById('inf-instrumento');
+        if (selInst) {
+            selInst.innerHTML = '<option value="Batería" selected>Batería</option><option value="Guitarra">Guitarra</option><option value="Canto">Canto</option>';
+            syncSelectToChips('inf-instrumento', 'chips-inf-instrumentos');
+        }
+        cargarOpcionesNotasCanto();
+        actualizarCondicionalesPunto3();
+
         // Bloque 3: Requisitos
         const chkRequisitos = document.getElementById('inf-chk-requisitos');
         if (chkRequisitos) chkRequisitos.checked = true;
@@ -8641,6 +8808,56 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
     renderHistorial(); 
     
     // Renderizar informes estructurados de entrevista (acordeón si hay múltiples, o vista directa si hay 1)
+    const renderTecnicaCantoVisual = (tc) => {
+        if (!tc) return '';
+        const tieneDatos = Boolean(
+            tc.pecho_desde || tc.pecho_hasta ||
+            tc.cabeza_desde || tc.cabeza_hasta ||
+            tc.mixta_pasaje || tc.mixta_cualidad ||
+            (tc.frito_vocal && tc.frito_vocal !== 'sin_evaluar') ||
+            tc.observaciones
+        );
+        if (!tieneDatos) return '';
+
+        const genTxt = tc.genero === 'masc' ? '👨 Masculino' : '👩 Femenino';
+        const stdPecho = tc.genero === 'masc' ? 'la2' : 'sol3';
+        const stdCabeza = tc.genero === 'masc' ? 'do4' : 'fa4';
+        const stdMixta = tc.genero === 'masc' ? 'la3' : 'mi4';
+        const fritoTxt = tc.frito_vocal === 'si' ? '✅ Sí' : (tc.frito_vocal === 'no' ? '❌ No' : '➖ Sin evaluar');
+
+        return `
+        <div style="background:linear-gradient(180deg, #fdf4ff 0%, #faf5ff 100%); border:1px solid #e9d5ff; border-radius:8px; padding:10px 12px; display:flex; flex-direction:column; gap:8px; margin-top:4px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #ebd5ff; padding-bottom:6px;">
+                <span style="font-size:11.5px; font-weight:800; color:#6b21a8; display:flex; align-items:center; gap:5px;">
+                    <span>🎼</span> Técnica de Canto — Registros Vocales
+                </span>
+                <span style="font-size:11px; font-weight:700; color:#7c3aed; background:#fff; padding:2px 8px; border-radius:10px; border:1px solid #d8b4fe;">${genTxt}</span>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:6px; font-size:11px;">
+                <div style="background:#fff; border:1px solid #e9d5ff; border-radius:5px; padding:6px 8px;">
+                    <span style="color:#6b21a8; font-weight:700;">1. Pecho (STD: ${stdPecho}):</span>
+                    <div style="font-weight:600; color:#1e293b; margin-top:2px;">Desde: <code>${tc.pecho_desde || '-'}</code> | Hasta: <code>${tc.pecho_hasta || '-'}</code></div>
+                </div>
+                <div style="background:#fff; border:1px solid #e9d5ff; border-radius:5px; padding:6px 8px;">
+                    <span style="color:#6b21a8; font-weight:700;">2. Cabeza (STD: ${stdCabeza}):</span>
+                    <div style="font-weight:600; color:#1e293b; margin-top:2px;">Desde: <code>${tc.cabeza_desde || '-'}</code> | Hasta: <code>${tc.cabeza_hasta || '-'}</code></div>
+                </div>
+                <div style="background:#fff; border:1px solid #e9d5ff; border-radius:5px; padding:6px 8px;">
+                    <span style="color:#6b21a8; font-weight:700;">3. Mixta (STD: ${stdMixta}):</span>
+                    <div style="font-weight:600; color:#1e293b; margin-top:2px;">Pasaje: <code>${tc.mixta_pasaje || '-'}</code> ${tc.mixta_cualidad ? `• Cualidad: <strong>${tc.mixta_cualidad}</strong>` : ''}</div>
+                </div>
+                <div style="background:#fff; border:1px solid #e9d5ff; border-radius:5px; padding:6px 8px;">
+                    <span style="color:#6b21a8; font-weight:700;">4. Frito Vocal:</span>
+                    <div style="font-weight:600; color:#1e293b; margin-top:2px;">${fritoTxt}</div>
+                </div>
+            </div>
+            ${tc.observaciones ? `
+            <div style="font-size:11px; color:#4a044e; background:#fae8ff; border-radius:5px; padding:5px 8px; line-height:1.35;">
+                <strong>Obs. Vocales:</strong> ${tc.observaciones}
+            </div>` : ''}
+        </div>`;
+    };
+
     const contStruct = document.getElementById('ficha-informe-entrevista-structured');
     const wrapLegacy = document.getElementById('ficha-informe-legacy-wrapper');
     const headerMultInf = document.getElementById('ficha-informes-mult-header');
@@ -8766,6 +8983,8 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
                                 </div>` : ''}
                             </div>` : ''}
 
+                            ${renderTecnicaCantoVisual(infItem.tecnica_canto || d.tecnica_canto)}
+
                             ${puedeGestionarInforme ? `
                             <div style="display:flex; justify-content:flex-end; border-top:1px solid var(--border-color); padding-top:10px; margin-top:6px;">
                                 <button type="button" class="btn-app btn-secondary" onclick="window.editarInformeEspecifico('${id}', ${idx})" style="font-size:12px; font-weight:700; color:var(--accent-teal); border-color:var(--accent-teal); display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
@@ -8838,6 +9057,8 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
                             <div style="font-weight:600; color:var(--text-main); margin-top:2px;">${inf.cambio_tonalidades === 'sabe_dispuesto' ? '✅ Sabe transportar y dispuesto' : (inf.cambio_tonalidades === 'dispuesto_aprender' ? '🌱 Dispuesto a aprender' : (inf.cambio_tonalidades === 'prefiere_original' ? '⚠️ Prefiere original' : '-'))}</div>
                         </div>` : ''}
                     </div>` : ''}
+
+                    ${renderTecnicaCantoVisual(inf.tecnica_canto || d.tecnica_canto)}
 
                     <div style="display:flex; gap:12px; font-size:11px; color:var(--text-muted); font-weight:600; margin-top:4px;">
                         <span>✅ Propuesta charlada</span>
