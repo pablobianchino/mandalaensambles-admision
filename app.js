@@ -878,11 +878,37 @@ window.confirmar = function(titulo, descripcion = '', textoBoton = 'Confirmar', 
         btnOk.replaceWith(clonOk);
         btnCancelar.replaceWith(clonCancelar);
 
-        clonOk.addEventListener('click', () => { modal.close(); resolve(true); }, { once: true });
-        clonCancelar.addEventListener('click', () => { modal.close(); resolve(false); }, { once: true });
+        let resuelto = false;
+        const resolver = (val) => {
+            if (!resuelto) {
+                resuelto = true;
+                resolve(val);
+            }
+        };
 
-        modal.addEventListener('close', () => resolve(false), { once: true });
-        modal.showModal();
+        clonOk.addEventListener('click', () => {
+            resolver(true);
+            try { modal.close(); } catch(e) {}
+        }, { once: true });
+
+        clonCancelar.addEventListener('click', () => {
+            resolver(false);
+            try { modal.close(); } catch(e) {}
+        }, { once: true });
+
+        modal.addEventListener('close', () => {
+            resolver(false);
+        }, { once: true });
+
+        try {
+            if (modal.open) {
+                modal.close();
+            }
+            modal.showModal();
+        } catch (errModal) {
+            console.warn('Fallo showModal en window.confirmar, usando confirm nativo fallback:', errModal);
+            resolver(window._originalConfirm ? window._originalConfirm(`${titulo}\n\n${descripcion}`) : window.confirm(`${titulo}\n\n${descripcion}`));
+        }
     });
 };
 
@@ -7017,8 +7043,15 @@ document.addEventListener('click', async (e) => {
     }
 
     // Guardar Pre-Alta (modal-iniciar-prealta)
-    if (target.id === 'btn-guardar-prealta') {
-        await guardarPreAlta({ setBotonCargando, cargarVista, generarTextoConHistorial, estadoActualVista });
+    if (target.id === 'btn-guardar-prealta' || target.closest('#btn-guardar-prealta')) {
+        const btnPrealta = target.closest('#btn-guardar-prealta') || target;
+        try {
+            await guardarPreAlta(btnPrealta, { setBotonCargando, cargarVista, generarTextoConHistorial, estadoActualVista, btnGuardar: btnPrealta });
+        } catch (errPrealta) {
+            console.error('Error al guardar pre-alta:', errPrealta);
+            alert('Error al procesar la pre-alta: ' + (errPrealta.message || errPrealta));
+            if (typeof setBotonCargando === 'function') setBotonCargando(btnPrealta, false);
+        }
         return;
     }
 

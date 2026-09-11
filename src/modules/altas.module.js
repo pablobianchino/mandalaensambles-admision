@@ -750,12 +750,21 @@ export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg
         if (campoInst) campoInst.style.display = 'none';
         if (campoPackInd) campoPackInd.style.display = 'none';
         
-        // Modalidad Ensamble: visible si tipo_suscripcion es ensamble o la solicitud es ensamble
+        // Modalidad Ensamble: visible únicamente si es realmente un ensamble y NO una clase grupal
         const campoTipoEns = document.getElementById('prealta-campo-tipo-ensamble');
         const esSolicitudEnsamble = sol && (sol.tipoGrupo === 'Ensamble' || sol.tipoGrupo === 'Ensamble Mandalorian');
+        const esSolicitudGrupal = sol && (sol.tipoGrupo === 'Clase Grupal' || sol.tipoGrupo === 'Grupal');
+        const nombreGrupoUpper = (grupoVal || grupoPrev || al.grupo_asignado || '').toUpperCase();
+        const esGrupoGrupal = esSolicitudGrupal 
+            || nombreGrupoUpper.includes('INICIAL') 
+            || nombreGrupoUpper.includes('GRUPAL') 
+            || nombreGrupoUpper.includes('TALLER')
+            || (al.tipo_suscripcion || '').toLowerCase().includes('grupal');
+        const esRealmenteEnsamble = !esIndividual && !esGrupoGrupal && (esSolicitudEnsamble || tipoSusc === 'ensamble');
+
         if (campoTipoEns) {
-            campoTipoEns.style.display = (tipoSusc === 'ensamble' || esSolicitudEnsamble) ? 'block' : 'none';
-            if (tipoSusc === 'ensamble' || esSolicitudEnsamble) {
+            campoTipoEns.style.display = esRealmenteEnsamble ? 'block' : 'none';
+            if (esRealmenteEnsamble) {
                 const esMandalorian = (sol && sol.tipoGrupo === 'Ensamble Mandalorian') 
                     || (al.tipo_suscripcion || '').toLowerCase().includes('mandalorian') 
                     || al.tipo_ensamble === 'Ensamble Mandalorian';
@@ -766,13 +775,15 @@ export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg
             }
         }
 
+        const tipoSuscEfectivo = esGrupoGrupal ? 'grupal' : tipoSusc;
+
         if (opts.instSugerido) {
             al.instrumento_asignado = opts.instSugerido;
         }
         await renderListaInstrumentosAlumnos([{ id, ...al }], configApp);
 
         if (fVal) {
-            await refrescarProfesoresPrealta(tipoSusc, instActual, profeActualId);
+            await refrescarProfesoresPrealta(tipoSuscEfectivo, instActual, profeActualId);
             if (selectProfe && profeActualId) {
                 asegurarOpcionProfesor(selectProfe, profeActualId, sol ? sol.profesorNombre : opts.profeNombreSugerido);
             }
@@ -792,8 +803,16 @@ export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg
     const inputFechaIni = document.getElementById('prealta-fecha-inicio');
     if (inputFechaIni) {
         inputFechaIni.onchange = async () => {
+            const grpAct = (document.getElementById('prealta-grupo')?.value || '').toUpperCase();
+            const esGrupalAct = (sol && (sol.tipoGrupo === 'Clase Grupal' || sol.tipoGrupo === 'Grupal'))
+                || grpAct.includes('INICIAL')
+                || grpAct.includes('GRUPAL')
+                || grpAct.includes('TALLER')
+                || (al.tipo_suscripcion || '').toLowerCase().includes('grupal');
+            const tipoSuscDin = esGrupalAct ? 'grupal' : tipoSusc;
+
             if (inputFechaIni.value) {
-                await refrescarProfesoresPrealta(tipoSusc, instActual, selectProfe.value);
+                await refrescarProfesoresPrealta(tipoSuscDin, instActual, selectProfe.value);
                 if (esMatchSolicitud && selectProfe && profeActualId) {
                     asegurarOpcionProfesor(selectProfe, profeActualId, sol ? sol.profesorNombre : opts.profeNombreSugerido);
                 }
@@ -801,13 +820,26 @@ export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg
                 selectProfe.innerHTML = '<option value="">Seleccionar profesor...</option>';
             }
             if (!esMatchSolicitud) autoCompletarNombreGrupoPrealta();
-            actualizarVisibilidadCamposPrealta(tipoSusc);
+            actualizarVisibilidadCamposPrealta(tipoSuscDin);
             if (!esMatchSolicitud) {
                 renderizarAdvertenciasMatchPrealta([al], inputFechaIni.value, obtenerDuracionPrealtaMinutos(), configApp);
             }
             verificarPrealtaEnCalendar([al], configApp);
         };
         inputFechaIni.oninput = inputFechaIni.onchange;
+    }
+
+    const inputGrupo = document.getElementById('prealta-grupo');
+    if (inputGrupo && !esIndividual) {
+        inputGrupo.oninput = () => {
+            const valGrp = inputGrupo.value.toUpperCase();
+            const esGrupalDyn = (sol && (sol.tipoGrupo === 'Clase Grupal' || sol.tipoGrupo === 'Grupal'))
+                || valGrp.includes('INICIAL') || valGrp.includes('GRUPAL') || valGrp.includes('TALLER');
+            const campoEns = document.getElementById('prealta-campo-tipo-ensamble');
+            if (campoEns) {
+                campoEns.style.display = (!esGrupalDyn && (esSolicitudEnsamble || tipoSusc === 'ensamble')) ? 'block' : 'none';
+            }
+        };
     }
     if (selectProfe) {
         selectProfe.onchange = () => {
@@ -910,7 +942,10 @@ export async function abrirModalPrealtaGrupal(ids, grupoNom = '', cfg = defaultC
     const campoPackInd = document.getElementById('prealta-campo-pack-individual');
     if (campoPackInd) campoPackInd.style.display = 'none';
     const campoTipoEns = document.getElementById('prealta-campo-tipo-ensamble');
-    const todosEnsambles = alumnosList.every(a => detectarTipoSuscripcion(a.tipo_suscripcion || '') === 'ensamble');
+    const esGrupoGrupalNom = (grupoNom || primerAl.grupo_asignado || '').toUpperCase().includes('INICIAL')
+        || (grupoNom || primerAl.grupo_asignado || '').toUpperCase().includes('GRUPAL')
+        || (grupoNom || primerAl.grupo_asignado || '').toUpperCase().includes('TALLER');
+    const todosEnsambles = !esGrupoGrupalNom && alumnosList.every(a => detectarTipoSuscripcion(a.tipo_suscripcion || '') === 'ensamble');
     if (campoTipoEns) campoTipoEns.style.display = todosEnsambles ? 'block' : 'none';
 
     const tipoSuscGrupal = todosEnsambles ? 'ensamble' : 'grupal';
@@ -1001,95 +1036,110 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
     let callbacks = maybeCallbacks;
     if (btnTargetOrOptions && !btnTargetOrOptions.tagName && typeof btnTargetOrOptions === 'object') {
         callbacks = btnTargetOrOptions;
-        btnTarget = document.getElementById('btn-guardar-prealta');
+        btnTarget = callbacks.btnGuardar || document.getElementById('btn-guardar-prealta');
     }
-    const { setBotonCargando, cargarVista, generarTextoConHistorial, estadoActualVista } = callbacks;
+    btnTarget = btnTarget || callbacks?.btnGuardar || document.getElementById('btn-guardar-prealta');
+    const { setBotonCargando, cargarVista, generarTextoConHistorial, estadoActualVista } = callbacks || {};
     const mostrarLoader = window.mostrarIndicadorCarga || ((txt) => {});
     const ocultarLoader = window.ocultarIndicadorCarga || (() => {});
 
-    const idsRaw = document.getElementById('prealta-alumno-id').value;
-    const ids = idsRaw.split(',').filter(Boolean);
-    const fIni = document.getElementById('prealta-fecha-inicio').value;
-    const grp = document.getElementById('prealta-grupo').value.trim();
-    const selProfe = document.getElementById('prealta-profe-select');
-    const profeId = selProfe ? selProfe.value : '';
-    const profeNombre = (selProfe && selProfe.selectedOptions[0]) ? (selProfe.selectedOptions[0].dataset.nombre || selProfe.selectedOptions[0].textContent.split('(')[0].trim()) : '';
-    const profeCalId = (selProfe && selProfe.selectedOptions[0]) ? (selProfe.selectedOptions[0].dataset.calId || '') : '';
+    try {
+        const idsRaw = document.getElementById('prealta-alumno-id').value;
+        const ids = idsRaw.split(',').filter(Boolean);
+        const fIni = document.getElementById('prealta-fecha-inicio').value;
+        const grp = document.getElementById('prealta-grupo').value.trim();
+        const selProfe = document.getElementById('prealta-profe-select');
+        const profeId = selProfe ? selProfe.value : '';
+        const profeNombre = (selProfe && selProfe.selectedOptions[0]) ? (selProfe.selectedOptions[0].dataset.nombre || selProfe.selectedOptions[0].textContent.split('(')[0].trim()) : '';
+        const profeCalId = (selProfe && selProfe.selectedOptions[0]) ? (selProfe.selectedOptions[0].dataset.calId || '') : '';
 
-    if (ids.length === 0) return alert("Error: no hay alumno seleccionado.");
-    if (!fIni) return alert("Por favor ingresa la fecha y hora de inicio.");
-
-    const alumnosList = [];
-    for (let id of ids) {
-        const dSnap = await getDoc(doc(db, "alumnos", id));
-        if (dSnap.exists()) alumnosList.push({ id: dSnap.id, ...dSnap.data() });
-    }
-    if (alumnosList.length === 0) return alert("No se encontraron los datos de los alumnos.");
-
-    const primerAl = alumnosList[0];
-    const tipoSusc = detectarTipoSuscripcion(primerAl.tipo_suscripcion || '');
-    const esIndividual = tipoSusc === 'individual';
-
-    if (esIndividual && !profeId && !primerAl.reserva_profe_id) {
-        return alert("Por favor selecciona un profesor para la clase individual.");
-    }
-    if (!esIndividual && !grp) {
-        return alert("Por favor ingresa el nombre del grupo.");
-    }
-
-    const durMin = obtenerDuracionPrealtaMinutos();
-
-    // Validar si hay discrepancias de disponibilidad, edad o nivel
-    const matchWarns = validarRequisitosMatchAlumnos(alumnosList, fIni, durMin, defaultCfg);
-    if (matchWarns.length > 0) {
-        const textoWarns = matchWarns.map(w => `• ${w}`).join('\n');
-        const continuarConWarns = await window.confirmar(
-            'Advertencias de Validación de Horario / Requisitos',
-            `Se detectaron las siguientes discrepancias en el horario:\n\n${textoWarns}\n\n¿Deseas continuar y avanzar con la pre-alta de todas formas?`,
-            'Forzar y Continuar',
-            '⚠️',
-            'Volver y Corregir'
-        );
-        if (!continuarConWarns) {
+        if (ids.length === 0) {
             if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
-            return;
+            return alert("Error: no hay alumno seleccionado.");
         }
-    }
+        if (!fIni) {
+            if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
+            return alert("Por favor ingresa la fecha y hora de inicio.");
+        }
 
-    // Asegurar que no quede ningún loader abierto de acciones previas
-    if (typeof ocultarLoader === 'function') ocultarLoader();
+        const alumnosList = [];
+        for (let id of ids) {
+            const dSnap = await getDoc(doc(db, "alumnos", id));
+            if (dSnap.exists()) alumnosList.push({ id: dSnap.id, ...dSnap.data() });
+        }
+        if (alumnosList.length === 0) {
+            if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
+            return alert("No se encontraron los datos de los alumnos.");
+        }
 
-    if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, true, 'Validando...');
+        const primerAl = alumnosList[0];
+        const tipoSusc = detectarTipoSuscripcion(primerAl.tipo_suscripcion || '');
+        const esIndividual = tipoSusc === 'individual';
 
-    const dateObj = new Date(fIni);
-    if (isNaN(dateObj.getTime())) {
-        if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
-        return alert("Fecha y hora inválidas.");
-    }
+        if (esIndividual && !profeId && !primerAl.reserva_profe_id) {
+            if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
+            return alert("Por favor selecciona un profesor para la clase individual.");
+        }
+        if (!esIndividual && !grp) {
+            if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
+            return alert("Por favor ingresa el nombre del grupo.");
+        }
 
-    const diasCodigos = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
-    const diaCodigo = diasCodigos[dateObj.getDay()];
-    const horaInicioStr = `${dateObj.getHours().toString().padStart(2, '0')}:${dateObj.getMinutes().toString().padStart(2, '0')}`;
-    const horaFinMin = dateObj.getHours() * 60 + dateObj.getMinutes() + durMin;
-    const horaFinStr = minutosAHora(horaFinMin);
+        const durMin = obtenerDuracionPrealtaMinutos();
 
-    // Validar disponibilidad del alumno
-    if (primerAl.disponibilidad && primerAl.disponibilidad[diaCodigo]) {
-        const rangosAl = primerAl.disponibilidad[diaCodigo];
-        const cubreAl = rangosAl.some(r => {
-            const rIni = convertirHoraAMinutos(r.inicio || '09:00');
-            const rFin = convertirHoraAMinutos(r.fin || '22:00');
-            const slIni = dateObj.getHours() * 60 + dateObj.getMinutes();
-            return slIni >= rIni && (slIni + durMin) <= rFin;
-        });
-        if (rangosAl.length > 0 && !cubreAl) {
-            const confirmarForzar = await window.confirmar('Disponibilidad no coincide', 'El alumno no tiene disponibilidad para el horario seleccionado. ¿Guardar de todas formas?', 'Forzar y Guardar');
-            if (!confirmarForzar) {
+        // Validar si hay discrepancias de disponibilidad, edad o nivel
+        let yaConfirmoDisponibilidad = false;
+        const matchWarns = validarRequisitosMatchAlumnos(alumnosList, fIni, durMin, defaultCfg);
+        if (matchWarns.length > 0) {
+            const textoWarns = matchWarns.map(w => `• ${w}`).join('\n');
+            const continuarConWarns = await window.confirmar(
+                'Advertencias de Validación de Horario / Requisitos',
+                `Se detectaron las siguientes discrepancias en el horario:\n\n${textoWarns}\n\n¿Deseas continuar y avanzar con la pre-alta de todas formas?`,
+                'Forzar y Continuar',
+                '⚠️',
+                'Volver y Corregir'
+            );
+            if (!continuarConWarns) {
                 if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
                 return;
             }
+            yaConfirmoDisponibilidad = true;
         }
-    }
+
+        // Asegurar que no quede ningún loader abierto de acciones previas
+        if (typeof ocultarLoader === 'function') ocultarLoader();
+
+        if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, true, 'Validando...');
+
+        const dateObj = new Date(fIni);
+        if (isNaN(dateObj.getTime())) {
+            if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
+            return alert("Fecha y hora inválidas.");
+        }
+
+        const diasCodigos = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+        const diaCodigo = diasCodigos[dateObj.getDay()];
+        const horaInicioStr = `${dateObj.getHours().toString().padStart(2, '0')}:${dateObj.getMinutes().toString().padStart(2, '0')}`;
+        const horaFinMin = dateObj.getHours() * 60 + dateObj.getMinutes() + durMin;
+        const horaFinStr = minutosAHora(horaFinMin);
+
+        // Validar disponibilidad del alumno (si no fue confirmada ya arriba)
+        if (!yaConfirmoDisponibilidad && primerAl.disponibilidad && primerAl.disponibilidad[diaCodigo]) {
+            const rangosAl = primerAl.disponibilidad[diaCodigo];
+            const cubreAl = rangosAl.some(r => {
+                const rIni = convertirHoraAMinutos(r.inicio || '09:00');
+                const rFin = convertirHoraAMinutos(r.fin || '22:00');
+                const slIni = dateObj.getHours() * 60 + dateObj.getMinutes();
+                return slIni >= rIni && (slIni + durMin) <= rFin;
+            });
+            if (rangosAl.length > 0 && !cubreAl) {
+                const confirmarForzar = await window.confirmar('Disponibilidad no coincide', 'El alumno no tiene disponibilidad para el horario seleccionado. ¿Guardar de todas formas?', 'Forzar y Guardar');
+                if (!confirmarForzar) {
+                    if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
+                    return;
+                }
+            }
+        }
 
     // Validar disponibilidad del profesor seleccionado
     if (profeId && selProfe && selProfe.selectedOptions[0] && selProfe.selectedOptions[0].dataset.disponibilidad) {
@@ -1336,6 +1386,12 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
             updates.estado_validacion_alumno = "pendiente";
         }
 
+        const grpUpper = (grp || '').toUpperCase();
+        const esGrupoGrupal = grpUpper.includes('INICIAL') 
+            || grpUpper.includes('GRUPAL') 
+            || grpUpper.includes('TALLER')
+            || (al.tipo_suscripcion || '').toLowerCase().includes('grupal');
+
         if (esIndividual) {
             if (!esPropuesta) {
                 updates.modalidad_individual = modInd;
@@ -1346,6 +1402,14 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
                 else updates.tipo_suscripcion = 'Clase Individual Full Pack';
             } else {
                 updates.tipo_suscripcion = al.tipo_suscripcion || 'Clase Individual';
+            }
+        } else if (esGrupoGrupal) {
+            updates.tipo_suscripcion = 'Clase Grupal';
+            updates.tipo_ensamble = '';
+            updates.modalidad_ensamble = '';
+            if (!esPropuesta) {
+                const cfg = callbacks?.configApp || defaultCfg;
+                updates.valor_arancel = al.valor_arancel || formatearPrecioMoneda(cfg.arancel_grupal_regular || '$25.000');
             }
         } else {
             updates.tipo_suscripcion = tipoEnsVal;
@@ -1404,6 +1468,12 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
         alert(`✅ Propuesta creada con éxito para ${ids.length} alumno(s).\nLos alumnos pasaron a "Grupos y Alumnos en Validación".`);
     } else {
         alert(`✅ Datos guardados exitosamente para ${ids.length} alumno(s).\nEvento sincronizado en Google Calendar y texto copiado.`);
+    }
+    } catch (err) {
+        console.error("Error en guardarPreAlta:", err);
+        ocultarLoader();
+        if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
+        alert("Ocurrió un error al procesar la pre-alta: " + (err.message || err));
     }
 }
 
