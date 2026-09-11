@@ -126,7 +126,8 @@ export function generarBotonesPrincipalesVisibles(al, id) {
     } else if (est === 'pendiente validacion por alumno') {
         html += `<button type="button" class="row-quick-btn primary btn-confirmar-entrevista" data-id="${id}">✅ Confirmar Agenda</button>`;
         html += `<button type="button" class="row-quick-btn secondary btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
-    } else if (est === 'agenda confirmada') {
+    } else if (est === 'agenda confirmada' || est === 'entrevista confirmada' || est.startsWith('entrevista')) {
+        html += `<button type="button" class="row-quick-btn success btn-enviar-conf-alumno" data-id="${id}">💬 Avisar a Alumno</button>`;
         html += `<button type="button" class="row-quick-btn primary btn-admision-finalizada" data-id="${id}">🏁 Finalizar Admisión</button>`;
         html += `<button type="button" class="row-quick-btn secondary btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
     } else if (est === 'agenda suspendida') {
@@ -194,10 +195,11 @@ export function generarBotonesAccion(al, id, esModal = false) {
             html += `<button type="button" class="btn-action-neutral btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Agenda WS</button>`;
             html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
             html += `<button type="button" class="btn-action-neutral btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
-        } else if (est === 'agenda confirmada') {
+        } else if (est === 'agenda confirmada' || est === 'entrevista confirmada' || est.startsWith('entrevista')) {
             html += `<button type="button" class="btn-action-primary btn-admision-finalizada" data-id="${id}">🏁 Finalizar Admisión</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-copiar-facturacion-admision" data-id="${id}">💰 Copiar Facturación</button>`;
+            html += `<button type="button" class="btn-action-neutral btn-enviar-conf-alumno" data-id="${id}">💬 Avisar a Alumno (WhatsApp)</button>`;
             html += `<button type="button" class="btn-action-neutral btn-enviar-conf-profe" data-id="${id}">💬 Avisar a Docente (WhatsApp)</button>`;
+            html += `<button type="button" class="btn-action-neutral btn-copiar-facturacion-admision" data-id="${id}">💰 Copiar Facturación</button>`;
             html += `<button type="button" class="btn-action-neutral btn-buscar-agenda" data-id="${id}">🗓️ Re-Agendar</button>`;
             html += `<button type="button" class="btn-action-neutral btn-auditar-cal-directo" data-id="${id}">🔍 Auditar calendario</button>`;
             html += `<button type="button" class="btn-action-neutral btn-cancelar-alumno" data-id="${id}">❌ Alumno Cancela</button>`;
@@ -280,9 +282,10 @@ export function generarBotonesAccion(al, id, esModal = false) {
         html += `<button type="button" class="dropdown-item btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Agenda WS</button>`;
         html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
         html += `<button type="button" class="dropdown-item btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
-    } else if (est === 'agenda confirmada') {
-        html += `<button type="button" class="dropdown-item btn-copiar-facturacion-admision" data-id="${id}">💰 Copiar Facturación</button>`;
+    } else if (est === 'agenda confirmada' || est === 'entrevista confirmada' || est.startsWith('entrevista')) {
+        html += `<button type="button" class="dropdown-item btn-enviar-conf-alumno" data-id="${id}">💬 Avisar a Alumno (WhatsApp)</button>`;
         html += `<button type="button" class="dropdown-item btn-enviar-conf-profe" data-id="${id}">💬 Avisar a Docente (WhatsApp)</button>`;
+        html += `<button type="button" class="dropdown-item btn-copiar-facturacion-admision" data-id="${id}">💰 Copiar Facturación</button>`;
         html += `<button type="button" class="dropdown-item btn-buscar-agenda" data-id="${id}">🗓️ Re-Agendar</button>`;
         html += `<button type="button" class="dropdown-item btn-auditar-cal-directo" data-id="${id}">🔍 Auditar calendario</button>`;
         html += `<button type="button" class="dropdown-item btn-cancelar-alumno" data-id="${id}">❌ Alumno Cancela</button>`;

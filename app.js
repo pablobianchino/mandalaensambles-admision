@@ -7631,14 +7631,14 @@ document.addEventListener('click', async (e) => {
     async function generarTextoConHistorial(idAlumno, plantillaKey, overrideFecha = null, overrideProfeId = null, overrideProfeNombre = null, overrideOpciones = null) { 
         const al = (await getDoc(doc(db, "alumnos", idAlumno))).data(); 
         let aliasP = ''; 
-        const targetProfeId = overrideProfeId || al.reserva_profe_id; 
-        const targetProfeNom = overrideProfeNombre || al.reserva_profe_nombre; 
+        const targetProfeId = overrideProfeId || al.reserva_profe_id || al.profesor_id; 
+        const targetProfeNom = overrideProfeNombre || al.reserva_profe_nombre || al.profesor_asignado || (al.informe_entrevista && al.informe_entrevista.evaluador_nombre) || ''; 
         if (targetProfeId) { 
             const pDoc = await getDoc(doc(db, "profesores", targetProfeId)); 
             if(pDoc.exists()) aliasP = pDoc.data().alias_transferencia||''; 
         } 
         let histText = formatearTextoHistorial(al.historial); 
-        let template = configApp[plantillaKey] || ''; 
+        let template = configApp[plantillaKey] || defaultCfg[plantillaKey] || ''; 
         if (!template && plantillaKey === 'texto_cancela_alumno') {
             template = "*🔴 PRE CHECK - ENTREVISTA*\n*❌ RESERVA CANCELADA*\n\n📅 *FECHA: {fecha_hora}*\n\n*📋 DATOS DEL ALUMNO:*\n👤 Nombre: {nombre}\n🎂 Edad: {edad}\n{emojiinstrumento} Instrumento: {instrumento}\n🧩 Clase: {suscripcion}\n\n*📝 HISTORIAL / MOTIVO:*\n{historial}";
         }
@@ -7651,7 +7651,7 @@ document.addEventListener('click', async (e) => {
         const valorArancel = al.valor_arancel || configApp.valor_clase || '';
         let opc = overrideOpciones || al.opciones_propuestas || []; 
         let opcionesStr = opc.length > 0 ? opc.map(o => `${o.letra || '-'}- ${o.fechaTexto}`).join('\n') : ''; 
-        let fHora = overrideFecha || al.reserva_fecha_texto || al.reserva_fecha_texto_previo || ''; 
+        let fHora = overrideFecha || al.reserva_fecha_texto || al.reserva_fecha_texto_previo || (al.reserva_inicio ? formatearFechaAmi(al.reserva_inicio) : '') || ''; 
         if (opc.length > 1 && (fHora === 'Varias opciones' || !fHora)) { 
             fHora = '\n' + opcionesStr; 
         } 
@@ -7825,10 +7825,27 @@ document.addEventListener('click', async (e) => {
         const btn = target.closest('.btn-reenviar-alumno') || target.closest('.btn-enviar-conf-alumno');
         try { 
             const id = btn.getAttribute('data-id'); 
-            const key = btn.classList.contains('btn-reenviar-alumno') ? 'texto_alumno' : 'texto_conf_alumno'; 
+            const esReenvio = btn.classList.contains('btn-reenviar-alumno');
+            const key = esReenvio ? 'texto_alumno' : 'texto_conf_alumno'; 
             const data = await generarTextoConHistorial(id, key); 
             await navigator.clipboard.writeText(data.txt); 
-            mostrarToast("💬 Texto de WhatsApp para el alumno copiado al portapapeles", "success"); 
+
+            const al = data.al || {};
+            let cel = (al.celular || al.telefono || '').toString().replace(/\D/g, '');
+            if (cel.length === 10) {
+                cel = '549' + cel;
+            } else if (cel.length === 11 && cel.startsWith('0')) {
+                cel = '549' + cel.substring(1);
+            } else if (cel.length === 12 && cel.startsWith('54') && !cel.startsWith('549')) {
+                cel = '549' + cel.substring(2);
+            }
+
+            if (cel) {
+                mostrarToast("💬 Mensaje copiado al portapapeles. Abriendo WhatsApp...", "success");
+                window.open(`https://wa.me/${cel}?text=${encodeURIComponent(data.txt)}`, '_blank');
+            } else {
+                mostrarToast(esReenvio ? "💬 Texto de WhatsApp para el alumno copiado al portapapeles" : "💬 Mensaje de confirmación copiado al portapapeles", "success"); 
+            }
         } catch(e) {
             console.error("Error al copiar texto alumno:", e);
             alert("❌ Error al copiar texto: " + e.message);
