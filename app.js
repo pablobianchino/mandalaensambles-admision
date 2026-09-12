@@ -7120,6 +7120,7 @@ document.addEventListener('click', async (e) => {
                 }
                 const evFin = await sincronizarEventoAltaConfirmadaCalendar({ id, ...al }, esInd, alumnosDelGrupo, configApp);
                 const updatesFin = {
+                    estado_agenda: "Alta Finalizada",
                     checklist_alta: [true, true, true, true],
                     fecha_alta_finalizada: new Date().toISOString(),
                     historial: hist

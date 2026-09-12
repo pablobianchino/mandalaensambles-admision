@@ -2425,7 +2425,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
         qSnapAll.forEach(d => todosAlumnos.push({ id: d.id, ...d.data() }));
 
         const esGrupoFn = (al) => {
-            const grp = (al.grupo_asignado || '').trim();
+            const grp = (al.grupo_asignado || '').replace(/\s*\([⌛⏳].*?pend\)/gi, '').trim();
             return grp && grp !== 'Clase Individual' && grp !== 'Individual' && !grp.startsWith('Grupo Sin');
         };
 
@@ -2434,7 +2434,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
 
         dataFiltrada.forEach(al => {
             if (esGrupoFn(al)) {
-                const grpNom = al.grupo_asignado.trim();
+                const grpNom = al.grupo_asignado.replace(/\s*\([⌛⏳].*?pend\)/gi, '').trim();
                 if (!gruposMap[grpNom]) gruposMap[grpNom] = [];
                 gruposMap[grpNom].push(al);
             } else {
@@ -2446,27 +2446,32 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
 
         // Renderizar Tarjetas de Grupos
         for (const [nombreGrupo, integrantesEnVista] of Object.entries(gruposMap)) {
-            const todosMiembrosGrupo = todosAlumnos.filter(a => 
-                (a.grupo_asignado || '').trim() === nombreGrupo &&
-                !['Alta Finalizada', 'Alta Suspendida', 'Agenda suspendida', 'Inactivo'].includes(a.estado_agenda)
-            );
-            const miembrosRenderizar = (todosMiembrosGrupo.length > 0) ? todosMiembrosGrupo : integrantesEnVista;
+            // Contexto global del grupo en la base de datos (para métricas informativas)
+            const todosMiembrosGrupo = todosAlumnos.filter(a => {
+                const aGrp = (a.grupo_asignado || '').replace(/\s*\([⌛⏳].*?pend\)/gi, '').trim();
+                return aGrp === nombreGrupo &&
+                    !['Alta Suspendida', 'Agenda suspendida', 'Inactivo'].includes(a.estado_agenda);
+            });
+
+            // En esta tarjeta de la vista activa se renderizan ÚNICA Y EXCLUSIVAMENTE los alumnos que pertenecen a esta vista
+            const miembrosRenderizar = integrantesEnVista;
             const primer = miembrosRenderizar[0] || {};
             const horario = primer.horario_match || primer.reserva_fecha_texto || 'Horario a coordinar';
             const profeNom = primer.reserva_profe_nombre || primer.profesor_asignado || 'Docente';
             const modalidad = primer.modalidad_ensamble || primer.tipo_ensamble || primer.tipo_suscripcion || 'Ensamble';
 
-            const confirmados = miembrosRenderizar.filter(m => {
+            const totalGrupo = todosMiembrosGrupo.length;
+            const confirmadosTotal = todosMiembrosGrupo.filter(m => {
                 const st = (m.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
                 return ['alta confirmada', 'alta efectiva', 'alta finalizada'].includes(st);
-            });
-            const pendientes = miembrosRenderizar.filter(m => !confirmados.some(c => c.id === m.id));
+            }).length;
+            const pendientesTotal = Math.max(0, totalGrupo - confirmadosTotal);
 
             let statusChipsHtml = '';
             let headerActionsHtml = '';
 
             if (vista === 'Altas - Pendientes') {
-                statusChipsHtml = `<span class="group-member-status-chip status-val-ok">✅ ${miembrosRenderizar.length} Integrantes Validados</span>`;
+                statusChipsHtml = `<span class="group-member-status-chip status-val-ok">📋 ${miembrosRenderizar.length} Integrante(s) Validado(s)</span>`;
                 const idsParam = miembrosRenderizar.map(m => m.id).join(',');
                 headerActionsHtml = `
                     <button type="button" class="btn-primary btn-iniciar-prealta-grupo-card" data-grupo="${nombreGrupo}" data-ids="${idsParam}" style="padding:8px 16px; font-size:13px; cursor:pointer;" title="Iniciar Pre-Alta de todo el grupo y agendar en Google Calendar">
@@ -2477,35 +2482,34 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                     </button>
                 `;
             } else if (vista === 'Altas - En Curso') {
-                if (confirmados.length > 0) {
-                    statusChipsHtml += `<span class="group-member-status-chip status-val-ok">🟢 ${confirmados.length} Confirmado(s)</span> `;
+                statusChipsHtml = `<span class="group-member-status-chip status-val-pending">⏳ ${miembrosRenderizar.length} Pendiente(s) de Pago</span>`;
+                if (confirmadosTotal > 0) {
+                    statusChipsHtml += ` <span style="display:inline-flex; align-items:center; gap:4px; font-size:11.5px; color:#166534; background:#dcfce7; border:1px solid #bbf7d0; padding:2px 8px; border-radius:12px; font-weight:700;">🟢 ${confirmadosTotal} ya confirmaron</span>`;
                 }
-                if (pendientes.length > 0) {
-                    statusChipsHtml += `<span class="group-member-status-chip status-val-pending">⏳ ${pendientes.length} Pendiente(s) de Pago</span>`;
+                const idsPendientes = miembrosRenderizar.map(p => p.id).join(',');
+                headerActionsHtml = `
+                    <button type="button" class="btn-primary btn-aprobar-todo-grupo" data-grupo="${nombreGrupo}" style="background:#16a34a; border-color:#16a34a; padding:8px 14px; font-size:13px; cursor:pointer;" title="Aprobar pago y alta de los ${miembrosRenderizar.length} integrantes pendientes">
+                        ✅ Aprobar Todo el Grupo (${miembrosRenderizar.length})
+                    </button>
+                    <button type="button" class="filter-chip btn-devolver-grupo-espera" data-grupo="${nombreGrupo}" data-ids="${idsPendientes}" style="padding:8px 12px; font-size:13px; color:var(--accent-red); border-color:rgba(194,86,59,0.3); cursor:pointer;" title="Devolver integrantes pendientes a Lista de Espera">
+                        ↩️ Devolver Pendientes
+                    </button>
+                `;
+            } else if (vista === 'Altas - Confirmadas') {
+                statusChipsHtml = `<span class="group-member-status-chip status-val-ok">🟢 ${miembrosRenderizar.length} Confirmado(s)</span>`;
+                if (pendientesTotal > 0) {
+                    statusChipsHtml += ` <span style="display:inline-flex; align-items:center; gap:4px; font-size:11.5px; color:#92400e; background:#fef3c7; border:1px solid #fde68a; padding:2px 8px; border-radius:12px; font-weight:700;">⏳ ${pendientesTotal} aún en curso</span>`;
                 }
-                if (pendientes.length > 0) {
-                    headerActionsHtml = `
-                        <button type="button" class="btn-primary btn-aprobar-todo-grupo" data-grupo="${nombreGrupo}" style="background:#16a34a; border-color:#16a34a; padding:8px 14px; font-size:13px; cursor:pointer;" title="Aprobar pago y alta de todos los integrantes del grupo">
-                            ✅ Aprobar Todo el Grupo
-                        </button>
-                        ${confirmados.length > 0 ? `
-                            <button type="button" class="filter-chip btn-confirmar-inicio-grupo" data-grupo="${nombreGrupo}" style="padding:8px 12px; font-size:13px; color:#16a34a; border-color:rgba(22,163,74,0.4); cursor:pointer;" title="Iniciar en Google Calendar solo con los integrantes confirmados">
-                                🚀 Iniciar con ${confirmados.length} Confirmado(s)
-                            </button>
-                        ` : ''}
-                        <button type="button" class="filter-chip btn-devolver-grupo-espera" data-grupo="${nombreGrupo}" data-ids="${pendientes.map(p=>p.id).join(',')}" style="padding:8px 12px; font-size:13px; color:var(--accent-red); border-color:rgba(194,86,59,0.3); cursor:pointer;" title="Devolver integrantes pendientes a Lista de Espera">
-                            ↩️ Devolver Pendientes
-                        </button>
-                    `;
-                } else {
-                    headerActionsHtml = `
-                        <button type="button" class="btn-primary btn-confirmar-inicio-grupo" data-grupo="${nombreGrupo}" style="background:#16a34a; border-color:#16a34a; padding:8px 16px; font-size:13px; cursor:pointer;" title="Confirmar inicio oficial del grupo y actualizar evento en Google Calendar">
-                            ✅ Iniciar Grupo Oficial
-                        </button>
-                    `;
-                }
+                const idsConfirmados = miembrosRenderizar.map(p => p.id).join(',');
+                headerActionsHtml = `
+                    <button type="button" class="btn-primary btn-finalizar-todo-grupo" data-grupo="${nombreGrupo}" data-ids="${idsConfirmados}" style="padding:8px 14px; font-size:13px; cursor:pointer;" title="Finalizar alta y cerrar ciclo para los ${miembrosRenderizar.length} integrantes confirmados">
+                        🏁 Finalizar Todo el Grupo (${miembrosRenderizar.length})
+                    </button>
+                `;
+            } else if (vista === 'Altas - Finalizadas') {
+                statusChipsHtml = `<span class="group-member-status-chip status-val-ok">🏆 ${miembrosRenderizar.length} Finalizado(s)</span>`;
             } else {
-                statusChipsHtml = `<span class="group-member-status-chip status-val-ok">✅ ${miembrosRenderizar.length} Confirmados</span>`;
+                statusChipsHtml = `<span class="group-member-status-chip status-val-ok">✅ ${miembrosRenderizar.length} Alumnos</span>`;
             }
 
             const renderFilaMiembro = (al) => {
@@ -2553,21 +2557,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                 `;
             };
 
-            let miembrosHtml = '';
-            if (vista === 'Altas - En Curso' && confirmados.length > 0 && pendientes.length > 0) {
-                miembrosHtml += `
-                    <div style="background:#f0fdf4; padding:6px 18px; font-size:11px; font-weight:800; color:#166534; text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid #bbf7d0;">
-                        ✅ Integrantes Activos Confirmados (${confirmados.length})
-                    </div>
-                    ${confirmados.map(renderFilaMiembro).join('')}
-                    <div style="background:#fffbeb; padding:6px 18px; font-size:11px; font-weight:800; color:#92400e; text-transform:uppercase; letter-spacing:0.5px; border-top:1px solid var(--border-color); border-bottom:1px solid #fde68a;">
-                        ⏳ Integrantes Pendientes de Pago (${pendientes.length})
-                    </div>
-                    ${pendientes.map(renderFilaMiembro).join('')}
-                `;
-            } else {
-                miembrosHtml = miembrosRenderizar.map(renderFilaMiembro).join('');
-            }
+            const miembrosHtml = miembrosRenderizar.map(renderFilaMiembro).join('');
 
             html += `
                 <div class="group-box-card" style="width:100%; margin-bottom:16px;">
@@ -2720,6 +2710,56 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
             btn.onclick = async () => {
                 const grupo = btn.dataset.grupo || '';
                 await aprobarTodoGrupoAction(grupo, vista, callbacks);
+            };
+        });
+
+        container.querySelectorAll('.btn-finalizar-todo-grupo').forEach(btn => {
+            btn.onclick = async () => {
+                const grupo = btn.dataset.grupo || '';
+                const ids = (btn.dataset.ids || '').split(',').filter(Boolean);
+                if (ids.length === 0) return;
+                const confirmarFn = window.confirmar || ((t, d, b, i) => Promise.resolve(confirm(`${t}\n\n${d}`)));
+                const ok = await confirmarFn(
+                    `Finalizar Todo el Grupo: ${grupo}`,
+                    `¿Finalizar el alta de los ${ids.length} integrantes confirmados de "${grupo}"?\n\n• Se marcará el checklist completo para todos ellos.\n• Pasarán a Altas Finalizadas.`,
+                    '🏁 Finalizar Grupo',
+                    '🏆'
+                );
+                if (!ok) return;
+
+                if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(`Finalizando grupo "${grupo}"...`);
+                try {
+                    const ahoraIso = new Date().toISOString();
+                    const fnHist = window.crearEntradaHistorial || ((txt, t) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: t || 'sistema' }));
+                    for (const id of ids) {
+                        const dSnap = await getDoc(doc(db, "alumnos", id));
+                        if (dSnap.exists()) {
+                            const al = dSnap.data();
+                            const hist = al.historial || [];
+                            hist.push(fnHist(`Alta Finalizada: Todos los pasos del checklist confirmados (Cierre grupal).`, 'alta'));
+                            await updateDoc(doc(db, "alumnos", id), {
+                                estado_agenda: "Alta Finalizada",
+                                checklist_alta: [true, true, true, true],
+                                fecha_alta_finalizada: ahoraIso,
+                                historial: hist
+                            });
+                        }
+                    }
+                    if (typeof callbacks.cargarVista === 'function') await callbacks.cargarVista(vista);
+                    if (typeof window.mostrarToast === 'function') {
+                        window.mostrarToast(`🏁 Grupo "${grupo}" finalizado con éxito.`, 'success');
+                    } else {
+                        alert(`🏁 Grupo "${grupo}" finalizado con éxito.`);
+                    }
+                } catch(e) {
+                    if (typeof window.mostrarToast === 'function') {
+                        window.mostrarToast("Error al finalizar grupo: " + e.message, 'error');
+                    } else {
+                        alert("Error al finalizar grupo: " + e.message);
+                    }
+                } finally {
+                    if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
+                }
             };
         });
 
