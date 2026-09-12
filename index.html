@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=6.8.4">
+    <link rel="stylesheet" href="styles.css?v=6.8.5">
 
     <style>
         /* Estilos Críticos de Widget de Perfil y Popover Google-Style */
@@ -1458,7 +1458,7 @@
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
                 <div style="display:flex; align-items:center; gap:8px;">
                     <span style="font-size:18px;">🔍</span>
-                    <h3 style="margin:0; color:var(--text-main); font-size:1.3em; font-weight:800;">Buscar Disponibilidad</h3>
+                    <h3 id="titulo-modal-agenda" style="margin:0; color:var(--text-main); font-size:1.3em; font-weight:800;">Buscar Disponibilidad</h3>
                 </div>
             </div>
 
@@ -1496,9 +1496,10 @@
             <input type="text" id="input-buscador-popup" class="modern-input" placeholder="Filtrar resultados..." style="margin-bottom: 12px; display:none;">
             <div id="resultados-agenda" style="margin-bottom:14px; max-height:38vh; overflow-y:auto;"></div>
 
-            <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-color); padding-top:14px; gap:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-color); padding-top:14px; gap:10px; flex-wrap:wrap;">
                 <button type="button" class="btn-cerrar-modal" data-modal="modal-agenda" style="padding:9px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:700; color:var(--text-muted); flex:1;">Cerrar</button>
-                <button id="btn-procesar-seleccion-agenda" class="btn-primary" style="display:none; flex:2; padding:9px 16px; font-weight:700;">Copiar Texto y Avanzar</button>
+                <button id="btn-procesar-seleccion-agenda" class="btn-secondary" style="display:none; flex:1.5; padding:9px 14px; font-weight:700;">💬 Avisar a Evaluador</button>
+                <button id="btn-agendar-directo-calendar" class="btn-primary" style="display:none; flex:2; padding:9px 16px; font-weight:700;">📅 Agendar en Calendar</button>
             </div>
         </div>
     </dialog>
@@ -1648,7 +1649,7 @@
             </div>
 
             <!-- Vista previa del mensaje -->
-            <label style="font-size:11.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:6px;">VISTA PREVIA DEL MENSAJE DE WHATSAPP</label>
+            <label style="font-size:11.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:6px;">VISTA PREVIA DEL MENSAJE DE PRE-ALTA</label>
             <textarea id="aviso-prealta-textarea-preview" class="modern-input" style="height:170px; font-family:inherit; font-size:12px; line-height:1.45; margin-bottom:15px;" readonly></textarea>
 
             <div style="display:flex; gap:10px; justify-content:flex-end;">
@@ -2685,12 +2686,12 @@
                 <button type="button" class="btn-cerrar-modal" onclick="document.getElementById('modal-registrar-contacto').close()" style="background:none; border:none; font-size:18px; cursor:pointer; color:var(--text-muted); line-height:1;">✕</button>
             </div>
 
-            <!-- Info de celular y WhatsApp directo -->
+            <!-- Info de celular -->
             <div id="modal-contacto-celular-box" style="display:flex; align-items:center; justify-content:space-between; background:var(--hover-bg); border:1px solid var(--border-color); border-radius:10px; padding:8px 12px; margin-bottom:14px;">
                 <div style="display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--text-muted);">
                     <span>📱</span> <span id="modal-contacto-celular-val" style="font-weight:700; color:var(--text-main);">-</span>
                 </div>
-                <a id="modal-contacto-whatsapp-btn" href="#" target="_blank" style="display:inline-flex; align-items:center; gap:5px; background:#25d366; color:#ffffff; padding:4px 10px; border-radius:6px; font-size:11.5px; font-weight:700; text-decoration:none; transition:opacity 0.2s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                <a id="modal-contacto-whatsapp-btn" href="#" target="_blank" style="display:none; align-items:center; gap:5px; background:#25d366; color:#ffffff; padding:4px 10px; border-radius:6px; font-size:11.5px; font-weight:700; text-decoration:none; transition:opacity 0.2s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
                     <span>💬</span> WhatsApp
                 </a>
             </div>
@@ -2843,12 +2844,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=6.8.4"></script>
+    <script type="module" src="app.js?v=6.8.5"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=6.8.4').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=6.8.5').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {

@@ -2009,7 +2009,7 @@ export async function copiarAvisoPrealtaAlumno(id) {
                 const al = alDoc.data();
                 const hist = al.historial || [];
                 const fnHist = window.crearEntradaHistorial || ((txt, tipo) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema' }));
-                hist.push(fnHist(`Mensaje de Pre-Alta enviado al alumno por WhatsApp (Arancel: ${monto || al.valor_arancel || '-'}).`, 'alta'));
+                hist.push(fnHist(`Mensaje de Pre-Alta copiado para avisar al alumno (Arancel: ${monto || al.valor_arancel || '-'}).`, 'alta'));
                 await updateDoc(doc(db, "alumnos", id), { 
                     historial: hist,
                     valor_arancel: monto || al.valor_arancel || ''

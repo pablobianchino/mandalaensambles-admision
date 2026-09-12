@@ -2821,15 +2821,13 @@ Tenemos armada una propuesta para ${susc} de ${emojiInst} ${inst} con el Profe *
 ¿Nos confirmás si te queda bien este horario para asegurar tu lugar e iniciar tu pre-alta? ¡Muchas gracias! 😊`;
 
         await navigator.clipboard.writeText(txt);
-        alert(`📋 Mensaje copiado al portapapeles.\n\nAbriendo WhatsApp para ${al.nombre}...`);
-
-        if (cel) {
-            window.open(`https://wa.me/${cel}?text=${encodeURIComponent(txt)}`, '_blank');
+        if (typeof window.mostrarToast === 'function') {
+            window.mostrarToast(`💬 Mensaje para avisar a ${al.nombre || 'alumno'} copiado al portapapeles`, "success");
         } else {
-            alert('El alumno no tiene numero de celular registrado.');
+            alert(`📋 Mensaje copiado al portapapeles para avisar a ${al.nombre}.`);
         }
     } catch(err) {
-        alert('Error al generar WhatsApp: ' + err.message);
+        alert('Error al generar mensaje: ' + err.message);
     }
 };
 

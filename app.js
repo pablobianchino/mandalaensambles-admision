@@ -2636,7 +2636,9 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
         `;
     } else if (al.horario_match || al.reserva_inicio || al.reserva_fecha_texto || al.fecha_inicio_clases) {
         let fechaTxt = '';
-        if (al.reserva_inicio) {
+        if (al.opciones_propuestas && al.opciones_propuestas.length === 1 && al.opciones_propuestas[0].inicio) {
+            fechaTxt = formatearFechaHoraEstandar(al.opciones_propuestas[0].inicio);
+        } else if (al.reserva_inicio) {
             fechaTxt = formatearFechaHoraEstandar(al.reserva_inicio);
         } else if (al.fecha_inicio_clases) {
             fechaTxt = formatearFechaHoraEstandar(al.fecha_inicio_clases);
@@ -6444,7 +6446,7 @@ document.addEventListener('click', async (e) => {
                 suscripcion: al.tipo_suscripcion || '' 
             }).replace(/\s+/g, ' ').trim();
             await navigator.clipboard.writeText(txt);
-            mostrarToast("📋 Formato de contacto para WhatsApp copiado al portapapeles", "success");
+            mostrarToast("📋 Formato de contacto copiado al portapapeles", "success");
         } catch(e) {
             alert("Error al copiar: " + e.message);
         }
@@ -7258,10 +7260,18 @@ document.addEventListener('click', async (e) => {
         document.getElementById('agenda-start').value = hoy.toISOString().split('T')[0]; 
         document.getElementById('agenda-end').value = d7.toISOString().split('T')[0]; 
         document.getElementById('btn-procesar-seleccion-agenda').style.display = 'none'; 
+        const btnAgendarCalInit = document.getElementById('btn-agendar-directo-calendar');
+        if (btnAgendarCalInit) btnAgendarCalInit.style.display = 'none';
         try { 
             const alDoc = await getDoc(doc(db, "alumnos", alumnoIdActual));
             const al = alDoc.exists() ? alDoc.data() : {};
             const disp = al.disponibilidad || {};
+
+            const elTituloAgenda = document.getElementById('titulo-modal-agenda');
+            const esReagenda = Boolean((btnAgenda.textContent && (btnAgenda.textContent.includes('Re-Agendar') || btnAgenda.textContent.includes('Reagendar'))) || al.reserva_profe_id || al.reserva_fecha_texto || al.id_evento_reserva);
+            if (elTituloAgenda) {
+                elTituloAgenda.textContent = esReagenda ? 'Re-Agendar Entrevista' : 'Buscar Disponibilidad';
+            }
 
             // 1. Resumen Visual del Alumno y su Disponibilidad Semanal
             const infoAlumnoBox = document.getElementById('info-alumno-agenda');
@@ -7589,8 +7599,10 @@ document.addEventListener('click', async (e) => {
             const opts = generarOpcionesAgenda(al.disponibilidad, allEv, esBat, todosLosProfes, profesFiltradosIDs, dS, dE, configApp); 
             if(opts.length===0) { 
                 resDiv.innerHTML='<p>No hay huecos libres en el rango seleccionado.</p>'; 
+                document.getElementById('btn-procesar-seleccion-agenda').style.display = 'none';
+                const bAg = document.getElementById('btn-agendar-directo-calendar');
+                if (bAg) bAg.style.display = 'none';
             } else { 
-                document.getElementById('btn-procesar-seleccion-agenda').style.display = 'block'; 
                 // Ordenar los recomendados (pegados a clase) primero
                 opts.sort((a, b) => (b.pegado ? 1 : 0) - (a.pegado ? 1 : 0));
                 let html = ''; 
@@ -7605,12 +7617,119 @@ document.addEventListener('click', async (e) => {
                     `; 
                 }); 
                 resDiv.innerHTML = html; 
+
+                const sincronizarBotonesModalAgenda = () => {
+                    const chks = resDiv.querySelectorAll('.chk-agenda-opt:checked');
+                    const btnProponer = document.getElementById('btn-procesar-seleccion-agenda');
+                    const btnAgendar = document.getElementById('btn-agendar-directo-calendar');
+                    if (!btnProponer) return;
+                    if (chks.length === 0) {
+                        btnProponer.style.display = 'none';
+                        if (btnAgendar) btnAgendar.style.display = 'none';
+                    } else if (chks.length === 1) {
+                        btnProponer.style.display = 'block';
+                        btnProponer.textContent = '💬 Avisar a Evaluador';
+                        if (btnAgendar) {
+                            btnAgendar.style.display = 'block';
+                            btnAgendar.textContent = '📅 Agendar en Calendar';
+                        }
+                    } else {
+                        btnProponer.style.display = 'block';
+                        btnProponer.textContent = '💬 Avisar Opciones a Evaluador';
+                        if (btnAgendar) btnAgendar.style.display = 'none';
+                    }
+                };
+
+                resDiv.querySelectorAll('.chk-agenda-opt').forEach(chk => {
+                    chk.addEventListener('change', sincronizarBotonesModalAgenda);
+                });
+                sincronizarBotonesModalAgenda();
             } 
         } catch(e) { 
             resDiv.innerHTML='<p>Error en la búsqueda.</p>'; 
         } 
         setBotonCargando(target, false); 
         return; 
+    }
+    if (target.id === 'btn-agendar-directo-calendar') {
+        const checks = document.querySelectorAll('.chk-agenda-opt:checked');
+        if (checks.length !== 1) return alert("Selecciona exactamente un horario para agendar en Calendar.");
+        const chk = checks[0];
+        const pId = chk.getAttribute('data-profeid');
+        const pNom = chk.getAttribute('data-profe');
+        const cId = chk.getAttribute('data-calid');
+        const fInicio = chk.getAttribute('data-start');
+        const fFin = chk.getAttribute('data-end');
+        const fTxt = chk.getAttribute('data-fechatxt');
+
+        const alDoc = await getDoc(doc(db, "alumnos", alumnoIdActual));
+        if (!alDoc.exists()) return alert("Alumno no encontrado.");
+        const al = alDoc.data();
+        const instElegido = document.getElementById('agenda-instrumento-select')?.value || (Array.isArray(al.instrumento) ? al.instrumento[0] : (al.instrumento || ''));
+        al.instrumento_asignado = instElegido;
+        al.reserva_profe_id = pId;
+        al.reserva_profe_nombre = pNom;
+        al.reserva_cal_id = cId;
+        al.reserva_fecha_texto = fTxt;
+        al.reserva_inicio = fInicio;
+        al.reserva_fin = fFin;
+
+        setBotonCargando(target, true, 'Agendando en Google Calendar...');
+        try {
+            if (al.id_evento_reserva) {
+                try {
+                    await eliminarEventoSeguro(al, configApp);
+                } catch(calDelErr) {
+                    console.warn("Aviso al eliminar evento previo en Calendar:", calDelErr);
+                }
+            }
+
+            const rawEst = al.estado_agenda || '';
+            const est = rawEst.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+            const esConfirmada = est === 'agenda confirmada' || est === 'entrevista confirmada' || est.startsWith('entrevista');
+            const tipoEvento = esConfirmada ? 'confirmado' : 'reserva';
+            const titulos = construirTitulosEvento(al, tipoEvento, configApp);
+
+            const evRes = await crearEventoSeguro(al, titulos, fInicio, fFin, configApp);
+
+            const hist = al.historial || [];
+            hist.push(crearEntradaHistorial(`Entrevista agendada en Google Calendar para el ${fTxt} con ${pNom}.`, 'agenda'));
+
+            const nuevoEstado = esConfirmada ? "Agenda confirmada" : "Pendiente validación por alumno";
+            const updateData = {
+                estado_agenda: nuevoEstado,
+                instrumento_asignado: instElegido,
+                reserva_profe_id: pId,
+                reserva_profe_nombre: pNom,
+                reserva_cal_id: cId,
+                reserva_fecha_texto: fTxt,
+                reserva_inicio: fInicio,
+                reserva_fin: fFin,
+                id_evento_reserva: evRes ? (evRes.id || null) : null,
+                calendario_evento_reserva: evRes ? (evRes.calendar || null) : null,
+                opciones_propuestas: null,
+                historial: hist
+            };
+
+            await updateDoc(doc(db, "alumnos", alumnoIdActual), updateData);
+
+            const plantillaKey = esConfirmada ? 'texto_conf_alumno' : 'texto_alumno';
+            const dataText = await generarTextoConHistorial(alumnoIdActual, plantillaKey, fTxt, pId, pNom);
+            if (dataText && dataText.txt) {
+                await navigator.clipboard.writeText(dataText.txt);
+            }
+
+            document.getElementById('modal-agenda').close();
+            removerFilaOptimista(alumnoIdActual);
+            await cargarVista(estadoActualVista);
+            mostrarToast(`✅ ¡Entrevista agendada en Calendar para el ${fTxt} con ${pNom}! Mensaje copiado al portapapeles.`, "success");
+        } catch(e) {
+            console.error("Error al agendar en Calendar:", e);
+            alert("❌ Error al agendar en Google Calendar:\n\n" + e.message);
+        } finally {
+            setBotonCargando(target, false);
+        }
+        return;
     }
     if (target.id === 'btn-procesar-seleccion-agenda') { 
         const checks = document.querySelectorAll('.chk-agenda-opt:checked'); 
@@ -7632,8 +7751,12 @@ document.addEventListener('click', async (e) => {
             let data = await generarTextoConHistorial(alumnoIdActual, 'texto_opciones_multiples', 'Varias opciones', pId, pNom, opciones); 
             finalTxt = data.txt; 
         } 
-        setBotonCargando(target, true, 'Guardando propuesta de agenda...'); 
+        setBotonCargando(target, true, 'Guardando propuesta...'); 
         try { 
+            const fechaTxtFinal = opciones.length === 1 ? opciones[0].fechaTexto : 'Varias opciones';
+            const hist = al.historial || [];
+            hist.push(crearEntradaHistorial(`Propuesta de horario (${fechaTxtFinal}) con ${pNom} enviada a evaluador.`, 'agenda'));
+
             let updateData = { 
                 estado_agenda: "Pendiente validación por profe", 
                 instrumento_asignado: instElegido,
@@ -7641,10 +7764,13 @@ document.addEventListener('click', async (e) => {
                 reserva_profe_nombre: pNom, 
                 reserva_cal_id: cId, 
                 opciones_propuestas: opciones, 
-                reserva_fecha_texto: opciones.length === 1 ? opciones[0].fechaTexto : 'Varias opciones' 
+                reserva_fecha_texto: fechaTxtFinal,
+                reserva_inicio: opciones.length === 1 ? (opciones[0].inicio || null) : null,
+                reserva_fin: opciones.length === 1 ? (opciones[0].fin || null) : null,
+                historial: hist
             }; 
             if (al.id_evento_reserva) { 
-                await eliminarEventoSeguro(al); 
+                await eliminarEventoSeguro(al, configApp); 
                 updateData.id_evento_reserva = null; 
                 updateData.calendario_evento_reserva = null; 
             } 
@@ -7653,7 +7779,7 @@ document.addEventListener('click', async (e) => {
             document.getElementById('modal-agenda').close(); 
             removerFilaOptimista(alumnoIdActual);
             await cargarVista(estadoActualVista); 
-            alert("Texto copiado al portapapeles. Estado avanzado a Pendiente Validación."); 
+            mostrarToast("💬 Texto copiado al portapapeles para avisar al evaluador", "success"); 
         } catch(e) { 
             alert("❌ Error:\n\n" + e.message); 
         } finally {
@@ -7761,7 +7887,7 @@ document.addEventListener('click', async (e) => {
             const titulos = construirTitulosEvento(al, 'reserva', configApp);
             const evRes = await crearEventoSeguro(al, titulos, finalInicio, finalFin);
             const hist = al.historial || [];
-            hist.push(crearEntradaHistorial(`Horario validado por evaluador/a ${finalProfeNombre}. Propuesta enviada al alumno por WhatsApp (${finalFechaTexto}).`, 'agenda'));
+            hist.push(crearEntradaHistorial(`Horario validado por evaluador/a ${finalProfeNombre}. Propuesta enviada al alumno (${finalFechaTexto}).`, 'agenda'));
             
             await updateDoc(doc(db, "alumnos", id), {
                 estado_agenda: "Pendiente validación por alumno",
@@ -7874,12 +8000,7 @@ document.addEventListener('click', async (e) => {
                 cel = '549' + cel.substring(2);
             }
 
-            if (cel) {
-                mostrarToast("💬 Mensaje copiado al portapapeles. Abriendo WhatsApp...", "success");
-                window.open(`https://wa.me/${cel}?text=${encodeURIComponent(data.txt)}`, '_blank');
-            } else {
-                mostrarToast(esReenvio ? "💬 Texto de WhatsApp para el alumno copiado al portapapeles" : "💬 Mensaje de confirmación copiado al portapapeles", "success"); 
-            }
+            mostrarToast(esReenvio ? "💬 Mensaje copiado al portapapeles para avisar al alumno" : "💬 Mensaje de confirmación copiado al portapapeles para avisar al alumno", "success");
         } catch(e) {
             console.error("Error al copiar texto alumno:", e);
             alert("❌ Error al copiar texto: " + e.message);
