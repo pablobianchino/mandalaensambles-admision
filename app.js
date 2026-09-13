@@ -55,6 +55,8 @@ import {
     reemplazarVariables,
     formatoLocalISO,
     formatearFechaAmi,
+    calcularFechaMinimaAgenda,
+    calcularFechaLimitePago,
     fetchCalendarAPI,
     getEventosCalendario,
     crearEventoCalendario,
@@ -7255,10 +7257,21 @@ document.addEventListener('click', async (e) => {
         alumnoIdActual = btnAgenda.getAttribute('data-id'); 
         const modal = document.getElementById('modal-agenda'), resDiv = document.getElementById('resultados-agenda'); 
         resDiv.innerHTML = ''; 
-        const hoy = new Date(), d7 = new Date(); 
-        d7.setDate(d7.getDate()+7); 
-        document.getElementById('agenda-start').value = hoy.toISOString().split('T')[0]; 
-        document.getElementById('agenda-end').value = d7.toISOString().split('T')[0]; 
+        const fMin = calcularFechaMinimaAgenda(new Date());
+        const fMinIso = formatoLocalISO(fMin).split('T')[0];
+        const d7 = new Date(fMin);
+        d7.setDate(d7.getDate() + 7);
+        const fMaxIso = formatoLocalISO(d7).split('T')[0];
+        const startInput = document.getElementById('agenda-start');
+        const endInput = document.getElementById('agenda-end');
+        if (startInput) {
+            startInput.value = fMinIso;
+            startInput.min = fMinIso;
+        }
+        if (endInput) {
+            endInput.value = fMaxIso;
+            endInput.min = fMinIso;
+        } 
         document.getElementById('btn-procesar-seleccion-agenda').style.display = 'none'; 
         const btnAgendarCalInit = document.getElementById('btn-agendar-directo-calendar');
         if (btnAgendarCalInit) btnAgendarCalInit.style.display = 'none';
@@ -7788,7 +7801,7 @@ document.addEventListener('click', async (e) => {
         return; 
     }
     
-    async function generarTextoConHistorial(idAlumno, plantillaKey, overrideFecha = null, overrideProfeId = null, overrideProfeNombre = null, overrideOpciones = null) { 
+    async function generarTextoConHistorial(idAlumno, plantillaKey, overrideFecha = null, overrideProfeId = null, overrideProfeNombre = null, overrideOpciones = null, overrideMotivo = null) { 
         const al = (await getDoc(doc(db, "alumnos", idAlumno))).data(); 
         let aliasP = ''; 
         const targetProfeId = overrideProfeId || al.reserva_profe_id || al.profesor_id; 
@@ -7800,9 +7813,15 @@ document.addEventListener('click', async (e) => {
         let histText = formatearTextoHistorial(al.historial); 
         let template = configApp[plantillaKey] || defaultCfg[plantillaKey] || ''; 
         if (!template && plantillaKey === 'texto_cancela_alumno') {
-            template = "*🔴 PRE CHECK - ENTREVISTA*\n*❌ RESERVA CANCELADA*\n\n📅 *FECHA: {fecha_hora}*\n\n*📋 DATOS DEL ALUMNO:*\n👤 Nombre: {nombre}\n🎂 Edad: {edad}\n{emojiinstrumento} Instrumento: {instrumento}\n🧩 Clase: {suscripcion}\n\n*📝 HISTORIAL / MOTIVO:*\n{historial}";
+            template = "*❗ PRE CHECK - ENTREVISTA*\n*❌ RESERVA CANCELADA*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Suscripción: {suscripcion}\n\n* MOTIVO:* {motivo_detalles}";
+        }
+        if (!template && plantillaKey === 'texto_conf_profe') {
+            template = "*✅ ENTREVISTA CONFIRMADA Y ABONADA POR ALUMNO*\n*El alumno ya pagó y completó el formulario*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Contacto: {número_contacto_alumno}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Clase: {suscripcion}\n\n*📰 La información del alumno se encuentra adjunta en la descripción del evento del calendario*";
         }
         template = template.replace(/\{historial\}/gi, histText); 
+        template = template.replace(/(\*\s*MOTIVO:\s*\*)\s*\r?\n\s*\{motivo_detalles\}/gi, '$1 {motivo_detalles}');
+        template = template.replace(/<fecha_hora_limite>/gi, '{fecha_hora_limite}');
+
         const iS = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || '')); 
         const emojiInst = getEmojiInstrumento(iS, configApp, al);
         const dP = convertirHtmlATextoPlano(al.descripcion || ''); 
@@ -7815,6 +7834,43 @@ document.addEventListener('click', async (e) => {
         if (opc.length > 1 && (fHora === 'Varias opciones' || !fHora)) { 
             fHora = '\n' + opcionesStr; 
         } 
+
+        let fechaClaseRef = al.reserva_inicio || overrideFecha || al.reserva_fecha_texto || null;
+        if (!fechaClaseRef && opc && opc.length > 0) {
+            fechaClaseRef = opc[0].inicio || opc[0].fechaTexto || null;
+        }
+        const fechaHoraLimite = calcularFechaLimitePago(fechaClaseRef, new Date());
+
+        const catMotivo = overrideMotivo || al.motivo_suspension_cat || al.motivo_suspension || '';
+        const detMotivo = (al.detalle_suspension ? String(al.detalle_suspension).trim() : '');
+        let motivoDetalles = '';
+        if (catMotivo && detMotivo && !catMotivo.includes(detMotivo)) {
+            motivoDetalles = `${catMotivo}\n🔹 Detalle: ${detMotivo}`;
+        } else if (catMotivo) {
+            motivoDetalles = catMotivo;
+        } else if (detMotivo) {
+            motivoDetalles = detMotivo;
+        } else {
+            motivoDetalles = 'Cancelación informada por el alumno';
+        }
+
+        let telRaw = (al.celular || al.telefono || al.whatsapp || '').toString().trim();
+        let telConPlus = '';
+        if (telRaw) {
+            let digits = telRaw.replace(/\D/g, '');
+            if (digits.startsWith('549')) {
+                telConPlus = '+' + digits;
+            } else if (digits.startsWith('54')) {
+                telConPlus = '+549' + digits.substring(2);
+            } else if (digits.length === 11 && digits.startsWith('0')) {
+                telConPlus = '+549' + digits.substring(1);
+            } else if (digits.length === 10) {
+                telConPlus = '+549' + digits;
+            } else if (digits.length > 0) {
+                telConPlus = '+' + digits;
+            }
+        }
+
         const txt = reemplazarVariables(template, { 
             fecha_hora: fHora, 
             opciones: opcionesStr, 
@@ -7831,8 +7887,25 @@ document.addEventListener('click', async (e) => {
             fecha_inicio_clases: fAmiInicio || horarioCursada,
             alias_profe: aliasP || '', 
             grupo: al.grupo_asignado || '', 
-            motivo: al.motivo_suspension || '',
-            motivo_suspension: al.motivo_suspension || '',
+            motivo: motivoDetalles,
+            motivo_suspension: motivoDetalles,
+            motivo_detalles: motivoDetalles,
+            detalle: detMotivo ? `🔹 Detalle: ${detMotivo}` : '',
+            detalle_motivo: detMotivo ? `🔹 Detalle: ${detMotivo}` : '',
+            fecha_hora_limite: fechaHoraLimite,
+            fecha_limite: fechaHoraLimite,
+            fecha_hora_límite: fechaHoraLimite,
+            fecha_límite: fechaHoraLimite,
+            plazo_limite: fechaHoraLimite,
+            plazo_límite: fechaHoraLimite,
+            número_contacto_alumno: telConPlus,
+            numero_contacto_alumno: telConPlus,
+            número_contacto: telConPlus,
+            numero_contacto: telConPlus,
+            contacto_alumno: telConPlus,
+            contacto: telConPlus,
+            celular: telConPlus,
+            telefono: telConPlus,
             'fecha inicio clases': fAmiInicio 
         }); 
         return { al, txt }; 
@@ -7977,7 +8050,7 @@ document.addEventListener('click', async (e) => {
             } 
             const data = await generarTextoConHistorial(id, key); 
             await navigator.clipboard.writeText(data.txt); 
-            mostrarToast("💬 Texto para Evaluador/Docente copiado al portapapeles", "success"); 
+            mostrarToast("💬 Mensaje para Evaluador copiado al portapapeles", "success"); 
         } catch(e) {} 
         return; 
     }
@@ -8061,10 +8134,10 @@ document.addEventListener('click', async (e) => {
                 if (alData.id_evento_alta) await eliminarEventoAltaSeguro(alData, configApp);
                 const hist = alData.historial || []; 
                 hist.push(crearEntradaHistorial(`Entrevista cancelada. Motivo: ${motivo.trim()}. Evento liberado en Google Calendar.`, 'suspension')); 
-                const data = await generarTextoConHistorial(id, 'texto_cancela_alumno'); 
+                const data = await generarTextoConHistorial(id, 'texto_cancela_alumno', null, null, null, null, motivo.trim()); 
                 if (data.al.estado_agenda === 'Pendiente validación por alumno' || data.al.estado_agenda === 'Agenda confirmada') { 
                     await navigator.clipboard.writeText(data.txt); 
-                    alert("Cancelada. Texto CANCELACIÓN copiado."); 
+                    mostrarToast("💬 Cancelación procesada y texto copiado al portapapeles", "info"); 
                 } 
                 await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente procesar", reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null, id_evento_alta: null, calendario_evento_alta: null, opciones_propuestas: null, historial: hist }); 
                 removerFilaOptimista(id);
@@ -8324,7 +8397,7 @@ document.addEventListener('click', async (e) => {
 
             if (teniaReserva) {
                 try {
-                    const dataText = await generarTextoConHistorial(id, 'texto_cancela_alumno', fechaPrevTexto, profPrevioId, profPrevioNom);
+                    const dataText = await generarTextoConHistorial(id, 'texto_cancela_alumno', fechaPrevTexto, profPrevioId, profPrevioNom, null, motivoCompleto);
                     if (dataText && dataText.txt) {
                         await navigator.clipboard.writeText(dataText.txt);
                         alert(`🛑 Ficha suspendida correctamente.\n\n📅 Se canceló la reserva en Calendar y se copió al portapapeles el texto de cancelación para informar al profesor.`);

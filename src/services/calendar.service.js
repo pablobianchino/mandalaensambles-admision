@@ -26,17 +26,102 @@ export function getEmojiInstrumento(instrumentoInput, cfg, al = null) {
 }
 
 export function reemplazarVariables(texto, datos) { 
-    let res = texto; 
+    let res = texto || ''; 
     for (const [key, value] of Object.entries(datos)) { 
-        res = res.replaceAll(`{${key}}`, value || ''); 
+        res = res.replaceAll(`{${key}}`, value !== undefined && value !== null ? value : ''); 
+        const keySinAcento = key.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        if (keySinAcento !== key) {
+            res = res.replaceAll(`{${keySinAcento}}`, value !== undefined && value !== null ? value : '');
+        }
     } 
-    res = res.replace(/\{[a-zA-Z0-9_ ]+\}/g, ''); 
+    res = res.replace(/\{[a-zA-Z0-9_ \u00C0-\u017F-]+\}/g, ''); 
     return res; 
 }
 
 export function formatoLocalISO(date) { 
     const tzo = -date.getTimezoneOffset(), dif = tzo >= 0 ? '+' : '-', pad = num => (num < 10 ? '0' : '') + num; 
     return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + 'T' + pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds()) + dif + pad(Math.floor(Math.abs(tzo) / 60)) + ':' + pad(Math.abs(tzo) % 60); 
+}
+
+export function calcularFechaMinimaAgenda(fechaBase = new Date()) {
+    let fMin = new Date(fechaBase);
+    if (fMin.getDay() === 6) {
+        fMin.setDate(fMin.getDate() + 2);
+    } else if (fMin.getDay() === 0) {
+        fMin.setDate(fMin.getDate() + 1);
+    }
+    let habilesSumados = 0;
+    while (habilesSumados < 2) {
+        fMin.setDate(fMin.getDate() + 1);
+        const day = fMin.getDay();
+        if (day !== 0 && day !== 6) {
+            habilesSumados++;
+        }
+    }
+    fMin.setHours(0, 0, 0, 0);
+    return fMin;
+}
+
+export function calcularFechaLimitePago(fechaClaseRef = null, fechaOfrecimiento = new Date()) {
+    let fMax = new Date(fechaOfrecimiento);
+    if (fMax.getDay() === 6) {
+        fMax.setDate(fMax.getDate() + 2);
+    } else if (fMax.getDay() === 0) {
+        fMax.setDate(fMax.getDate() + 1);
+    }
+    let habilesSumados = 0;
+    while (habilesSumados < 2) {
+        fMax.setDate(fMax.getDate() + 1);
+        const day = fMax.getDay();
+        if (day !== 0 && day !== 6) {
+            habilesSumados++;
+        }
+    }
+    fMax.setHours(17, 0, 0, 0);
+
+    let fClase = null;
+    if (fechaClaseRef) {
+        if (fechaClaseRef instanceof Date) {
+            fClase = new Date(fechaClaseRef);
+        } else if (typeof fechaClaseRef === 'string') {
+            const parseada = new Date(fechaClaseRef);
+            if (!isNaN(parseada.getTime())) {
+                fClase = parseada;
+            } else {
+                const match = fechaClaseRef.match(/(\d{1,2})\/(\d{1,2})/);
+                if (match) {
+                    const dia = parseInt(match[1], 10);
+                    const mes = parseInt(match[2], 10) - 1;
+                    const ahora = new Date(fechaOfrecimiento);
+                    const dParsed = new Date(ahora.getFullYear(), mes, dia, 12, 0, 0);
+                    if (!isNaN(dParsed.getTime())) {
+                        fClase = dParsed;
+                    }
+                }
+            }
+        }
+    }
+
+    let fLimiteFinal = fMax;
+
+    if (fClase) {
+        let fPrevClase = new Date(fClase);
+        do {
+            fPrevClase.setDate(fPrevClase.getDate() - 1);
+        } while (fPrevClase.getDay() === 0 || fPrevClase.getDay() === 6);
+        fPrevClase.setHours(17, 0, 0, 0);
+
+        if (fPrevClase < fMax) {
+            fLimiteFinal = fPrevClase;
+        }
+    }
+
+    const diasNombres = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+    const diaNom = diasNombres[fLimiteFinal.getDay()];
+    const diaNum = fLimiteFinal.getDate();
+    const mesNum = fLimiteFinal.getMonth() + 1;
+
+    return `${diaNom} ${diaNum}/${mesNum} a las 17hs`;
 }
 
 export function formatearFechaAmi(fechaIsoStr) { 

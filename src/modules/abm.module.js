@@ -188,10 +188,14 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
                         <textarea id="cfg-txt-p" class="modern-input" style="height:130px; font-family:monospace; font-size:12px;">${currentCfg.texto_profe || ''}</textarea>
                     </label>
                     <label style="margin-bottom:14px; display:block; font-size:12px; font-weight:600; color:var(--text-muted);">Texto de propuesta de reserva de agenda para Alumno:
-                        <textarea id="cfg-txt-alumno" class="modern-input" style="height:130px; font-family:monospace; font-size:12px;">${currentCfg.texto_alumno || ''}</textarea>
+                        <textarea id="cfg-txt-alumno" class="modern-input" style="height:190px; font-family:monospace; font-size:12px;">${currentCfg.texto_alumno || ''}</textarea>
+                        <span style="font-size:11px; font-weight:400; color:var(--text-muted); display:block; margin-top:4px;">Variables: <code>{nombre}</code>, <code>{suscripcion}</code>, <code>{emojiinstrumento}</code>, <code>{instrumento}</code>, <code>{fecha_hora}</code>, <code>{profe}</code>, <code>{fecha_hora_limite}</code>, <code>{valor}</code>, <code>{alias_profe}</code></span>
                     </label>
                     <label style="margin-bottom:14px; display:block; font-size:12px; font-weight:600; color:var(--text-muted);">Texto para confirmar reserva a Alumno:
                         <textarea id="cfg-txt-conf-a" class="modern-input" style="height:130px; font-family:monospace; font-size:12px;">${currentCfg.texto_conf_alumno || ''}</textarea>
+                    </label>
+                    <label style="margin-bottom:14px; display:block; font-size:12px; font-weight:600; color:var(--text-muted);">Texto de entrevista confirmada para Evaluador / Docente (Avisar a Evaluador):
+                        <textarea id="cfg-txt-conf-p" class="modern-input" style="height:150px; font-family:monospace; font-size:12px;">${currentCfg.texto_conf_profe || ''}</textarea>
                     </label>
                     <label style="margin-bottom:5px; display:block; font-size:12px; font-weight:600; color:var(--text-muted);">Texto de cancelación de reserva/agenda para Docente:
                         <textarea id="cfg-txt-cancela" class="modern-input" style="height:110px; font-family:monospace; font-size:12px;">${currentCfg.texto_cancela_alumno || ''}</textarea>
@@ -475,6 +479,7 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
             texto_profe: document.getElementById('cfg-txt-p')?.value || '', 
             texto_alumno: document.getElementById('cfg-txt-alumno')?.value || '', 
             texto_conf_alumno: document.getElementById('cfg-txt-conf-a')?.value || '', 
+            texto_conf_profe: document.getElementById('cfg-txt-conf-p')?.value || '', 
             texto_cancela_alumno: document.getElementById('cfg-txt-cancela')?.value || '', 
             texto_prealta: document.getElementById('cfg-txt-prealta')?.value || '', 
             texto_prealta_alumno: document.getElementById('cfg-txt-prealta-alumno')?.value || '', 
