@@ -1069,6 +1069,8 @@ export function solicitarConfirmacionSalidaModal(modalActivo, onDescartar, onGua
         tituloModal = 'la pre-alta del alumno';
     } else if (modalId === 'modal-suspender') {
         tituloModal = 'la suspensión del alumno';
+    } else if (modalId === 'modal-cancelar-agenda') {
+        tituloModal = 'la cancelación de la agenda';
     } else if (modalId === 'modal-nueva-suscripcion') {
         tituloModal = 'la nueva suscripción';
     } else if (modalId === 'modal-mi-perfil') {
@@ -1121,6 +1123,8 @@ export function solicitarConfirmacionSalidaModal(modalActivo, onDescartar, onGua
                 document.getElementById('btn-guardar-prealta')?.click();
             } else if (modalId === 'modal-suspender') {
                 document.getElementById('btn-guardar-suspension')?.click();
+            } else if (modalId === 'modal-cancelar-agenda') {
+                document.getElementById('btn-confirmar-cancelar-agenda')?.click();
             } else if (modalId === 'modal-mi-perfil') {
                 document.getElementById('btn-guardar-mi-perfil')?.click();
             } else if (modalId === 'modal-nueva-suscripcion') {
@@ -1851,6 +1855,22 @@ export function poblarSelectMotivosSuspension() {
     }
 }
 window.poblarSelectMotivosSuspension = poblarSelectMotivosSuspension;
+
+export function poblarSelectMotivosCancelacion() {
+    const sel = document.getElementById('cancelar-agenda-motivo');
+    if (!sel) return;
+    const motivos = Array.isArray(configApp.motivos_suspension) && configApp.motivos_suspension.length > 0
+        ? configApp.motivos_suspension
+        : (defaultCfg.motivos_suspension || ['Horarios incompatibles', 'Problemas económicos', 'No responde', 'Arrepentido', 'No se logra acordar agenda por falta de disponibilidad', 'Otro']);
+
+    const currentVal = sel.value;
+    sel.innerHTML = `<option value="">Seleccione motivo...</option>` + 
+        motivos.map(m => `<option value="${m}">${m}</option>`).join('');
+    if (currentVal && motivos.includes(currentVal)) {
+        sel.value = currentVal;
+    }
+}
+window.poblarSelectMotivosCancelacion = poblarSelectMotivosCancelacion;
 
 async function cargarConfig() { 
     const docSnap = await getDoc(doc(db, "configuracion", "general")); 
@@ -8109,46 +8129,103 @@ document.addEventListener('click', async (e) => {
     if (target.classList.contains('btn-cancelar-reserva') || target.classList.contains('btn-cancelar-alumno') || target.closest('.btn-cancelar-reserva') || target.closest('.btn-cancelar-alumno')) { 
         const btn = target.closest('.btn-cancelar-reserva') || target.closest('.btn-cancelar-alumno') || target;
         const id = btn.getAttribute('data-id'); 
-        const alDoc = await getDoc(doc(db, "alumnos", id)); 
-        if (!alDoc.exists()) return alert("Alumno no encontrado.");
-        const alData = alDoc.data(); 
+        try {
+            const alDoc = await getDoc(doc(db, "alumnos", id)); 
+            if (!alDoc.exists()) return alert("Alumno no encontrado.");
+            const alData = alDoc.data(); 
 
-        const tieneEvento = Boolean(alData.id_evento_reserva || alData.id_evento_alta || alData.reserva_fecha_texto);
-        if (tieneEvento) {
-            const horarioInfo = alData.reserva_fecha_texto || alData.horario_match || 'Reserva agendada';
-            const profeInfo = alData.reserva_profe_nombre || alData.profesor_asignado || '-';
-            const okCalendario = await window.confirmar(
-                `📅 Eliminar reserva de Google Calendar`,
-                `El alumno ${alData.nombre} tiene una entrevista agendada:\n\n• Horario: ${horarioInfo}\n• Docente: ${profeInfo}\n\n¿Confirmás eliminar este evento de Google Calendar y cancelar la reserva?`,
-                '🗑️ Eliminar Reserva y Cancelar'
-            );
-            if (!okCalendario) return;
-        }
+            poblarSelectMotivosCancelacion();
+            const idInput = document.getElementById('cancelar-agenda-alumno-id');
+            if (idInput) idInput.value = id;
 
-        const motivo = prompt("¿Ingresa motivo para historial:"); 
-        if (motivo !== null) { 
-            if (motivo.trim() === "") return alert("Debes ingresar motivo."); 
-            mostrarIndicadorCarga('Cancelando evento en Calendar...');
-            try { 
-                if (alData.id_evento_reserva) await eliminarEventoSeguro(alData, configApp); 
-                if (alData.id_evento_alta) await eliminarEventoAltaSeguro(alData, configApp);
-                const hist = alData.historial || []; 
-                hist.push(crearEntradaHistorial(`Entrevista cancelada. Motivo: ${motivo.trim()}. Evento liberado en Google Calendar.`, 'suspension')); 
-                const data = await generarTextoConHistorial(id, 'texto_cancela_alumno', null, null, null, null, motivo.trim()); 
-                if (data.al.estado_agenda === 'Pendiente validación por alumno' || data.al.estado_agenda === 'Agenda confirmada') { 
-                    await navigator.clipboard.writeText(data.txt); 
-                    mostrarToast("💬 Cancelación procesada y texto copiado al portapapeles", "info"); 
-                } 
-                await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Pendiente procesar", reserva_profe_id: null, reserva_profe_nombre: null, reserva_cal_id: null, reserva_fecha_texto: null, reserva_inicio: null, reserva_fin: null, id_evento_reserva: null, calendario_evento_reserva: null, id_evento_alta: null, calendario_evento_alta: null, opciones_propuestas: null, historial: hist }); 
-                removerFilaOptimista(id);
-                await cargarVista(estadoActualVista); 
-            } catch(e) { 
-                alert("❌ Error:\n\n" + e.message); 
-            } finally {
-                ocultarIndicadorCarga();
+            const nomEl = document.getElementById('cancelar-agenda-alumno-nombre');
+            if (nomEl) nomEl.textContent = alData.nombre || 'Alumno';
+
+            const horarioInfo = alData.reserva_fecha_texto || (alData.reserva_inicio ? formatearFechaAmi(alData.reserva_inicio) : '') || alData.horario_match || '';
+            const profeInfo = alData.reserva_profe_nombre || alData.profesor_asignado || '';
+            let infoTxt = '';
+            if (horarioInfo || profeInfo) {
+                infoTxt = `🗓️ Entrevista agendada: <strong>${horarioInfo || 'A coordinar'}</strong>${profeInfo ? ` con <strong>${profeInfo}</strong>` : ''}`;
+            } else {
+                infoTxt = 'Sin horario específico registrado.';
             }
-        } 
+            const infoEl = document.getElementById('cancelar-agenda-info-evento');
+            if (infoEl) infoEl.innerHTML = infoTxt;
+
+            const motSel = document.getElementById('cancelar-agenda-motivo');
+            if (motSel) motSel.value = '';
+            const obsEl = document.getElementById('cancelar-agenda-obs');
+            if (obsEl) obsEl.value = '';
+
+            document.getElementById('modal-cancelar-agenda')?.showModal();
+        } catch(e) {
+            console.error("Error al preparar modal de cancelación:", e);
+            alert("Error: " + e.message);
+        }
         return; 
+    }
+
+    if (target.id === 'btn-confirmar-cancelar-agenda' || target.closest('#btn-confirmar-cancelar-agenda')) {
+        const btnConfirm = target.id === 'btn-confirmar-cancelar-agenda' ? target : target.closest('#btn-confirmar-cancelar-agenda');
+        const id = document.getElementById('cancelar-agenda-alumno-id')?.value;
+        const mtv = document.getElementById('cancelar-agenda-motivo')?.value;
+        const obs = document.getElementById('cancelar-agenda-obs')?.value?.trim() || '';
+
+        if (!id) return alert("ID de alumno no encontrado.");
+        if (!mtv) return alert("Por favor, selecciona un motivo de cancelación.");
+
+        setBotonCargando(btnConfirm, true, 'Cancelando reserva...');
+        try {
+            const alDoc = await getDoc(doc(db, "alumnos", id));
+            if (!alDoc.exists()) throw new Error("Alumno no encontrado.");
+            const alData = alDoc.data();
+
+            if (alData.id_evento_reserva) await eliminarEventoSeguro(alData, configApp);
+            if (alData.id_evento_alta) await eliminarEventoAltaSeguro(alData, configApp);
+
+            const motivoCompleto = obs ? `${mtv} (Detalle: ${obs})` : mtv;
+            alData.motivo_suspension_cat = mtv;
+            alData.detalle_suspension = obs || null;
+            alData.motivo_suspension = motivoCompleto;
+
+            const hist = alData.historial || [];
+            hist.push(crearEntradaHistorial(`Entrevista cancelada por el alumno. Motivo: ${motivoCompleto}. Evento liberado en Google Calendar. Derivado a Sin Agendar.`, 'suspension'));
+
+            const data = await generarTextoConHistorial(id, 'texto_cancela_alumno', null, null, null, null, mtv);
+            if (data && data.txt) {
+                await navigator.clipboard.writeText(data.txt);
+            }
+
+            await updateDoc(doc(db, "alumnos", id), {
+                estado_agenda: "Pendiente procesar",
+                reserva_profe_id: null,
+                reserva_profe_nombre: null,
+                reserva_cal_id: null,
+                reserva_fecha_texto: null,
+                reserva_inicio: null,
+                reserva_fin: null,
+                id_evento_reserva: null,
+                calendario_evento_reserva: null,
+                id_evento_alta: null,
+                calendario_evento_alta: null,
+                opciones_propuestas: null,
+                motivo_suspension_cat: mtv,
+                detalle_suspension: obs || null,
+                motivo_suspension: motivoCompleto,
+                historial: hist
+            });
+
+            document.getElementById('modal-cancelar-agenda')?.close();
+            removerFilaOptimista(id);
+            await cargarVista(estadoActualVista);
+            mostrarToast("💬 Entrevista cancelada, alumno derivado a Sin Agendar y texto copiado al portapapeles", "info");
+        } catch(e) {
+            console.error("Error al cancelar entrevista:", e);
+            alert("❌ Error al cancelar reserva:\n\n" + e.message);
+        } finally {
+            setBotonCargando(btnConfirm, false);
+        }
+        return;
     }
 
     if (target.classList.contains('btn-pasar-espera-directo') || target.closest('.btn-pasar-espera-directo')) {
