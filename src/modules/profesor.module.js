@@ -1430,10 +1430,10 @@ export async function renderPortalProfesor(cont, usuarioActual = {}, callbacks =
                         <button type="button" id="btn-solicitar-vacante-general" class="btn-primary" style="padding:8px 14px; font-size:12.5px; display:flex; align-items:center; gap:6px;">
                             ➕ Solicitar Vacante
                         </button>
-                        <button type="button" id="btn-crear-casos-prueba-docente" class="row-quick-btn secondary" style="font-size:11.5px; padding:7px 11px;">
+                        <button type="button" id="btn-crear-casos-prueba-docente" class="row-quick-btn secondary" style="display:none; font-size:11.5px; padding:7px 11px;">
                             🧪 Crear Alumnos de Prueba
                         </button>
-                        <button type="button" id="btn-limpiar-casos-prueba-docente" class="row-quick-btn danger" style="font-size:11.5px; padding:7px 11px;">
+                        <button type="button" id="btn-limpiar-casos-prueba-docente" class="row-quick-btn danger" style="display:none; font-size:11.5px; padding:7px 11px;">
                             🗑️ Limpiar Pruebas
                         </button>
                     </div>
