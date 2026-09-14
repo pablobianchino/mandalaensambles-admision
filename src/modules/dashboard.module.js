@@ -2,7 +2,7 @@
 // src/modules/dashboard.module.js -- Metricas, Timeline interactivo & Charts
 // =======================================================================
 
-import { configNodosFlujo, esAlumnoAltaFinalizada } from "../config/constants.js?v=6.5.1";
+import { configNodosFlujo, esAlumnoAltaFinalizada } from "../config/constants.js?v=6.8.11";
 import { db, collection, getDocs } from "../config/firebase.js";
 
 let chartFlowInst = null;

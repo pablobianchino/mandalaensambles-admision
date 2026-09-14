@@ -22,7 +22,7 @@ import {
     eliminarEventoAltaSeguro,
     validarConflictoCalendarEnVivo,
     obtenerEventosProfesoresParaSlot
-} from "../services/calendar.service.js?v=6.6.3";
+} from "../services/calendar.service.js?v=6.8.11";
 import { calcularProximaFechaDiaHora } from "./match.module.js";
 import { parsearNomenclaturaGrupoOClase } from "./profesor.module.js";
 

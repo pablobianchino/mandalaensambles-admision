@@ -3,7 +3,7 @@
 // =======================================================================
 
 import { getEmojiInstrumento } from "./altas.module.js";
-import { esAlumnoAltaFinalizada } from "../config/constants.js?v=6.6.3";
+import { esAlumnoAltaFinalizada } from "../config/constants.js?v=6.8.11";
 import { db, doc, updateDoc } from "../config/firebase.js";
 
 export function getEstadoYBadge(al, getFechaReferenciaAlumno) {

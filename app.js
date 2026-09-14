@@ -13,7 +13,7 @@ import {
     configNodosFlujoCoordinador,
     esAlumnoAltaFinalizada,
     esAlumnoAltaConfirmadaIncompleta
-} from "./src/config/constants.js?v=6.7.0";
+} from "./src/config/constants.js?v=6.8.11";
 
 import { 
     app, 
@@ -34,7 +34,7 @@ import {
     GoogleAuthProvider, 
     onAuthStateChanged, 
     signOut 
-} from "./src/config/firebase.js?v=6.7.0";
+} from "./src/config/firebase.js?v=6.8.11";
 
 import {
     limpiarHoraParaChip,
@@ -48,7 +48,7 @@ import {
     extraerDisponibilidadMultiRango,
     normalizarHora,
     inicializarAutocompletadoHorarios
-} from "./src/ui/horarios.ui.js?v=6.7.0";
+} from "./src/ui/horarios.ui.js?v=6.8.11";
 
 import {
     getEmojiInstrumento,
@@ -77,7 +77,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=6.7.0";
+} from "./src/services/calendar.service.js?v=6.8.11";
 
 import {
     matchCantidadActual,
@@ -110,11 +110,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=6.7.0";
+} from "./src/modules/match.module.js?v=6.8.11";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=6.7.0";
+} from "./src/modules/profesor.module.js?v=6.8.11";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -137,14 +137,14 @@ import {
     confirmarInicioGrupoAction,
     confirmarAlumnoAltaAction,
     generarChecklistAltaHtml
-} from "./src/modules/altas.module.js?v=6.7.0";
+} from "./src/modules/altas.module.js?v=6.8.11";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=6.7.0";
+} from "./src/modules/dashboard.module.js?v=6.8.11";
 
 import {
     renderConfigHub,
@@ -153,20 +153,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=6.7.0";
+} from "./src/modules/abm.module.js?v=6.8.11";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=6.7.0";
+} from "./src/modules/inbox.module.js?v=6.8.11";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=6.7.0";
+} from "./src/modules/csv.module.js?v=6.8.11";
 
 window.generarBotonesPrincipalesVisibles = generarBotonesPrincipalesVisibles;
 window.generarBotonesAccion = generarBotonesAccion;

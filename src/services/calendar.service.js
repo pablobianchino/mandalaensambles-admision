@@ -134,8 +134,15 @@ export async function fetchCalendarAPI(action, payload) {
     payload.action = action; payload.apiKey = "mandala-seg-2026";
     let res;
     try { 
-        res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }); 
+        res = await fetch(SCRIPT_URL, { 
+            method: 'POST', 
+            body: JSON.stringify(payload), 
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            redirect: 'follow',
+            credentials: 'omit'
+        }); 
     } catch (networkError) { 
+        console.error("Error de conexión con Google Apps Script:", networkError);
         throw new Error("Falla de red al conectar con Google Apps Script. Revise su conexión."); 
     }
     const data = await res.json();
