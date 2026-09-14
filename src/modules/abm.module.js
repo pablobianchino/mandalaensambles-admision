@@ -1114,12 +1114,19 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
                             const pSnap = await getDoc(doc(db, "profesores", uData.profesor_id));
                             if (pSnap.exists()) pData = pSnap.data();
                         } catch(e) {}
-                    } else if (uData.email) {
+                    } else {
                         try {
                             const pQ = await getDocs(collection(db, "profesores"));
+                            const uNom = (uData.nombre || '').trim().toLowerCase();
+                            const uCal = (uData.correo_calendario || '').trim().toLowerCase();
+                            const uMail = (uData.email || '').trim().toLowerCase();
                             pQ.forEach(docP => {
                                 const dtP = docP.data();
-                                if (dtP.correo_calendario && dtP.correo_calendario.toLowerCase() === uData.email.toLowerCase()) {
+                                const pNom = (dtP.nombre || '').trim().toLowerCase();
+                                const pCal = (dtP.correo_calendario || '').trim().toLowerCase();
+                                const matchNom = uNom && pNom && uNom === pNom;
+                                const matchCal = (uCal && pCal && uCal === pCal) || (uMail && pCal && uMail === pCal);
+                                if (matchNom || matchCal) {
                                     pData = dtP;
                                 }
                             });
@@ -1401,6 +1408,26 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
                     disponibilidad: dispProfe
                 };
 
+                if (!activo) {
+                    try {
+                        const allUsersSnap = await getDocs(collection(db, "usuarios_sistema"));
+                        let otroActivo = false;
+                        allUsersSnap.forEach(uDocCheck => {
+                            if (uDocCheck.id !== id) {
+                                const ud = uDocCheck.data();
+                                if (ud.activo !== false) {
+                                    if (ud.profesor_id && profesor_id && ud.profesor_id === profesor_id) otroActivo = true;
+                                    if (ud.nombre && nombre && ud.nombre.toLowerCase().trim() === nombre.toLowerCase().trim()) otroActivo = true;
+                                    if (ud.correo_calendario && calIdVal && ud.correo_calendario.toLowerCase().trim() === calIdVal.toLowerCase().trim()) otroActivo = true;
+                                }
+                            }
+                        });
+                        if (otroActivo) {
+                            dataProfe.activo = true;
+                        }
+                    } catch(e) {}
+                }
+
                 if (profesor_id) {
                     try {
                         await updateDoc(doc(db, "profesores", profesor_id), dataProfe);
@@ -1409,12 +1436,14 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
                         profesor_id = newProf.id;
                     }
                 } else {
-                    // Buscar si existía un profesor con el mismo email o calendarId
+                    // Buscar si existía un profesor con el mismo email, calendarId o nombre
                     const pQ = await getDocs(collection(db, "profesores"));
                     let profEncontradoId = null;
                     pQ.forEach(docP => {
                         const dtP = docP.data();
-                        if ((dtP.correo_calendario && dtP.correo_calendario.toLowerCase() === email) || (dtP.correo_calendario && dtP.correo_calendario.toLowerCase() === calIdVal.toLowerCase())) {
+                        const matchMail = dtP.correo_calendario && (dtP.correo_calendario.toLowerCase() === email || dtP.correo_calendario.toLowerCase() === calIdVal.toLowerCase());
+                        const matchNom = dtP.nombre && nombre && dtP.nombre.toLowerCase().trim() === nombre.toLowerCase().trim();
+                        if (matchMail || matchNom) {
                             profEncontradoId = docP.id;
                         }
                     });

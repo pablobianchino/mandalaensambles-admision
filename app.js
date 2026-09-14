@@ -13,7 +13,7 @@ import {
     configNodosFlujoCoordinador,
     esAlumnoAltaFinalizada,
     esAlumnoAltaConfirmadaIncompleta
-} from "./src/config/constants.js?v=6.8.11";
+} from "./src/config/constants.js?v=6.8.12";
 
 import { 
     app, 
@@ -2322,55 +2322,128 @@ export function getOrigenSuspension(al) {
 window.getOrigenSuspension = getOrigenSuspension;
 
 export async function obtenerListaEvaluadoresActivos() {
-    const nombresVistos = new Set();
-    const lista = [];
+    try {
+        const todos = await obtenerDocentesYEvaluadoresUnificados();
+        const evals = todos.filter(p => p.activo && p.entrevista && p.nombre);
+        evals.sort((a, b) => a.nombre.localeCompare(b.nombre));
+        return evals.map(p => ({ id: p.id, nombre: p.nombre, calId: p.calId, skills: p.skills }));
+    } catch(e) {
+        console.error("Error al obtener evaluadores activos:", e);
+        return [];
+    }
+}
+window.obtenerListaEvaluadoresActivos = obtenerListaEvaluadoresActivos;
 
-    // 1. Profesores con aptitud o rol de entrevista/evaluador
+// Unificación de Profesores y Usuarios del Sistema (priorizando usuarios activos de usuarios_sistema)
+export async function obtenerDocentesYEvaluadoresUnificados() {
+    const mapaDocentes = {};
+
+    // 1. Cargar profesores de Firestore
     try {
         const pSnap = await getDocs(collection(db, "profesores"));
         pSnap.forEach(p => {
-            const pData = p.data();
-            if (pData.activo === false || pData.estado === 'inactivo') return;
-            const rolesArr = Array.isArray(pData.roles) ? pData.roles : [pData.rol || ''];
-            const esEval = pData.entrevista === true || rolesArr.includes('evaluador') || pData.esEvaluador === true;
-            if (esEval && pData.nombre && pData.nombre.trim()) {
-                const nom = pData.nombre.trim();
-                const key = nom.toLowerCase();
-                if (!nombresVistos.has(key)) {
-                    nombresVistos.add(key);
-                    lista.push({ id: p.id, nombre: nom });
-                }
-            }
+            const d = p.data();
+            mapaDocentes[p.id] = {
+                id: p.id,
+                origen: 'profesores',
+                nombre: (d.nombre || '').trim(),
+                correo_calendario: (d.correo_calendario || '').trim(),
+                calId: (d.correo_calendario || '').trim(),
+                activo: d.activo !== false && d.estado !== 'inactivo',
+                entrevista: Boolean(d.entrevista),
+                grupales: Boolean(d.grupales),
+                ensambles: Boolean(d.ensambles),
+                skills: Array.isArray(d.skills) ? d.skills : [],
+                disponibilidad: d.disponibilidad || {}
+            };
         });
     } catch(e) {
-        console.error("Error al cargar profesores evaluadores:", e);
+        console.error("Error al cargar profesores:", e);
     }
 
-    // 2. Usuarios del sistema con rol evaluador
+    // 2. Cargar usuarios_sistema y superponer/priorizar usuarios activos
     try {
         const uSnap = await getDocs(collection(db, "usuarios_sistema"));
         uSnap.forEach(u => {
             const uData = u.data();
-            if (uData.activo === false) return;
+            const uActivo = uData.activo !== false;
             const rolesArr = Array.isArray(uData.roles) ? uData.roles : [uData.rol || ''];
+            const esDocenteOEval = rolesArr.includes('profesor') || rolesArr.includes('evaluador') || Boolean(uData.profesor_id) || Boolean(uData.entrevista);
+            
+            if (!esDocenteOEval) return;
+
+            const uNombre = (uData.nombre || uData.email?.split('@')[0] || '').trim();
+            const uCalId = (uData.correo_calendario || uData.email || '').trim();
+            const uSkills = Array.isArray(uData.skills) ? uData.skills : [];
+            const uDisp = uData.disponibilidad || {};
             const esEval = rolesArr.includes('evaluador') || uData.entrevista === true;
-            if (esEval && uData.nombre && uData.nombre.trim()) {
-                const nom = uData.nombre.trim();
-                const key = nom.toLowerCase();
-                if (!nombresVistos.has(key)) {
-                    nombresVistos.add(key);
-                    lista.push({ id: u.id, nombre: nom });
+
+            // Buscar si ya existe en mapaDocentes por profesor_id, nombre o calId
+            let matchKey = null;
+            if (uData.profesor_id && mapaDocentes[uData.profesor_id]) {
+                matchKey = uData.profesor_id;
+            } else {
+                matchKey = Object.keys(mapaDocentes).find(k => {
+                    const item = mapaDocentes[k];
+                    const matchNom = uNombre && item.nombre && item.nombre.toLowerCase().trim() === uNombre.toLowerCase().trim();
+                    const matchCal = uCalId && item.correo_calendario && item.correo_calendario.toLowerCase().trim() === uCalId.toLowerCase().trim();
+                    return matchNom || matchCal;
+                });
+            }
+
+            if (matchKey) {
+                const item = mapaDocentes[matchKey];
+                // Si el usuario en usuarios_sistema está ACTIVO, prevalece su estado activo
+                if (uActivo) {
+                    const estabaInactivoEnDb = item.activo === false;
+                    item.activo = true;
+                    if (uCalId) {
+                        // Preservar ID de grupo si ya estaba seteado y uCalId es email personal
+                        if (item.calId && item.calId.includes('@group.calendar') && !uCalId.includes('@group.calendar')) {
+                            // mantener id de grupo
+                        } else {
+                            item.correo_calendario = uCalId;
+                            item.calId = uCalId;
+                        }
+                    }
+                    if (uSkills.length > 0) {
+                        item.skills = [...new Set([...(item.skills || []), ...uSkills])];
+                    }
+                    if (uDisp && Object.keys(uDisp).length > 0) item.disponibilidad = uDisp;
+                    if (esEval) item.entrevista = true;
+                    if (uNombre) item.nombre = uNombre;
+
+                    // Si en la colección 'profesores' estaba inactivo por error, auto-sanar en Firestore
+                    if (estabaInactivoEnDb && item.origen === 'profesores') {
+                        try {
+                            updateDoc(doc(db, "profesores", item.id), { activo: true }).catch(() => {});
+                        } catch(e) {}
+                    }
                 }
+            } else if (uActivo) {
+                // Nuevo docente/evaluador activo que solo existe en usuarios_sistema
+                mapaDocentes[u.id] = {
+                    id: u.id,
+                    origen: 'usuarios_sistema',
+                    nombre: uNombre,
+                    correo_calendario: uCalId,
+                    calId: uCalId,
+                    activo: true,
+                    entrevista: esEval,
+                    grupales: rolesArr.includes('profesor') || Boolean(uData.grupales),
+                    ensambles: rolesArr.includes('profesor') || Boolean(uData.ensambles),
+                    skills: uSkills,
+                    disponibilidad: uDisp
+                };
             }
         });
     } catch(e) {
-        console.error("Error al cargar usuarios evaluadores:", e);
+        console.error("Error al cargar usuarios_sistema en unificación:", e);
     }
 
-    lista.sort((a, b) => a.nombre.localeCompare(b.nombre));
-    return lista;
+    return Object.values(mapaDocentes);
 }
-window.obtenerListaEvaluadoresActivos = obtenerListaEvaluadoresActivos;
+window.obtenerDocentesYEvaluadoresUnificados = obtenerDocentesYEvaluadoresUnificados;
 
 // Helper para renderizar listas compactas con máximo 2 items y popover "+N más"
 export function renderizarItemsConMax2(items, renderPillFn, tipoLabel, studentId) {
@@ -2705,6 +2778,30 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                             ${filaDatosHtml}
                             ${tagsHtml}
                             ${suspInfoHtml}
+                            ${(() => {
+                                if (al.estado_agenda === 'Lista de espera') {
+                                    const esBici = Boolean(al.es_bicicleta);
+                                    const celSafe = (al.celular || al.telefono || '').replace(/'/g, "\\'");
+                                    const nombreSafe = (al.nombre || '').replace(/'/g, "\\'");
+                                    return `
+                                        <div class="espera-botones-row" style="display:flex; align-items:center; gap:6px; margin-top:5px;">
+                                            <button type="button" class="btn-contactar-fila" onclick="event.stopPropagation(); window.abrirModalRegistrarContacto('${id}', '${nombreSafe}', '${celSafe}', ${esBici});" title="Registrar lo conversado y resetear contador a 0 días">
+                                                <span>📞</span> Contactar
+                                            </button>
+                                            ${!esBici ? `
+                                                <button type="button" class="btn-bicicleta-fila" onclick="event.stopPropagation(); window.toggleBicicletaAlumno('${id}', true, '${nombreSafe}');" title="Mover este alumno al grupo Bicicletas">
+                                                    <span>🚲</span> Bicicleta
+                                                </button>
+                                            ` : `
+                                                <button type="button" class="btn-quitar-bicicleta-fila" onclick="event.stopPropagation(); window.toggleBicicletaAlumno('${id}', false, '${nombreSafe}');" title="Quitar de Bicicletas y devolver a la lista activa">
+                                                    <span>↩️</span> Quitar Bici
+                                                </button>
+                                            `}
+                                        </div>
+                                    `;
+                                }
+                                return '';
+                            })()}
                         </div>
                     </div>
 
@@ -2713,38 +2810,22 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                         ${(() => {
                             if (al.estado_agenda === 'Lista de espera') {
                                 const met = calcularMetricasEspera(al);
-                                const esBici = !!al.es_bicicleta;
-                                const celSafe = (al.celular || al.telefono || '').replace(/'/g, "\\'");
                                 const nombreSafe = (al.nombre || '').replace(/'/g, "\\'");
                                 const esAdminOCoord = window.usuarioActual?.rol === 'admin' || window.usuarioActual?.rol === 'coordinador' || window.usuarioActual?.rol_activo === 'admin' || window.usuarioActual?.rol_activo === 'coordinador';
 
-                                const contactoBadgeAttr = esAdminOCoord 
-                                    ? `class="badge-dias-contacto ${met.claseSemaforo} editable" onclick="event.stopPropagation(); window.abrirModalEditarContacto('${id}', '${nombreSafe}', ${met.diasContacto});" title="✏️ Clic para corregir manualmente los días sin contacto (Admin/Coordinador)"`
-                                    : `class="badge-dias-contacto ${met.claseSemaforo}" title="Días desde el último contacto con el alumno (reseteable a 0)"`;
-                                const contactoLabelTxt = esAdminOCoord ? 'Último cont. ✏️' : 'Último cont.';
+                                const contactoClickAttr = esAdminOCoord 
+                                    ? `onclick="event.stopPropagation(); window.abrirModalEditarContacto('${id}', '${nombreSafe}', ${met.diasContacto});" style="cursor:pointer;" title="✏️ Clic para corregir manualmente los días sin contacto (Admin/Coordinador)"`
+                                    : `title="Días desde el último contacto con el alumno (reseteable a 0)"`;
+                                const contactoLapiz = esAdminOCoord ? ' ✏️' : '';
 
                                 return `
-                                    <div class="espera-metricas-col">
-                                        <div class="badge-dias-espera" title="Días en Lista de Espera (acumulativo continuo, nunca se resetea)">
-                                            <span class="badge-dias-espera-label">Esperando</span>
-                                            <span class="badge-dias-espera-val">${met.diasEsperando}d</span>
+                                    <div class="metricas-espera-texto">
+                                        <div class="txt-esperando-fila" title="Días acumulados en lista de espera (nunca se resetea)">
+                                            ESPERANDO: ${met.diasEsperando}d
                                         </div>
-                                        <div ${contactoBadgeAttr}>
-                                            <span class="badge-dias-contacto-label">${contactoLabelTxt}</span>
-                                            <span class="badge-dias-contacto-val">${met.diasContacto}d</span>
+                                        <div class="txt-contacto-fila" ${contactoClickAttr}>
+                                            ÚLTIMO CTTO: ${met.diasContacto}d${contactoLapiz}
                                         </div>
-                                        <button type="button" class="btn-contactar-fila" onclick="event.stopPropagation(); window.abrirModalRegistrarContacto('${id}', '${nombreSafe}', '${celSafe}', ${esBici});" title="Registrar lo conversado y resetear contador a 0 días">
-                                            <span>📞</span> Contactar
-                                        </button>
-                                        ${!esBici ? `
-                                            <button type="button" class="btn-bicicleta-fila" onclick="event.stopPropagation(); window.toggleBicicletaAlumno('${id}', true, '${nombreSafe}');" title="Mover este alumno al grupo Bicicletas">
-                                                <span>🚲</span> Bicicleta
-                                            </button>
-                                        ` : `
-                                            <button type="button" class="btn-quitar-bicicleta-fila" onclick="event.stopPropagation(); window.toggleBicicletaAlumno('${id}', false, '${nombreSafe}');" title="Quitar de Bicicletas y devolver a la lista activa">
-                                                <span>↩️</span> Quitar Bici
-                                            </button>
-                                        `}
                                     </div>
                                 `;
                             }
@@ -7541,16 +7622,15 @@ document.addEventListener('click', async (e) => {
                 window._mapaProfesoresAgenda = {};
 
                 try {
-                    const pSnap = await getDocs(collection(db, "profesores"));
-                    pSnap.forEach(p => {
-                        const d = p.data();
-                        if (d.activo === false || d.estado === 'inactivo') return;
-                        if (d.entrevista) {
-                            const skills = d.skills || [];
-                            const ensena = !instrumentoSeleccionado || skills.length === 0 || skills.some(s => s.toLowerCase() === instrumentoSeleccionado.toLowerCase());
+                    const todosUnificados = await obtenerDocentesYEvaluadoresUnificados();
+                    todosUnificados.forEach(p => {
+                        if (!p.activo) return;
+                        if (p.entrevista) {
+                            const skills = p.skills || [];
+                            const ensena = !instrumentoSeleccionado || skills.length === 0 || skills.some(s => s.toLowerCase().trim() === instrumentoSeleccionado.toLowerCase().trim());
                             if (ensena) {
-                                window._mapaProfesoresAgenda[p.id] = { id: p.id, ...d };
-                                selectProfe.innerHTML += `<option value="${p.id}">${d.nombre}</option>`;
+                                window._mapaProfesoresAgenda[p.id] = p;
+                                selectProfe.innerHTML += `<option value="${p.id}">${p.nombre}</option>`;
                             }
                         }
                     });
@@ -7559,7 +7639,9 @@ document.addEventListener('click', async (e) => {
                     // Añadir evento al cambio de profesores para actualizar la comparativa en vivo
                     selectProfe.onchange = () => actualizarPanelProfeAgenda();
                     actualizarPanelProfeAgenda();
-                } catch(e) {}
+                } catch(e) {
+                    console.error("Error al refrescar profesores de entrevista:", e);
+                }
             }
 
             if (selInst) {
@@ -7585,17 +7667,19 @@ document.addEventListener('click', async (e) => {
         try { 
             const al = (await getDoc(doc(db, "alumnos", alumnoIdActual))).data();
             const instElegido = document.getElementById('agenda-instrumento-select')?.value || '';
-            const arrI = instElegido ? [instElegido] : (Array.isArray(al.instrumento) ? al.instrumento : [al.instrumento]);
-            const esBat = arrI.some(i => (i || '').toLowerCase().includes('bater'));
+            const arrI = instElegido ? [instElegido] : (Array.isArray(al.instrumento) ? al.instrumento : [al.instrumento]).filter(Boolean);
+            const esBat = arrI.some(i => (i || '').toLowerCase().includes('bater')); 
             const dMap = { 'D':0, 'L':1, 'M':2, 'X':3, 'J':4, 'V':5, 'S':6 }; 
             const dS = new Date(dStrStart+'T00:00:00'), dE = new Date(dStrEnd+'T23:59:59'); 
-            const pS = await getDocs(collection(db, "profesores")), todosLosProfes = [], profesFiltradosIDs = []; 
-            pS.forEach(p => { 
-                const d = p.data(); 
-                if (d.activo === false || d.estado === 'inactivo') return;
-                if(d.correo_calendario) { 
-                    todosLosProfes.push({ id: p.id, nombre: d.nombre, calId: d.correo_calendario, disponibilidad: d.disponibilidad }); 
-                    if (d.entrevista && (searchAll || fProfs.includes(p.id))) { 
+            const todosUnificados = await obtenerDocentesYEvaluadoresUnificados();
+            const todosLosProfes = [], profesFiltradosIDs = []; 
+            todosUnificados.forEach(p => { 
+                if (!p.activo) return;
+                if(p.calId) { 
+                    todosLosProfes.push({ id: p.id, nombre: p.nombre, calId: p.calId, disponibilidad: p.disponibilidad }); 
+                    const skills = p.skills || [];
+                    const ensena = arrI.length === 0 || arrI.some(inst => !inst || skills.length === 0 || skills.some(s => s.toLowerCase().trim() === inst.toLowerCase().trim()));
+                    if (p.entrevista && ensena && (searchAll || fProfs.includes(p.id))) { 
                         profesFiltradosIDs.push(p.id); 
                     } 
                 } 

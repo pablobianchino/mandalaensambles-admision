@@ -497,6 +497,7 @@ body {
         min-width: 175px;
         display: flex;
         align-items: center;
+        justify-content: center;
     }
     .row-disp-grid-wrapper {
         flex: 0 0 252px;
@@ -2594,6 +2595,43 @@ button.btn-prio-filtro.prio-proximos.active,
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
+}
+
+.espera-botones-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 5px;
+    flex-wrap: wrap;
+}
+
+/* Métricas en formato texto limpio y centrado */
+.metricas-espera-texto {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 4px;
+    width: 100%;
+}
+.txt-esperando-fila {
+    color: #64748b;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+}
+.txt-contacto-fila {
+    color: #dc2626;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+    transition: opacity 0.15s ease;
+}
+.txt-contacto-fila:hover {
+    opacity: 0.85;
 }
 
 .badge-dias-espera {
