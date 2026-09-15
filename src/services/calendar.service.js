@@ -1059,17 +1059,20 @@ export async function validarConflictoCalendarEnVivo({
     const cantBat = parseInt(configApp.cantidad_baterias, 10) || 2;
     const emojiBat = configApp.identificador_bateria || '🥁';
     const mainCal = configApp.calendario_por_defecto || 'productora.mandalahouse@gmail.com';
+    const calExcluidos = new Set(['pablobianchino@gmail.com']);
 
     const calIds = new Set([mainCal]);
-    if (profeCalId && profeCalId.includes('@')) calIds.add(profeCalId);
+    if (profeCalId && profeCalId.includes('@') && !calExcluidos.has(profeCalId.toLowerCase().trim())) {
+        calIds.add(profeCalId);
+    }
 
     try {
         const pSnap = await getDocs(collection(db, "profesores"));
         pSnap.forEach(pDoc => {
             const pData = pDoc.data();
             if (pData.activo !== false && pData.estado !== 'inactivo') {
-                const cal = pData.correo_calendario || pData.email_calendar || '';
-                if (cal && cal.includes('@')) calIds.add(cal);
+                const cal = (pData.correo_calendario || pData.email_calendar || '').toLowerCase().trim();
+                if (cal && cal.includes('@') && !calExcluidos.has(cal)) calIds.add(cal);
             }
         });
     } catch(e) {
@@ -1116,14 +1119,17 @@ export async function validarConflictoCalendarEnVivo({
         const overlapEnd = Math.min(finMs, evEnd);
 
         if (overlapEnd - overlapStart > 60000) {
+            const duracionMs = evEnd - evStart;
+            const esDiaCompleto = duracionMs >= 8 * 3600 * 1000 || (!ev.start?.dateTime && !!ev.start?.date);
             const evKey = ev.id || `${evStart}_${evEnd}_${ev.summary}`;
             if (!eventosVistos.has(evKey)) {
                 eventosVistos.add(evKey);
-                simultaneosAulas++;
-
-                const sum = (ev.summary || '').toLowerCase();
-                if (sum.includes(emojiBat.toLowerCase()) || sum.includes('bater')) {
-                    simultaneosBat++;
+                if (!esDiaCompleto) {
+                    simultaneosAulas++;
+                    const sum = (ev.summary || '').toLowerCase();
+                    if (sum.includes(emojiBat.toLowerCase()) || sum.includes('bater')) {
+                        simultaneosBat++;
+                    }
                 }
 
                 // Verificar si este evento pertenece al profesor seleccionado
@@ -1194,6 +1200,7 @@ export async function obtenerEventosProfesoresParaSlot({ inicioISO, finISO, conf
     const cantBat = parseInt(configApp.cantidad_baterias, 10) || 2;
     const emojiBat = configApp.identificador_bateria || '🥁';
     const mainCal = configApp.calendario_por_defecto || 'productora.mandalahouse@gmail.com';
+    const calExcluidos = new Set(['pablobianchino@gmail.com']);
 
     const calIds = new Set([mainCal]);
     const profesLista = [];
@@ -1207,8 +1214,8 @@ export async function obtenerEventosProfesoresParaSlot({ inicioISO, finISO, conf
                 const nomLow = nomTrim.toLowerCase();
                 if (!nombresVistos.has(nomLow)) {
                     nombresVistos.add(nomLow);
-                    const cal = pData.correo_calendario || pData.email_calendar || '';
-                    if (cal && cal.includes('@')) calIds.add(cal);
+                    const cal = (pData.correo_calendario || pData.email_calendar || '').toLowerCase().trim();
+                    if (cal && cal.includes('@') && !calExcluidos.has(cal)) calIds.add(cal);
                     profesLista.push({ id: pDoc.id, nombre: nomTrim, calId: cal });
                 }
             }
@@ -1249,13 +1256,17 @@ export async function obtenerEventosProfesoresParaSlot({ inicioISO, finISO, conf
         const overlapStart = Math.max(inMs, evStart);
         const overlapEnd = Math.min(finMs, evEnd);
         if (overlapEnd - overlapStart > 60000) {
+            const duracionMs = evEnd - evStart;
+            const esDiaCompleto = duracionMs >= 8 * 3600 * 1000 || (!ev.start?.dateTime && !!ev.start?.date);
             const evKey = ev.id || `${evStart}_${evEnd}_${ev.summary}`;
             if (!eventosVistos.has(evKey)) {
                 eventosVistos.add(evKey);
-                simultaneosAulas++;
-                const sum = (ev.summary || '').toLowerCase();
-                if (sum.includes(emojiBat.toLowerCase()) || sum.includes('bater')) {
-                    simultaneosBat++;
+                if (!esDiaCompleto) {
+                    simultaneosAulas++;
+                    const sum = (ev.summary || '').toLowerCase();
+                    if (sum.includes(emojiBat.toLowerCase()) || sum.includes('bater')) {
+                        simultaneosBat++;
+                    }
                 }
 
                 profesLista.forEach(p => {

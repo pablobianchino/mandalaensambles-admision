@@ -1401,7 +1401,7 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
                     celular: celular,
                     alias_transferencia: alias,
                     activo: activo,
-                    entrevista: Boolean(document.getElementById('abm-user-entrevista')?.checked),
+                    entrevista: rolesChecked.includes('evaluador') && Boolean(document.getElementById('abm-user-entrevista')?.checked),
                     grupales: Boolean(document.getElementById('abm-user-grupales')?.checked),
                     ensambles: Boolean(document.getElementById('abm-user-ensambles')?.checked),
                     skills: skillsArr,

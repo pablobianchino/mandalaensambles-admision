@@ -2617,14 +2617,14 @@ button.btn-prio-filtro.prio-proximos.active,
 }
 .txt-esperando-fila {
     color: #64748b;
-    font-size: 11.5px;
+    font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.2px;
     white-space: nowrap;
 }
 .txt-contacto-fila {
     color: #dc2626;
-    font-size: 11.5px;
+    font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.2px;
     white-space: nowrap;
@@ -3240,3 +3240,30 @@ button.btn-prio-filtro.prio-proximos.active,
     color: #475569;
     border: 1px solid #cbd5e1;
 }
+
+.badge-fecha-ingreso.badge-reingreso {
+    background: #f5f3ff;
+    color: #6d28d9;
+    border: 1px solid #ddd6fe;
+}
+
+.badge-fecha-ingreso.badge-reingreso.badge-ingreso-urgente {
+    background: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+    font-weight: 700;
+}
+
+.badge-fecha-ingreso.badge-reingreso.badge-ingreso-alerta {
+    background: #fffbeb;
+    color: #b45309;
+    border: 1px solid #fde68a;
+    font-weight: 600;
+}
+
+.badge-fecha-ingreso.badge-reingreso.badge-ingreso-reciente {
+    background: #f5f3ff;
+    color: #6d28d9;
+    border: 1px solid #c4b5fd;
+}
+

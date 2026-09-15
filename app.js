@@ -13,7 +13,7 @@ import {
     configNodosFlujoCoordinador,
     esAlumnoAltaFinalizada,
     esAlumnoAltaConfirmadaIncompleta
-} from "./src/config/constants.js?v=6.8.12";
+} from "./src/config/constants.js?v=6.8.14";
 
 import { 
     app, 
@@ -34,7 +34,7 @@ import {
     GoogleAuthProvider, 
     onAuthStateChanged, 
     signOut 
-} from "./src/config/firebase.js?v=6.8.11";
+} from "./src/config/firebase.js?v=6.8.12";
 
 import {
     limpiarHoraParaChip,
@@ -48,7 +48,7 @@ import {
     extraerDisponibilidadMultiRango,
     normalizarHora,
     inicializarAutocompletadoHorarios
-} from "./src/ui/horarios.ui.js?v=6.8.11";
+} from "./src/ui/horarios.ui.js?v=6.8.14";
 
 import {
     getEmojiInstrumento,
@@ -77,7 +77,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=6.8.11";
+} from "./src/services/calendar.service.js?v=6.8.14";
 
 import {
     matchCantidadActual,
@@ -110,11 +110,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=6.8.11";
+} from "./src/modules/match.module.js?v=6.8.14";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=6.8.11";
+} from "./src/modules/profesor.module.js?v=6.8.14";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -137,14 +137,14 @@ import {
     confirmarInicioGrupoAction,
     confirmarAlumnoAltaAction,
     generarChecklistAltaHtml
-} from "./src/modules/altas.module.js?v=6.8.11";
+} from "./src/modules/altas.module.js?v=6.8.14";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=6.8.11";
+} from "./src/modules/dashboard.module.js?v=6.8.14";
 
 import {
     renderConfigHub,
@@ -153,23 +153,27 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=6.8.11";
+} from "./src/modules/abm.module.js?v=6.8.14";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=6.8.11";
+} from "./src/modules/inbox.module.js?v=6.8.14";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=6.8.11";
+} from "./src/modules/csv.module.js?v=6.8.14";
 
 window.generarBotonesPrincipalesVisibles = generarBotonesPrincipalesVisibles;
 window.generarBotonesAccion = generarBotonesAccion;
+
+// Inicializar versión en el sidebar de inmediato para evitar números fantasmas
+const vLabelInit = document.getElementById('sidebar-version-label');
+if (vLabelInit) vLabelInit.textContent = APP_VERSION;
 
 let agrupadorActual = 'ninguno';
 let filtrosSeleccionados = {
@@ -1938,15 +1942,19 @@ function formatearTextoHistorial(historialArr) {
 function chequearDisponibilidadExacta(inicioTestMs, finTestMs, eventosAPI, cantAulas, cantBat, esBateria, cfgEmoji) {
     let picosAulas = 0; let picosBateria = 0; let profesOcupados = new Set();
     const eventosCruzados = eventosAPI.filter(ev => { 
-        if (!ev.start || !ev.start.dateTime) return false; 
-        const evS = new Date(ev.start.dateTime).getTime() + 60000; 
-        const evE = new Date(ev.end.dateTime).getTime() - 60000; 
+        const startRaw = ev.start?.dateTime || ev.start?.date;
+        const endRaw = ev.end?.dateTime || ev.end?.date;
+        if (!startRaw || !endRaw) return false; 
+        const evS = new Date(startRaw).getTime() + 60000; 
+        const evE = new Date(endRaw).getTime() - 60000; 
         return (inicioTestMs < evE && finTestMs > evS); 
     });
     if (eventosCruzados.length === 0) return { valido: true, profesOcupados: new Set() };
     const puntosDeTiempo = new Set([inicioTestMs, finTestMs]);
     eventosCruzados.forEach(ev => { 
-        const i = new Date(ev.start.dateTime).getTime(), f = new Date(ev.end.dateTime).getTime(); 
+        const startRaw = ev.start?.dateTime || ev.start?.date;
+        const endRaw = ev.end?.dateTime || ev.end?.date;
+        const i = new Date(startRaw).getTime(), f = new Date(endRaw).getTime(); 
         if (i > inicioTestMs && i < finTestMs) puntosDeTiempo.add(i); 
         if (f > inicioTestMs && f < finTestMs) puntosDeTiempo.add(f); 
     });
@@ -1957,11 +1965,16 @@ function chequearDisponibilidadExacta(inicioTestMs, finTestMs, eventosAPI, cantA
         let simultaneosAulas = 0; 
         let simultaneosBat = 0;
         eventosCruzados.forEach(ev => { 
-            const evS = new Date(ev.start.dateTime).getTime(), evE = new Date(ev.end.dateTime).getTime(); 
+            const startRaw = ev.start?.dateTime || ev.start?.date;
+            const endRaw = ev.end?.dateTime || ev.end?.date;
+            const evS = new Date(startRaw).getTime(), evE = new Date(endRaw).getTime(); 
             if (puntoMedioMs >= evS && puntoMedioMs < evE) { 
                 if (ev.profeId) profesOcupados.add(ev.profeId); 
-                const evKey = ev.id || `${evS}_${evE}_${ev.summary}`;
-                if (!eventosContadosSet.has(evKey)) {
+                const duracionMs = evE - evS;
+                const esDiaCompleto = duracionMs >= 8 * 3600 * 1000 || (!ev.start?.dateTime && !!ev.start?.date);
+                const ocupaAula = ev.ocupaAula !== false && !esDiaCompleto;
+                const evKey = ev.uniqueContentKey || ev.id || `${evS}_${evE}_${ev.summary}`;
+                if (ocupaAula && !eventosContadosSet.has(evKey)) {
                     eventosContadosSet.add(evKey);
                     simultaneosAulas++;
                     if (ev.summary && ev.summary.toLowerCase().includes((cfgEmoji||'').toLowerCase())) simultaneosBat++; 
@@ -2376,7 +2389,8 @@ export async function obtenerDocentesYEvaluadoresUnificados() {
             const uCalId = (uData.correo_calendario || uData.email || '').trim();
             const uSkills = Array.isArray(uData.skills) ? uData.skills : [];
             const uDisp = uData.disponibilidad || {};
-            const esEval = rolesArr.includes('evaluador') || uData.entrevista === true;
+            // REGLA ESTRICTA: Solo es evaluador si tiene el rol 'evaluador' asignado en roles
+            const esEval = rolesArr.includes('evaluador');
 
             // Buscar si ya existe en mapaDocentes por profesor_id, nombre o calId
             let matchKey = null;
@@ -2397,6 +2411,11 @@ export async function obtenerDocentesYEvaluadoresUnificados() {
                 if (uActivo) {
                     const estabaInactivoEnDb = item.activo === false;
                     item.activo = true;
+                    item.roles = rolesArr;
+                    item.esEvaluador = esEval;
+                    // Sobreescribir entrevista explícitamente según el rol en usuarios_sistema:
+                    // si no tiene el rol evaluador, entrevista es false
+                    item.entrevista = esEval;
                     if (uCalId) {
                         // Preservar ID de grupo si ya estaba seteado y uCalId es email personal
                         if (item.calId && item.calId.includes('@group.calendar') && !uCalId.includes('@group.calendar')) {
@@ -2410,7 +2429,6 @@ export async function obtenerDocentesYEvaluadoresUnificados() {
                         item.skills = [...new Set([...(item.skills || []), ...uSkills])];
                     }
                     if (uDisp && Object.keys(uDisp).length > 0) item.disponibilidad = uDisp;
-                    if (esEval) item.entrevista = true;
                     if (uNombre) item.nombre = uNombre;
 
                     // Si en la colección 'profesores' estaba inactivo por error, auto-sanar en Firestore
@@ -2429,6 +2447,8 @@ export async function obtenerDocentesYEvaluadoresUnificados() {
                     correo_calendario: uCalId,
                     calId: uCalId,
                     activo: true,
+                    roles: rolesArr,
+                    esEvaluador: esEval,
                     entrevista: esEval,
                     grupales: rolesArr.includes('profesor') || Boolean(uData.grupales),
                     ensambles: rolesArr.includes('profesor') || Boolean(uData.ensambles),
@@ -2519,12 +2539,13 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
     // Fecha de ingreso visible: EXCLUSIVA para la vista Inbox Sin Agendar (Inbox - Pendientes)
     const esVistaSinAgendar = (vista === 'Inbox - Pendientes' || estadoActualVista === 'Inbox - Pendientes');
     if (esVistaSinAgendar) {
-        const fechaIng = obtenerFechaIngresoAlumno(al);
-        if (fechaIng) {
-            const diaStr = String(fechaIng.getDate()).padStart(2, '0');
-            const mesStr = String(fechaIng.getMonth() + 1).padStart(2, '0');
-            const anioStr = fechaIng.getFullYear();
-            const diffDias = calcularDiasCalendario(fechaIng);
+        const esReingreso = Boolean(al.fecha_reingreso);
+        const fechaRef = esReingreso ? parsearFechaCualquierOrigen(al.fecha_reingreso) : obtenerFechaIngresoAlumno(al);
+        if (fechaRef) {
+            const diaStr = String(fechaRef.getDate()).padStart(2, '0');
+            const mesStr = String(fechaRef.getMonth() + 1).padStart(2, '0');
+            const anioStr = fechaRef.getFullYear();
+            const diffDias = calcularDiasCalendario(fechaRef);
             const antiguedadTxt = diffDias === 0 ? 'hoy' : (diffDias === 1 ? 'ayer' : `hace ${diffDias}d`);
 
             let badgeClass = 'badge-ingreso-normal';
@@ -2536,7 +2557,13 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                 badgeClass = 'badge-ingreso-reciente';
             }
 
-            datosAlumnoParts.push(`<span class="badge-fecha-ingreso ${badgeClass}" title="Fecha de ingreso: ${diaStr}/${mesStr}/${anioStr}">📅 Ingreso: ${diaStr}/${mesStr}/${anioStr} <span class="badge-ingreso-tiempo">(${antiguedadTxt})</span></span>`);
+            if (esReingreso) {
+                const fOrig = obtenerFechaIngresoAlumno(al);
+                const fOrigTxt = fOrig ? ` (Ingreso original: ${String(fOrig.getDate()).padStart(2, '0')}/${String(fOrig.getMonth() + 1).padStart(2, '0')}/${fOrig.getFullYear()})` : '';
+                datosAlumnoParts.push(`<span class="badge-fecha-ingreso badge-reingreso ${badgeClass}" title="Fecha de reingreso: ${diaStr}/${mesStr}/${anioStr}${fOrigTxt}">🔄 Reingreso: ${diaStr}/${mesStr}/${anioStr} <span class="badge-ingreso-tiempo">(${antiguedadTxt})</span></span>`);
+            } else {
+                datosAlumnoParts.push(`<span class="badge-fecha-ingreso ${badgeClass}" title="Fecha de ingreso: ${diaStr}/${mesStr}/${anioStr}">📅 Ingreso: ${diaStr}/${mesStr}/${anioStr} <span class="badge-ingreso-tiempo">(${antiguedadTxt})</span></span>`);
+            }
         }
     }
 
@@ -3890,9 +3917,14 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
     // Ordenamiento cronológico FIFO (del más viejo al más nuevo) exclusivo para la vista Inbox Sin Agendar
     if (estadoActualVista === 'Inbox - Pendientes') {
         filtrados.sort((a, b) => {
-            const fA = typeof obtenerFechaIngresoAlumno === 'function' ? (obtenerFechaIngresoAlumno(a)?.getTime() || Infinity) : Infinity;
-            const fB = typeof obtenerFechaIngresoAlumno === 'function' ? (obtenerFechaIngresoAlumno(b)?.getTime() || Infinity) : Infinity;
-            return fA - fB;
+            const getRefDate = (al) => {
+                if (al.fecha_reingreso) {
+                    const p = parsearFechaCualquierOrigen(al.fecha_reingreso);
+                    if (p && !isNaN(p.getTime())) return p.getTime();
+                }
+                return typeof obtenerFechaIngresoAlumno === 'function' ? (obtenerFechaIngresoAlumno(al)?.getTime() || Infinity) : Infinity;
+            };
+            return getRefDate(a) - getRefDate(b);
         });
     }
 
@@ -4794,7 +4826,7 @@ export async function chequearActualizacionVersion() {
             console.log(`[Auto-Update] Nueva versión detectada: ${versionRemota} (Versión local: ${APP_VERSION})`);
             
             if (typeof mostrarToast === 'function') {
-                mostrarToast(`✨ Nueva versión disponible (${versionRemota}). Actualizando...`, 'info');
+                mostrarToast(`✨ Actualizando a la última versión...`, 'info');
             }
 
             // Limpieza de todos los Service Worker caches
@@ -5444,9 +5476,14 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
 
             if (vista === 'Inbox - Pendientes') {
                 dataFiltrada.sort((a, b) => {
-                    const fA = typeof obtenerFechaIngresoAlumno === 'function' ? (obtenerFechaIngresoAlumno(a)?.getTime() || Infinity) : Infinity;
-                    const fB = typeof obtenerFechaIngresoAlumno === 'function' ? (obtenerFechaIngresoAlumno(b)?.getTime() || Infinity) : Infinity;
-                    return fA - fB;
+                    const getRefDate = (al) => {
+                        if (al.fecha_reingreso) {
+                            const p = parsearFechaCualquierOrigen(al.fecha_reingreso);
+                            if (p && !isNaN(p.getTime())) return p.getTime();
+                        }
+                        return typeof obtenerFechaIngresoAlumno === 'function' ? (obtenerFechaIngresoAlumno(al)?.getTime() || Infinity) : Infinity;
+                    };
+                    return getRefDate(a) - getRefDate(b);
                 });
             }
 
@@ -7625,7 +7662,8 @@ document.addEventListener('click', async (e) => {
                     const todosUnificados = await obtenerDocentesYEvaluadoresUnificados();
                     todosUnificados.forEach(p => {
                         if (!p.activo) return;
-                        if (p.entrevista) {
+                        const esEvaluador = p.roles ? p.roles.includes('evaluador') : Boolean(p.entrevista);
+                        if (esEvaluador) {
                             const skills = p.skills || [];
                             const ensena = !instrumentoSeleccionado || skills.length === 0 || skills.some(s => s.toLowerCase().trim() === instrumentoSeleccionado.toLowerCase().trim());
                             if (ensena) {
@@ -7679,7 +7717,8 @@ document.addEventListener('click', async (e) => {
                     todosLosProfes.push({ id: p.id, nombre: p.nombre, calId: p.calId, disponibilidad: p.disponibilidad }); 
                     const skills = p.skills || [];
                     const ensena = arrI.length === 0 || arrI.some(inst => !inst || skills.length === 0 || skills.some(s => s.toLowerCase().trim() === inst.toLowerCase().trim()));
-                    if (p.entrevista && ensena && (searchAll || fProfs.includes(p.id))) { 
+                    const esEvaluador = p.roles ? p.roles.includes('evaluador') : Boolean(p.entrevista);
+                    if (esEvaluador && ensena && (searchAll || fProfs.includes(p.id))) { 
                         profesFiltradosIDs.push(p.id); 
                     } 
                 } 
@@ -7690,7 +7729,11 @@ document.addEventListener('click', async (e) => {
             } 
             // Obtener eventos de Google Calendar deduplicando llamadas por calId único (incluyendo calendario general por defecto)
             const calDefecto = configApp.calendario_por_defecto || 'productora.mandalahouse@gmail.com';
-            const calendariosUnicos = [...new Set([...todosLosProfes.map(p => p.calId), calDefecto].filter(Boolean))];
+            const calExcluidosAulas = new Set(['pablobianchino@gmail.com']);
+            const calendariosUnicos = [...new Set([
+                ...todosLosProfes.map(p => p.calId).filter(c => !calExcluidosAulas.has((c || '').toLowerCase().trim())),
+                calDefecto
+            ].filter(Boolean))];
             const eventosPorCalId = {};
             for(const cId of calendariosUnicos) {
                 try {
@@ -7701,18 +7744,47 @@ document.addEventListener('click', async (e) => {
                 }
             }
 
-            let allEv = []; 
-            todosLosProfes.forEach(pr => {
-                const evs = eventosPorCalId[pr.calId] || [];
+            // Construir lista deduplicada de eventos físicos para no inflar el conteo de aulas
+            // y asociar profeId únicamente cuando el evento pertenezca legítimamente a ese docente
+            const allEv = [];
+            calendariosUnicos.forEach(cId => {
+                const evs = eventosPorCalId[cId] || [];
                 evs.forEach(ev => {
-                    allEv.push({ ...ev, profeId: pr.id });
+                    const startRaw = ev.start?.dateTime || ev.start?.date;
+                    const endRaw = ev.end?.dateTime || ev.end?.date;
+                    if (!startRaw || !endRaw) return;
+                    const evS = new Date(startRaw).getTime();
+                    const evE = new Date(endRaw).getTime();
+                    const duracionMs = evE - evS;
+                    // Eventos de día completo (>= 8 horas o sin hora dateTime puntual) no ocupan aulas físicas de la escuela
+                    const esDiaCompleto = duracionMs >= 8 * 3600 * 1000 || (!ev.start?.dateTime && !!ev.start?.date);
+                    const normSummary = (ev.summary || '').toLowerCase().trim();
+                    const contentKey = `${evS}_${evE}_${normSummary}`;
+
+                    // Determinar si este evento pertenece a un profesor específico
+                    const profesConEsteCal = todosLosProfes.filter(pr => pr.calId === cId);
+                    let asignadoProfeId = null;
+
+                    if (profesConEsteCal.length === 1 && cId !== calDefecto) {
+                        // Es un calendario personal exclusivo del profesor
+                        asignadoProfeId = profesConEsteCal[0].id;
+                    } else if (profesConEsteCal.length > 1 || cId === calDefecto) {
+                        // Calendario institucional/compartido: solo asignar si el título menciona explícitamente su nombre
+                        const profeMencionado = profesConEsteCal.find(pr => pr.nombre && normSummary.includes(pr.nombre.toLowerCase().trim()));
+                        if (profeMencionado) {
+                            asignadoProfeId = profeMencionado.id;
+                        }
+                    }
+
+                    allEv.push({
+                        ...ev,
+                        uniqueContentKey: contentKey,
+                        profeId: asignadoProfeId,
+                        ocupaAula: !esDiaCompleto
+                    });
                 });
             });
-            if (eventosPorCalId[calDefecto]) {
-                eventosPorCalId[calDefecto].forEach(ev => {
-                    allEv.push({ ...ev, profeId: null });
-                });
-            }
+
             const opts = generarOpcionesAgenda(al.disponibilidad, allEv, esBat, todosLosProfes, profesFiltradosIDs, dS, dE, configApp); 
             if(opts.length===0) { 
                 resDiv.innerHTML='<p>No hay huecos libres en el rango seleccionado.</p>'; 
@@ -7720,8 +7792,16 @@ document.addEventListener('click', async (e) => {
                 const bAg = document.getElementById('btn-agendar-directo-calendar');
                 if (bAg) bAg.style.display = 'none';
             } else { 
-                // Ordenar los recomendados (pegados a clase) primero
-                opts.sort((a, b) => (b.pegado ? 1 : 0) - (a.pegado ? 1 : 0));
+                // Ordenar: primero los recomendados (pegados), y como criterio secundario por fecha y hora cronológica ascendente
+                opts.sort((a, b) => {
+                    if (b.pegado !== a.pegado) {
+                        return (b.pegado ? 1 : 0) - (a.pegado ? 1 : 0);
+                    }
+                    const tA = new Date(a.inicioData).getTime();
+                    const tB = new Date(b.inicioData).getTime();
+                    if (tA !== tB) return tA - tB;
+                    return (a.profeNombre || '').localeCompare(b.profeNombre || '');
+                });
                 let html = ''; 
                 opts.forEach((op, index) => { 
                     const icon = op.pegado ? '⭐' : '🕒';
@@ -7815,6 +7895,7 @@ document.addEventListener('click', async (e) => {
             const nuevoEstado = esConfirmada ? "Agenda confirmada" : "Pendiente validación por alumno";
             const updateData = {
                 estado_agenda: nuevoEstado,
+                fecha_reingreso: null,
                 instrumento_asignado: instElegido,
                 reserva_profe_id: pId,
                 reserva_profe_nombre: pNom,
@@ -7876,6 +7957,7 @@ document.addEventListener('click', async (e) => {
 
             let updateData = { 
                 estado_agenda: "Pendiente validación por profe", 
+                fecha_reingreso: null,
                 instrumento_asignado: instElegido,
                 reserva_profe_id: pId, 
                 reserva_profe_nombre: pNom, 
@@ -8282,6 +8364,7 @@ document.addEventListener('click', async (e) => {
 
             await updateDoc(doc(db, "alumnos", id), {
                 estado_agenda: "Pendiente procesar",
+                fecha_reingreso: new Date().toISOString(),
                 reserva_profe_id: null,
                 reserva_profe_nombre: null,
                 reserva_cal_id: null,
@@ -8621,6 +8704,7 @@ document.addEventListener('click', async (e) => {
 
             await updateDoc(doc(db, "alumnos", id), { 
                 estado_agenda: "Pendiente procesar", 
+                fecha_reingreso: new Date().toISOString(),
                 suspendido: false,
                 motivo_suspension: null,
                 motivo_suspension_cat: null,
