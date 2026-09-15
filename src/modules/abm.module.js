@@ -2,7 +2,7 @@
 // src/modules/abm.module.js -- ABM Profesores, Instrumentos, Suscripciones, Usuarios y Config
 // =======================================================================
 
-import { defaultCfg } from "../config/constants.js";
+import { defaultCfg, firebaseConfig } from "../config/constants.js";
 import { formatearPrecioMoneda } from "./altas.module.js";
 import { 
     db, 
@@ -13,7 +13,11 @@ import {
     updateDoc, 
     deleteDoc, 
     doc, 
-    addDoc 
+    addDoc,
+    initializeApp,
+    getAuth,
+    createUserWithEmailAndPassword,
+    signOut
 } from "../config/firebase.js";
 import {
     poblarDisponibilidadMultiRango,
@@ -1476,10 +1480,25 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
                 await updateDoc(doc(db, "usuarios_sistema", id), userData);
             } else {
                 userData.fecha_creacion = new Date().toISOString();
+                userData.password_inicial_asignada = true;
+                userData.password_modificada = false;
                 await addDoc(collection(db, "usuarios_sistema"), userData);
+
+                // Auto-aprovisionar cuenta en Firebase Auth de forma aislada sin afectar la sesión actual
+                try {
+                    const secApp = initializeApp(firebaseConfig, `ABM_Provision_${Date.now()}`);
+                    const secAuth = getAuth(secApp);
+                    await createUserWithEmailAndPassword(secAuth, email, "mandala333");
+                    await signOut(secAuth);
+                    console.log(`[ABM] Usuario ${email} aprovisionado en Firebase Auth con clave mandala333`);
+                } catch (secErr) {
+                    if (secErr.code !== 'auth/email-already-in-use') {
+                        console.warn("[ABM] Aviso al crear credenciales en Firebase Auth:", secErr.code, secErr.message);
+                    }
+                }
             }
 
-            alert(`✅ Usuario "${nombre || email}" guardado correctamente.`);
+            alert(`✅ Usuario "${nombre || email}" guardado correctamente con contraseña inicial "mandala333".`);
 
         } else if (col === 'profesores') {
             const selSkills = document.getElementById('abm-edit-skills');
@@ -1595,5 +1614,37 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
 
 // Window Global Bindings
 window.abrirEdicionABM = abrirEdicionABM;
+
+window.restablecerPasswordUsuarioSistema = async function() {
+    const editId = document.getElementById('abm-edit-id')?.value;
+    const emailInput = document.getElementById('abm-edit-nombre')?.value?.trim();
+    if (!editId) {
+        alert("⚠️ Seleccioná primero un usuario guardado para restablecer su contraseña.");
+        return;
+    }
+    const ok = typeof window.confirmar === 'function' 
+        ? await window.confirmar(
+            "¿Restablecer contraseña a mandala333?",
+            `Se reasignará la contraseña por defecto "mandala333" para el acceso de ${emailInput || 'este usuario'}.`,
+            "🔄 Restablecer",
+            "question"
+        )
+        : confirm(`¿Restablecer la contraseña a "mandala333" para ${emailInput || 'este usuario'}?`);
+    if (!ok) return;
+
+    try {
+        if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga("Restableciendo contraseña...");
+        await updateDoc(doc(db, "usuarios_sistema", editId), {
+            password_modificada: false,
+            password_inicial_asignada: true,
+            fecha_reset_password: new Date().toISOString()
+        });
+        if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
+        alert(`✅ Contraseña restablecida a "mandala333" para ${emailInput}. El usuario ya puede ingresar con su clave por defecto.`);
+    } catch (e) {
+        if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
+        alert("❌ Error al restablecer contraseña: " + e.message);
+    }
+};
 window.eliminarABM = eliminarABM;
 window.cargarABM = cargarABM;

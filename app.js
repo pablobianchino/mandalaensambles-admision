@@ -13,13 +13,15 @@ import {
     configNodosFlujoCoordinador,
     esAlumnoAltaFinalizada,
     esAlumnoAltaConfirmadaIncompleta
-} from "./src/config/constants.js?v=6.8.14";
+} from "./src/config/constants.js?v=6.9.0";
 
 import { 
     app, 
     db, 
     auth, 
     provider, 
+    initializeApp,
+    getAuth,
     collection, 
     addDoc, 
     getDocs, 
@@ -33,8 +35,14 @@ import {
     signInWithPopup, 
     GoogleAuthProvider, 
     onAuthStateChanged, 
-    signOut 
-} from "./src/config/firebase.js?v=6.8.12";
+    signOut,
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
+    updatePassword,
+    EmailAuthProvider,
+    reauthenticateWithCredential,
+    linkWithCredential
+} from "./src/config/firebase.js?v=6.9.0";
 
 import {
     limpiarHoraParaChip,
@@ -48,7 +56,7 @@ import {
     extraerDisponibilidadMultiRango,
     normalizarHora,
     inicializarAutocompletadoHorarios
-} from "./src/ui/horarios.ui.js?v=6.8.14";
+} from "./src/ui/horarios.ui.js?v=6.9.0";
 
 import {
     getEmojiInstrumento,
@@ -77,7 +85,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=6.8.14";
+} from "./src/services/calendar.service.js?v=6.9.0";
 
 import {
     matchCantidadActual,
@@ -110,11 +118,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=6.8.14";
+} from "./src/modules/match.module.js?v=6.9.0";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=6.8.14";
+} from "./src/modules/profesor.module.js?v=6.9.0";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -137,14 +145,14 @@ import {
     confirmarInicioGrupoAction,
     confirmarAlumnoAltaAction,
     generarChecklistAltaHtml
-} from "./src/modules/altas.module.js?v=6.8.14";
+} from "./src/modules/altas.module.js?v=6.9.0";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=6.8.14";
+} from "./src/modules/dashboard.module.js?v=6.9.0";
 
 import {
     renderConfigHub,
@@ -153,20 +161,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=6.8.14";
+} from "./src/modules/abm.module.js?v=6.9.0";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=6.8.14";
+} from "./src/modules/inbox.module.js?v=6.9.0";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=6.8.14";
+} from "./src/modules/csv.module.js?v=6.9.0";
 
 window.generarBotonesPrincipalesVisibles = generarBotonesPrincipalesVisibles;
 window.generarBotonesAccion = generarBotonesAccion;
@@ -2227,6 +2235,63 @@ export function obtenerFechaIngresoAlumno(al) {
     }
     return null;
 }
+export function formatearSoloFecha(fecha) {
+    if (!fecha) return '-';
+    const p = parsearFechaCualquierOrigen(fecha);
+    if (!p || isNaN(p.getTime())) return '-';
+    const d = String(p.getDate()).padStart(2, '0');
+    const m = String(p.getMonth() + 1).padStart(2, '0');
+    const y = p.getFullYear();
+    return `${d}/${m}/${y}`;
+}
+window.formatearSoloFecha = formatearSoloFecha;
+
+export function obtenerFechaIngresoEspera(al) {
+    if (!al) return null;
+
+    // Caso específico para Faustino Alvarez solicitado por Coordinación
+    if (al.nombre && al.nombre.toLowerCase().includes('faustino') && al.nombre.toLowerCase().includes('alvarez')) {
+        return new Date('2026-09-02T12:50:00');
+    }
+
+    // 1. Campo explícito fecha_ingreso_espera
+    if (al.fecha_ingreso_espera) {
+        const p = parsearFechaCualquierOrigen(al.fecha_ingreso_espera);
+        if (p && !isNaN(p.getTime())) return p;
+    }
+
+    // 2. Búsqueda en historial de la nota de derivación o pase a Lista de Espera (de la más reciente hacia atrás)
+    if (Array.isArray(al.historial) && al.historial.length > 0) {
+        for (let i = al.historial.length - 1; i >= 0; i--) {
+            const h = al.historial[i];
+            if (!h) continue;
+            const txt = typeof h === 'string' ? h : (h.texto || '');
+            const txtLower = txt.toLowerCase();
+            const esNotaEspera = txtLower.includes('lista de espera') || txtLower.includes('espera') || h.tipo === 'espera' || (h.tipo === 'informe' && txtLower.includes('espera'));
+            if (esNotaEspera) {
+                let p = null;
+                if (typeof h === 'object') {
+                    p = parsearFechaCualquierOrigen(h.fecha_iso || h.fecha);
+                    if (!p && typeof h.id === 'number') p = parsearFechaCualquierOrigen(h.id);
+                }
+                if (!p && txt) p = parsearFechaCualquierOrigen(txt);
+                if (p && !isNaN(p.getTime())) return p;
+            }
+        }
+    }
+
+    // 3. Fecha de evaluación o admisión finalizada
+    const fEval = al.informe_entrevista?.fecha_evaluacion || al.informe_entrevista?.fecha_actualizacion || al.fecha_admision_finalizada;
+    if (fEval) {
+        const p = parsearFechaCualquierOrigen(fEval);
+        if (p && !isNaN(p.getTime())) return p;
+    }
+
+    // 4. Fallback al helper general de ingreso
+    return obtenerFechaIngresoAlumno(al);
+}
+window.obtenerFechaIngresoEspera = obtenerFechaIngresoEspera;
+
 window.obtenerFechaIngresoAlumno = obtenerFechaIngresoAlumno;
 
 // =======================================================================
@@ -2837,6 +2902,8 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                         ${(() => {
                             if (al.estado_agenda === 'Lista de espera') {
                                 const met = calcularMetricasEspera(al);
+                                const fIngEspera = typeof obtenerFechaIngresoEspera === 'function' ? obtenerFechaIngresoEspera(al) : null;
+                                const txtFechaIngreso = fIngEspera ? formatearSoloFecha(fIngEspera) : '-';
                                 const nombreSafe = (al.nombre || '').replace(/'/g, "\\'");
                                 const esAdminOCoord = window.usuarioActual?.rol === 'admin' || window.usuarioActual?.rol === 'coordinador' || window.usuarioActual?.rol_activo === 'admin' || window.usuarioActual?.rol_activo === 'coordinador';
 
@@ -2847,6 +2914,9 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
 
                                 return `
                                     <div class="metricas-espera-texto">
+                                        <div class="txt-fecha-ingreso-espera" title="Fecha de pase a Lista de Espera">
+                                            INGRESO: ${txtFechaIngreso}
+                                        </div>
                                         <div class="txt-esperando-fila" title="Días acumulados en lista de espera (nunca se resetea)">
                                             ESPERANDO: ${met.diasEsperando}d
                                         </div>
@@ -3928,6 +3998,15 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
         });
     }
 
+    // Ordenamiento cronológico LIFO (del más reciente al menos reciente) exclusivo para Lista de Espera
+    if (estadoActualVista === 'Lista de Espera') {
+        filtrados.sort((a, b) => {
+            const fA = typeof obtenerFechaIngresoEspera === 'function' ? (obtenerFechaIngresoEspera(a)?.getTime() || 0) : 0;
+            const fB = typeof obtenerFechaIngresoEspera === 'function' ? (obtenerFechaIngresoEspera(b)?.getTime() || 0) : 0;
+            return fB - fA;
+        });
+    }
+
     if(filtrados.length === 0) { 
         cont.style.display = 'flex';
         if (contKanban) contKanban.style.display = 'none';
@@ -4006,6 +4085,24 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
 
         function renderNivelAgrupado(alumnos, nivelIndex) {
             if (nivelIndex >= nivelesActivos.length) {
+                if (estadoActualVista === 'Lista de Espera') {
+                    alumnos.sort((a, b) => {
+                        const fA = typeof obtenerFechaIngresoEspera === 'function' ? (obtenerFechaIngresoEspera(a)?.getTime() || 0) : 0;
+                        const fB = typeof obtenerFechaIngresoEspera === 'function' ? (obtenerFechaIngresoEspera(b)?.getTime() || 0) : 0;
+                        return fB - fA;
+                    });
+                } else if (estadoActualVista === 'Inbox - Pendientes') {
+                    alumnos.sort((a, b) => {
+                        const getRefDate = (al) => {
+                            if (al.fecha_reingreso) {
+                                const p = parsearFechaCualquierOrigen(al.fecha_reingreso);
+                                if (p && !isNaN(p.getTime())) return p.getTime();
+                            }
+                            return typeof obtenerFechaIngresoAlumno === 'function' ? (obtenerFechaIngresoAlumno(al)?.getTime() || Infinity) : Infinity;
+                        };
+                        return getRefDate(a) - getRefDate(b);
+                    });
+                }
                 return alumnos.map(a => generarFilaAlumno(a, a.id, estadoActualVista)).join('');
             }
 
@@ -5682,6 +5779,200 @@ async function renderMatchConfirmados(cont) {
 const btnLogin = document.getElementById('btn-login'); if (btnLogin) btnLogin.addEventListener('click', conectarGoogle);
 const btnLogout = document.getElementById('btn-logout'); if (btnLogout) btnLogout.addEventListener('click', async () => { await signOut(auth); window.location.reload(); });
 
+async function conectarEmailPassword(email, password) {
+    const errorBox = document.getElementById('login-error-msg');
+    const submitBtn = document.getElementById('btn-login-email-submit');
+    if (errorBox) errorBox.style.display = 'none';
+
+    if (!email || !password) {
+        if (errorBox) {
+            errorBox.textContent = 'Por favor ingresá tu correo electrónico y contraseña.';
+            errorBox.style.display = 'block';
+        }
+        return;
+    }
+
+    const emailNorm = email.toLowerCase().trim();
+
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span>Verificando...</span>';
+    }
+
+    try {
+        await signInWithEmailAndPassword(auth, emailNorm, password);
+    } catch (err) {
+        console.warn("Intento de login con Email/Password:", err.code, err.message);
+
+        // Si intenta ingresar con clave mandala333 y no existe usuario con password, intentar crearlo
+        if (password === 'mandala333' && (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential')) {
+            try {
+                await createUserWithEmailAndPassword(auth, emailNorm, 'mandala333');
+                console.log(`[Auth] Usuario ${emailNorm} auto-creado en Firebase Auth con clave mandala333`);
+                return; // onAuthStateChanged completará el inicio de sesión
+            } catch (autoErr) {
+                console.warn("[Auth] No se pudo auto-crear usuario en Firebase Auth:", autoErr.code, autoErr.message);
+                if (autoErr.code === 'auth/email-already-in-use') {
+                    if (errorBox) {
+                        errorBox.innerHTML = 'Tu cuenta fue registrada originalmente con Google.<br><strong>Iniciá sesión una vez con el botón de Google</strong> para activar tu clave <code>mandala333</code> automáticamente.';
+                        errorBox.style.display = 'block';
+                    }
+                    return;
+                } else if (autoErr.code === 'auth/operation-not-allowed') {
+                    if (errorBox) {
+                        errorBox.innerHTML = '⚠️ El método de acceso por Correo/Contraseña no está habilitado en Firebase.<br>Debe activarse en Firebase Console: <em>Authentication &gt; Sign-in method &gt; Correo electrónico/contraseña</em>.';
+                        errorBox.style.display = 'block';
+                    }
+                    return;
+                }
+            }
+        }
+
+        let msg = 'Error al iniciar sesión. Verificá tu correo y contraseña.';
+        if (err.code === 'auth/operation-not-allowed') {
+            msg = '⚠️ El método de acceso con Correo/Contraseña no está habilitado en Firebase. Debe activarse en Firebase Console: Authentication > Sign-in method > Correo electrónico/contraseña.';
+        } else if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+            msg = 'Contraseña o correo incorrectos. Si tu cuenta fue creada con Google, ingresá una vez con Google para activar la clave mandala333.';
+        } else if (err.code === 'auth/user-not-found') {
+            msg = 'No se encontró un usuario registrado con este correo.';
+        } else if (err.code === 'auth/too-many-requests') {
+            msg = 'Demasiados intentos fallidos. Esperá unos minutos antes de reintentar.';
+        } else if (err.code === 'auth/invalid-email') {
+            msg = 'El formato del correo electrónico no es válido.';
+        }
+
+        if (errorBox) {
+            errorBox.innerHTML = msg;
+            errorBox.style.display = 'block';
+        } else {
+            alert(msg);
+        }
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<span>Iniciar Sesión</span>';
+        }
+    }
+}
+
+const formLoginEmail = document.getElementById('form-login-email');
+if (formLoginEmail) {
+    formLoginEmail.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('login-email')?.value?.trim();
+        const pass = document.getElementById('login-password')?.value;
+        await conectarEmailPassword(email, pass);
+    });
+}
+
+const btnToggleLoginPass = document.getElementById('btn-toggle-login-pass');
+if (btnToggleLoginPass) {
+    btnToggleLoginPass.addEventListener('click', () => {
+        const input = document.getElementById('login-password');
+        if (input) {
+            input.type = input.type === 'password' ? 'text' : 'password';
+            btnToggleLoginPass.textContent = input.type === 'password' ? '👁️' : '🙈';
+        }
+    });
+}
+
+async function autoAprovisionarUsuariosSistemaDefault() {
+    try {
+        const qSnap = await getDocs(collection(db, "usuarios_sistema"));
+        for (const d of qSnap.docs) {
+            const dt = d.data();
+            const userEmail = (dt.email || '').toLowerCase().trim();
+            if (!userEmail) continue;
+
+            // Auto-aprovisionar cuenta en Firebase Auth si aún no fue creada
+            if (dt.auth_cuenta_creada !== true) {
+                try {
+                    const secApp = initializeApp(firebaseConfig, `AutoProv_${d.id}_${Date.now()}`);
+                    const secAuth = getAuth(secApp);
+                    await createUserWithEmailAndPassword(secAuth, userEmail, "mandala333");
+                    await signOut(secAuth);
+                    console.log(`[AUTH-PROVISION] Cuenta Firebase Auth creada para: ${userEmail}`);
+                } catch (provErr) {
+                    if (provErr.code === 'auth/email-already-in-use') {
+                        // El correo ya existe en Firebase Auth
+                    } else {
+                        console.warn(`[AUTH-PROVISION] Aviso con ${userEmail}:`, provErr.code);
+                    }
+                }
+            }
+
+            if (dt.password_inicial_asignada !== true || dt.auth_cuenta_creada !== true) {
+                await updateDoc(doc(db, "usuarios_sistema", d.id), {
+                    password_inicial_asignada: true,
+                    password_modificada: false,
+                    auth_email: userEmail,
+                    auth_cuenta_creada: true
+                }).catch(() => {});
+            }
+        }
+    } catch (e) {
+        console.warn("[AUTH] Inicialización de usuarios del sistema:", e);
+    }
+}
+
+async function cambiarPasswordUsuarioLogueado(passActual, passNueva, passConfirmar) {
+    const errBox = document.getElementById('chg-pass-error-msg');
+    const submitBtn = document.getElementById('btn-submit-cambiar-pass');
+    if (errBox) errBox.style.display = 'none';
+
+    if (!passActual || !passNueva || !passConfirmar) {
+        if (errBox) { errBox.textContent = 'Todos los campos son obligatorios.'; errBox.style.display = 'block'; }
+        return;
+    }
+    if (passNueva.length < 6) {
+        if (errBox) { errBox.textContent = 'La nueva contraseña debe tener al menos 6 caracteres.'; errBox.style.display = 'block'; }
+        return;
+    }
+    if (passNueva !== passConfirmar) {
+        if (errBox) { errBox.textContent = 'La confirmación no coincide con la nueva contraseña.'; errBox.style.display = 'block'; }
+        return;
+    }
+    if (!auth.currentUser || !auth.currentUser.email) {
+        alert("⚠️ No hay sesión activa para cambiar la contraseña.");
+        return;
+    }
+
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Guardando...'; }
+
+    try {
+        const cred = EmailAuthProvider.credential(auth.currentUser.email, passActual);
+        await reauthenticateWithCredential(auth.currentUser, cred);
+        await updatePassword(auth.currentUser, passNueva);
+
+        if (window.usuarioActual?.id) {
+            await updateDoc(doc(db, "usuarios_sistema", window.usuarioActual.id), {
+                password_modificada: true,
+                fecha_modificacion_password: new Date().toISOString()
+            });
+        }
+
+        const modal = document.getElementById('modal-cambiar-password');
+        if (modal) modal.close();
+
+        document.getElementById('form-cambiar-password')?.reset();
+        mostrarToast("✅ Contraseña actualizada correctamente.", "success");
+    } catch (err) {
+        console.error("Error al cambiar contraseña:", err);
+        let msg = "Error al actualizar la contraseña: " + (err.message || '');
+        if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+            msg = "La contraseña actual ingresada es incorrecta (si nunca la cambiaste, recordá que es mandala333).";
+        }
+        if (errBox) {
+            errBox.textContent = msg;
+            errBox.style.display = 'block';
+        } else {
+            alert(msg);
+        }
+    } finally {
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Guardar Contraseña'; }
+    }
+}
+
 
 const ROLES_MODULOS_DEFAULT = {
     admin: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'metricas', 'portal_profesor', 'configuracion', 'permisos'],
@@ -5747,6 +6038,22 @@ onAuthStateChanged(auth, async (user) => {
                 return;
             }
 
+            // Auto-vincular proveedor email/password (mandala333) si el usuario ingresó con Google y aún no tiene password
+            if (user.email && user.providerData) {
+                const tienePassword = user.providerData.some(p => p.providerId === 'password');
+                if (!tienePassword) {
+                    try {
+                        const cred = EmailAuthProvider.credential(user.email.toLowerCase().trim(), 'mandala333');
+                        await linkWithCredential(user, cred);
+                        console.log(`[Auth] Proveedor email/password (mandala333) auto-vinculado exitosamente para ${user.email}`);
+                    } catch (linkErr) {
+                        if (linkErr.code !== 'auth/provider-already-linked') {
+                            console.warn("[Auth] Aviso al auto-vincular contraseña a usuario Google:", linkErr.code, linkErr.message);
+                        }
+                    }
+                }
+            }
+
             const rolesArr = Array.isArray(usuarioEncontrado.roles) && usuarioEncontrado.roles.length > 0
                 ? usuarioEncontrado.roles
                 : (usuarioEncontrado.rol ? [usuarioEncontrado.rol] : ['admisiones']);
@@ -5808,6 +6115,7 @@ onAuthStateChanged(auth, async (user) => {
         } catch(e) {}
 
         await cargarConfig(); 
+        await autoAprovisionarUsuariosSistemaDefault();
         configurarHeaderUsuarioYRoles();
         configurarSidebarPorPermisos();
 
@@ -5867,6 +6175,19 @@ onAuthStateChanged(auth, async (user) => {
             };
         }
 
+        const popoverCambiarPass = document.getElementById('popover-link-cambiar-pass');
+        if (popoverCambiarPass) {
+            popoverCambiarPass.onclick = (e) => {
+                e.stopPropagation();
+                if (profilePopover) profilePopover.classList.remove('show');
+                const modal = document.getElementById('modal-cambiar-password');
+                const errBox = document.getElementById('chg-pass-error-msg');
+                if (errBox) errBox.style.display = 'none';
+                document.getElementById('form-cambiar-password')?.reset();
+                if (modal) modal.showModal();
+            };
+        }
+
         const popoverConfig = document.getElementById('popover-link-config');
         if (popoverConfig) {
             popoverConfig.onclick = (e) => {
@@ -5884,6 +6205,28 @@ onAuthStateChanged(auth, async (user) => {
                 window.location.reload();
             };
         }
+
+        const formCambiarPass = document.getElementById('form-cambiar-password');
+        if (formCambiarPass) {
+            formCambiarPass.onsubmit = async (e) => {
+                e.preventDefault();
+                const actual = document.getElementById('chg-pass-actual')?.value;
+                const nueva = document.getElementById('chg-pass-nueva')?.value;
+                const confirmar = document.getElementById('chg-pass-confirmar')?.value;
+                await cambiarPasswordUsuarioLogueado(actual, nueva, confirmar);
+            };
+        }
+
+        document.querySelectorAll('.btn-toggle-pass').forEach(btn => {
+            btn.onclick = () => {
+                const targetId = btn.getAttribute('data-target');
+                const input = document.getElementById(targetId);
+                if (input) {
+                    input.type = input.type === 'password' ? 'text' : 'password';
+                    btn.textContent = input.type === 'password' ? '👁️' : '🙈';
+                }
+            };
+        });
 
         document.addEventListener('click', (e) => {
             if (profilePopover && profilePopover.classList.contains('show')) {

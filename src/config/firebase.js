@@ -21,7 +21,13 @@ import {
     signInWithPopup, 
     GoogleAuthProvider, 
     onAuthStateChanged, 
-    signOut 
+    signOut,
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
+    updatePassword,
+    EmailAuthProvider,
+    reauthenticateWithCredential,
+    linkWithCredential
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { firebaseConfig } from "./constants.js";
 
@@ -34,6 +40,8 @@ provider.setCustomParameters({
 });
 
 export {
+    initializeApp,
+    getAuth,
     collection,
     addDoc,
     getDocs,
@@ -47,5 +55,11 @@ export {
     signInWithPopup,
     GoogleAuthProvider,
     onAuthStateChanged,
-    signOut
+    signOut,
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
+    updatePassword,
+    EmailAuthProvider,
+    reauthenticateWithCredential,
+    linkWithCredential
 };

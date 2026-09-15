@@ -45,9 +45,10 @@ body {
     background-color: #ffffff; z-index: 9999; 
 }
 .login-card { 
-    background-color: #f4f6f9; padding: 40px 50px; border-radius: 16px; 
+    background-color: #f4f6f9; padding: 32px 36px; border-radius: 20px; 
     display: flex; flex-direction: column; align-items: center; text-align: center;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.04); border: 1px solid var(--border-color); max-width: 90%;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.06); border: 1px solid var(--border-color); 
+    width: 380px; max-width: 90%; box-sizing: border-box;
 }
 .btn-google-login { 
     background-color: #ffffff; color: #3c4043; border: 1px solid #dadce0; 
@@ -2605,33 +2606,48 @@ button.btn-prio-filtro.prio-proximos.active,
     flex-wrap: wrap;
 }
 
-/* Métricas en formato texto limpio y centrado */
+/* Métricas en formato texto limpio y alineado a la izquierda dentro del bloque */
 .metricas-espera-texto {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
-    text-align: center;
-    gap: 4px;
-    width: 100%;
+    text-align: left;
+    gap: 3px;
+    width: fit-content;
+    margin: 0 auto;
 }
-.txt-esperando-fila {
-    color: #64748b;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.2px;
-    white-space: nowrap;
-}
+
+.txt-fecha-ingreso-espera,
+.txt-esperando-fila,
 .txt-contacto-fila {
-    color: #dc2626;
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 700;
+    line-height: 1.35;
     letter-spacing: 0.2px;
     white-space: nowrap;
+}
+
+.txt-fecha-ingreso-espera {
+    color: #15803d; /* Verde nítido y legible */
+}
+
+.txt-esperando-fila {
+    color: #64748b; /* Gris pizarra neutro */
+}
+
+.txt-contacto-fila {
+    color: #dc2626; /* Rojo contacto */
     transition: opacity 0.15s ease;
 }
 .txt-contacto-fila:hover {
-    opacity: 0.85;
+    opacity: 0.8;
+}
+
+@media (max-width: 991px) {
+    .metricas-espera-texto {
+        margin: 0;
+    }
 }
 
 .badge-dias-espera {
