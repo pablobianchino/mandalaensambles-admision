@@ -10,7 +10,7 @@
     <meta http-equiv="Expires" content="0">
     
     <link rel="icon" href="logo.png" type="image/png">
-    <link rel="manifest" href="manifest.json?v=6.9.0">
+    <link rel="manifest" href="manifest.json?v=6.9.3">
     <meta name="theme-color" content="#fbfaf8">
     <meta name="apple-mobile-web-app-title" content="Mandala Admisión">
     <meta name="application-name" content="Mandala Admisión">
@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=6.9.0">
+    <link rel="stylesheet" href="styles.css?v=6.9.3">
 
     <style>
         /* Estilos Críticos de Widget de Perfil y Popover Google-Style */
@@ -277,20 +277,17 @@
                 <div style="text-align:left;">
                     <label for="login-email" style="display:block; font-size:11.5px; font-weight:700; color:var(--text-main); margin-bottom:4px; text-transform:none;">Correo Electrónico</label>
                     <div style="position:relative; width:100%;">
-                        <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--text-muted); font-size:14px; pointer-events:none;">✉️</span>
-                        <input type="email" id="login-email" required placeholder="tu-correo@mandalahouse.com" style="width:100%; box-sizing:border-box; padding:9px 12px 9px 34px; border:1px solid var(--border-color); border-radius:10px; font-family:inherit; font-size:13px; outline:none; background:#ffffff; color:var(--text-main); transition:border-color 0.2s;">
+                        <input type="email" id="login-email" required placeholder="tu-correo@mandalahouse.com" style="width:100%; box-sizing:border-box; padding:10px 14px; border:1px solid var(--border-color); border-radius:10px; font-family:inherit; font-size:13px; outline:none; background:#ffffff; color:var(--text-main); transition:border-color 0.2s;">
                     </div>
                 </div>
 
                 <div style="text-align:left;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                         <label for="login-password" style="font-size:11.5px; font-weight:700; color:var(--text-main); margin:0; text-transform:none;">Contraseña</label>
-                        <span style="font-size:10.5px; color:var(--text-muted); font-weight:600;">Inicial: mandala333</span>
                     </div>
                     <div style="position:relative; width:100%;">
-                        <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--text-muted); font-size:14px; pointer-events:none;">🔒</span>
-                        <input type="password" id="login-password" required placeholder="••••••••" style="width:100%; box-sizing:border-box; padding:9px 36px 9px 34px; border:1px solid var(--border-color); border-radius:10px; font-family:inherit; font-size:13px; outline:none; background:#ffffff; color:var(--text-main); transition:border-color 0.2s;">
-                        <button type="button" id="btn-toggle-login-pass" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:13px; color:var(--text-muted); padding:2px;" title="Mostrar u ocultar contraseña">👁️</button>
+                        <input type="password" id="login-password" required placeholder="••••••••" style="width:100%; box-sizing:border-box; padding:10px 38px 10px 14px; border:1px solid var(--border-color); border-radius:10px; font-family:inherit; font-size:13px; outline:none; background:#ffffff; color:var(--text-main); transition:border-color 0.2s;">
+                        <button type="button" id="btn-toggle-login-pass" class="btn-toggle-eye" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:14px; padding:2px; filter:grayscale(100%); opacity:0.6;" title="Mostrar u ocultar contraseña">👁️</button>
                     </div>
                 </div>
 
@@ -303,7 +300,7 @@
 
             <div class="login-divider" style="width:100%; display:flex; align-items:center; text-align:center; margin:4px 0 16px 0;">
                 <div style="flex:1; border-bottom:1px solid var(--border-color);"></div>
-                <span style="padding:0 10px; font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">o ingresar con</span>
+                <span style="padding:0 10px; font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">O</span>
                 <div style="flex:1; border-bottom:1px solid var(--border-color);"></div>
             </div>
 
@@ -314,8 +311,9 @@
                 Continuar con Google
             </button>
 
-            <div style="font-size:11px; color:var(--text-muted); margin-top:16px; line-height:1.4;">
-                ¿Olvidaste tu contraseña? Contactá al administrador para restablecerla a <strong style="color:var(--text-main);">mandala333</strong>.
+            <div style="font-size:11px; color:var(--text-muted); margin-top:16px; line-height:1.5;">
+                ¿Olvidaste tu contraseña?<br>
+                Contactá al administrador para restablecerla.
             </div>
         </div>
     </div>
@@ -545,6 +543,12 @@
                     <div id="filtros-prioridades-container" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
                         <button type="button" class="btn-prio-filtro prio-todos active" data-prio="todos" style="display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:24px; font-size:12.5px; font-weight:700; cursor:pointer; font-family:inherit; background:#1e293b; color:#ffffff; border:1px solid #1e293b; box-shadow:0 1px 3px rgba(0,0,0,0.08); transition:all 0.18s ease; margin:2px;">
                             Todos (<span id="cnt-prio-todos">0</span>)
+                        </button>
+                        <button type="button" class="btn-prio-filtro prio-sin-agendar admisor-only" data-prio="sin-agendar" style="display:none; align-items:center; gap:6px; padding:6px 14px; border-radius:24px; font-size:12.5px; font-weight:600; cursor:pointer; font-family:inherit; background:#ffffff; color:#1d4ed8; border:1px solid #bfdbfe; box-shadow:0 1px 2px rgba(0,0,0,0.03); transition:all 0.18s ease; margin:2px;" title="Alumnos en Inbox pendientes de agendar entrevista">
+                            📥 Sin Agendar (<span id="cnt-prio-sin-agendar">0</span>)
+                        </button>
+                        <button type="button" class="btn-prio-filtro prio-altas-pend admisor-only" data-prio="altas-pend" style="display:none; align-items:center; gap:6px; padding:6px 14px; border-radius:24px; font-size:12.5px; font-weight:600; cursor:pointer; font-family:inherit; background:#ffffff; color:#047857; border:1px solid #a7f3d0; box-shadow:0 1px 2px rgba(0,0,0,0.03); transition:all 0.18s ease; margin:2px;" title="Alumnos validados listos para iniciar pre-alta">
+                            🚀 Altas Pendientes (<span id="cnt-prio-altas-pend">0</span>)
                         </button>
                         <button type="button" class="btn-prio-filtro prio-vencidos" data-prio="vencidos" style="display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:24px; font-size:12.5px; font-weight:600; cursor:pointer; font-family:inherit; background:#ffffff; color:#b91c1c; border:1px solid #fecaca; box-shadow:0 1px 2px rgba(0,0,0,0.03); transition:all 0.18s ease; margin:2px;">
                             🔴 Vencidos (<span id="cnt-prio-vencidos">0</span>)
@@ -974,6 +978,37 @@
                             </button>
                         </div>
                     </div>
+
+                    <!-- BARRA DE SEGUIMIENTO EN LISTA DE ESPERA & CURSADA -->
+                    <div id="modal-metricas-espera-box" class="modal-espera-metrics-bar" style="display:none; margin-top:16px; padding:12px 16px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:16px;">📊</span>
+                            <div>
+                                <div style="font-size:11px; font-weight:800; color:#334155; text-transform:uppercase; letter-spacing:0.03em;">Seguimiento de Espera & Contacto</div>
+                                <div style="font-size:10px; color:var(--text-muted);">Métricas activas de espera y contacto</div>
+                            </div>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+                            <div style="display:flex; flex-direction:column; gap:2px;">
+                                <span style="font-size:10px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.03em;">📥 Ingresó a Espera:</span>
+                                <span id="modal-espera-fecha-val" style="font-size:12.5px; font-weight:700; color:#15803d;">-</span>
+                            </div>
+                            <div style="width:1px; height:24px; background:#e2e8f0;"></div>
+                            <div style="display:flex; flex-direction:column; gap:2px;">
+                                <span style="font-size:10px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.03em;">⏳ Tiempo Esperando:</span>
+                                <span id="modal-espera-dias-val" style="font-size:12.5px; font-weight:800; color:#0f172a;">-</span>
+                            </div>
+                            <div style="width:1px; height:24px; background:#e2e8f0;"></div>
+                            <div style="display:flex; flex-direction:column; gap:2px;">
+                                <span style="font-size:10px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.03em;">📞 Último Contacto:</span>
+                                <div style="display:flex; align-items:center; gap:6px;">
+                                    <span id="modal-contacto-badge-val" class="badge-dias-contacto semaforo-blanco" style="font-size:11.5px; font-weight:800; padding:2px 8px; border-radius:6px;">-</span>
+                                    <span id="modal-contacto-fecha-val" style="font-size:11px; color:var(--text-muted);"></span>
+                                    <button type="button" id="btn-modal-editar-contacto-lapiz" style="display:none; background:transparent; border:none; cursor:pointer; padding:0 2px; font-size:12px;" title="Ajustar días de contacto manualmente">✏️</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="tab-disp" class="tab-content" style="display:none;">
@@ -1078,6 +1113,9 @@
                     </label>
                     <div style="display:flex; gap:10px; align-items:center; width:100%;">
                         <button type="button" id="btn-modal-nueva-suscripcion" class="btn-secondary" style="display:none; flex:1; height:42px; box-sizing:border-box;">➕ Nueva Suscripción</button>
+                        <button type="button" id="btn-modal-contactar-alumno" class="btn-app btn-secondary btn-contactar-modal" style="display:none; height:42px; padding:0 18px; font-size:13px; font-weight:700; border-radius:8px; border-color:#22c55e; color:#15803d; background:#f0fdf4; box-sizing:border-box; align-items:center; gap:6px; cursor:pointer;" title="Registrar contacto con el alumno">
+                            <span>📞</span> Contactar
+                        </button>
                         <button type="submit" id="btn-submit-alumno" class="btn-primary" style="flex:2; height:42px; box-sizing:border-box;">Guardar Alumno</button>
                         <button type="button" id="btn-modal-eliminar-alumno" class="btn-secondary btn-modal-eliminar" style="display:none; height:42px; padding:0 18px; box-sizing:border-box;" title="Eliminar ficha permanentemente (Solo Administrador)">🗑️ Eliminar</button>
                     </div>
@@ -2976,12 +3014,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=6.9.0"></script>
+    <script type="module" src="app.js?v=6.9.3"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=6.9.0').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=6.9.3').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {

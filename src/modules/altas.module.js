@@ -17,12 +17,14 @@ import {
 import { 
     detectarTipoSuscripcion, 
     formatoLocalISO,
+    formatearFechaAmi,
+    reemplazarVariables,
     sincronizarEventoPrealtaCalendar, 
     sincronizarEventoAltaConfirmadaCalendar, 
     eliminarEventoAltaSeguro,
     validarConflictoCalendarEnVivo,
     obtenerEventosProfesoresParaSlot
-} from "../services/calendar.service.js?v=6.8.11";
+} from "../services/calendar.service.js?v=6.9.2";
 import { calcularProximaFechaDiaHora } from "./match.module.js";
 import { parsearNomenclaturaGrupoOClase } from "./profesor.module.js";
 
@@ -1438,18 +1440,24 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
         hist.push(fnHist(accionDesc, esPropuesta ? 'match' : 'alta'));
         updates.historial = hist;
 
+        Object.assign(al, updates);
         await updateDoc(doc(db, "alumnos", id), updates);
-
-        if (!esPropuesta && typeof generarTextoConHistorial === 'function') {
-            const dataText = await generarTextoConHistorial(id, esAltaPrevia ? 'texto_alta_confirmada' : 'texto_prealta', updates.horario_match, finalProfeId, finalProfeNombre);
-            textosCopiados.push(`--- ${al.nombre} ---\n${dataText.txt}`);
-        }
     }
 
-    if (textosCopiados.length > 0) {
+    if (!esPropuesta) {
         try {
-            await navigator.clipboard.writeText(textosCopiados.join('\n\n'));
-        } catch(clipErr) {}
+            const textoCoord = generarTextoAvisoCoordinadorPrealta({
+                alumnos: alumnosList,
+                nombreGrupo: grp,
+                fechaManual: fIso,
+                cfg: callbacks?.configApp || defaultCfg
+            });
+            if (textoCoord) {
+                await navigator.clipboard.writeText(textoCoord);
+            }
+        } catch(clipErr) {
+            console.warn("No se pudo copiar automáticamente al portapapeles:", clipErr);
+        }
     }
     
     document.getElementById('modal-iniciar-prealta')?.close();
@@ -2474,6 +2482,9 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                 statusChipsHtml = `<span class="group-member-status-chip status-val-ok">📋 ${miembrosRenderizar.length} Integrante(s) Validado(s)</span>`;
                 const idsParam = miembrosRenderizar.map(m => m.id).join(',');
                 headerActionsHtml = `
+                    <button type="button" class="btn-action-highlight btn-avisar-admisor-grupo" data-grupo="${nombreGrupo}" data-ids="${idsParam}" style="padding:8px 14px; font-size:13px; color:var(--accent-teal); border:1.5px solid var(--accent-teal); background:#f0fdfa; border-radius:8px; font-weight:700; cursor:pointer;" title="Copiar aviso para el Admisor con los datos de este grupo">
+                        📢 Avisar al Admisor
+                    </button>
                     <button type="button" class="btn-primary btn-iniciar-prealta-grupo-card" data-grupo="${nombreGrupo}" data-ids="${idsParam}" style="padding:8px 16px; font-size:13px; cursor:pointer;" title="Iniciar Pre-Alta de todo el grupo y agendar en Google Calendar">
                         ⚙️ Iniciar Pre-Alta Grupal
                     </button>
@@ -2488,6 +2499,9 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                 }
                 const idsPendientes = miembrosRenderizar.map(p => p.id).join(',');
                 headerActionsHtml = `
+                    <button type="button" class="btn-action-highlight btn-avisar-coordinador-grupo" data-grupo="${nombreGrupo}" data-ids="${idsPendientes}" style="padding:8px 14px; font-size:13px; color:var(--accent-teal); border:1.5px solid var(--accent-teal); background:#f0fdfa; border-radius:8px; font-weight:700; cursor:pointer;" title="Copiar aviso para el Coordinador con los datos de este grupo">
+                        📢 Avisar al Coordinador
+                    </button>
                     <button type="button" class="btn-primary btn-aprobar-todo-grupo" data-grupo="${nombreGrupo}" style="background:#16a34a; border-color:#16a34a; padding:8px 14px; font-size:13px; cursor:pointer;" title="Aprobar pago y alta de los ${miembrosRenderizar.length} integrantes pendientes">
                         ✅ Aprobar Todo el Grupo (${miembrosRenderizar.length})
                     </button>
@@ -2647,7 +2661,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
 
         container.innerHTML = html;
 
-        // Registrar Event Listeners con delegación
+        // Registrar Event Listeners locales para acciones no delegadas globalmente
         container.querySelectorAll('.btn-iniciar-prealta-grupo-card').forEach(btn => {
             btn.onclick = () => {
                 const ids = (btn.dataset.ids || '').split(',').filter(Boolean);
@@ -2840,6 +2854,438 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
     }
 }
 
+// =======================================================================
+// Generación y Copiado de Texto de Aviso de Pre-Alta para Admisor y Coordinador
+// =======================================================================
+
+export function formatearFechaInicioClasesAviso(al, fechaManual = null) {
+    const raw = fechaManual || al?.fecha_inicio_clases || al?.fecha_sugerida_inicio;
+    const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+    // 1. Si tenemos fecha explícita (Date, Timestamp, ISO string o string formateada)
+    if (raw) {
+        let d = null;
+        if (raw instanceof Date) {
+            d = isNaN(raw.getTime()) ? null : raw;
+        } else if (typeof raw?.toDate === 'function') {
+            d = raw.toDate();
+        } else if (typeof raw === 'object' && typeof raw.seconds === 'number') {
+            d = new Date(raw.seconds * 1000);
+        } else if (typeof raw === 'string') {
+            const rawTrim = raw.trim();
+            // Si ya viene formateado tipo "Lunes 21/9 18:00 hs", devolver directamente
+            if (/^[A-Za-zÁÉÍÓÚáéíóúñÑ]+\s+\d{1,2}\/\d{1,2}\s+\d{1,2}:\d{2}\s*hs/i.test(rawTrim)) {
+                return rawTrim;
+            }
+            if (/^\d{4}-\d{2}-\d{2}$/.test(rawTrim)) {
+                const [y, m, day] = rawTrim.split('-').map(Number);
+                const hParts = (al?.horario_inicio_match || '18:00').split(':').map(Number);
+                d = new Date(y, m - 1, day, hParts[0] || 18, hParts[1] || 0);
+            } else {
+                const parsed = new Date(rawTrim);
+                if (!isNaN(parsed.getTime())) {
+                    d = parsed;
+                }
+            }
+        }
+
+        if (d && !isNaN(d.getTime())) {
+            const diaSem = dias[d.getDay()];
+            const diaNum = d.getDate();
+            const mesNum = d.getMonth() + 1;
+            const hora = d.getHours().toString().padStart(2, '0');
+            const min = d.getMinutes().toString().padStart(2, '0');
+            return `${diaSem} ${diaNum}/${mesNum} ${hora}:${min} hs`;
+        }
+    }
+
+    // 2. Si no hay fecha explícita, intentar calcular a partir de dia_match / horario_inicio_match o horario_match / raw
+    let diaCodigo = al?.dia_match || '';
+    let horaStr = al?.horario_inicio_match || '';
+
+    if (!diaCodigo || !horaStr) {
+        const hm = al?.horario_match || (typeof raw === 'string' ? raw : '') || al?.reserva_fecha_texto || '';
+        const match = hm.match(/(Lunes|Martes|Miércoles|Miercoles|Jueves|Viernes|Sábado|Sabado|Domingo)\s+(\d{1,2}(?::\d{2})?)/i);
+        if (match) {
+            diaCodigo = match[1];
+            horaStr = match[2].includes(':') ? match[2] : `${match[2]}:00`;
+        }
+    }
+
+    if (diaCodigo && horaStr && typeof calcularProximaFechaDiaHora === 'function') {
+        const mapNombresADiaCod = {
+            'lunes': 'L', 'martes': 'M', 'miercoles': 'X', 'miércoles': 'X',
+            'jueves': 'J', 'viernes': 'V', 'sabado': 'S', 'sábado': 'S', 'domingo': 'D'
+        };
+        const codNormalizado = mapNombresADiaCod[diaCodigo.toLowerCase()] || diaCodigo.toUpperCase().charAt(0);
+        const proxIso = calcularProximaFechaDiaHora(codNormalizado, horaStr);
+        if (proxIso) {
+            const d = new Date(proxIso);
+            if (!isNaN(d.getTime())) {
+                const diaSem = dias[d.getDay()];
+                const diaNum = d.getDate();
+                const mesNum = d.getMonth() + 1;
+                const hora = d.getHours().toString().padStart(2, '0');
+                const min = d.getMinutes().toString().padStart(2, '0');
+                return `${diaSem} ${diaNum}/${mesNum} ${hora}:${min} hs`;
+            }
+        }
+    }
+
+    // 3. Fallback a texto libre disponible
+    return al?.horario_match || al?.reserva_fecha_texto || al?.reserva_fecha_texto_previo || 'Horario a coordinar';
+}
+
+export function generarTextoAvisoAdmisorPrealta(params = {}) {
+    let alumnos = [];
+    let alumno = null;
+    let nombreGrupo = '';
+    let fechaManual = null;
+    let cfg = defaultCfg;
+
+    if (Array.isArray(params)) {
+        alumnos = params;
+    } else if (params && typeof params === 'object') {
+        if ('alumnos' in params || 'alumno' in params) {
+            alumnos = params.alumnos || [];
+            alumno = params.alumno || null;
+            nombreGrupo = params.nombreGrupo || '';
+            fechaManual = params.fechaManual || params.fecha_inicio_clases || null;
+            cfg = params.cfg || defaultCfg;
+        } else {
+            alumno = params;
+            nombreGrupo = params.grupo_asignado || '';
+            fechaManual = params.fecha_inicio_clases || null;
+        }
+    }
+
+    const list = alumnos && alumnos.length > 0 ? alumnos : (alumno ? [alumno] : []);
+    if (list.length === 0) return '';
+
+    const primer = list[0] || {};
+    const config = cfg || window.configApp || defaultCfg;
+    let template = config.texto_aviso_admisor_prealta || defaultCfg.texto_aviso_admisor_prealta || 
+`*🤘🪁 LISTO PARA INICIAR PRE ALTA*
+
+*👥 DATOS DE LA SUSCRIPCIÓN:*
+🔹 Suscripción: {suscripcion} {emojiinstrumento} {instrumento}
+🔹 Inicio de clases: {fecha inicio clases}
+🔹 Nombre: {nombre}
+🔹 Grupo: {grupo}
+🔹 Profesor: {profe}`;
+
+    const esGrupo = list.length > 1 || (nombreGrupo && nombreGrupo !== 'Clase Individual' && nombreGrupo !== 'Individual');
+    const grpNom = (nombreGrupo && nombreGrupo !== 'Clase Individual') ? nombreGrupo : (primer.grupo_asignado || (esGrupo ? 'Grupo' : 'Clase Individual'));
+
+    // Nombres: Si es 1 alumno -> nombre directo. Si son varios -> Opción A: Viñetas por renglón
+    let nombreVal = '';
+    if (list.length === 1) {
+        nombreVal = list[0].nombre || 'Alumno';
+    } else {
+        nombreVal = list.map(a => {
+            const inst = a.instrumento_asignado || (Array.isArray(a.instrumento) ? a.instrumento[0] : (a.instrumento || ''));
+            return `\n• ${a.nombre || 'Alumno'}${inst ? ` (${inst})` : ''}`;
+        }).join('');
+    }
+
+    // Suscripción:
+    const suscripcionVal = primer.tipo_suscripcion || primer.modalidad_ensamble || primer.tipo_ensamble || (esGrupo ? 'Ensamble Regular' : 'Clase Individual');
+
+    // Instrumento & Emoji:
+    let instVal = '';
+    let emojiVal = '';
+    if (list.length === 1) {
+        instVal = primer.instrumento_asignado || (Array.isArray(primer.instrumento) ? primer.instrumento[0] : (primer.instrumento || ''));
+        emojiVal = getEmojiInstrumento(instVal, config);
+    } else {
+        instVal = primer.tipo_ensamble || primer.modalidad_ensamble || 'Ensambles';
+        emojiVal = config?.emoji_guitarra || '🎸';
+    }
+
+    // Fecha inicio clases:
+    const fInicioVal = formatearFechaInicioClasesAviso(primer, fechaManual);
+
+    // Profe:
+    const profeVal = primer.profesor_asignado || primer.reserva_profe_nombre || 'Docente';
+
+    return reemplazarVariables(template, {
+        'suscripcion': suscripcionVal,
+        'emojiinstrumento': emojiVal,
+        'instrumento': instVal,
+        'fecha inicio clases': fInicioVal,
+        'fecha_inicio_clases': fInicioVal,
+        'nombre': nombreVal,
+        'grupo': grpNom,
+        'profe': profeVal
+    });
+}
+
+export async function copiarAvisoAdmisorGrupo(nombreGrupo, alumnosArrOIds) {
+    try {
+        let miembros = [];
+        if (Array.isArray(alumnosArrOIds) && alumnosArrOIds.length > 0) {
+            if (typeof alumnosArrOIds[0] === 'object') {
+                miembros = alumnosArrOIds;
+            } else {
+                const ids = alumnosArrOIds;
+                const pool = Array.isArray(window.allData) ? window.allData : (Array.isArray(window.ultimosAlumnosCargados) ? window.ultimosAlumnosCargados : []);
+                miembros = pool.filter(a => ids.includes(a.id));
+                if (miembros.length < ids.length) {
+                    for (const id of ids) {
+                        if (!miembros.some(m => m.id === id)) {
+                            const snap = await getDoc(doc(db, "alumnos", id));
+                            if (snap.exists()) miembros.push({ id: snap.id, ...snap.data() });
+                        }
+                    }
+                }
+            }
+        } else if (nombreGrupo) {
+            const pool = Array.isArray(window.allData) ? window.allData : (Array.isArray(window.ultimosAlumnosCargados) ? window.ultimosAlumnosCargados : []);
+            miembros = pool.filter(a => (a.grupo_asignado || '').trim() === nombreGrupo.trim());
+            if (miembros.length === 0) {
+                const qSnap = await getDocs(query(collection(db, "alumnos"), where("grupo_asignado", "==", nombreGrupo)));
+                qSnap.forEach(d => miembros.push({ id: d.id, ...d.data() }));
+            }
+        }
+
+        if (miembros.length === 0) {
+            alert(`No se encontraron alumnos para el grupo "${nombreGrupo}".`);
+            return;
+        }
+
+        const texto = generarTextoAvisoAdmisorPrealta({
+            alumnos: miembros,
+            nombreGrupo: nombreGrupo,
+            cfg: window.configApp || defaultCfg
+        });
+
+        await navigator.clipboard.writeText(texto);
+        if (typeof window.mostrarToast === 'function') {
+            window.mostrarToast(`📋 ¡Texto para Admisor (${nombreGrupo}) copiado al portapapeles!`, 'info');
+        } else {
+            alert(`📋 ¡Texto para Admisor (${nombreGrupo}) copiado al portapapeles!`);
+        }
+        return texto;
+    } catch(err) {
+        console.error("Error al copiar aviso admisor grupo:", err);
+        alert("No se pudo copiar al portapapeles: " + err.message);
+    }
+}
+
+export async function copiarAvisoAdmisorAlumno(alumnoIdOAlumno) {
+    try {
+        let al = null;
+        if (typeof alumnoIdOAlumno === 'object' && alumnoIdOAlumno !== null) {
+            al = alumnoIdOAlumno;
+        } else {
+            const id = alumnoIdOAlumno;
+            const pool = Array.isArray(window.allData) ? window.allData : (Array.isArray(window.ultimosAlumnosCargados) ? window.ultimosAlumnosCargados : []);
+            al = pool.find(a => a.id === id);
+            if (!al) {
+                const snap = await getDoc(doc(db, "alumnos", id));
+                if (snap.exists()) al = { id: snap.id, ...snap.data() };
+            }
+        }
+
+        if (!al) {
+            alert("No se encontró el registro del alumno.");
+            return;
+        }
+
+        const texto = generarTextoAvisoAdmisorPrealta({
+            alumno: al,
+            nombreGrupo: al.grupo_asignado || '',
+            cfg: window.configApp || defaultCfg
+        });
+
+        await navigator.clipboard.writeText(texto);
+        if (typeof window.mostrarToast === 'function') {
+            window.mostrarToast(`📋 ¡Texto para Admisor (${al.nombre || 'Alumno'}) copiado al portapapeles!`, 'info');
+        } else {
+            alert(`📋 ¡Texto para Admisor (${al.nombre || 'Alumno'}) copiado al portapapeles!`);
+        }
+        return texto;
+    } catch(err) {
+        console.error("Error al copiar aviso admisor alumno:", err);
+        alert("No se pudo copiar al portapapeles: " + err.message);
+    }
+}
+
+export function generarTextoAvisoCoordinadorPrealta(params = {}) {
+    let alumnos = [];
+    let alumno = null;
+    let nombreGrupo = '';
+    let fechaManual = null;
+    let cfg = defaultCfg;
+
+    if (Array.isArray(params)) {
+        alumnos = params;
+    } else if (params && typeof params === 'object') {
+        if ('alumnos' in params || 'alumno' in params) {
+            alumnos = params.alumnos || [];
+            alumno = params.alumno || null;
+            nombreGrupo = params.nombreGrupo || '';
+            fechaManual = params.fechaManual || params.fecha_inicio_clases || null;
+            cfg = params.cfg || defaultCfg;
+        } else {
+            alumno = params;
+            nombreGrupo = params.grupo_asignado || '';
+            fechaManual = params.fecha_inicio_clases || null;
+        }
+    }
+
+    const list = alumnos && alumnos.length > 0 ? alumnos : (alumno ? [alumno] : []);
+    if (list.length === 0) return '';
+
+    const primer = list[0] || {};
+    const config = cfg || window.configApp || defaultCfg;
+    let template = config.texto_prealta || defaultCfg.texto_prealta || 
+`*⚠ PRE ALTA INICIADA*
+
+*👥 DATOS DE LA SUSCRIPCIÓN:*
+🔹 Suscripción: {suscripcion} {emojiinstrumento} {instrumento}
+🔹 Inicio de clases: {fecha inicio clases}
+🔹 Nombre: {nombre}
+🔹 Grupo: {grupo}
+🔹 Profesor: {profe}`;
+
+    const esGrupo = list.length > 1 || (nombreGrupo && nombreGrupo !== 'Clase Individual' && nombreGrupo !== 'Individual');
+    const grpNom = (nombreGrupo && nombreGrupo !== 'Clase Individual') ? nombreGrupo : (primer.grupo_asignado || (esGrupo ? 'Grupo' : 'Clase Individual'));
+
+    // Nombres: Si es 1 alumno -> nombre directo. Si son varios -> Opción A: Viñetas por renglón con instrumento
+    let nombreVal = '';
+    if (list.length === 1) {
+        nombreVal = list[0].nombre || 'Alumno';
+    } else {
+        nombreVal = list.map(a => {
+            const inst = a.instrumento_asignado || (Array.isArray(a.instrumento) ? a.instrumento[0] : (a.instrumento || ''));
+            return `\n• ${a.nombre || 'Alumno'}${inst ? ` (${inst})` : ''}`;
+        }).join('');
+    }
+
+    // Suscripción:
+    const suscripcionVal = primer.tipo_suscripcion || primer.modalidad_ensamble || primer.tipo_ensamble || (esGrupo ? 'Ensamble Regular' : 'Clase Individual');
+
+    // Instrumento & Emoji:
+    let instVal = '';
+    let emojiVal = '';
+    if (list.length === 1) {
+        instVal = primer.instrumento_asignado || (Array.isArray(primer.instrumento) ? primer.instrumento[0] : (primer.instrumento || ''));
+        emojiVal = getEmojiInstrumento(instVal, config);
+    } else {
+        instVal = primer.tipo_ensamble || primer.modalidad_ensamble || 'Ensambles';
+        emojiVal = config?.emoji_guitarra || '🎸';
+    }
+
+    // Fecha inicio clases:
+    const fInicioVal = formatearFechaInicioClasesAviso(primer, fechaManual);
+
+    // Profe:
+    const profeVal = primer.profesor_asignado || primer.reserva_profe_nombre || 'Docente';
+
+    return reemplazarVariables(template, {
+        'suscripcion': suscripcionVal,
+        'emojiinstrumento': emojiVal,
+        'instrumento': instVal,
+        'fecha inicio clases': fInicioVal,
+        'fecha_inicio_clases': fInicioVal,
+        'nombre': nombreVal,
+        'grupo': grpNom,
+        'profe': profeVal
+    });
+}
+
+export async function copiarAvisoCoordinadorGrupo(nombreGrupo, alumnosArrOIds) {
+    try {
+        let miembros = [];
+        if (Array.isArray(alumnosArrOIds) && alumnosArrOIds.length > 0) {
+            if (typeof alumnosArrOIds[0] === 'object') {
+                miembros = alumnosArrOIds;
+            } else {
+                const ids = alumnosArrOIds;
+                const pool = Array.isArray(window.allData) ? window.allData : (Array.isArray(window.ultimosAlumnosCargados) ? window.ultimosAlumnosCargados : []);
+                miembros = pool.filter(a => ids.includes(a.id));
+                if (miembros.length < ids.length) {
+                    for (const id of ids) {
+                        if (!miembros.some(m => m.id === id)) {
+                            const snap = await getDoc(doc(db, "alumnos", id));
+                            if (snap.exists()) miembros.push({ id: snap.id, ...snap.data() });
+                        }
+                    }
+                }
+            }
+        } else if (nombreGrupo) {
+            const pool = Array.isArray(window.allData) ? window.allData : (Array.isArray(window.ultimosAlumnosCargados) ? window.ultimosAlumnosCargados : []);
+            miembros = pool.filter(a => (a.grupo_asignado || '').trim() === nombreGrupo.trim());
+            if (miembros.length === 0) {
+                const qSnap = await getDocs(query(collection(db, "alumnos"), where("grupo_asignado", "==", nombreGrupo)));
+                qSnap.forEach(d => miembros.push({ id: d.id, ...d.data() }));
+            }
+        }
+
+        if (miembros.length === 0) {
+            alert(`No se encontraron alumnos para el grupo "${nombreGrupo}".`);
+            return;
+        }
+
+        const texto = generarTextoAvisoCoordinadorPrealta({
+            alumnos: miembros,
+            nombreGrupo: nombreGrupo,
+            cfg: window.configApp || defaultCfg
+        });
+
+        await navigator.clipboard.writeText(texto);
+        if (typeof window.mostrarToast === 'function') {
+            window.mostrarToast(`💬 ¡Texto de Pre-Alta para el Coordinador copiado al portapapeles!`, 'info');
+        } else {
+            alert(`💬 ¡Texto de Pre-Alta para el Coordinador copiado al portapapeles!`);
+        }
+        return texto;
+    } catch(err) {
+        console.error("Error al copiar aviso coordinador grupo:", err);
+        alert("No se pudo copiar al portapapeles: " + err.message);
+    }
+}
+
+export async function copiarAvisoCoordinadorAlumno(alumnoIdOAlumno) {
+    try {
+        let al = null;
+        if (typeof alumnoIdOAlumno === 'object' && alumnoIdOAlumno !== null) {
+            al = alumnoIdOAlumno;
+        } else {
+            const id = alumnoIdOAlumno;
+            const pool = Array.isArray(window.allData) ? window.allData : [];
+            al = pool.find(a => a.id === id);
+            if (!al) {
+                const snap = await getDoc(doc(db, "alumnos", id));
+                if (snap.exists()) al = { id: snap.id, ...snap.data() };
+            }
+        }
+
+        if (!al) {
+            alert("No se encontró el registro del alumno.");
+            return;
+        }
+
+        const texto = generarTextoAvisoCoordinadorPrealta({
+            alumno: al,
+            nombreGrupo: al.grupo_asignado || '',
+            cfg: window.configApp || defaultCfg
+        });
+
+        await navigator.clipboard.writeText(texto);
+        if (typeof window.mostrarToast === 'function') {
+            window.mostrarToast(`💬 ¡Texto de Pre-Alta para Coordinador (${al.nombre || 'Alumno'}) copiado!`, 'info');
+        } else {
+            alert(`💬 ¡Texto de Pre-Alta para Coordinador (${al.nombre || 'Alumno'}) copiado!`);
+        }
+        return texto;
+    } catch(err) {
+        console.error("Error al copiar aviso coordinador alumno:", err);
+        alert("No se pudo copiar al portapapeles: " + err.message);
+    }
+}
+
 // Window Global Bindings
 window.generarFilaExcelBD = generarFilaExcelBD;
 window.generarFilaExcelFacturacion = generarFilaExcelFacturacion;
@@ -2852,3 +3298,9 @@ window.aprobarTodoGrupoAction = aprobarTodoGrupoAction;
 window.confirmarInicioGrupoAction = confirmarInicioGrupoAction;
 window.confirmarAlumnoAltaAction = confirmarAlumnoAltaAction;
 window.generarChecklistAltaHtml = generarChecklistAltaHtml;
+window.generarTextoAvisoAdmisorPrealta = generarTextoAvisoAdmisorPrealta;
+window.copiarAvisoAdmisorGrupo = copiarAvisoAdmisorGrupo;
+window.copiarAvisoAdmisorAlumno = copiarAvisoAdmisorAlumno;
+window.generarTextoAvisoCoordinadorPrealta = generarTextoAvisoCoordinadorPrealta;
+window.copiarAvisoCoordinadorGrupo = copiarAvisoCoordinadorGrupo;
+window.copiarAvisoCoordinadorAlumno = copiarAvisoCoordinadorAlumno;

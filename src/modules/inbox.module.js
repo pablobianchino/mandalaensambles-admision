@@ -235,6 +235,7 @@ export function generarBotonesAccion(al, id, esModal = false) {
             html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
         } else if (est === 'pre-alta pendiente') {
             html += `<button type="button" class="btn-action-primary btn-abrir-prealta" data-id="${id}">⚙️ Iniciar Pre-Alta</button>`;
+            html += `<button type="button" class="btn-action-neutral btn-avisar-admisor-alumno" data-id="${id}">📢 Avisar al Admisor</button>`;
             html += `<button type="button" class="btn-action-neutral btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
             html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
             html += `<button type="button" class="btn-action-neutral btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
@@ -242,7 +243,7 @@ export function generarBotonesAccion(al, id, esModal = false) {
             html += `<button type="button" class="btn-action-primary btn-abrir-confirmar-alta" data-id="${id}">💳 Suscripción Abonada</button>`;
             html += `<button type="button" class="btn-action-neutral btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${al.grupo_asignado||''}">✏️ Editar Pre-Alta</button>`;
             html += `<button type="button" class="btn-action-neutral btn-aviso-prealta-alumno" data-id="${id}">💬 Avisar Pre-Alta a Alumno</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-reenviar-prealta" data-id="${id}">💬 Avisar Pre-Alta a Docente</button>`;
+            html += `<button type="button" class="btn-action-neutral btn-reenviar-prealta" data-id="${id}">📢 Avisar Pre-Alta a Coordinador</button>`;
             html += `<button type="button" class="btn-action-neutral btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
             html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
             html += `<button type="button" class="btn-action-neutral btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
@@ -311,13 +312,14 @@ export function generarBotonesAccion(al, id, esModal = false) {
         html += `<button type="button" class="dropdown-item" onclick="window.editarAlumnoModalDirecto('${id}')">✏️ Editar Ficha</button>`;
         html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
     } else if (est === 'pre-alta pendiente') {
+        html += `<button type="button" class="dropdown-item btn-avisar-admisor-alumno" data-id="${id}">📢 Avisar al Admisor</button>`;
         html += `<button type="button" class="dropdown-item btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
         html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
         html += `<button type="button" class="dropdown-item btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
     } else if (est === 'pre-alta iniciada') {
         html += `<button type="button" class="dropdown-item btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${al.grupo_asignado||''}">✏️ Editar Pre-Alta</button>`;
         html += `<button type="button" class="dropdown-item btn-aviso-prealta-alumno" data-id="${id}">💬 Avisar Pre-Alta a Alumno</button>`;
-        html += `<button type="button" class="dropdown-item btn-reenviar-prealta" data-id="${id}">💬 Avisar Pre-Alta a Docente</button>`;
+        html += `<button type="button" class="dropdown-item btn-reenviar-prealta" data-id="${id}">📢 Avisar Pre-Alta a Coordinador</button>`;
         html += `<button type="button" class="dropdown-item btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
         html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
         html += `<button type="button" class="dropdown-item btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;

@@ -2,7 +2,7 @@
 // src/config/constants.js — Constantes globales del sistema
 // =======================================================================
 
-export const APP_VERSION = "v6.9.0";
+export const APP_VERSION = "v6.9.3";
 export const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
 
 export const firebaseConfig = {
@@ -45,7 +45,8 @@ export const defaultCfg = {
     texto_conf_alumno: "Genial Gracias!\nTe esperamos!\n\n🧩 Suscripción: {suscripcion} {emojiinstrumento} {instrumento}\n🧩 Día y horario: {fecha_hora}\n🧩 Profe: {profe}\n📍*Dirección:* Av. Cabildo 2970, Piso 1, Depto C.", 
     texto_conf_profe: "*✅ ENTREVISTA CONFIRMADA Y ABONADA POR ALUMNO*\n*El alumno ya pagó y completó el formulario*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Contacto: {número_contacto_alumno}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Clase: {suscripcion}\n\n*📰 La información del alumno se encuentra adjunta en la descripción del evento del calendario*", 
     texto_cancela_alumno: "*❗ PRE CHECK - ENTREVISTA*\n*❌ RESERVA CANCELADA*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Suscripción: {suscripcion}\n\n* MOTIVO:* {motivo_detalles}", 
-    texto_prealta: "*⚠ PRE ALTA INICIADA*\n\n*👥 DATOS DE LA SUSCRIPCIÓN:*\n🔹 Suscripción: {suscripcion}\n🔹 Nombre de alumno: {nombre}\n🔹 Instrumento: {instrumento}\n🔹 Grupo: {grupo}\n🔹 Profesor: {profe}\n🔹 Inicio de clases: {fecha inicio clases}", 
+    texto_aviso_admisor_prealta: "*🤘🪁 LISTO PARA INICIAR PRE ALTA*\n\n*👥 DATOS DE LA SUSCRIPCIÓN:*\n🔹 Suscripción: {suscripcion} {emojiinstrumento} {instrumento}\n🔹 Inicio de clases: {fecha inicio clases}\n🔹 Nombre: {nombre}\n🔹 Grupo: {grupo}\n🔹 Profesor: {profe}",
+    texto_prealta: "*⚠ PRE ALTA INICIADA*\n\n*👥 DATOS DE LA SUSCRIPCIÓN:*\n🔹 Suscripción: {suscripcion} {emojiinstrumento} {instrumento}\n🔹 Inicio de clases: {fecha inicio clases}\n🔹 Nombre: {nombre}\n🔹 Grupo: {grupo}\n🔹 Profesor: {profe}", 
     texto_prealta_alumno: "Hola {nombre}! Cómo estás? 👋\n\nTe cuento que ya tenemos todo listo para que te sumes a Mandala Ensambles! 🤟\n\n🧩 Suscripción: {suscripcion}\n\n👥 Grupo: {grupo}\n\n🧩 Día y horario de cursada: {horario_cursada}\n\n🧩 Fecha de inicio de clases: {fecha_inicio_clases}\n\n🧩 Profe: {profe}\n\n🧩 Arancel: {valor_arancel}\n\n🧩 Alias a transferir: {alias_profe}",
     texto_alta_confirmada: "*✅ NUEVA ALTA CONFIRMADA*\n\n*👥 DATOS DE LA SUSCRIPCIÓN:*\n🔹 Suscripción: {suscripcion}\n🔹 Nombre de alumno: {nombre}\n🔹 Instrumento: {instrumento}\n🔹 Grupo: {grupo}\n🔹 Profesor: {profe}\n🔹 Inicio de clases: {fecha inicio clases}",
     arancel_individual_suelta: '',

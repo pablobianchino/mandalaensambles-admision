@@ -217,8 +217,13 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
                     <span class="cfg-accordion-arrow" id="arrow-cfg-sec-admision-prealta">▶</span>
                 </div>
                 <div id="cfg-sec-admision-prealta" class="cfg-accordion-body" style="display:none;">
-                    <label style="margin-bottom:14px; display:block; font-size:12px; font-weight:600; color:var(--text-muted);">Texto de aviso de pre-alta iniciada para Docente:
-                        <textarea id="cfg-txt-prealta" class="modern-input" style="height:140px; font-family:monospace; font-size:12px;">${currentCfg.texto_prealta || ''}</textarea>
+                    <label style="margin-bottom:14px; display:block; font-size:12px; font-weight:600; color:var(--text-muted);">Texto de aviso para Admisor (Listo para iniciar pre-alta):
+                        <textarea id="cfg-txt-aviso-admisor-prealta" class="modern-input" style="height:150px; font-family:monospace; font-size:12px;">${currentCfg.texto_aviso_admisor_prealta || defaultCfg.texto_aviso_admisor_prealta || ''}</textarea>
+                        <span style="font-size:11px; font-weight:400; color:var(--text-muted); display:block; margin-top:4px;">Variables: <code>{suscripcion}</code>, <code>{emojiinstrumento}</code>, <code>{instrumento}</code>, <code>{fecha inicio clases}</code>, <code>{nombre}</code>, <code>{grupo}</code>, <code>{profe}</code></span>
+                    </label>
+                    <label style="margin-bottom:14px; display:block; font-size:12px; font-weight:600; color:var(--text-muted);">Texto de aviso de pre-alta iniciada para Coordinador:
+                        <textarea id="cfg-txt-prealta" class="modern-input" style="height:140px; font-family:monospace; font-size:12px;">${currentCfg.texto_prealta || defaultCfg.texto_prealta || ''}</textarea>
+                        <span style="font-size:11px; font-weight:400; color:var(--text-muted); display:block; margin-top:4px;">Variables: <code>{suscripcion}</code>, <code>{emojiinstrumento}</code>, <code>{instrumento}</code>, <code>{fecha inicio clases}</code>, <code>{nombre}</code> (viñetas si son varios), <code>{grupo}</code>, <code>{profe}</code></span>
                     </label>
                     <label style="margin-bottom:14px; display:block; font-size:12px; font-weight:600; color:var(--text-muted);">Texto de aviso de pre-alta para Alumno:
                         <textarea id="cfg-txt-prealta-alumno" class="modern-input" style="height:170px; font-family:monospace; font-size:12px;">${currentCfg.texto_prealta_alumno || ''}</textarea>
@@ -485,6 +490,7 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
             texto_conf_alumno: document.getElementById('cfg-txt-conf-a')?.value || '', 
             texto_conf_profe: document.getElementById('cfg-txt-conf-p')?.value || '', 
             texto_cancela_alumno: document.getElementById('cfg-txt-cancela')?.value || '', 
+            texto_aviso_admisor_prealta: document.getElementById('cfg-txt-aviso-admisor-prealta')?.value || '',
             texto_prealta: document.getElementById('cfg-txt-prealta')?.value || '', 
             texto_prealta_alumno: document.getElementById('cfg-txt-prealta-alumno')?.value || '', 
             texto_alta_confirmada: document.getElementById('cfg-txt-alta-conf')?.value || '', 

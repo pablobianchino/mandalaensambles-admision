@@ -2690,7 +2690,14 @@ window.aprobarGrupoCompletoPrealta = async function(nombreGrupo) {
                     historial: hist
                 });
             }
-            alert(`✅ Grupo "${nombreGrupo}" aprobado con éxito. Pasó a Altas Pendientes.`);
+            try {
+                if (typeof window.copiarAvisoAdmisorGrupo === 'function') {
+                    await window.copiarAvisoAdmisorGrupo(nombreGrupo, miembrosGrupo);
+                }
+            } catch(copyErr) {
+                console.warn("No se pudo copiar automáticamente aviso al admisor:", copyErr);
+            }
+            alert(`✅ Grupo "${nombreGrupo}" aprobado con éxito. Pasó a Altas Pendientes.\n📋 Texto de aviso al Admisor copiado al portapapeles.`);
             if (typeof window.cargarVistaGlobal === 'function') {
                 await window.cargarVistaGlobal('Altas - Pendientes');
             }
@@ -2726,10 +2733,18 @@ window.aprobarAlumnoIndividualPrealta = async function(alumnoId) {
                 historial: hist
             });
 
+            try {
+                if (typeof window.copiarAvisoAdmisorAlumno === 'function') {
+                    await window.copiarAvisoAdmisorAlumno({ id: alumnoId, ...al });
+                }
+            } catch(copyErr) {
+                console.warn("No se pudo copiar automáticamente aviso al admisor:", copyErr);
+            }
+
             if (typeof window.removerFilaOptimista === 'function') window.removerFilaOptimista(alumnoId);
             const cont = document.getElementById('lista-generica');
             if (cont) await renderMatchEnValidacion(cont);
-            alert(`✅ ${al.nombre} aprobado a Altas Pendientes.`);
+            alert(`✅ ${al.nombre} aprobado a Altas Pendientes.\n📋 Texto de aviso al Admisor copiado al portapapeles.`);
         } finally {
             if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
         }

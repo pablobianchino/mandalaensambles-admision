@@ -13,7 +13,7 @@ import {
     configNodosFlujoCoordinador,
     esAlumnoAltaFinalizada,
     esAlumnoAltaConfirmadaIncompleta
-} from "./src/config/constants.js?v=6.9.0";
+} from "./src/config/constants.js?v=6.9.3";
 
 import { 
     app, 
@@ -42,7 +42,7 @@ import {
     EmailAuthProvider,
     reauthenticateWithCredential,
     linkWithCredential
-} from "./src/config/firebase.js?v=6.9.0";
+} from "./src/config/firebase.js?v=6.9.3";
 
 import {
     limpiarHoraParaChip,
@@ -56,7 +56,7 @@ import {
     extraerDisponibilidadMultiRango,
     normalizarHora,
     inicializarAutocompletadoHorarios
-} from "./src/ui/horarios.ui.js?v=6.9.0";
+} from "./src/ui/horarios.ui.js?v=6.9.3";
 
 import {
     getEmojiInstrumento,
@@ -85,7 +85,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=6.9.0";
+} from "./src/services/calendar.service.js?v=6.9.3";
 
 import {
     matchCantidadActual,
@@ -118,11 +118,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=6.9.0";
+} from "./src/modules/match.module.js?v=6.9.3";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=6.9.0";
+} from "./src/modules/profesor.module.js?v=6.9.3";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -144,15 +144,21 @@ import {
     aprobarTodoGrupoAction,
     confirmarInicioGrupoAction,
     confirmarAlumnoAltaAction,
-    generarChecklistAltaHtml
-} from "./src/modules/altas.module.js?v=6.9.0";
+    generarChecklistAltaHtml,
+    generarTextoAvisoAdmisorPrealta,
+    copiarAvisoAdmisorGrupo,
+    copiarAvisoAdmisorAlumno,
+    generarTextoAvisoCoordinadorPrealta,
+    copiarAvisoCoordinadorGrupo,
+    copiarAvisoCoordinadorAlumno
+} from "./src/modules/altas.module.js?v=6.9.3";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=6.9.0";
+} from "./src/modules/dashboard.module.js?v=6.9.3";
 
 import {
     renderConfigHub,
@@ -161,20 +167,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=6.9.0";
+} from "./src/modules/abm.module.js?v=6.9.3";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=6.9.0";
+} from "./src/modules/inbox.module.js?v=6.9.3";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=6.9.0";
+} from "./src/modules/csv.module.js?v=6.9.3";
 
 window.generarBotonesPrincipalesVisibles = generarBotonesPrincipalesVisibles;
 window.generarBotonesAccion = generarBotonesAccion;
@@ -2330,13 +2336,24 @@ export function calcularMetricasEspera(al) {
 
     // 2. Días último contacto (reseteable cada vez que se contacta)
     let diasContacto = diasEsperando;
-    if (al.dias_contacto_manual !== undefined && al.dias_contacto_manual !== null && !isNaN(Number(al.dias_contacto_manual))) {
-        diasContacto = Number(al.dias_contacto_manual);
-    } else if (al.fecha_ultimo_contacto) {
+    let diasContactoReal = null;
+    if (al.fecha_ultimo_contacto) {
         const fechaContacto = parsearFechaCualquierOrigen(al.fecha_ultimo_contacto);
         if (fechaContacto && !isNaN(fechaContacto.getTime())) {
-            diasContacto = calcularDiasCalendario(fechaContacto, ahora);
+            diasContactoReal = calcularDiasCalendario(fechaContacto, ahora);
         }
+    }
+
+    if (al.dias_contacto_manual !== undefined && al.dias_contacto_manual !== null && !isNaN(Number(al.dias_contacto_manual))) {
+        const diasManual = Number(al.dias_contacto_manual);
+        // Si hay una fecha real de contacto y es de hoy (0d) o menor que el valor manual, el contacto real manda siempre
+        if (diasContactoReal !== null && (diasContactoReal === 0 || diasContactoReal < diasManual)) {
+            diasContacto = diasContactoReal;
+        } else {
+            diasContacto = diasManual;
+        }
+    } else if (diasContactoReal !== null) {
+        diasContacto = diasContactoReal;
     } else {
         // Buscar exclusivamente notas registradas con tipo === 'contacto'
         const notasContacto = Array.isArray(al.historial) ? al.historial.filter(h => h && (h.tipo === 'contacto' || (h.texto && h.texto.includes('📞 [Contacto]')))) : [];
@@ -2398,6 +2415,24 @@ export function getOrigenSuspension(al) {
     return 'inbox';
 }
 window.getOrigenSuspension = getOrigenSuspension;
+
+export function esInstanciaEsperaOSuperior(estado) {
+    if (!estado) return false;
+    const st = estado.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    const estadosValidos = [
+        'lista de espera',
+        'validando grupo',
+        'pre-alta pendiente',
+        'pre-alta iniciada',
+        'alta efectiva',
+        'alta ilegal',
+        'alta confirmada',
+        'alta finalizada',
+        'alta suspendida'
+    ];
+    return estadosValidos.includes(st);
+}
+window.esInstanciaEsperaOSuperior = esInstanciaEsperaOSuperior;
 
 export async function obtenerListaEvaluadoresActivos() {
     try {
@@ -2601,8 +2636,10 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
 
     let datosAlumnoParts = [];
 
-    // Fecha de ingreso visible: EXCLUSIVA para la vista Inbox Sin Agendar (Inbox - Pendientes)
-    const esVistaSinAgendar = (vista === 'Inbox - Pendientes' || estadoActualVista === 'Inbox - Pendientes');
+    // Fecha de ingreso visible: para la vista Inbox Sin Agendar (Inbox - Pendientes) y en Dashboard para alumnos sin agendar
+    const stAgendaLocal = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    const esEstadoSinAgendar = stAgendaLocal === 'pendiente procesar' || stAgendaLocal === 'sin agendar' || !stAgendaLocal;
+    const esVistaSinAgendar = (vista === 'Inbox - Pendientes' || estadoActualVista === 'Inbox - Pendientes' || (vista === 'Dashboard' && esEstadoSinAgendar));
     if (esVistaSinAgendar) {
         const esReingreso = Boolean(al.fecha_reingreso);
         const fechaRef = esReingreso ? parsearFechaCualquierOrigen(al.fecha_reingreso) : obtenerFechaIngresoAlumno(al);
@@ -4293,6 +4330,16 @@ export function esModoEvaluadorActivo() {
 }
 window.esModoEvaluadorActivo = esModoEvaluadorActivo;
 
+export function esModoAdmisorActivo() {
+    const modo = (window.modoRolActivo || '').toLowerCase().trim();
+    if (modo === 'admisor' || modo === 'admisiones') return true;
+    if (modo === 'evaluador' || modo === 'profesor' || modo === 'coordinador_grupos') return false;
+    const u = window.usuarioActual || {};
+    const roles = Array.isArray(u.roles) && u.roles.length > 0 ? u.roles : [u.rol || 'admisor'];
+    return roles.includes('admisor') || roles.includes('admisiones') || roles.includes('admin') || u.rol === 'admisor' || u.rol === 'admisiones' || u.rol === 'admin';
+}
+window.esModoAdmisorActivo = esModoAdmisorActivo;
+
 export function filtrarAlumnosEvaluador(alumnos) {
     const u = window.usuarioActual;
     if (!u) return alumnos;
@@ -4357,8 +4404,51 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
     const cont = document.getElementById('resumen-urgencias');
     if (!cont) return;
 
+    const esAdmisor = typeof esModoAdmisorActivo === 'function' ? esModoAdmisorActivo() : false;
+    const datasetCompleto = (Array.isArray(ultimosAlumnosCargados) && ultimosAlumnosCargados.length > 0)
+        ? ultimosAlumnosCargados
+        : (poolAlumnos || []);
+
+    let sinAgendar = [];
+    let altasPendientes = [];
+
+    if (esAdmisor) {
+        sinAgendar = datasetCompleto.filter(d => {
+            const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+            return st === 'pendiente procesar' || st === 'sin agendar';
+        });
+
+        // Ordenar alumnos sin agendar por antigüedad de ingreso (más antiguos primero)
+        sinAgendar.sort((a, b) => {
+            const getRefDate = (al) => {
+                if (al.fecha_reingreso) {
+                    const p = parsearFechaCualquierOrigen(al.fecha_reingreso);
+                    if (p && !isNaN(p.getTime())) return p.getTime();
+                }
+                return typeof obtenerFechaIngresoAlumno === 'function' ? (obtenerFechaIngresoAlumno(al)?.getTime() || Infinity) : Infinity;
+            };
+            return getRefDate(a) - getRefDate(b);
+        });
+
+        altasPendientes = datasetCompleto.filter(d => {
+            const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+            return st === 'pre-alta pendiente';
+        });
+
+        // Ordenar altas pendientes por antigüedad de ingreso
+        altasPendientes.sort((a, b) => {
+            const getRefDate = (al) => typeof obtenerFechaIngresoAlumno === 'function' ? (obtenerFechaIngresoAlumno(al)?.getTime() || Infinity) : Infinity;
+            return getRefDate(a) - getRefDate(b);
+        });
+    }
+
+    const idsAdmisor = new Set([...sinAgendar.map(a => a.id), ...altasPendientes.map(a => a.id)]);
+
     let todasPrio = [];
-    poolAlumnos.forEach(al => {
+    (poolAlumnos || []).forEach(al => {
+        // Si es admisor y ya está clasificado en sin agendar o altas pendientes, evitar duplicarlo en prioridades
+        if (esAdmisor && idsAdmisor.has(al.id)) return;
+
         let dateToEval = getFechaReferenciaAlumno(al);
         if (dateToEval && !isNaN(dateToEval.getTime())) {
             let diffHs = (dateToEval - new Date()) / (1000 * 60 * 60);
@@ -4376,18 +4466,36 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
     const urgentes24 = todasPrio.filter(p => p.diffHs >= 0 && p.diffHs <= 24);
     const proximas48 = todasPrio.filter(p => p.diffHs > 24 && p.diffHs <= 48);
 
+    const totalUrgencias = esAdmisor
+        ? (sinAgendar.length + altasPendientes.length + todasPrio.length)
+        : todasPrio.length;
+
     // Actualizar contadores en los botones
     const elCntTodos = document.getElementById('cnt-prio-todos');
+    const elCntSinAgendar = document.getElementById('cnt-prio-sin-agendar');
+    const elCntAltasPend = document.getElementById('cnt-prio-altas-pend');
     const elCntVenc = document.getElementById('cnt-prio-vencidos');
     const elCntUrg = document.getElementById('cnt-prio-urgentes');
     const elCntProx = document.getElementById('cnt-prio-proximos');
     const elBadgeTot = document.getElementById('badge-total-urgencias');
 
-    if (elCntTodos) elCntTodos.textContent = todasPrio.length;
+    if (elCntTodos) elCntTodos.textContent = totalUrgencias;
+    if (elBadgeTot) elBadgeTot.textContent = totalUrgencias;
+    if (elCntSinAgendar) elCntSinAgendar.textContent = sinAgendar.length;
+    if (elCntAltasPend) elCntAltasPend.textContent = altasPendientes.length;
     if (elCntVenc) elCntVenc.textContent = vencidas.length;
     if (elCntUrg) elCntUrg.textContent = urgentes24.length;
     if (elCntProx) elCntProx.textContent = proximas48.length;
-    if (elBadgeTot) elBadgeTot.textContent = todasPrio.length;
+
+    // Control de visibilidad de botones exclusivos de Admisor
+    document.querySelectorAll('.admisor-only').forEach(btn => {
+        btn.style.display = esAdmisor ? 'inline-flex' : 'none';
+    });
+
+    // Si el usuario no es admisor pero estaba en un tab exclusivo de admisor, resetear a 'todos'
+    if (!esAdmisor && (window.filtroPrioTabActual === 'sin-agendar' || window.filtroPrioTabActual === 'altas-pend')) {
+        window.filtroPrioTabActual = 'todos';
+    }
 
     // Actualizar estados activos de los botones de filtro
     document.querySelectorAll('.btn-prio-filtro').forEach(btn => {
@@ -4400,53 +4508,95 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
             btn.style.borderColor = isActive ? '#1e293b' : '#cbd5e1';
             btn.style.fontWeight = isActive ? '700' : '600';
             btn.style.boxShadow = isActive ? '0 2px 6px rgba(30,41,59,0.25)' : '0 1px 2px rgba(0,0,0,0.03)';
+        } else if (prio === 'sin-agendar') {
+            btn.style.background = isActive ? '#2563eb' : '#ffffff';
+            btn.style.color = isActive ? '#ffffff' : '#1d4ed8';
+            btn.style.borderColor = isActive ? '#2563eb' : '#bfdbfe';
+            btn.style.fontWeight = isActive ? '700' : '600';
+            btn.style.boxShadow = isActive ? '0 2px 6px rgba(37,99,235,0.2)' : '0 1px 2px rgba(0,0,0,0.03)';
+        } else if (prio === 'altas-pend') {
+            btn.style.background = isActive ? '#059669' : '#ffffff';
+            btn.style.color = isActive ? '#ffffff' : '#047857';
+            btn.style.borderColor = isActive ? '#059669' : '#a7f3d0';
+            btn.style.fontWeight = isActive ? '700' : '600';
+            btn.style.boxShadow = isActive ? '0 2px 6px rgba(5,150,105,0.2)' : '0 1px 2px rgba(0,0,0,0.03)';
         } else if (prio === 'vencidos') {
-            btn.style.background = isActive ? '#fee2e2' : '#ffffff';
-            btn.style.color = isActive ? '#991b1b' : '#b91c1c';
+            btn.style.background = isActive ? '#dc2626' : '#ffffff';
+            btn.style.color = isActive ? '#ffffff' : '#b91c1c';
             btn.style.borderColor = isActive ? '#ef4444' : '#fecaca';
             btn.style.fontWeight = isActive ? '700' : '600';
             btn.style.boxShadow = isActive ? '0 2px 6px rgba(239,68,68,0.2)' : '0 1px 2px rgba(0,0,0,0.03)';
         } else if (prio === 'urgentes') {
-            btn.style.background = isActive ? '#ffedd5' : '#ffffff';
-            btn.style.color = isActive ? '#9a3412' : '#c2410c';
+            btn.style.background = isActive ? '#ea580c' : '#ffffff';
+            btn.style.color = isActive ? '#ffffff' : '#c2410c';
             btn.style.borderColor = isActive ? '#f97316' : '#fed7aa';
             btn.style.fontWeight = isActive ? '700' : '600';
             btn.style.boxShadow = isActive ? '0 2px 6px rgba(249,115,22,0.2)' : '0 1px 2px rgba(0,0,0,0.03)';
         } else if (prio === 'proximos') {
-            btn.style.background = isActive ? '#fef9c3' : '#ffffff';
-            btn.style.color = isActive ? '#854d0e' : '#854d0e';
+            btn.style.background = isActive ? '#ca8a04' : '#ffffff';
+            btn.style.color = isActive ? '#ffffff' : '#854d0e';
             btn.style.borderColor = isActive ? '#eab308' : '#fef08a';
             btn.style.fontWeight = isActive ? '700' : '600';
             btn.style.boxShadow = isActive ? '0 2px 6px rgba(234,179,8,0.2)' : '0 1px 2px rgba(0,0,0,0.03)';
         }
     });
 
-    if (todasPrio.length === 0) {
-        cont.innerHTML = '<div style="color:var(--text-muted); padding:16px; text-align:center; font-weight:600; background:#f8fafc; border-radius:10px; border:1px dashed #cbd5e1;">✨ ¡Al día! No hay entrevistas ni tareas urgentes o vencidas en las próximas 48 hs.</div>';
+    if (totalUrgencias === 0) {
+        const msg = esAdmisor
+            ? '✨ ¡Al día! No hay alumnos sin agendar, altas pendientes ni entrevistas urgentes o vencidas.'
+            : '✨ ¡Al día! No hay entrevistas ni tareas urgentes o vencidas en las próximas 48 hs.';
+        cont.innerHTML = `<div style="color:var(--text-muted); padding:16px; text-align:center; font-weight:600; background:#f8fafc; border-radius:10px; border:1px dashed #cbd5e1;">${msg}</div>`;
         return;
     }
 
     let itemsAMostrar = [];
-    if (window.filtroPrioTabActual === 'vencidos') {
-        itemsAMostrar = vencidas;
+    if (window.filtroPrioTabActual === 'sin-agendar') {
+        itemsAMostrar = sinAgendar;
+    } else if (window.filtroPrioTabActual === 'altas-pend') {
+        itemsAMostrar = altasPendientes;
+    } else if (window.filtroPrioTabActual === 'vencidos') {
+        itemsAMostrar = vencidas.map(p => p.al);
     } else if (window.filtroPrioTabActual === 'urgentes') {
-        itemsAMostrar = urgentes24;
+        itemsAMostrar = urgentes24.map(p => p.al);
     } else if (window.filtroPrioTabActual === 'proximos') {
-        itemsAMostrar = proximas48;
-    } else {
-        itemsAMostrar = todasPrio;
+        itemsAMostrar = proximas48.map(p => p.al);
     }
 
-    if (itemsAMostrar.length === 0) {
-        cont.innerHTML = `<div style="color:var(--text-muted); padding:16px; text-align:center; font-weight:600; background:#fff; border-radius:10px; border:1px dashed #cbd5e1;">No hay registros en esta categoría de prioridad (${window.filtroPrioTabActual}).</div>`;
+    if (window.filtroPrioTabActual !== 'todos' && itemsAMostrar.length === 0) {
+        const labelTab = {
+            'sin-agendar': 'Sin Agendar',
+            'altas-pend': 'Altas Pendientes',
+            'vencidos': 'Vencidos',
+            'urgentes': '< 24 hs',
+            'proximos': '24 a 48 hs'
+        }[window.filtroPrioTabActual] || window.filtroPrioTabActual;
+        cont.innerHTML = `<div style="color:var(--text-muted); padding:16px; text-align:center; font-weight:600; background:#fff; border-radius:10px; border:1px dashed #cbd5e1;">No hay registros en esta categoría de prioridad (${labelTab}).</div>`;
         return;
     }
 
     let html = '';
     if (window.filtroPrioTabActual === 'todos') {
+        if (esAdmisor && sinAgendar.length > 0) {
+            html += `
+                <div style="display:flex; align-items:center; gap:8px; margin:4px 0 2px 0; font-size:12px; font-weight:800; color:#1d4ed8; text-transform:uppercase; letter-spacing:0.04em;">
+                    <span>📥 Sin Agendar — Inbox (${sinAgendar.length})</span>
+                    <div style="flex:1; height:1.5px; background:#bfdbfe;"></div>
+                </div>
+            `;
+            html += sinAgendar.map(al => generarFilaAlumno(al, al.id, vista)).join('');
+        }
+        if (esAdmisor && altasPendientes.length > 0) {
+            html += `
+                <div style="display:flex; align-items:center; gap:8px; margin:14px 0 2px 0; font-size:12px; font-weight:800; color:#047857; text-transform:uppercase; letter-spacing:0.04em;">
+                    <span>🚀 Altas Pendientes — Listas para Iniciar (${altasPendientes.length})</span>
+                    <div style="flex:1; height:1.5px; background:#a7f3d0;"></div>
+                </div>
+            `;
+            html += altasPendientes.map(al => generarFilaAlumno(al, al.id, vista)).join('');
+        }
         if (vencidas.length > 0) {
             html += `
-                <div style="display:flex; align-items:center; gap:8px; margin:4px 0 2px 0; font-size:12px; font-weight:800; color:#991b1b; text-transform:uppercase; letter-spacing:0.04em;">
+                <div style="display:flex; align-items:center; gap:8px; margin:14px 0 2px 0; font-size:12px; font-weight:800; color:#991b1b; text-transform:uppercase; letter-spacing:0.04em;">
                     <span>⚠️ Vencidas — Requiere Acción Inmediata (${vencidas.length})</span>
                     <div style="flex:1; height:1.5px; background:#fecaca;"></div>
                 </div>
@@ -4472,7 +4622,7 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
             html += proximas48.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
         }
     } else {
-        html = itemsAMostrar.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
+        html = itemsAMostrar.map(al => generarFilaAlumno(al, al.id, vista)).join('');
     }
 
     cont.innerHTML = html;
@@ -5198,7 +5348,7 @@ export function ejecutarBusquedaGlobal(queryStr, allData = null) {
 }
 window.ejecutarBusquedaGlobal = ejecutarBusquedaGlobal;
 
-export async function cargarVista(vista = 'Inbox - Pendientes') {
+export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = false) {
     window.cargarVistaGlobal = cargarVista;
 
     const esEvalActivo = esModoEvaluadorActivo();
@@ -5368,14 +5518,22 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
 
     // Obtener datos globales de alumnos
     let allData = [];
-    try {
-        const qSnap = await getDocs(collection(db, "alumnos"));
-        qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
-        ultimosAlumnosCargados = allData;
-        actualizarBadgesYNavegacion(allData);
-    } catch(e) {
-        console.error("Error al cargar alumnos:", e);
-        allData = ultimosAlumnosCargados || [];
+    if (usarCache && Array.isArray(ultimosAlumnosCargados) && ultimosAlumnosCargados.length > 0) {
+        allData = ultimosAlumnosCargados;
+    } else {
+        try {
+            const qSnap = await getDocs(collection(db, "alumnos"));
+            qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
+            ultimosAlumnosCargados = allData;
+            window.ultimosAlumnosCargados = allData;
+            window.allData = allData;
+            actualizarBadgesYNavegacion(allData);
+        } catch(e) {
+            console.error("Error al cargar alumnos:", e);
+            allData = ultimosAlumnosCargados || [];
+            window.allData = allData;
+            window.ultimosAlumnosCargados = allData;
+        }
     }
 
     // Comprobar si hay búsqueda activa
@@ -5410,7 +5568,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
         if (s3 && s3.value !== agrupadorNivel3) s3.value = agrupadorNivel3;
         renderFiltrosChips(); 
         if (searchVista) searchVista.style.display = 'block'; 
-        mostrarSkeleton('lista-generica', 6);
+        if (!usarCache) mostrarSkeleton('lista-generica', 6);
 
         if (vista === 'Inbox - Confirmadas' || vista === 'Altas - Confirmadas') document.getElementById('alarm-filters').style.display = 'flex';
     }
@@ -5630,12 +5788,12 @@ export async function cargarVista(vista = 'Inbox - Pendientes') {
         const btnSyncEspera = document.getElementById('btn-sync-espera-csv');
         if (btnSyncEspera) btnSyncEspera.style.display = 'none';
         try {
-            const qSnap = await getDocs(collection(db, "alumnos")); let allData = []; qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
-            actualizarBadgesYNavegacion(allData);
             renderSegmentedTabs(vista);
             let dataFiltrada = allData.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'lista de espera');
             renderListaFilas('lista-generica', dataFiltrada, 'all', null);
-        } catch(e) {}
+        } catch(e) {
+            console.error("Error al cargar lista de espera:", e);
+        }
     } else if (vista === 'Match - Pendientes') {
         try { 
             const qSnap = await getDocs(collection(db, "alumnos")); let allData = [];
@@ -6278,6 +6436,7 @@ const inputBuscadorDash = document.getElementById('input-buscador-dashboard');
 const btnLimpiarBuscadorDash = document.getElementById('btn-limpiar-buscador-dashboard');
 const btnCerrarBusquedaGlobal = document.getElementById('btn-cerrar-busqueda-global');
 
+let searchBackgroundRevalidateTimer = null;
 const limpiarYRestaurarBusqueda = () => {
     if (inputBuscadorGeneral) {
         inputBuscadorGeneral.value = '';
@@ -6289,19 +6448,57 @@ const limpiarYRestaurarBusqueda = () => {
     if (btnLimpiarBuscadorDash) btnLimpiarBuscadorDash.style.display = 'none';
     const contBusqueda = document.getElementById('seccion-busqueda-global');
     if (contBusqueda) contBusqueda.style.display = 'none';
-    cargarVista(estadoActualVista);
+    cargarVista(estadoActualVista, false);
 };
 
 if (inputBuscadorGeneral) {
     inputBuscadorGeneral.addEventListener('input', (e) => {
         const val = e.target.value;
+        const hasText = val.trim().length > 0;
         if (btnLimpiarBuscador) {
-            btnLimpiarBuscador.style.display = val.trim().length > 0 ? 'block' : 'none';
+            btnLimpiarBuscador.style.display = hasText ? 'block' : 'none';
         }
+        
         clearTimeout(searchDebounceTimer);
+        clearTimeout(searchBackgroundRevalidateTimer);
+
+        if (!hasText) {
+            // Si el usuario borró el texto, forzar recarga fresca desde Firestore
+            searchDebounceTimer = setTimeout(() => {
+                cargarVista(estadoActualVista, false);
+            }, 100);
+            return;
+        }
+
+        // Paso 1: Filtrado instantáneo en memoria (0ms)
         searchDebounceTimer = setTimeout(() => {
-            cargarVista(estadoActualVista);
-        }, 200);
+            cargarVista(estadoActualVista, true);
+        }, 80);
+
+        // Paso 2: Revalidación silenciosa en background (SWR) tras 450ms de inactividad
+        searchBackgroundRevalidateTimer = setTimeout(async () => {
+            const currentQuery = (inputBuscadorGeneral.value || '').trim();
+            if (!currentQuery) return;
+            try {
+                const qSnap = await getDocs(collection(db, "alumnos"));
+                const freshData = [];
+                qSnap.forEach(d => freshData.push({ id: d.id, ...d.data() }));
+                
+                const prevIds = (ultimosAlumnosCargados || []).map(d => d.id).join(',');
+                const newIds = freshData.map(d => d.id).join(',');
+                
+                if (prevIds !== newIds || freshData.length !== (ultimosAlumnosCargados || []).length) {
+                    ultimosAlumnosCargados = freshData;
+                    actualizarBadgesYNavegacion(freshData);
+                    // Si el usuario sigue buscando el mismo término, refrescar suavemente con la base fresca
+                    if ((inputBuscadorGeneral.value || '').trim() === currentQuery) {
+                        cargarVista(estadoActualVista, true);
+                    }
+                }
+            } catch(errBg) {
+                console.warn("Error en revalidación silenciosa de búsqueda:", errBg);
+            }
+        }, 450);
     });
 }
 
@@ -7474,6 +7671,50 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
+    // Botón Copiar Aviso para Admisor (Individual desde 3 puntos o modal)
+    if (target.classList.contains('btn-avisar-admisor-alumno') || target.closest('.btn-avisar-admisor-alumno')) {
+        const btn = target.classList.contains('btn-avisar-admisor-alumno') ? target : target.closest('.btn-avisar-admisor-alumno');
+        const id = btn.getAttribute('data-id');
+        if (typeof window.copiarAvisoAdmisorAlumno === 'function') {
+            await window.copiarAvisoAdmisorAlumno(id);
+        }
+        return;
+    }
+
+    // Botón Copiar Aviso para Admisor (Grupo desde cabecera de tarjeta en Altas Pendientes)
+    if (target.classList.contains('btn-avisar-admisor-grupo') || target.closest('.btn-avisar-admisor-grupo')) {
+        const btn = target.classList.contains('btn-avisar-admisor-grupo') ? target : target.closest('.btn-avisar-admisor-grupo');
+        const grupo = btn.getAttribute('data-grupo') || '';
+        const idsRaw = btn.getAttribute('data-ids') || '';
+        const ids = idsRaw.split(',').map(s => s.trim()).filter(Boolean);
+        if (typeof window.copiarAvisoAdmisorGrupo === 'function') {
+            await window.copiarAvisoAdmisorGrupo(grupo, ids);
+        }
+        return;
+    }
+
+    // Botón Copiar Aviso para Coordinador (Grupo desde cabecera de tarjeta en Altas En Curso)
+    if (target.classList.contains('btn-avisar-coordinador-grupo') || target.closest('.btn-avisar-coordinador-grupo')) {
+        const btn = target.classList.contains('btn-avisar-coordinador-grupo') ? target : target.closest('.btn-avisar-coordinador-grupo');
+        const grupo = btn.getAttribute('data-grupo') || '';
+        const idsRaw = btn.getAttribute('data-ids') || '';
+        const ids = idsRaw.split(',').map(s => s.trim()).filter(Boolean);
+        if (typeof window.copiarAvisoCoordinadorGrupo === 'function') {
+            await window.copiarAvisoCoordinadorGrupo(grupo, ids);
+        }
+        return;
+    }
+
+    // Botón Copiar Aviso para Coordinador (Individual desde 3 puntos o modal)
+    if (target.classList.contains('btn-avisar-coordinador-alumno') || target.closest('.btn-avisar-coordinador-alumno')) {
+        const btn = target.classList.contains('btn-avisar-coordinador-alumno') ? target : target.closest('.btn-avisar-coordinador-alumno');
+        const id = btn.getAttribute('data-id');
+        if (typeof window.copiarAvisoCoordinadorAlumno === 'function') {
+            await window.copiarAvisoCoordinadorAlumno(id);
+        }
+        return;
+    }
+
     // Botón Iniciar Pre-Alta Grupal / Masivo
     if (target.classList.contains('btn-iniciar-prealta-grupo') || target.id === 'btn-bulk-prealta' || target.closest('.btn-iniciar-prealta-grupo') || target.closest('#btn-bulk-prealta')) {
         const btn = target.closest('.btn-iniciar-prealta-grupo') || target.closest('#btn-bulk-prealta') || target;
@@ -8613,11 +8854,15 @@ document.addEventListener('click', async (e) => {
         const btn = target.classList.contains('btn-reenviar-prealta') ? target : target.closest('.btn-reenviar-prealta');
         try {
             const id = btn.getAttribute('data-id');
-            const data = await generarTextoConHistorial(id, 'texto_prealta');
-            await navigator.clipboard.writeText(data.txt);
-            mostrarToast("💬 Mensaje de Pre-Alta copiado al portapapeles", "success");
+            if (typeof window.copiarAvisoCoordinadorAlumno === 'function') {
+                await window.copiarAvisoCoordinadorAlumno(id);
+            } else {
+                const data = await generarTextoConHistorial(id, 'texto_prealta');
+                await navigator.clipboard.writeText(data.txt);
+                mostrarToast("💬 Mensaje de Pre-Alta para Coordinador copiado al portapapeles", "success");
+            }
         } catch(e) {
-            console.error("Error al copiar texto prealta:", e);
+            console.error("Error al copiar texto prealta coordinador:", e);
             alert("❌ Error al copiar texto de pre-alta: " + e.message);
         }
         return;
@@ -9151,6 +9396,10 @@ document.addEventListener('click', async (e) => {
         document.getElementById('aviso-informe-bloqueado').style.display = 'block'; 
         const elAltaBox = document.getElementById('modal-seccion-alta-box');
         if (elAltaBox) elAltaBox.style.display = 'none';
+        const elMetricasEspera = document.getElementById('modal-metricas-espera-box');
+        if (elMetricasEspera) elMetricasEspera.style.display = 'none';
+        const btnContactarModal = document.getElementById('btn-modal-contactar-alumno');
+        if (btnContactarModal) btnContactarModal.style.display = 'none';
         const elFechaInf = document.getElementById('modal-informe-fecha-val');
         const elEvalInf = document.getElementById('modal-informe-evaluador-val');
         if (elFechaInf) elFechaInf.textContent = '-';
@@ -9478,6 +9727,11 @@ window.abrirFichaSimuladaTest = async function(testId) {
 
     const contDirecto = document.getElementById('container-ingreso-directo');
     if (contDirecto) contDirecto.style.display = 'none';
+
+    const elMetricasEspera = document.getElementById('modal-metricas-espera-box');
+    if (elMetricasEspera) elMetricasEspera.style.display = 'none';
+    const btnContactarModal = document.getElementById('btn-modal-contactar-alumno');
+    if (btnContactarModal) btnContactarModal.style.display = 'none';
 
     // Cerrar cualquier otro diálogo abierto para evitar superposición
     document.querySelectorAll('dialog[open]').forEach(d => {
@@ -10291,6 +10545,63 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
     if (btnModalEliminar) {
         btnModalEliminar.style.display = (!modoLectura && esUsuarioAdministrador() && id) ? 'inline-flex' : 'none';
         btnModalEliminar.onclick = () => window.eliminarFichaAlumnoSeguro(id, d.nombre);
+    }
+
+    // Métricas de Espera & Contacto y Botón Contactar en Ficha del Alumno (Lista de Espera en adelante)
+    const boxMetricasEspera = document.getElementById('modal-metricas-espera-box');
+    const btnContactarModal = document.getElementById('btn-modal-contactar-alumno');
+    const esDeEsperaEnAdelante = esInstanciaEsperaOSuperior(d.estado_agenda);
+
+    if (esDeEsperaEnAdelante && !modoLectura && id) {
+        if (boxMetricasEspera) {
+            boxMetricasEspera.style.display = 'flex';
+            const met = calcularMetricasEspera(d);
+            const fIngEspera = obtenerFechaIngresoEspera(d);
+
+            const elFIng = document.getElementById('modal-espera-fecha-val');
+            const elDiasEsp = document.getElementById('modal-espera-dias-val');
+            const elBadgeCtto = document.getElementById('modal-contacto-badge-val');
+            const elFechaCtto = document.getElementById('modal-contacto-fecha-val');
+            const btnLapiz = document.getElementById('btn-modal-editar-contacto-lapiz');
+
+            if (elFIng) elFIng.textContent = fIngEspera ? formatearSoloFecha(fIngEspera) : '-';
+            if (elDiasEsp) elDiasEsp.textContent = `${met.diasEsperando}d`;
+            if (elBadgeCtto) {
+                elBadgeCtto.textContent = `${met.diasContacto}d`;
+                elBadgeCtto.className = `badge-dias-contacto semaforo-${met.claseSemaforo || 'blanco'}`;
+            }
+            if (elFechaCtto) {
+                if (d.fecha_ultimo_contacto) {
+                    const fc = parsearFechaCualquierOrigen(d.fecha_ultimo_contacto);
+                    elFechaCtto.textContent = (fc && !isNaN(fc.getTime())) ? `(${formatearSoloFecha(fc)})` : '';
+                } else {
+                    elFechaCtto.textContent = '';
+                }
+            }
+            if (btnLapiz) {
+                const uActual = window.usuarioActual || {};
+                const rolesUser = Array.isArray(uActual.roles) && uActual.roles.length > 0 ? uActual.roles : [uActual.rol || 'admisor'];
+                const puedeEditarCtto = esUsuarioAdministrador() || rolesUser.includes('coordinador') || rolesUser.includes('coordinador_grupos') || uActual.rol === 'coordinador' || window.modoRolActivo === 'coordinador';
+                btnLapiz.style.display = puedeEditarCtto ? 'inline-block' : 'none';
+                btnLapiz.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.abrirModalEditarContacto(id, d.nombre, met.diasContacto);
+                };
+            }
+        }
+
+        if (btnContactarModal) {
+            btnContactarModal.style.display = 'inline-flex';
+            btnContactarModal.onclick = (e) => {
+                e.preventDefault();
+                const celSafe = d.celular || d.telefono || '';
+                window.abrirModalRegistrarContacto(id, d.nombre, celSafe, Boolean(d.es_bicicleta));
+            };
+        }
+    } else {
+        if (boxMetricasEspera) boxMetricasEspera.style.display = 'none';
+        if (btnContactarModal) btnContactarModal.style.display = 'none';
     }
 
     const hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00'; 
@@ -11352,11 +11663,29 @@ document.getElementById('btn-guardar-contacto')?.addEventListener('click', async
 
         await updateDoc(doc(db, "alumnos", id), {
             fecha_ultimo_contacto: ahoraIso,
+            dias_contacto_manual: null,
             ultimo_contacto_nota: texto,
             historial: hist
         });
 
         document.getElementById('modal-registrar-contacto')?.close();
+
+        // Si la ficha de este alumno está abierta en modal-alta-alumno, refrescar métricas e historial en vivo
+        const modalAlumno = document.getElementById('modal-alta-alumno');
+        const idAbierto = document.getElementById('alumno-id')?.value;
+        if (modalAlumno && modalAlumno.open && idAbierto === id) {
+            historialActual = hist;
+            renderHistorial();
+            const elBadgeCtto = document.getElementById('modal-contacto-badge-val');
+            if (elBadgeCtto) {
+                elBadgeCtto.textContent = '0d (Hoy)';
+                elBadgeCtto.className = 'badge-dias-contacto semaforo-blanco';
+            }
+            const elFechaCtto = document.getElementById('modal-contacto-fecha-val');
+            if (elFechaCtto) {
+                elFechaCtto.textContent = `(${formatearSoloFecha(new Date(ahoraIso))})`;
+            }
+        }
 
         // Si es bicicleta, preguntar si desea suspender o mantener en bicicleta
         if (esBicicleta) {
