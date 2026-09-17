@@ -25,7 +25,7 @@ import {
     validarConflictoCalendarEnVivo,
     obtenerEventosProfesoresParaSlot,
     buscarEventoExistenteEnHorario
-} from "../services/calendar.service.js?v=6.9.5";
+} from "../services/calendar.service.js?v=6.9.6";
 import { calcularProximaFechaDiaHora } from "./match.module.js";
 import { parsearNomenclaturaGrupoOClase } from "./profesor.module.js";
 

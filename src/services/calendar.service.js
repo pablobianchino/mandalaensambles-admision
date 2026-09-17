@@ -133,17 +133,26 @@ export function formatearFechaAmi(fechaIsoStr) {
 export async function fetchCalendarAPI(action, payload) {
     payload.action = action; payload.apiKey = "mandala-seg-2026";
     let res;
-    try { 
-        res = await fetch(SCRIPT_URL, { 
-            method: 'POST', 
-            body: JSON.stringify(payload), 
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            redirect: 'follow',
-            credentials: 'omit'
-        }); 
-    } catch (networkError) { 
-        console.error("Error de conexión con Google Apps Script:", networkError);
-        throw new Error("Falla de red al conectar con Google Apps Script. Revise su conexión."); 
+    let retries = 1;
+    while (retries >= 0) {
+        try { 
+            res = await fetch(SCRIPT_URL, { 
+                method: 'POST', 
+                body: JSON.stringify(payload), 
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                redirect: 'follow',
+                credentials: 'omit'
+            }); 
+            break;
+        } catch (networkError) { 
+            if (retries > 0) {
+                retries--;
+                await new Promise(r => setTimeout(r, 400));
+                continue;
+            }
+            console.warn("Aviso de conexión con Google Apps Script:", networkError.message || networkError);
+            throw new Error("Falla de red al conectar con Google Apps Script. Revise su conexión."); 
+        }
     }
     const data = await res.json();
     if (data.error) throw new Error(data.error); 
@@ -1087,16 +1096,20 @@ export async function validarConflictoCalendarEnVivo({
     dayEnd.setHours(23, 59, 59, 999);
 
     let allEvents = [];
-    const evPromises = Array.from(calIds).map(async (cId) => {
-        try {
-            const evs = await getEventosCalendario(cId, dayStart.toISOString(), dayEnd.toISOString());
-            const items = Array.isArray(evs) ? evs : (evs && Array.isArray(evs.items) ? evs.items : []);
-            items.forEach(e => { e.calIdSource = cId; allEvents.push(e); });
-        } catch(err) {
-            console.warn(`No se pudieron consultar eventos de ${cId}:`, err);
-        }
-    });
-    await Promise.all(evPromises);
+    const calList = Array.from(calIds);
+    const CHUNK_SIZE = 4;
+    for (let i = 0; i < calList.length; i += CHUNK_SIZE) {
+        const chunk = calList.slice(i, i + CHUNK_SIZE);
+        await Promise.all(chunk.map(async (cId) => {
+            try {
+                const evs = await getEventosCalendario(cId, dayStart.toISOString(), dayEnd.toISOString());
+                const items = Array.isArray(evs) ? evs : (evs && Array.isArray(evs.items) ? evs.items : []);
+                items.forEach(e => { e.calIdSource = cId; allEvents.push(e); });
+            } catch(err) {
+                console.warn(`No se pudieron consultar eventos de ${cId}:`, err.message || err);
+            }
+        }));
+    }
 
     const inMs = dStart.getTime();
     const finMs = dEnd.getTime();
@@ -1122,9 +1135,9 @@ export async function validarConflictoCalendarEnVivo({
             const evKey = ev.id || `${evStart}_${evEnd}_${ev.summary}`;
             if (!eventosVistos.has(evKey)) {
                 eventosVistos.add(evKey);
+                const sum = (ev.summary || '').toLowerCase();
                 if (!esDiaCompleto) {
                     simultaneosAulas++;
-                    const sum = (ev.summary || '').toLowerCase();
                     if (sum.includes(emojiBat.toLowerCase()) || sum.includes('bater')) {
                         simultaneosBat++;
                     }
@@ -1228,16 +1241,20 @@ export async function obtenerEventosProfesoresParaSlot({ inicioISO, finISO, conf
     dayEnd.setHours(23, 59, 59, 999);
 
     let allEvents = [];
-    const evPromises = Array.from(calIds).map(async (cId) => {
-        try {
-            const evs = await getEventosCalendario(cId, dayStart.toISOString(), dayEnd.toISOString());
-            const items = Array.isArray(evs) ? evs : (evs && Array.isArray(evs.items) ? evs.items : []);
-            items.forEach(e => { e.calIdSource = cId; allEvents.push(e); });
-        } catch(err) {
-            console.warn(`No se pudieron consultar eventos de ${cId}:`, err);
-        }
-    });
-    await Promise.all(evPromises);
+    const calList = Array.from(calIds);
+    const CHUNK_SIZE = 4;
+    for (let i = 0; i < calList.length; i += CHUNK_SIZE) {
+        const chunk = calList.slice(i, i + CHUNK_SIZE);
+        await Promise.all(chunk.map(async (cId) => {
+            try {
+                const evs = await getEventosCalendario(cId, dayStart.toISOString(), dayEnd.toISOString());
+                const items = Array.isArray(evs) ? evs : (evs && Array.isArray(evs.items) ? evs.items : []);
+                items.forEach(e => { e.calIdSource = cId; allEvents.push(e); });
+            } catch(err) {
+                console.warn(`No se pudieron consultar eventos de ${cId}:`, err.message || err);
+            }
+        }));
+    }
 
     const inMs = dStart.getTime();
     const finMs = dEnd.getTime();
@@ -1259,9 +1276,9 @@ export async function obtenerEventosProfesoresParaSlot({ inicioISO, finISO, conf
             const evKey = ev.id || `${evStart}_${evEnd}_${ev.summary}`;
             if (!eventosVistos.has(evKey)) {
                 eventosVistos.add(evKey);
+                const sum = (ev.summary || '').toLowerCase();
                 if (!esDiaCompleto) {
                     simultaneosAulas++;
-                    const sum = (ev.summary || '').toLowerCase();
                     if (sum.includes(emojiBat.toLowerCase()) || sum.includes('bater')) {
                         simultaneosBat++;
                     }
