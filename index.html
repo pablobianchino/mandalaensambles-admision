@@ -10,7 +10,7 @@
     <meta http-equiv="Expires" content="0">
     
     <link rel="icon" href="logo.png" type="image/png">
-    <link rel="manifest" href="manifest.json?v=6.9.3">
+    <link rel="manifest" href="manifest.json?v=6.9.5">
     <meta name="theme-color" content="#fbfaf8">
     <meta name="apple-mobile-web-app-title" content="Mandala Admisión">
     <meta name="application-name" content="Mandala Admisión">
@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=6.9.3">
+    <link rel="stylesheet" href="styles.css?v=6.9.5">
 
     <style>
         /* Estilos Críticos de Widget de Perfil y Popover Google-Style */
@@ -2958,6 +2958,130 @@
         </div>
     </dialog>
 
+    <!-- MODAL DE DETECCIÓN PREVENTIVA DE EVENTO EN PRE-ALTA (Google Calendar) -->
+    <dialog id="modal-deteccion-evento-calendar" class="modern-modal auto-height-modal" style="max-width:580px; width:92%; padding:0; border-radius:16px; border:1.5px solid #fecaca; box-shadow:0 20px 60px rgba(0,0,0,0.18); overflow:hidden;">
+        <div style="background:linear-gradient(90deg, #fff1f2 0%, #ffffff 100%); padding:18px 22px; border-bottom:1px solid #fecdd3; display:flex; align-items:center; gap:12px;">
+            <div style="width:38px; height:38px; border-radius:10px; background:#fee2e2; color:#dc2626; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">
+                ⚠️
+            </div>
+            <div>
+                <h3 style="margin:0; font-size:16px; font-weight:800; color:#991b1b;">Evento Detectado en Google Calendar</h3>
+                <p style="margin:2px 0 0 0; font-size:12.5px; color:#7f1d1d;">El docente ya cuenta con una clase o grupo agendado en este horario:</p>
+            </div>
+        </div>
+
+        <div style="padding:22px;">
+            <!-- Tarjeta del evento existente -->
+            <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-left:5px solid #dc2626; border-radius:10px; padding:14px 16px; margin-bottom:18px;">
+                <div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;">EVENTO EN EL CALENDARIO DEL DOCENTE:</div>
+                <div id="modal-det-cal-nombre" style="font-size:16px; font-weight:800; color:#0f172a; margin-bottom:6px;">-</div>
+                <div id="modal-det-cal-meta" style="font-size:12.5px; color:#475569; font-weight:600;">-</div>
+            </div>
+
+            <p style="font-size:13.5px; font-weight:700; color:#0f172a; margin-bottom:16px; text-align:center;">
+                ¿Deseas crear igualmente un nuevo evento en Google Calendar o mantener el evento actual del docente sin duplicar?
+            </p>
+
+            <!-- Opciones de decisión -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:18px;">
+                <div id="btn-det-cal-mantener" class="decision-card option-recommended" role="button" tabindex="0" style="border:2px solid #059669; background:#f0fdf4; border-radius:10px; padding:14px; cursor:pointer; display:flex; flex-direction:column; gap:6px; transition:all 0.2s;">
+                    <span style="font-size:10px; font-weight:800; padding:2px 7px; border-radius:4px; text-transform:uppercase; background:#dcfce7; color:#166534; width:fit-content;">RECOMENDADO</span>
+                    <div style="font-size:13.5px; font-weight:800; color:#065f46;">🛡️ No crear evento</div>
+                    <div style="font-size:12px; color:#047857; line-height:1.4;">Mantiene el evento actual sin duplicar en Calendar. Los alumnos se asocian a este grupo en el sistema.</div>
+                </div>
+
+                <div id="btn-det-cal-crear" class="decision-card option-create" role="button" tabindex="0" style="border:2px solid #cbd5e1; background:#ffffff; border-radius:10px; padding:14px; cursor:pointer; display:flex; flex-direction:column; gap:6px; transition:all 0.2s;">
+                    <span style="font-size:10px; font-weight:800; padding:2px 7px; border-radius:4px; text-transform:uppercase; background:#e2e8f0; color:#475569; width:fit-content;">NUEVO EVENTO</span>
+                    <div style="font-size:13.5px; font-weight:800; color:#0f172a;">➕ Sí, crear evento</div>
+                    <div style="font-size:12px; color:#64748b; line-height:1.4;">Genera un nuevo evento independiente en Google Calendar con el nombre y horario pactados.</div>
+                </div>
+            </div>
+        </div>
+
+        <div style="padding:12px 20px; background:#f8fafc; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end;">
+            <button type="button" id="btn-det-cal-cancelar" style="background:#ffffff; border:1px solid #cbd5e1; color:#64748b; padding:9px 16px; border-radius:8px; font-weight:700; font-size:13px; cursor:pointer; transition:all 0.15s;">✕ Volver / Cancelar</button>
+        </div>
+    </dialog>
+
+    <!-- MODAL DE DECISIÓN OPERATIVA DE CALENDAR (SUSPENDER / DEVOLVER A ESPERA / DESCARTAR) -->
+    <dialog id="modal-decision-calendar" class="modern-modal auto-height-modal" style="max-width:560px; width:92%; padding:0; border-radius:16px; border:1.5px solid #cbd5e1; box-shadow:0 20px 60px rgba(0,0,0,0.18); overflow:hidden;">
+        <div style="background:linear-gradient(90deg, #f8fafc 0%, #ffffff 100%); padding:18px 22px; border-bottom:1px solid #e2e8f0; display:flex; align-items:center; gap:12px;">
+            <div style="width:38px; height:38px; border-radius:10px; background:#e0f2fe; color:#0284c7; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">
+                📅
+            </div>
+            <div>
+                <h3 style="margin:0; font-size:16px; font-weight:800; color:#0f172a;">Gestión de Agenda en Google Calendar</h3>
+                <p id="modal-decision-cal-subtitulo" style="margin:2px 0 0 0; font-size:12.5px; color:#64748b;">Decisión sobre la clase vinculada al alumno</p>
+            </div>
+        </div>
+
+        <div style="padding:22px;">
+            <!-- Tarjeta de información del alumno y evento -->
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-left:4px solid #0284c7; border-radius:10px; padding:14px 16px; margin-bottom:16px;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
+                    <div>
+                        <div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase;">Alumno</div>
+                        <div id="modal-decision-cal-alumno-nombre" style="font-size:15px; font-weight:800; color:#0f172a;">-</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase;">Docente</div>
+                        <div id="modal-decision-cal-docente" style="font-size:14px; font-weight:700; color:#334155;">-</div>
+                    </div>
+                </div>
+                <div style="border-top:1px dashed #cbd5e1; padding-top:8px; margin-top:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                    <div>
+                        <div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase;">Evento Vinculado</div>
+                        <div id="modal-decision-cal-evento-nombre" style="font-size:13.5px; font-weight:700; color:#0369a1;">-</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase;">Horario</div>
+                        <div id="modal-decision-cal-horario" style="font-size:12.5px; font-weight:600; color:#475569;">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alerta contextual -->
+            <div id="modal-decision-cal-alerta" style="background:#fffbeb; border:1px solid #fef3c7; border-radius:8px; padding:10px 14px; margin-bottom:16px; font-size:12.5px; color:#92400e; display:flex; align-items:flex-start; gap:8px; line-height:1.4;">
+                <span style="font-size:15px;">ℹ️</span>
+                <span id="modal-decision-cal-alerta-texto">Este evento está asociado a una cursada o grupo del docente. Si otros alumnos o el profesor continúan utilizando este horario, te recomendamos conservarlo.</span>
+            </div>
+
+            <p style="font-size:13.5px; font-weight:700; color:#0f172a; margin-bottom:14px; text-align:center;">
+                ¿Qué deseas hacer con la agenda en Google Calendar?
+            </p>
+
+            <!-- Opciones de decisión -->
+            <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:12px;">
+                <div id="btn-decision-cal-mantener" class="decision-card option-recommended" role="button" tabindex="0" style="border:2px solid #059669; background:#f0fdf4; border-radius:10px; padding:12px 14px; cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:12px; transition:all 0.2s;">
+                    <div>
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                            <span style="font-size:14px; font-weight:800; color:#065f46;">🛡️ Mantener evento en Calendar</span>
+                            <span style="font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; text-transform:uppercase; background:#dcfce7; color:#166534;">RECOMENDADO</span>
+                        </div>
+                        <div style="font-size:12px; color:#047857; line-height:1.35;">Desvincula/suspende al alumno en el sistema pero <strong>conserva intacto el evento</strong> en el calendario del docente.</div>
+                    </div>
+                    <div style="font-size:20px; color:#059669; flex-shrink:0;">➔</div>
+                </div>
+
+                <div id="btn-decision-cal-eliminar" class="decision-card option-danger" role="button" tabindex="0" style="border:2px solid #fca5a5; background:#fff1f2; border-radius:10px; padding:12px 14px; cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:12px; transition:all 0.2s;">
+                    <div>
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                            <span style="font-size:14px; font-weight:800; color:#991b1b;">🗑️ Eliminar evento de Google Calendar</span>
+                            <span style="font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; text-transform:uppercase; background:#fee2e2; color:#b91c1c;">BORRADO DEFINITIVO</span>
+                        </div>
+                        <div style="font-size:12px; color:#b91c1c; line-height:1.35;">Borra el evento de Google Calendar. Usar <strong>únicamente si el grupo se cerró por completo</strong> y nadie más cursa.</div>
+                    </div>
+                    <div style="font-size:20px; color:#dc2626; flex-shrink:0;">➔</div>
+                </div>
+            </div>
+        </div>
+
+        <div style="padding:12px 20px; background:#f8fafc; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end;">
+            <button type="button" id="btn-decision-cal-cancelar" style="background:#ffffff; border:1px solid #cbd5e1; color:#64748b; padding:9px 18px; border-radius:8px; font-weight:700; font-size:13px; cursor:pointer; transition:all 0.15s;">✕ Cancelar operación</button>
+        </div>
+    </dialog>
+
+
     <dialog id="global-action-loader" class="global-action-dialog" style="position:fixed; top:24px; left:50%; transform:translateX(-50%); margin:0; padding:0; border:none; background:transparent; outline:none; z-index:2147483647; max-width:90vw; pointer-events:none;">
         <div class="global-action-card" style="background:rgba(15,23,42,0.94); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); color:#ffffff; padding:10px 22px; border-radius:30px; font-size:13.5px; font-weight:600; display:flex; align-items:center; gap:12px; box-shadow:0 12px 36px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.18); border:1px solid rgba(255,255,255,0.2); pointer-events:auto;">
             <div class="spinner-inline" style="width:18px; height:18px; border:2.5px solid rgba(255,255,255,0.25); border-top-color:#38bdf8; border-radius:50%; animation:spinLoader 0.6s linear infinite; flex-shrink:0;"></div>
@@ -3014,12 +3138,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=6.9.3"></script>
+    <script type="module" src="app.js?v=6.9.5"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=6.9.3').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=6.9.5').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {

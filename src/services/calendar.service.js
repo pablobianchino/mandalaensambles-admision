@@ -222,58 +222,48 @@ export function construirTitulosPrealtaYAlta(al, tipo, cfg, cantPendientes = 0) 
 }
 
 export function construirDescripcionEventoAlta(al, esGrupo = false, alumnosGrupo = []) {
-    const formatHorario = (a) => {
-        if (a.horario_match) return a.horario_match;
-        if (a.dia_match && a.horario_inicio_match) {
-            const diasMap = { 'L': 'Lunes', 'M': 'Martes', 'X': 'Miércoles', 'J': 'Jueves', 'V': 'Viernes', 'S': 'Sábado', 'D': 'Domingo' };
-            const diaTxt = diasMap[a.dia_match] || a.dia_match;
-            return `${diaTxt} ${a.horario_inicio_match} hs`;
-        }
-        if (a.fecha_inicio_clases) {
-            const d = new Date(a.fecha_inicio_clases);
-            if (!isNaN(d.getTime())) {
-                const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-                return `${dias[d.getDay()]} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')} hs`;
+    // Se elimina completamente el volcado de alumnos, integrantes activos y pendientes de pago en Calendar.
+    // La agenda sólo toma en cuenta el nombre del evento y su horario.
+    return "";
+}
+
+export async function buscarEventoExistenteEnHorario(calId, fIsoStart, durMin = 60) {
+    if (!calId || !fIsoStart) return null;
+    try {
+        const dObj = new Date(fIsoStart);
+        if (isNaN(dObj.getTime())) return null;
+
+        const dayStart = new Date(dObj);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(dObj);
+        dayEnd.setHours(23, 59, 59, 999);
+
+        const evs = await getEventosCalendario(calId, dayStart.toISOString(), dayEnd.toISOString());
+        const items = Array.isArray(evs) ? evs : (evs && Array.isArray(evs.items) ? evs.items : []);
+        if (items.length === 0) return null;
+
+        const targetStartMs = dObj.getTime();
+        const targetEndMs = targetStartMs + (durMin || 60) * 60000;
+
+        for (const ev of items) {
+            const evStartMs = new Date(ev.start?.dateTime || ev.start?.date).getTime();
+            const evEndMs = new Date(ev.end?.dateTime || ev.end?.date).getTime() || (evStartMs + 3600000);
+            if (isNaN(evStartMs)) continue;
+
+            const seSolapa = (evStartMs < targetEndMs && evEndMs > targetStartMs) || (Math.abs(evStartMs - targetStartMs) <= 15 * 60000);
+            if (seSolapa) {
+                return {
+                    id: ev.id,
+                    summary: ev.summary || '(Sin título)',
+                    start: ev.start,
+                    end: ev.end
+                };
             }
         }
-        return a.reserva_fecha_texto || '-';
-    };
-
-    const horarioStr = formatHorario(al);
-    const docenteStr = al.reserva_profe_nombre || al.profesor_asignado || '-';
-
-    if (esGrupo && alumnosGrupo.length > 0) {
-        const confirmados = alumnosGrupo.filter(a => {
-            const est = (a.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-            return ['alta confirmada', 'alta efectiva', 'alta finalizada'].includes(est);
-        });
-        const pendientes = alumnosGrupo.filter(a => !confirmados.some(c => c.id === a.id));
-
-        const formatoFila = (a, estadoTxt, icono) => {
-            const inst = a.instrumento_asignado || (Array.isArray(a.instrumento) ? a.instrumento[0] : a.instrumento) || 'Instrumento';
-            const tel = a.celular || a.telefono || '-';
-            return `${icono} ${a.nombre} (${inst}) — ${estadoTxt} • Tel: ${tel}`;
-        };
-
-        const strConfirmados = confirmados.length > 0
-            ? confirmados.map(a => formatoFila(a, 'Alta Confirmada', '✅')).join('\n')
-            : 'Sin integrantes confirmados aún.';
-
-        const strPendientes = pendientes.length > 0
-            ? pendientes.map(a => formatoFila(a, 'Pago pendiente', '⏳')).join('\n')
-            : '(No quedan alumnos pendientes en este grupo)';
-
-        const modalidadStr = al.modalidad_ensamble || al.tipo_ensamble || al.tipo_suscripcion || 'Ensamble';
-
-        return `MANDALA ENSAMBLES — GRUPO ${al.grupo_asignado || '-'}\nDocente: ${docenteStr}\nHorario: ${horarioStr}\nModalidad: ${modalidadStr}\n\n--- INTEGRANTES ACTIVOS (${confirmados.length}) ---\n${strConfirmados}\n\n--- PENDIENTES DE PAGO EN ALTA EN CURSO (${pendientes.length}) ---\n${strPendientes}`;
+    } catch(e) {
+        console.warn("Error en buscarEventoExistenteEnHorario:", e);
     }
-
-    // Clase Individual
-    const instStr = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || '-'));
-    const descP = al.descripcion 
-        ? al.descripcion.replace(/<br\s*[\/]?>/gi, '\n').replace(/<\/p>/gi, '\n').replace(/<\/div>/gi, '\n').replace(/<[^>]*>?/gm, '').replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim() 
-        : '';
-    return `MANDALA ENSAMBLES — CLASE INDIVIDUAL\nDocente: ${docenteStr}\nHorario: ${horarioStr}\nSuscripción: ${al.tipo_suscripcion || 'Clase Individual'}\n\n👤 ALUMNO:\n• Nombre: ${al.nombre}\n• Edad: ${al.edad || '-'}\n• Celular: ${al.celular || '-'}\n• Instrumento: ${instStr}\n\n📝 INFORMACIÓN ADICIONAL:\n${descP || 'Sin notas adicionales.'}`;
+    return null;
 }
 
 export async function getCalendarIdParaAlumno(al, cfg = defaultCfg) {
@@ -618,9 +608,24 @@ export async function sincronizarEventoAltaConfirmadaCalendar(al, esIndividual, 
     return null;
 }
 
-export async function eliminarEventoAltaSeguro(al, cfg = defaultCfg) {
+export async function eliminarEventoAltaSeguro(al, cfg = defaultCfg, { forzarEliminacionCalendar = false } = {}) {
     let evId = al.id_evento_alta || al.id_evento_reserva || al.reserva_id_evento;
     
+    // PROTECCIÓN CRÍTICA DE EVENTO PREEXISTENTE:
+    // Si el evento era de la grilla previa del docente (ej: CANTO 1 - Guido)
+    // y no se forzó el borrado explícitamente, NUNCA borrarlo de Google Calendar!
+    const esPreexistente = Boolean(al.evento_es_preexistente || al.evento_summary_original);
+    if (esPreexistente && !forzarEliminacionCalendar) {
+        console.log(`[Calendar] Evento ${evId} preservado por ser preexistente del docente ("${al.evento_summary_original || al.grupo_asignado}"). No se borra de Google Calendar.`);
+        return false;
+    }
+
+    // Si el alumno tiene marca explícita de preservar evento y no se forzó
+    if (al.preservar_evento_calendar && !forzarEliminacionCalendar) {
+        console.log(`[Calendar] Evento ${evId} preservado por decisión del operador.`);
+        return false;
+    }
+
     // Si no tiene id directo y es grupal, buscar en otros miembros del grupo
     let otrosMiembrosActivos = [];
     if (al.grupo_asignado && al.grupo_asignado !== 'Clase Individual') {
@@ -638,6 +643,19 @@ export async function eliminarEventoAltaSeguro(al, cfg = defaultCfg) {
 
     if (!evId) return false;
 
+    // PROTECCIÓN CRÍTICA: Si quedan otros compañeros cursando en el grupo,
+    // NUNCA borrar el evento de Google Calendar!
+    if (otrosMiembrosActivos.length > 0) {
+        console.log(`Evento de grupo ${al.grupo_asignado} preservado para los restantes ${otrosMiembrosActivos.length} alumnos.`);
+        return false;
+    }
+
+    // Si no se solicitó forzar el borrado y es un evento grupal o preexistente, preservarlo
+    if (!forzarEliminacionCalendar && (esPreexistente || (al.grupo_asignado && al.grupo_asignado !== 'Clase Individual'))) {
+        console.log(`[Calendar] Evento de grupo ${al.grupo_asignado} preservado sin orden forzada de eliminación.`);
+        return false;
+    }
+
     let calGrabado = al.calendario_evento_alta || al.calendario_evento_reserva || al.reserva_cal_id;
     let primaryCalId = await getCalendarIdParaAlumno(al, cfg);
     let fallbackCalId = cfg.calendario_por_defecto || 'productora.mandalahouse@gmail.com';
@@ -646,32 +664,12 @@ export async function eliminarEventoAltaSeguro(al, cfg = defaultCfg) {
     if (primaryCalId && !candidatos.includes(primaryCalId)) candidatos.push(primaryCalId);
     if (fallbackCalId && !candidatos.includes(fallbackCalId)) candidatos.push(fallbackCalId);
 
-    // PROTECCIÓN CRÍTICA: Si quedan otros compañeros cursando en el grupo,
-    // NO BORRAR el evento de Google Calendar! En su lugar, actualizar la descripción quitando al alumno que causó baja.
-    if (otrosMiembrosActivos.length > 0) {
-        const confirmadosCount = otrosMiembrosActivos.filter(a => {
-            const est = (a.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-            return ['alta confirmada', 'alta efectiva', 'alta finalizada'].includes(est);
-        }).length;
-        const cantPendientes = Math.max(0, otrosMiembrosActivos.length - confirmadosCount);
-        const tipoEv = (confirmadosCount > 0) ? 'confirmada' : 'prealta';
-        const titulos = construirTitulosPrealtaYAlta(al, tipoEv, cfg, cantPendientes);
-        const descActualizada = construirDescripcionEventoAlta(al, true, otrosMiembrosActivos);
-        for (const cal of candidatos) {
-            try {
-                await actualizarEventoCalendario(cal, evId, titulos.tituloProfe, descActualizada);
-                console.log(`Evento de grupo ${al.grupo_asignado} preservado para los restantes ${otrosMiembrosActivos.length} alumnos.`);
-                return true;
-            } catch(e) {}
-        }
-        return false;
-    }
-
     let eliminado = false;
     for (const cal of candidatos) {
         try {
             await eliminarEventoCalendario(cal, evId);
             eliminado = true;
+            console.log(`[Calendar] Evento ${evId} eliminado correctamente de Google Calendar (${cal}).`);
             break;
         } catch(e) {
             console.warn(`No se pudo eliminar evento ${evId} del calendario ${cal}:`, e.message);

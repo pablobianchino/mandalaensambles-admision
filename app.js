@@ -13,7 +13,7 @@ import {
     configNodosFlujoCoordinador,
     esAlumnoAltaFinalizada,
     esAlumnoAltaConfirmadaIncompleta
-} from "./src/config/constants.js?v=6.9.3";
+} from "./src/config/constants.js?v=6.9.5";
 
 import { 
     app, 
@@ -42,7 +42,7 @@ import {
     EmailAuthProvider,
     reauthenticateWithCredential,
     linkWithCredential
-} from "./src/config/firebase.js?v=6.9.3";
+} from "./src/config/firebase.js?v=6.9.5";
 
 import {
     limpiarHoraParaChip,
@@ -56,7 +56,7 @@ import {
     extraerDisponibilidadMultiRango,
     normalizarHora,
     inicializarAutocompletadoHorarios
-} from "./src/ui/horarios.ui.js?v=6.9.3";
+} from "./src/ui/horarios.ui.js?v=6.9.5";
 
 import {
     getEmojiInstrumento,
@@ -85,7 +85,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=6.9.3";
+} from "./src/services/calendar.service.js?v=6.9.5";
 
 import {
     matchCantidadActual,
@@ -118,11 +118,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=6.9.3";
+} from "./src/modules/match.module.js?v=6.9.5";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=6.9.3";
+} from "./src/modules/profesor.module.js?v=6.9.5";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -151,14 +151,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=6.9.3";
+} from "./src/modules/altas.module.js?v=6.9.5";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=6.9.3";
+} from "./src/modules/dashboard.module.js?v=6.9.5";
 
 import {
     renderConfigHub,
@@ -167,20 +167,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=6.9.3";
+} from "./src/modules/abm.module.js?v=6.9.5";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=6.9.3";
+} from "./src/modules/inbox.module.js?v=6.9.5";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=6.9.3";
+} from "./src/modules/csv.module.js?v=6.9.5";
 
 window.generarBotonesPrincipalesVisibles = generarBotonesPrincipalesVisibles;
 window.generarBotonesAccion = generarBotonesAccion;
@@ -932,6 +932,154 @@ window.confirmar = function(titulo, descripcion = '', textoBoton = 'Confirmar', 
     });
 };
 
+window.mostrarModalDeteccionEventoCalendar = function({ tituloEvento = '', profeNombre = '', horarioTexto = '' }) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('modal-deteccion-evento-calendar');
+        if (!modal) {
+            const conf = window.confirm(
+                `⚠️ Evento Detectado en el Calendario del Profesor\n\n` +
+                `El profesor ${profeNombre} ya tiene el evento "${tituloEvento}" agendado en este horario (${horarioTexto}).\n\n` +
+                `¿Deseas mantener el evento actual sin duplicar en Calendar?\n` +
+                `[Aceptar] = Mantener actual (No crear duplicado)\n` +
+                `[Cancelar] = Crear nuevo evento`
+            );
+            resolve(conf ? 'mantener' : 'crear');
+            return;
+        }
+
+        if (typeof window.ocultarIndicadorCarga === 'function') {
+            window.ocultarIndicadorCarga();
+        }
+
+        const elNombre = document.getElementById('modal-det-cal-nombre');
+        const elMeta = document.getElementById('modal-det-cal-meta');
+        const btnMantener = document.getElementById('btn-det-cal-mantener');
+        const btnCrear = document.getElementById('btn-det-cal-crear');
+        const btnCancelar = document.getElementById('btn-det-cal-cancelar');
+
+        if (elNombre) elNombre.textContent = tituloEvento || '(Sin título)';
+        if (elMeta) elMeta.textContent = `Docente: ${profeNombre || '-'} • Horario: ${horarioTexto || '-'}`;
+
+        const clonMantener = btnMantener.cloneNode(true);
+        const clonCrear = btnCrear.cloneNode(true);
+        const clonCancelar = btnCancelar.cloneNode(true);
+
+        btnMantener.replaceWith(clonMantener);
+        btnCrear.replaceWith(clonCrear);
+        btnCancelar.replaceWith(clonCancelar);
+
+        let resuelto = false;
+        const resolver = (val) => {
+            if (!resuelto) {
+                resuelto = true;
+                try { modal.close(); } catch(e) {}
+                resolve(val);
+            }
+        };
+
+        clonMantener.addEventListener('click', () => resolver('mantener'), { once: true });
+        clonCrear.addEventListener('click', () => resolver('crear'), { once: true });
+        clonCancelar.addEventListener('click', () => resolver('cancelar'), { once: true });
+
+        modal.addEventListener('close', () => resolver('cancelar'), { once: true });
+
+        try {
+            if (modal.open) modal.close();
+            modal.showModal();
+        } catch (errModal) {
+            console.warn('Fallo showModal en modal-deteccion-evento-calendar:', errModal);
+            resolver('mantener');
+        }
+    });
+};
+
+window.preguntarAccionCalendar = function({ al, accionTipo = 'desvincular' }) {
+    return new Promise((resolve) => {
+        const tieneEv = Boolean(al && (al.id_evento_alta || al.id_evento_reserva || al.reserva_id_evento));
+        if (!tieneEv) {
+            return resolve({ decision: 'mantener', tieneEvento: false });
+        }
+
+        const modal = document.getElementById('modal-decision-calendar');
+        if (!modal) {
+            return resolve({ decision: 'mantener', tieneEvento: true });
+        }
+
+        if (typeof window.ocultarIndicadorCarga === 'function') {
+            window.ocultarIndicadorCarga();
+        }
+
+        const elAlumno = document.getElementById('modal-decision-cal-alumno-nombre');
+        const elProfe = document.getElementById('modal-decision-cal-docente');
+        const elEvento = document.getElementById('modal-decision-cal-evento-nombre');
+        const elHorario = document.getElementById('modal-decision-cal-horario');
+        const elSubtitulo = document.getElementById('modal-decision-cal-subtitulo');
+        const elAlertaTexto = document.getElementById('modal-decision-cal-alerta-texto');
+
+        const nombreAlumno = al.nombre || 'Alumno';
+        const docente = al.profesor_asignado || al.reserva_profe_nombre || '-';
+        const horario = al.horario_match || al.reserva_fecha_texto || (al.fecha_inicio_clases ? formatearFechaAmi(al.fecha_inicio_clases) : '-');
+        const eventoNom = al.evento_summary_original || al.grupo_asignado || (al.tipo_suscripcion ? `${al.tipo_suscripcion} - ${docente}` : 'Clase en Google Calendar');
+
+        if (elAlumno) elAlumno.textContent = nombreAlumno;
+        if (elProfe) elProfe.textContent = docente;
+        if (elEvento) elEvento.textContent = eventoNom;
+        if (elHorario) elHorario.textContent = horario;
+
+        if (elSubtitulo) {
+            if (accionTipo === 'espera') elSubtitulo.textContent = 'Al devolver a Lista de Espera';
+            else if (accionTipo === 'suspender') elSubtitulo.textContent = 'Al suspender la cursada / ficha';
+            else if (accionTipo === 'eliminar') elSubtitulo.textContent = 'Al eliminar o descartar la ficha';
+            else elSubtitulo.textContent = 'Decisión sobre la clase vinculada al alumno';
+        }
+
+        const esPreexistenteOGrupo = Boolean(al.evento_es_preexistente || al.evento_summary_original || (al.grupo_asignado && al.grupo_asignado !== 'Clase Individual'));
+        if (elAlertaTexto) {
+            if (esPreexistenteOGrupo) {
+                elAlertaTexto.innerHTML = `<strong>Atención:</strong> Este evento corresponde a un grupo o a la grilla habitual del docente <strong>${docente}</strong>. Te recomendamos conservarlo para no afectar a otros alumnos ni alterar el calendario del profesor.`;
+            } else {
+                elAlertaTexto.innerHTML = `El alumno cuenta con una clase agendada con <strong>${docente}</strong>. Puedes conservar el bloque horario o eliminarlo del calendario.`;
+            }
+        }
+
+        const btnMantener = document.getElementById('btn-decision-cal-mantener');
+        const btnEliminar = document.getElementById('btn-decision-cal-eliminar');
+        const btnCancelar = document.getElementById('btn-decision-cal-cancelar');
+
+        const clonMantener = btnMantener ? btnMantener.cloneNode(true) : null;
+        const clonEliminar = btnEliminar ? btnEliminar.cloneNode(true) : null;
+        const clonCancelar = btnCancelar ? btnCancelar.cloneNode(true) : null;
+
+        if (btnMantener && clonMantener) btnMantener.replaceWith(clonMantener);
+        if (btnEliminar && clonEliminar) btnEliminar.replaceWith(clonEliminar);
+        if (btnCancelar && clonCancelar) btnCancelar.replaceWith(clonCancelar);
+
+        let resuelto = false;
+        const resolver = (val) => {
+            if (!resuelto) {
+                resuelto = true;
+                try { modal.close(); } catch(e) {}
+                resolve({ decision: val, tieneEvento: true });
+            }
+        };
+
+        clonMantener?.addEventListener('click', () => resolver('mantener'), { once: true });
+        clonEliminar?.addEventListener('click', () => resolver('eliminar'), { once: true });
+        clonCancelar?.addEventListener('click', () => resolver('cancelar'), { once: true });
+
+        modal.addEventListener('close', () => resolver('cancelar'), { once: true });
+
+        try {
+            if (modal.open) modal.close();
+            modal.showModal();
+        } catch(errModal) {
+            console.warn('Fallo showModal en modal-decision-calendar:', errModal);
+            resolver('mantener');
+        }
+    });
+};
+
+
 // ================================================================
 // SKELETON LOADER — Punto 7
 // ================================================================
@@ -987,7 +1135,7 @@ function marcarModalComoModificado(e) {
     const el = e.target;
     if (!el) return;
     const modalActivo = el.closest ? (el.closest('dialog') || el.closest('#form-alumno-wrapper')?.closest('dialog') || document.querySelector('dialog[open]')) : null;
-    if (modalActivo && !['modal-confirmar-descarte', 'modal-confirmar-accion', 'modal-test-notificacion', 'global-action-loader'].includes(modalActivo.id)) {
+    if (modalActivo && !['modal-confirmar-descarte', 'modal-confirmar-accion', 'modal-deteccion-evento-calendar', 'modal-test-notificacion', 'global-action-loader'].includes(modalActivo.id)) {
         modalActivo.dataset.modificado = 'true';
         window._modalEditandoModificado = true;
         window._fichaAlumnoModificada = true;
@@ -1004,7 +1152,7 @@ document.addEventListener('click', (e) => {
     const el = e.target;
     if (!el) return;
     const modalActivo = el.closest ? (el.closest('dialog') || el.closest('#form-alumno-wrapper')?.closest('dialog') || document.querySelector('dialog[open]')) : null;
-    if (modalActivo && !['modal-confirmar-descarte', 'modal-confirmar-accion', 'modal-test-notificacion', 'global-action-loader'].includes(modalActivo.id)) {
+    if (modalActivo && !['modal-confirmar-descarte', 'modal-confirmar-accion', 'modal-deteccion-evento-calendar', 'modal-test-notificacion', 'global-action-loader'].includes(modalActivo.id)) {
         if (el.matches('input[type="checkbox"], input[type="radio"], select, .chip, .chip-btn, .dia-cell, .rango-btn, .tag-chip, button[data-chip], .btn-sol-tipo-grupo, .btn-sol-dia, .btn-sol-instrumento, .btn-tipo-ensamble')) {
             modalActivo.dataset.modificado = 'true';
             window._modalEditandoModificado = true;
@@ -3085,9 +3233,20 @@ window.eliminarFichaAlumnoSeguro = async function(id, nombreHint = '') {
         const nombre = al.nombre || nombreHint || 'este alumno';
         const rawEst = al.estado_agenda || 'Desconocido';
 
+        const tieneEv = Boolean(al.id_evento_alta || al.id_evento_reserva || al.reserva_id_evento);
+        let decisionCal = { decision: 'mantener', tieneEvento: false };
+        if (tieneEv) {
+            decisionCal = await window.preguntarAccionCalendar({ al, accionTipo: 'eliminar' });
+            if (decisionCal.decision === 'cancelar') return;
+        }
+
+        const detalleCalTexto = tieneEv 
+            ? (decisionCal.decision === 'eliminar' ? '\n\n⚠️ Se eliminará el evento asociado en Google Calendar.' : '\n\n🛡️ El evento en Google Calendar se mantendrá intacto.')
+            : '';
+
         const ok = await window.confirmar(
             `🗑️ ¿Eliminar ficha de ${nombre}?`,
-            `Estás a punto de borrar definitivamente del sistema la ficha de:\n\n• Alumno: ${nombre}\n• Estado actual: ${rawEst}\n• Motivo: Ficha duplicada o mal cargada.\n\n⚠️ Si tiene reservas o clases agendadas en Google Calendar, serán canceladas y liberadas automáticamente.\n\nEsta acción es permanente y NO se puede deshacer.`,
+            `Estás a punto de borrar definitivamente del sistema la ficha de:\n\n• Alumno: ${nombre}\n• Estado actual: ${rawEst}\n• Motivo: Ficha duplicada o mal cargada.${detalleCalTexto}\n\nEsta acción es permanente y NO se puede deshacer.`,
             '🗑️ Eliminar Ficha',
             '⚠️'
         );
@@ -3097,8 +3256,8 @@ window.eliminarFichaAlumnoSeguro = async function(id, nombreHint = '') {
         mostrarIndicadorCarga(`Eliminando ficha de ${nombre}...`);
 
         try {
-            if (al.id_evento_reserva) await eliminarEventoSeguro(al, configApp);
-            if (al.id_evento_alta) await eliminarEventoAltaSeguro(al, configApp);
+            if (al.id_evento_reserva && decisionCal.decision === 'eliminar') await eliminarEventoSeguro(al, configApp);
+            if (al.id_evento_alta && decisionCal.decision === 'eliminar') await eliminarEventoAltaSeguro(al, configApp, { forzarEliminacionCalendar: true });
         } catch(calErr) {
             console.warn("Aviso al cancelar eventos de calendar:", calErr);
         }
@@ -4391,9 +4550,17 @@ export function filtrarAlumnosEvaluador(alumnos) {
 // PRIORIDADES / PRÓXIMOS A VENCER (DASHBOARD)
 // =======================================================================
 window.filtroPrioTabActual = window.filtroPrioTabActual || 'todos';
+window.filtroEvaluadorDashboard = window.filtroEvaluadorDashboard || 'todos';
 
 window.setFiltroPrioridadDashboard = function(tipo) {
     window.filtroPrioTabActual = tipo;
+    if (window.cachedPoolUrgenciasDashboard) {
+        renderDashboardPrioridades(window.cachedPoolUrgenciasDashboard, 'Dashboard');
+    }
+};
+
+window.setFiltroEvaluadorDashboard = function(evalNom) {
+    window.filtroEvaluadorDashboard = evalNom;
     if (window.cachedPoolUrgenciasDashboard) {
         renderDashboardPrioridades(window.cachedPoolUrgenciasDashboard, 'Dashboard');
     }
@@ -4549,80 +4716,292 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
         return;
     }
 
-    let itemsAMostrar = [];
-    if (window.filtroPrioTabActual === 'sin-agendar') {
-        itemsAMostrar = sinAgendar;
-    } else if (window.filtroPrioTabActual === 'altas-pend') {
-        itemsAMostrar = altasPendientes;
-    } else if (window.filtroPrioTabActual === 'vencidos') {
-        itemsAMostrar = vencidas.map(p => p.al);
-    } else if (window.filtroPrioTabActual === 'urgentes') {
-        itemsAMostrar = urgentes24.map(p => p.al);
-    } else if (window.filtroPrioTabActual === 'proximos') {
-        itemsAMostrar = proximas48.map(p => p.al);
-    }
+    // Comprobación de estado vacío para filtro puntual
+    const tabActual = window.filtroPrioTabActual;
+    const esTabSinAgendar = tabActual === 'sin-agendar';
+    const esTabAltasPend = tabActual === 'altas-pend';
+    const esTabVenc = tabActual === 'vencidos';
+    const esTabUrg = tabActual === 'urgentes';
+    const esTabProx = tabActual === 'proximos';
 
-    if (window.filtroPrioTabActual !== 'todos' && itemsAMostrar.length === 0) {
+    let totalItemsEnTab = 0;
+    if (tabActual === 'todos') totalItemsEnTab = totalUrgencias;
+    else if (esTabSinAgendar) totalItemsEnTab = sinAgendar.length;
+    else if (esTabAltasPend) totalItemsEnTab = altasPendientes.length;
+    else if (esTabVenc) totalItemsEnTab = vencidas.length;
+    else if (esTabUrg) totalItemsEnTab = urgentes24.length;
+    else if (esTabProx) totalItemsEnTab = proximas48.length;
+
+    if (tabActual !== 'todos' && totalItemsEnTab === 0) {
         const labelTab = {
             'sin-agendar': 'Sin Agendar',
             'altas-pend': 'Altas Pendientes',
             'vencidos': 'Vencidos',
             'urgentes': '< 24 hs',
             'proximos': '24 a 48 hs'
-        }[window.filtroPrioTabActual] || window.filtroPrioTabActual;
+        }[tabActual] || tabActual;
         cont.innerHTML = `<div style="color:var(--text-muted); padding:16px; text-align:center; font-weight:600; background:#fff; border-radius:10px; border:1px dashed #cbd5e1;">No hay registros en esta categoría de prioridad (${labelTab}).</div>`;
         return;
     }
 
     let html = '';
-    if (window.filtroPrioTabActual === 'todos') {
-        if (esAdmisor && sinAgendar.length > 0) {
+
+    // =========================================================================
+    // VISTA PARA ROL EVALUADOR (!esAdmisor)
+    // =========================================================================
+    if (!esAdmisor) {
+        if (tabActual === 'todos') {
+            if (vencidas.length > 0) {
+                html += `
+                    <div style="display:flex; align-items:center; gap:8px; margin:6px 0 4px 0; font-size:12px; font-weight:800; color:#991b1b; text-transform:uppercase; letter-spacing:0.04em;">
+                        <span>⚠️ Vencidas — Requiere Acción Inmediata (${vencidas.length})</span>
+                        <div style="flex:1; height:1.5px; background:#fecaca;"></div>
+                    </div>
+                `;
+                html += vencidas.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
+            }
+            if (urgentes24.length > 0) {
+                html += `
+                    <div style="display:flex; align-items:center; gap:8px; margin:14px 0 4px 0; font-size:12px; font-weight:800; color:#9a3412; text-transform:uppercase; letter-spacing:0.04em;">
+                        <span>🔥 Próximas a Vencer — Menos de 24 hs (${urgentes24.length})</span>
+                        <div style="flex:1; height:1.5px; background:#fed7aa;"></div>
+                    </div>
+                `;
+                html += urgentes24.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
+            }
+            if (proximas48.length > 0) {
+                html += `
+                    <div style="display:flex; align-items:center; gap:8px; margin:14px 0 4px 0; font-size:12px; font-weight:800; color:#854d0e; text-transform:uppercase; letter-spacing:0.04em;">
+                        <span>⏳ Próximas 24 a 48 hs (${proximas48.length})</span>
+                        <div style="flex:1; height:1.5px; background:#fef08a;"></div>
+                    </div>
+                `;
+                html += proximas48.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
+            }
+        } else {
+            let itemsAMostrar = [];
+            if (esTabVenc) itemsAMostrar = vencidas.map(p => p.al);
+            else if (esTabUrg) itemsAMostrar = urgentes24.map(p => p.al);
+            else if (esTabProx) itemsAMostrar = proximas48.map(p => p.al);
+            html = itemsAMostrar.map(al => generarFilaAlumno(al, al.id, vista)).join('');
+        }
+        cont.innerHTML = html;
+        return;
+    }
+
+    // =========================================================================
+    // VISTA PARA ROL ADMISOR (Jerarquía Unificada en 2 Apartados)
+    // =========================================================================
+    const mostrarApartado1 = tabActual === 'todos' || esTabSinAgendar || esTabAltasPend;
+    const mostrarApartado2 = tabActual === 'todos' || esTabVenc || esTabUrg || esTabProx;
+
+    // -------------------------------------------------------------------------
+    // APARTADO 1: BANDEJA OPERATIVA DIRECTA DE ADMISIÓN
+    // -------------------------------------------------------------------------
+    const totalApartado1 = sinAgendar.length + altasPendientes.length;
+    if (mostrarApartado1 && totalApartado1 > 0) {
+        html += `
+            <div class="dash-apartado-container">
+                <div class="dash-apartado-header">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span style="font-size:1.3em;">⚡</span>
+                        <div>
+                            <div class="dash-apartado-title">
+                                <span>Acciones Inmediatas de Admisión</span>
+                                <span class="dash-apartado-badge" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd;">${totalApartado1}</span>
+                            </div>
+                            <div class="dash-apartado-subtitle">Alumnos sin agendar y altas pendientes listas para iniciar cursada</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="dash-apartado-content">
+        `;
+
+        if ((tabActual === 'todos' || esTabSinAgendar) && sinAgendar.length > 0) {
             html += `
-                <div style="display:flex; align-items:center; gap:8px; margin:4px 0 2px 0; font-size:12px; font-weight:800; color:#1d4ed8; text-transform:uppercase; letter-spacing:0.04em;">
+                <div style="display:flex; align-items:center; gap:8px; margin:4px 0 8px 0; font-size:12px; font-weight:800; color:#1d4ed8; text-transform:uppercase; letter-spacing:0.04em;">
                     <span>📥 Sin Agendar — Inbox (${sinAgendar.length})</span>
                     <div style="flex:1; height:1.5px; background:#bfdbfe;"></div>
                 </div>
             `;
             html += sinAgendar.map(al => generarFilaAlumno(al, al.id, vista)).join('');
         }
-        if (esAdmisor && altasPendientes.length > 0) {
+
+        if ((tabActual === 'todos' || esTabAltasPend) && altasPendientes.length > 0) {
             html += `
-                <div style="display:flex; align-items:center; gap:8px; margin:14px 0 2px 0; font-size:12px; font-weight:800; color:#047857; text-transform:uppercase; letter-spacing:0.04em;">
+                <div style="display:flex; align-items:center; gap:8px; margin:16px 0 8px 0; font-size:12px; font-weight:800; color:#047857; text-transform:uppercase; letter-spacing:0.04em;">
                     <span>🚀 Altas Pendientes — Listas para Iniciar (${altasPendientes.length})</span>
                     <div style="flex:1; height:1.5px; background:#a7f3d0;"></div>
                 </div>
             `;
             html += altasPendientes.map(al => generarFilaAlumno(al, al.id, vista)).join('');
         }
-        if (vencidas.length > 0) {
+
+        html += `
+                </div>
+            </div>
+        `;
+    }
+
+    // -------------------------------------------------------------------------
+    // APARTADO 2: SEGUIMIENTO DE AGENDAS Y VALIDACIONES EN CURSO
+    // (Agrupado primariamente por Evaluador / Docente, priorizando atrasados)
+    // -------------------------------------------------------------------------
+    if (mostrarApartado2 && todasPrio.length > 0) {
+        // Agrupar items por Evaluador
+        const evalMap = new Map();
+        todasPrio.forEach(p => {
+            const rawNom = p.al.reserva_profe_nombre || p.al.profesor_asignado || p.al.reserva_profe_id || 'Docente Asignado';
+            const evalNom = rawNom.split('(')[0].trim() || 'Docente Asignado';
+            if (!evalMap.has(evalNom)) {
+                evalMap.set(evalNom, {
+                    nombre: evalNom,
+                    items: [],
+                    vencidas: [],
+                    urgentes: [],
+                    proximas: [],
+                    tieneVencidas: false,
+                    minDiffHs: Infinity
+                });
+            }
+            const grp = evalMap.get(evalNom);
+            grp.items.push(p);
+            if (p.diffHs < grp.minDiffHs) grp.minDiffHs = p.diffHs;
+            if (p.diffHs < 0) {
+                grp.vencidas.push(p);
+                grp.tieneVencidas = true;
+            } else if (p.diffHs <= 24) {
+                grp.urgentes.push(p);
+            } else {
+                grp.proximas.push(p);
+            }
+        });
+
+        // Ordenar evaluadores: Los que tienen tareas vencidas van PRIMERO, ordenados por peor retraso
+        const evaluadoresOrdenados = Array.from(evalMap.values()).sort((a, b) => {
+            if (a.tieneVencidas && !b.tieneVencidas) return -1;
+            if (!a.tieneVencidas && b.tieneVencidas) return 1;
+            return a.minDiffHs - b.minDiffHs;
+        });
+
+        // Filtro por evaluador específico si está activo
+        const evalFiltro = window.filtroEvaluadorDashboard || 'todos';
+        const evaluadoresAMostrar = evalFiltro === 'todos'
+            ? evaluadoresOrdenados
+            : evaluadoresOrdenados.filter(e => e.nombre.toLowerCase() === evalFiltro.toLowerCase());
+
+        // Generar chips de filtro rápido por evaluador
+        const chipsEvaluadoresHtml = `
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <button type="button" class="chip-eval-filtro ${evalFiltro === 'todos' ? 'active' : ''}" data-eval="todos">
+                    Todos (${todasPrio.length})
+                </button>
+                ${evaluadoresOrdenados.map(ev => {
+                    const isAct = evalFiltro.toLowerCase() === ev.nombre.toLowerCase();
+                    const iconAlert = ev.tieneVencidas ? '🔴 ' : '';
+                    return `
+                        <button type="button" class="chip-eval-filtro ${isAct ? 'active' : ''}" data-eval="${ev.nombre}" title="${ev.items.length} entrevistas o validaciones">
+                            ${iconAlert}${ev.nombre} (${ev.items.length})
+                        </button>
+                    `;
+                }).join('')}
+            </div>
+        `;
+
+        html += `
+            <div class="dash-apartado-container">
+                <div class="dash-apartado-header">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span style="font-size:1.3em;">👥</span>
+                        <div>
+                            <div class="dash-apartado-title">
+                                <span>Seguimiento de Agendas y Validaciones en Curso</span>
+                                <span class="dash-apartado-badge" style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5;">${todasPrio.length}</span>
+                            </div>
+                            <div class="dash-apartado-subtitle">Agrupado por Evaluador / Docente y ordenado por prioridad de vencimiento</div>
+                        </div>
+                    </div>
+                    <div>
+                        ${chipsEvaluadoresHtml}
+                    </div>
+                </div>
+                <div class="dash-apartado-content">
+        `;
+
+        evaluadoresAMostrar.forEach(ev => {
+            // Filtrar los items de este evaluador según el filtro de pestaña superior
+            let itemsEvalFiltrados = ev.items;
+            if (esTabVenc) itemsEvalFiltrados = ev.vencidas;
+            else if (esTabUrg) itemsEvalFiltrados = ev.urgentes;
+            else if (esTabProx) itemsEvalFiltrados = ev.proximas;
+
+            if (itemsEvalFiltrados.length === 0) return;
+
+            const cardClass = ev.tieneVencidas ? 'eval-card-group has-vencidas' : 'eval-card-group';
+            const headClass = ev.tieneVencidas ? 'eval-card-header head-vencida' : 'eval-card-header head-normal';
+            const badgeEvClass = ev.tieneVencidas
+                ? 'background:#fee2e2; color:#991b1b; border:1px solid #fca5a5;'
+                : 'background:#f1f5f9; color:#334155; border:1px solid #cbd5e1;';
+
             html += `
-                <div style="display:flex; align-items:center; gap:8px; margin:14px 0 2px 0; font-size:12px; font-weight:800; color:#991b1b; text-transform:uppercase; letter-spacing:0.04em;">
-                    <span>⚠️ Vencidas — Requiere Acción Inmediata (${vencidas.length})</span>
-                    <div style="flex:1; height:1.5px; background:#fecaca;"></div>
+                <div class="${cardClass}">
+                    <div class="${headClass}">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:1.15em;">👨‍🏫</span>
+                            <span style="font-size:14px; font-weight:800; color:#0f172a;">${ev.nombre}</span>
+                            ${ev.tieneVencidas ? `<span style="font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; background:#dc2626; color:#ffffff; text-transform:uppercase;">⚠️ Requiere Atención</span>` : ''}
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:11.5px; font-weight:700; padding:2px 8px; border-radius:12px; ${badgeEvClass}">
+                                ${itemsEvalFiltrados.length} ${itemsEvalFiltrados.length === 1 ? 'registro' : 'registros'}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="eval-card-body">
+            `;
+
+            if (tabActual === 'todos') {
+                if (ev.vencidas.length > 0) {
+                    html += `
+                        <div class="eval-sub-prio-header sub-prio-vencidas">
+                            <span>⚠️ Vencidas (${ev.vencidas.length})</span>
+                            <div class="sub-prio-line"></div>
+                        </div>
+                    `;
+                    html += ev.vencidas.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
+                }
+                if (ev.urgentes.length > 0) {
+                    html += `
+                        <div class="eval-sub-prio-header sub-prio-urgentes">
+                            <span>🔥 Menos de 24 hs (${ev.urgentes.length})</span>
+                            <div class="sub-prio-line"></div>
+                        </div>
+                    `;
+                    html += ev.urgentes.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
+                }
+                if (ev.proximas.length > 0) {
+                    html += `
+                        <div class="eval-sub-prio-header sub-prio-proximas">
+                            <span>⏳ Próximas 24 a 48 hs (${ev.proximas.length})</span>
+                            <div class="sub-prio-line"></div>
+                        </div>
+                    `;
+                    html += ev.proximas.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
+                }
+            } else {
+                html += itemsEvalFiltrados.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
+            }
+
+            html += `
+                    </div>
                 </div>
             `;
-            html += vencidas.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
-        }
-        if (urgentes24.length > 0) {
-            html += `
-                <div style="display:flex; align-items:center; gap:8px; margin:14px 0 2px 0; font-size:12px; font-weight:800; color:#9a3412; text-transform:uppercase; letter-spacing:0.04em;">
-                    <span>🔥 Próximas a Vencer — Menos de 24 hs (${urgentes24.length})</span>
-                    <div style="flex:1; height:1.5px; background:#fed7aa;"></div>
+        });
+
+        html += `
                 </div>
-            `;
-            html += urgentes24.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
-        }
-        if (proximas48.length > 0) {
-            html += `
-                <div style="display:flex; align-items:center; gap:8px; margin:14px 0 2px 0; font-size:12px; font-weight:800; color:#854d0e; text-transform:uppercase; letter-spacing:0.04em;">
-                    <span>⏳ Próximas 24 a 48 hs (${proximas48.length})</span>
-                    <div style="flex:1; height:1.5px; background:#fef08a;"></div>
-                </div>
-            `;
-            html += proximas48.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
-        }
-    } else {
-        html = itemsAMostrar.map(al => generarFilaAlumno(al, al.id, vista)).join('');
+            </div>
+        `;
     }
 
     cont.innerHTML = html;
@@ -7111,6 +7490,15 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
+    if (target.classList.contains('chip-eval-filtro') || target.closest('.chip-eval-filtro')) {
+        const chip = target.classList.contains('chip-eval-filtro') ? target : target.closest('.chip-eval-filtro');
+        const evalNom = chip.getAttribute('data-eval');
+        if (evalNom) {
+            window.setFiltroEvaluadorDashboard(evalNom);
+        }
+        return;
+    }
+
     if (target.classList.contains('btn-nombre-agendar') || target.closest('.btn-nombre-agendar')) {
         const btn = target.classList.contains('btn-nombre-agendar') ? target : target.closest('.btn-nombre-agendar');
         const id = btn.getAttribute('data-id');
@@ -7872,34 +8260,34 @@ document.addEventListener('click', async (e) => {
         const al = alDoc.data();
 
         const tieneEvento = Boolean(al.id_evento_alta || al.id_evento_reserva || al.reserva_id_evento);
+        let decisionCal = { decision: 'mantener', tieneEvento: false };
         
         if (tieneEvento) {
-            const horarioInfo = al.horario_match || al.reserva_fecha_texto || (al.fecha_inicio_clases ? formatearFechaAmi(al.fecha_inicio_clases) : 'Clase agendada');
-            const profeInfo = al.reserva_profe_nombre || al.profesor_asignado || '-';
-            const okCalendario = await window.confirmar(
-                `📅 Eliminar agenda de Google Calendar`,
-                `El alumno ${al.nombre} tiene una clase/agenda registrada:\n\n• Horario: ${horarioInfo}\n• Docente: ${profeInfo}\n\n¿Confirmás eliminar este evento de Google Calendar y devolver el alumno a Lista de Espera?`,
-                '🗑️ Eliminar Agenda y Continuar'
-            );
-            if (!okCalendario) return;
+            decisionCal = await window.preguntarAccionCalendar({ al, accionTipo: 'espera' });
+            if (decisionCal.decision === 'cancelar') return;
         }
 
         const motivo = prompt("¿Motivo para devolver a Lista de Espera?");
         if (motivo !== null) {
             if (motivo.trim() === "") return alert("Debes ingresar un motivo.");
             
-            if (tieneEvento) {
+            if (tieneEvento && decisionCal.decision === 'eliminar') {
                 mostrarIndicadorCarga('Eliminando evento en Google Calendar y actualizando estado...');
                 try {
-                    if (al.id_evento_alta) await eliminarEventoAltaSeguro(al, configApp);
+                    if (al.id_evento_alta) await eliminarEventoAltaSeguro(al, configApp, { forzarEliminacionCalendar: true });
                     if (al.id_evento_reserva || al.reserva_id_evento) await eliminarEventoSeguro(al, configApp);
                 } catch(calErr) {
                     console.warn("Aviso calendar al devolver a espera:", calErr);
                 }
+            } else if (tieneEvento) {
+                mostrarIndicadorCarga('Actualizando estado y desvinculando alumno (evento preservado en Calendar)...');
             }
 
             const hist = al.historial || [];
-            hist.push(crearEntradaHistorial(`Devuelto a Lista de Espera desde ${al.estado_agenda || 'Altas'}. Motivo: ${motivo.trim()}`, 'alta'));
+            const detalleCal = (tieneEvento && decisionCal.decision === 'mantener')
+                ? ' Evento en Google Calendar MANTENIDO para el docente.'
+                : (tieneEvento && decisionCal.decision === 'eliminar' ? ' Evento en Google Calendar ELIMINADO.' : '');
+            hist.push(crearEntradaHistorial(`Devuelto a Lista de Espera desde ${al.estado_agenda || 'Altas'}. Motivo: ${motivo.trim()}.${detalleCal}`, 'alta'));
             
             await updateDoc(doc(db, "alumnos", id), {
                 estado_agenda: "Lista de espera",
@@ -7922,7 +8310,10 @@ document.addEventListener('click', async (e) => {
             });
 
             if (tieneEvento) ocultarIndicadorCarga();
-            alert(tieneEvento ? "✅ Alumno devuelto a Lista de Espera.\nSe eliminó la agenda asociada en Google Calendar." : "✅ Alumno devuelto a Lista de Espera.");
+            const mensajeFinal = (tieneEvento && decisionCal.decision === 'mantener')
+                ? "✅ Alumno devuelto a Lista de Espera.\nSe mantuvo el evento intacto en Google Calendar."
+                : (tieneEvento ? "✅ Alumno devuelto a Lista de Espera.\nSe eliminó la agenda asociada en Google Calendar." : "✅ Alumno devuelto a Lista de Espera.");
+            alert(mensajeFinal);
             await cargarVista(estadoActualVista);
         }
         return;
@@ -7935,30 +8326,30 @@ document.addEventListener('click', async (e) => {
         const al = alDoc.data();
 
         const tieneEvento = Boolean(al.id_evento_alta || al.id_evento_reserva || al.reserva_id_evento);
+        let decisionCal = { decision: 'mantener', tieneEvento: false };
         if (tieneEvento) {
-            const horarioInfo = al.horario_match || al.reserva_fecha_texto || (al.fecha_inicio_clases ? formatearFechaAmi(al.fecha_inicio_clases) : 'Clase agendada');
-            const profeInfo = al.reserva_profe_nombre || al.profesor_asignado || '-';
-            const okCalendario = await window.confirmar(
-                `📅 Eliminar agenda de Google Calendar`,
-                `El alumno ${al.nombre} tiene una clase/agenda registrada:\n\n• Horario: ${horarioInfo}\n• Docente: ${profeInfo}\n\n¿Confirmás eliminar este evento de Google Calendar y suspender el alta?`,
-                '🗑️ Eliminar Agenda y Suspender'
-            );
-            if (!okCalendario) return;
+            decisionCal = await window.preguntarAccionCalendar({ al, accionTipo: 'suspender' });
+            if (decisionCal.decision === 'cancelar') return;
         }
 
         const motivo = prompt("¿Motivo de Suspensión de Alta?"); 
         if (motivo !== null) { 
             if (motivo.trim() === "") return alert("Debes ingresar un motivo."); 
-            if (tieneEvento) {
+            if (tieneEvento && decisionCal.decision === 'eliminar') {
                 mostrarIndicadorCarga('Eliminando evento en Google Calendar y suspendiendo...');
                 try {
-                    if (al.id_evento_alta) await eliminarEventoAltaSeguro(al, configApp);
+                    if (al.id_evento_alta) await eliminarEventoAltaSeguro(al, configApp, { forzarEliminacionCalendar: true });
                     if (al.id_evento_reserva || al.reserva_id_evento) await eliminarEventoSeguro(al, configApp);
                 } catch(e) {}
+            } else if (tieneEvento) {
+                mostrarIndicadorCarga('Actualizando estado y desvinculando alumno (evento preservado en Calendar)...');
             }
 
             const hist = al.historial || []; 
-            hist.push(crearEntradaHistorial(`Alta suspendida. Motivo: ${motivo.trim()}`, 'suspension')); 
+            const detalleCal = (tieneEvento && decisionCal.decision === 'mantener')
+                ? ' Evento en Google Calendar MANTENIDO para el docente.'
+                : (tieneEvento && decisionCal.decision === 'eliminar' ? ' Evento en Google Calendar ELIMINADO.' : '');
+            hist.push(crearEntradaHistorial(`Alta suspendida. Motivo: ${motivo.trim()}.${detalleCal}`, 'suspension')); 
             await updateDoc(doc(db, "alumnos", id), { 
                 estado_agenda: "Alta Suspendida", 
                 id_evento_alta: null,
@@ -7968,7 +8359,10 @@ document.addEventListener('click', async (e) => {
                 historial: hist 
             }); 
             ocultarIndicadorCarga();
-            alert("🛑 Alta suspendida correctamente y evento eliminado de Calendar.");
+            const mensajeFinal = (tieneEvento && decisionCal.decision === 'mantener')
+                ? "🛑 Alta suspendida correctamente.\nSe mantuvo el evento intacto en Google Calendar."
+                : (tieneEvento ? "🛑 Alta suspendida correctamente.\nSe eliminó la agenda asociada en Google Calendar." : "🛑 Alta suspendida correctamente.");
+            alert(mensajeFinal);
             await cargarVista(estadoActualVista); 
         } 
         return; 
@@ -9181,24 +9575,28 @@ document.addEventListener('click', async (e) => {
             const profPrevioNom = al.reserva_profe_nombre || al.profesor_asignado || null;
             const fechaPrevTexto = al.reserva_fecha_texto || (al.fecha_inicio_clases ? formatearFechaAmi(al.fecha_inicio_clases) : null);
 
-            if (teniaReserva) {
-                const okEliminar = await window.confirmar(
-                    `📅 Eliminar agenda de Google Calendar`,
-                    `El alumno ${al.nombre} tiene una agenda registrada:\n\n• Horario: ${fechaPrevTexto || 'Clase agendada'}\n• Docente: ${profPrevioNom || 'Profesor'}\n\n¿Confirmás eliminar este evento de Google Calendar y suspender la ficha?`,
-                    '🗑️ Eliminar Agenda y Suspender'
-                );
-                if (!okEliminar) {
+            let decisionCal = { decision: 'mantener', tieneEvento: false };
+            if (teniaReserva && (al.id_evento_alta || al.id_evento_reserva)) {
+                document.getElementById('modal-suspender')?.close();
+                decisionCal = await window.preguntarAccionCalendar({ al, accionTipo: 'suspender' });
+                if (decisionCal.decision === 'cancelar') {
                     setBotonCargando(target, false);
+                    document.getElementById('modal-suspender')?.showModal();
                     return;
                 }
             }
 
-            if (al.id_evento_reserva) await eliminarEventoSeguro(al, configApp);
-            if (al.id_evento_alta) await eliminarEventoAltaSeguro(al, configApp);
+            if (al.id_evento_reserva && decisionCal.decision === 'eliminar') await eliminarEventoSeguro(al, configApp);
+            if (al.id_evento_alta && decisionCal.decision === 'eliminar') {
+                await eliminarEventoAltaSeguro(al, configApp, { forzarEliminacionCalendar: true });
+            }
             
             const hist = al.historial || []; 
             const motivoCompleto = det ? `${mtv} (Detalle: ${det})` : mtv;
-            hist.push(crearEntradaHistorial(`Alumno suspendido. Motivo: ${motivoCompleto}. Eventos y cupos liberados.`, 'suspension')); 
+            const detalleCal = (teniaReserva && decisionCal.decision === 'mantener')
+                ? ' Evento en Google Calendar MANTENIDO.'
+                : (decisionCal.decision === 'eliminar' ? ' Eventos y cupos liberados en Google Calendar.' : ' Cupos liberados.');
+            hist.push(crearEntradaHistorial(`Alumno suspendido. Motivo: ${motivoCompleto}.${detalleCal}`, 'suspension')); 
             
             const nuevoEstado = esDeAltaOEspera ? "Alta suspendida" : "Agenda suspendida";
             await updateDoc(doc(db, "alumnos", id), { 
@@ -9221,9 +9619,11 @@ document.addEventListener('click', async (e) => {
                 reserva_fin: null, 
                 id_evento_reserva: null, 
                 calendario_evento_reserva: null, 
+                id_evento_alta: null,
+                calendario_evento_alta: null,
                 historial: hist 
             }); 
-            document.getElementById('modal-suspender').close(); 
+            document.getElementById('modal-suspender')?.close(); 
             removerFilaOptimista(id);
             await cargarVista(estadoActualVista); 
 
@@ -9232,7 +9632,10 @@ document.addEventListener('click', async (e) => {
                     const dataText = await generarTextoConHistorial(id, 'texto_cancela_alumno', fechaPrevTexto, profPrevioId, profPrevioNom, null, motivoCompleto);
                     if (dataText && dataText.txt) {
                         await navigator.clipboard.writeText(dataText.txt);
-                        alert(`🛑 Ficha suspendida correctamente.\n\n📅 Se canceló la reserva en Calendar y se copió al portapapeles el texto de cancelación para informar al profesor.`);
+                        const calAviso = (decisionCal.decision === 'mantener') 
+                            ? 'Se mantuvo el evento en Google Calendar.' 
+                            : 'Se canceló el evento en Google Calendar.';
+                        alert(`🛑 Ficha suspendida correctamente.\n\n📅 ${calAviso} Se copió al portapapeles el texto de aviso para informar al profesor.`);
                         return;
                     }
                 } catch(errTxt) {

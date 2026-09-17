@@ -23,8 +23,9 @@ import {
     sincronizarEventoAltaConfirmadaCalendar, 
     eliminarEventoAltaSeguro,
     validarConflictoCalendarEnVivo,
-    obtenerEventosProfesoresParaSlot
-} from "../services/calendar.service.js?v=6.9.2";
+    obtenerEventosProfesoresParaSlot,
+    buscarEventoExistenteEnHorario
+} from "../services/calendar.service.js?v=6.9.5";
 import { calcularProximaFechaDiaHora } from "./match.module.js";
 import { parsearNomenclaturaGrupoOClase } from "./profesor.module.js";
 
@@ -1175,12 +1176,55 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
     }) || (document.getElementById('prealta-instrumento-select')?.value || '').toLowerCase().includes('bat');
 
     const optProfeSel = selProfe ? selProfe.selectedOptions[0] : null;
-    const esSumaGrupoExistente = optProfeSel && optProfeSel.dataset.ocupado === '1';
-    const eventoIdExistente = optProfeSel ? (optProfeSel.dataset.eventoId || null) : null;
-    const eventoSummaryExistente = optProfeSel ? (optProfeSel.dataset.eventoSummary || '') : '';
+    let esSumaGrupoExistente = optProfeSel && optProfeSel.dataset.ocupado === '1';
+    let eventoIdExistente = optProfeSel ? (optProfeSel.dataset.eventoId || null) : null;
+    let eventoSummaryExistente = optProfeSel ? (optProfeSel.dataset.eventoSummary || '') : '';
+    let decisionCrearEvento = 'crear'; // por defecto
 
-    // Si NO es propuesta y NO es suma a grupo existente, verificamos conflicto live en Google Calendar
-    if (!esPropuesta && !esSumaGrupoExistente) {
+    const fInicioTexto = `${mapaDiasCodigos[diaCodigo] || diaCodigo} ${dateObj.getDate()}/${dateObj.getMonth()+1} ${horaInicioStr} hs`;
+    const docNom = profeNombre || primerAl.reserva_profe_nombre || 'Docente';
+
+    // DETECCIÓN PREVENTIVA EN GOOGLE CALENDAR (Requerimiento Clave)
+    if (!esPropuesta && profeCalId) {
+        if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, true, 'Verificando eventos del docente...');
+        try {
+            const evDetectado = await buscarEventoExistenteEnHorario(profeCalId, dateObj.toISOString(), durMin);
+            const esMismoEventoAlumno = evDetectado && alumnosList.some(a => a.id_evento_alta && a.id_evento_alta === evDetectado.id);
+
+            if (evDetectado && !esMismoEventoAlumno) {
+                eventoIdExistente = evDetectado.id;
+                eventoSummaryExistente = evDetectado.summary || '(Clase agendada)';
+
+                if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
+
+                if (typeof window.mostrarModalDeteccionEventoCalendar === 'function') {
+                    const respDecision = await window.mostrarModalDeteccionEventoCalendar({
+                        tituloEvento: eventoSummaryExistente,
+                        profeNombre: docNom,
+                        horarioTexto: fInicioTexto
+                    });
+
+                    if (!respDecision || respDecision === 'cancelar') {
+                        if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
+                        return;
+                    }
+
+                    if (respDecision === 'mantener') {
+                        decisionCrearEvento = 'mantener';
+                        esSumaGrupoExistente = true;
+                    } else {
+                        decisionCrearEvento = 'crear';
+                        esSumaGrupoExistente = false;
+                    }
+                }
+            }
+        } catch(errDet) {
+            console.warn("Error al buscar evento existente en Calendar:", errDet);
+        }
+    }
+
+    // Si NO es propuesta, NO es suma a grupo existente y NO eligió mantener actual, verificamos conflicto live en Google Calendar
+    if (!esPropuesta && !esSumaGrupoExistente && decisionCrearEvento !== 'mantener') {
         if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, true, 'Verificando agenda...');
         try {
             const valCal = await validarConflictoCalendarEnVivo({
@@ -1210,10 +1254,8 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
         }
     }
 
-    const fInicioTexto = `${mapaDiasCodigos[diaCodigo] || diaCodigo} ${dateObj.getDate()}/${dateObj.getMonth()+1} ${horaInicioStr} hs`;
-    const docNom = profeNombre || primerAl.reserva_profe_nombre || 'Docente';
-    const textoModalidad = esSumaGrupoExistente 
-        ? `Sumar a grupo existente: "${eventoSummaryExistente}" (se actualizará la clase en Google Calendar sin duplicar evento)`
+    const textoModalidad = (esSumaGrupoExistente || decisionCrearEvento === 'mantener') 
+        ? `Sumar a grupo/evento existente: "${eventoSummaryExistente}" (se mantendrá el evento actual en Calendar sin duplicar)`
         : (esIndividual ? 'Clase Individual' : (grp || 'Ensamble'));
 
     // Restaurar estado del botón antes de mostrar confirmación para que no diga "Guardando..." en el fondo
@@ -1221,9 +1263,9 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
 
     if (!esPropuesta) {
         const confAgenda = await window.confirmar(
-            `📅 Sincronizar agenda en Google Calendar`,
-            `Se ${esSumaGrupoExistente ? 'actualizará la clase existente' : 'creará o actualizará la clase'} en Google Calendar:\n\n• Alumnos: ${ids.length > 1 ? ids.length + ' alumnos' : (primerAl.nombre || 'Alumno')}\n• Modalidad: ${textoModalidad}\n• Inicio: ${fInicioTexto}\n• Docente: ${docNom}\n\n¿Confirmás sincronizar en Google Calendar y guardar?`,
-            '📅 Sincronizar y Guardar'
+            `📅 Guardar y Sincronizar Pre-Alta`,
+            `Resumen de la asignación:\n\n• Alumnos: ${ids.length > 1 ? ids.length + ' alumnos' : (primerAl.nombre || 'Alumno')}\n• Modalidad: ${textoModalidad}\n• Inicio: ${fInicioTexto}\n• Docente: ${docNom}\n\n¿Confirmás guardar la pre-alta?`,
+            '📅 Guardar Pre-Alta'
         );
         if (!confAgenda) {
             if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
@@ -1292,11 +1334,13 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
             instrumento_asignado: instFinal,
             instrumento: al.instrumento || []
         };
-        if (esSumaGrupoExistente && eventoIdExistente) {
+        const esPreexistente = Boolean(esSumaGrupoExistente || decisionCrearEvento === 'mantener');
+        if (esPreexistente && eventoIdExistente) {
             alParaSync.id_evento_alta = eventoIdExistente;
         }
-        if (esSumaGrupoExistente && eventoSummaryExistente) {
+        if (esPreexistente && eventoSummaryExistente) {
             alParaSync.evento_summary_original = eventoSummaryExistente;
+            alParaSync.evento_es_preexistente = true;
         }
 
         if (!esIndividual) {
@@ -1353,7 +1397,14 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
                 }
             }
 
-            if (!evSincronizado || esIndividual) {
+            if (decisionCrearEvento === 'mantener') {
+                // Preservar evento preexistente en Google Calendar sin llamar a la API ni duplicar
+                evSincronizado = {
+                    id: eventoIdExistente,
+                    calendar: profeCalId || primerAl.reserva_cal_id || '',
+                    summary: eventoSummaryExistente
+                };
+            } else if (!evSincronizado || esIndividual) {
                 if (esAltaPrevia) {
                     // Si el alta ya está confirmada, no debe llevar signo de pregunta ❓
                     evSincronizado = await sincronizarEventoAltaConfirmadaCalendar(alParaSync, esIndividual, alumnosDelGrupo, callbacks.configApp || defaultCfg, opcionesAlta);
@@ -1424,6 +1475,14 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
             updates.calendario_evento_alta = evSincronizado.calendar;
         }
 
+        const esPreexistenteFinal = Boolean(esSumaGrupoExistente || decisionCrearEvento === 'mantener');
+        if (esPreexistenteFinal) {
+            updates.evento_es_preexistente = true;
+            if (eventoSummaryExistente) updates.evento_summary_original = eventoSummaryExistente;
+        } else if (decisionCrearEvento === 'crear') {
+            updates.evento_es_preexistente = false;
+        }
+
         if (!al.fecha_prealta && !esPropuesta) updates.fecha_prealta = new Date().toISOString();
         if (!al.checklist_alta && !esAltaPrevia && !esPropuesta) updates.checklist_alta = [false, false, false, false];
         
@@ -1432,6 +1491,8 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
         let accionDesc = '';
         if (esPropuesta) {
             accionDesc = `Propuesta de grupo "${finalGrupo}" creada en validación (${updates.horario_match}) con Profe ${finalProfeNombre || '-'}.`;
+        } else if (decisionCrearEvento === 'mantener') {
+            accionDesc = `Pre-Alta iniciada para "${finalGrupo}" con Profe ${finalProfeNombre || '-'} (${updates.horario_match}). Asociada al evento existente "${eventoSummaryExistente}" (sin duplicar en Calendar).`;
         } else if (esAltaPrevia) {
             accionDesc = `Datos de cursada actualizados: ${updates.horario_match} con Profe ${finalProfeNombre || '-'}.`;
         } else {

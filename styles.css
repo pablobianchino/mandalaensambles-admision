@@ -3310,3 +3310,179 @@ button.btn-prio-filtro.prio-proximos.active,
     box-shadow: 0 2px 6px rgba(22, 163, 74, 0.15);
 }
 
+/* =======================================================================
+   DASHBOARD PRIORIDADES v2 — JERARQUÍA UNIFICADA
+   ======================================================================= */
+.dash-apartado-container {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    margin-bottom: 22px;
+    overflow: hidden;
+    box-shadow: 0 2px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.dash-apartado-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #fafafa;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.dash-apartado-title {
+    font-size: 13.5px;
+    font-weight: 800;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    letter-spacing: 0.02em;
+}
+
+.dash-apartado-subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-top: 2px;
+}
+
+.dash-apartado-badge {
+    font-size: 11px;
+    font-weight: 800;
+    padding: 3px 9px;
+    border-radius: 14px;
+}
+
+.dash-apartado-content {
+    padding: 16px 18px;
+}
+
+/* Tarjeta Contenedora por Evaluador / Docente */
+.eval-card-group {
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    margin-bottom: 18px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    transition: all 0.2s ease;
+}
+
+.eval-card-group:last-child {
+    margin-bottom: 0;
+}
+
+.eval-card-group.has-vencidas {
+    border-color: #fca5a5;
+    box-shadow: 0 3px 10px rgba(220, 38, 38, 0.08);
+}
+
+.eval-card-header {
+    padding: 11px 16px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    font-weight: 700;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.eval-card-header.head-vencida {
+    background: linear-gradient(90deg, #fff1f2 0%, #ffffff 100%);
+    border-bottom-color: #fecdd3;
+}
+
+.eval-card-header.head-normal {
+    background: #f8fafc;
+}
+
+.eval-card-body {
+    padding: 12px 14px;
+}
+
+/* Sub-bloques de vencimiento dentro del evaluador */
+.eval-sub-prio-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 10px 0 6px 0;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.eval-sub-prio-header:first-child {
+    margin-top: 2px;
+}
+
+.eval-sub-prio-header.sub-prio-vencidas { color: #b91c1c; }
+.eval-sub-prio-header.sub-prio-urgentes { color: #c2410c; }
+.eval-sub-prio-header.sub-prio-proximas { color: #854d0e; }
+
+.eval-sub-prio-header .sub-prio-line {
+    flex: 1;
+    height: 1px;
+    background: currentColor;
+    opacity: 0.25;
+}
+
+/* Chips de filtro rápido por evaluador */
+.chip-eval-filtro {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.chip-eval-filtro:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+    border-color: #94a3b8;
+}
+
+.chip-eval-filtro.active {
+    background: #007b8f;
+    color: #ffffff;
+    border-color: #007b8f;
+    box-shadow: 0 2px 6px rgba(0, 123, 143, 0.25);
+}
+
+/* Decision cards en modales */
+.decision-card {
+    transition: all 0.2s ease;
+}
+.decision-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+.decision-card.option-recommended:hover {
+    border-color: #047857 !important;
+    background: #e6fced !important;
+}
+.decision-card.option-create:hover {
+    border-color: #2563eb !important;
+    background: #eff6ff !important;
+}
+.decision-card.option-danger:hover {
+    border-color: #dc2626 !important;
+    background: #fef2f2 !important;
+}
+
+
+
