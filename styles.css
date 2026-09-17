@@ -3484,5 +3484,204 @@ button.btn-prio-filtro.prio-proximos.active,
     background: #fef2f2 !important;
 }
 
+/* ================================================= */
+/* COMPONENTE: FECHAS Y HORARIOS INTELIGENTES (PRE-ALTA GRUPAL) */
+/* ================================================= */
+.fechas-sugeridas-wrapper {
+    background: #f8fafc;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 14px;
+}
 
+.semana-nav-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+    background: #ffffff;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
 
+.btn-semana-nav {
+    background: var(--hover-bg, #f8fafc);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 5px 9px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    color: var(--text-main);
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-semana-nav:hover:not(:disabled) {
+    background: var(--accent-teal-light, #e6f4f6);
+    border-color: var(--accent-teal, #007b8f);
+    color: var(--accent-teal-dark, #005a69);
+}
+
+.btn-semana-nav:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.semana-label {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--text-main);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.25;
+}
+
+.semana-badge-offset {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--accent-teal, #007b8f);
+    text-transform: uppercase;
+}
+
+.slots-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 10px;
+    max-height: 240px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.slot-card {
+    background: #ffffff;
+    border: 1.5px solid var(--border-color);
+    border-radius: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+}
+
+.slot-card:hover {
+    border-color: var(--accent-teal, #007b8f);
+    background: #fafdfe;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+.slot-card.selected {
+    border-color: var(--accent-teal, #007b8f);
+    background: #f0fdfa;
+    box-shadow: 0 0 0 2px rgba(0, 123, 143, 0.2);
+}
+
+.slot-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.slot-fecha-hora {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.slot-match-pill {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.slot-match-pill.pill-total {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+
+.slot-match-pill.pill-parcial {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+}
+
+.slot-detail-row {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-top: 4px;
+}
+
+.slot-alumnos-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.chip-al-match {
+    font-size: 10.5px;
+    font-weight: 600;
+    background: #f1f5f9;
+    color: #334155;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+}
+
+.chip-al-excluded {
+    font-size: 10.5px;
+    font-weight: 700;
+    background: #fee2e2;
+    color: #991b1b;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid #fecaca;
+}
+
+.exclusion-alert-box {
+    background: #fff1f2;
+    border: 1px solid #fecdd3;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 11.5px;
+    color: #9f1239;
+    line-height: 1.35;
+    margin-top: 8px;
+    animation: fadeIn 0.2s;
+}
+
+.manual-date-toggle {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11.5px;
+    color: var(--accent-teal, #007b8f);
+    font-weight: 600;
+    cursor: pointer;
+    padding-top: 8px;
+    border-top: 1px dashed #cbd5e1;
+    margin-top: 8px;
+}
+
+.manual-date-toggle:hover {
+    text-decoration: underline;
+}

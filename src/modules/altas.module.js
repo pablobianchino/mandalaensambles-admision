@@ -25,7 +25,7 @@ import {
     validarConflictoCalendarEnVivo,
     obtenerEventosProfesoresParaSlot,
     buscarEventoExistenteEnHorario
-} from "../services/calendar.service.js?v=6.9.6";
+} from "../services/calendar.service.js?v=6.9.8";
 import { calcularProximaFechaDiaHora } from "./match.module.js";
 import { parsearNomenclaturaGrupoOClase } from "./profesor.module.js";
 
@@ -660,6 +660,15 @@ export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg
     const matchWarnList = document.getElementById('prealta-match-warnings-list');
     if (matchWarnList) matchWarnList.innerHTML = '';
 
+    // Asegurar visibilidad correcta de fecha tradicional en pre-alta individual
+    const contSugerencias = document.getElementById('prealta-sugerencias-fechas-container');
+    if (contSugerencias) {
+        contSugerencias.style.display = 'none';
+        contSugerencias.innerHTML = '';
+    }
+    const wrapInputFecha = document.getElementById('prealta-campo-fecha-input-wrap');
+    if (wrapInputFecha) wrapInputFecha.style.display = 'block';
+
     const instsAlumno = Array.isArray(al.instrumento) ? al.instrumento : (al.instrumento ? [al.instrumento] : []);
     const instActual = opts.instSugerido || al.instrumento_asignado || instsAlumno[0] || '';
     const profeActualId = profeSugerido || al.reserva_profe_id || al.profesor_id || '';
@@ -904,17 +913,310 @@ export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg
 }
 
 // -----------------------------------------------------------------------
+// Motor de calculo de franjas y fechas comunes para grupos (Lista de Espera)
+// Regla: Minimo 2 alumnos coincidentes, duracion de 60m o 90m
+// -----------------------------------------------------------------------
+export function calcularSlotsComunesAlumnos(alumnosList = [], duracionMinutos = 60, semanaOffset = 1) {
+    if (!alumnosList || alumnosList.length < 2) return { slots: [], infoSemana: null };
+
+    // Calcular lunes de la semana evaluada
+    const hoy = new Date();
+    const diffLunes = (hoy.getDay() === 0 ? -6 : 1 - hoy.getDay());
+    const lunesActual = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + diffLunes);
+    const lunesSemana = new Date(lunesActual.getFullYear(), lunesActual.getMonth(), lunesActual.getDate() + (semanaOffset * 7));
+    const domingoSemana = new Date(lunesSemana.getFullYear(), lunesSemana.getMonth(), lunesSemana.getDate() + 6);
+
+    const nombresMeses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const infoSemana = {
+        offset: semanaOffset,
+        lunes: lunesSemana,
+        domingo: domingoSemana,
+        rangoTexto: `Semana del ${lunesSemana.getDate()} al ${domingoSemana.getDate()} de ${nombresMeses[domingoSemana.getMonth()]}`,
+        badgeTexto: semanaOffset === 0 ? 'Esta Semana (En curso)' : (semanaOffset === 1 ? 'Semana Siguiente (Recomendada)' : `En +${semanaOffset} semanas`)
+    };
+
+    const diasEvaluar = [
+        { cod: 'L', offset: 0, nombre: 'Lunes', hMax: 1320 },
+        { cod: 'M', offset: 1, nombre: 'Martes', hMax: 1320 },
+        { cod: 'X', offset: 2, nombre: 'Miércoles', hMax: 1320 },
+        { cod: 'J', offset: 3, nombre: 'Jueves', hMax: 1320 },
+        { cod: 'V', offset: 4, nombre: 'Viernes', hMax: 1320 },
+        { cod: 'S', offset: 5, nombre: 'Sábado', hMax: 1080 }
+    ];
+
+    const slots = [];
+
+    diasEvaluar.forEach(dia => {
+        const dSlot = new Date(lunesSemana.getFullYear(), lunesSemana.getMonth(), lunesSemana.getDate() + dia.offset);
+        const yyyy = dSlot.getFullYear();
+        const mm = (dSlot.getMonth() + 1).toString().padStart(2, '0');
+        const dd = dSlot.getDate().toString().padStart(2, '0');
+        const fechaYMD = `${yyyy}-${mm}-${dd}`;
+
+        // Evaluar desde las 09:00 (540 mins) hasta hMax en bloques de 30 mins
+        for (let slotIni = 540; slotIni + duracionMinutos <= dia.hMax; slotIni += 30) {
+            const slotFin = slotIni + duracionMinutos;
+            const hIniStr = minutosAHora(slotIni);
+            const hFinStr = minutosAHora(slotFin);
+
+            const alumnosIncluidos = [];
+            const alumnosExcluidos = [];
+
+            alumnosList.forEach(al => {
+                let cubre = false;
+                let motivo = '';
+                if (al.disponibilidad && al.disponibilidad[dia.cod] && al.disponibilidad[dia.cod].length > 0) {
+                    const rangos = al.disponibilidad[dia.cod];
+                    cubre = rangos.some(r => {
+                        if (!r) return false;
+                        const rIni = typeof r === 'object' ? (r.inicio || '09:00') : (r.split(/[-a]/)[0] || '09:00');
+                        const rFin = typeof r === 'object' ? (r.fin || '22:00') : (r.split(/[-a]/)[1] || r.split(/[-a]/)[0] || '22:00');
+                        const pStart = convertirHoraAMinutos(rIni);
+                        const pEnd = convertirHoraAMinutos(rFin);
+                        return slotIni >= pStart && slotFin <= pEnd;
+                    });
+                    if (!cubre) {
+                        motivo = `No cubre franja ${hIniStr}-${hFinStr}`;
+                    }
+                } else {
+                    motivo = `Sin disp. los ${dia.nombre}`;
+                }
+
+                if (cubre) {
+                    alumnosIncluidos.push({
+                        id: al.id,
+                        nombre: al.nombre || 'Alumno',
+                        nivel: al.nivel || '',
+                        instrumento: al.instrumento_asignado || al.instrumento || ''
+                    });
+                } else {
+                    alumnosExcluidos.push({
+                        id: al.id,
+                        nombre: al.nombre || 'Alumno',
+                        motivo: motivo
+                    });
+                }
+            });
+
+            // Regla de Match: al menos 2 alumnos coincidentes
+            if (alumnosIncluidos.length >= 2) {
+                const esTotal = alumnosIncluidos.length === alumnosList.length;
+                slots.push({
+                    diaCod: dia.cod,
+                    diaNombre: dia.nombre,
+                    diaNumero: dd,
+                    mesNumero: mm,
+                    fechaYMD,
+                    fechaIso: `${fechaYMD}T${hIniStr}`,
+                    hIniStr,
+                    hFinStr,
+                    duracionMinutos,
+                    tipoMatch: esTotal ? 'total' : 'parcial',
+                    alumnosIncluidos,
+                    alumnosExcluidos,
+                    cantIncluidos: alumnosIncluidos.length,
+                    totalAlumnos: alumnosList.length,
+                    score: (esTotal ? 10000 : 0) + (alumnosIncluidos.length * 100) - (dia.offset * 10) - (slotIni / 100)
+                });
+            }
+        }
+    });
+
+    // Ordenar slots: primero total match, luego mayor cantidad de alumnos, luego dia de la semana y horario
+    slots.sort((a, b) => b.score - a.score);
+
+    return { slots, infoSemana };
+}
+
+let estadoSugerenciasGrupal = {
+    semanaOffset: 1,
+    todosAlumnos: [],
+    cfg: defaultCfg
+};
+
+export function renderizarSugerenciasFechasGrupal(alumnosList, semanaOffset = 1, durMin = 60, cfg = defaultCfg) {
+    const contenedor = document.getElementById('prealta-sugerencias-fechas-container');
+    if (!contenedor) return;
+    contenedor.style.display = 'block';
+
+    estadoSugerenciasGrupal.semanaOffset = semanaOffset;
+    estadoSugerenciasGrupal.todosAlumnos = alumnosList;
+    estadoSugerenciasGrupal.cfg = cfg;
+
+    const { slots, infoSemana } = calcularSlotsComunesAlumnos(alumnosList, durMin, semanaOffset);
+
+    let html = `
+        <div class="fechas-sugeridas-wrapper">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span style="font-size:11.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">
+                    FECHA Y HORA DE PRIMERA CLASE
+                </span>
+                <span class="badge-tag" style="background:#dcfce7; color:#166534; font-weight:700; font-size:10.5px; padding:2px 7px; border-radius:6px;">
+                    ⚡ Sugerencias Inteligentes
+                </span>
+            </div>
+
+            <!-- Navegacion de Semanas -->
+            <div class="semana-nav-bar">
+                <button type="button" class="btn-semana-nav" id="btn-prealta-sem-ant" ${semanaOffset <= 0 ? 'disabled' : ''}>
+                    <span>◀</span> Anterior
+                </button>
+                <div class="semana-label">
+                    <span>${infoSemana.rangoTexto}</span>
+                    <span class="semana-badge-offset">${infoSemana.badgeTexto}</span>
+                </div>
+                <button type="button" class="btn-semana-nav" id="btn-prealta-sem-sig" ${semanaOffset >= 4 ? 'disabled' : ''}>
+                    Siguiente <span>▶</span>
+                </button>
+            </div>
+
+            <!-- Contenedor de slots -->
+            <div class="slots-container" id="prealta-slots-lista">
+    `;
+
+    if (slots.length === 0) {
+        html += `
+            <div style="background:#fff; border:1px dashed #cbd5e1; border-radius:8px; padding:16px 12px; text-align:center; font-size:12px; color:var(--text-muted); line-height:1.4;">
+                <div style="font-size:1.4em; margin-bottom:4px;">📅</div>
+                <strong>No se encontraron coincidencias para al menos 2 alumnos en esta semana.</strong><br>
+                Podes buscar en la <strong>semana siguiente ▶</strong> o ingresar una fecha manual debajo.
+            </div>
+        `;
+    } else {
+        slots.forEach((slot, idx) => {
+            const esTotal = slot.tipoMatch === 'total';
+            const pillCls = esTotal ? 'pill-total' : 'pill-parcial';
+            const pillTxt = esTotal ? `⭐ Coinciden todos (${slot.cantIncluidos}/${slot.totalAlumnos})` : `⚡ Coinciden ${slot.cantIncluidos} de ${slot.totalAlumnos}`;
+
+            html += `
+                <div class="slot-card" data-idx="${idx}" data-fecha-iso="${slot.fechaIso}" data-dia-cod="${slot.diaCod}" data-hini="${slot.hIniStr}">
+                    <div class="slot-header">
+                        <span class="slot-fecha-hora">📅 ${slot.diaNombre} ${slot.diaNumero}/${slot.mesNumero} — ${slot.hIniStr} hs</span>
+                        <span class="slot-match-pill ${pillCls}">${pillTxt}</span>
+                    </div>
+                    <div class="slot-detail-row">
+                        <span style="font-weight:600;">Franja: ${slot.hIniStr} a ${slot.hFinStr} hs (${slot.duracionMinutos} min)</span>
+                        <div class="slot-alumnos-chips">
+                            ${slot.alumnosIncluidos.map(a => `<span class="chip-al-match">✓ ${(a.nombre || '').split(' ')[0]}</span>`).join('')}
+                            ${slot.alumnosExcluidos.map(e => `<span class="chip-al-excluded">🔴 ${(e.nombre || '').split(' ')[0]}: ${e.motivo}</span>`).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    html += `
+            </div>
+
+            <!-- Alerta de exclusion dinamica -->
+            <div class="exclusion-alert-box" id="prealta-exclusion-alerta" style="display:none;"></div>
+
+            <!-- Toggle de fecha manual -->
+            <div class="manual-date-toggle" id="btn-toggle-fecha-manual-prealta">
+                <span id="lbl-toggle-manual-txt">✏️ O ingresar fecha manual fuera de agenda</span>
+                <span id="icono-toggle-manual-prealta">▼</span>
+            </div>
+        </div>
+    `;
+
+    contenedor.innerHTML = html;
+
+    // Vincular navegacion de semanas
+    const btnAnt = document.getElementById('btn-prealta-sem-ant');
+    const btnSig = document.getElementById('btn-prealta-sem-sig');
+    if (btnAnt) {
+        btnAnt.onclick = () => renderizarSugerenciasFechasGrupal(alumnosList, semanaOffset - 1, durMin, cfg);
+    }
+    if (btnSig) {
+        btnSig.onclick = () => renderizarSugerenciasFechasGrupal(alumnosList, semanaOffset + 1, durMin, cfg);
+    }
+
+    // Vincular toggle fecha manual
+    const btnToggleManual = document.getElementById('btn-toggle-fecha-manual-prealta');
+    const wrapInput = document.getElementById('prealta-campo-fecha-input-wrap');
+    const iconoToggle = document.getElementById('icono-toggle-manual-prealta');
+    if (btnToggleManual && wrapInput) {
+        btnToggleManual.onclick = () => {
+            const isHidden = wrapInput.style.display === 'none' || !wrapInput.style.display;
+            wrapInput.style.display = isHidden ? 'block' : 'none';
+            if (iconoToggle) iconoToggle.textContent = isHidden ? '▲' : '▼';
+        };
+    }
+
+    // Vincular clicks en los slots
+    const slotCards = contenedor.querySelectorAll('.slot-card');
+    slotCards.forEach(card => {
+        card.onclick = () => {
+            slotCards.forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+
+            const idx = parseInt(card.dataset.idx, 10);
+            const slot = slots[idx];
+            if (!slot) return;
+
+            const inputFecha = document.getElementById('prealta-fecha-inicio');
+            if (inputFecha) {
+                inputFecha.value = slot.fechaIso;
+            }
+
+            // Gestionar alumnos incluidos / excluidos
+            const alertExcl = document.getElementById('prealta-exclusion-alerta');
+            const hiddenIds = document.getElementById('prealta-alumno-id');
+            if (slot.alumnosExcluidos && slot.alumnosExcluidos.length > 0) {
+                const nombresExcl = slot.alumnosExcluidos.map(e => e.nombre).join(', ');
+                if (alertExcl) {
+                    alertExcl.style.display = 'block';
+                    alertExcl.innerHTML = `<strong>⚠️ Atención:</strong> <strong>${nombresExcl}</strong> no tiene disponibilidad para esta franja y quedará afuera de la propuesta (permanecerá en Lista de Espera).`;
+                }
+                if (hiddenIds) {
+                    hiddenIds.value = slot.alumnosIncluidos.map(a => a.id).join(',');
+                }
+            } else {
+                if (alertExcl) alertExcl.style.display = 'none';
+                if (hiddenIds) {
+                    hiddenIds.value = alumnosList.map(a => a.id).join(',');
+                }
+            }
+
+            // Disparar reactividad secuencial existente (profesores, nombre de grupo, advertencias)
+            if (inputFecha) {
+                if (typeof inputFecha.onchange === 'function') {
+                    inputFecha.onchange();
+                } else {
+                    inputFecha.dispatchEvent(new Event('change'));
+                }
+            }
+        };
+    });
+
+    // Si hay slots y no se selecciono nada aun, pre-seleccionar el primero para flujo en 1 clic
+    if (slots.length > 0 && !document.getElementById('prealta-fecha-inicio')?.value) {
+        const primerSlotCard = slotCards[0];
+        if (primerSlotCard) primerSlotCard.click();
+    }
+}
+
+// -----------------------------------------------------------------------
 // Abrir Modal Pre-alta Grupal / Masivo
 // -----------------------------------------------------------------------
 export async function abrirModalPrealtaGrupal(ids, grupoNom = '', cfg = defaultCfg, esPropuesta = false) {
     if (!ids || ids.length === 0) return alert("No hay alumnos seleccionados.");
 
+    // Normalizar argumentos de forma defensiva
+    let realCfg = cfg;
+    let realEsPropuesta = esPropuesta;
+    if (typeof cfg === 'boolean') {
+        realEsPropuesta = cfg;
+        realCfg = arguments[3] || defaultCfg;
+    }
+
     const hiddenProp = document.getElementById('prealta-es-propuesta');
-    if (hiddenProp) hiddenProp.value = esPropuesta ? 'true' : 'false';
+    if (hiddenProp) hiddenProp.value = realEsPropuesta ? 'true' : 'false';
 
     const btnGuardarPrealta = document.getElementById('btn-guardar-prealta');
     if (btnGuardarPrealta) {
-        if (esPropuesta) {
+        if (realEsPropuesta) {
             btnGuardarPrealta.textContent = '🧩 Crear Propuesta en Validación';
             btnGuardarPrealta.style.background = 'var(--accent-teal, #007b8f)';
         } else {
@@ -934,7 +1236,7 @@ export async function abrirModalPrealtaGrupal(ids, grupoNom = '', cfg = defaultC
     const profeActualId = primerAl.reserva_profe_id || primerAl.profesor_id || '';
 
     document.getElementById('prealta-alumno-id').value = ids.join(',');
-    document.getElementById('titulo-prealta').textContent = esPropuesta
+    document.getElementById('titulo-prealta').textContent = realEsPropuesta
         ? (ids.length > 1 ? `🧩 Nueva Propuesta de Grupo (${ids.length} alumnos)` : `🧩 Nueva Propuesta de Clase`)
         : `Iniciar Pre-Alta Grupal (${ids.length} alumnos)`;
     
@@ -955,7 +1257,7 @@ export async function abrirModalPrealtaGrupal(ids, grupoNom = '', cfg = defaultC
 
     let fValGrupal = '';
     let grupoValGrupal = grupoNom || primerAl.grupo_asignado || '';
-    if (!esPropuesta) {
+    if (!realEsPropuesta) {
         if (primerAl.fecha_inicio_clases) fValGrupal = isoToDatetimeLocal(primerAl.fecha_inicio_clases);
         else if (primerAl.fecha_sugerida_inicio) fValGrupal = isoToDatetimeLocal(primerAl.fecha_sugerida_inicio);
         else if (primerAl.dia_match && primerAl.horario_inicio_match) fValGrupal = calcularProximaFechaDiaHora(primerAl.dia_match, primerAl.horario_inicio_match);
@@ -965,16 +1267,27 @@ export async function abrirModalPrealtaGrupal(ids, grupoNom = '', cfg = defaultC
     const selectProfe = document.getElementById('prealta-profe-select');
     if (selectProfe) {
         if (fValGrupal && profeActualId) {
-            await refrescarProfesoresPrealta(tipoSuscGrupal, '', profeActualId, cfg);
+            await refrescarProfesoresPrealta(tipoSuscGrupal, '', profeActualId, realCfg);
             asegurarOpcionProfesor(selectProfe, profeActualId, primerAl.reserva_profe_nombre || primerAl.profesor_asignado || 'Docente');
         } else {
             selectProfe.innerHTML = '<option value="">Seleccionar profesor...</option>';
         }
     }
 
-    await renderListaInstrumentosAlumnos(alumnosList, cfg);
+    await renderListaInstrumentosAlumnos(alumnosList, realCfg);
     actualizarVisibilidadCamposPrealta(tipoSuscGrupal);
-    renderizarAdvertenciasMatchPrealta(alumnosList, '', obtenerDuracionPrealtaMinutos(), cfg);
+    renderizarAdvertenciasMatchPrealta(alumnosList, '', obtenerDuracionPrealtaMinutos(), realCfg);
+
+    // Si son 2 o más alumnos, activar el componente de sugerencias de fecha inteligente
+    const wrapInputFecha = document.getElementById('prealta-campo-fecha-input-wrap');
+    if (ids.length > 1) {
+        if (wrapInputFecha) wrapInputFecha.style.display = 'none';
+        renderizarSugerenciasFechasGrupal(alumnosList, 1, obtenerDuracionPrealtaMinutos(), realCfg);
+    } else {
+        const contSug = document.getElementById('prealta-sugerencias-fechas-container');
+        if (contSug) contSug.style.display = 'none';
+        if (wrapInputFecha) wrapInputFecha.style.display = 'block';
+    }
 
     const inputFechaIni = document.getElementById('prealta-fecha-inicio');
     if (inputFechaIni) {
@@ -986,8 +1299,8 @@ export async function abrirModalPrealtaGrupal(ids, grupoNom = '', cfg = defaultC
             }
             autoCompletarNombreGrupoPrealta();
             actualizarVisibilidadCamposPrealta(tipoSuscGrupal);
-            renderizarAdvertenciasMatchPrealta(alumnosList, inputFechaIni.value, obtenerDuracionPrealtaMinutos(), cfg);
-            verificarPrealtaEnCalendar(alumnosList, cfg);
+            renderizarAdvertenciasMatchPrealta(alumnosList, inputFechaIni.value, obtenerDuracionPrealtaMinutos(), realCfg);
+            verificarPrealtaEnCalendar(alumnosList, realCfg);
         };
         inputFechaIni.oninput = inputFechaIni.onchange;
     }
@@ -995,26 +1308,30 @@ export async function abrirModalPrealtaGrupal(ids, grupoNom = '', cfg = defaultC
         selectProfe.onchange = () => {
             autoCompletarNombreGrupoPrealta();
             actualizarVisibilidadCamposPrealta(tipoSuscGrupal);
-            renderizarAdvertenciasMatchPrealta(alumnosList, inputFechaIni?.value || '', obtenerDuracionPrealtaMinutos(), cfg);
-            verificarPrealtaEnCalendar(alumnosList, cfg);
+            renderizarAdvertenciasMatchPrealta(alumnosList, inputFechaIni?.value || '', obtenerDuracionPrealtaMinutos(), realCfg);
+            verificarPrealtaEnCalendar(alumnosList, realCfg);
         };
     }
     document.querySelectorAll('input[name="prealta-tipo-ensamble"]').forEach(radio => {
         radio.onchange = async () => {
+            const durNueva = obtenerDuracionPrealtaMinutos();
+            if (ids.length > 1) {
+                renderizarSugerenciasFechasGrupal(alumnosList, estadoSugerenciasGrupal.semanaOffset || 1, durNueva, realCfg);
+            }
             if (inputFechaIni && inputFechaIni.value) {
                 await refrescarProfesoresPrealta(tipoSuscGrupal, '', selectProfe.value);
             }
             autoCompletarNombreGrupoPrealta();
             actualizarVisibilidadCamposPrealta(tipoSuscGrupal);
-            renderizarAdvertenciasMatchPrealta(alumnosList, inputFechaIni?.value || '', obtenerDuracionPrealtaMinutos(), cfg);
-            verificarPrealtaEnCalendar(alumnosList, cfg);
+            renderizarAdvertenciasMatchPrealta(alumnosList, inputFechaIni?.value || '', durNueva, realCfg);
+            verificarPrealtaEnCalendar(alumnosList, realCfg);
         };
     });
 
     const banner = document.getElementById('prealta-info-banner');
     if (banner) {
         banner.style.display = 'block';
-        if (esPropuesta) {
+        if (realEsPropuesta) {
             banner.innerHTML = `💡 <strong>Propuesta para Validación:</strong> Al guardar, los alumnos pasarán a <strong>"Grupos y Alumnos en Validación"</strong> para que el coordinador confirme disponibilidad.<br><span style="color:#0f766e; font-weight:700;">🚫 NO se genera ningún evento en Google Calendar en esta instancia.</span>`;
         } else if (primerAl.horario_match && primerAl.horario_match !== primerAl.reserva_fecha_texto) {
             banner.innerHTML = `👥 <strong>Grupo:</strong> ${grupoNom || primerAl.grupo_asignado || '-'} • 🎯 <strong>Horario Match:</strong> ${primerAl.horario_match} • 👨‍🏫 <strong>Profesor Asignado:</strong> ${primerAl.reserva_profe_nombre || primerAl.profesor_asignado || '-'}`;
@@ -1025,7 +1342,7 @@ export async function abrirModalPrealtaGrupal(ids, grupoNom = '', cfg = defaultC
 
     const fValActual = document.getElementById('prealta-fecha-inicio')?.value;
     if (fValActual && selectProfe?.value) {
-        verificarPrealtaEnCalendar(alumnosList, cfg);
+        verificarPrealtaEnCalendar(alumnosList, realCfg);
     }
 
     document.getElementById('modal-iniciar-prealta')?.showModal();
@@ -2447,11 +2764,11 @@ function construirAccionesFilaAlta(al, id, vista, isConfirmed, nombreGrupo, call
     } else if (vista === 'Altas - Confirmadas') {
         botonesVisibles = `
             ${!esFinalizada ? `<button type="button" class="row-quick-btn primary btn-finalizar-alta-directa" data-id="${id}" title="Finalizar alta y cerrar admisión">🏁 Finalizar Alta</button>` : ''}
-            <button type="button" class="row-quick-btn secondary btn-reenviar-alta" data-id="${id}" title="Copiar texto de confirmación">💬 Copiar texto</button>
+            <button type="button" class="row-quick-btn secondary btn-aviso-alta-alumno" data-id="${id}" title="Copiar mensaje de confirmación y bienvenida para el alumno">💬 Avisar a Alumno</button>
         `;
     } else if (vista === 'Altas - Finalizadas') {
         botonesVisibles = `
-            <button type="button" class="row-quick-btn secondary btn-reenviar-alta" data-id="${id}" title="Copiar texto de confirmación">💬 Copiar texto</button>
+            <button type="button" class="row-quick-btn secondary btn-aviso-alta-alumno" data-id="${id}" title="Copiar mensaje de confirmación y bienvenida para el alumno">💬 Avisar a Alumno</button>
         `;
     }
 

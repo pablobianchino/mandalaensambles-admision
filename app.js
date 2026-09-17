@@ -13,7 +13,7 @@ import {
     configNodosFlujoCoordinador,
     esAlumnoAltaFinalizada,
     esAlumnoAltaConfirmadaIncompleta
-} from "./src/config/constants.js?v=6.9.6";
+} from "./src/config/constants.js?v=6.9.8";
 
 import { 
     app, 
@@ -42,7 +42,7 @@ import {
     EmailAuthProvider,
     reauthenticateWithCredential,
     linkWithCredential
-} from "./src/config/firebase.js?v=6.9.6";
+} from "./src/config/firebase.js?v=6.9.8";
 
 import {
     limpiarHoraParaChip,
@@ -56,7 +56,7 @@ import {
     extraerDisponibilidadMultiRango,
     normalizarHora,
     inicializarAutocompletadoHorarios
-} from "./src/ui/horarios.ui.js?v=6.9.6";
+} from "./src/ui/horarios.ui.js?v=6.9.8";
 
 import {
     getEmojiInstrumento,
@@ -85,7 +85,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=6.9.6";
+} from "./src/services/calendar.service.js?v=6.9.8";
 
 import {
     matchCantidadActual,
@@ -118,11 +118,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=6.9.6";
+} from "./src/modules/match.module.js?v=6.9.8";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=6.9.6";
+} from "./src/modules/profesor.module.js?v=6.9.8";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -151,14 +151,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=6.9.6";
+} from "./src/modules/altas.module.js?v=6.9.8";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=6.9.6";
+} from "./src/modules/dashboard.module.js?v=6.9.8";
 
 import {
     renderConfigHub,
@@ -167,20 +167,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=6.9.6";
+} from "./src/modules/abm.module.js?v=6.9.8";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=6.9.6";
+} from "./src/modules/inbox.module.js?v=6.9.8";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=6.9.6";
+} from "./src/modules/csv.module.js?v=6.9.8";
 
 window.generarBotonesPrincipalesVisibles = generarBotonesPrincipalesVisibles;
 window.generarBotonesAccion = generarBotonesAccion;
@@ -8982,6 +8982,9 @@ document.addEventListener('click', async (e) => {
         if (!template && plantillaKey === 'texto_conf_profe') {
             template = "*✅ ENTREVISTA CONFIRMADA Y ABONADA POR ALUMNO*\n*El alumno ya pagó y completó el formulario*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Contacto: {número_contacto_alumno}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Clase: {suscripcion}\n\n*📰 La información del alumno se encuentra adjunta en la descripción del evento del calendario*";
         }
+        if (!template && plantillaKey === 'texto_alta_alumno') {
+            template = "Hola {nombre}! Cómo estás? 👋\n\n¡Te confirmamos que ya está todo listo para tu inicio de clases en Mandala! 🤟🎉\n\n🧩 Suscripción: {suscripcion} {emojiinstrumento} {instrumento}\n👥 Grupo: {grupo}\n📅 Cursada: {horario_cursada}\n🚀 Inicio de clases: {fecha inicio clases}\n👨‍🏫 Profe: {profe}\n📍 Dirección: Av. Cabildo 2970, Piso 1, Depto C.\n\n¡Bienvenido/a a la comunidad Mandala! Cualquier duda nos escribís por acá.";
+        }
         template = template.replace(/\{historial\}/gi, histText); 
         template = template.replace(/(\*\s*MOTIVO:\s*\*)\s*\r?\n\s*\{motivo_detalles\}/gi, '$1 {motivo_detalles}');
         template = template.replace(/<fecha_hora_limite>/gi, '{fecha_hora_limite}');
@@ -9261,13 +9264,52 @@ document.addEventListener('click', async (e) => {
         }
         return;
     }
+    if (target.classList.contains('btn-aviso-alta-alumno') || target.closest('.btn-aviso-alta-alumno')) {
+        const btn = target.classList.contains('btn-aviso-alta-alumno') ? target : target.closest('.btn-aviso-alta-alumno');
+        try {
+            const id = btn.getAttribute('data-id');
+            const data = await generarTextoConHistorial(id, 'texto_alta_alumno');
+            await navigator.clipboard.writeText(data.txt);
+
+            try {
+                const alDoc = await getDoc(doc(db, "alumnos", id));
+                if (alDoc.exists()) {
+                    const al = alDoc.data();
+                    const hist = al.historial || [];
+                    hist.push(crearEntradaHistorial("Aviso de alta confirmada y bienvenida copiado para el alumno.", 'alta'));
+                    
+                    let rawChecks = al.checklist_alta || [false, false, false, false];
+                    let checks = rawChecks.length === 5 ? rawChecks.slice(1) : (rawChecks.length === 4 ? [...rawChecks] : [false, false, false, false]);
+                    let updates = { historial: hist };
+                    if (!checks[2]) {
+                        checks[2] = true;
+                        updates.checklist_alta = checks;
+                        const chkInput = document.querySelector(`[data-id="${id}"][data-idx="2"].chk-alta-paso`);
+                        if (chkInput) {
+                            chkInput.checked = true;
+                            chkInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    }
+                    await updateDoc(doc(db, "alumnos", id), updates);
+                }
+            } catch(eHist) {
+                console.warn("No se pudo actualizar historial al copiar aviso alta alumno:", eHist);
+            }
+
+            mostrarToast("💬 Mensaje de confirmación copiado al portapapeles para avisar al alumno", "success");
+        } catch(e) {
+            console.error("Error al copiar texto alta alumno:", e);
+            alert("❌ Error al copiar texto de alta para alumno: " + e.message);
+        }
+        return;
+    }
     if (target.classList.contains('btn-reenviar-alta') || target.closest('.btn-reenviar-alta')) {
         const btn = target.classList.contains('btn-reenviar-alta') ? target : target.closest('.btn-reenviar-alta');
         try {
             const id = btn.getAttribute('data-id');
             const data = await generarTextoConHistorial(id, 'texto_alta_confirmada');
             await navigator.clipboard.writeText(data.txt);
-            mostrarToast("💬 Mensaje de Alta Confirmada copiado al portapapeles", "success");
+            mostrarToast("📢 Mensaje de Alta Confirmada para Docente copiado al portapapeles", "success");
         } catch(e) {
             console.error("Error al copiar texto alta confirmada:", e);
             alert("❌ Error al copiar texto de alta: " + e.message);

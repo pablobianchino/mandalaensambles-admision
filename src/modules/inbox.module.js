@@ -149,12 +149,12 @@ export function generarBotonesPrincipalesVisibles(al, id) {
     } else if (est === 'pre-alta iniciada') {
         html += `<button type="button" class="row-quick-btn primary btn-abrir-confirmar-alta" data-id="${id}">💳 Suscripción Abonada</button>`;
         html += `<button type="button" class="row-quick-btn secondary btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${al.grupo_asignado||''}">✏️ Editar Pre-Alta</button>`;
-    } else if (est === 'alta efectiva' || est === 'alta ilegal' || est === 'alta finalizada') {
+    } else if (est === 'alta efectiva' || est === 'alta ilegal' || est === 'alta finalizada' || est === 'alta confirmada' || est.startsWith('alta')) {
         const esFinalizada = esAlumnoAltaFinalizada(al);
         if (!esFinalizada) {
             html += `<button type="button" class="row-quick-btn primary btn-finalizar-alta-directa" data-id="${id}">🏁 Finalizar Alta</button>`;
         }
-        html += `<button type="button" class="row-quick-btn secondary btn-reenviar-alta" data-id="${id}">💬 Avisar Alta Confirmada</button>`;
+        html += `<button type="button" class="row-quick-btn secondary btn-aviso-alta-alumno" data-id="${id}">💬 Avisar a Alumno</button>`;
     } else if (est === 'alta suspendida' || est === 'agenda suspendida' || est.includes('suspendid')) {
         const origen = (al.origen_suspension || '').toLowerCase().trim() || (est === 'agenda suspendida' ? 'inbox' : 'altas');
         if (origen === 'inbox') {
@@ -255,8 +255,8 @@ export function generarBotonesAccion(al, id, esModal = false) {
             html += `<button type="button" class="btn-action-neutral btn-copiar-fila-excel-bd" data-id="${id}">📋 Copiar Registro BD</button>`;
             html += `<button type="button" class="btn-action-neutral btn-copiar-fila-excel-fact" data-id="${id}">💰 Copiar Facturación</button>`;
             html += `<button type="button" class="btn-action-neutral btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${al.grupo_asignado||''}">✏️ Editar Alta</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-aviso-prealta-alumno" data-id="${id}">💬 Avisar Pre-Alta a Alumno</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-reenviar-alta" data-id="${id}">💬 Avisar Alta Confirmada</button>`;
+            html += `<button type="button" class="btn-action-neutral btn-aviso-alta-alumno" data-id="${id}">💬 Avisar Alta a Alumno</button>`;
+            html += `<button type="button" class="btn-action-neutral btn-reenviar-alta" data-id="${id}">📢 Avisar Alta a Docente</button>`;
             html += `<button type="button" class="btn-action-neutral btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
             html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
             html += `<button type="button" class="btn-action-neutral btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
@@ -323,12 +323,12 @@ export function generarBotonesAccion(al, id, esModal = false) {
         html += `<button type="button" class="dropdown-item btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
         html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
         html += `<button type="button" class="dropdown-item btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
-    } else if (est === 'alta efectiva' || est === 'alta ilegal' || est === 'alta finalizada') {
+    } else if (est === 'alta efectiva' || est === 'alta ilegal' || est === 'alta finalizada' || est === 'alta confirmada' || est.startsWith('alta')) {
         html += `<button type="button" class="dropdown-item btn-copiar-fila-excel-bd" data-id="${id}">📋 Copiar Registro BD</button>`;
         html += `<button type="button" class="dropdown-item btn-copiar-fila-excel-fact" data-id="${id}">💰 Copiar Facturación</button>`;
         html += `<button type="button" class="dropdown-item btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${al.grupo_asignado||''}">✏️ Editar Alta</button>`;
-        html += `<button type="button" class="dropdown-item btn-aviso-prealta-alumno" data-id="${id}">💬 Avisar Pre-Alta a Alumno</button>`;
-        html += `<button type="button" class="dropdown-item btn-reenviar-alta" data-id="${id}">💬 Avisar Alta Confirmada</button>`;
+        html += `<button type="button" class="dropdown-item btn-aviso-alta-alumno" data-id="${id}">💬 Avisar Alta a Alumno</button>`;
+        html += `<button type="button" class="dropdown-item btn-reenviar-alta" data-id="${id}">📢 Avisar Alta a Docente</button>`;
         html += `<button type="button" class="dropdown-item btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
         html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
         html += `<button type="button" class="dropdown-item btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
