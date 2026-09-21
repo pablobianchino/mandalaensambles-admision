@@ -13,7 +13,7 @@ import {
     configNodosFlujoCoordinador,
     esAlumnoAltaFinalizada,
     esAlumnoAltaConfirmadaIncompleta
-} from "./src/config/constants.js?v=6.9.9";
+} from "./src/config/constants.js?v=6.9.11";
 
 import { 
     app, 
@@ -42,7 +42,7 @@ import {
     EmailAuthProvider,
     reauthenticateWithCredential,
     linkWithCredential
-} from "./src/config/firebase.js?v=6.9.9";
+} from "./src/config/firebase.js?v=6.9.11";
 
 import {
     limpiarHoraParaChip,
@@ -56,7 +56,7 @@ import {
     extraerDisponibilidadMultiRango,
     normalizarHora,
     inicializarAutocompletadoHorarios
-} from "./src/ui/horarios.ui.js?v=6.9.9";
+} from "./src/ui/horarios.ui.js?v=6.9.11";
 
 import {
     getEmojiInstrumento,
@@ -85,7 +85,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=6.9.9";
+} from "./src/services/calendar.service.js?v=6.9.11";
 
 import {
     matchCantidadActual,
@@ -118,11 +118,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=6.9.9";
+} from "./src/modules/match.module.js?v=6.9.11";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=6.9.9";
+} from "./src/modules/profesor.module.js?v=6.9.11";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -151,14 +151,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=6.9.9";
+} from "./src/modules/altas.module.js?v=6.9.11";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=6.9.9";
+} from "./src/modules/dashboard.module.js?v=6.9.11";
 
 import {
     renderConfigHub,
@@ -167,20 +167,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=6.9.9";
+} from "./src/modules/abm.module.js?v=6.9.11";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=6.9.9";
+} from "./src/modules/inbox.module.js?v=6.9.11";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=6.9.9";
+} from "./src/modules/csv.module.js?v=6.9.11";
 
 window.generarBotonesPrincipalesVisibles = generarBotonesPrincipalesVisibles;
 window.generarBotonesAccion = generarBotonesAccion;
@@ -1125,13 +1125,89 @@ try {
 } catch(e) { console.error("Error init Quill interview editors:", e); }
 
 // ================================================================
-// DIRTY FORM TRACKING — Protección contra pérdida de datos en TODOS los modales de edición
+// DIRTY FORM TRACKING — Protección inteligente contra pérdida de datos
 // ================================================================
 window._modalEditandoModificado = false;
 window._fichaAlumnoModificada = false; // Compatibilidad retroactiva
+window._cargandoFichaAlumno = false;
+window._cargandoInformeAdmision = false;
+window._snapshotFichaAlumnoInicial = null;
+window._snapshotInformeAdmisionInicial = null;
 
-// Marcador universal reactivo: captura inputs, selects, textareas, contenteditable y teclados virtuales en cualquier modal
+export function obtenerSnapshotFichaAlumno() {
+    const hApe = (typeof configApp !== 'undefined' && configApp?.hora_apertura) ? configApp.hora_apertura : '09:00';
+    const hCie = (typeof configApp !== 'undefined' && configApp?.hora_cierre) ? configApp.hora_cierre : '22:00';
+    const disp = (typeof extraerDisponibilidadMultiRango === 'function') 
+        ? extraerDisponibilidadMultiRango('contenedor-disponibilidad', hApe, hCie) 
+        : {};
+
+    const secArr = Array.isArray(window._instrumentosSecundariosSeleccionados) 
+        ? [...window._instrumentosSecundariosSeleccionados].map(s => String(s).toLowerCase().trim()).sort() 
+        : [];
+
+    return JSON.stringify({
+        nombre: (document.getElementById('nombre')?.value || '').trim(),
+        celular: (document.getElementById('celular')?.value || '').trim(),
+        edad: (document.getElementById('edad')?.value || '').trim(),
+        nivel: document.getElementById('nivel')?.value || '',
+        suscripcion: document.getElementById('tipo_suscripcion')?.value || '',
+        instPrincipal: (window._instrumentoPrincipalSeleccionado || '').toLowerCase().trim(),
+        instSecundarios: secArr,
+        canta: Boolean(document.getElementById('chk-alumno-canta')?.checked),
+        descripcion: (typeof quill !== 'undefined' && quill) ? quill.getText().trim() : '',
+        disp: disp
+    });
+}
+window.obtenerSnapshotFichaAlumno = obtenerSnapshotFichaAlumno;
+
+export function obtenerSnapshotInformeAdmision() {
+    const selInst = document.getElementById('inf-instrumento');
+    const insts = selInst ? Array.from(selInst.selectedOptions).map(o => o.value).sort() : [];
+    const tags = (typeof getPerfilPsicologicoSeleccionado === 'function') 
+        ? getPerfilPsicologicoSeleccionado('informe-perfil-psicologico-chips') 
+        : [];
+
+    return JSON.stringify({
+        nombre: (document.getElementById('inf-nombre')?.value || '').trim(),
+        edad: (document.getElementById('inf-edad')?.value || '').trim(),
+        profesion: (document.getElementById('inf-profesion')?.value || '').trim(),
+        zona: (document.getElementById('inf-zona')?.value || '').trim(),
+        suscripcion: document.getElementById('inf-suscripcion')?.value || '',
+        nivel: document.getElementById('inf-nivel')?.value || '',
+        instrumentos: insts,
+        motivacion: (typeof quillInfMotivacion !== 'undefined' && quillInfMotivacion) ? quillInfMotivacion.getText().trim() : '',
+        propuesta: Boolean(document.getElementById('inf-chk-propuesta')?.checked),
+        diagnostico: (typeof quillInfDiagnostico !== 'undefined' && quillInfDiagnostico) ? quillInfDiagnostico.getText().trim() : '',
+        artistas: (document.getElementById('inf-artistas')?.value || '').trim(),
+        psicoemocional: (typeof quillInfPsicoemocional !== 'undefined' && quillInfPsicoemocional) ? quillInfPsicoemocional.getText().trim() : '',
+        perfilTags: tags,
+        cantanteVoces: document.getElementById('inf-cantante-voces')?.value || '',
+        cambioTonalidades: document.getElementById('inf-cambio-tonalidades')?.value || '',
+        requisitos: Boolean(document.getElementById('inf-chk-requisitos')?.checked),
+        cierre: Boolean(document.getElementById('inf-chk-cierre')?.checked)
+    });
+}
+window.obtenerSnapshotInformeAdmision = obtenerSnapshotInformeAdmision;
+
+export function modalRealmenteModificado(modal) {
+    if (!modal) return false;
+    if (modal.id === 'modal-alta-alumno') {
+        if (!window._snapshotFichaAlumnoInicial) return false;
+        const actual = obtenerSnapshotFichaAlumno();
+        return actual !== window._snapshotFichaAlumnoInicial;
+    }
+    if (modal.id === 'modal-informe-admision') {
+        if (!window._snapshotInformeAdmisionInicial) return false;
+        const actual = obtenerSnapshotInformeAdmision();
+        return actual !== window._snapshotInformeAdmisionInicial;
+    }
+    return modal.dataset.modificado === 'true' || window._modalEditandoModificado;
+}
+window.modalRealmenteModificado = modalRealmenteModificado;
+
+// Marcador universal reactivo: captura inputs, selects, textareas, contenteditable y teclados virtuales
 function marcarModalComoModificado(e) {
+    if (window._cargandoFichaAlumno || window._cargandoInformeAdmision) return;
     const el = e.target;
     if (!el) return;
     const modalActivo = el.closest ? (el.closest('dialog') || el.closest('#form-alumno-wrapper')?.closest('dialog') || document.querySelector('dialog[open]')) : null;
@@ -1149,11 +1225,15 @@ function marcarModalComoModificado(e) {
 
 // Capturar interacciones con chips, checkboxes, radios, botones de opciones o celdas de disponibilidad
 document.addEventListener('click', (e) => {
+    if (window._cargandoFichaAlumno || window._cargandoInformeAdmision) return;
     const el = e.target;
     if (!el) return;
     const modalActivo = el.closest ? (el.closest('dialog') || el.closest('#form-alumno-wrapper')?.closest('dialog') || document.querySelector('dialog[open]')) : null;
     if (modalActivo && !['modal-confirmar-descarte', 'modal-confirmar-accion', 'modal-deteccion-evento-calendar', 'modal-test-notificacion', 'global-action-loader'].includes(modalActivo.id)) {
-        if (el.matches('input[type="checkbox"], input[type="radio"], select, .chip, .chip-btn, .dia-cell, .rango-btn, .tag-chip, button[data-chip], .btn-sol-tipo-grupo, .btn-sol-dia, .btn-sol-instrumento, .btn-tipo-ensamble')) {
+        // Ignorar clics puramente de navegación o cierre
+        if (el.closest('.tab-btn, .inf-accordion-header, .btn-cerrar-modal, #btn-cerrar-alumno')) return;
+
+        if (el.matches('input[type="checkbox"], input[type="radio"], select, .chip, .chip-btn, .rango-btn, button[data-chip], .btn-sol-tipo-grupo, .btn-sol-dia, .btn-sol-instrumento, .btn-tipo-ensamble')) {
             modalActivo.dataset.modificado = 'true';
             window._modalEditandoModificado = true;
             window._fichaAlumnoModificada = true;
@@ -1166,6 +1246,8 @@ document.addEventListener('close', (e) => {
     const dlg = e.target;
     if (dlg && dlg.tagName === 'DIALOG' && dlg.id !== 'modal-confirmar-descarte') {
         dlg.dataset.modificado = 'false';
+        if (dlg.id === 'modal-alta-alumno') window._snapshotFichaAlumnoInicial = null;
+        if (dlg.id === 'modal-informe-admision') window._snapshotInformeAdmisionInicial = null;
         if (!document.querySelector('dialog[open][data-modificado="true"]')) {
             window._modalEditandoModificado = false;
             window._fichaAlumnoModificada = false;
@@ -1173,9 +1255,10 @@ document.addEventListener('close', (e) => {
     }
 }, true);
 
-// Editores Quill
+// Editores Quill (protegidos contra falsos positivos durante la carga)
 if (typeof quill !== 'undefined' && quill && quill.on) {
     quill.on('text-change', () => {
+        if (window._cargandoFichaAlumno) return;
         const d = document.getElementById('modal-alta-alumno');
         if (d) d.dataset.modificado = 'true';
         window._modalEditandoModificado = true;
@@ -1184,6 +1267,7 @@ if (typeof quill !== 'undefined' && quill && quill.on) {
 }
 if (typeof quillInforme !== 'undefined' && quillInforme && quillInforme.on) {
     quillInforme.on('text-change', () => {
+        if (window._cargandoFichaAlumno) return;
         const d = document.getElementById('modal-alta-alumno');
         if (d) d.dataset.modificado = 'true';
         window._modalEditandoModificado = true;
@@ -1192,6 +1276,7 @@ if (typeof quillInforme !== 'undefined' && quillInforme && quillInforme.on) {
 }
 if (quillInfMotivacion && quillInfMotivacion.on) {
     quillInfMotivacion.on('text-change', () => {
+        if (window._cargandoInformeAdmision) return;
         const d = document.getElementById('modal-informe-admision');
         if (d) d.dataset.modificado = 'true';
         window._modalEditandoModificado = true;
@@ -1200,6 +1285,7 @@ if (quillInfMotivacion && quillInfMotivacion.on) {
 }
 if (quillInfDiagnostico && quillInfDiagnostico.on) {
     quillInfDiagnostico.on('text-change', () => {
+        if (window._cargandoInformeAdmision) return;
         const d = document.getElementById('modal-informe-admision');
         if (d) d.dataset.modificado = 'true';
         window._modalEditandoModificado = true;
@@ -1208,6 +1294,7 @@ if (quillInfDiagnostico && quillInfDiagnostico.on) {
 }
 if (quillInfPsicoemocional && quillInfPsicoemocional.on) {
     quillInfPsicoemocional.on('text-change', () => {
+        if (window._cargandoInformeAdmision) return;
         const d = document.getElementById('modal-informe-admision');
         if (d) d.dataset.modificado = 'true';
         window._modalEditandoModificado = true;
@@ -1364,7 +1451,7 @@ document.addEventListener('cancel', (e) => {
     }
 
     // Si cualquier modal fue modificado:
-    if (dialog.dataset.modificado === 'true' || ((dialog.id === 'modal-alta-alumno' || dialog.id === 'modal-informe-admision') && window._modalEditandoModificado)) {
+    if (modalRealmenteModificado(dialog)) {
         // ¡PREVENIR EL CIERRE NATIVO AUTOMÁTICO!
         e.preventDefault();
         solicitarConfirmacionSalidaModal(dialog);
@@ -3215,6 +3302,15 @@ export function esUsuarioAdministrador() {
     return true;
 }
 window.esUsuarioAdministrador = esUsuarioAdministrador;
+
+export function verificarEsSoloCoordinador() {
+    if (esUsuarioAdministrador()) return false;
+    const u = window.usuarioActual || {};
+    const roles = Array.isArray(u.roles) ? u.roles : [u.rol || ''];
+    const modo = (window.modoRolActivo || '').toLowerCase().trim();
+    return modo === 'coordinador' || modo === 'coordinador_grupos' || roles.includes('coordinador') || roles.includes('coordinador_grupos') || roles.some(r => (r || '').toLowerCase().includes('coord'));
+}
+window.verificarEsSoloCoordinador = verificarEsSoloCoordinador;
 
 window.eliminarFichaAlumnoSeguro = async function(id, nombreHint = '') {
     if (!id) return;
@@ -5277,7 +5373,7 @@ export function obtenerModulosPermitidosModoActivo() {
     } else if (modo === 'profesor' || modo === 'docente') {
         return ['portal_profesor'];
     } else if (modo === 'coordinador_grupos' || modo === 'coordinador') {
-        return ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos'];
+        return ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'configuracion'];
     } else if (modo === 'admisor' || modo === 'admisiones') {
         return ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'metricas'];
     } else if (modo === 'admin') {
@@ -5317,7 +5413,7 @@ export function cambiarModoRol(nuevoModo) {
         cargarVista('Mis Alumnos y Ensambles');
     } else if (nuevoModo === 'evaluador' && (vistaActual.startsWith('Match') || vistaActual.startsWith('Altas') || vistaActual === 'Configuración' || vistaActual === 'Mis Alumnos y Ensambles' || vistaActual === 'Estadísticas')) {
         cargarVista('Dashboard');
-    } else if (nuevoModo === 'coordinador_grupos' && (vistaActual === 'Mis Alumnos y Ensambles' || vistaActual === 'Configuración')) {
+    } else if ((nuevoModo === 'coordinador_grupos' || nuevoModo === 'coordinador') && vistaActual === 'Mis Alumnos y Ensambles') {
         cargarVista('Dashboard');
     } else if ((nuevoModo === 'admisor' || nuevoModo === 'admisiones') && (vistaActual === 'Mis Alumnos y Ensambles' || vistaActual === 'Configuración')) {
         cargarVista('Dashboard');
@@ -5355,6 +5451,7 @@ export function configurarHeaderUsuarioYRoles() {
         admisor: '📋 Admisor',
         admisiones: '📋 Admisor',
         coordinador_grupos: '👥 Coordinador de Grupos',
+        coordinador: '👥 Coordinador de Grupos',
         evaluador: '📝 Evaluador',
         profesor: '🎸 Docente / Profesor'
     };
@@ -5365,6 +5462,7 @@ export function configurarHeaderUsuarioYRoles() {
         admisor: '📋 Admisor ▾',
         admisiones: '📋 Admisor ▾',
         coordinador_grupos: '👥 Coordinador ▾',
+        coordinador: '👥 Coordinador ▾',
         evaluador: '📝 Evaluador ▾',
         profesor: '🎸 Docente ▾'
     };
@@ -5416,8 +5514,13 @@ export function configurarHeaderUsuarioYRoles() {
     // Popover links
     const linkConfig = document.getElementById('popover-link-config');
     if (linkConfig) {
-        const esAdmin = u.rol === 'admin' || (Array.isArray(u.roles) && u.roles.includes('admin')) || u.email?.toLowerCase() === 'productora.mandalahouse@gmail.com';
-        linkConfig.style.display = (esAdmin && (window.modoRolActivo === 'admin' || window.modoRolActivo === 'multi')) ? 'flex' : 'none';
+        const modo = (window.modoRolActivo || '').toLowerCase().trim();
+        const esAdmin = u.rol === 'admin' || (Array.isArray(u.roles) && u.roles.includes('admin')) || u.email?.toLowerCase() === 'productora.mandalahouse@gmail.com' || u.email?.toLowerCase() === 'pablobianchino@gmail.com';
+        const rolesArr = Array.isArray(u.roles) && u.roles.length > 0 ? u.roles : [u.rol || ''];
+        const esCoord = modo === 'coordinador' || modo === 'coordinador_grupos' || rolesArr.includes('coordinador') || rolesArr.includes('coordinador_grupos') || rolesArr.some(r => (r || '').toLowerCase().includes('coord'));
+        const mods = typeof obtenerModulosPermitidosModoActivo === 'function' ? obtenerModulosPermitidosModoActivo() : [];
+        const puedeVerConfig = (esAdmin && (modo === 'admin' || modo === 'multi')) || (esCoord && (modo === 'coordinador' || modo === 'coordinador_grupos' || modo === 'multi')) || mods.includes('configuracion');
+        linkConfig.style.display = puedeVerConfig ? 'flex' : 'none';
     }
 
     // Version label in sidebar
@@ -5530,7 +5633,7 @@ export function initManejadorNavegacionMobile() {
 
         if (modalEditableActivo) {
             try { history.pushState({ mandalaGuard: true }, ''); } catch(e) {}
-            if (window._modalEditandoModificado) {
+            if (modalRealmenteModificado(modalEditableActivo)) {
                 solicitarConfirmacionSalidaModal(modalEditableActivo);
             } else {
                 if (modalEditableActivo.id === 'modal-alta-alumno') {
@@ -5818,6 +5921,13 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
             return cargarVista('Mis Alumnos y Ensambles');
         }
         return cargarVista('Dashboard');
+    }
+
+    if (typeof verificarEsSoloCoordinador === 'function' && verificarEsSoloCoordinador()) {
+        if (vista === 'Ajustes Generales' || vista === 'Ajustes Match' || vista === 'ABM-Instrumentos' || vista === 'ABM-Suscripciones' || vista === 'ABM-Profesores') {
+            mostrarToast("🔒 Submódulo exclusivo para Administradores.", "warning");
+            return cargarVista('ABM-Usuarios');
+        }
     }
 
     // Resaltar en sidebar simplificado
@@ -6515,7 +6625,8 @@ const ROLES_MODULOS_DEFAULT = {
     admin: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'metricas', 'portal_profesor', 'configuracion', 'permisos'],
     admisor: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'metricas'],
     admisiones: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'metricas'],
-    coordinador_grupos: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos'],
+    coordinador_grupos: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'configuracion'],
+    coordinador: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'configuracion'],
     evaluador: ['dashboard', 'inbox', 'espera'],
     profesor: ['portal_profesor'],
     personalizado: []
@@ -7313,7 +7424,7 @@ document.addEventListener('click', async (e) => {
                 return; // No auto-cerrar el diálogo de confirmación de descarte ni el loader
             }
             // Si cualquier modal fue editado, preguntar si desea seguir editando, guardar o cancelar
-            if (target.dataset.modificado === 'true' || ((target.id === 'modal-alta-alumno' || target.id === 'modal-informe-admision') && window._modalEditandoModificado)) {
+            if (modalRealmenteModificado(target)) {
                 solicitarConfirmacionSalidaModal(target);
                 return;
             }
@@ -7548,6 +7659,7 @@ document.addEventListener('click', async (e) => {
     }
 
     if (target.classList.contains('btn-admision-finalizada') || target.closest('.btn-admision-finalizada')) { 
+        window._cargandoInformeAdmision = true;
         const btn = target.classList.contains('btn-admision-finalizada') ? target : target.closest('.btn-admision-finalizada');
         const id = btn.getAttribute('data-id'); 
         const esNuevoInformeAdicional = btn.getAttribute('data-nuevo-informe') === 'true';
@@ -7763,8 +7875,16 @@ document.addEventListener('click', async (e) => {
             });
 
             document.getElementById('modal-informe-admision').showModal();
-            setTimeout(() => { window._modalEditandoModificado = false; window._fichaAlumnoModificada = false; }, 350);
+            setTimeout(() => { 
+                window._cargandoInformeAdmision = false;
+                window._snapshotInformeAdmisionInicial = obtenerSnapshotInformeAdmision();
+                const modalInf = document.getElementById('modal-informe-admision');
+                if (modalInf) modalInf.dataset.modificado = 'false';
+                window._modalEditandoModificado = false; 
+                window._fichaAlumnoModificada = false; 
+            }, 350);
         } catch(e) {
+            window._cargandoInformeAdmision = false;
             console.error("Error al abrir informe admisión:", e);
             alert("Error: " + e.message);
         }
@@ -9800,7 +9920,7 @@ document.addEventListener('click', async (e) => {
         const mId = target.getAttribute('data-modal');
         const dlg = document.getElementById(mId);
         if (dlg) {
-            if (dlg.dataset.modificado === 'true' || ((mId === 'modal-alta-alumno' || mId === 'modal-informe-admision') && window._modalEditandoModificado)) {
+            if (modalRealmenteModificado(dlg)) {
                 solicitarConfirmacionSalidaModal(dlg);
                 return;
             }
@@ -9828,6 +9948,7 @@ document.addEventListener('click', async (e) => {
             alert('⛔ No tienes permisos para crear nuevos alumnos.');
             return;
         }
+        window._cargandoFichaAlumno = true;
         const wrap = document.getElementById('form-alumno-wrapper'); 
         document.getElementById('modal-alta-alumno').appendChild(wrap); 
         wrap.style.display = 'block'; 
@@ -9888,19 +10009,27 @@ document.addEventListener('click', async (e) => {
         window.actualizarEstadoCantoAlumno(false);
 
         await cargarSelectsAlumnos(); 
-        setTimeout(() => { window._modalEditandoModificado = false; window._fichaAlumnoModificada = false; }, 350);
+        setTimeout(() => { 
+            window._cargandoFichaAlumno = false;
+            window._snapshotFichaAlumnoInicial = obtenerSnapshotFichaAlumno();
+            const modalAlta = document.getElementById('modal-alta-alumno');
+            if (modalAlta) modalAlta.dataset.modificado = 'false';
+            window._modalEditandoModificado = false; 
+            window._fichaAlumnoModificada = false; 
+        }, 350);
         document.getElementById('modal-alta-alumno').showModal(); 
         return; 
     }
     if (target.id === 'btn-cerrar-alumno') { 
-        if (window._modalEditandoModificado || window._fichaAlumnoModificada) {
-            solicitarConfirmacionSalidaModal(document.getElementById('modal-alta-alumno'));
+        const modalAlta = document.getElementById('modal-alta-alumno');
+        if (modalRealmenteModificado(modalAlta)) {
+            solicitarConfirmacionSalidaModal(modalAlta);
             return;
         }
         const wrap = document.getElementById('form-alumno-wrapper'); 
         wrap.style.display = 'none'; 
         document.body.appendChild(wrap); 
-        document.getElementById('modal-alta-alumno').close(); 
+        if (modalAlta && modalAlta.open) modalAlta.close(); 
         window._modalEditandoModificado = false;
         window._fichaAlumnoModificada = false;
         return; 
@@ -10131,7 +10260,13 @@ window.abrirFichaSimuladaTest = async function(testId) {
         }
 
         mostrarToast("🔔 Informe simulado abierto: Mateo Barrios (Evaluador)", "info");
-        setTimeout(() => { window._modalEditandoModificado = false; window._fichaAlumnoModificada = false; }, 350);
+        setTimeout(() => { 
+            window._cargandoInformeAdmision = false;
+            window._snapshotInformeAdmisionInicial = obtenerSnapshotInformeAdmision();
+            if (modal) modal.dataset.modificado = 'false';
+            window._modalEditandoModificado = false; 
+            window._fichaAlumnoModificada = false; 
+        }, 350);
         return;
     }
 
@@ -10195,7 +10330,13 @@ window.abrirFichaSimuladaTest = async function(testId) {
     }
 
     mostrarToast("🔔 Ficha simulada abierta: Sofía Gómez (Admisor)", "info");
-    setTimeout(() => { window._modalEditandoModificado = false; window._fichaAlumnoModificada = false; }, 350);
+    setTimeout(() => { 
+        window._cargandoFichaAlumno = false;
+        window._snapshotFichaAlumnoInicial = obtenerSnapshotFichaAlumno();
+        if (modal) modal.dataset.modificado = 'false';
+        window._modalEditandoModificado = false; 
+        window._fichaAlumnoModificada = false; 
+    }, 350);
 };
 
 window.abrirModalInformeAdmisionDirecto = async function(id) {
@@ -10307,6 +10448,7 @@ window.abrirFichaAlumnoDocente = async function(id) {
 };
 
 async function llenarFormularioAlumno(id, modoLectura = false) { 
+    window._cargandoFichaAlumno = true;
     document.getElementById('alumno-id').value = id; 
     const d = (await getDoc(doc(db, "alumnos", id))).data(); 
     document.getElementById('nombre').value = d.nombre; 
@@ -11057,7 +11199,14 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
     if(tabBtns.length > 0) { tabBtns[0].classList.add('active'); } 
     document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none'); 
     if(document.getElementById('tab-datos')) document.getElementById('tab-datos').style.display = 'block';
-    setTimeout(() => { window._modalEditandoModificado = false; window._fichaAlumnoModificada = false; }, 350);
+    setTimeout(() => { 
+        window._cargandoFichaAlumno = false;
+        window._snapshotFichaAlumnoInicial = obtenerSnapshotFichaAlumno();
+        const modalAlta = document.getElementById('modal-alta-alumno');
+        if (modalAlta) modalAlta.dataset.modificado = 'false';
+        window._modalEditandoModificado = false; 
+        window._fichaAlumnoModificada = false; 
+    }, 350);
 }
 
 document.getElementById('form-alumno').addEventListener('submit', async (e) => { 

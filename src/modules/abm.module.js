@@ -25,14 +25,73 @@ import {
     normalizarHora
 } from "../ui/horarios.ui.js";
 
+function verificarEsSoloCoordinador() {
+    if (typeof window.verificarEsSoloCoordinador === 'function') {
+        return window.verificarEsSoloCoordinador();
+    }
+    if (typeof window.esUsuarioAdministrador === 'function' && window.esUsuarioAdministrador()) {
+        return false;
+    }
+    const u = window.usuarioActual || {};
+    const roles = Array.isArray(u.roles) ? u.roles : [u.rol || ''];
+    const modo = (window.modoRolActivo || '').toLowerCase().trim();
+    return modo === 'coordinador' || modo === 'coordinador_grupos' || roles.includes('coordinador') || roles.includes('coordinador_grupos') || roles.some(r => (r || '').toLowerCase().includes('coord'));
+}
+
 export function renderConfigHub(cont, callbacks = {}) {
+    const esSoloCoord = verificarEsSoloCoordinador();
+
     cont.innerHTML = `
         <div style="max-width:800px; width:100%; padding:20px;">
-            <div style="background:var(--item-bg); border:1px solid var(--border-color); border-radius:12px; padding:20px; display:flex; align-items:center; gap:15px; margin-bottom:10px; cursor:pointer;" onclick="window.cargarVistaGlobal('Ajustes Generales')"><span style="font-size:1.5em; opacity:0.7;">⚙️</span><div><strong style="color:var(--text-main);">Ajustes Generales</strong><div style="font-size:12px; color:var(--text-muted);">Límites, calendarios y textos.</div></div></div>
-            <div style="background:var(--item-bg); border:1px solid var(--border-color); border-radius:12px; padding:20px; display:flex; align-items:center; gap:15px; margin-bottom:10px; cursor:pointer;" onclick="window.cargarVistaGlobal('Ajustes Match')"><span style="font-size:1.5em; opacity:0.7;">🧩</span><div><strong style="color:var(--text-main);">Ajustes de Match</strong><div style="font-size:12px; color:var(--text-muted);">Límites de integrantes y reglas de edad para grupos.</div></div></div>
-            <div style="background:var(--item-bg); border:1px solid var(--border-color); border-radius:12px; padding:20px; display:flex; align-items:center; gap:15px; margin-bottom:10px; cursor:pointer;" onclick="window.cargarVistaGlobal('ABM-Usuarios')"><span style="font-size:1.5em; opacity:0.7;">👥</span><div><strong style="color:var(--text-main);">Usuarios y Profesores</strong><div style="font-size:12px; color:var(--text-muted);">Administrar accesos, roles, docentes, disponibilidades y skills.</div></div></div>
-            <div style="background:var(--item-bg); border:1px solid var(--border-color); border-radius:12px; padding:20px; display:flex; align-items:center; gap:15px; margin-bottom:10px; cursor:pointer;" onclick="window.cargarVistaGlobal('ABM-Instrumentos')"><span style="font-size:1.5em; opacity:0.7;">🎸</span><div><strong style="color:var(--text-main);">Instrumentos</strong></div></div>
-            <div style="background:var(--item-bg); border:1px solid var(--border-color); border-radius:12px; padding:20px; display:flex; align-items:center; gap:15px; margin-bottom:10px; cursor:pointer;" onclick="window.cargarVistaGlobal('ABM-Suscripciones')"><span style="font-size:1.5em; opacity:0.7;">🎫</span><div><strong style="color:var(--text-main);">Suscripciones y Aranceles</strong><div style="font-size:12px; color:var(--text-muted);">Gestionar modalidades de suscripción y sus aranceles asociados.</div></div></div>
+            <div style="background:var(--item-bg); border:1px solid var(--border-color); border-radius:12px; padding:20px; display:flex; align-items:center; gap:15px; margin-bottom:10px; ${esSoloCoord ? 'opacity:0.45; cursor:not-allowed;' : 'cursor:pointer;'}" ${esSoloCoord ? 'title="🔒 Solo Administrador"' : 'onclick="window.cargarVistaGlobal(\'Ajustes Generales\')"'}>
+                <span style="font-size:1.5em; opacity:0.7;">⚙️</span>
+                <div style="flex:1;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <strong style="color:var(--text-main);">Ajustes Generales</strong>
+                        ${esSoloCoord ? '<span style="font-size:11px; background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:10px; font-weight:700;">🔒 Solo Administrador</span>' : ''}
+                    </div>
+                    <div style="font-size:12px; color:var(--text-muted);">Límites, calendarios y textos.</div>
+                </div>
+            </div>
+            <div style="background:var(--item-bg); border:1px solid var(--border-color); border-radius:12px; padding:20px; display:flex; align-items:center; gap:15px; margin-bottom:10px; ${esSoloCoord ? 'opacity:0.45; cursor:not-allowed;' : 'cursor:pointer;'}" ${esSoloCoord ? 'title="🔒 Solo Administrador"' : 'onclick="window.cargarVistaGlobal(\'Ajustes Match\')"'}>
+                <span style="font-size:1.5em; opacity:0.7;">🧩</span>
+                <div style="flex:1;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <strong style="color:var(--text-main);">Ajustes de Match</strong>
+                        ${esSoloCoord ? '<span style="font-size:11px; background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:10px; font-weight:700;">🔒 Solo Administrador</span>' : ''}
+                    </div>
+                    <div style="font-size:12px; color:var(--text-muted);">Límites de integrantes y reglas de edad para grupos.</div>
+                </div>
+            </div>
+            <div style="background:var(--item-bg); border:1.5px solid var(--accent-teal); border-radius:12px; padding:20px; display:flex; align-items:center; gap:15px; margin-bottom:10px; cursor:pointer;" onclick="window.cargarVistaGlobal('ABM-Usuarios')">
+                <span style="font-size:1.5em; opacity:0.7;">👥</span>
+                <div style="flex:1;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <strong style="color:var(--text-main);">Usuarios y Profesores</strong>
+                        ${esSoloCoord ? '<span style="font-size:11px; background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:10px; font-weight:700;">✏️ Edición Habilitada</span>' : ''}
+                    </div>
+                    <div style="font-size:12px; color:var(--text-muted);">Administrar accesos, roles, docentes, disponibilidades y skills.</div>
+                </div>
+            </div>
+            <div style="background:var(--item-bg); border:1px solid var(--border-color); border-radius:12px; padding:20px; display:flex; align-items:center; gap:15px; margin-bottom:10px; ${esSoloCoord ? 'opacity:0.45; cursor:not-allowed;' : 'cursor:pointer;'}" ${esSoloCoord ? 'title="🔒 Solo Administrador"' : 'onclick="window.cargarVistaGlobal(\'ABM-Instrumentos\')"'}>
+                <span style="font-size:1.5em; opacity:0.7;">🎸</span>
+                <div style="flex:1;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <strong style="color:var(--text-main);">Instrumentos</strong>
+                        ${esSoloCoord ? '<span style="font-size:11px; background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:10px; font-weight:700;">🔒 Solo Administrador</span>' : ''}
+                    </div>
+                </div>
+            </div>
+            <div style="background:var(--item-bg); border:1px solid var(--border-color); border-radius:12px; padding:20px; display:flex; align-items:center; gap:15px; margin-bottom:10px; ${esSoloCoord ? 'opacity:0.45; cursor:not-allowed;' : 'cursor:pointer;'}" ${esSoloCoord ? 'title="🔒 Solo Administrador"' : 'onclick="window.cargarVistaGlobal(\'ABM-Suscripciones\')"'}>
+                <span style="font-size:1.5em; opacity:0.7;">🎫</span>
+                <div style="flex:1;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <strong style="color:var(--text-main);">Suscripciones y Aranceles</strong>
+                        ${esSoloCoord ? '<span style="font-size:11px; background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:10px; font-weight:700;">🔒 Solo Administrador</span>' : ''}
+                    </div>
+                    <div style="font-size:12px; color:var(--text-muted);">Gestionar modalidades de suscripción y sus aranceles asociados.</div>
+                </div>
+            </div>
         </div>`;
 }
 
@@ -691,7 +750,8 @@ const ROLES_MODULOS = {
     admin: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas', 'portal_profesor', 'configuracion', 'permisos'],
     admisor: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas'],
     admisiones: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas'],
-    coordinador_grupos: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas'],
+    coordinador_grupos: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'configuracion'],
+    coordinador: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'configuracion'],
     evaluador: ['dashboard', 'inbox', 'espera'],
     profesor: ['portal_profesor'],
     personalizado: []
@@ -786,14 +846,15 @@ function extraerDisponibilidadLocal(containerRef = 'contenedor-disponibilidad-us
 export async function cargarABM(coleccion, titulo, cont) { 
     window.coleccionABMActual = coleccion; 
     window.tituloABMActual = titulo; 
+    const esSoloCoord = verificarEsSoloCoordinador();
     
     let h = `
     <div style="margin-bottom:20px; font-size:0.9em; color:var(--text-muted);">
         <span style="cursor:pointer; color:var(--accent-teal);" onclick="window.cargarVistaGlobal('Configuración')">Configuración</span> &gt; <strong style="color:var(--text-main);">${titulo}</strong>
     </div>
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; width:100%;">
+    ${esSoloCoord ? '' : `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; width:100%;">
         <button class="btn-primary" onclick="window.abrirEdicionABM(null, '${coleccion}')">➕ Agregar ${titulo}</button>
-    </div>`; 
+    </div>`}`; 
 
     try { 
         const qS = await getDocs(collection(db, coleccion)); 
@@ -891,7 +952,7 @@ export async function cargarABM(coleccion, titulo, cont) {
                                 ${skillsHtml}
                             </div>
                             <div style="display:flex; gap:8px; align-items:center;">
-                                <button type="button" class="btn-row-action" title="Revocar Acceso / Eliminar" onclick="event.stopPropagation(); window.eliminarABM('${d.id}', 'usuarios_sistema')">🗑️</button>
+                                ${esSoloCoord ? '<span style="font-size:12px; color:var(--accent-teal); font-weight:600; padding:4px 8px; background:var(--hover-bg); border-radius:6px;">✏️ Editar</span>' : `<button type="button" class="btn-row-action" title="Revocar Acceso / Eliminar" onclick="event.stopPropagation(); window.eliminarABM('${d.id}', 'usuarios_sistema')">🗑️</button>`}
                             </div>
                         </div>
                     `;
@@ -1020,6 +1081,7 @@ export async function cargarABM(coleccion, titulo, cont) {
 
 export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali = '', callbacks = {}) { 
     const { syncSelectToChips, poblarDisponibilidadMultiRango } = callbacks;
+    const esSoloCoord = verificarEsSoloCoordinador();
     document.getElementById('abm-edit-id').value = id || ''; 
     document.getElementById('abm-edit-coleccion').value = col; 
     document.getElementById('label-abm-edit-nombre').innerHTML = col === 'usuarios_sistema' 
@@ -1029,7 +1091,10 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
     
     const tituloModal = document.querySelector('#modal-abm-edit h3');
     if (tituloModal) {
-        const nombreEntidad = col === 'usuarios_sistema' ? 'Usuario y Permisos' : (col === 'profesores' ? 'Profesor' : (col === 'instrumentos' ? 'Instrumento' : 'Suscripción'));
+        let nombreEntidad = col === 'usuarios_sistema' ? 'Usuario y Permisos' : (col === 'profesores' ? 'Profesor' : (col === 'instrumentos' ? 'Instrumento' : 'Suscripción'));
+        if (col === 'usuarios_sistema' && esSoloCoord) {
+            nombreEntidad = 'Usuario (Perfil, Instrumentos y Disponibilidad)';
+        }
         tituloModal.textContent = id ? `Editar ${nombreEntidad}` : `Nuevo ${nombreEntidad}`;
     }
 
@@ -1041,6 +1106,64 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
         if (divUser) divUser.style.display = 'block';
         if (divProfe) divProfe.style.display = 'none';
         if (divSusc) divSusc.style.display = 'none';
+
+        // Banner informativo para coordinador
+        let bannerCoord = document.getElementById('banner-abm-coord-info');
+        if (esSoloCoord) {
+            if (!bannerCoord) {
+                bannerCoord = document.createElement('div');
+                bannerCoord.id = 'banner-abm-coord-info';
+                bannerCoord.style.cssText = 'background:#e0f2fe; border:1px solid #bae6fd; color:#0369a1; padding:10px 14px; border-radius:10px; margin-bottom:14px; font-size:12.5px; line-height:1.4; display:flex; align-items:flex-start; gap:8px;';
+                bannerCoord.innerHTML = '<span style="font-size:16px;">ℹ️</span><div><strong>Modo Coordinador:</strong> Puedes editar el <strong>perfil</strong> (nombre, celular, alias), los <strong>instrumentos</strong> y la <strong>disponibilidad horaria</strong>. El acceso, roles, módulos y calendario permanecen bloqueados.</div>';
+                divUser.insertBefore(bannerCoord, divUser.firstChild);
+            } else {
+                bannerCoord.style.display = 'flex';
+            }
+        } else if (bannerCoord) {
+            bannerCoord.style.display = 'none';
+        }
+
+        // Restricción / Habilitación de campos según rol
+        const inpEmail = document.getElementById('abm-edit-nombre');
+        if (inpEmail) {
+            inpEmail.disabled = esSoloCoord;
+            inpEmail.style.background = esSoloCoord ? '#f1f5f9' : '';
+            inpEmail.style.cursor = esSoloCoord ? 'not-allowed' : '';
+        }
+        const inpCal = document.getElementById('abm-user-correo-calendario');
+        if (inpCal) {
+            inpCal.disabled = esSoloCoord;
+            inpCal.style.background = esSoloCoord ? '#f1f5f9' : '';
+            inpCal.style.cursor = esSoloCoord ? 'not-allowed' : '';
+        }
+        const chkActivoEl = document.getElementById('abm-user-activo');
+        if (chkActivoEl) {
+            chkActivoEl.disabled = esSoloCoord;
+            chkActivoEl.style.cursor = esSoloCoord ? 'not-allowed' : '';
+        }
+        const boxCred = document.querySelector('.abm-credentials-box');
+        if (boxCred) boxCred.style.display = esSoloCoord ? 'none' : 'flex';
+
+        document.querySelectorAll('.chk-user-rol').forEach(chk => {
+            chk.disabled = esSoloCoord;
+            chk.style.cursor = esSoloCoord ? 'not-allowed' : '';
+        });
+        document.querySelectorAll('.chk-user-modulo').forEach(chk => {
+            chk.disabled = esSoloCoord;
+            chk.style.cursor = esSoloCoord ? 'not-allowed' : '';
+        });
+        ['abm-user-entrevista', 'abm-user-grupales', 'abm-user-ensambles'].forEach(cid => {
+            const el = document.getElementById(cid);
+            if (el) {
+                el.disabled = esSoloCoord;
+                el.style.cursor = esSoloCoord ? 'not-allowed' : '';
+            }
+        });
+
+        // Asegurar que los campos editables por el coordinador estén habilitados
+        if (document.getElementById('abm-user-nombre')) document.getElementById('abm-user-nombre').disabled = false;
+        if (document.getElementById('abm-user-celular')) document.getElementById('abm-user-celular').disabled = false;
+        if (document.getElementById('abm-user-alias')) document.getElementById('abm-user-alias').disabled = false;
 
         // 1. Cargar catálogo de instrumentos en el select de skills del usuario
         const selSkillsUser = document.getElementById('abm-user-skills');
@@ -1056,6 +1179,11 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
         }
 
         const toggleSeccionDocente = () => {
+            if (esSoloCoord) {
+                const secDoc = document.getElementById('abm-user-seccion-docente');
+                if (secDoc) secDoc.style.display = 'block';
+                return;
+            }
             const rolesSeleccionados = [];
             document.querySelectorAll('.chk-user-rol:checked').forEach(c => rolesSeleccionados.push(c.value));
             const esDocente = rolesSeleccionados.includes('profesor') || rolesSeleccionados.includes('evaluador');
@@ -1378,6 +1506,70 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
 
     try {
         if (col === 'usuarios_sistema') {
+            const esSoloCoord = verificarEsSoloCoordinador();
+            if (esSoloCoord) {
+                if (!id) {
+                    alert('⚠️ Los coordinadores no pueden crear nuevos usuarios en el sistema.');
+                    btn.disabled = false;
+                    btn.textContent = 'Guardar';
+                    return;
+                }
+                const uDocSnap = await getDoc(doc(db, "usuarios_sistema", id));
+                if (!uDocSnap.exists()) {
+                    alert('Usuario no encontrado.');
+                    btn.disabled = false;
+                    btn.textContent = 'Guardar';
+                    return;
+                }
+                const orig = uDocSnap.data();
+                const nombre = (document.getElementById('abm-user-nombre')?.value || '').trim() || orig.nombre || orig.email.split('@')[0];
+                const celular = (document.getElementById('abm-user-celular')?.value || '').trim();
+                const alias = (document.getElementById('abm-user-alias')?.value || '').trim();
+                const selSkills = document.getElementById('abm-user-skills');
+                const skillsArr = selSkills ? Array.from(selSkills.selectedOptions).map(o => o.value) : (orig.skills || []);
+                const dispProfe = extraerDisponibilidadLocal('contenedor-disponibilidad-user-profe');
+
+                // Actualizar solo perfil, skills y disponibilidad en usuarios_sistema
+                await updateDoc(doc(db, "usuarios_sistema", id), {
+                    nombre,
+                    celular,
+                    alias_transferencia: alias,
+                    skills: skillsArr,
+                    disponibilidad: dispProfe,
+                    fecha_actualizacion: new Date().toISOString()
+                });
+
+                // Sincronizar en colección profesores si existe ficha asociada
+                let profesor_id = orig.profesor_id || '';
+                if (!profesor_id) {
+                    const pQ = await getDocs(collection(db, "profesores"));
+                    pQ.forEach(docP => {
+                        const dtP = docP.data();
+                        const matchCal = dtP.correo_calendario && orig.correo_calendario && dtP.correo_calendario.toLowerCase() === orig.correo_calendario.toLowerCase();
+                        const matchMail = dtP.correo_calendario && orig.email && dtP.correo_calendario.toLowerCase() === orig.email.toLowerCase();
+                        if (matchCal || matchMail) profesor_id = docP.id;
+                    });
+                }
+                if (profesor_id) {
+                    await updateDoc(doc(db, "profesores", profesor_id), {
+                        nombre,
+                        celular,
+                        alias_transferencia: alias,
+                        skills: skillsArr,
+                        disponibilidad: dispProfe
+                    });
+                }
+
+                document.getElementById('modal-abm-edit')?.close();
+                alert('✅ Datos del usuario guardados correctamente.');
+                if (typeof window.cargarVistaGlobal === 'function') {
+                    window.cargarVistaGlobal('ABM-Usuarios');
+                }
+                btn.disabled = false;
+                btn.textContent = 'Guardar';
+                return;
+            }
+
             const email = nomVal.toLowerCase();
             const nombre = (document.getElementById('abm-user-nombre')?.value || '').trim();
             const celular = (document.getElementById('abm-user-celular')?.value || '').trim();
