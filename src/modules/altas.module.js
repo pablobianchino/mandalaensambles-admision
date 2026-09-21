@@ -25,7 +25,7 @@ import {
     validarConflictoCalendarEnVivo,
     obtenerEventosProfesoresParaSlot,
     buscarEventoExistenteEnHorario
-} from "../services/calendar.service.js?v=6.9.8";
+} from "../services/calendar.service.js?v=6.9.9";
 import { calcularProximaFechaDiaHora } from "./match.module.js";
 import { parsearNomenclaturaGrupoOClase } from "./profesor.module.js";
 
@@ -1070,6 +1070,12 @@ export function renderizarSugerenciasFechasGrupal(alumnosList, semanaOffset = 1,
                 </button>
             </div>
 
+            <!-- Indicador de carga de profesores en progreso -->
+            <div class="slots-loading-overlay" id="prealta-slots-loading" style="display:none;">
+                <span class="spinner-prealta"></span>
+                <span>Buscando profesores disponibles en Google Calendar...</span>
+            </div>
+
             <!-- Contenedor de slots -->
             <div class="slots-container" id="prealta-slots-lista">
     `;
@@ -1147,7 +1153,10 @@ export function renderizarSugerenciasFechasGrupal(alumnosList, semanaOffset = 1,
     // Vincular clicks en los slots
     const slotCards = contenedor.querySelectorAll('.slot-card');
     slotCards.forEach(card => {
-        card.onclick = () => {
+        card.onclick = async () => {
+            // Evitar clicks múltiples mientras se procesa la consulta de profesores
+            if (contenedor.classList.contains('is-loading')) return;
+
             slotCards.forEach(c => c.classList.remove('selected'));
             card.classList.add('selected');
 
@@ -1179,12 +1188,40 @@ export function renderizarSugerenciasFechasGrupal(alumnosList, semanaOffset = 1,
                 }
             }
 
-            // Disparar reactividad secuencial existente (profesores, nombre de grupo, advertencias)
-            if (inputFecha) {
-                if (typeof inputFecha.onchange === 'function') {
-                    inputFecha.onchange();
-                } else {
-                    inputFecha.dispatchEvent(new Event('change'));
+            // Activar estado de carga y bloquear selección de otros horarios
+            const slotsBox = document.getElementById('prealta-slots-lista');
+            const alertLoading = document.getElementById('prealta-slots-loading');
+            const selectProfe = document.getElementById('prealta-profe-select');
+            const navBtnAnt = document.getElementById('btn-prealta-sem-ant');
+            const navBtnSig = document.getElementById('btn-prealta-sem-sig');
+
+            try {
+                contenedor.classList.add('is-loading');
+                if (slotsBox) slotsBox.classList.add('loading');
+                if (alertLoading) alertLoading.style.display = 'flex';
+                if (navBtnAnt) navBtnAnt.disabled = true;
+                if (navBtnSig) navBtnSig.disabled = true;
+                if (selectProfe) {
+                    selectProfe.disabled = true;
+                    selectProfe.innerHTML = '<option value="">⏳ Buscando profesores disponibles...</option>';
+                }
+
+                // Disparar reactividad secuencial existente (profesores, nombre de grupo, advertencias)
+                if (inputFecha) {
+                    if (typeof inputFecha.onchange === 'function') {
+                        await inputFecha.onchange();
+                    } else {
+                        inputFecha.dispatchEvent(new Event('change'));
+                    }
+                }
+            } finally {
+                contenedor.classList.remove('is-loading');
+                if (slotsBox) slotsBox.classList.remove('loading');
+                if (alertLoading) alertLoading.style.display = 'none';
+                if (navBtnAnt) navBtnAnt.disabled = (estadoSugerenciasGrupal.semanaOffset || 1) <= 0;
+                if (navBtnSig) navBtnSig.disabled = (estadoSugerenciasGrupal.semanaOffset || 1) >= 4;
+                if (selectProfe) {
+                    selectProfe.disabled = false;
                 }
             }
         };

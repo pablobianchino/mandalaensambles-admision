@@ -13,7 +13,7 @@ import {
     configNodosFlujoCoordinador,
     esAlumnoAltaFinalizada,
     esAlumnoAltaConfirmadaIncompleta
-} from "./src/config/constants.js?v=6.9.8";
+} from "./src/config/constants.js?v=6.9.9";
 
 import { 
     app, 
@@ -42,7 +42,7 @@ import {
     EmailAuthProvider,
     reauthenticateWithCredential,
     linkWithCredential
-} from "./src/config/firebase.js?v=6.9.8";
+} from "./src/config/firebase.js?v=6.9.9";
 
 import {
     limpiarHoraParaChip,
@@ -56,7 +56,7 @@ import {
     extraerDisponibilidadMultiRango,
     normalizarHora,
     inicializarAutocompletadoHorarios
-} from "./src/ui/horarios.ui.js?v=6.9.8";
+} from "./src/ui/horarios.ui.js?v=6.9.9";
 
 import {
     getEmojiInstrumento,
@@ -85,7 +85,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=6.9.8";
+} from "./src/services/calendar.service.js?v=6.9.9";
 
 import {
     matchCantidadActual,
@@ -118,11 +118,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=6.9.8";
+} from "./src/modules/match.module.js?v=6.9.9";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=6.9.8";
+} from "./src/modules/profesor.module.js?v=6.9.9";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -151,14 +151,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=6.9.8";
+} from "./src/modules/altas.module.js?v=6.9.9";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=6.9.8";
+} from "./src/modules/dashboard.module.js?v=6.9.9";
 
 import {
     renderConfigHub,
@@ -167,20 +167,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=6.9.8";
+} from "./src/modules/abm.module.js?v=6.9.9";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=6.9.8";
+} from "./src/modules/inbox.module.js?v=6.9.9";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=6.9.8";
+} from "./src/modules/csv.module.js?v=6.9.9";
 
 window.generarBotonesPrincipalesVisibles = generarBotonesPrincipalesVisibles;
 window.generarBotonesAccion = generarBotonesAccion;
@@ -9178,11 +9178,12 @@ document.addEventListener('click', async (e) => {
             setBotonCargando(btn, true, 'Confirmando agenda en Calendar...');
             const descP = convertirHtmlATextoPlano(al.descripcion || '');
             const titulos = construirTitulosEvento(al, 'confirmado', configApp);
-            if (al.id_evento_reserva) {
+            const idEvRes = al.id_evento_reserva;
+            if (idEvRes && typeof idEvRes === 'string' && idEvRes.trim() && idEvRes !== 'null' && idEvRes !== 'undefined') {
                 try {
                     await actualizarEventoSeguro(al, titulos, descP);
                 } catch(calErr) {
-                    console.warn("Aviso: No se pudo actualizar el evento en Google Calendar:", calErr);
+                    console.warn("Aviso: No se pudo actualizar el evento en Google Calendar:", calErr.message || calErr);
                 }
             }
             const hist = al.historial || [];

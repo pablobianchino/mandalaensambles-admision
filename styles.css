@@ -3685,3 +3685,41 @@ button.btn-prio-filtro.prio-proximos.active,
 .manual-date-toggle:hover {
     text-decoration: underline;
 }
+
+.slots-container.loading {
+    pointer-events: none;
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.slots-loading-overlay {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 9px 12px;
+    background: #eff6ff;
+    border: 1.5px solid #bfdbfe;
+    border-radius: 8px;
+    color: #1d4ed8;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    box-shadow: 0 1px 4px rgba(29, 78, 216, 0.08);
+    animation: fadeIn 0.2s ease-in;
+}
+
+.spinner-prealta {
+    width: 15px;
+    height: 15px;
+    border: 2.5px solid #bfdbfe;
+    border-top-color: #1d4ed8;
+    border-radius: 50%;
+    animation: spin-prealta 0.8s linear infinite;
+    display: inline-block;
+}
+
+@keyframes spin-prealta {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

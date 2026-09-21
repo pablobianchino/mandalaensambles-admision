@@ -130,11 +130,23 @@ export function formatearFechaAmi(fechaIsoStr) {
     return `${dias[d.getDay()]} ${d.getDate()}/${d.getMonth()+1} ${d.getHours()}${minStr}`; 
 }
 
-export async function fetchCalendarAPI(action, payload) {
-    payload.action = action; payload.apiKey = "mandala-seg-2026";
-    let res;
-    let retries = 1;
+export async function fetchCalendarAPI(action, payload = {}) {
+    payload.action = action; 
+    payload.apiKey = "mandala-seg-2026";
+    
+    // Validación previa de parámetros críticos para evitar excepciones no controladas en Google Apps Script
+    if (action === 'updateEvent' || action === 'deleteEvent') {
+        const evId = payload.eventId;
+        if (!evId || typeof evId !== 'string' || !evId.trim() || evId === 'null' || evId === 'undefined') {
+            throw new Error(`ID de evento inválido o ausente para la acción "${action}".`);
+        }
+    }
+
+    let retries = 2;
+    let lastError = null;
+
     while (retries >= 0) {
+        let res;
         try { 
             res = await fetch(SCRIPT_URL, { 
                 method: 'POST', 
@@ -143,20 +155,69 @@ export async function fetchCalendarAPI(action, payload) {
                 redirect: 'follow',
                 credentials: 'omit'
             }); 
-            break;
         } catch (networkError) { 
+            lastError = networkError;
             if (retries > 0) {
                 retries--;
-                await new Promise(r => setTimeout(r, 400));
+                await new Promise(r => setTimeout(r, 600));
                 continue;
             }
             console.warn("Aviso de conexión con Google Apps Script:", networkError.message || networkError);
             throw new Error("Falla de red al conectar con Google Apps Script. Revise su conexión."); 
         }
+
+        // Inspeccionar el cuerpo de la respuesta con seguridad (evitando SyntaxError si Google retorna HTML)
+        let rawText = "";
+        try {
+            rawText = await res.text();
+        } catch (textErr) {
+            lastError = textErr;
+            if (retries > 0) {
+                retries--;
+                await new Promise(r => setTimeout(r, 600));
+                continue;
+            }
+            throw new Error("No se pudo leer la respuesta del servidor de Google Calendar.");
+        }
+
+        const isHtml = rawText.trim().startsWith('<') || rawText.includes('<!DOCTYPE') || rawText.includes('<html');
+
+        // Si el servidor devolvió 404/500 o HTML (típico fallo de propagación en echo de Google Apps Script)
+        if (!res.ok || isHtml) {
+            if (retries > 0) {
+                retries--;
+                // Esperar backoff por si el CDN de Google está propagando la redirección
+                await new Promise(r => setTimeout(r, 800));
+                continue;
+            }
+            // Agotados los reintentos: generar error descriptivo y controlado
+            if (res.status === 404 || isHtml) {
+                throw new Error(`Google Calendar no encontró el recurso o rechazó la solicitud (HTTP ${res.status || 404}). Verifique los calendarios y permisos.`);
+            }
+            throw new Error(`Google Apps Script devolvió código de error HTTP ${res.status}.`);
+        }
+
+        // Parseo seguro de JSON
+        let data;
+        try {
+            data = JSON.parse(rawText);
+        } catch (jsonErr) {
+            if (retries > 0) {
+                retries--;
+                await new Promise(r => setTimeout(r, 600));
+                continue;
+            }
+            throw new Error(`Respuesta no válida de Google Apps Script: ${rawText.slice(0, 150)}`);
+        }
+
+        if (data && data.error) {
+            throw new Error(data.error);
+        }
+
+        return action === 'getEvents' ? data : (action === 'createEvent' ? { id: data.id } : true);
     }
-    const data = await res.json();
-    if (data.error) throw new Error(data.error); 
-    return action === 'getEvents' ? data : (action === 'createEvent' ? { id: data.id } : true);
+
+    throw lastError || new Error("No se pudo completar la operación en Google Calendar.");
 }
 
 export async function getEventosCalendario(calendarId, timeMin, timeMax) { 
@@ -179,11 +240,31 @@ export async function crearEventoCalendario(calendarId, titulo, inicioStr, finSt
 }
 
 export async function actualizarEventoCalendario(calendarId, eventId, titulo, descripcion) { 
-    return await fetchCalendarAPI('updateEvent', { calendarId, eventId, summary: titulo, description: descripcion }); 
+    if (!calendarId || typeof calendarId !== 'string' || !calendarId.trim()) {
+        throw new Error("ID de calendario no especificado o inválido.");
+    }
+    if (!eventId || typeof eventId !== 'string' || !eventId.trim() || eventId === 'null' || eventId === 'undefined') {
+        throw new Error("ID de evento no especificado o inválido.");
+    }
+    return await fetchCalendarAPI('updateEvent', { 
+        calendarId: calendarId.trim(), 
+        eventId: eventId.trim(), 
+        summary: titulo, 
+        description: descripcion 
+    }); 
 }
 
 export async function eliminarEventoCalendario(calendarId, eventId) { 
-    return await fetchCalendarAPI('deleteEvent', { calendarId, eventId }); 
+    if (!calendarId || typeof calendarId !== 'string' || !calendarId.trim()) {
+        throw new Error("ID de calendario no especificado o inválido.");
+    }
+    if (!eventId || typeof eventId !== 'string' || !eventId.trim() || eventId === 'null' || eventId === 'undefined') {
+        throw new Error("ID de evento no especificado o inválido.");
+    }
+    return await fetchCalendarAPI('deleteEvent', { 
+        calendarId: calendarId.trim(), 
+        eventId: eventId.trim() 
+    }); 
 }
 
 export function construirTitulosEvento(al, tipo, cfg) {
@@ -318,40 +399,65 @@ export async function crearEventoSeguro(al, titulos, inicio, fin, cfg = defaultC
 }
 
 export async function actualizarEventoSeguro(al, titulos, desc, cfg = defaultCfg) {
-    if (!al.id_evento_reserva) throw new Error("El alumno no tiene un evento en calendario para actualizar.");
-    let calGrabado = al.calendario_evento_reserva, primaryCalId = await getCalendarIdParaAlumno(al, cfg), fallbackCalId = cfg.calendario_por_defecto, candidatos = [];
+    const evId = al.id_evento_reserva;
+    if (!evId || typeof evId !== 'string' || !evId.trim() || evId === 'null' || evId === 'undefined') {
+        console.warn("actualizarEventoSeguro: el alumno no posee un ID de evento en calendario válido para actualizar.");
+        return;
+    }
+    const cleanEvId = evId.trim();
+    let calGrabado = al.calendario_evento_reserva;
+    let primaryCalId = await getCalendarIdParaAlumno(al, cfg);
+    let fallbackCalId = cfg.calendario_por_defecto || 'productora.mandalahouse@gmail.com';
+    let candidatos = [];
     if (calGrabado) candidatos.push(calGrabado); 
     if (primaryCalId && !candidatos.includes(primaryCalId)) candidatos.push(primaryCalId); 
     if (fallbackCalId && !candidatos.includes(fallbackCalId)) candidatos.push(fallbackCalId);
+    
+    // Filtrar candidatos válidos
+    candidatos = candidatos.filter(c => c && typeof c === 'string' && c.trim() && c !== 'null' && c !== 'undefined');
+    if (candidatos.length === 0 && fallbackCalId) candidatos.push(fallbackCalId);
+
     let lastError = "";
     for (let cal of candidatos) { 
         try { 
             let tituloUsar = (cal === fallbackCalId) ? titulos.tituloDefecto : titulos.tituloProfe; 
-            await actualizarEventoCalendario(cal, al.id_evento_reserva, tituloUsar, desc); 
+            await actualizarEventoCalendario(cal, cleanEvId, tituloUsar, desc); 
             return; 
         } catch(e) { 
             lastError = e.message; 
+            console.warn(`Intento de actualizar evento ${cleanEvId} en calendario ${cal} falló:`, e.message);
         } 
     }
-    throw new Error("Google Calendar rechazó la actualización.\nDetalle: " + lastError);
+    throw new Error("Google Calendar rechazó la actualización.\nDetalle: " + (lastError || "Evento no encontrado en los calendarios consultados."));
 }
 
 export async function eliminarEventoSeguro(al, cfg = defaultCfg) {
-    if (!al.id_evento_reserva) return;
-    let calGrabado = al.calendario_evento_reserva, primaryCalId = await getCalendarIdParaAlumno(al, cfg), fallbackCalId = cfg.calendario_por_defecto, candidatos = [];
+    const evId = al.id_evento_reserva;
+    if (!evId || typeof evId !== 'string' || !evId.trim() || evId === 'null' || evId === 'undefined') return;
+    const cleanEvId = evId.trim();
+    let calGrabado = al.calendario_evento_reserva;
+    let primaryCalId = await getCalendarIdParaAlumno(al, cfg);
+    let fallbackCalId = cfg.calendario_por_defecto || 'productora.mandalahouse@gmail.com';
+    let candidatos = [];
     if (calGrabado) candidatos.push(calGrabado); 
     if (primaryCalId && !candidatos.includes(primaryCalId)) candidatos.push(primaryCalId); 
     if (fallbackCalId && !candidatos.includes(fallbackCalId)) candidatos.push(fallbackCalId);
+
+    // Filtrar candidatos válidos
+    candidatos = candidatos.filter(c => c && typeof c === 'string' && c.trim() && c !== 'null' && c !== 'undefined');
+    if (candidatos.length === 0 && fallbackCalId) candidatos.push(fallbackCalId);
+
     let lastError = "";
     for (let cal of candidatos) { 
         try { 
-            await eliminarEventoCalendario(cal, al.id_evento_reserva); 
+            await eliminarEventoCalendario(cal, cleanEvId); 
             return; 
         } catch(e) { 
             lastError = e.message; 
+            console.warn(`Intento de eliminar evento ${cleanEvId} en calendario ${cal} falló:`, e.message);
         } 
     }
-    throw new Error("Google Calendar rechazó la cancelación.\nDetalle: " + lastError);
+    throw new Error("Google Calendar rechazó la cancelación.\nDetalle: " + (lastError || "Evento no encontrado en los calendarios consultados."));
 }
 
 // -----------------------------------------------------------------------
@@ -1144,10 +1250,30 @@ export async function validarConflictoCalendarEnVivo({
                 }
 
                 // Verificar si este evento pertenece al profesor seleccionado
+                // REGLA ESTRICTA:
+                // 1. Si el evento proviene del calendario personal del profesor (ev.calIdSource === profeCalLow), es de este profesor.
+                // 2. Si proviene del calendario general de la escuela (mainCal), SOLO se atribuye al profesor si:
+                //    a) El profesor tiene asignado como calendario el general (profeCalLow === mainCal), o
+                //    b) El summary referencia explícitamente al profesor como docente: (profe), [profe], Profe: profe, con profe.
+                // 3. NUNCA atribuir un evento de un calendario personal ajeno (ej. calendario de Belu) a otro profesor (ej. Nacho)
+                //    por el solo hecho de que el nombre del profesor aparezca como alumno o palabra en el título.
                 const profeNomLow = (profeNombre || '').toLowerCase().trim();
                 const profeCalLow = (profeCalId || '').toLowerCase().trim();
-                if ((profeCalLow && ev.calIdSource?.toLowerCase() === profeCalLow) ||
-                    (profeNomLow && sum.includes(profeNomLow))) {
+                const mainCalLow = (mainCal || '').toLowerCase().trim();
+                const evCalSourceLow = (ev.calIdSource || '').toLowerCase().trim();
+
+                const esEventoDeEsteProfe = (profeCalLow && evCalSourceLow === profeCalLow) ||
+                    (mainCalLow && evCalSourceLow === mainCalLow && (
+                        profeCalLow === mainCalLow ||
+                        (profeNomLow && (
+                            sum.includes(`(${profeNomLow})`) ||
+                            sum.includes(`[${profeNomLow}]`) ||
+                            new RegExp(`\\b(profe|prof|docente)\\s*[:\\-]?\\s*${profeNomLow}\\b`, 'i').test(sum) ||
+                            new RegExp(`\\bcon\\s+${profeNomLow}\\b`, 'i').test(sum)
+                        ))
+                    ));
+
+                if (esEventoDeEsteProfe) {
                     profeOcupado = true;
                     profeEventoSummary = ev.summary;
                 }
@@ -1287,7 +1413,25 @@ export async function obtenerEventosProfesoresParaSlot({ inicioISO, finISO, conf
                 profesLista.forEach(p => {
                     const pNomLow = p.nombre.toLowerCase().trim();
                     const pCalLow = (p.calId || '').toLowerCase().trim();
-                    if ((pCalLow && ev.calIdSource?.toLowerCase() === pCalLow) || (pNomLow && sum.includes(pNomLow))) {
+                    const mainCalLow = (mainCal || '').toLowerCase().trim();
+                    const evCalSourceLow = (ev.calIdSource || '').toLowerCase().trim();
+
+                    // REGLA ESTRICTA: Solo asociar el evento a este profesor si:
+                    // 1. El evento proviene de su propio calendario personal (evCalSourceLow === pCalLow).
+                    // 2. O el evento proviene del calendario general (mainCal) y el profesor está explícitamente indicado como docente.
+                    // NUNCA atribuir eventos de calendarios ajenos (ej. Belu) a otro profesor (ej. Nacho como alumno en el título).
+                    const esEventoDelProfe = (pCalLow && evCalSourceLow === pCalLow) || 
+                        (mainCalLow && evCalSourceLow === mainCalLow && (
+                            pCalLow === mainCalLow ||
+                            (pNomLow && (
+                                sum.includes(`(${pNomLow})`) ||
+                                sum.includes(`[${pNomLow}]`) ||
+                                new RegExp(`\\b(profe|prof|docente)\\s*[:\\-]?\\s*${pNomLow}\\b`, 'i').test(sum) ||
+                                new RegExp(`\\bcon\\s+${pNomLow}\\b`, 'i').test(sum)
+                            ))
+                        ));
+
+                    if (esEventoDelProfe) {
                         ocupadosMap[pNomLow] = {
                             summary: ev.summary || 'Clase agendada',
                             id: ev.id,
