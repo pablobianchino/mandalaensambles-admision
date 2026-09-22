@@ -2,10 +2,13 @@
 // src/config/constants.js — Constantes globales del sistema
 // =======================================================================
 
-export const APP_VERSION = "v6.9.11";
+export const APP_VERSION = "v6.9.17";
 
+export const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx033Es_BuZJk5x0MmyV-u8foA58ENNl1K3Cv-BE6ZeguXCG62UIQl5H4v94EB7MT0/exec";
+export const SCRIPT_API_KEY = "mandala-seg-2026";
 
-export const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbDuDGOab4azS27_7Mt9KYixAHNgeygMgCOZHTL1I3Poba5yLceWM56qJd59hPx6g/exec";
+// Google Drive: Carpeta Raíz de Entrevistas (Mi Unidad > Gestión y Administración Participativa > GEstión > Entrevistas)
+export const DRIVE_FOLDER_ENTREVISTAS_ID = "1FErZ8tyjV_q6tCrzO9QJNBjqSjpg_bPo";
 
 export const firebaseConfig = {
     apiKey: "AIzaSyCgAg2EwTJh4zbMdpkqG3VKTGfDeofblyg",

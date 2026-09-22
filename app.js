@@ -5,6 +5,8 @@
 import { 
     APP_VERSION, 
     SCRIPT_URL, 
+    SCRIPT_API_KEY,
+    DRIVE_FOLDER_ENTREVISTAS_ID,
     firebaseConfig, 
     diasSemana, 
     defaultCfg, 
@@ -13,7 +15,7 @@ import {
     configNodosFlujoCoordinador,
     esAlumnoAltaFinalizada,
     esAlumnoAltaConfirmadaIncompleta
-} from "./src/config/constants.js?v=6.9.11";
+} from "./src/config/constants.js?v=6.9.12";
 
 import { 
     app, 
@@ -42,7 +44,7 @@ import {
     EmailAuthProvider,
     reauthenticateWithCredential,
     linkWithCredential
-} from "./src/config/firebase.js?v=6.9.11";
+} from "./src/config/firebase.js?v=6.9.12";
 
 import {
     limpiarHoraParaChip,
@@ -56,7 +58,7 @@ import {
     extraerDisponibilidadMultiRango,
     normalizarHora,
     inicializarAutocompletadoHorarios
-} from "./src/ui/horarios.ui.js?v=6.9.11";
+} from "./src/ui/horarios.ui.js?v=6.9.12";
 
 import {
     getEmojiInstrumento,
@@ -85,7 +87,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=6.9.11";
+} from "./src/services/calendar.service.js?v=6.9.12";
 
 import {
     matchCantidadActual,
@@ -118,11 +120,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=6.9.11";
+} from "./src/modules/match.module.js?v=6.9.12";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=6.9.11";
+} from "./src/modules/profesor.module.js?v=6.9.12";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -151,14 +153,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=6.9.11";
+} from "./src/modules/altas.module.js?v=6.9.12";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=6.9.11";
+} from "./src/modules/dashboard.module.js?v=6.9.12";
 
 import {
     renderConfigHub,
@@ -167,20 +169,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=6.9.11";
+} from "./src/modules/abm.module.js?v=6.9.12";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=6.9.11";
+} from "./src/modules/inbox.module.js?v=6.9.12";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=6.9.11";
+} from "./src/modules/csv.module.js?v=6.9.12";
 
 window.generarBotonesPrincipalesVisibles = generarBotonesPrincipalesVisibles;
 window.generarBotonesAccion = generarBotonesAccion;
@@ -1413,6 +1415,13 @@ export function solicitarConfirmacionSalidaModal(modalActivo, onDescartar, onGua
                 }
                 const modalFicha = document.getElementById('modal-alta-alumno');
                 if (modalFicha && modalFicha.open) modalFicha.close();
+            } else if (modalId === 'modal-informe-admision') {
+                const retornoId = modalActivo?.dataset?.retornoAlumnoId || document.getElementById('informe-final-alumno-id')?.value;
+                if (modalActivo && modalActivo.open) modalActivo.close();
+                if (retornoId && !retornoId.startsWith('test-')) {
+                    if (modalActivo) modalActivo.dataset.retornoAlumnoId = '';
+                    window.editarAlumnoModalDirecto(retornoId, 'tab-informe');
+                }
             } else {
                 if (modalActivo && modalActivo.open) modalActivo.close();
             }
@@ -1463,6 +1472,14 @@ document.addEventListener('cancel', (e) => {
             if (wrap) {
                 wrap.style.display = 'none';
                 document.body.appendChild(wrap);
+            }
+        } else if (dialog.id === 'modal-informe-admision') {
+            const retornoId = dialog.dataset?.retornoAlumnoId;
+            if (retornoId && !retornoId.startsWith('test-')) {
+                dialog.dataset.retornoAlumnoId = '';
+                setTimeout(() => {
+                    window.editarAlumnoModalDirecto(retornoId, 'tab-informe');
+                }, 50);
             }
         }
     }
@@ -1580,17 +1597,438 @@ export const NOTAS_CANTO_ESCALA = [
     'do6', 're6'
 ];
 
+export const VOCAL_CONFIGS = {
+    fem: {
+        label: 'FEMENINO',
+        pecho: {
+            title: '1. Voz de Pecho',
+            bannerClass: 'banner-pecho',
+            stdStart: 'mi3', stdEnd: 'do5',
+            darkStart: 'sol3', darkEnd: 'sol4'
+        },
+        cabeza: {
+            title: '2. Voz de Cabeza',
+            bannerClass: 'banner-cabeza',
+            stdStart: 'si3', stdEnd: 'do6',
+            darkStart: 'fa4', darkEnd: 'mi5'
+        },
+        mixta: {
+            title: '3. Voz Mixta',
+            bannerClass: 'banner-mixta',
+            stdStart: 'si3', stdEnd: 'sol5',
+            darkStart: 'mi4', darkEnd: 're5',
+            sublabels: { 'si3': 'Liviana', 'mi4': 'Potente' }
+        }
+    },
+    masc: {
+        label: 'MASCULINO',
+        pecho: {
+            title: '1. Voz de Pecho',
+            bannerClass: 'banner-pecho',
+            stdStart: 'mi2', stdEnd: 'la4',
+            darkStart: 'la2', darkEnd: 're4'
+        },
+        cabeza: {
+            title: '2. Voz de Cabeza',
+            bannerClass: 'banner-cabeza',
+            stdStart: 're3', stdEnd: 'la5',
+            darkStart: 'do4', darkEnd: 'si4'
+        },
+        mixta: {
+            title: '3. Voz Mixta',
+            bannerClass: 'banner-mixta',
+            stdStart: 'mi3', stdEnd: 're5',
+            darkStart: 'la3', darkEnd: 'si4',
+            sublabels: { 'mi3': 'Liviana', 'la3': 'Potente' }
+        }
+    }
+};
+
 export let cantoGeneroVocalActual = 'fem';
 export let cantoCualidadMixta = null;
 export let cantoFritoVocal = 'sin_evaluar';
+
+export let userCantoSelections = {
+    pecho: { start: null, end: null, state: 'empty' },
+    cabeza: { start: null, end: null, state: 'empty' },
+    mixta: { start: null, end: null, state: 'empty' }
+};
+
+export function centrarPistasCantoEnStandard() {
+    const cfg = VOCAL_CONFIGS[cantoGeneroVocalActual] || VOCAL_CONFIGS.fem;
+    ['pecho', 'cabeza', 'mixta'].forEach(trackKey => {
+        const container = document.getElementById(`canto-scroll-container-${trackKey}`);
+        if (!container || container.clientWidth <= 0) return;
+        const tCfg = cfg[trackKey];
+        const darkStartIdx = NOTAS_CANTO_ESCALA.indexOf(tCfg.darkStart);
+        const darkEndIdx = NOTAS_CANTO_ESCALA.indexOf(tCfg.darkEnd);
+        const darkCenterIdx = (darkStartIdx + darkEndIdx) / 2;
+        const centerPixel = (darkCenterIdx * 29) + 14.5;
+        const targetScroll = Math.max(0, centerPixel - (container.clientWidth / 2));
+        container.scrollLeft = targetScroll;
+    });
+}
+window.centrarPistasCantoEnStandard = centrarPistasCantoEnStandard;
+
+export function renderCantoInteractiveTracks(autoCenter = false) {
+    const cont = document.getElementById('canto-interactive-tracks-container');
+    if (!cont) return;
+
+    // Preservar la posición de scroll previa si no se pide autoCenter forzado
+    const prevScrolls = {};
+    ['pecho', 'cabeza', 'mixta'].forEach(tk => {
+        const c = document.getElementById(`canto-scroll-container-${tk}`);
+        if (c && c.scrollLeft > 0) prevScrolls[tk] = c.scrollLeft;
+    });
+
+    cont.innerHTML = '';
+
+    const cfg = VOCAL_CONFIGS[cantoGeneroVocalActual] || VOCAL_CONFIGS.fem;
+    const tracks = ['pecho', 'cabeza', 'mixta'];
+
+    tracks.forEach(trackKey => {
+        const tCfg = cfg[trackKey];
+        const sel = userCantoSelections[trackKey] || { start: null, end: null, state: 'empty' };
+
+        const startIdx = NOTAS_CANTO_ESCALA.indexOf(tCfg.stdStart);
+        const endIdx = NOTAS_CANTO_ESCALA.indexOf(tCfg.stdEnd);
+        const darkStartIdx = NOTAS_CANTO_ESCALA.indexOf(tCfg.darkStart);
+        const darkEndIdx = NOTAS_CANTO_ESCALA.indexOf(tCfg.darkEnd);
+        const darkCenterIdx = Math.floor((darkStartIdx + darkEndIdx) / 2);
+
+        let html = `
+        <div class="canto-track-block track-block" id="track-block-${trackKey}">
+            <div class="canto-track-banner track-banner ${tCfg.bannerClass}">
+                <span>${tCfg.title}</span>
+            </div>
+            
+            <div class="canto-table-scroll-container table-scroll-container" id="canto-scroll-container-${trackKey}">
+                <div class="canto-vocal-grid-table vocal-grid-table">
+                    <!-- FILA 1: ESTÁNDAR DUAL (GRISES EXACTOS) -->
+                    <div class="grid-row-standard">
+        `;
+
+        NOTAS_CANTO_ESCALA.forEach((note, idx) => {
+            let cellClass = 'cell-std';
+            let content = '';
+            let inlineStyle = '';
+
+            const isTotalStd = (idx >= startIdx && idx <= endIdx);
+            const isDarkStd = (idx >= darkStartIdx && idx <= darkEndIdx);
+
+            if (isDarkStd) {
+                cellClass += ' dark-gray';
+                if (idx === darkCenterIdx) {
+                    cellClass += ' cell-std-center';
+                    inlineStyle = 'position:relative; z-index:50; overflow:visible !important;';
+                    content = '<span class="std-label-txt" style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); white-space:nowrap; z-index:100; pointer-events:none; font-size:7.5px; font-weight:800; letter-spacing:0.04em; color:#ffffff; text-shadow:0 1px 2px rgba(0,0,0,0.8);">STANDARD</span>';
+                } else {
+                    inlineStyle = 'position:relative; z-index:1;';
+                }
+            } else if (isTotalStd) {
+                cellClass += ' light-gray';
+            }
+
+            html += `<div class="${cellClass}" style="${inlineStyle}">${content}</div>`;
+        });
+
+        html += `
+                    </div>
+
+                    <!-- FILA 2: NOTAS DEL PIANO (CLICKS DEL PROFESOR) -->
+                    <div class="grid-row-notes">
+        `;
+
+        NOTAS_CANTO_ESCALA.forEach((note, idx) => {
+            let noteClass = 'cell-note';
+            if (note === 'do4') noteClass += ' is-c4'; // Normalizado sin fondo azul
+
+            if (sel.state === 'selecting' && sel.start === note) {
+                noteClass += ' selecting-start'; // 1er Clic: Azul
+            } else if (sel.state === 'done') {
+                const sI = NOTAS_CANTO_ESCALA.indexOf(sel.start);
+                const eI = NOTAS_CANTO_ESCALA.indexOf(sel.end);
+                const minI = Math.min(sI, eI);
+                const maxI = Math.max(sI, eI);
+                
+                if (idx >= minI && idx <= maxI) {
+                    noteClass += ' selected-range'; // 2do Clic: Rango Completo en Verde
+                    if (idx === minI) noteClass += ' range-start';
+                    if (idx === maxI) noteClass += ' range-end';
+                }
+            }
+
+            html += `<div class="${noteClass}" data-note="${note}" onclick="window.handleCantoNoteClick('${trackKey}', '${note}')" title="Clic para seleccionar">${note}</div>`;
+        });
+
+        html += `
+                    </div>
+        `;
+
+        if (tCfg.sublabels) {
+            html += `<div class="grid-row-sublabels">`;
+            NOTAS_CANTO_ESCALA.forEach(note => {
+                const txt = tCfg.sublabels[note] || '';
+                html += `<div class="cell-sublabel">${txt}</div>`;
+            });
+            html += `</div>`;
+        }
+
+        html += `
+                </div>
+            </div>
+
+            <!-- PIE INFORMATIVO DE LA PISTA -->
+            <div class="track-footer-bar">
+                <div style="display:flex; align-items:center; gap:8px;">
+        `;
+
+        if (sel.state === 'empty') {
+            html += `<span class="status-pill empty">⚪ Sin rango fijado (Clic en la nota de inicio)</span>`;
+        } else if (sel.state === 'selecting') {
+            html += `
+                <span class="status-pill waiting-end">
+                    🔵 <strong>Inicio en ${sel.start}:</strong> Ahora haz clic en la nota de fin
+                </span>`;
+        } else if (sel.state === 'done') {
+            const sI = NOTAS_CANTO_ESCALA.indexOf(sel.start);
+            const eI = NOTAS_CANTO_ESCALA.indexOf(sel.end);
+            const minN = NOTAS_CANTO_ESCALA[Math.min(sI, eI)];
+            const maxN = NOTAS_CANTO_ESCALA[Math.max(sI, eI)];
+            const cant = Math.abs(eI - sI) + 1;
+            html += `
+                <span class="status-pill completed">
+                    🟢 <strong>Rango cubierto:</strong> ${minN} a ${maxN} (${cant} notas)
+                </span>`;
+        }
+
+        html += `
+                </div>
+                <div>
+                    ${sel.state !== 'empty' ? `<button type="button" class="btn-reset-track" onclick="window.resetCantoTrackSelection('${trackKey}')">✕ Limpiar selección</button>` : ''}
+                </div>
+            </div>
+        </div>`;
+
+        cont.innerHTML += html;
+    });
+
+    // Sincronizar con inputs ocultos para persistencia en Firestore
+    const pSel = userCantoSelections.pecho;
+    const cSel = userCantoSelections.cabeza;
+    const mSel = userCantoSelections.mixta;
+
+    const inpPD = document.getElementById('canto-pecho-desde');
+    const inpPH = document.getElementById('canto-pecho-hasta');
+    const inpCD = document.getElementById('canto-cabeza-desde');
+    const inpCH = document.getElementById('canto-cabeza-hasta');
+    const inpMD = document.getElementById('canto-mixta-desde');
+    const inpMH = document.getElementById('canto-mixta-hasta');
+    const inpMP = document.getElementById('canto-mixta-pasaje');
+
+    if (inpPD && inpPH) {
+        if (pSel.state === 'done') {
+            const sI = NOTAS_CANTO_ESCALA.indexOf(pSel.start);
+            const eI = NOTAS_CANTO_ESCALA.indexOf(pSel.end);
+            inpPD.value = NOTAS_CANTO_ESCALA[Math.min(sI, eI)];
+            inpPH.value = NOTAS_CANTO_ESCALA[Math.max(sI, eI)];
+        } else {
+            inpPD.value = pSel.start || '';
+            inpPH.value = pSel.end || '';
+        }
+    }
+
+    if (inpCD && inpCH) {
+        if (cSel.state === 'done') {
+            const sI = NOTAS_CANTO_ESCALA.indexOf(cSel.start);
+            const eI = NOTAS_CANTO_ESCALA.indexOf(cSel.end);
+            inpCD.value = NOTAS_CANTO_ESCALA[Math.min(sI, eI)];
+            inpCH.value = NOTAS_CANTO_ESCALA[Math.max(sI, eI)];
+        } else {
+            inpCD.value = cSel.start || '';
+            inpCH.value = cSel.end || '';
+        }
+    }
+
+    if (inpMD && inpMH) {
+        if (mSel.state === 'done') {
+            const sI = NOTAS_CANTO_ESCALA.indexOf(mSel.start);
+            const eI = NOTAS_CANTO_ESCALA.indexOf(mSel.end);
+            inpMD.value = NOTAS_CANTO_ESCALA[Math.min(sI, eI)];
+            inpMH.value = NOTAS_CANTO_ESCALA[Math.max(sI, eI)];
+        } else {
+            inpMD.value = mSel.start || '';
+            inpMH.value = mSel.end || '';
+        }
+    }
+
+    if (inpMP && inpMP.value) {
+        const selDropdown = document.getElementById('canto-mixta-pasaje-select');
+        if (selDropdown) selDropdown.value = inpMP.value;
+    }
+
+    if (autoCenter) {
+        setTimeout(centrarPistasCantoEnStandard, 40);
+        setTimeout(centrarPistasCantoEnStandard, 150);
+    } else {
+        ['pecho', 'cabeza', 'mixta'].forEach(tk => {
+            const c = document.getElementById(`canto-scroll-container-${tk}`);
+            if (c && prevScrolls[tk] !== undefined && prevScrolls[tk] > 0) {
+                c.scrollLeft = prevScrolls[tk];
+            }
+        });
+    }
+}
+window.renderCantoInteractiveTracks = renderCantoInteractiveTracks;
+
+export function actualizarVisualPistaCanto(trackKey) {
+    const block = document.getElementById(`track-block-${trackKey}`);
+    if (!block) return;
+
+    const sel = userCantoSelections[trackKey] || { start: null, end: null, state: 'empty' };
+    const noteCells = block.querySelectorAll('.grid-row-notes .cell-note');
+
+    const sI = sel.start ? NOTAS_CANTO_ESCALA.indexOf(sel.start) : -1;
+    const eI = sel.end ? NOTAS_CANTO_ESCALA.indexOf(sel.end) : -1;
+    const minI = (sI >= 0 && eI >= 0) ? Math.min(sI, eI) : sI;
+    const maxI = (sI >= 0 && eI >= 0) ? Math.max(sI, eI) : (sel.state === 'selecting' ? sI : -1);
+
+    noteCells.forEach((cell, idx) => {
+        cell.classList.remove('selecting-start', 'selected-range', 'range-start', 'range-end');
+
+        if (sel.state === 'selecting') {
+            if (idx === sI) {
+                cell.classList.add('selecting-start');
+            }
+        } else if (sel.state === 'done') {
+            if (minI >= 0 && maxI >= 0 && idx >= minI && idx <= maxI) {
+                cell.classList.add('selected-range');
+                if (idx === minI) cell.classList.add('range-start');
+                if (idx === maxI) cell.classList.add('range-end');
+            }
+        }
+    });
+
+    // Sincronizar inputs ocultos
+    if (trackKey === 'pecho') {
+        const pd = document.getElementById('canto-pecho-desde');
+        const ph = document.getElementById('canto-pecho-hasta');
+        if (pd && ph) {
+            if (sel.state === 'done') {
+                pd.value = NOTAS_CANTO_ESCALA[Math.min(sI, eI)];
+                ph.value = NOTAS_CANTO_ESCALA[Math.max(sI, eI)];
+            } else {
+                pd.value = sel.start || '';
+                ph.value = sel.end || '';
+            }
+        }
+    } else if (trackKey === 'cabeza') {
+        const cd = document.getElementById('canto-cabeza-desde');
+        const ch = document.getElementById('canto-cabeza-hasta');
+        if (cd && ch) {
+            if (sel.state === 'done') {
+                cd.value = NOTAS_CANTO_ESCALA[Math.min(sI, eI)];
+                ch.value = NOTAS_CANTO_ESCALA[Math.max(sI, eI)];
+            } else {
+                cd.value = sel.start || '';
+                ch.value = sel.end || '';
+            }
+        }
+    } else if (trackKey === 'mixta') {
+        const md = document.getElementById('canto-mixta-desde');
+        const mh = document.getElementById('canto-mixta-hasta');
+        if (md && mh) {
+            if (sel.state === 'done') {
+                md.value = NOTAS_CANTO_ESCALA[Math.min(sI, eI)];
+                mh.value = NOTAS_CANTO_ESCALA[Math.max(sI, eI)];
+            } else {
+                md.value = sel.start || '';
+                mh.value = sel.end || '';
+            }
+        }
+    }
+
+    // Actualizar footer de la pista (pill y reset button)
+    const footerBar = block.querySelector('.track-footer-bar');
+    if (footerBar) {
+        let pillHtml = '';
+        if (sel.state === 'empty') {
+            pillHtml = '<span class="status-pill empty">⚪ Sin rango fijado (Clic en la nota de inicio)</span>';
+        } else if (sel.state === 'selecting') {
+            pillHtml = `<span class="status-pill waiting-end">🔵 <strong>Inicio en ${sel.start}:</strong> Ahora haz clic en la nota de fin</span>`;
+        } else if (sel.state === 'done') {
+            const minN = NOTAS_CANTO_ESCALA[Math.min(sI, eI)];
+            const maxN = NOTAS_CANTO_ESCALA[Math.max(sI, eI)];
+            const cant = Math.abs(eI - sI) + 1;
+            pillHtml = `<span class="status-pill completed">🟢 <strong>Rango cubierto:</strong> ${minN} a ${maxN} (${cant} notas)</span>`;
+        }
+
+        const resetHtml = sel.state !== 'empty'
+            ? `<button type="button" class="btn-reset-track" onclick="window.resetCantoTrackSelection('${trackKey}')">✕ Limpiar selección</button>`
+            : '';
+
+        footerBar.innerHTML = `
+            <div style="display:flex; align-items:center; gap:8px;">
+                ${pillHtml}
+            </div>
+            <div>
+                ${resetHtml}
+            </div>
+        `;
+    }
+
+    window._modalEditandoModificado = true;
+    window._fichaAlumnoModificada = true;
+}
+window.actualizarVisualPistaCanto = actualizarVisualPistaCanto;
+
+export function handleCantoNoteClick(trackKey, note) {
+    const sel = userCantoSelections[trackKey] || { start: null, end: null, state: 'empty' };
+
+    if (sel.state === 'empty' || sel.state === 'done') {
+        sel.start = note;
+        sel.end = null;
+        sel.state = 'selecting';
+    } else if (sel.state === 'selecting') {
+        sel.end = note;
+        sel.state = 'done';
+    }
+    userCantoSelections[trackKey] = sel;
+    actualizarVisualPistaCanto(trackKey);
+}
+window.handleCantoNoteClick = handleCantoNoteClick;
+
+export function resetCantoTrackSelection(trackKey) {
+    userCantoSelections[trackKey] = { start: null, end: null, state: 'empty' };
+    if (trackKey === 'pecho') {
+        const pd = document.getElementById('canto-pecho-desde');
+        const ph = document.getElementById('canto-pecho-hasta');
+        if (pd) pd.value = '';
+        if (ph) ph.value = '';
+    } else if (trackKey === 'cabeza') {
+        const cd = document.getElementById('canto-cabeza-desde');
+        const ch = document.getElementById('canto-cabeza-hasta');
+        if (cd) cd.value = '';
+        if (ch) ch.value = '';
+    } else if (trackKey === 'mixta') {
+        const md = document.getElementById('canto-mixta-desde');
+        const mh = document.getElementById('canto-mixta-hasta');
+        const mp = document.getElementById('canto-mixta-pasaje');
+        const selDropdown = document.getElementById('canto-mixta-pasaje-select');
+        if (md) md.value = '';
+        if (mh) mh.value = '';
+        if (mp) mp.value = '';
+        if (selDropdown) selDropdown.value = '';
+    }
+    actualizarVisualPistaCanto(trackKey);
+}
+window.resetCantoTrackSelection = resetCantoTrackSelection;
 
 export function setGeneroVocalCanto(gen) {
     cantoGeneroVocalActual = gen || 'fem';
     const btnFem = document.getElementById('btn-canto-gen-fem');
     const btnMasc = document.getElementById('btn-canto-gen-masc');
-    const stdPecho = document.getElementById('canto-std-pecho');
-    const stdCabeza = document.getElementById('canto-std-cabeza');
-    const stdMixta = document.getElementById('canto-std-mixta');
+    const stdMixtaBadge = document.getElementById('canto-std-mixta-badge');
 
     if (btnFem && btnMasc) {
         if (cantoGeneroVocalActual === 'fem') {
@@ -1606,9 +2044,11 @@ export function setGeneroVocalCanto(gen) {
         }
     }
 
-    if (stdPecho) stdPecho.textContent = `★ STD: ${cantoGeneroVocalActual === 'fem' ? 'sol3' : 'la2'}`;
-    if (stdCabeza) stdCabeza.textContent = `★ STD: ${cantoGeneroVocalActual === 'fem' ? 'fa4' : 'do4'}`;
-    if (stdMixta) stdMixta.textContent = `★ STD: ${cantoGeneroVocalActual === 'fem' ? 'mi4' : 'la3'}`;
+    if (stdMixtaBadge) {
+        stdMixtaBadge.style.display = 'none';
+    }
+
+    renderCantoInteractiveTracks(true);
 }
 window.setGeneroVocalCanto = setGeneroVocalCanto;
 
@@ -1663,24 +2103,23 @@ export function setFritoVocalCanto(frito) {
 }
 window.setFritoVocalCanto = setFritoVocalCanto;
 
+export function syncCantoMixtaPasaje(val) {
+    const inpMP = document.getElementById('canto-mixta-pasaje');
+    if (inpMP) inpMP.value = val || '';
+    window._modalEditandoModificado = true;
+    window._fichaAlumnoModificada = true;
+}
+window.syncCantoMixtaPasaje = syncCantoMixtaPasaje;
+
 export function cargarOpcionesNotasCanto() {
-    const ids = [
-        'canto-pecho-desde',
-        'canto-pecho-hasta',
-        'canto-cabeza-desde',
-        'canto-cabeza-hasta',
-        'canto-mixta-pasaje'
-    ];
-    ids.forEach(id => {
-        const sel = document.getElementById(id);
-        if (!sel || sel.options.length > 1) return;
-        sel.innerHTML = '<option value="">--</option>';
-        NOTAS_CANTO_ESCALA.forEach(n => {
-            const opt = document.createElement('option');
-            opt.value = n;
-            opt.textContent = n;
-            sel.appendChild(opt);
-        });
+    const sel = document.getElementById('canto-mixta-pasaje-select');
+    if (!sel || sel.options.length > 1) return;
+    sel.innerHTML = '<option value="">-- Seleccionar --</option>';
+    NOTAS_CANTO_ESCALA.forEach(n => {
+        const opt = document.createElement('option');
+        opt.value = n;
+        opt.textContent = n;
+        sel.appendChild(opt);
     });
 }
 window.cargarOpcionesNotasCanto = cargarOpcionesNotasCanto;
@@ -1701,16 +2140,495 @@ export function actualizarCondicionalesPunto3() {
     const cardTonalidades = document.getElementById('inf-card-tonalidades');
     
     if (cardCantante) cardCantante.style.display = esCantante ? 'flex' : 'none';
-    if (secTecnicaCanto) secTecnicaCanto.style.display = esCantante ? 'flex' : 'none';
+    if (secTecnicaCanto) {
+        secTecnicaCanto.style.display = esCantante ? 'flex' : 'none';
+        if (esCantante) {
+            renderCantoInteractiveTracks(true);
+            setTimeout(centrarPistasCantoEnStandard, 60);
+        }
+    }
     if (cardTonalidades) cardTonalidades.style.display = aplicaTonalidades ? 'flex' : 'none';
 }
 window.actualizarCondicionalesPunto3 = actualizarCondicionalesPunto3;
 
-setTimeout(() => {
-    cargarOpcionesNotasCanto();
-    document.getElementById('inf-instrumento')?.addEventListener('change', actualizarCondicionalesPunto3);
-    document.getElementById('inf-nivel')?.addEventListener('change', actualizarCondicionalesPunto3);
-}, 300);
+// =======================================================================
+// GESTIÓN DE AUDIO DE LA ENTREVISTA TÉCNICA (GRABACIÓN, SUBIDA Y GOOGLE DRIVE)
+// =======================================================================
+export let infAudioState = {
+    blob: null,
+    fileName: '',
+    durationSec: 0,
+    existingAudio: null
+};
+
+let _infMediaRecorder = null;
+let _infAudioChunks = [];
+let _infRecTimerInterval = null;
+let _infRecSecs = 0;
+let _infFormAudioElement = null;
+let _infIsFormAudioPlaying = false;
+
+export async function toggleGrabacionAudioEntrevista() {
+    const btn = document.getElementById('btn-inf-record-live');
+    const timer = document.getElementById('inf-rec-timer');
+    const icon = document.getElementById('inf-rec-icon');
+    const text = document.getElementById('inf-rec-text');
+
+    if (!_infMediaRecorder || _infMediaRecorder.state === 'inactive') {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            _infAudioChunks = [];
+            _infMediaRecorder = new MediaRecorder(stream);
+            _infMediaRecorder.ondataavailable = e => {
+                if (e.data.size > 0) _infAudioChunks.push(e.data);
+            };
+            _infMediaRecorder.onstop = () => {
+                stream.getTracks().forEach(track => track.stop());
+                const audioBlob = new Blob(_infAudioChunks, { type: 'audio/mp3' });
+                infAudioState.blob = audioBlob;
+                infAudioState.durationSec = _infRecSecs;
+                
+                const alNombre = (document.getElementById('inf-nombre')?.value.trim()) || 'Alumno';
+                const evalNom = (document.getElementById('inf-modal-evaluador-val')?.textContent.trim()) || 
+                                (document.getElementById('inf-modal-manual-evaluador')?.value.trim()) || 
+                                (window.usuarioActual?.nombre || 'Evaluador');
+                const fechaTxt = (document.getElementById('inf-modal-fecha-val')?.textContent.trim()) || 
+                                 (document.getElementById('inf-modal-manual-fecha')?.value.trim()) || 
+                                 'Entrevista';
+                
+                const safeFecha = fechaTxt.replace(/[/:]/g, '-').replace(/\s+/g, ' ');
+                const fileName = `${safeFecha} - ${alNombre} - ${evalNom}.mp3`.replace(/[\\/:*?"<>|]/g, '-');
+                infAudioState.fileName = fileName;
+
+                mostrarPrevisualizacionAudio(fileName, _infRecSecs, URL.createObjectURL(audioBlob));
+            };
+
+            _infMediaRecorder.start(1000);
+            _infRecSecs = 0;
+            if (btn) btn.classList.add('recording');
+            if (icon) icon.textContent = '⏹';
+            if (text) text.textContent = 'Detener Grabación';
+            if (timer) {
+                timer.style.display = 'inline-block';
+                timer.textContent = '00:00 / 05:00';
+            }
+            _infRecTimerInterval = setInterval(() => {
+                _infRecSecs++;
+                const mins = String(Math.floor(_infRecSecs / 60)).padStart(2, '0');
+                const secs = String(_infRecSecs % 60).padStart(2, '0');
+                if (timer) timer.textContent = `${mins}:${secs} / 05:00`;
+                if (_infRecSecs >= 300) {
+                    toggleGrabacionAudioEntrevista();
+                }
+            }, 1000);
+        } catch(err) {
+            console.error("Error al acceder al micrófono:", err);
+            alert("No se pudo acceder al micrófono: " + err.message);
+        }
+    } else if (_infMediaRecorder.state === 'recording') {
+        _infMediaRecorder.stop();
+        clearInterval(_infRecTimerInterval);
+        if (btn) btn.classList.remove('recording');
+        if (icon) icon.textContent = '⏺';
+        if (text) text.textContent = 'Grabar de Nuevo';
+        if (timer) timer.style.display = 'none';
+    }
+}
+window.toggleGrabacionAudioEntrevista = toggleGrabacionAudioEntrevista;
+
+export function handleSubidaAudioEntrevista(input) {
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        infAudioState.blob = file;
+        infAudioState.fileName = file.name;
+        
+        const audioUrl = URL.createObjectURL(file);
+        const tempAudio = new Audio(audioUrl);
+        tempAudio.onloadedmetadata = () => {
+            infAudioState.durationSec = Math.round(tempAudio.duration) || 0;
+            mostrarPrevisualizacionAudio(file.name, infAudioState.durationSec, audioUrl);
+        };
+        tempAudio.onerror = () => {
+            mostrarPrevisualizacionAudio(file.name, 0, audioUrl);
+        };
+    }
+}
+window.handleSubidaAudioEntrevista = handleSubidaAudioEntrevista;
+
+export function mostrarPrevisualizacionAudio(fileName, durationSec, url) {
+    const box = document.getElementById('inf-audio-player-box');
+    const nameEl = document.getElementById('inf-audio-filename');
+    const durEl = document.getElementById('inf-audio-duration');
+    const btnPlay = document.getElementById('btn-inf-audio-play');
+    const fill = document.getElementById('inf-audio-progress-fill');
+    
+    if (box) box.style.display = 'flex';
+    if (nameEl) nameEl.textContent = fileName;
+    if (durEl) {
+        const m = String(Math.floor(durationSec / 60)).padStart(2, '0');
+        const s = String(durationSec % 60).padStart(2, '0');
+        durEl.textContent = `${m}:${s}`;
+    }
+    if (btnPlay) btnPlay.textContent = '▶';
+    if (fill) fill.style.width = '0%';
+    
+    if (_infFormAudioElement) {
+        _infFormAudioElement.pause();
+    }
+    _infFormAudioElement = new Audio(url);
+    _infIsFormAudioPlaying = false;
+    
+    _infFormAudioElement.ontimeupdate = () => {
+        if (_infFormAudioElement.duration && fill) {
+            const pct = (_infFormAudioElement.currentTime / _infFormAudioElement.duration) * 100;
+            fill.style.width = `${pct}%`;
+        }
+    };
+    _infFormAudioElement.onended = () => {
+        _infIsFormAudioPlaying = false;
+        if (btnPlay) btnPlay.textContent = '▶';
+        if (fill) fill.style.width = '0%';
+    };
+}
+window.mostrarPrevisualizacionAudio = mostrarPrevisualizacionAudio;
+
+export function togglePlayAudioFormulario() {
+    const btnPlay = document.getElementById('btn-inf-audio-play');
+    if (!_infFormAudioElement) return;
+    
+    if (_infIsFormAudioPlaying) {
+        _infFormAudioElement.pause();
+        _infIsFormAudioPlaying = false;
+        if (btnPlay) btnPlay.textContent = '▶';
+    } else {
+        _infFormAudioElement.play().catch(e => console.error("Error reproduciendo audio:", e));
+        _infIsFormAudioPlaying = true;
+        if (btnPlay) btnPlay.textContent = '⏸';
+    }
+}
+window.togglePlayAudioFormulario = togglePlayAudioFormulario;
+
+export function eliminarAudioFormulario() {
+    if (_infFormAudioElement) {
+        _infFormAudioElement.pause();
+        _infFormAudioElement = null;
+    }
+    _infIsFormAudioPlaying = false;
+    infAudioState = { blob: null, fileName: '', durationSec: 0, existingAudio: null };
+    const box = document.getElementById('inf-audio-player-box');
+    if (box) box.style.display = 'none';
+    const inpFile = document.getElementById('inf-input-audio-file');
+    if (inpFile) inpFile.value = '';
+}
+window.eliminarAudioFormulario = eliminarAudioFormulario;
+
+export async function subirAudioEntrevistaADrive(blob, evaluadorNombre, alumnoNombre, fechaTexto) {
+    if (!blob) return null;
+    
+    let evaluadorCarpeta = (evaluadorNombre || 'Sin Asignar').trim();
+    const evalLower = evaluadorCarpeta.toLowerCase();
+    if (evalLower.includes('belu') || evalLower.includes('torrents')) evaluadorCarpeta = 'Belu';
+    else if (evalLower.includes('nacho') || evalLower.includes('ignacio')) evaluadorCarpeta = 'Nacho';
+    else if (evalLower.includes('guido')) evaluadorCarpeta = 'Guido';
+    else if (evalLower.includes('feli')) evaluadorCarpeta = 'Feli';
+    else if (evalLower.includes('ariel')) evaluadorCarpeta = 'Ariel';
+    else {
+        evaluadorCarpeta = evaluadorCarpeta.split(' ')[0] || 'Evaluador';
+    }
+
+    const ahora = new Date();
+    const dia = String(ahora.getDate()).padStart(2, '0');
+    const mes = String(ahora.getMonth() + 1).padStart(2, '0');
+    const anio = String(ahora.getFullYear()).slice(-2);
+    const horas = String(ahora.getHours()).padStart(2, '0');
+    const minutos = String(ahora.getMinutes()).padStart(2, '0');
+    
+    let baseFecha = `${dia}-${mes}-${anio} ${horas}.${minutos}`;
+    if (fechaTexto) {
+        const match = fechaTexto.match(/(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\s*(\d{1,2})[:.](\d{2})/);
+        if (match) {
+            const d = match[1].padStart(2, '0');
+            const m = match[2].padStart(2, '0');
+            const y = match[3] ? (match[3].length === 4 ? match[3].slice(-2) : match[3]) : anio;
+            const h = match[4].padStart(2, '0');
+            const min = match[5].padStart(2, '0');
+            baseFecha = `${d}-${m}-${y} ${h}.${min}`;
+        }
+    }
+    
+    const nombreArchivoFinal = `${baseFecha} - ${alumnoNombre || 'Alumno'} - ${evaluadorNombre || 'Evaluador'}.mp3`.replace(/[\\/:*?"<>|]/g, '-');
+
+    const reader = new FileReader();
+    const base64Promise = new Promise((resolve, reject) => {
+        reader.onloadend = () => {
+            const base64String = reader.result.split(',')[1];
+            resolve(base64String);
+        };
+        reader.onerror = reject;
+    });
+    reader.readAsDataURL(blob);
+    const base64Data = await base64Promise;
+
+    try {
+        const resp = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'subirAudioEntrevista',
+                apiKey: SCRIPT_API_KEY,
+                folderId: DRIVE_FOLDER_ENTREVISTAS_ID,
+                evaluador: evaluadorCarpeta,
+                nombreArchivo: nombreArchivoFinal,
+                audioBase64: base64Data,
+                mimeType: blob.type || 'audio/mp3'
+            }),
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            redirect: 'follow',
+            credentials: 'omit'
+        });
+
+        const rawText = await resp.text();
+        let resJson = null;
+        try {
+            resJson = JSON.parse(rawText);
+        } catch(e) {
+            console.warn("Respuesta no JSON de Apps Script:", rawText.slice(0, 150));
+        }
+
+        if (resJson && (resJson.status === 'ok' || resJson.id_archivo || resJson.fileId)) {
+            return {
+                url: resJson.url || resJson.downloadUrl || '',
+                id_archivo: resJson.id_archivo || resJson.fileId || '',
+                nombre_archivo: nombreArchivoFinal,
+                evaluador_carpeta: evaluadorCarpeta,
+                duracion_segundos: infAudioState.durationSec || 0,
+                fecha_subida: new Date().toISOString()
+            };
+        } else {
+            console.warn("Respuesta de Apps Script:", resJson || rawText);
+            return {
+                url: resJson?.url || '',
+                id_archivo: resJson?.id_archivo || '',
+                nombre_archivo: nombreArchivoFinal,
+                evaluador_carpeta: evaluadorCarpeta,
+                duracion_segundos: infAudioState.durationSec || 0,
+                fecha_subida: new Date().toISOString(),
+                pendiente_sincro: true,
+                error: resJson?.error || resJson?.message || 'Error en Apps Script'
+            };
+        }
+    } catch(err) {
+        console.error("Error al subir audio a Drive:", err);
+        return {
+            url: '',
+            id_archivo: '',
+            nombre_archivo: nombreArchivoFinal,
+            evaluador_carpeta: evaluadorCarpeta,
+            duracion_segundos: infAudioState.durationSec || 0,
+            fecha_subida: new Date().toISOString(),
+            error: err.message
+        };
+    }
+}
+window.subirAudioEntrevistaADrive = subirAudioEntrevistaADrive;
+
+export function renderFichaAudioWidget(audioData, evaluadorNom, alumnoNom, fechaTxt, playerKey = 'default') {
+    if (!audioData) return '';
+    const nombreArchivo = audioData.nombre_archivo || `${fechaTxt || 'Entrevista'} - ${alumnoNom || 'Alumno'} - ${evaluadorNom || 'Evaluador'}.mp3`;
+    const carp = audioData.evaluador_carpeta || evaluadorNom || 'Entrevistas';
+    const driveUrl = audioData.url || (audioData.id_archivo ? `https://drive.google.com/file/d/${audioData.id_archivo}/view?usp=sharing` : '');
+    const durSec = audioData.duracion_segundos || 84;
+    const m = String(Math.floor(durSec / 60)).padStart(2, '0');
+    const s = String(durSec % 60).padStart(2, '0');
+    const durTxt = `${m}:${s}`;
+
+    return `
+    <div class="ficha-audio-widget" id="ficha-audio-widget-${playerKey}">
+        <div class="audio-widget-top">
+            <div class="audio-widget-title">
+                <span>🎙️</span>
+                <span>Registro de Audio de la Entrevista</span>
+            </div>
+            <span class="audio-drive-path-badge">
+                📁 Drive: Entrevistas / <strong>${carp}</strong>
+            </span>
+        </div>
+        <div class="audio-player-control-row">
+            <button type="button" class="btn-play-circle" id="btn-play-ficha-${playerKey}" onclick="window.togglePlayFichaAudio('${playerKey}', '${audioData.url || driveUrl}')">
+                <span id="ficha-play-icon-${playerKey}">▶</span>
+            </button>
+            <div class="audio-progress-container">
+                <div class="audio-file-name-txt" title="${nombreArchivo}">
+                    ${nombreArchivo}
+                </div>
+                <div class="audio-progress-bar-wrap" onclick="window.seekFichaAudio(event, '${playerKey}')">
+                    <div class="audio-progress-fill" id="ficha-audio-fill-${playerKey}" style="width: 0%;"></div>
+                </div>
+            </div>
+            <div class="audio-timer-txt" id="ficha-timer-${playerKey}">00:00 / ${durTxt}</div>
+        </div>
+        ${driveUrl ? `
+        <div class="audio-actions-row">
+            <a href="${driveUrl}" target="_blank" rel="noopener noreferrer" class="btn-drive-link">
+                Abrir en Google Drive ↗
+            </a>
+        </div>` : ''}
+    </div>`;
+}
+window.renderFichaAudioWidget = renderFichaAudioWidget;
+
+const _activeFichaAudios = {};
+export function togglePlayFichaAudio(playerKey, audioUrl) {
+    const btnIcon = document.getElementById(`ficha-play-icon-${playerKey}`);
+    const fill = document.getElementById(`ficha-audio-fill-${playerKey}`);
+    const timer = document.getElementById(`ficha-timer-${playerKey}`);
+
+    let playerObj = _activeFichaAudios[playerKey];
+    if (!playerObj) {
+        let playableUrl = audioUrl;
+        if (playableUrl && playableUrl.includes('drive.google.com/file/d/')) {
+            const fileIdMatch = playableUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+            if (fileIdMatch && fileIdMatch[1]) {
+                playableUrl = `https://docs.google.com/uc?export=download&id=${fileIdMatch[1]}`;
+            }
+        }
+        const audio = new Audio(playableUrl || '');
+        playerObj = {
+            audio: audio,
+            isPlaying: false
+        };
+        _activeFichaAudios[playerKey] = playerObj;
+
+        audio.ontimeupdate = () => {
+            if (audio.duration && fill) {
+                const pct = (audio.currentTime / audio.duration) * 100;
+                fill.style.width = `${pct}%`;
+                if (timer) {
+                    const cm = String(Math.floor(audio.currentTime / 60)).padStart(2, '0');
+                    const cs = String(Math.floor(audio.currentTime % 60)).padStart(2, '0');
+                    const dm = String(Math.floor(audio.duration / 60)).padStart(2, '0');
+                    const ds = String(Math.floor(audio.duration % 60)).padStart(2, '0');
+                    timer.textContent = `${cm}:${cs} / ${dm}:${ds}`;
+                }
+            }
+        };
+        audio.onended = () => {
+            playerObj.isPlaying = false;
+            if (btnIcon) btnIcon.textContent = '▶';
+            if (fill) fill.style.width = '0%';
+        };
+    }
+
+    if (playerObj.isPlaying) {
+        playerObj.audio.pause();
+        playerObj.isPlaying = false;
+        if (btnIcon) btnIcon.textContent = '▶';
+    } else {
+        Object.keys(_activeFichaAudios).forEach(k => {
+            if (k !== playerKey && _activeFichaAudios[k].isPlaying) {
+                _activeFichaAudios[k].audio.pause();
+                _activeFichaAudios[k].isPlaying = false;
+                const otherIcon = document.getElementById(`ficha-play-icon-${k}`);
+                if (otherIcon) otherIcon.textContent = '▶';
+            }
+        });
+
+        playerObj.audio.play().then(() => {
+            playerObj.isPlaying = true;
+            if (btnIcon) btnIcon.textContent = '⏸';
+        }).catch(err => {
+            console.warn("Reproducción remota bloqueada por navegador:", err);
+            if (audioUrl) window.open(audioUrl, '_blank');
+        });
+    }
+}
+window.togglePlayFichaAudio = togglePlayFichaAudio;
+
+export function seekFichaAudio(event, playerKey) {
+    const playerObj = _activeFichaAudios[playerKey];
+    if (!playerObj || !playerObj.audio || !playerObj.audio.duration) return;
+    const bar = event.currentTarget;
+    const rect = bar.getBoundingClientRect();
+    const clickX = event.clientX - rect.left;
+    const pct = Math.max(0, Math.min(1, clickX / rect.width));
+    playerObj.audio.currentTime = pct * playerObj.audio.duration;
+}
+window.seekFichaAudio = seekFichaAudio;
+
+export function generarMiniPianoRollHtml(trackCfg, studentStart, studentEnd) {
+    const stdStartIdx = NOTAS_CANTO_ESCALA.indexOf(trackCfg.stdStart);
+    const stdEndIdx = NOTAS_CANTO_ESCALA.indexOf(trackCfg.stdEnd);
+    const darkStartIdx = NOTAS_CANTO_ESCALA.indexOf(trackCfg.darkStart);
+    const darkEndIdx = NOTAS_CANTO_ESCALA.indexOf(trackCfg.darkEnd);
+    const darkCenterIdx = Math.floor((darkStartIdx + darkEndIdx) / 2);
+
+    const studStartIdx = studentStart ? NOTAS_CANTO_ESCALA.indexOf(studentStart) : -1;
+    const studEndIdx = studentEnd ? NOTAS_CANTO_ESCALA.indexOf(studentEnd) : -1;
+    const minStudIdx = (studStartIdx >= 0 && studEndIdx >= 0) ? Math.min(studStartIdx, studEndIdx) : -1;
+    const maxStudIdx = (studStartIdx >= 0 && studEndIdx >= 0) ? Math.max(studStartIdx, studEndIdx) : -1;
+
+    let html = `
+    <div class="mini-piano-roll-scroll">
+        <div class="mini-piano-roll-table">
+            <!-- Fila Estándar Gris -->
+            <div class="mini-row-std">
+    `;
+
+    NOTAS_CANTO_ESCALA.forEach((note, idx) => {
+        let cls = 'mini-cell-std';
+        let txt = '';
+        let inlineStyle = '';
+        if (idx >= darkStartIdx && idx <= darkEndIdx) {
+            cls += ' dark-gray';
+            if (idx === darkCenterIdx) {
+                cls += ' mini-cell-std-center';
+                inlineStyle = 'position:relative; z-index:50; overflow:visible !important;';
+                txt = '<span class="mini-std-label-txt" style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); white-space:nowrap; z-index:100; pointer-events:none; font-size:6.5px; font-weight:800; letter-spacing:0.03em; color:#ffffff; text-shadow:0 1px 2px rgba(0,0,0,0.8);">STANDARD</span>';
+            } else {
+                inlineStyle = 'position:relative; z-index:1;';
+            }
+        } else if (idx >= stdStartIdx && idx <= stdEndIdx) {
+            cls += ' light-gray';
+        }
+        html += `<div class="${cls}" style="${inlineStyle}">${txt}</div>`;
+    });
+
+    html += `
+            </div>
+            <!-- Fila Notas Cubiertas por Alumno en Verde -->
+            <div class="mini-row-notes">
+    `;
+
+    NOTAS_CANTO_ESCALA.forEach((note, idx) => {
+        let cls = 'mini-cell-note';
+        const isCovered = (minStudIdx >= 0 && idx >= minStudIdx && idx <= maxStudIdx);
+        if (isCovered) {
+            cls += ' covered';
+            if (idx === minStudIdx) cls += ' start-cap';
+            if (idx === maxStudIdx) cls += ' end-cap';
+        }
+        html += `<div class="${cls}" title="${note}">${note}</div>`;
+    });
+
+    html += `
+            </div>
+        </div>
+    </div>`;
+    return html;
+}
+window.generarMiniPianoRollHtml = generarMiniPianoRollHtml;
+
+export function centrarMiniPianoRolls() {
+    document.querySelectorAll('.mini-piano-roll-scroll').forEach(el => {
+        if (!el || el.clientWidth <= 0) return;
+        const darkCenterCell = el.querySelector('.mini-cell-std.dark-gray span');
+        if (darkCenterCell && darkCenterCell.parentElement) {
+            const parent = darkCenterCell.parentElement;
+            const targetLeft = parent.offsetLeft - (el.clientWidth / 2) + (parent.offsetWidth / 2);
+            el.scrollLeft = Math.max(0, targetLeft);
+        }
+    });
+}
+window.centrarMiniPianoRolls = centrarMiniPianoRolls;
 
 // Render inicial de contenedores de disponibilidad multi-rango
 renderContenedorDisponibilidad('contenedor-disponibilidad', false);
@@ -1775,6 +2693,9 @@ document.addEventListener('click', (e) => {
         modal.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
         const targetId = e.target.getAttribute('data-target');
         if(document.getElementById(targetId)) document.getElementById(targetId).style.display = 'block';
+        if (targetId === 'tab-informe') {
+            setTimeout(centrarMiniPianoRolls, 60);
+        }
     }
 });
 
@@ -7662,6 +8583,8 @@ document.addEventListener('click', async (e) => {
         window._cargandoInformeAdmision = true;
         const btn = target.classList.contains('btn-admision-finalizada') ? target : target.closest('.btn-admision-finalizada');
         const id = btn.getAttribute('data-id'); 
+        const modalInfObj = document.getElementById('modal-informe-admision');
+        if (modalInfObj && id) modalInfObj.dataset.retornoAlumnoId = id;
         const esNuevoInformeAdicional = btn.getAttribute('data-nuevo-informe') === 'true';
         const reportIndexAttr = btn.getAttribute('data-report-index');
         
@@ -7757,6 +8680,7 @@ document.addEventListener('click', async (e) => {
                     selInst.appendChild(opt);
                 });
                 syncSelectToChips('inf-instrumento', 'chips-inf-instrumentos');
+                selInst.onchange = () => actualizarCondicionalesPunto3();
             }
 
             if (selSusc) {
@@ -7792,6 +8716,7 @@ document.addEventListener('click', async (e) => {
 
             if (selNivel) {
                 selNivel.value = al.nivel || inf.nivel_asignado || '';
+                selNivel.onchange = () => actualizarCondicionalesPunto3();
             }
 
             // 2. Bloque 1: Motivación y Expectativas (Quill)
@@ -7834,32 +8759,105 @@ document.addEventListener('click', async (e) => {
 
             // Cargar datos de Técnica de Canto (opcional)
             const tc = (esNuevoInforme ? null : (inf.tecnica_canto || al.tecnica_canto)) || null;
+            cargarOpcionesNotasCanto();
             if (tc) {
                 setGeneroVocalCanto(tc.genero || 'fem');
+                const pDesde = tc.pecho_desde || '';
+                const pHasta = tc.pecho_hasta || '';
+                const cDesde = tc.cabeza_desde || '';
+                const cHasta = tc.cabeza_hasta || '';
+                const mDesde = tc.mixta_desde || (!tc.mixta_hasta ? tc.mixta_pasaje : '') || '';
+                const mHasta = tc.mixta_hasta || (!tc.mixta_desde ? tc.mixta_pasaje : '') || '';
+                const mPasaje = tc.mixta_pasaje || '';
+
+                userCantoSelections.pecho = { 
+                    start: pDesde || null, 
+                    end: pHasta || null, 
+                    state: (pDesde && pHasta) ? 'done' : (pDesde ? 'selecting' : 'empty') 
+                };
+                userCantoSelections.cabeza = { 
+                    start: cDesde || null, 
+                    end: cHasta || null, 
+                    state: (cDesde && cHasta) ? 'done' : (cDesde ? 'selecting' : 'empty') 
+                };
+                userCantoSelections.mixta = { 
+                    start: mDesde || null, 
+                    end: mHasta || null, 
+                    state: (mDesde && mHasta) ? 'done' : (mDesde ? 'selecting' : 'empty') 
+                };
+
                 const selPD = document.getElementById('canto-pecho-desde');
                 const selPH = document.getElementById('canto-pecho-hasta');
                 const selCD = document.getElementById('canto-cabeza-desde');
                 const selCH = document.getElementById('canto-cabeza-hasta');
+                const selMD = document.getElementById('canto-mixta-desde');
+                const selMH = document.getElementById('canto-mixta-hasta');
                 const selMP = document.getElementById('canto-mixta-pasaje');
+                const selMPDropdown = document.getElementById('canto-mixta-pasaje-select');
                 const inpObs = document.getElementById('canto-obs-vocales');
-                if (selPD) selPD.value = tc.pecho_desde || '';
-                if (selPH) selPH.value = tc.pecho_hasta || '';
-                if (selCD) selCD.value = tc.cabeza_desde || '';
-                if (selCH) selCH.value = tc.cabeza_hasta || '';
-                if (selMP) selMP.value = tc.mixta_pasaje || '';
+                if (selPD) selPD.value = pDesde;
+                if (selPH) selPH.value = pHasta;
+                if (selCD) selCD.value = cDesde;
+                if (selCH) selCH.value = cHasta;
+                if (selMD) selMD.value = mDesde;
+                if (selMH) selMH.value = mHasta;
+                if (selMP) selMP.value = mPasaje;
+                if (selMPDropdown) selMPDropdown.value = mPasaje;
                 if (inpObs) inpObs.value = tc.observaciones || '';
                 setCualidadMixtaCanto(tc.mixta_cualidad || null);
                 setFritoVocalCanto(tc.frito_vocal || 'sin_evaluar');
             } else {
                 setGeneroVocalCanto('fem');
-                ['canto-pecho-desde', 'canto-pecho-hasta', 'canto-cabeza-desde', 'canto-cabeza-hasta', 'canto-mixta-pasaje'].forEach(cid => {
+                userCantoSelections = {
+                    pecho: { start: null, end: null, state: 'empty' },
+                    cabeza: { start: null, end: null, state: 'empty' },
+                    mixta: { start: null, end: null, state: 'empty' }
+                };
+                ['canto-pecho-desde', 'canto-pecho-hasta', 'canto-cabeza-desde', 'canto-cabeza-hasta', 'canto-mixta-desde', 'canto-mixta-hasta', 'canto-mixta-pasaje'].forEach(cid => {
                     const el = document.getElementById(cid);
                     if (el) el.value = '';
                 });
+                const selMPDropdown = document.getElementById('canto-mixta-pasaje-select');
+                if (selMPDropdown) selMPDropdown.value = '';
                 const inpObs = document.getElementById('canto-obs-vocales');
                 if (inpObs) inpObs.value = '';
                 setCualidadMixtaCanto(null);
                 setFritoVocalCanto('sin_evaluar');
+            }
+            renderCantoInteractiveTracks(true);
+            setTimeout(centrarPistasCantoEnStandard, 80);
+            setTimeout(centrarPistasCantoEnStandard, 250);
+
+            // Cargar o resetear estado de audio de la entrevista
+            const audioData = (esNuevoInforme ? null : (inf.audio_entrevista || al.audio_entrevista)) || null;
+            if (audioData) {
+                infAudioState = {
+                    blob: null,
+                    fileName: audioData.nombre_archivo || 'audio_entrevista.mp3',
+                    durationSec: audioData.duracion_segundos || 0,
+                    existingAudio: audioData
+                };
+                mostrarPrevisualizacionAudio(infAudioState.fileName, infAudioState.durationSec, audioData.url || '');
+            } else {
+                eliminarAudioFormulario();
+            }
+
+            // Actualizar etiqueta del path de Drive según evaluador
+            const evalNomActual = (boxEditable && boxEditable.style.display !== 'none')
+                ? (document.getElementById('inf-modal-manual-evaluador')?.value || 'Evaluador')
+                : (document.getElementById('inf-modal-evaluador-val')?.textContent.trim() || al.reserva_profe_nombre || 'Evaluador');
+            let carpetaEvalTxt = evalNomActual;
+            const elLower = carpetaEvalTxt.toLowerCase();
+            if (elLower.includes('belu') || elLower.includes('torrents')) carpetaEvalTxt = 'Belu';
+            else if (elLower.includes('nacho') || elLower.includes('ignacio')) carpetaEvalTxt = 'Nacho';
+            else if (elLower.includes('guido')) carpetaEvalTxt = 'Guido';
+            else if (elLower.includes('feli')) carpetaEvalTxt = 'Feli';
+            else if (elLower.includes('ariel')) carpetaEvalTxt = 'Ariel';
+            else carpetaEvalTxt = carpetaEvalTxt.split(' ')[0] || 'Evaluador';
+
+            const driveDestEl = document.getElementById('inf-audio-dest-drive');
+            if (driveDestEl) {
+                driveDestEl.innerHTML = `Entrevistas / <strong>${carpetaEvalTxt}</strong> / Fecha Hora - Alumno - Evaluador.mp3`;
             }
 
             // 6. Bloque 5: Disponibilidad Horaria
@@ -7893,7 +8891,7 @@ document.addEventListener('click', async (e) => {
     
     if (target.id === 'btn-guardar-informe-final') {
         const id = document.getElementById('informe-final-alumno-id').value;
-        if (id === 'test-mateo-eval' || id?.startsWith('test-')) {
+        if (id === 'test-mateo-eval') {
             window._modalEditandoModificado = false;
             window._fichaAlumnoModificada = false;
             document.getElementById('modal-informe-admision').close();
@@ -7954,6 +8952,8 @@ document.addEventListener('click', async (e) => {
                 pecho_hasta: document.getElementById('canto-pecho-hasta')?.value || '',
                 cabeza_desde: document.getElementById('canto-cabeza-desde')?.value || '',
                 cabeza_hasta: document.getElementById('canto-cabeza-hasta')?.value || '',
+                mixta_desde: document.getElementById('canto-mixta-desde')?.value || '',
+                mixta_hasta: document.getElementById('canto-mixta-hasta')?.value || '',
                 mixta_pasaje: document.getElementById('canto-mixta-pasaje')?.value || '',
                 mixta_cualidad: cantoCualidadMixta || '',
                 frito_vocal: cantoFritoVocal || 'sin_evaluar',
@@ -8062,6 +9062,24 @@ document.addEventListener('click', async (e) => {
                 evaluadorId = al.informe_entrevista?.evaluador_id || al.reserva_profe_id || window.usuarioActual?.id || '';
             }
 
+            // Subida de Audio a Google Drive si hay un nuevo archivo grabado o subido
+            let audioEntrevistaData = null;
+            if (infAudioState.blob) {
+                try {
+                    btn.innerHTML = '<span class="btn-spinner"></span> Subiendo audio a Google Drive...';
+                    audioEntrevistaData = await subirAudioEntrevistaADrive(
+                        infAudioState.blob, 
+                        evaluadorNom, 
+                        nombre || al.nombre, 
+                        fechaEval
+                    );
+                } catch(audioErr) {
+                    console.error("Error subiendo audio a Drive:", audioErr);
+                }
+            } else if (infAudioState.existingAudio) {
+                audioEntrevistaData = infAudioState.existingAudio;
+            }
+
             const informeEntrevista = {
                 id: (repIdx !== '' && repIdx !== 'nuevo' && arrInformes[parseInt(repIdx, 10)]?.id) || ('inf_' + Date.now()),
                 fecha_evaluacion: fechaEval,
@@ -8080,6 +9098,7 @@ document.addEventListener('click', async (e) => {
                 disp_compartir_cantante: cantanteVoces,
                 cambio_tonalidades: cambioTonalidades,
                 tecnica_canto: tecnicaCanto,
+                audio_entrevista: audioEntrevistaData,
                 requisitos_aceptados: chkRequisitos,
                 cierre_espera_notificado: chkCierre
             };
@@ -8106,6 +9125,9 @@ document.addEventListener('click', async (e) => {
                 historial: hist
             };
 
+            if (audioEntrevistaData) {
+                updatePayload.audio_entrevista = audioEntrevistaData;
+            }
             if (tecnicaCanto) {
                 updatePayload.tecnica_canto = tecnicaCanto;
             }
@@ -8124,9 +9146,15 @@ document.addEventListener('click', async (e) => {
             await updateDoc(doc(db, "alumnos", id), updatePayload);
             window._modalEditandoModificado = false;
             window._fichaAlumnoModificada = false;
-            document.getElementById('modal-informe-admision').close();
+            const modalInf = document.getElementById('modal-informe-admision');
+            const retornoId = modalInf?.dataset?.retornoAlumnoId || id;
+            if (modalInf) modalInf.dataset.retornoAlumnoId = '';
+            modalInf?.close();
             alert("✅ ¡Informe guardado con éxito!\nEl registro quedó actualizado y el alumno en Lista de Espera.");
-            cargarVista(estadoActualVista);
+            await cargarVista(estadoActualVista);
+            if (retornoId && !retornoId.startsWith('test-')) {
+                await window.editarAlumnoModalDirecto(retornoId, 'tab-informe');
+            }
         } catch(err) {
             console.error("Error al guardar informe:", err);
             alert("Error al guardar: " + err.message);
@@ -9924,7 +10952,12 @@ document.addEventListener('click', async (e) => {
                 solicitarConfirmacionSalidaModal(dlg);
                 return;
             }
+            const retornoId = dlg.dataset?.retornoAlumnoId;
             dlg.close();
+            if (mId === 'modal-informe-admision' && retornoId && !retornoId.startsWith('test-')) {
+                dlg.dataset.retornoAlumnoId = '';
+                window.editarAlumnoModalDirecto(retornoId, 'tab-informe');
+            }
             if (mId === 'modal-iniciar-prealta') {
                 const warnCont = document.getElementById('prealta-match-warnings-container');
                 if (warnCont) warnCont.style.display = 'none';
@@ -10395,6 +11428,8 @@ window.abrirFichaAlumnoEnTab = function(id, tabDestino = 'tab-informe') {
 
 window.editarInformeEspecifico = function(alumnoId, reportIndex = 0) {
     document.getElementById('modal-alta-alumno')?.close();
+    const modalInf = document.getElementById('modal-informe-admision');
+    if (modalInf && alumnoId) modalInf.dataset.retornoAlumnoId = alumnoId;
     const fakeBtn = document.createElement('button');
     fakeBtn.setAttribute('data-id', alumnoId);
     fakeBtn.setAttribute('data-report-index', reportIndex);
@@ -10406,6 +11441,8 @@ window.editarInformeEspecifico = function(alumnoId, reportIndex = 0) {
 
 window.sumarNuevoInformeAlumno = function(alumnoId) {
     document.getElementById('modal-alta-alumno')?.close();
+    const modalInf = document.getElementById('modal-informe-admision');
+    if (modalInf && alumnoId) modalInf.dataset.retornoAlumnoId = alumnoId;
     const fakeBtn = document.createElement('button');
     fakeBtn.setAttribute('data-id', alumnoId);
     fakeBtn.setAttribute('data-nuevo-informe', 'true');
@@ -10483,51 +11520,98 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
     renderHistorial(); 
     
     // Renderizar informes estructurados de entrevista (acordeón si hay múltiples, o vista directa si hay 1)
+    // Renderizar informes estructurados de entrevista (acordeón si hay múltiples, o vista directa si hay 1)
     const renderTecnicaCantoVisual = (tc) => {
         if (!tc) return '';
         const tieneDatos = Boolean(
             tc.pecho_desde || tc.pecho_hasta ||
             tc.cabeza_desde || tc.cabeza_hasta ||
+            tc.mixta_desde || tc.mixta_hasta ||
             tc.mixta_pasaje || tc.mixta_cualidad ||
             (tc.frito_vocal && tc.frito_vocal !== 'sin_evaluar') ||
             tc.observaciones
         );
         if (!tieneDatos) return '';
 
-        const genTxt = tc.genero === 'masc' ? '👨 Masculino' : '👩 Femenino';
-        const stdPecho = tc.genero === 'masc' ? 'la2' : 'sol3';
-        const stdCabeza = tc.genero === 'masc' ? 'do4' : 'fa4';
-        const stdMixta = tc.genero === 'masc' ? 'la3' : 'mi4';
+        const gen = tc.genero === 'masc' ? 'masc' : 'fem';
+        const cfg = VOCAL_CONFIGS[gen] || VOCAL_CONFIGS.fem;
+        const genTxt = gen === 'masc' ? '👨 Masculino' : '👩 Femenino';
         const fritoTxt = tc.frito_vocal === 'si' ? '✅ Sí' : (tc.frito_vocal === 'no' ? '❌ No' : '➖ Sin evaluar');
 
+        const pechoRangeTxt = (tc.pecho_desde && tc.pecho_hasta) ? `${tc.pecho_desde} a ${tc.pecho_hasta}` : (tc.pecho_desde || tc.pecho_hasta || 'Sin registrar');
+        const cabezaRangeTxt = (tc.cabeza_desde && tc.cabeza_hasta) ? `${tc.cabeza_desde} a ${tc.cabeza_hasta}` : (tc.cabeza_desde || tc.cabeza_hasta || 'Sin registrar');
+        const mixtaDesde = tc.mixta_desde || (!tc.mixta_hasta ? tc.mixta_pasaje : '') || '';
+        const mixtaHasta = tc.mixta_hasta || (!tc.mixta_desde ? tc.mixta_pasaje : '') || '';
+        const mixtaRangeTxt = (mixtaDesde && mixtaHasta) ? `${mixtaDesde} a ${mixtaHasta}` : (mixtaDesde || mixtaHasta || 'Sin registrar');
+
         return `
-        <div style="background:linear-gradient(180deg, #fdf4ff 0%, #faf5ff 100%); border:1px solid #e9d5ff; border-radius:8px; padding:10px 12px; display:flex; flex-direction:column; gap:8px; margin-top:4px;">
+        <div style="background:linear-gradient(180deg, #fdf4ff 0%, #faf5ff 100%); border:1.5px solid #d8b4fe; border-radius:10px; padding:12px 14px; display:flex; flex-direction:column; gap:10px; margin-top:4px;">
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #ebd5ff; padding-bottom:6px;">
-                <span style="font-size:11.5px; font-weight:800; color:#6b21a8; display:flex; align-items:center; gap:5px;">
+                <span style="font-size:12px; font-weight:800; color:#6b21a8; display:flex; align-items:center; gap:6px;">
                     <span>🎼</span> Técnica de Canto — Registros Vocales
                 </span>
                 <span style="font-size:11px; font-weight:700; color:#7c3aed; background:#fff; padding:2px 8px; border-radius:10px; border:1px solid #d8b4fe;">${genTxt}</span>
             </div>
-            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:6px; font-size:11px;">
-                <div style="background:#fff; border:1px solid #e9d5ff; border-radius:5px; padding:6px 8px;">
-                    <span style="color:#6b21a8; font-weight:700;">1. Pecho (STD: ${stdPecho}):</span>
-                    <div style="font-weight:600; color:#1e293b; margin-top:2px;">Desde: <code>${tc.pecho_desde || '-'}</code> | Hasta: <code>${tc.pecho_hasta || '-'}</code></div>
+
+            <!-- Pista Pecho -->
+            <div class="vocal-view-track">
+                <div class="vocal-view-track-header hdr-pecho">
+                    <span>1. Voz de Pecho</span>
                 </div>
-                <div style="background:#fff; border:1px solid #e9d5ff; border-radius:5px; padding:6px 8px;">
-                    <span style="color:#6b21a8; font-weight:700;">2. Cabeza (STD: ${stdCabeza}):</span>
-                    <div style="font-weight:600; color:#1e293b; margin-top:2px;">Desde: <code>${tc.cabeza_desde || '-'}</code> | Hasta: <code>${tc.cabeza_hasta || '-'}</code></div>
-                </div>
-                <div style="background:#fff; border:1px solid #e9d5ff; border-radius:5px; padding:6px 8px;">
-                    <span style="color:#6b21a8; font-weight:700;">3. Mixta (STD: ${stdMixta}):</span>
-                    <div style="font-weight:600; color:#1e293b; margin-top:2px;">Pasaje: <code>${tc.mixta_pasaje || '-'}</code> ${tc.mixta_cualidad ? `• Cualidad: <strong>${tc.mixta_cualidad}</strong>` : ''}</div>
-                </div>
-                <div style="background:#fff; border:1px solid #e9d5ff; border-radius:5px; padding:6px 8px;">
-                    <span style="color:#6b21a8; font-weight:700;">4. Frito Vocal:</span>
-                    <div style="font-weight:600; color:#1e293b; margin-top:2px;">${fritoTxt}</div>
+                ${generarMiniPianoRollHtml(cfg.pecho, tc.pecho_desde, tc.pecho_hasta)}
+                <div class="vocal-view-track-footer">
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <span>Rango cubierto:</span>
+                        <span class="range-summary-pill">${pechoRangeTxt}</span>
+                    </div>
                 </div>
             </div>
+
+            <!-- Pista Cabeza -->
+            <div class="vocal-view-track">
+                <div class="vocal-view-track-header hdr-cabeza">
+                    <span>2. Voz de Cabeza</span>
+                </div>
+                ${generarMiniPianoRollHtml(cfg.cabeza, tc.cabeza_desde, tc.cabeza_hasta)}
+                <div class="vocal-view-track-footer">
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <span>Rango cubierto:</span>
+                        <span class="range-summary-pill">${cabezaRangeTxt}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pista Mixta -->
+            <div class="vocal-view-track">
+                <div class="vocal-view-track-header hdr-mixta">
+                    <span>3. Voz Mixta</span>
+                </div>
+                ${generarMiniPianoRollHtml(cfg.mixta, mixtaDesde, mixtaHasta)}
+                <div class="vocal-view-track-footer">
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <span>Rango cubierto:</span>
+                        <span class="range-summary-pill">${mixtaRangeTxt}</span>
+                        ${tc.mixta_pasaje ? `
+                        <span style="font-size:10px; color:var(--text-muted); font-weight:700; margin-left:4px;">Pasaje:</span>
+                        <span class="range-summary-pill" style="background:#f3e8ff; border-color:#d8b4fe; color:#6b21a8;">${tc.mixta_pasaje}</span>
+                        ` : ''}
+                    </div>
+                    ${tc.mixta_cualidad ? `
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="font-size:10px; color:var(--text-muted); font-weight:700;">Cualidad:</span>
+                        <span style="background:#ede9fe; color:#5b21b6; font-weight:700; padding:2px 7px; border-radius:4px; font-size:10px; text-transform:capitalize; border:1px solid #d8b4fe;">${tc.mixta_cualidad}</span>
+                    </div>` : ''}
+                </div>
+            </div>
+
+            <!-- Frito Vocal -->
+            <div style="background:#fff; border:1px solid #e9d5ff; border-radius:8px; padding:8px 12px; font-size:11.5px; display:flex; justify-content:space-between; align-items:center;">
+                <span style="color:#6b21a8; font-weight:800; font-size:11px;">4. Frito Vocal:</span>
+                <span style="color:#1e293b; font-weight:700;">${fritoTxt}</span>
+            </div>
+
             ${tc.observaciones ? `
-            <div style="font-size:11px; color:#4a044e; background:#fae8ff; border-radius:5px; padding:5px 8px; line-height:1.35;">
+            <div style="font-size:11.5px; color:#4a044e; background:#fae8ff; border-left:3px solid #c084fc; border-radius:6px; padding:8px 10px; line-height:1.4;">
                 <strong>Obs. Vocales:</strong> ${tc.observaciones}
             </div>` : ''}
         </div>`;
@@ -10619,24 +11703,8 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
                                 <div style="font-size:12.5px; color:var(--text-main); background:#fff; padding:8px 10px; border-radius:6px; border:1px solid var(--border-color); margin-top:3px; line-height:1.4;">${infItem.diagnostico_tecnico || '-'}</div>
                             </div>
 
-                            <!-- PUNTO 3: PERFIL PSICOEMOCIONAL -->
-                            <div style="background:#f8fafc; border:1px solid var(--border-color); border-radius:8px; padding:12px; display:flex; flex-direction:column; gap:8px;">
-                                <div style="display:flex; justify-content:space-between; align-items:center;">
-                                    <span style="font-size:11.5px; color:var(--text-main); font-weight:800; text-transform:uppercase; display:flex; align-items:center; gap:6px;">
-                                        <span>🧠</span> 3. Perfil Psicoemocional
-                                    </span>
-                                </div>
-                                ${infItem.perfil_psicoemocional_detalle ? `
-                                    <div style="font-size:12.5px; color:#334155; line-height:1.4; background:#fff; padding:8px 10px; border-radius:6px; border:1px solid #cbd5e1;">
-                                        ${infItem.perfil_psicoemocional_detalle}
-                                    </div>
-                                ` : ''}
-                                ${Array.isArray(infItem.perfil_psicologico) && infItem.perfil_psicologico.length > 0 ? `
-                                    <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:2px;">
-                                        ${infItem.perfil_psicologico.map(t => `<span class="profile-tag-badge" style="font-size:10px; padding:2px 7px;">${t}</span>`).join('')}
-                                    </div>
-                                ` : ''}
-                            </div>
+                            <!-- AUDIO DE LA ENTREVISTA TÉCNICA (PUNTO 2) -->
+                            ${(infItem.audio_entrevista || d.audio_entrevista) ? renderFichaAudioWidget(infItem.audio_entrevista || d.audio_entrevista, evalTxt, d.nombre, fechaTxt, `mult-${idx}`) : ''}
 
                             ${infItem.artistas_estilos ? `
                             <div>
@@ -10658,7 +11726,27 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
                                 </div>` : ''}
                             </div>` : ''}
 
+                            <!-- TÉCNICA DE CANTO (DENTRO DEL BLOQUE 2 TÉCNICO) -->
                             ${renderTecnicaCantoVisual(infItem.tecnica_canto || d.tecnica_canto)}
+
+                            <!-- BLOQUE 3: PERFIL PSICOEMOCIONAL (REUBICADO LUEGO DEL PUNTO 2 TÉCNICO Y ANTES DE CHECKS) -->
+                            <div style="background:#f8fafc; border:1px solid var(--border-color); border-radius:8px; padding:12px; display:flex; flex-direction:column; gap:8px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <span style="font-size:11.5px; color:var(--text-main); font-weight:800; text-transform:uppercase; display:flex; align-items:center; gap:6px;">
+                                        <span>🧠</span> 3. Perfil Psicoemocional
+                                    </span>
+                                </div>
+                                ${infItem.perfil_psicoemocional_detalle ? `
+                                    <div style="font-size:12.5px; color:#334155; line-height:1.4; background:#fff; padding:8px 10px; border-radius:6px; border:1px solid #cbd5e1;">
+                                        ${infItem.perfil_psicoemocional_detalle}
+                                    </div>
+                                ` : ''}
+                                ${Array.isArray(infItem.perfil_psicologico) && infItem.perfil_psicologico.length > 0 ? `
+                                    <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:2px;">
+                                        ${infItem.perfil_psicologico.map(t => `<span class="profile-tag-badge" style="font-size:10px; padding:2px 7px;">${t}</span>`).join('')}
+                                    </div>
+                                ` : ''}
+                            </div>
 
                             ${puedeGestionarInforme ? `
                             <div style="display:flex; justify-content:flex-end; border-top:1px solid var(--border-color); padding-top:10px; margin-top:6px;">
@@ -10673,6 +11761,9 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
         } else {
             // UN SOLO INFORME
             const inf = arrInformes[0];
+            const fechaTxt = formatearFechaHoraEstandar(inf.fecha_evaluacion || d.reserva_inicio || d.reserva_fecha_texto);
+            const evalTxt = inf.evaluador_nombre || d.reserva_profe_nombre || 'Docente';
+
             contStruct.innerHTML = `
                 <div style="background:var(--hover-bg); border:1px solid var(--border-color); border-radius:10px; padding:14px; display:flex; flex-direction:column; gap:10px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:8px;">
@@ -10694,24 +11785,8 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
                         <div style="font-size:12.5px; color:var(--text-main); background:#fff; padding:8px 10px; border-radius:6px; border:1px solid var(--border-color); margin-top:3px; line-height:1.4;">${inf.diagnostico_tecnico || '-'}</div>
                     </div>
 
-                    <!-- PUNTO 3: PERFIL PSICOEMOCIONAL -->
-                    <div style="background:#f8fafc; border:1px solid var(--border-color); border-radius:8px; padding:12px; display:flex; flex-direction:column; gap:8px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="font-size:11.5px; color:var(--text-main); font-weight:800; text-transform:uppercase; display:flex; align-items:center; gap:6px;">
-                                <span>🧠</span> 3. Perfil Psicoemocional
-                            </span>
-                        </div>
-                        ${inf.perfil_psicoemocional_detalle ? `
-                            <div style="font-size:12.5px; color:#334155; line-height:1.4; background:#fff; padding:8px 10px; border-radius:6px; border:1px solid #cbd5e1;">
-                                ${inf.perfil_psicoemocional_detalle}
-                            </div>
-                        ` : ''}
-                        ${Array.isArray(inf.perfil_psicologico) && inf.perfil_psicologico.length > 0 ? `
-                            <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:2px;">
-                                ${inf.perfil_psicologico.map(t => `<span class="profile-tag-badge" style="font-size:10px; padding:2px 7px;">${t}</span>`).join('')}
-                            </div>
-                        ` : ''}
-                    </div>
+                    <!-- AUDIO DE LA ENTREVISTA TÉCNICA (PUNTO 2) -->
+                    ${(inf.audio_entrevista || d.audio_entrevista) ? renderFichaAudioWidget(inf.audio_entrevista || d.audio_entrevista, evalTxt, d.nombre, fechaTxt, 'single-0') : ''}
 
                     ${inf.artistas_estilos ? `
                     <div>
@@ -10733,7 +11808,27 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
                         </div>` : ''}
                     </div>` : ''}
 
+                    <!-- TÉCNICA DE CANTO (DENTRO DEL BLOQUE 2 TÉCNICO) -->
                     ${renderTecnicaCantoVisual(inf.tecnica_canto || d.tecnica_canto)}
+
+                    <!-- BLOQUE 3: PERFIL PSICOEMOCIONAL (REUBICADO AL FINAL DE LA EVALUACIÓN TÉCNICA) -->
+                    <div style="background:#f8fafc; border:1px solid var(--border-color); border-radius:8px; padding:12px; display:flex; flex-direction:column; gap:8px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:11.5px; color:var(--text-main); font-weight:800; text-transform:uppercase; display:flex; align-items:center; gap:6px;">
+                                <span>🧠</span> 3. Perfil Psicoemocional
+                            </span>
+                        </div>
+                        ${inf.perfil_psicoemocional_detalle ? `
+                            <div style="font-size:12.5px; color:#334155; line-height:1.4; background:#fff; padding:8px 10px; border-radius:6px; border:1px solid #cbd5e1;">
+                                ${inf.perfil_psicoemocional_detalle}
+                            </div>
+                        ` : ''}
+                        ${Array.isArray(inf.perfil_psicologico) && inf.perfil_psicologico.length > 0 ? `
+                            <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:2px;">
+                                ${inf.perfil_psicologico.map(t => `<span class="profile-tag-badge" style="font-size:10px; padding:2px 7px;">${t}</span>`).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
 
                     <div style="display:flex; gap:12px; font-size:11px; color:var(--text-muted); font-weight:600; margin-top:4px;">
                         <span>✅ Propuesta charlada</span>
@@ -10742,6 +11837,7 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
                     </div>
                 </div>
             `;
+            setTimeout(centrarMiniPianoRolls, 80);
         }
     } else {
         if (contStruct) { contStruct.style.display = 'none'; contStruct.innerHTML = ''; }
@@ -11653,99 +12749,124 @@ export async function generarCasosPruebaEvaluador(emailOverride = null) {
 
         const casos = [
             {
-                nombre: `${prefix} Lucas Bianchi`,
+                nombre: `[TEST] Camila Benítez (Canto - Ariel)`,
                 celular: '+5491133445566',
-                email: `lucas.test.${email.split('@')[0]}@mandalahouse.com`,
-                edad: 28,
-                instrumento: ['Guitarra'],
-                nivel: 'Inicial I',
-                tipo_suscripcion: 'Ensamble',
-                estado_agenda: 'Agenda confirmada',
-                reserva_profe_id: profId,
-                reserva_profe_nombre: profNombre,
-                reserva_cal_id: profCalId,
-                reserva_fecha_texto: 'Hace 2 días (Vencida)',
-                reserva_inicio: fVencida.toISOString(),
-                reserva_fin: new Date(fVencida.getTime() + 45 * 60000).toISOString(),
-                historial: [`[${ahoraStr}] Entrevista realizada hace más de 48 hs para ${profNombre}. Pendiente urgente de cargar Informe Post-Entrevista.`],
-                es_caso_prueba: true,
-                test_owner: email,
-                fecha_creacion: new Date().toISOString()
-            },
-            {
-                nombre: `${prefix} Clara Gómez`,
-                celular: '+5491144556677',
-                email: `clara.test.${email.split('@')[0]}@mandalahouse.com`,
-                edad: 24,
+                email: `camila.test.${email.split('@')[0]}@mandalahouse.com`,
+                edad: 26,
+                zona_vive: 'Belgrano',
+                profesion: 'Diseñadora Gráfica',
                 instrumento: ['Canto'],
+                instrumento_principal: 'Canto',
+                canta_ensamble: true,
                 nivel: 'Inicial II',
-                tipo_suscripcion: 'Clases Grupales',
-                estado_agenda: 'Agenda confirmada',
-                reserva_profe_id: profId,
-                reserva_profe_nombre: profNombre,
-                reserva_cal_id: profCalId,
-                reserva_fecha_texto: 'Ayer (24 a 48 hs)',
-                reserva_inicio: fUrgente.toISOString(),
-                reserva_fin: new Date(fUrgente.getTime() + 45 * 60000).toISOString(),
-                historial: [`[${ahoraStr}] Entrevista realizada ayer con ${profNombre}. Pendiente de cargar Informe Post-Entrevista.`],
-                es_caso_prueba: true,
-                test_owner: email,
-                fecha_creacion: new Date().toISOString()
-            },
-            {
-                nombre: `${prefix} Mateo Benítez`,
-                celular: '+5491155667788',
-                email: `mateo.test.${email.split('@')[0]}@mandalahouse.com`,
-                edad: 32,
-                instrumento: ['Batería'],
-                nivel: 'Inicial I',
                 tipo_suscripcion: 'Ensamble',
                 estado_agenda: 'Agenda confirmada',
-                reserva_profe_id: profId,
-                reserva_profe_nombre: profNombre,
-                reserva_cal_id: profCalId,
+                reserva_profe_id: 'ariel-bianchino',
+                reserva_profe_nombre: 'Ariel Bianchino',
+                reserva_cal_id: 'ariel@mandalahouse.com',
                 reserva_fecha_texto: 'Hoy ' + fHoy.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) + ' hs',
                 reserva_inicio: fHoy.toISOString(),
                 reserva_fin: new Date(fHoy.getTime() + 45 * 60000).toISOString(),
-                historial: [`[${ahoraStr}] Entrevista confirmada para el día de hoy con ${profNombre}.`],
+                historial: [`[${ahoraStr}] Entrevista de Canto confirmada para hoy con Ariel Bianchino. Lista para completar informe técnico, tesitura y audio.`],
                 es_caso_prueba: true,
                 test_owner: email,
                 fecha_creacion: new Date().toISOString()
             },
             {
-                nombre: `${prefix} Sofía Rossi`,
-                celular: '+5491166778899',
-                email: `sofia.test.${email.split('@')[0]}@mandalahouse.com`,
-                edad: 21,
-                instrumento: ['Piano'],
+                nombre: `[TEST] Lucas Bianchi (Guitarra - Belu)`,
+                celular: '+5491144556677',
+                email: `lucas.test.${email.split('@')[0]}@mandalahouse.com`,
+                edad: 28,
+                zona_vive: 'Palermo',
+                profesion: 'Abogado',
+                instrumento: ['Guitarra'],
+                instrumento_principal: 'Guitarra',
                 nivel: 'Inicial I',
-                tipo_suscripcion: 'Clases Individuales',
+                tipo_suscripcion: 'Ensamble',
                 estado_agenda: 'Agenda confirmada',
-                reserva_profe_id: profId,
-                reserva_profe_nombre: profNombre,
-                reserva_cal_id: profCalId,
-                reserva_fecha_texto: fFutura.toLocaleString('es-AR', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' hs',
-                reserva_inicio: fFutura.toISOString(),
-                reserva_fin: new Date(fFutura.getTime() + 45 * 60000).toISOString(),
-                historial: [`[${ahoraStr}] Entrevista confirmada con antelación (+48 hs) con ${profNombre}.`],
+                reserva_profe_id: 'belu-torrents',
+                reserva_profe_nombre: 'Belu',
+                reserva_cal_id: 'belu@mandalahouse.com',
+                reserva_fecha_texto: 'Ayer (24 hs)',
+                reserva_inicio: fUrgente.toISOString(),
+                reserva_fin: new Date(fUrgente.getTime() + 45 * 60000).toISOString(),
+                historial: [`[${ahoraStr}] Entrevista confirmada con Belu.`],
                 es_caso_prueba: true,
                 test_owner: email,
                 fecha_creacion: new Date().toISOString()
             },
             {
-                nombre: `${prefix} Julián Gómez`,
-                celular: '+5491177889900',
-                email: `julian.test.${email.split('@')[0]}@mandalahouse.com`,
-                edad: 26,
-                instrumento: ['Bajo'],
+                nombre: `[TEST] Mateo Rossi (Batería - Guido)`,
+                celular: '+5491155667788',
+                email: `mateo.test.${email.split('@')[0]}@mandalahouse.com`,
+                edad: 23,
+                zona_vive: 'Colegiales',
+                profesion: 'Estudiante',
+                instrumento: ['Batería'],
+                instrumento_principal: 'Batería',
                 nivel: 'Inicial II',
                 tipo_suscripcion: 'Ensamble',
                 estado_agenda: 'Lista de espera',
-                reserva_profe_id: profId,
-                reserva_profe_nombre: profNombre,
-                profesor_asignado: profNombre,
-                profesor_id: profId,
-                historial: [`[${ahoraStr}] Alumno derivado a Lista de Espera evaluado por ${profNombre}.`],
+                reserva_profe_nombre: 'Guido',
+                profesor_asignado: 'Guido',
+                historial: [`[${ahoraStr}] Alumno derivado a Lista de Espera por Guido.`],
+                es_caso_prueba: true,
+                test_owner: email,
+                fecha_creacion: new Date().toISOString()
+            },
+            {
+                nombre: `[TEST] Mariana Pérez (Canto - Ficha Completada)`,
+                celular: '+5491166778899',
+                email: `mariana.test.${email.split('@')[0]}@mandalahouse.com`,
+                edad: 27,
+                zona_vive: 'Villa Urquiza',
+                profesion: 'Arquitecta',
+                instrumento: ['Canto'],
+                instrumento_principal: 'Canto',
+                canta_ensamble: true,
+                nivel: 'Inicial II',
+                tipo_suscripcion: 'Ensamble',
+                estado_agenda: 'Lista de espera',
+                reserva_profe_nombre: 'Belu',
+                profesor_asignado: 'Belu',
+                informe_entrevista: {
+                    id: 'inf_mariana_test',
+                    fecha_evaluacion: new Date().toISOString(),
+                    evaluador_nombre: 'Belu',
+                    nivel_asignado: 'Inicial II',
+                    zona_vive: 'Villa Urquiza',
+                    profesion: 'Arquitecta',
+                    motivacion_expectativas: '<p>Quiere cantar en grupo, ganar confianza y trabajar la mezcla de voz de pecho y cabeza sin fatiga vocal.</p>',
+                    propuesta_mandala_acordada: true,
+                    diagnostico_tecnico: '<p>Buena musicalidad, afinación estable en medios. Requiere afianzar apoyo costodiafragmático para el pasaje a mixta potente.</p>',
+                    artistas_estilos: 'Charly García, Fito Páez, Adele, Amy Winehouse',
+                    disp_compartir_cantante: 'compartir',
+                    cambio_tonalidades: 'no_aplica',
+                    tecnica_canto: {
+                        genero: 'fem',
+                        pecho_desde: 'do2',
+                        pecho_hasta: 'fa4',
+                        cabeza_desde: 'mi4',
+                        cabeza_hasta: 'sol5',
+                        mixta_desde: 'si3',
+                        mixta_hasta: 're5',
+                        mixta_pasaje: 'mi4',
+                        mixta_cualidad: 'potente',
+                        frito_vocal: 'si',
+                        observaciones: 'Buen timbre en pecho, pasaje en mi4 se abre adecuadamente al cubrir con liviana.'
+                    },
+                    audio_entrevista: {
+                        nombre_archivo: '21-09-26 18.30 - Mariana Perez - Belen Torrents.mp3',
+                        evaluador_carpeta: 'Belu',
+                        duracion_segundos: 84,
+                        url: ''
+                    },
+                    perfil_psicoemocional_detalle: '<p>Muy sociable y receptiva a las devoluciones. Muestra entusiasmo por ensamblar y compartir repertorio.</p>',
+                    perfil_psicologico: ['Empática', 'Buena escucha', 'Abierta al proceso'],
+                    requisitos_aceptados: true,
+                    cierre_espera_notificado: true
+                },
+                historial: [`[${ahoraStr}] Entrevista completada con éxito. Registros vocales y audio guardados en Google Drive.`],
                 es_caso_prueba: true,
                 test_owner: email,
                 fecha_creacion: new Date().toISOString()
@@ -11759,9 +12880,9 @@ export async function generarCasosPruebaEvaluador(emailOverride = null) {
         }
 
         if (typeof mostrarToast === 'function') {
-            mostrarToast(`✅ Se crearon ${creados} casos de prueba propios para ${profNombre}`, 'success');
+            mostrarToast(`✅ Se crearon los 4 alumnos test (incluye Ariel Bianchino y Canto)`, 'success');
         } else {
-            alert(`✅ Se crearon ${creados} casos de prueba propios para ${profNombre}`);
+            alert(`✅ Se crearon los 4 alumnos test (incluye Ariel Bianchino y Canto)`);
         }
         if (typeof cargarVista === 'function') cargarVista(estadoActualVista);
         return true;

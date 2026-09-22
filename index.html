@@ -10,7 +10,7 @@
     <meta http-equiv="Expires" content="0">
     
     <link rel="icon" href="logo.png" type="image/png">
-    <link rel="manifest" href="manifest.json?v=6.9.11">
+    <link rel="manifest" href="manifest.json?v=6.9.12">
     <meta name="theme-color" content="#fbfaf8">
     <meta name="apple-mobile-web-app-title" content="Mandala Admisión">
     <meta name="application-name" content="Mandala Admisión">
@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=6.9.11">
+    <link rel="stylesheet" href="styles.css?v=6.9.17">
 
     <style>
         /* Estilos Críticos de Widget de Perfil y Popover Google-Style */
@@ -1323,6 +1323,66 @@
                             <span style="font-size:11px; color:var(--text-muted);">Anotar artistas para definir su perfil estético y encontrar compatibilidad en el match.</span>
                         </div>
 
+                        <!-- 2.3 REGISTRO DE AUDIO DE LA ENTREVISTA TÉCNICA (EN BLOQUE 2 GENERAL) -->
+                        <div class="audio-section-box">
+                            <div class="audio-section-header">
+                                <div class="audio-title">
+                                    <span>🎙️</span>
+                                    <span>Registro de Audio de la Entrevista Técnica</span>
+                                </div>
+                                <span class="audio-badge-scope">Transversal (Para Canto o Cualquier Instrumento)</span>
+                            </div>
+
+                            <p style="font-size:11.5px; color:#334155; line-height:1.4; margin:0;">
+                                Graba fragmentos en vivo donde el postulante toca o canta durante la entrevista, o sube un archivo previamente grabado (.mp3, .wav, .m4a).
+                            </p>
+
+                            <div class="audio-controls-grid">
+                                <!-- Opción 1: Grabar en vivo -->
+                                <div class="audio-action-card">
+                                    <span style="font-size:20px;">🔴</span>
+                                    <div style="font-size:11.5px; font-weight:700; color:var(--text-main);">Grabación en Vivo</div>
+                                    <div style="font-size:10.5px; color:var(--text-muted);">Usa el micrófono del equipo</div>
+                                    <button type="button" class="btn-record-live" id="btn-inf-record-live" onclick="window.toggleGrabacionAudioEntrevista()">
+                                        <span id="inf-rec-icon">⏺</span>
+                                        <span id="inf-rec-text">Iniciar Grabación</span>
+                                    </button>
+                                    <span id="inf-rec-timer" style="font-size:11px; font-weight:700; color:#ef4444; display:none; font-family:monospace;">00:00 / 05:00</span>
+                                </div>
+
+                                <!-- Opción 2: Subir archivo -->
+                                <div class="audio-action-card">
+                                    <span style="font-size:20px;">📁</span>
+                                    <div style="font-size:11.5px; font-weight:700; color:var(--text-main);">Subir Archivo de Audio</div>
+                                    <div style="font-size:10.5px; color:var(--text-muted);">Arrastra o selecciona de tu equipo</div>
+                                    <label class="btn-upload-file" style="cursor:pointer;">
+                                        <span>📥 Seleccionar Audio</span>
+                                        <input type="file" id="inf-input-audio-file" accept="audio/*" style="display:none;" onchange="window.handleSubidaAudioEntrevista(this)">
+                                    </label>
+                                    <span style="font-size:10px; color:var(--text-muted);">MP3, WAV, M4A hasta 25MB</span>
+                                </div>
+                            </div>
+
+                            <!-- Previsualización y Reproductor del Audio Cargado -->
+                            <div id="inf-audio-player-box" class="audio-player-preview" style="display:none;">
+                                <button type="button" id="btn-inf-audio-play" onclick="window.togglePlayAudioFormulario()" style="width:34px; height:34px; border-radius:50%; background:var(--accent-teal); color:#fff; border:none; cursor:pointer; font-size:13px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                    ▶
+                                </button>
+                                <div style="flex:1; display:flex; flex-direction:column; gap:3px;">
+                                    <div style="display:flex; justify-content:space-between; font-size:11px;">
+                                        <strong id="inf-audio-filename" style="color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:230px;">audio.mp3</strong>
+                                        <span id="inf-audio-duration" style="color:var(--text-muted); font-family:monospace;">00:00</span>
+                                    </div>
+                                    <div style="height:5px; background:#e2e8f0; border-radius:3px; overflow:hidden; position:relative;">
+                                        <div id="inf-audio-progress-fill" style="width:0%; height:100%; background:var(--accent-teal);"></div>
+                                    </div>
+                                </div>
+                                <button type="button" onclick="window.eliminarAudioFormulario()" style="background:none; border:none; color:#ef4444; font-size:15px; cursor:pointer; padding:4px;" title="Eliminar este archivo">
+                                    🗑️
+                                </button>
+                            </div>
+                        </div>
+
                         <!-- COMPARTIR VOCES (EXCLUSIVO PARA CANTO - OBLIGATORIO) -->
                         <div id="inf-card-cantante" style="background:#fffbeb; padding:12px 14px; border-radius:8px; border:1px solid #fde68a; display:none; flex-direction:column; gap:6px;">
                             <label style="font-size:12px; font-weight:700; color:#92400e; display:flex; align-items:center; justify-content:space-between;">
@@ -1338,7 +1398,7 @@
                         </div>
 
                         <!-- APARTADO TÉCNICA DE CANTO (REGISTROS VOCALES) - CONDICIONAL A CANTO (OPCIONAL) -->
-                        <div id="canto-tech-section" style="background:linear-gradient(180deg, #fdf4ff 0%, #faf5ff 100%); border:1.5px solid #e9d5ff; border-radius:10px; padding:14px; display:none; flex-direction:column; gap:12px;">
+                        <div id="canto-tech-section" style="background:linear-gradient(180deg, #fdf4ff 0%, #faf5ff 100%); border:1.5px solid #d8b4fe; border-radius:10px; padding:14px; display:none; flex-direction:column; gap:12px;">
                             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; border-bottom:1px solid #ebd5ff; padding-bottom:8px;">
                                 <div style="font-size:13px; font-weight:800; color:#6b21a8; display:flex; align-items:center; gap:6px;">
                                     <span>🎼</span>
@@ -1356,70 +1416,65 @@
                                 </div>
                             </div>
 
-                            <div style="display:grid; grid-template-columns:1fr; gap:8px;">
-                                <!-- 1. Voz de pecho -->
-                                <div style="background:#fff; border:1px solid #e9d5ff; border-radius:6px; padding:8px 10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-                                    <div style="display:flex; align-items:center; gap:8px;">
-                                        <span style="font-size:12px; font-weight:700; color:#3b0764;">1. Voz de Pecho</span>
-                                        <span id="canto-std-pecho" style="background:#fef08a; color:#854d0e; font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; border:1px solid #fde047;">★ STD: sol3</span>
-                                    </div>
-                                    <div style="display:flex; align-items:center; gap:6px; font-size:11.5px;">
-                                        <span style="color:var(--text-muted);">Desde:</span>
-                                        <select id="canto-pecho-desde" class="select-nota-canto" style="height:28px; padding:2px 6px; border-radius:4px; border:1px solid #cbd5e1; font-family:monospace; font-size:11.5px;"></select>
-                                        <span style="color:var(--text-muted); margin-left:4px;">Hasta / Pasaje:</span>
-                                        <select id="canto-pecho-hasta" class="select-nota-canto" style="height:28px; padding:2px 6px; border-radius:4px; border:1px solid #cbd5e1; font-family:monospace; font-size:11.5px;"></select>
-                                    </div>
+                            <!-- Instrucción de interacción -->
+                            <div style="background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; padding:7px 10px; border-radius:6px; font-size:11px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:4px;">
+                                <div>
+                                    💡 <strong>Selección:</strong> <strong>1er clic</strong> marca nota inicial (<span style="color:#0284c7; font-weight:700;">en azul</span>) y <strong>2do clic</strong> marca nota final (<span style="color:#10b981; font-weight:700;">se pinta todo en verde</span>).
                                 </div>
+                            </div>
 
-                                <!-- 2. Voz de cabeza -->
-                                <div style="background:#fff; border:1px solid #e9d5ff; border-radius:6px; padding:8px 10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-                                    <div style="display:flex; align-items:center; gap:8px;">
-                                        <span style="font-size:12px; font-weight:700; color:#3b0764;">2. Voz de Cabeza</span>
-                                        <span id="canto-std-cabeza" style="background:#fef08a; color:#854d0e; font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; border:1px solid #fde047;">★ STD: fa4</span>
-                                    </div>
-                                    <div style="display:flex; align-items:center; gap:6px; font-size:11.5px;">
-                                        <span style="color:var(--text-muted);">Desde:</span>
-                                        <select id="canto-cabeza-desde" class="select-nota-canto" style="height:28px; padding:2px 6px; border-radius:4px; border:1px solid #cbd5e1; font-family:monospace; font-size:11.5px;"></select>
-                                        <span style="color:var(--text-muted); margin-left:4px;">Hasta:</span>
-                                        <select id="canto-cabeza-hasta" class="select-nota-canto" style="height:28px; padding:2px 6px; border-radius:4px; border:1px solid #cbd5e1; font-family:monospace; font-size:11.5px;"></select>
-                                    </div>
-                                </div>
+                            <!-- Contenedor dinámico de pistas interactivas de canto -->
+                            <div id="canto-interactive-tracks-container" style="display:flex; flex-direction:column; gap:10px;">
+                                <!-- Se renderizan por JS: Pecho, Cabeza, Mixta con doble gris estándar exacto -->
+                            </div>
 
-                                <!-- 3. Voz mixta -->
-                                <div style="background:#fff; border:1px solid #e9d5ff; border-radius:6px; padding:8px 10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-                                    <div style="display:flex; align-items:center; gap:8px;">
-                                        <span style="font-size:12px; font-weight:700; color:#3b0764;">3. Voz Mixta</span>
-                                        <span id="canto-std-mixta" style="background:#fef08a; color:#854d0e; font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; border:1px solid #fde047;">★ STD: mi4</span>
+                            <!-- Inputs ocultos para preservar persistencia en Firestore -->
+                            <input type="hidden" id="canto-pecho-desde" value="">
+                            <input type="hidden" id="canto-pecho-hasta" value="">
+                            <input type="hidden" id="canto-cabeza-desde" value="">
+                            <input type="hidden" id="canto-cabeza-hasta" value="">
+                            <input type="hidden" id="canto-mixta-desde" value="">
+                            <input type="hidden" id="canto-mixta-hasta" value="">
+                            <input type="hidden" id="canto-mixta-pasaje" value="">
+
+                            <!-- Controles complementarios: Cualidad Mixta, Pasaje, Frito y Observaciones -->
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+                                <!-- Cualidad Mixta y Pasaje -->
+                                <div style="background:#fff; border:1px solid #e9d5ff; border-radius:8px; padding:8px 10px; display:flex; flex-direction:column; gap:6px;">
+                                    <div style="font-size:11px; font-weight:800; color:#4c1d95; display:flex; justify-content:space-between;">
+                                        <span>3. Voz Mixta</span>
                                     </div>
-                                    <div style="display:flex; align-items:center; gap:8px; font-size:11.5px;">
-                                        <span style="color:var(--text-muted);">Pasaje:</span>
-                                        <select id="canto-mixta-pasaje" class="select-nota-canto" style="height:28px; padding:2px 6px; border-radius:4px; border:1px solid #cbd5e1; font-family:monospace; font-size:11.5px;"></select>
-                                        <span style="color:var(--text-muted); font-weight:700; margin-left:4px;">Cualidad:</span>
+                                    <div style="display:flex; align-items:center; gap:6px; font-size:11.5px; flex-wrap:wrap;">
+                                        <span style="color:var(--text-muted); font-size:11px;">Cualidad:</span>
                                         <div style="display:flex; gap:4px;">
                                             <button type="button" class="btn-chip-canto-cualidad" id="btn-canto-cual-liviana" onclick="window.setCualidadMixtaCanto('liviana')" style="padding:3px 8px; border-radius:4px; border:1px solid #cbd5e1; background:#fff; font-size:11px; font-weight:600; cursor:pointer;">Liviana</button>
                                             <button type="button" class="btn-chip-canto-cualidad" id="btn-canto-cual-potente" onclick="window.setCualidadMixtaCanto('potente')" style="padding:3px 8px; border-radius:4px; border:1px solid #cbd5e1; background:#fff; font-size:11px; font-weight:600; cursor:pointer;">Potente</button>
                                         </div>
                                     </div>
-                                </div>
-
-                                <!-- 4. Frito vocal -->
-                                <div style="background:#fff; border:1px solid #e9d5ff; border-radius:6px; padding:8px 10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-                                    <div>
-                                        <span style="font-size:12px; font-weight:700; color:#3b0764;">4. Frito Vocal (Vocal Fry)</span>
-                                        <div style="font-size:10.5px; color:var(--text-muted);">Emisión sub-armónica relajada</div>
-                                    </div>
-                                    <div style="display:flex; gap:4px;">
-                                        <button type="button" class="btn-chip-canto-frito" id="btn-canto-frito-si" onclick="window.setFritoVocalCanto('si')" style="padding:3px 8px; border-radius:4px; border:1px solid #cbd5e1; background:#fff; font-size:11px; font-weight:600; cursor:pointer;">✅ Sí</button>
-                                        <button type="button" class="btn-chip-canto-frito" id="btn-canto-frito-no" onclick="window.setFritoVocalCanto('no')" style="padding:3px 8px; border-radius:4px; border:1px solid #cbd5e1; background:#fff; font-size:11px; font-weight:600; cursor:pointer;">❌ No</button>
-                                        <button type="button" class="btn-chip-canto-frito active" id="btn-canto-frito-none" onclick="window.setFritoVocalCanto('sin_evaluar')" style="padding:3px 8px; border-radius:4px; border:1px solid #7c3aed; background:#7c3aed; color:#fff; font-size:11px; font-weight:600; cursor:pointer;">➖ Sin evaluar</button>
+                                    <div style="display:flex; align-items:center; gap:6px; font-size:11px; margin-top:2px;">
+                                        <span style="color:var(--text-muted);">Pasaje (Opcional):</span>
+                                        <select id="canto-mixta-pasaje-select" class="select-nota-canto" onchange="window.syncCantoMixtaPasaje(this.value)" style="height:26px; padding:2px 6px; border-radius:4px; border:1px solid #cbd5e1; font-family:monospace; font-size:11px;"></select>
                                     </div>
                                 </div>
 
-                                <!-- 5. Observaciones vocales adicionales -->
-                                <div style="display:flex; flex-direction:column; gap:3px;">
-                                    <label style="font-size:11px; font-weight:700; color:#6b21a8;">Observaciones Técnicas Vocales (Opcional)</label>
-                                    <input type="text" id="canto-obs-vocales" class="modern-input" placeholder="Ej: Buen apoyo diafragmático, afinación estable en medios..." style="height:32px; font-size:11.5px; background:#fff;">
+                                <!-- Frito Vocal -->
+                                <div style="background:#fff; border:1px solid #e9d5ff; border-radius:8px; padding:8px 10px; display:flex; flex-direction:column; gap:6px;">
+                                    <div style="font-size:11px; font-weight:800; color:#4c1d95; display:flex; justify-content:space-between;">
+                                        <span>4. Frito Vocal (Vocal Fry)</span>
+                                        <span style="font-size:9.5px; background:#f1f5f9; color:#64748b; padding:1px 5px; border-radius:4px;">Emisión</span>
+                                    </div>
+                                    <div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:2px;">
+                                        <button type="button" class="btn-chip-canto-frito" id="btn-canto-frito-si" onclick="window.setFritoVocalCanto('si')" style="padding:4px 8px; border-radius:4px; border:1px solid #cbd5e1; background:#fff; font-size:11px; font-weight:600; cursor:pointer;">✅ Sí</button>
+                                        <button type="button" class="btn-chip-canto-frito" id="btn-canto-frito-no" onclick="window.setFritoVocalCanto('no')" style="padding:4px 8px; border-radius:4px; border:1px solid #cbd5e1; background:#fff; font-size:11px; font-weight:600; cursor:pointer;">❌ No</button>
+                                        <button type="button" class="btn-chip-canto-frito active" id="btn-canto-frito-none" onclick="window.setFritoVocalCanto('sin_evaluar')" style="padding:4px 8px; border-radius:4px; border:1px solid #7c3aed; background:#7c3aed; color:#fff; font-size:11px; font-weight:600; cursor:pointer;">➖ Sin evaluar</button>
+                                    </div>
                                 </div>
+                            </div>
+
+                            <!-- 5. Observaciones vocales adicionales -->
+                            <div style="display:flex; flex-direction:column; gap:3px;">
+                                <label style="font-size:11px; font-weight:700; color:#6b21a8;">Observaciones Técnicas Vocales (Opcional)</label>
+                                <input type="text" id="canto-obs-vocales" class="modern-input" placeholder="Ej: Buen apoyo diafragmático, afinación estable en medios..." style="height:32px; font-size:11.5px; background:#fff;">
                             </div>
                         </div>
 
@@ -3143,12 +3198,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=6.9.11"></script>
+    <script type="module" src="app.js?v=6.9.17"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=6.9.11').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=6.9.17').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {

@@ -2,7 +2,7 @@
 // src/services/calendar.service.js — Servicios e integraciones con Google Calendar
 // =======================================================================
 
-import { SCRIPT_URL, defaultCfg } from "../config/constants.js";
+import { SCRIPT_URL, SCRIPT_API_KEY, defaultCfg } from "../config/constants.js";
 import { db, doc, getDoc, collection, getDocs, query, where, updateDoc } from "../config/firebase.js";
 
 export function getEmojiInstrumento(instrumentoInput, cfg, al = null) {
@@ -132,7 +132,7 @@ export function formatearFechaAmi(fechaIsoStr) {
 
 export async function fetchCalendarAPI(action, payload = {}) {
     payload.action = action; 
-    payload.apiKey = "mandala-seg-2026";
+    payload.apiKey = SCRIPT_API_KEY;
     
     // Validación previa de parámetros críticos para evitar excepciones no controladas en Google Apps Script
     if (action === 'updateEvent' || action === 'deleteEvent') {
