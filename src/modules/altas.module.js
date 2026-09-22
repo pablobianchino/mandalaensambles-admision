@@ -200,10 +200,32 @@ export function actualizarVisibilidadCamposPrealta(tipoSusc) {
 // -----------------------------------------------------------------------
 // Refrescar profesores para pre-alta según tipo (Ensamble vs Grupal vs Individual)
 // -----------------------------------------------------------------------
+let prealtaSearchSeq = 0;
+
 export async function refrescarProfesoresPrealta(tipoClase, instrumentoSeleccionado = '', profeSeleccionadoId = '', cfg = defaultCfg) {
     const selectProfe = document.getElementById('prealta-profe-select');
+    const campoProfe = document.getElementById('prealta-campo-profe');
+    const loadingBadge = document.getElementById('prealta-profe-loading-badge');
+    const loadingBar = document.getElementById('prealta-profe-loading-bar');
     if (!selectProfe) return;
-    selectProfe.innerHTML = '<option value="">Consultando profesores y agendas...</option>';
+
+    const currentSeq = ++prealtaSearchSeq;
+
+    const fIniVal = document.getElementById('prealta-fecha-inicio')?.value;
+    if (!fIniVal) {
+        selectProfe.disabled = false;
+        selectProfe.innerHTML = '<option value="">Seleccionar profesor...</option>';
+        if (loadingBadge) loadingBadge.style.display = 'none';
+        if (loadingBar) loadingBar.style.display = 'none';
+        return;
+    }
+
+    if (campoProfe) campoProfe.style.display = 'block';
+    if (loadingBadge) loadingBadge.style.display = 'inline-flex';
+    if (loadingBar) loadingBar.style.display = 'flex';
+    selectProfe.disabled = true;
+    selectProfe.innerHTML = '<option value="">⏳ Buscando agenda y profesor disponible...</option>';
+
     try {
         const pSnap = await getDocs(collection(db, "profesores"));
         const profesoresMap = new Map();
@@ -222,7 +244,6 @@ export async function refrescarProfesoresPrealta(tipoClase, instrumentoSeleccion
         const esGrupal = tipoClase === 'grupal';
 
         // Chequear disponibilidad teórica si hay fecha/hora seleccionada
-        const fIniVal = document.getElementById('prealta-fecha-inicio')?.value;
         let diaCod = null;
         let slotIniMins = null;
         let slotFinMins = null;
@@ -252,6 +273,9 @@ export async function refrescarProfesoresPrealta(tipoClase, instrumentoSeleccion
                 console.warn("No se pudieron consultar eventos de Calendar para el slot:", eCal);
             }
         }
+
+        // Si una nueva búsqueda se disparó mientras esperábamos Calendar, descartar este resultado
+        if (currentSeq !== prealtaSearchSeq) return;
 
         const aptos = [];
         profesores.forEach(pr => {
@@ -364,8 +388,20 @@ export async function refrescarProfesoresPrealta(tipoClase, instrumentoSeleccion
             opt.textContent = "⚠️ Ningún profesor disponible para este horario";
             selectProfe.appendChild(opt);
         }
+
+        // Restablecer estado habilitado y ocultar indicadores de carga
+        if (currentSeq === prealtaSearchSeq) {
+            selectProfe.disabled = false;
+            if (loadingBadge) loadingBadge.style.display = 'none';
+            if (loadingBar) loadingBar.style.display = 'none';
+        }
     } catch(e) {
         console.error("Error al refrescar profesores de prealta:", e);
+        if (currentSeq === prealtaSearchSeq) {
+            selectProfe.disabled = false;
+            if (loadingBadge) loadingBadge.style.display = 'none';
+            if (loadingBar) loadingBar.style.display = 'none';
+        }
     }
 }
 
@@ -794,6 +830,24 @@ export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg
         }
         await renderListaInstrumentosAlumnos([{ id, ...al }], configApp);
 
+        document.querySelectorAll('.prealta-alumno-inst-select').forEach(sel => {
+            sel.onchange = async () => {
+                al.instrumento_asignado = sel.value;
+                const fIni = document.getElementById('prealta-fecha-inicio')?.value;
+                if (fIni) {
+                    const grpAct = (document.getElementById('prealta-grupo')?.value || '').toUpperCase();
+                    const esGrupalAct = (sol && (sol.tipoGrupo === 'Clase Grupal' || sol.tipoGrupo === 'Grupal'))
+                        || grpAct.includes('INICIAL') || grpAct.includes('GRUPAL') || grpAct.includes('TALLER')
+                        || (al.tipo_suscripcion || '').toLowerCase().includes('grupal');
+                    const tipoSuscDin = esGrupalAct ? 'grupal' : tipoSusc;
+                    await refrescarProfesoresPrealta(tipoSuscDin, sel.value, selectProfe.value);
+                    if (!esMatchSolicitud) autoCompletarNombreGrupoPrealta();
+                    actualizarVisibilidadCamposPrealta(tipoSuscDin);
+                }
+                verificarPrealtaEnCalendar([al], configApp);
+            };
+        });
+
         if (fVal) {
             await refrescarProfesoresPrealta(tipoSuscEfectivo, instActual, profeActualId);
             if (selectProfe && profeActualId) {
@@ -811,34 +865,62 @@ export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg
 
     actualizarVisibilidadCamposPrealta(tipoSusc);
 
-    // Vincular listeners para reactividad secuencial
+    // Vincular listeners para reactividad secuencial con debounce y feedback visual
     const inputFechaIni = document.getElementById('prealta-fecha-inicio');
-    if (inputFechaIni) {
-        inputFechaIni.onchange = async () => {
-            const grpAct = (document.getElementById('prealta-grupo')?.value || '').toUpperCase();
-            const esGrupalAct = (sol && (sol.tipoGrupo === 'Clase Grupal' || sol.tipoGrupo === 'Grupal'))
-                || grpAct.includes('INICIAL')
-                || grpAct.includes('GRUPAL')
-                || grpAct.includes('TALLER')
-                || (al.tipo_suscripcion || '').toLowerCase().includes('grupal');
-            const tipoSuscDin = esGrupalAct ? 'grupal' : tipoSusc;
+    let timerDebounceFechaPrealta = null;
 
-            if (inputFechaIni.value) {
-                await refrescarProfesoresPrealta(tipoSuscDin, instActual, selectProfe.value);
-                if (esMatchSolicitud && selectProfe && profeActualId) {
-                    asegurarOpcionProfesor(selectProfe, profeActualId, sol ? sol.profesorNombre : opts.profeNombreSugerido);
-                }
-            } else {
-                selectProfe.innerHTML = '<option value="">Seleccionar profesor...</option>';
-            }
-            if (!esMatchSolicitud) autoCompletarNombreGrupoPrealta();
+    const dispararCambioFechaPrealta = async () => {
+        const grpAct = (document.getElementById('prealta-grupo')?.value || '').toUpperCase();
+        const esGrupalAct = (sol && (sol.tipoGrupo === 'Clase Grupal' || sol.tipoGrupo === 'Grupal'))
+            || grpAct.includes('INICIAL')
+            || grpAct.includes('GRUPAL')
+            || grpAct.includes('TALLER')
+            || (al.tipo_suscripcion || '').toLowerCase().includes('grupal');
+        const tipoSuscDin = esGrupalAct ? 'grupal' : tipoSusc;
+
+        const selInstPre = document.querySelector(`.prealta-alumno-inst-select[data-id="${al.id}"]`) || document.getElementById('prealta-instrumento-select');
+        const instEfectivo = selInstPre ? selInstPre.value : instActual;
+
+        if (inputFechaIni.value) {
             actualizarVisibilidadCamposPrealta(tipoSuscDin);
-            if (!esMatchSolicitud) {
-                renderizarAdvertenciasMatchPrealta([al], inputFechaIni.value, obtenerDuracionPrealtaMinutos(), configApp);
+            await refrescarProfesoresPrealta(tipoSuscDin, instEfectivo, selectProfe.value);
+            if (esMatchSolicitud && selectProfe && profeActualId) {
+                asegurarOpcionProfesor(selectProfe, profeActualId, sol ? sol.profesorNombre : opts.profeNombreSugerido);
             }
-            verificarPrealtaEnCalendar([al], configApp);
+        } else {
+            selectProfe.innerHTML = '<option value="">Seleccionar profesor...</option>';
+        }
+        if (!esMatchSolicitud) autoCompletarNombreGrupoPrealta();
+        actualizarVisibilidadCamposPrealta(tipoSuscDin);
+        if (!esMatchSolicitud) {
+            renderizarAdvertenciasMatchPrealta([al], inputFechaIni.value, obtenerDuracionPrealtaMinutos(), configApp);
+        }
+        verificarPrealtaEnCalendar([al], configApp);
+    };
+
+    if (inputFechaIni) {
+        inputFechaIni.onchange = () => {
+            if (timerDebounceFechaPrealta) clearTimeout(timerDebounceFechaPrealta);
+            dispararCambioFechaPrealta();
         };
-        inputFechaIni.oninput = inputFechaIni.onchange;
+        inputFechaIni.oninput = () => {
+            if (timerDebounceFechaPrealta) clearTimeout(timerDebounceFechaPrealta);
+            if (inputFechaIni.value) {
+                const cProfe = document.getElementById('prealta-campo-profe');
+                const lBadge = document.getElementById('prealta-profe-loading-badge');
+                const lBar = document.getElementById('prealta-profe-loading-bar');
+                if (cProfe) cProfe.style.display = 'block';
+                if (lBadge) lBadge.style.display = 'inline-flex';
+                if (lBar) lBar.style.display = 'flex';
+                if (selectProfe) {
+                    selectProfe.disabled = true;
+                    selectProfe.innerHTML = '<option value="">⏳ Buscando agenda y profesor disponible...</option>';
+                }
+            }
+            timerDebounceFechaPrealta = setTimeout(() => {
+                dispararCambioFechaPrealta();
+            }, 350);
+        };
     }
 
     const inputGrupo = document.getElementById('prealta-grupo');
@@ -1312,6 +1394,22 @@ export async function abrirModalPrealtaGrupal(ids, grupoNom = '', cfg = defaultC
     }
 
     await renderListaInstrumentosAlumnos(alumnosList, realCfg);
+
+    document.querySelectorAll('.prealta-alumno-inst-select').forEach(sel => {
+        sel.onchange = async () => {
+            const alId = sel.dataset.id;
+            const alObj = alumnosList.find(a => a.id === alId);
+            if (alObj) alObj.instrumento_asignado = sel.value;
+            const fIni = document.getElementById('prealta-fecha-inicio')?.value;
+            if (fIni) {
+                await refrescarProfesoresPrealta(tipoSuscGrupal, '', selectProfe.value);
+                autoCompletarNombreGrupoPrealta();
+                actualizarVisibilidadCamposPrealta(tipoSuscGrupal);
+            }
+            verificarPrealtaEnCalendar(alumnosList, realCfg);
+        };
+    });
+
     actualizarVisibilidadCamposPrealta(tipoSuscGrupal);
     renderizarAdvertenciasMatchPrealta(alumnosList, '', obtenerDuracionPrealtaMinutos(), realCfg);
 
@@ -1327,19 +1425,44 @@ export async function abrirModalPrealtaGrupal(ids, grupoNom = '', cfg = defaultC
     }
 
     const inputFechaIni = document.getElementById('prealta-fecha-inicio');
-    if (inputFechaIni) {
-        inputFechaIni.onchange = async () => {
-            if (inputFechaIni.value) {
-                await refrescarProfesoresPrealta(tipoSuscGrupal, '', selectProfe.value);
-            } else {
-                selectProfe.innerHTML = '<option value="">Seleccionar profesor...</option>';
-            }
-            autoCompletarNombreGrupoPrealta();
+    let timerDebounceFechaGrupal = null;
+
+    const dispararCambioFechaGrupal = async () => {
+        if (inputFechaIni.value) {
             actualizarVisibilidadCamposPrealta(tipoSuscGrupal);
-            renderizarAdvertenciasMatchPrealta(alumnosList, inputFechaIni.value, obtenerDuracionPrealtaMinutos(), realCfg);
-            verificarPrealtaEnCalendar(alumnosList, realCfg);
+            await refrescarProfesoresPrealta(tipoSuscGrupal, '', selectProfe.value);
+        } else {
+            selectProfe.innerHTML = '<option value="">Seleccionar profesor...</option>';
+        }
+        autoCompletarNombreGrupoPrealta();
+        actualizarVisibilidadCamposPrealta(tipoSuscGrupal);
+        renderizarAdvertenciasMatchPrealta(alumnosList, inputFechaIni.value, obtenerDuracionPrealtaMinutos(), realCfg);
+        verificarPrealtaEnCalendar(alumnosList, realCfg);
+    };
+
+    if (inputFechaIni) {
+        inputFechaIni.onchange = () => {
+            if (timerDebounceFechaGrupal) clearTimeout(timerDebounceFechaGrupal);
+            dispararCambioFechaGrupal();
         };
-        inputFechaIni.oninput = inputFechaIni.onchange;
+        inputFechaIni.oninput = () => {
+            if (timerDebounceFechaGrupal) clearTimeout(timerDebounceFechaGrupal);
+            if (inputFechaIni.value) {
+                const cProfe = document.getElementById('prealta-campo-profe');
+                const lBadge = document.getElementById('prealta-profe-loading-badge');
+                const lBar = document.getElementById('prealta-profe-loading-bar');
+                if (cProfe) cProfe.style.display = 'block';
+                if (lBadge) lBadge.style.display = 'inline-flex';
+                if (lBar) lBar.style.display = 'flex';
+                if (selectProfe) {
+                    selectProfe.disabled = true;
+                    selectProfe.innerHTML = '<option value="">⏳ Buscando agenda y profesor disponible...</option>';
+                }
+            }
+            timerDebounceFechaGrupal = setTimeout(() => {
+                dispararCambioFechaGrupal();
+            }, 350);
+        };
     }
     if (selectProfe) {
         selectProfe.onchange = () => {

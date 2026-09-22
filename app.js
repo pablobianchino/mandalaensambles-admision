@@ -6289,31 +6289,57 @@ export function obtenerModulosPermitidosModoActivo() {
     const usuario = window.usuarioActual || {};
     const rolesArr = Array.isArray(usuario.roles) && usuario.roles.length > 0 ? usuario.roles : [usuario.rol || 'admisor'];
 
-    if (modo === 'evaluador') {
-        return ['dashboard', 'inbox', 'espera'];
-    } else if (modo === 'profesor' || modo === 'docente') {
-        return ['portal_profesor'];
-    } else if (modo === 'coordinador_grupos' || modo === 'coordinador') {
-        return ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'configuracion'];
-    } else if (modo === 'admisor' || modo === 'admisiones') {
-        return ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'metricas'];
-    } else if (modo === 'admin') {
-        return ['dashboard', 'portal_profesor', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'metricas', 'configuracion'];
-    } else {
-        // modo multi: unión de todos los módulos habilitados del usuario
-        if (rolesArr.includes('admin') || usuario.email?.toLowerCase() === 'productora.mandalahouse@gmail.com') {
+    const esAdmin = rolesArr.includes('admin') || usuario.rol === 'admin' || usuario.email?.toLowerCase() === 'productora.mandalahouse@gmail.com';
+
+    // Para administradores: acceso irrestricto y soporte completo para cambiar de vista de rol
+    if (esAdmin) {
+        if (modo === 'evaluador') {
+            return ['dashboard', 'inbox', 'espera'];
+        } else if (modo === 'profesor' || modo === 'docente') {
+            return ['portal_profesor'];
+        } else if (modo === 'coordinador_grupos' || modo === 'coordinador') {
+            return ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'configuracion'];
+        } else if (modo === 'admisor' || modo === 'admisiones') {
+            return ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'metricas'];
+        } else {
             return ['dashboard', 'portal_profesor', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'metricas', 'configuracion'];
         }
+    }
+
+    // Para usuarios estándar: los módulos habilitados guardados en su perfil son la verdad definitiva
+    let listaPermitidaUser = [];
+    if (Array.isArray(usuario.modulos_habilitados)) {
+        listaPermitidaUser = [...usuario.modulos_habilitados];
+    } else {
         const setMods = new Set();
         rolesArr.forEach(r => {
             const m = ROLES_MODULOS_DEFAULT[r] || [];
             m.forEach(mod => setMods.add(mod));
         });
-        if (usuario.profesor_id) setMods.add('portal_profesor');
-        if (Array.isArray(usuario.modulos_habilitados)) {
-            usuario.modulos_habilitados.forEach(m => setMods.add(m));
-        }
-        return Array.from(setMods);
+        listaPermitidaUser = Array.from(setMods);
+    }
+    if (usuario.profesor_id && !listaPermitidaUser.includes('portal_profesor')) {
+        listaPermitidaUser.push('portal_profesor');
+    }
+
+    if (modo === 'evaluador') {
+        const base = ['dashboard', 'inbox', 'espera'];
+        return base.filter(m => listaPermitidaUser.includes(m));
+    } else if (modo === 'profesor' || modo === 'docente') {
+        const base = ['portal_profesor'];
+        return base.filter(m => listaPermitidaUser.includes(m));
+    } else if (modo === 'coordinador_grupos' || modo === 'coordinador') {
+        const base = ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'configuracion'];
+        return base.filter(m => listaPermitidaUser.includes(m));
+    } else if (modo === 'admisor' || modo === 'admisiones') {
+        const base = ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'metricas'];
+        return base.filter(m => listaPermitidaUser.includes(m));
+    } else if (modo === 'admin') {
+        const base = ['dashboard', 'portal_profesor', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'metricas', 'configuracion'];
+        return base.filter(m => listaPermitidaUser.includes(m));
+    } else {
+        // modo multi: exactamente los módulos permitidos para el usuario
+        return listaPermitidaUser;
     }
 }
 
@@ -7630,15 +7656,20 @@ onAuthStateChanged(auth, async (user) => {
             const rol = rolesArr[0] || 'admisiones';
 
             let modulos = [];
-            const modulosUnion = new Set();
-            rolesArr.forEach(r => {
-                const m = ROLES_MODULOS_DEFAULT[r] || [];
-                m.forEach(mod => modulosUnion.add(mod));
-            });
-            if (Array.isArray(usuarioEncontrado.modulos_habilitados) && usuarioEncontrado.modulos_habilitados.length > 0) {
-                usuarioEncontrado.modulos_habilitados.forEach(m => modulosUnion.add(m));
+            if (rolesArr.includes('admin') || user.email.toLowerCase() === 'productora.mandalahouse@gmail.com') {
+                modulos = [...ROLES_MODULOS_DEFAULT.admin];
+            } else if (Array.isArray(usuarioEncontrado.modulos_habilitados)) {
+                // Prevalece la configuración granular explícita de Firestore
+                modulos = [...usuarioEncontrado.modulos_habilitados];
+            } else {
+                // Fallback para usuarios sin permisos granulares explícitos configurados
+                const modulosUnion = new Set();
+                rolesArr.forEach(r => {
+                    const m = ROLES_MODULOS_DEFAULT[r] || [];
+                    m.forEach(mod => modulosUnion.add(mod));
+                });
+                modulos = Array.from(modulosUnion);
             }
-            modulos = Array.from(modulosUnion);
 
             let nombreDocente = usuarioEncontrado.nombre;
             let profesorId = usuarioEncontrado.profesor_id || '';
