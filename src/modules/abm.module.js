@@ -747,12 +747,12 @@ export function renderConfigMatch(cont, configApp = defaultCfg, callbacks = {}) 
 // Render de ABM (Profesores, Instrumentos, Suscripciones, Usuarios RBAC)
 // -----------------------------------------------------------------------
 const ROLES_MODULOS = {
-    admin: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas', 'portal_profesor', 'configuracion', 'permisos'],
-    admisor: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas'],
-    admisiones: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'metricas'],
-    coordinador_grupos: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'configuracion'],
-    coordinador: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'configuracion'],
-    evaluador: ['dashboard', 'inbox', 'espera'],
+    admin: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'metricas', 'portal_profesor', 'configuracion', 'permisos'],
+    admisor: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'metricas'],
+    admisiones: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'metricas'],
+    coordinador_grupos: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'configuracion'],
+    coordinador: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'configuracion'],
+    evaluador: ['dashboard', 'inbox', 'seguimientos'],
     profesor: ['portal_profesor'],
     personalizado: []
 };

@@ -2,7 +2,7 @@
 // src/modules/altas.module.js -- Modulo de Altas, Pre-altas, Calendar & Export
 // =======================================================================
 
-import { defaultCfg } from "../config/constants.js";
+import { defaultCfg, esAlumnoAltaFinalizada, esAlumnoAltaConfirmadaIncompleta, normalizarAlumnoSeguimiento } from "../config/constants.js";
 import { 
     db, 
     collection, 
@@ -25,7 +25,7 @@ import {
     validarConflictoCalendarEnVivo,
     obtenerEventosProfesoresParaSlot,
     buscarEventoExistenteEnHorario
-} from "../services/calendar.service.js?v=6.9.12";
+} from "../services/calendar.service.js?v=6.10.0";
 import { calcularProximaFechaDiaHora } from "./match.module.js";
 import { parsearNomenclaturaGrupoOClase } from "./profesor.module.js";
 
@@ -619,11 +619,143 @@ function asegurarOpcionProfesor(selectEl, profeId, profeNombre = '') {
 }
 
 // -----------------------------------------------------------------------
+// Resetear y Descontaminar Estado del Modal de Pre-alta (Individual y Grupal)
+// -----------------------------------------------------------------------
+export function limpiarEstadoModalPrealta() {
+    window._modalPrealtaSeq = (window._modalPrealtaSeq || 0) + 1;
+
+    const idEl = document.getElementById('prealta-alumno-id');
+    if (idEl) idEl.value = '';
+    const propEl = document.getElementById('prealta-es-propuesta');
+    if (propEl) propEl.value = 'false';
+    const fechaEl = document.getElementById('prealta-fecha-inicio');
+    if (fechaEl) {
+        fechaEl.value = '';
+        fechaEl.onchange = null;
+        fechaEl.oninput = null;
+    }
+    const grupoEl = document.getElementById('prealta-grupo');
+    if (grupoEl) {
+        grupoEl.value = '';
+        grupoEl.oninput = null;
+    }
+    const profeSel = document.getElementById('prealta-profe-select');
+    if (profeSel) {
+        profeSel.innerHTML = '<option value="">Seleccionar profesor...</option>';
+        profeSel.disabled = false;
+        profeSel.value = '';
+        profeSel.onchange = null;
+    }
+    const instSel = document.getElementById('prealta-instrumento-select');
+    if (instSel) {
+        instSel.innerHTML = '';
+        instSel.onchange = null;
+    }
+    const listaInstAl = document.getElementById('prealta-lista-alumnos-instrumentos');
+    if (listaInstAl) {
+        listaInstAl.innerHTML = '';
+        listaInstAl.style.display = 'none';
+    }
+
+    // Resetear contenedores de advertencias y alertas
+    const contWarn = document.getElementById('prealta-match-warnings-container');
+    if (contWarn) contWarn.style.display = 'none';
+    const listWarn = document.getElementById('prealta-match-warnings-list');
+    if (listWarn) listWarn.innerHTML = '';
+    const alertVal = document.getElementById('prealta-alerta-validacion');
+    if (alertVal) alertVal.style.display = 'none';
+
+    // Resetear indicadores de carga y sugerencias
+    const lBadge = document.getElementById('prealta-profe-loading-badge');
+    if (lBadge) lBadge.style.display = 'none';
+    const lBar = document.getElementById('prealta-profe-loading-bar');
+    if (lBar) lBar.style.display = 'none';
+
+    const contSug = document.getElementById('prealta-sugerencias-fechas-container');
+    if (contSug) {
+        contSug.style.display = 'none';
+        contSug.innerHTML = '';
+    }
+    const wrapInputFecha = document.getElementById('prealta-campo-fecha-input-wrap');
+    if (wrapInputFecha) wrapInputFecha.style.display = 'block';
+
+    const banner = document.getElementById('prealta-info-banner');
+    if (banner) {
+        banner.style.display = 'none';
+        banner.innerHTML = '';
+    }
+
+    const evalSel = document.getElementById('prealta-responsable-seguimiento');
+    if (evalSel) {
+        evalSel.innerHTML = '<option value="">Seleccionar responsable...</option>';
+        evalSel.value = '';
+    }
+}
+window.limpiarEstadoModalPrealta = limpiarEstadoModalPrealta;
+
+// -----------------------------------------------------------------------
+// Poblado dinámico de Responsables de Seguimiento para Pre-alta (Excluye al docente de la clase)
+// -----------------------------------------------------------------------
+export async function poblarEvaluadoresPrealta(profesorExcluidoId = '', evaluadorSeleccionadoId = '') {
+    const sel = document.getElementById('prealta-responsable-seguimiento');
+    if (!sel) return;
+
+    try {
+        const uSnap = await getDocs(collection(db, "usuarios_sistema"));
+        const evaluadores = [];
+        uSnap.forEach(d => {
+            const u = { id: d.id, ...d.data() };
+            if (u.activo === false) return;
+            const rolesArr = Array.isArray(u.roles) ? u.roles : [u.rol || ''];
+            if (!rolesArr.includes('evaluador')) return;
+            evaluadores.push(u);
+        });
+
+        let profeNombre = '';
+        if (profesorExcluidoId) {
+            const optProfe = document.querySelector(`#prealta-profe-select option[value="${profesorExcluidoId}"]`);
+            if (optProfe) {
+                profeNombre = (optProfe.dataset.nombre || optProfe.textContent.split('(')[0]).trim().toLowerCase();
+            }
+        }
+
+        const norm = (str) => (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+        const filtrados = evaluadores.filter(ev => {
+            if (profesorExcluidoId) {
+                if (ev.profesor_id && ev.profesor_id === profesorExcluidoId) return false;
+                if (ev.id === profesorExcluidoId) return false;
+                if (profeNombre && norm(ev.nombre) === norm(profeNombre)) return false;
+            }
+            return true;
+        });
+
+        const valorPrevio = sel.value || evaluadorSeleccionadoId || '';
+        sel.innerHTML = '<option value="">Seleccionar responsable...</option>' + filtrados.map(ev => {
+            const esSel = (valorPrevio && (ev.id === valorPrevio || ev.email === valorPrevio || ev.nombre === valorPrevio)) ? 'selected' : '';
+            return `<option value="${ev.id}" data-nombre="${ev.nombre || ''}" data-email="${ev.email || ''}" ${esSel}>${ev.nombre || ev.email}</option>`;
+        }).join('');
+
+        if (valorPrevio && !sel.value) {
+            const matchOpt = Array.from(sel.options).find(o => o.value === valorPrevio || o.dataset.nombre === valorPrevio);
+            if (matchOpt) sel.value = matchOpt.value;
+        }
+    } catch(e) {
+        console.warn("Error al poblar evaluadores para pre-alta:", e);
+    }
+}
+window.poblarEvaluadoresPrealta = poblarEvaluadoresPrealta;
+
+// -----------------------------------------------------------------------
 // Abrir Modal Pre-alta Individual / Edicion / Modificar Alta
 // -----------------------------------------------------------------------
 export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg5 = {}) {
+    limpiarEstadoModalPrealta();
+    const currentSeq = window._modalPrealtaSeq;
+
     const dSnap = await getDoc(doc(db, "alumnos", id));
     if (!dSnap.exists()) return alert("Alumno no encontrado.");
+    if (currentSeq !== window._modalPrealtaSeq) return;
     const al = { id: dSnap.id, ...dSnap.data() };
 
     let esEdicionParam = false;
@@ -870,6 +1002,7 @@ export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg
     let timerDebounceFechaPrealta = null;
 
     const dispararCambioFechaPrealta = async () => {
+        if (currentSeq !== window._modalPrealtaSeq) return;
         const grpAct = (document.getElementById('prealta-grupo')?.value || '').toUpperCase();
         const esGrupalAct = (sol && (sol.tipoGrupo === 'Clase Grupal' || sol.tipoGrupo === 'Grupal'))
             || grpAct.includes('INICIAL')
@@ -936,9 +1069,11 @@ export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg
         };
     }
     if (selectProfe) {
-        selectProfe.onchange = () => {
+        selectProfe.onchange = async () => {
             if (!esMatchSolicitud) autoCompletarNombreGrupoPrealta();
             actualizarVisibilidadCamposPrealta(tipoSusc);
+            const evalActual = document.getElementById('prealta-responsable-seguimiento')?.value || '';
+            await poblarEvaluadoresPrealta(selectProfe.value, evalActual);
             if (!esMatchSolicitud) {
                 renderizarAdvertenciasMatchPrealta([al], inputFechaIni?.value || '', obtenerDuracionPrealtaMinutos(), configApp);
             }
@@ -990,6 +1125,10 @@ export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg
     if (fVal && selectProfe?.value) {
         verificarPrealtaEnCalendar([al], configApp);
     }
+
+    // Poblado dinámico de evaluadores para seguimiento excluyendo al profesor asignado
+    const evalIdPrevio = al.seguimiento?.responsable_id || al.seguimiento_responsable_id || '';
+    await poblarEvaluadoresPrealta(selectProfe?.value || profeActualId, evalIdPrevio);
 
     document.getElementById('modal-iniciar-prealta')?.showModal();
 }
@@ -1321,6 +1460,8 @@ export function renderizarSugerenciasFechasGrupal(alumnosList, semanaOffset = 1,
 // -----------------------------------------------------------------------
 export async function abrirModalPrealtaGrupal(ids, grupoNom = '', cfg = defaultCfg, esPropuesta = false) {
     if (!ids || ids.length === 0) return alert("No hay alumnos seleccionados.");
+    limpiarEstadoModalPrealta();
+    const currentGrupalSeq = window._modalPrealtaSeq;
 
     // Normalizar argumentos de forma defensiva
     let realCfg = cfg;
@@ -1428,6 +1569,7 @@ export async function abrirModalPrealtaGrupal(ids, grupoNom = '', cfg = defaultC
     let timerDebounceFechaGrupal = null;
 
     const dispararCambioFechaGrupal = async () => {
+        if (currentGrupalSeq !== window._modalPrealtaSeq) return;
         if (inputFechaIni.value) {
             actualizarVisibilidadCamposPrealta(tipoSuscGrupal);
             await refrescarProfesoresPrealta(tipoSuscGrupal, '', selectProfe.value);
@@ -1465,9 +1607,11 @@ export async function abrirModalPrealtaGrupal(ids, grupoNom = '', cfg = defaultC
         };
     }
     if (selectProfe) {
-        selectProfe.onchange = () => {
+        selectProfe.onchange = async () => {
             autoCompletarNombreGrupoPrealta();
             actualizarVisibilidadCamposPrealta(tipoSuscGrupal);
+            const evalActual = document.getElementById('prealta-responsable-seguimiento')?.value || '';
+            await poblarEvaluadoresPrealta(selectProfe.value, evalActual);
             renderizarAdvertenciasMatchPrealta(alumnosList, inputFechaIni?.value || '', obtenerDuracionPrealtaMinutos(), realCfg);
             verificarPrealtaEnCalendar(alumnosList, realCfg);
         };
@@ -1505,6 +1649,10 @@ export async function abrirModalPrealtaGrupal(ids, grupoNom = '', cfg = defaultC
         verificarPrealtaEnCalendar(alumnosList, realCfg);
     }
 
+    // Poblado dinámico de evaluadores para seguimiento excluyendo al profesor asignado
+    const evalIdPrevio = primerAl.seguimiento?.responsable_id || primerAl.seguimiento_responsable_id || '';
+    await poblarEvaluadoresPrealta(selectProfe?.value || profeActualId, evalIdPrevio);
+
     document.getElementById('modal-iniciar-prealta')?.showModal();
 }
 
@@ -1532,6 +1680,11 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
         const profeId = selProfe ? selProfe.value : '';
         const profeNombre = (selProfe && selProfe.selectedOptions[0]) ? (selProfe.selectedOptions[0].dataset.nombre || selProfe.selectedOptions[0].textContent.split('(')[0].trim()) : '';
         const profeCalId = (selProfe && selProfe.selectedOptions[0]) ? (selProfe.selectedOptions[0].dataset.calId || '') : '';
+
+        const selSeg = document.getElementById('prealta-responsable-seguimiento');
+        const segId = selSeg ? selSeg.value : '';
+        const segNombre = (selSeg && selSeg.selectedOptions[0]) ? (selSeg.selectedOptions[0].dataset.nombre || selSeg.selectedOptions[0].textContent.split('(')[0].trim()) : '';
+        const segEmail = (selSeg && selSeg.selectedOptions[0]) ? (selSeg.selectedOptions[0].dataset.email || '') : '';
 
         if (ids.length === 0) {
             if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
@@ -1563,6 +1716,13 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
         if (!esIndividual && !grp) {
             if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
             return alert("Por favor ingresa el nombre del grupo.");
+        }
+
+        const esPropuestaCheck = document.getElementById('prealta-es-propuesta')?.value === 'true' || Boolean(callbacks?.esPropuesta);
+        const esAltaPreviaCheck = ['Alta Efectiva', 'Alta Ilegal', 'Alta Finalizada'].includes(primerAl.estado_agenda);
+        if (!esPropuestaCheck && !esAltaPreviaCheck && !segId && !primerAl.seguimiento_responsable_id) {
+            if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
+            return alert("Por favor selecciona el Responsable de Seguimiento para el alumno.");
         }
 
         const durMin = obtenerDuracionPrealtaMinutos();
@@ -1912,6 +2072,17 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
             horario_match: `${mapaDiasCodigos[diaCodigo] || diaCodigo} ${horaInicioStr} a ${horaFinStr} hs`
         };
 
+        if (segId) {
+            updates.seguimiento_responsable_id = segId;
+            updates.seguimiento_responsable_nombre = segNombre;
+            updates.seguimiento_responsable_email = segEmail;
+            if (al.seguimiento) {
+                updates['seguimiento.responsable_id'] = segId;
+                updates['seguimiento.responsable_nombre'] = segNombre;
+                updates['seguimiento.responsable_email'] = segEmail;
+            }
+        }
+
         if (esPropuesta) {
             updates.estado_validacion_alumno = "pendiente";
         }
@@ -1998,6 +2169,7 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
         }
     }
     
+    limpiarEstadoModalPrealta();
     document.getElementById('modal-iniciar-prealta')?.close();
 
     // Recargar vista reactivamente con los datos actualizados
@@ -2644,14 +2816,16 @@ export async function aprobarTodoGrupoAction(grupoNombre, vista, callbacks = {})
         const cfg = callbacks.configApp || defaultCfg;
         await sincronizarEventoAltaConfirmadaCalendar(primerAl, false, miembrosActualizados, cfg, { esRecurrente: true });
 
+        if (typeof callbacks.cargarVista === 'function') await callbacks.cargarVista(vista);
+        if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
+
         if (typeof window.mostrarToast === 'function') {
             window.mostrarToast(`✅ Grupo "${grupoNombre}" aprobado al 100%. Evento en Google Calendar actualizado.`, 'success');
         } else {
             alert(`✅ Grupo "${grupoNombre}" aprobado al 100%.\nEvento en Google Calendar actualizado.`);
         }
-
-        if (typeof callbacks.cargarVista === 'function') await callbacks.cargarVista(vista);
     } catch(e) {
+        if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
         console.error("Error al aprobar grupo:", e);
         if (typeof window.mostrarToast === 'function') {
             window.mostrarToast("Error al aprobar grupo: " + e.message, 'error');
@@ -2724,13 +2898,16 @@ export async function confirmarInicioGrupoAction(grupoNombre, vista, callbacks =
         // Actualizar evento en Calendar
         await sincronizarEventoAltaConfirmadaCalendar(primerAl, false, miembros, cfg, { esRecurrente: true });
 
+        if (typeof callbacks.cargarVista === 'function') await callbacks.cargarVista(vista);
+        if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
+
         if (typeof window.mostrarToast === 'function') {
             window.mostrarToast(`🚀 ¡Grupo "${grupoNombre}" iniciado con éxito! Evento actualizado en Google Calendar.`, 'success');
         } else {
             alert(`🚀 ¡Grupo "${grupoNombre}" iniciado con éxito!\nEvento actualizado en Google Calendar.`);
         }
-        if (typeof callbacks.cargarVista === 'function') await callbacks.cargarVista(vista);
     } catch(e) {
+        if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
         if (typeof window.mostrarToast === 'function') {
             window.mostrarToast("Error al confirmar inicio de grupo: " + e.message, 'error');
         } else {
@@ -2829,13 +3006,16 @@ export async function confirmarAlumnoAltaAction(alumnoId, alumnoNombre, grupoNom
             opcionesAlta
         );
 
+        if (typeof callbacks.cargarVista === 'function') await callbacks.cargarVista(vista);
+        if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
+
         if (typeof window.mostrarToast === 'function') {
             window.mostrarToast(`✅ Alta confirmada para ${alumnoNombre}. Evento en Google Calendar actualizado.`, 'success');
         } else {
             alert(`✅ Alta confirmada para ${alumnoNombre}. Evento en Google Calendar actualizado.`);
         }
-        if (typeof callbacks.cargarVista === 'function') await callbacks.cargarVista(vista);
     } catch(e) {
+        if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
         if (typeof window.mostrarToast === 'function') {
             window.mostrarToast("Error al confirmar alumno: " + e.message, 'error');
         } else {
@@ -2851,6 +3031,9 @@ export async function confirmarAlumnoAltaAction(alumnoId, alumnoNombre, grupoNom
 // -----------------------------------------------------------------------
 export function generarChecklistAltaHtml(id, al) {
     if (!id || !al) return '';
+    if (esAlumnoAltaFinalizada(al)) return '';
+    const stAgenda = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    if (stAgenda === 'alta finalizada') return '';
     let rawChecks = al.checklist_alta || [false, false, false, false];
     let checks = rawChecks.length === 5 ? rawChecks.slice(1) : (rawChecks.length === 4 ? rawChecks : [false, false, false, false]);
     const pasostitulos = [
@@ -2885,6 +3068,37 @@ export function generarChecklistAltaHtml(id, al) {
             </div>
         </div>
     `;
+}
+
+export function getSeguimientoBadgeStatus(al) {
+    if (!al) return '';
+    normalizarAlumnoSeguimiento(al);
+    const seg = al.seguimiento || {};
+    if (seg.activo === true) {
+        const prox = seg.fecha_proximo_seguimiento;
+        if (prox) {
+            const parts = prox.split('-');
+            const dSeg = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 20, 0, 0);
+            const diffHs = (dSeg - new Date()) / (1000 * 60 * 60);
+            const pTxt = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : prox;
+            if (diffHs < 0) {
+                const diasVenc = Math.abs(Math.round(diffHs / 24));
+                return `<span class="pill-urgencia pill-vencida" style="font-size:11px; padding:2px 8px; border-radius:12px; font-weight:700;">🔴 Seguimiento vencido (${diasVenc >= 1 ? diasVenc + 'd' : Math.abs(Math.round(diffHs)) + 'hs'} - Venció: ${pTxt})</span>`;
+            }
+            return `<span class="group-member-status-chip status-val-ok" style="background:#dcfce7; color:#166534; font-weight:700; font-size:11px; padding:2px 8px; border-radius:12px;">🟢 Seguimiento en curso (Próx: ${pTxt})</span>`;
+        }
+        return `<span class="group-member-status-chip status-val-ok" style="background:#dcfce7; color:#166534; font-weight:700; font-size:11px; padding:2px 8px; border-radius:12px;">🟢 Seguimiento en curso</span>`;
+    } else if (seg.activo === false && seg.fecha_finalizacion) {
+        let fFinTxt = '';
+        if (seg.fecha_finalizacion) {
+            const fObj = new Date(seg.fecha_finalizacion);
+            if (!isNaN(fObj.getTime())) {
+                fFinTxt = ` (${String(fObj.getDate()).padStart(2,'0')}/${String(fObj.getMonth()+1).padStart(2,'0')}/${fObj.getFullYear()})`;
+            }
+        }
+        return `<span class="badge-tag" style="background:#dbeafe; color:#1e40af; font-weight:700; font-size:11px; padding:2px 8px; border-radius:12px;">🔵 Seguimiento finalizado${fFinTxt}</span>`;
+    }
+    return `<span class="badge-tag" style="background:#fef3c7; color:#92400e; font-weight:700; font-size:11px; padding:2px 8px; border-radius:12px;">🟡 Seguimiento pendiente</span>`;
 }
 
 function construirAccionesFilaAlta(al, id, vista, isConfirmed, nombreGrupo, callbacks = {}) {
@@ -2929,6 +3143,10 @@ function construirAccionesFilaAlta(al, id, vista, isConfirmed, nombreGrupo, call
     } else if (vista === 'Altas - Finalizadas') {
         botonesVisibles = `
             <button type="button" class="row-quick-btn secondary btn-aviso-alta-alumno" data-id="${id}" title="Copiar mensaje de confirmación y bienvenida para el alumno">💬 Avisar a Alumno</button>
+            <div style="display:flex; flex-direction:column; gap:4px;">
+                <button type="button" class="row-quick-btn secondary btn-seg-ver-informe" data-id="${id}" onclick="event.stopPropagation(); window.abrirFichaAlumnoEnTab('${id}', 'tab-informe');" title="Ver informe de admisión" style="font-size:11px; padding:3px 8px; width:100%; white-space:nowrap;">📄 Ver Informe</button>
+                <button type="button" class="row-quick-btn secondary btn-seg-ver-seguimiento" data-id="${id}" onclick="event.stopPropagation(); window.abrirFichaAlumnoEnTab('${id}', 'tab-seguimiento');" title="Ver seguimiento del alumno" style="font-size:11px; padding:3px 8px; width:100%; white-space:nowrap;">🎧 Ver Seguimiento</button>
+            </div>
         `;
     }
 
@@ -2959,7 +3177,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
             container.innerHTML = `
                 <div style="text-align:center; padding:50px 20px; background:white; border-radius:14px; border:1px solid var(--border-color); color:var(--text-muted); width:100%;">
                     <div style="font-size:2.5em; margin-bottom:10px;">📋</div>
-                    <div style="font-size:16px; font-weight:700; color:var(--text-main); margin-bottom:6px;">No hay registros en ${vista}</div>
+                    <div style="font-size:16px; font-weight:700; color:var(--text-main); margin-bottom:6px;">No hay registros</div>
                     <div style="font-size:13px; max-width:450px; margin:0 auto;">Cuando haya alumnos en esta etapa se mostrarán agrupados aquí.</div>
                 </div>
             `;
@@ -2968,7 +3186,187 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
 
         const qSnapAll = await getDocs(collection(db, "alumnos"));
         const todosAlumnos = [];
-        qSnapAll.forEach(d => todosAlumnos.push({ id: d.id, ...d.data() }));
+        qSnapAll.forEach(d => todosAlumnos.push(normalizarAlumnoSeguimiento({ id: d.id, ...d.data() })));
+
+        if (vista.startsWith('Seguimientos') || vista === 'Altas - Seguimientos') {
+            const u = window.usuarioActual || {};
+            const esEval = typeof window.esModoEvaluadorActivo === 'function' ? window.esModoEvaluadorActivo() : false;
+
+            // Agrupar alumnos en seguimiento por Responsable de Seguimiento
+            const segMap = {};
+            dataFiltrada.forEach(al => {
+                normalizarAlumnoSeguimiento(al);
+                const respNom = al.seguimiento?.responsable_nombre || al.seguimiento_responsable_nombre || 'Sin Responsable Asignado';
+                if (!segMap[respNom]) segMap[respNom] = [];
+                segMap[respNom].push(al);
+            });
+
+            let segHtml = '';
+
+            for (const [evalNom, alumnosSeg] of Object.entries(segMap)) {
+                alumnosSeg.sort((a, b) => {
+                    const getFechaLim = (x) => {
+                        if (x.seguimiento?.fecha_proximo_seguimiento) {
+                            return new Date(x.seguimiento.fecha_proximo_seguimiento).getTime();
+                        }
+                        return Infinity;
+                    };
+                    return getFechaLim(a) - getFechaLim(b);
+                });
+
+                const filasHtml = alumnosSeg.map(al => {
+                    const instAsignado = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento[0] : (al.instrumento || 'Piano'));
+                    const emojiInst = getEmojiInstrumento(instAsignado, callbacks.configApp || defaultCfg);
+                    const profeNom = al.reserva_profe_nombre || al.profesor_asignado || 'Docente';
+                    const grupoNom = al.grupo_asignado || 'Clase Individual';
+
+                    // Fecha de inicio individual
+                    const fIniIndiv = al.fecha_inicio_clases || al.fecha_sugerida_inicio || '';
+                    let fIniTxt = '-';
+                    if (fIniIndiv) {
+                        const dObj = new Date(fIniIndiv);
+                        if (!isNaN(dObj.getTime())) {
+                            fIniTxt = `${String(dObj.getDate()).padStart(2, '0')}/${String(dObj.getMonth() + 1).padStart(2, '0')}/${dObj.getFullYear()}`;
+                        }
+                    }
+
+                    // Urgencia / Estado del badge según la sub-vista de seguimiento
+                    let badgeUrg = '';
+                    if (vista === 'Seguimientos - Pendientes') {
+                        badgeUrg = `<span class="badge-tag" style="background:#fef3c7; color:#92400e; font-weight:700; font-size:11px; padding:2px 8px; border-radius:12px;">🟡 Pendiente de Inicio</span>`;
+                    } else if (vista === 'Seguimientos - Finalizados') {
+                        let fFinTxt = '';
+                        if (al.seguimiento?.fecha_finalizacion) {
+                            const fObj = new Date(al.seguimiento.fecha_finalizacion);
+                            if (!isNaN(fObj.getTime())) {
+                                fFinTxt = ` (${String(fObj.getDate()).padStart(2,'0')}/${String(fObj.getMonth()+1).padStart(2,'0')}/${fObj.getFullYear()})`;
+                            }
+                        }
+                        badgeUrg = `<span class="badge-tag" style="background:#dbeafe; color:#1e40af; font-weight:700; font-size:11px; padding:2px 8px; border-radius:12px;">🔵 Finalizado${fFinTxt}</span>`;
+                    } else {
+                        // En Curso (o por defecto)
+                        const proxSegStr = al.seguimiento?.fecha_proximo_seguimiento;
+                        if (proxSegStr) {
+                            const parts = proxSegStr.split('-');
+                            if (parts.length === 3) {
+                                const dSeg = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 20, 0, 0);
+                                const diffHs = (dSeg - new Date()) / (1000 * 60 * 60);
+                                const pTxt = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                                if (diffHs < 0) {
+                                    const diasVenc = Math.abs(Math.round(diffHs / 24));
+                                    badgeUrg = `<span class="pill-urgencia pill-vencida">🔴 Vencido (${diasVenc >= 1 ? diasVenc + 'd' : Math.abs(Math.round(diffHs)) + 'hs'})</span>`;
+                                } else if (diffHs <= 24) {
+                                    badgeUrg = `<span class="pill-urgencia pill-urgente-24">🟠 < 24 hs</span>`;
+                                } else if (diffHs <= 48) {
+                                    badgeUrg = `<span class="pill-urgencia pill-urgente-48">🟡 24 a 48 hs</span>`;
+                                } else {
+                                    badgeUrg = `<span class="group-member-status-chip status-val-ok">🟢 Próx: ${pTxt}</span>`;
+                                }
+                            }
+                        } else {
+                            badgeUrg = `<span class="group-member-status-chip status-val-ok">🟢 En Curso</span>`;
+                        }
+                    }
+
+                    const cantCtto = Array.isArray(al.seguimiento?.historial) ? al.seguimiento.historial.length : 0;
+                    const fnAccion = callbacks.generarBotonesAccion || window.generarBotonesAccion;
+                    const botonesSecundarios = typeof fnAccion === 'function' ? fnAccion(al, al.id, false, vista) : '';
+
+                    // Checkbox bulk solo en Pendientes
+                    const chkBulkSeg = (vista === 'Seguimientos - Pendientes')
+                        ? `<input type="checkbox" class="bulk-chk" data-id="${al.id}" onclick="event.stopPropagation(); window.toggleBulkSelection('${al.id}', this.checked)" style="margin-right:10px; cursor:pointer; width:17px; height:17px; accent-color:var(--accent-teal); flex-shrink:0;">`
+                        : '';
+
+                    // Botones de acción principales según la sub-vista
+                    let botonesPrincipalesHtml = '';
+                    if (vista === 'Seguimientos - Pendientes') {
+                        botonesPrincipalesHtml = `
+                            <button type="button" class="row-quick-btn primary btn-iniciar-seg-indiv" data-id="${al.id}" onclick="event.stopPropagation(); window.confirmarSeguimientoMasivo ? window.confirmarSeguimientoMasivo(['${al.id}']) : null;" style="font-size:11.5px; padding:3px 10px;">🎧 Iniciar Seguimiento</button>
+                        `;
+                    } else if (vista === 'Seguimientos - Finalizados') {
+                        botonesPrincipalesHtml = `
+                            <button type="button" class="row-quick-btn primary btn-seg-reiniciar" data-id="${al.id}" onclick="event.stopPropagation(); typeof window.abrirModalNuevoSeguimiento === 'function' ? window.abrirModalNuevoSeguimiento('${al.id}') : null;" style="font-size:11.5px; padding:3px 10px;" title="Comenzar un nuevo ciclo de seguimiento">🔄 Comenzar nuevo seguimiento</button>
+                        `;
+                    } else {
+                        // En Curso (default)
+                        botonesPrincipalesHtml = `
+                            <button type="button" class="row-quick-btn primary btn-seg-contactar" data-id="${al.id}" onclick="event.stopPropagation(); window.abrirModalRegistrarSeguimiento('${al.id}');" style="font-size:11.5px; padding:3px 10px;">📞 Registrar Contacto</button>
+                            <button type="button" class="row-quick-btn secondary btn-seg-finalizar" data-id="${al.id}" onclick="event.stopPropagation(); window.abrirModalFinalizarSeguimiento('${al.id}');" style="font-size:11.5px; padding:3px 10px;">🏁 Finalizar Seguimiento</button>
+                        `;
+                    }
+
+                    return `
+                        <div class="group-member-row" style="padding:12px 14px; align-items:center; justify-content:space-between; gap:12px; border-bottom:1px solid var(--border-color);">
+                            <div style="display:flex; align-items:center; flex:1; gap:6px;">
+                                ${chkBulkSeg}
+                                <div class="group-member-info" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:4px; flex:1; cursor:pointer;" title="Ver y editar ficha de ${al.nombre}" onclick="window.editarAlumnoModalDirecto('${al.id}')">
+                                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; text-align:left;">
+                                        <span class="group-member-name" style="font-size:14px; font-weight:700; color:var(--text-main);">👤 ${al.nombre}</span>
+                                        ${badgeUrg}
+                                        <span class="badge-tag" style="background:#f1f5f9; color:#475569; font-size:10.5px; padding:2px 7px; border-radius:6px;">${cantCtto} contacto(s)</span>
+                                    </div>
+                                    <div class="group-member-details" style="font-size:12px; color:var(--text-muted); display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                        ${al.edad ? `<span>${al.edad} años</span> • ` : ''}
+                                        ${al.nivel ? `<span class="match-student-tag nivel" style="font-size:10px; padding:2px 7px;">${al.nivel}</span> • ` : ''}
+                                        <strong style="color:var(--accent-teal); font-weight:600;">${emojiInst} ${instAsignado}</strong> • 
+                                        <span style="color:var(--accent-purple); font-weight:600;">🧩 ${al.tipo_suscripcion || 'Ensamble'}</span> • 
+                                        <span>👨‍🏫 ${profeNom} (${grupoNom})</span> • 
+                                        <span style="color:#0f766e; font-weight:700; background:#f0fdfa; border:1px solid #ccfbf1; padding:1px 6px; border-radius:4px;">📅 Inicio: ${fIniTxt}</span>
+                                        ${al.celular ? ` • <span>📱 ${al.celular}</span>` : ''}
+                                    </div>
+                                    <div style="display:flex; gap:8px; align-items:center; margin-top:4px; flex-wrap:wrap;" onclick="event.stopPropagation();">
+                                        ${botonesPrincipalesHtml}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="group-member-actions" style="display:flex; gap:6px; align-items:center; flex-shrink:0;">
+                                <div style="display:flex; flex-direction:column; gap:4px;">
+                                    <button type="button" class="row-quick-btn secondary btn-seg-ver-informe" data-id="${al.id}" onclick="event.stopPropagation(); window.abrirFichaAlumnoEnTab('${al.id}', 'tab-informe');" title="Ver informe de admisión" style="font-size:11px; padding:3px 8px; width:100%; white-space:nowrap;">📄 Ver Informe</button>
+                                    <button type="button" class="row-quick-btn secondary btn-seg-ver-seguimiento" data-id="${al.id}" onclick="event.stopPropagation(); window.abrirFichaAlumnoEnTab('${al.id}', 'tab-seguimiento');" title="Ver seguimiento del alumno" style="font-size:11px; padding:3px 8px; width:100%; white-space:nowrap;">🎧 Ver Seguimiento</button>
+                                </div>
+                                ${botonesSecundarios ? `
+                                    <div class="alumno-actions row-actions-container" style="position:relative;">
+                                        <button type="button" class="btn-row-action" title="Más opciones">⋮</button>
+                                        <div class="dropdown-menu-wrapper">
+                                            <div class="dropdown-menu">${botonesSecundarios}</div>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                const headerTitulo = esEval ? `🎧 Mis Alumnos en Seguimiento` : `🎯 Responsable: ${evalNom}`;
+
+                segHtml += `
+                    <div class="group-box-card" style="width:100%; margin-bottom:16px;">
+                        <div class="group-box-header" style="background:#f8fafc; border-bottom:1px solid var(--border-color); padding:12px 16px; display:flex; justify-content:space-between; align-items:center;">
+                            <div class="group-box-title" style="font-size:14px; font-weight:700; color:var(--text-main); display:flex; align-items:center; gap:8px;">
+                                <span>${headerTitulo}</span>
+                                <span class="badge-tag" style="background:#ccfbf1; color:#0f766e; font-weight:700; font-size:11px; padding:2px 8px; border-radius:12px;">${alumnosSeg.length} alumno(s)</span>
+                            </div>
+                        </div>
+                        <div class="group-box-members">
+                            ${filasHtml}
+                        </div>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = segHtml;
+
+            container.querySelectorAll('.btn-iniciar-seg-indiv').forEach(btn => {
+                btn.onclick = () => {
+                    const id = btn.dataset.id;
+                    if (id && typeof window.abrirModalSeguimientoMasivo === 'function') {
+                        window.abrirModalSeguimientoMasivo([id]);
+                    }
+                };
+            });
+
+            return;
+        }
 
         const esGrupoFn = (al) => {
             const grp = (al.grupo_asignado || '').replace(/\s*\([⌛⏳].*?pend\)/gi, '').trim();
@@ -3060,6 +3458,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                 `;
             } else if (vista === 'Altas - Finalizadas') {
                 statusChipsHtml = `<span class="group-member-status-chip status-val-ok">🏆 ${miembrosRenderizar.length} Finalizado(s)</span>`;
+                headerActionsHtml = '';
             } else {
                 statusChipsHtml = `<span class="group-member-status-chip status-val-ok">✅ ${miembrosRenderizar.length} Alumnos</span>`;
             }
@@ -3078,29 +3477,44 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                         ? `<span class="group-member-status-chip status-val-ok">✅ Alta Confirmada</span>`
                         : `<span class="group-member-status-chip status-val-pending">⏳ Pendiente de Pago</span>`;
                 } else if (vista === 'Altas - Finalizadas') {
-                    badgeEstado = `<span class="group-member-status-chip status-val-ok">🏆 Alta Finalizada</span>`;
+                    badgeEstado = `<span class="group-member-status-chip status-val-ok">🏆 Alta Finalizada</span> ${getSeguimientoBadgeStatus(al)}`;
                 } else {
                     badgeEstado = `<span class="group-member-status-chip status-val-ok">✅ Alta Confirmada</span>`;
                 }
 
                 const botonesRow = construirAccionesFilaAlta(al, al.id, vista, isConfirmed, nombreGrupo, callbacks);
-                const checklistRowHtml = (vista !== 'Altas - Pendientes') ? generarChecklistAltaHtml(al.id, al) : '';
+                const checklistRowHtml = (vista !== 'Altas - Pendientes' && vista !== 'Altas - Finalizadas' && !vista.startsWith('Seguimientos') && vista !== 'Altas - Seguimientos' && !esAlumnoAltaFinalizada(al)) ? generarChecklistAltaHtml(al.id, al) : '';
+
+                const fIniIndiv = al.fecha_inicio_clases || al.fecha_sugerida_inicio || '';
+                let fIniHtml = '';
+                if (fIniIndiv) {
+                    const dObj = new Date(fIniIndiv);
+                    if (!isNaN(dObj.getTime())) {
+                        const dd = String(dObj.getDate()).padStart(2, '0');
+                        const mm = String(dObj.getMonth() + 1).padStart(2, '0');
+                        const yy = dObj.getFullYear();
+                        fIniHtml = ` • <span style="color:#0f766e; font-weight:700; background:#f0fdfa; border:1px solid #ccfbf1; padding:1px 6px; border-radius:4px;" title="Fecha de inicio individual de clases para este alumno">📅 Inicio: ${dd}/${mm}/${yy}</span>`;
+                    }
+                }
 
                 return `
                     <div class="group-member-row" style="padding:12px 14px; align-items:center; justify-content:space-between; gap:12px;">
-                        <div class="group-member-info" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:3px; cursor:pointer; flex:1;" onclick="window.editarAlumnoModalDirecto('${al.id}')" title="Ver ficha de ${al.nombre}">
-                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; text-align:left;">
-                                <span class="group-member-name" style="font-size:14px; font-weight:700; color:var(--text-main);">👤 ${al.nombre}</span>
-                                ${badgeEstado}
+                        <div style="display:flex; align-items:center; flex:1; gap:6px;">
+                            <div class="group-member-info" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:3px; cursor:pointer; flex:1;" onclick="window.editarAlumnoModalDirecto('${al.id}')" title="Ver ficha de ${al.nombre}">
+                                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; text-align:left;">
+                                    <span class="group-member-name" style="font-size:14px; font-weight:700; color:var(--text-main);">👤 ${al.nombre}</span>
+                                    ${badgeEstado}
+                                </div>
+                                <div class="group-member-details" style="font-size:12px; color:var(--text-muted); display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                    ${al.edad ? `<span>${al.edad} años</span> • ` : ''}
+                                    ${al.nivel ? `<span class="match-student-tag nivel" style="font-size:10px; padding:2px 7px;">${al.nivel}</span> • ` : ''}
+                                    <strong style="color:var(--accent-teal); font-weight:600;">${emojiInst} ${instAsignado}</strong> • 
+                                    <strong style="color:var(--accent-purple); font-weight:600; font-size:12px;">🧩 ${al.tipo_suscripcion || 'Ensamble'}</strong>
+                                    ${fIniHtml}
+                                    ${al.celular ? ` • <span>📱 ${al.celular}</span>` : ''}
+                                </div>
+                                ${checklistRowHtml}
                             </div>
-                            <div class="group-member-details" style="font-size:12px; color:var(--text-muted); display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                                ${al.edad ? `<span>${al.edad} años</span> • ` : ''}
-                                ${al.nivel ? `<span class="match-student-tag nivel" style="font-size:10px; padding:2px 7px;">${al.nivel}</span> • ` : ''}
-                                <strong style="color:var(--accent-teal); font-weight:600;">${emojiInst} ${instAsignado}</strong> • 
-                                <strong style="color:var(--accent-purple); font-weight:600; font-size:12px;">🧩 ${al.tipo_suscripcion || 'Ensamble'}</strong>
-                                ${al.celular ? ` • <span>📱 ${al.celular}</span>` : ''}
-                            </div>
-                            ${checklistRowHtml}
                         </div>
                         <div class="group-member-actions" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; flex-shrink:0;">
                             ${botonesRow}
@@ -3162,31 +3576,33 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                         ? `<span class="group-member-status-chip status-val-ok">✅ Alta Confirmada</span>`
                         : `<span class="group-member-status-chip status-val-pending">⏳ Pendiente de Pago</span>`;
                 } else if (vista === 'Altas - Finalizadas') {
-                    badgeEstadoInd = `<span class="group-member-status-chip status-val-ok">🏆 Alta Finalizada</span>`;
+                    badgeEstadoInd = `<span class="group-member-status-chip status-val-ok">🏆 Alta Finalizada</span> ${getSeguimientoBadgeStatus(al)}`;
                 } else {
                     badgeEstadoInd = `<span class="group-member-status-chip status-val-ok">✅ Alta Confirmada</span>`;
                 }
 
                 const botonesIndiv = construirAccionesFilaAlta(al, al.id, vista, isConfirmed, 'Clase Individual', callbacks);
-                const checklistIndivHtml = (vista !== 'Altas - Pendientes') ? generarChecklistAltaHtml(al.id, al) : '';
+                const checklistIndivHtml = (vista !== 'Altas - Pendientes' && vista !== 'Altas - Finalizadas' && !vista.startsWith('Seguimientos') && vista !== 'Altas - Seguimientos' && !esAlumnoAltaFinalizada(al)) ? generarChecklistAltaHtml(al.id, al) : '';
 
                 html += `
                     <div class="group-box-card" style="width:100%; margin-bottom:12px; border-left:4px solid var(--accent-teal);">
                         <div class="group-member-row" style="padding:12px 14px; align-items:center; justify-content:space-between; gap:12px;">
-                            <div class="group-member-info" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:3px; cursor:pointer; flex:1;" onclick="window.editarAlumnoModalDirecto('${al.id}')" title="Ver ficha de ${al.nombre}">
-                                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; text-align:left;">
-                                    <span class="group-member-name" style="font-size:14px; font-weight:700; color:var(--text-main);">👤 ${al.nombre}</span>
-                                    ${badgeEstadoInd}
-                                    <span class="match-student-tag" style="font-size:10px; padding:2px 7px;">🎹 ${al.tipo_suscripcion || 'Clase Individual'}</span>
+                            <div style="display:flex; align-items:center; flex:1; gap:6px;">
+                                <div class="group-member-info" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:3px; cursor:pointer; flex:1;" onclick="window.editarAlumnoModalDirecto('${al.id}')" title="Ver ficha de ${al.nombre}">
+                                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; text-align:left;">
+                                        <span class="group-member-name" style="font-size:14px; font-weight:700; color:var(--text-main);">👤 ${al.nombre}</span>
+                                        ${badgeEstadoInd}
+                                        <span class="match-student-tag" style="font-size:10px; padding:2px 7px;">🎹 ${al.tipo_suscripcion || 'Clase Individual'}</span>
+                                    </div>
+                                    <div class="group-member-details" style="font-size:12px; color:var(--text-muted); display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                        ${al.edad ? `<span>${al.edad} años</span> • ` : ''}
+                                        ${al.nivel ? `<span class="match-student-tag nivel" style="font-size:10px; padding:2px 7px;">${al.nivel}</span> • ` : ''}
+                                        <strong style="color:var(--accent-teal); font-weight:600;">${emojiInst} ${instAsignado}</strong> • 
+                                        <span>📅 ${horario} con <strong>${profeNom}</strong></span>
+                                        ${al.celular ? ` • <span>📱 ${al.celular}</span>` : ''}
+                                    </div>
+                                    ${checklistIndivHtml}
                                 </div>
-                                <div class="group-member-details" style="font-size:12px; color:var(--text-muted); display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                                    ${al.edad ? `<span>${al.edad} años</span> • ` : ''}
-                                    ${al.nivel ? `<span class="match-student-tag nivel" style="font-size:10px; padding:2px 7px;">${al.nivel}</span> • ` : ''}
-                                    <strong style="color:var(--accent-teal); font-weight:600;">${emojiInst} ${instAsignado}</strong> • 
-                                    <span>📅 ${horario} con <strong>${profeNom}</strong></span>
-                                    ${al.celular ? ` • <span>📱 ${al.celular}</span>` : ''}
-                                </div>
-                                ${checklistIndivHtml}
                             </div>
                             <div class="group-member-actions" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; flex-shrink:0;">
                                 ${botonesIndiv}
@@ -3199,7 +3615,17 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
 
         container.innerHTML = html;
 
-        // Registrar Event Listeners locales para acciones no delegadas globalmente
+
+
+        container.querySelectorAll('.btn-iniciar-seg-indiv').forEach(btn => {
+            btn.onclick = () => {
+                const id = btn.dataset.id;
+                if (id && typeof window.abrirModalSeguimientoMasivo === 'function') {
+                    window.abrirModalSeguimientoMasivo([id]);
+                }
+            };
+        });
+
         container.querySelectorAll('.btn-iniciar-prealta-grupo-card').forEach(btn => {
             btn.onclick = () => {
                 const ids = (btn.dataset.ids || '').split(',').filter(Boolean);
@@ -3241,12 +3667,14 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                         }
                     }
                     if (typeof callbacks.cargarVista === 'function') await callbacks.cargarVista(vista);
+                    if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
                     if (typeof window.mostrarToast === 'function') {
                         window.mostrarToast(`↩️ Grupo "${grupo}" devuelto a Lista de Espera.`, 'info');
                     } else {
                         alert(`↩️ Grupo "${grupo}" devuelto a Lista de Espera.`);
                     }
                 } catch(e) {
+                    if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
                     if (typeof window.mostrarToast === 'function') {
                         window.mostrarToast("Error al devolver grupo: " + e.message, 'error');
                     } else {
@@ -3288,22 +3716,50 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                         if (dSnap.exists()) {
                             const al = dSnap.data();
                             const hist = al.historial || [];
-                            hist.push(fnHist(`Alta Finalizada: Todos los pasos del checklist confirmados (Cierre grupal).`, 'alta'));
-                            await updateDoc(doc(db, "alumnos", id), {
+                            const updateData = {
                                 estado_agenda: "Alta Finalizada",
                                 checklist_alta: [true, true, true, true],
                                 fecha_alta_finalizada: ahoraIso,
                                 historial: hist
-                            });
+                            };
+
+                            const respId = al.seguimiento_responsable_id || al.seguimiento?.responsable_id || '';
+                            const respNom = al.seguimiento_responsable_nombre || al.seguimiento?.responsable_nombre || '';
+                            const respEmail = al.seguimiento_responsable_email || al.seguimiento?.responsable_email || '';
+
+                            if (respId) {
+                                const fProx = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+                                if (fProx.getDay() === 0) fProx.setDate(fProx.getDate() + 1);
+                                const fProxStr = `${fProx.getFullYear()}-${String(fProx.getMonth() + 1).padStart(2, '0')}-${String(fProx.getDate()).padStart(2, '0')}`;
+                                updateData.seguimiento = {
+                                    activo: true,
+                                    responsable_id: respId,
+                                    responsable_nombre: respNom,
+                                    responsable_email: respEmail,
+                                    fecha_alta_finalizada: ahoraIso,
+                                    fecha_proximo_seguimiento: fProxStr,
+                                    dias_sin_contacto: 0,
+                                    ultimo_contacto: null,
+                                    historial: al.seguimiento?.historial || [],
+                                    motivo_finalizacion: null,
+                                    fecha_finalizacion: null
+                                };
+                                updateData.seguimiento_responsable_id = respId;
+                                updateData.seguimiento_responsable_nombre = respNom;
+                            }
+
+                            await updateDoc(doc(db, "alumnos", id), updateData);
                         }
                     }
                     if (typeof callbacks.cargarVista === 'function') await callbacks.cargarVista(vista);
+                    if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
                     if (typeof window.mostrarToast === 'function') {
                         window.mostrarToast(`🏁 Grupo "${grupo}" finalizado con éxito.`, 'success');
                     } else {
                         alert(`🏁 Grupo "${grupo}" finalizado con éxito.`);
                     }
                 } catch(e) {
+                    if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
                     if (typeof window.mostrarToast === 'function') {
                         window.mostrarToast("Error al finalizar grupo: " + e.message, 'error');
                     } else {
@@ -3369,12 +3825,14 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                         await eliminarEventoAltaSeguro({ id, ...al }, callbacks.configApp || defaultCfg);
                     }
                     if (typeof callbacks.cargarVista === 'function') await callbacks.cargarVista(vista);
+                    if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
                     if (typeof window.mostrarToast === 'function') {
                         window.mostrarToast(`↩️ ${nom} devuelto a Lista de Espera.`, 'info');
                     } else {
                         alert(`↩️ ${nom} devuelto a Lista de Espera.`);
                     }
                 } catch(e) {
+                    if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
                     if (typeof window.mostrarToast === 'function') {
                         window.mostrarToast("Error al devolver a espera: " + e.message, 'error');
                     } else {
@@ -3842,3 +4300,4 @@ window.copiarAvisoAdmisorAlumno = copiarAvisoAdmisorAlumno;
 window.generarTextoAvisoCoordinadorPrealta = generarTextoAvisoCoordinadorPrealta;
 window.copiarAvisoCoordinadorGrupo = copiarAvisoCoordinadorGrupo;
 window.copiarAvisoCoordinadorAlumno = copiarAvisoCoordinadorAlumno;
+window.getSeguimientoBadgeStatus = getSeguimientoBadgeStatus;

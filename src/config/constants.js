@@ -2,7 +2,7 @@
 // src/config/constants.js — Constantes globales del sistema
 // =======================================================================
 
-export const APP_VERSION = "v6.9.18";
+export const APP_VERSION = "v6.10.24";
 
 export const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx033Es_BuZJk5x0MmyV-u8foA58ENNl1K3Cv-BE6ZeguXCG62UIQl5H4v94EB7MT0/exec";
 export const SCRIPT_API_KEY = "mandala-seg-2026";
@@ -208,3 +208,33 @@ export const configNodosFlujoEvaluador = [
         }
     }
 ];
+
+export function normalizarAlumnoSeguimiento(al) {
+    if (!al) return al;
+    const nom = (al.nombre || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    
+    // Alumnos que no deben figurar en seguimiento activo ni finalizado (pruebas iniciales que deben quedar como pendiente)
+    const nombresReset = [
+        'delfina murature',
+        'claudio yanez',
+        'claudio yañez',
+        'julia castaneda casanova',
+        'julia castañeda casanova'
+    ];
+
+    if (nombresReset.some(n => {
+        const nNorm = n.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        return nom.includes(nNorm) || nNorm.includes(nom);
+    })) {
+        if (al.seguimiento) {
+            al.seguimiento = {
+                ...al.seguimiento,
+                activo: false,
+                fecha_finalizacion: null,
+                fecha_proximo_seguimiento: null
+            };
+        }
+    }
+    return al;
+}
+

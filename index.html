@@ -10,7 +10,7 @@
     <meta http-equiv="Expires" content="0">
     
     <link rel="icon" href="logo.png" type="image/png">
-    <link rel="manifest" href="manifest.json?v=6.9.12">
+    <link rel="manifest" href="manifest.json?v=6.10.22">
     <meta name="theme-color" content="#fbfaf8">
     <meta name="apple-mobile-web-app-title" content="Mandala Admisión">
     <meta name="application-name" content="Mandala Admisión">
@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=6.9.18">
+    <link rel="stylesheet" href="styles.css?v=6.10.22">
 
     <style>
         /* Estilos Críticos de Widget de Perfil y Popover Google-Style */
@@ -251,6 +251,52 @@
         html.user-has-session #app-container {
             display: flex !important;
         }
+        /* Badge universal de sincronización y feedback de red */
+        .sync-badge-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11.5px;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 20px;
+            transition: all 0.25s ease;
+            opacity: 0;
+            pointer-events: none;
+            user-select: none;
+        }
+        .sync-badge-pill.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .sync-badge-pill.sync-loading {
+            background: rgba(0, 123, 143, 0.1);
+            color: var(--accent-teal, #007b8f);
+            border: 1px solid rgba(0, 123, 143, 0.25);
+        }
+        .sync-badge-pill.sync-ok {
+            background: #ecfdf5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+        .sync-badge-pill.sync-warn {
+            background: #fffbeb;
+            color: #b45309;
+            border: 1px solid #fde68a;
+        }
+        .sync-spinner-icon {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border: 2px solid currentColor;
+            border-right-color: transparent;
+            border-radius: 50%;
+            animation: sync-spin 0.75s linear infinite;
+        }
+        @keyframes sync-spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
     </style>
     <script>
         // Si el usuario ya tenía sesión activa, ocultar la pantalla de login desde el primer milisegundo
@@ -277,7 +323,7 @@
                 <div style="text-align:left;">
                     <label for="login-email" style="display:block; font-size:11.5px; font-weight:700; color:var(--text-main); margin-bottom:4px; text-transform:none;">Correo Electrónico</label>
                     <div style="position:relative; width:100%;">
-                        <input type="email" id="login-email" required placeholder="tu-correo@mandalahouse.com" style="width:100%; box-sizing:border-box; padding:10px 14px; border:1px solid var(--border-color); border-radius:10px; font-family:inherit; font-size:13px; outline:none; background:#ffffff; color:var(--text-main); transition:border-color 0.2s;">
+                        <input type="email" id="login-email" autocomplete="username" required placeholder="tu-correo@mandalahouse.com" style="width:100%; box-sizing:border-box; padding:10px 14px; border:1px solid var(--border-color); border-radius:10px; font-family:inherit; font-size:13px; outline:none; background:#ffffff; color:var(--text-main); transition:border-color 0.2s;">
                     </div>
                 </div>
 
@@ -286,7 +332,7 @@
                         <label for="login-password" style="font-size:11.5px; font-weight:700; color:var(--text-main); margin:0; text-transform:none;">Contraseña</label>
                     </div>
                     <div style="position:relative; width:100%;">
-                        <input type="password" id="login-password" required placeholder="••••••••" style="width:100%; box-sizing:border-box; padding:10px 38px 10px 14px; border:1px solid var(--border-color); border-radius:10px; font-family:inherit; font-size:13px; outline:none; background:#ffffff; color:var(--text-main); transition:border-color 0.2s;">
+                        <input type="password" id="login-password" autocomplete="current-password" required placeholder="••••••••" style="width:100%; box-sizing:border-box; padding:10px 38px 10px 14px; border:1px solid var(--border-color); border-radius:10px; font-family:inherit; font-size:13px; outline:none; background:#ffffff; color:var(--text-main); transition:border-color 0.2s;">
                         <button type="button" id="btn-toggle-login-pass" class="btn-toggle-eye" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:14px; padding:2px; filter:grayscale(100%); opacity:0.6;" title="Mostrar u ocultar contraseña">👁️</button>
                     </div>
                 </div>
@@ -367,6 +413,11 @@
                     <span class="nav-badge" id="badge-altas" style="display:none;">0</span>
                 </li>
 
+                <li class="nav-item" data-vista="Seguimientos - Pendientes" data-modulo="Seguimientos" id="nav-item-seguimientos">
+                    <span class="nav-icon">🎧</span> <span>Seguimientos</span>
+                    <span class="nav-badge" id="badge-seguimientos" style="display:none;">0</span>
+                </li>
+
                 <li class="nav-item" data-vista="Suspendidos - Todos" data-modulo="Suspendidos">
                     <span class="nav-icon">⏸️</span> <span>Suspendidos</span>
                     <span class="nav-badge" id="badge-suspendidos" style="display:none; background:var(--accent-red); color:#fff;">0</span>
@@ -395,6 +446,7 @@
                 <div style="display:flex; align-items:center; gap:10px;">
                     <button id="btn-mobile-menu" class="btn-toggle-sidebar" style="background:var(--item-bg); border:1px solid var(--border-color); border-radius:8px; font-size:1.25em; cursor:pointer; padding:4px 10px; color:var(--text-main); display:inline-flex; align-items:center; justify-content:center; transition:0.2s;" title="Mostrar / Ocultar panel lateral">☰</button>
                     <h1 id="vista-titulo" style="margin:0; font-size:1.6em; color:#1c1f22; font-weight:700; letter-spacing:-0.02em;">Dashboard</h1>
+                    <div id="global-sync-badge" class="sync-badge-pill" role="status" aria-live="polite"></div>
                 </div>
 
                 <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:flex-end; flex:1;">
@@ -408,13 +460,6 @@
                             <button id="btn-carga-masiva" style="display:none; background:var(--hover-bg); color:var(--text-main); border:1px solid var(--border-color); border-radius:8px; padding:0 14px; cursor:pointer; font-weight:700; font-size:12.5px; font-family:inherit; white-space:nowrap; transition:0.2s;" title="Carga masiva de alumnos mediante archivo CSV">📥 Cargar CSV</button>
                             <button id="btn-sync-espera-csv" onclick="window.abrirModalSyncEsperaCSV()" style="display:none !important; background:rgba(0,123,143,0.08); color:var(--accent-teal); border:1px solid rgba(0,123,143,0.3); border-radius:8px; padding:0 14px; cursor:pointer; font-weight:700; font-size:12.5px; font-family:inherit; white-space:nowrap; transition:0.2s;" title="Sincronizar días de espera y último contacto desde CSV">📥 Sincronizar CSV</button>
                             <input type="file" id="input-csv" accept=".csv" style="display:none;">
-                        </div>
-                        <!-- Filtros rápidos de Alarma -->
-                        <div id="alarm-filters" style="display:none; gap:6px; flex-wrap:wrap;">
-                            <button class="filter-chip filter-alarm active" data-val="Todos">Todos</button>
-                            <button class="filter-chip filter-alarm" data-val="Vencidos" style="color:var(--accent-red); border-color:rgba(194,86,59,0.2);">🔴 Vencidos</button>
-                            <button class="filter-chip filter-alarm" data-val="Criticos" style="color:#d99a29; border-color:rgba(229,169,61,0.2);">🟠 Críticos</button>
-                            <button class="filter-chip filter-alarm" data-val="AlDia" style="color:var(--accent-teal); border-color:rgba(0,123,143,0.2);">🟢 Al día</button>
                         </div>
                     </div>
 
@@ -541,14 +586,22 @@
                     
                     <!-- Filtros Rápidos de Urgencia Unificados -->
                     <div id="filtros-prioridades-container" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+                        <!-- Botón Desplegable de Filtro de Tipos de Evento -->
+                        <div style="position:relative;">
+                            <button type="button" id="btn-toggle-filtros-dashboard" class="btn-filtros-trigger" style="display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:24px; font-size:12.5px; font-weight:700; cursor:pointer; font-family:inherit; background:#ffffff; color:var(--text-main); border:1px solid #cbd5e1; box-shadow:0 1px 2px rgba(0,0,0,0.03); transition:all 0.18s ease; margin:2px;">
+                                <span style="font-size:13px;">⚡</span>
+                                <span id="label-filtro-tipo-dashboard">Filtros</span>
+                                <span id="badge-filtro-tipo-dashboard" style="display:none; background:var(--accent-teal); color:#fff; font-size:10px; font-weight:700; padding:1px 6px; border-radius:10px;">0</span>
+                                <span id="arrow-filtro-dashboard" style="font-size:10px; color:var(--text-muted); transition:transform 0.2s;">▼</span>
+                            </button>
+                            <div id="popover-filtros-dashboard" class="dropdown-filtros-menu" style="display:none; position:absolute; top:calc(100% + 8px); right:0; z-index:1100; background:#ffffff; border:1px solid var(--border-color); border-radius:14px; box-shadow:0 10px 30px rgba(0,0,0,0.12); padding:12px 14px; width:280px; box-sizing:border-box; max-height:420px; overflow-y:auto;">
+                                <!-- Se inyecta dinámicamente por JS -->
+                            </div>
+                        </div>
+
+                        <!-- Chips Temporales fijos por fuera -->
                         <button type="button" class="btn-prio-filtro prio-todos active" data-prio="todos" style="display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:24px; font-size:12.5px; font-weight:700; cursor:pointer; font-family:inherit; background:#1e293b; color:#ffffff; border:1px solid #1e293b; box-shadow:0 1px 3px rgba(0,0,0,0.08); transition:all 0.18s ease; margin:2px;">
                             Todos (<span id="cnt-prio-todos">0</span>)
-                        </button>
-                        <button type="button" class="btn-prio-filtro prio-sin-agendar admisor-only" data-prio="sin-agendar" style="display:none; align-items:center; gap:6px; padding:6px 14px; border-radius:24px; font-size:12.5px; font-weight:600; cursor:pointer; font-family:inherit; background:#ffffff; color:#1d4ed8; border:1px solid #bfdbfe; box-shadow:0 1px 2px rgba(0,0,0,0.03); transition:all 0.18s ease; margin:2px;" title="Alumnos en Inbox pendientes de agendar entrevista">
-                            📥 Sin Agendar (<span id="cnt-prio-sin-agendar">0</span>)
-                        </button>
-                        <button type="button" class="btn-prio-filtro prio-altas-pend admisor-only" data-prio="altas-pend" style="display:none; align-items:center; gap:6px; padding:6px 14px; border-radius:24px; font-size:12.5px; font-weight:600; cursor:pointer; font-family:inherit; background:#ffffff; color:#047857; border:1px solid #a7f3d0; box-shadow:0 1px 2px rgba(0,0,0,0.03); transition:all 0.18s ease; margin:2px;" title="Alumnos validados listos para iniciar pre-alta">
-                            🚀 Altas Pendientes (<span id="cnt-prio-altas-pend">0</span>)
                         </button>
                         <button type="button" class="btn-prio-filtro prio-vencidos" data-prio="vencidos" style="display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:24px; font-size:12.5px; font-weight:600; cursor:pointer; font-family:inherit; background:#ffffff; color:#b91c1c; border:1px solid #fecaca; box-shadow:0 1px 2px rgba(0,0,0,0.03); transition:all 0.18s ease; margin:2px;">
                             🔴 Vencidos (<span id="cnt-prio-vencidos">0</span>)
@@ -791,6 +844,7 @@
         <div id="bulk-actions-bar" style="display:none;">
             <span id="bulk-count">0 seleccionados</span>
             <button id="btn-bulk-propuesta-grupo" class="btn-primary" style="padding:6px 14px; font-size:12.5px; display:none;">✨ Nueva Propuesta de Grupo</button>
+            <button id="btn-bulk-iniciar-seguimiento" class="btn-primary" style="padding:6px 14px; font-size:12.5px; display:none; background:var(--accent-teal);" title="Asignar responsable de seguimiento y fecha para alumnos de altas finalizadas">🎧 Iniciar Seguimiento</button>
             <button id="btn-bulk-devolver-espera" style="padding:6px 12px; font-size:12px; font-weight:700; border-radius:6px; background:#fff; border:1px solid var(--border-color); color:#0369a1; cursor:pointer; display:none;">🛋️ Devolver a Espera</button>
             <button id="btn-bulk-auditar-cal" style="padding:6px 12px; font-size:12px; font-weight:700; border-radius:6px; background:#fff; border:1px solid var(--border-color); color:var(--text-main); cursor:pointer; display:none;">🔍 Auditar Calendar</button>
             <button id="btn-bulk-copiar-bd" style="padding:6px 12px; font-size:12px; font-weight:700; border-radius:6px; background:#fff; border:1px solid var(--border-color); color:var(--text-main); cursor:pointer; display:none;">📋 Generar registro BD</button>
@@ -872,6 +926,7 @@
                     <button type="button" class="tab-btn" data-target="tab-disp">⏰ Disponibilidad</button>
                     <button type="button" class="tab-btn" data-target="tab-historial">📚 Historial</button>
                     <button type="button" class="tab-btn" data-target="tab-informe">📝 Informe de Admisión</button>
+                    <button type="button" class="tab-btn" id="btn-tab-seguimiento" data-target="tab-seguimiento" style="display:none;">🎧 Seguimiento</button>
                 </div>
             </div>
 
@@ -922,22 +977,8 @@
                             <div id="chips-instrumentos-secundarios" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
                         </div>
 
-                        <!-- 3. Toggle de Canto -->
-                        <div>
-                            <div class="canto-toggle-card" id="card-toggle-canto" onclick="window.toggleCantoAlumnoForm()">
-                                <div style="display:flex; align-items:center; gap:10px;">
-                                    <span style="font-size:20px;">🎙️</span>
-                                    <div>
-                                        <div style="font-size:13px; font-weight:800; color:#0f172a;">¿Canta o se anima a hacer coros en el ensamble?</div>
-                                        <div style="font-size:11px; color:var(--text-muted);">Habilita al alumno para roles de voz o coros en su grupo</div>
-                                    </div>
-                                </div>
-                                <label class="switch-wrapper" onclick="event.stopPropagation()">
-                                    <input type="checkbox" id="chk-alumno-canta" onchange="window.actualizarEstadoCantoAlumno(this.checked)">
-                                    <span class="slider"></span>
-                                </label>
-                            </div>
-                        </div>
+                        <!-- Canto / Coros removido a pedido de usuario -->
+                        <input type="checkbox" id="chk-alumno-canta" style="display:none;">
 
                         <!-- Select legacy oculto para compatibilidad -->
                         <select id="instrumento" multiple style="display:none;"></select>
@@ -1106,17 +1147,49 @@
                     </div>
                 </div>
 
+                <div id="tab-seguimiento" class="tab-content" style="display:none;">
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px; margin-bottom:15px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                        <div>
+                            <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">Responsable de Seguimiento</div>
+                            <div id="ficha-seg-evaluador-nom" style="font-size:14px; font-weight:700; color:var(--text-main);">-</div>
+                        </div>
+                        <div>
+                            <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">Estado Seguimiento</div>
+                            <div id="ficha-seg-estado-badge">-</div>
+                        </div>
+                        <div>
+                            <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">Próximo Seguimiento</div>
+                            <div id="ficha-seg-proxima-fecha" style="font-size:13.5px; font-weight:700; color:var(--accent-teal);">-</div>
+                        </div>
+                        <div>
+                            <button type="button" id="btn-editar-seg-desde-tab" class="row-quick-btn secondary" style="font-size:12px; padding:5px 12px; font-weight:600; cursor:pointer;" onclick="window.abrirModalEditarSeguimiento(window._fichaAlumnoActualId)" title="Editar responsable y fecha de seguimiento">✏️ Editar Seguimiento</button>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <label style="font-size:12px; font-weight:700; color:var(--text-main); text-transform:uppercase; margin:0;">Historial de Contactos de Acompañamiento</label>
+                        </div>
+                        <div id="ficha-seg-timeline-container" style="display:flex; flex-direction:column; gap:10px; max-height:260px; overflow-y:auto; padding-right:4px;"></div>
+                    </div>
+                </div>
+
                 <div style="display:flex; flex-direction:column; gap:12px; border-top:1px solid var(--border-color); padding-top:15px; margin-top:10px;">
                     <label id="container-ingreso-directo" style="margin:0; cursor:pointer; font-weight:600; color:#1f5491; display:flex; align-items:center; gap:8px; font-size:0.9em; text-transform:none;">
                         <input type="checkbox" id="chk-ingreso-directo" style="width:18px; height:18px; margin:0; accent-color:var(--accent-teal);">
                         Ingreso a Lista de Espera directo
                     </label>
-                    <div style="display:flex; gap:10px; align-items:center; width:100%;">
-                        <button type="button" id="btn-modal-nueva-suscripcion" class="btn-secondary" style="display:none; flex:1; height:42px; box-sizing:border-box;">➕ Nueva Suscripción</button>
+                    <div style="display:flex; gap:10px; align-items:center; width:100%; flex-wrap:wrap;">
+                        <button type="button" id="btn-modal-nueva-suscripcion" class="btn-secondary" style="display:none; height:42px; padding:0 14px; font-size:13px; font-weight:600; border-radius:8px; align-items:center; justify-content:center; white-space:nowrap; flex:0 0 auto; box-sizing:border-box;">➕ Nueva Suscripción</button>
+                        <button type="button" id="btn-modal-whatsapp" class="btn-app btn-secondary" style="display:none; height:42px; padding:0 16px; font-size:13px; font-weight:700; border-radius:8px; border-color:#22c55e; color:#15803d; background:#f0fdf4; box-sizing:border-box; align-items:center; gap:6px; cursor:pointer;" title="Escribir directo por WhatsApp">
+                            <span>💬</span> WhatsApp
+                        </button>
+                        <button type="button" id="btn-modal-reg-seguimiento" class="btn-app btn-primary" style="display:none; height:42px; padding:0 16px; font-size:13px; font-weight:700; border-radius:8px; box-sizing:border-box; align-items:center; gap:6px; cursor:pointer;" onclick="window.abrirModalRegistrarSeguimientoDesdeFicha()">
+                            <span>📞</span> Registrar Contacto
+                        </button>
                         <button type="button" id="btn-modal-contactar-alumno" class="btn-app btn-secondary btn-contactar-modal" style="display:none; height:42px; padding:0 18px; font-size:13px; font-weight:700; border-radius:8px; border-color:#22c55e; color:#15803d; background:#f0fdf4; box-sizing:border-box; align-items:center; gap:6px; cursor:pointer;" title="Registrar contacto con el alumno">
                             <span>📞</span> Contactar
                         </button>
-                        <button type="submit" id="btn-submit-alumno" class="btn-primary" style="flex:2; height:42px; box-sizing:border-box;">Guardar Alumno</button>
+                        <button type="submit" id="btn-submit-alumno" class="btn-primary" style="flex:2; min-width:140px; height:42px; box-sizing:border-box;">Guardar Alumno</button>
                         <button type="button" id="btn-modal-eliminar-alumno" class="btn-secondary btn-modal-eliminar" style="display:none; height:42px; padding:0 18px; box-sizing:border-box;" title="Eliminar ficha permanentemente (Solo Administrador)">🗑️ Eliminar</button>
                     </div>
                 </div>
@@ -1752,6 +1825,19 @@
                 <div style="font-size:11px; color:var(--text-light); margin-top:4px;">Auto-generado según día, horario y profesor (DHH.MM Profe). Podés editarlo libremente.</div>
             </div>
 
+            <!-- 6. Responsable de Seguimiento (No Docente del Alumno) -->
+            <div id="prealta-campo-responsable-seguimiento" style="margin-bottom:14px; background:#f0fdfa; border:1px solid #99f6e4; padding:12px; border-radius:8px;">
+                <label style="font-size:12px; font-weight:700; color:var(--accent-teal-dark); text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:6px;">
+                    🎯 Responsable de Seguimiento *
+                </label>
+                <select id="prealta-responsable-seguimiento" class="modern-input" required>
+                    <option value="">Seleccionar responsable...</option>
+                </select>
+                <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">
+                    El seguimiento se realiza tras el alta finalizada (excluye al profesor asignado para garantizar imparcialidad).
+                </div>
+            </div>
+
             <!-- Panel de advertencias y validación Match (Edades, Niveles, Disponibilidad) -->
             <div id="prealta-match-warnings-container" style="display:none; background:#fff8e6; border:1px solid #ffd591; border-radius:10px; padding:12px 14px; margin-top:12px;">
                 <div style="display:flex; align-items:center; gap:6px; font-weight:700; color:#d46b08; font-size:12.5px; margin-bottom:6px;">
@@ -2031,6 +2117,237 @@
         </div>
     </dialog>
 
+    <!-- MODAL 1: REGISTRAR CONTACTO DE SEGUIMIENTO -->
+    <dialog id="modal-seguimiento-contacto" class="modern-modal auto-height-modal" style="max-width:520px;">
+        <div style="padding:24px;">
+            <div class="modal-drag-pill"></div>
+            <h3 id="modal-seg-ctto-titulo" style="margin:0 0 12px 0; color:var(--text-main); font-weight:700;">📞 Registrar Contacto de Seguimiento</h3>
+            <input type="hidden" id="seg-ctto-alumno-id">
+            
+            <div id="modal-seg-ctto-info-box" style="background:#f8fafc; padding:10px 14px; border-radius:8px; border:1px solid #e2e8f0; font-size:12.5px; margin-bottom:14px; line-height:1.45;">
+                <div>Alumno: <strong id="seg-ctto-alumno-nom">-</strong> • <span id="seg-ctto-det">-</span></div>
+                <div style="color:var(--text-muted); font-size:11.5px; margin-top:3px;" id="seg-ctto-sub-info">-</div>
+                <div style="margin-top:6px;">
+                    <button type="button" id="btn-seg-ctto-whatsapp-directo" class="btn-app btn-secondary" style="font-size:11.5px; padding:3px 10px; border-color:#22c55e; color:#15803d; background:#f0fdf4; border-radius:6px; cursor:pointer;" onclick="window.abrirWhatsAppDirecto(window._segCttoAlumnoCelular, window._segCttoAlumnoNombre)">💬 Escribir por WhatsApp</button>
+                </div>
+            </div>
+
+            <div style="margin-bottom:14px;">
+                <label style="font-size:11.5px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px; display:block;">
+                    Lo conversado con el alumno *
+                </label>
+                <textarea id="seg-ctto-conversado" class="modern-input" rows="4" style="height:90px; padding:10px; resize:vertical; font-family:inherit; font-size:13px; box-sizing:border-box;" placeholder="¿Cómo le está yendo en las clases? ¿Cómo se siente con el docente, el instrumento y el grupo?"></textarea>
+            </div>
+
+            <div style="background:#f0fdf4; border:1px solid #bbf7d0; padding:12px 14px; border-radius:8px; margin-bottom:16px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <label style="font-weight:700; font-size:12.5px; color:#166534; cursor:pointer; margin:0; display:flex; align-items:center; gap:8px;">
+                        <span>¿Desea continuar haciendo seguimiento?</span>
+                    </label>
+                    <input type="checkbox" id="chk-seg-continuar" checked style="accent-color:var(--accent-teal); width:18px; height:18px; cursor:pointer;">
+                </div>
+
+                <div id="wrap-seg-proxima-fecha" style="margin-top:12px; border-top:1px dashed #bbf7d0; padding-top:10px;">
+                    <label style="font-size:11px; font-weight:700; color:#166534; text-transform:uppercase; display:block; margin-bottom:6px;">
+                        Próximo seguimiento sugerido (días hábiles)
+                    </label>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+                        <button type="button" class="btn-sug-fecha-seg selected" data-dias="7" style="background:var(--accent-teal); color:#fff; border:1px solid var(--accent-teal); padding:5px 12px; border-radius:20px; font-size:11.5px; font-weight:600; cursor:pointer;">+1 Sem</button>
+                        <button type="button" class="btn-sug-fecha-seg" data-dias="14" style="background:#fff; color:#334155; border:1px solid #cbd5e1; padding:5px 12px; border-radius:20px; font-size:11.5px; font-weight:600; cursor:pointer;">+2 Sem</button>
+                        <button type="button" class="btn-sug-fecha-seg" data-dias="21" style="background:#fff; color:#334155; border:1px solid #cbd5e1; padding:5px 12px; border-radius:20px; font-size:11.5px; font-weight:600; cursor:pointer;">+3 Sem</button>
+                    </div>
+                    <div>
+                        <label style="font-size:11px; color:#475569; display:block; margin-bottom:4px;">O seleccionar fecha manual (sin horario):</label>
+                        <input type="date" id="input-seg-fecha-manual" class="modern-input" style="height:36px; padding:0 10px; font-size:13px; font-weight:600;">
+                    </div>
+                </div>
+
+                <div id="wrap-seg-aviso-cierre" style="display:none; margin-top:10px; color:#991b1b; font-size:12px; line-height:1.4;">
+                    ⚠️ Al desmarcar la continuidad, al guardar se finalizará el seguimiento y el alumno <strong>volverá a la pestaña Altas Finalizadas</strong>.
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px; border-top:1px solid var(--border-color); padding-top:15px;">
+                <button type="button" class="btn-cerrar-modal" data-modal="modal-seguimiento-contacto" style="padding:10px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted);">Cancelar</button>
+                <button type="button" id="btn-guardar-contacto-seg" class="btn-primary" style="padding:10px 18px;">💾 Guardar Contacto</button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- MODAL 2: FINALIZAR SEGUIMIENTO DIRECTO -->
+    <dialog id="modal-seguimiento-finalizar" class="modern-modal auto-height-modal" style="max-width:480px;">
+        <div style="padding:24px;">
+            <div class="modal-drag-pill"></div>
+            <h3 style="margin:0 0 12px 0; color:var(--text-main); font-weight:700;">🏁 Finalizar Seguimiento de Alumno</h3>
+            <input type="hidden" id="seg-fin-alumno-id">
+            
+            <p style="font-size:13px; color:var(--text-muted); line-height:1.45; margin-bottom:14px;">
+                Al finalizar el seguimiento, el alumno <strong id="seg-fin-alumno-nom">-</strong> saldrá de la vista de seguimiento activo y volverá a la pestaña <strong>Altas Finalizadas</strong>.
+            </p>
+
+            <div style="margin-bottom:16px;">
+                <label style="font-size:11.5px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px; display:block;">
+                    Motivo o Conclusión de Cierre *
+                </label>
+                <textarea id="seg-fin-motivo" class="modern-input" rows="3" style="height:80px; padding:10px; resize:vertical; font-family:inherit; font-size:13px; box-sizing:border-box;" placeholder="Ej: Alumno 100% afianzado en su grupo, conforme con el profesor y cursando regularmente. Ciclo de acompañamiento completado."></textarea>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px; border-top:1px solid var(--border-color); padding-top:15px;">
+                <button type="button" class="btn-cerrar-modal" data-modal="modal-seguimiento-finalizar" style="padding:10px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted);">Cancelar</button>
+                <button type="button" id="btn-confirmar-fin-seg" style="background:#e11d48; color:#fff; border:none; padding:10px 18px; border-radius:8px; font-weight:700; cursor:pointer;">🏁 Confirmar Finalización</button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- MODAL 3: INICIAR SEGUIMIENTO (DESDE ALTAS FINALIZADAS) -->
+    <dialog id="modal-seguimiento-masivo" class="modern-modal auto-height-modal" style="max-width:680px; width:95%; max-height:90vh; overflow-y:auto;">
+        <div style="padding:24px;">
+            <div class="modal-drag-pill"></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:22px;">🎧</span>
+                    <h3 style="margin:0; color:var(--text-main); font-weight:800; font-size:17px;">Iniciar Seguimiento de Alumnos</h3>
+                </div>
+                <span id="seg-masivo-conteo-alumnos" class="badge-tag" style="background:#ccfbf1; color:#0f766e; font-weight:700; padding:4px 10px; border-radius:12px; font-size:12px;">0 alumno(s)</span>
+            </div>
+            
+            <p style="font-size:12.5px; color:var(--text-muted); line-height:1.45; margin-bottom:16px;">
+                Establece el <strong>responsable de seguimiento</strong> y la <strong>fecha de contacto</strong> para cada alumno. Pasarán automáticamente a la sección de <strong>Seguimientos</strong>.
+            </p>
+
+            <!-- BLOQUE DE ASIGNACIÓN RÁPIDA GLOBAL (Visible cuando hay más de 1 alumno seleccionado) -->
+            <div id="seg-masivo-bloque-global" style="background:#f0fdfa; border:1.5px dashed #99f6e4; padding:14px; border-radius:12px; margin-bottom:18px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                    <span style="font-size:11.5px; font-weight:800; color:#0f766e; text-transform:uppercase; letter-spacing:0.04em;">⚡ Asignar a Todos (Rápido)</span>
+                    <span style="font-size:11px; color:#0f766e;">Aplica a todos los alumnos listados abajo</span>
+                </div>
+                <div style="grid-template-columns: 1fr 1fr auto; display:grid; gap:10px; align-items:flex-end;">
+                    <div>
+                        <label style="font-size:11px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Responsable de Seguimiento</label>
+                        <select id="seg-masivo-evaluador-select" class="modern-input" style="height:36px; font-size:12px;">
+                            <option value="">Seleccionar responsable...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                            <label style="font-size:11px; font-weight:700; color:#334155;">Fecha de Primer Contacto</label>
+                            <div style="display:flex; gap:3px;">
+                                <button type="button" class="btn-fast-date-masivo" data-dias="7" style="font-size:9.5px; padding:1px 5px; border-radius:4px; border:1px solid #cbd5e1; background:#fff; cursor:pointer;">+1 Sem</button>
+                                <button type="button" class="btn-fast-date-masivo" data-dias="14" style="font-size:9.5px; padding:1px 5px; border-radius:4px; border:1px solid #cbd5e1; background:#fff; cursor:pointer;">+2 Sem</button>
+                                <button type="button" class="btn-fast-date-masivo" data-dias="21" style="font-size:9.5px; padding:1px 5px; border-radius:4px; border:1px solid #cbd5e1; background:#fff; cursor:pointer;">+3 Sem</button>
+                            </div>
+                        </div>
+                        <input type="date" id="seg-masivo-fecha-primer" class="modern-input" style="height:36px; padding:0 8px; font-size:12px; font-weight:600;">
+                    </div>
+                    <div>
+                        <button type="button" id="btn-seg-masivo-aplicar-todos" class="btn-app btn-primary" style="height:36px; padding:0 14px; font-size:12px; font-weight:700; white-space:nowrap; background:#0f766e; border-color:#0f766e;">
+                            ⚡ Aplicar a todos
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LISTA DE ALUMNOS (Asignación individual / personalizada) -->
+            <div style="font-size:11.5px; font-weight:800; color:#475569; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:8px; display:flex; justify-content:space-between;">
+                <span>Alumnos Seleccionados</span>
+                <span style="font-size:11px; text-transform:none; font-weight:500; color:var(--text-muted);">Podés editar individualmente cada alumno</span>
+            </div>
+            <div id="seg-masivo-lista-alumnos" style="display:flex; flex-direction:column; gap:8px; max-height:320px; overflow-y:auto; padding-right:4px; margin-bottom:18px;">
+                <!-- Poblado dinámicamente con filas por alumno -->
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px; border-top:1px solid var(--border-color); padding-top:15px;">
+                <button type="button" class="btn-cerrar-modal" data-modal="modal-seguimiento-masivo" style="padding:10px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted);">Cancelar</button>
+                <button type="button" id="btn-confirmar-seg-masivo" class="btn-primary" style="padding:10px 20px; font-weight:700;">✅ Iniciar Seguimientos</button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- MODAL EDITAR SEGUIMIENTO (Responsable y Próxima Fecha) -->
+    <dialog id="modal-editar-seguimiento" class="modern-modal auto-height-modal" style="max-width:500px; width:90%;">
+        <div style="padding:24px;">
+            <div class="modal-drag-pill"></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:22px;">✏️</span>
+                    <h3 style="margin:0; color:var(--text-main); font-weight:800; font-size:17px;">Editar Seguimiento</h3>
+                </div>
+                <button type="button" class="btn-cerrar-modal" data-modal="modal-editar-seguimiento" style="background:transparent; border:none; cursor:pointer; font-size:1.5em; color:#9a9388; line-height:1;">&times;</button>
+            </div>
+            
+            <p id="edit-seg-subtitulo-alumno" style="font-size:13px; color:var(--text-muted); line-height:1.45; margin-bottom:16px;">
+                Modifica el responsable asignado o la fecha programada del próximo seguimiento.
+            </p>
+
+            <input type="hidden" id="edit-seg-alumno-id">
+
+            <div style="display:flex; flex-direction:column; gap:14px; margin-bottom:20px;">
+                <div>
+                    <label style="font-size:12px; font-weight:700; color:#334155; display:block; margin-bottom:5px;">Responsable de Seguimiento</label>
+                    <select id="edit-seg-responsable-select" class="modern-input" style="width:100%; height:38px; font-size:13px;">
+                        <option value="">(Sin responsable asignado / Vaciar)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                        <label style="font-size:12px; font-weight:700; color:#334155; margin:0;">Fecha de Próximo Seguimiento</label>
+                        <div style="display:flex; gap:4px;">
+                            <button type="button" class="btn-fast-date-edit-seg" data-dias="7" style="font-size:10px; padding:2px 6px; border-radius:4px; border:1px solid #cbd5e1; background:#fff; cursor:pointer;">+1 Sem</button>
+                            <button type="button" class="btn-fast-date-edit-seg" data-dias="14" style="font-size:10px; padding:2px 6px; border-radius:4px; border:1px solid #cbd5e1; background:#fff; cursor:pointer;">+2 Sem</button>
+                            <button type="button" class="btn-fast-date-edit-seg" data-dias="21" style="font-size:10px; padding:2px 6px; border-radius:4px; border:1px solid #cbd5e1; background:#fff; cursor:pointer;">+3 Sem</button>
+                            <button type="button" id="btn-limpiar-fecha-edit-seg" style="font-size:10px; padding:2px 6px; border-radius:4px; border:1px solid #fca5a5; background:#fff1f2; color:#be123c; cursor:pointer; font-weight:600;" title="Limpiar fecha">🧹 Limpiar</button>
+                        </div>
+                    </div>
+                    <input type="date" id="edit-seg-fecha-input" class="modern-input" style="width:100%; height:38px; font-size:13px; font-weight:600;">
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px; border-top:1px solid var(--border-color); padding-top:15px;">
+                <button type="button" class="btn-cerrar-modal" data-modal="modal-editar-seguimiento" style="padding:10px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted);">Cancelar</button>
+                <button type="button" id="btn-guardar-editar-seguimiento" class="btn-primary" style="padding:10px 20px; font-weight:700;">💾 Guardar Cambios</button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- MODAL EDITAR CONTACTO DE SEGUIMIENTO -->
+    <dialog id="modal-editar-contacto-seguimiento" class="modern-modal auto-height-modal" style="max-width:520px; width:90%;">
+        <div style="padding:24px;">
+            <div class="modal-drag-pill"></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h3 style="margin:0; font-size:16px; font-weight:800; color:var(--text-main); display:flex; align-items:center; gap:6px;">
+                    <span>✏️</span> Editar Contacto de Seguimiento
+                </h3>
+                <button type="button" class="btn-cerrar-modal" data-modal="modal-editar-contacto-seguimiento" style="background:transparent; border:none; cursor:pointer; font-size:1.5em; color:#9a9388; line-height:1;">&times;</button>
+            </div>
+            
+            <input type="hidden" id="edit-ctto-seg-alumno-id">
+            <input type="hidden" id="edit-ctto-seg-id">
+            
+            <div id="edit-ctto-seg-info" style="font-size:12px; color:var(--text-muted); background:var(--hover-bg); padding:8px 12px; border-radius:8px; margin-bottom:14px; border:1px solid var(--border-color);">
+                <!-- Info cargada dinámicamente -->
+            </div>
+
+            <div style="margin-bottom:14px;">
+                <label style="font-size:11px; font-weight:800; text-transform:uppercase; color:var(--text-muted); display:block; margin-bottom:6px;">Detalle de lo conversado / conclusión</label>
+                <textarea id="edit-ctto-seg-conversado" rows="4" class="modern-input" placeholder="Detalle del contacto..." style="resize:vertical; font-family:inherit; font-size:13px; width:100%; box-sizing:border-box;"></textarea>
+            </div>
+
+            <div id="wrap-edit-ctto-seg-fecha-prox" style="margin-bottom:14px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <label style="font-size:11px; font-weight:800; text-transform:uppercase; color:var(--text-muted); margin:0;">Próxima Fecha de Seguimiento</label>
+                    <button type="button" id="btn-limpiar-fecha-edit-ctto-seg" class="btn-app btn-secondary" style="font-size:10px; padding:2px 8px; border-radius:4px; height:auto; cursor:pointer;">🧹 Limpiar</button>
+                </div>
+                <input type="date" id="edit-ctto-seg-fecha-prox" class="modern-input" style="height:38px; font-size:13px; font-weight:600; width:100%; box-sizing:border-box;">
+            </div>
+
+            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px; border-top:1px solid var(--border-color); padding-top:15px;">
+                <button type="button" class="btn-cerrar-modal btn-app btn-secondary" data-modal="modal-editar-contacto-seguimiento" style="padding:8px 16px; border-radius:8px; font-weight:600;">Cancelar</button>
+                <button type="button" id="btn-guardar-edicion-ctto-seg" class="btn-app btn-primary" style="padding:8px 18px; border-radius:8px; font-weight:700; background:var(--accent-teal);">💾 Guardar Cambios</button>
+            </div>
+        </div>
+    </dialog>
+
     <dialog id="modal-abm-edit" class="modern-modal" style="width: 90%; max-width: 580px;">
         <div style="padding:24px; max-height:85vh; overflow-y:auto;">
             <div class="modal-drag-pill"></div>
@@ -2229,6 +2546,8 @@
                         <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="match" checked> 🧩 Match (Nuevos Grupos & Solicitudes)</label>
                         <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="match_etapa4" checked> 👥 Match Etapa 4 (Sumar a Existentes)</label>
                         <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="altas" checked> 🚀 Altas (Pre-alta, Curso, Confirmadas)</label>
+                        <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="seguimientos" checked> 🎧 Seguimientos de Alumnos</label>
+                        <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="suspendidos" checked> ⏸️ Alumnos Suspendidos</label>
                         <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="metricas" checked> 📈 Métricas y Estadísticas</label>
                         <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="portal_profesor"> 👨‍🏫 Portal Docente (Mis Alumnos y Ensambles)</label>
                         <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="configuracion"> ⚙️ Configuración del Sistema</label>
@@ -3151,10 +3470,10 @@
     </dialog>
 
 
-    <dialog id="global-action-loader" class="global-action-dialog" style="position:fixed; top:24px; left:50%; transform:translateX(-50%); margin:0; padding:0; border:none; background:transparent; outline:none; z-index:2147483647; max-width:90vw; pointer-events:none;">
-        <div class="global-action-card" style="background:rgba(15,23,42,0.94); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); color:#ffffff; padding:10px 22px; border-radius:30px; font-size:13.5px; font-weight:600; display:flex; align-items:center; gap:12px; box-shadow:0 12px 36px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.18); border:1px solid rgba(255,255,255,0.2); pointer-events:auto;">
-            <div class="spinner-inline" style="width:18px; height:18px; border:2.5px solid rgba(255,255,255,0.25); border-top-color:#38bdf8; border-radius:50%; animation:spinLoader 0.6s linear infinite; flex-shrink:0;"></div>
-            <span id="global-action-text" style="color:#ffffff; font-size:13.5px; font-weight:600;">Procesando acción...</span>
+    <dialog id="global-action-loader" class="global-action-dialog" style="position:fixed; inset:0; top:0; left:0; width:100vw; height:100vh; max-width:100vw; max-height:100vh; margin:0; padding:28px 20px 0 20px; border:none; background:rgba(15,23,42,0.45); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); outline:none; z-index:2147483647; display:none; align-items:flex-start; justify-content:center; pointer-events:all; box-sizing:border-box;">
+        <div class="global-action-card" style="background:rgba(15,23,42,0.95); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); color:#ffffff; padding:12px 24px; border-radius:24px; font-size:14px; font-weight:700; display:flex; align-items:center; gap:12px; box-shadow:0 20px 45px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.18); border:1px solid rgba(255,255,255,0.25); pointer-events:auto;">
+            <div class="spinner-inline" style="width:20px; height:20px; border:2.5px solid rgba(255,255,255,0.25); border-top-color:#38bdf8; border-radius:50%; animation:spinLoader 0.6s linear infinite; flex-shrink:0;"></div>
+            <span id="global-action-text" style="color:#ffffff; font-size:14px; font-weight:700;">Procesando acción...</span>
         </div>
     </dialog>
 
@@ -3173,7 +3492,7 @@
                 <div>
                     <label for="chg-pass-actual" style="display:block; font-size:12px; font-weight:700; color:var(--text-main); margin-bottom:4px; text-transform:none;">Contraseña Actual *</label>
                     <div style="position:relative;">
-                        <input type="password" id="chg-pass-actual" required placeholder="Ingresá mandala333 o tu clave actual" class="modern-input" style="padding-right:36px;">
+                        <input type="password" id="chg-pass-actual" autocomplete="current-password" required placeholder="Ingresá mandala333 o tu clave actual" class="modern-input" style="padding-right:36px;">
                         <button type="button" class="btn-toggle-pass" data-target="chg-pass-actual" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:13px; color:var(--text-muted);">👁️</button>
                     </div>
                 </div>
@@ -3181,7 +3500,7 @@
                 <div>
                     <label for="chg-pass-nueva" style="display:block; font-size:12px; font-weight:700; color:var(--text-main); margin-bottom:4px; text-transform:none;">Nueva Contraseña (mínimo 6 caracteres) *</label>
                     <div style="position:relative;">
-                        <input type="password" id="chg-pass-nueva" required minlength="6" placeholder="Nueva contraseña segura" class="modern-input" style="padding-right:36px;">
+                        <input type="password" id="chg-pass-nueva" autocomplete="new-password" required minlength="6" placeholder="Nueva contraseña segura" class="modern-input" style="padding-right:36px;">
                         <button type="button" class="btn-toggle-pass" data-target="chg-pass-nueva" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:13px; color:var(--text-muted);">👁️</button>
                     </div>
                 </div>
@@ -3189,7 +3508,7 @@
                 <div>
                     <label for="chg-pass-confirmar" style="display:block; font-size:12px; font-weight:700; color:var(--text-main); margin-bottom:4px; text-transform:none;">Confirmar Nueva Contraseña *</label>
                     <div style="position:relative;">
-                        <input type="password" id="chg-pass-confirmar" required minlength="6" placeholder="Repetí la nueva contraseña" class="modern-input" style="padding-right:36px;">
+                        <input type="password" id="chg-pass-confirmar" autocomplete="new-password" required minlength="6" placeholder="Repetí la nueva contraseña" class="modern-input" style="padding-right:36px;">
                         <button type="button" class="btn-toggle-pass" data-target="chg-pass-confirmar" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:13px; color:var(--text-muted);">👁️</button>
                     </div>
                 </div>
@@ -3207,12 +3526,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=6.9.18"></script>
+    <script type="module" src="app.js?v=6.10.22"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=6.9.18').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=6.10.22').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {

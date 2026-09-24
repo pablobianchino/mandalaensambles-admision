@@ -14,8 +14,9 @@ import {
     configNodosFlujoEvaluador,
     configNodosFlujoCoordinador,
     esAlumnoAltaFinalizada,
-    esAlumnoAltaConfirmadaIncompleta
-} from "./src/config/constants.js?v=6.9.12";
+    esAlumnoAltaConfirmadaIncompleta,
+    normalizarAlumnoSeguimiento
+} from "./src/config/constants.js?v=6.10.22";
 
 import { 
     app, 
@@ -44,7 +45,7 @@ import {
     EmailAuthProvider,
     reauthenticateWithCredential,
     linkWithCredential
-} from "./src/config/firebase.js?v=6.9.12";
+} from "./src/config/firebase.js?v=6.10.22";
 
 import {
     limpiarHoraParaChip,
@@ -58,7 +59,7 @@ import {
     extraerDisponibilidadMultiRango,
     normalizarHora,
     inicializarAutocompletadoHorarios
-} from "./src/ui/horarios.ui.js?v=6.9.12";
+} from "./src/ui/horarios.ui.js?v=6.10.22";
 
 import {
     getEmojiInstrumento,
@@ -87,7 +88,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=6.9.12";
+} from "./src/services/calendar.service.js?v=6.10.22";
 
 import {
     matchCantidadActual,
@@ -120,11 +121,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=6.9.12";
+} from "./src/modules/match.module.js?v=6.10.22";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=6.9.12";
+} from "./src/modules/profesor.module.js?v=6.10.22";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -153,14 +154,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=6.9.12";
+} from "./src/modules/altas.module.js?v=6.10.22";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=6.9.12";
+} from "./src/modules/dashboard.module.js?v=6.10.22";
 
 import {
     renderConfigHub,
@@ -169,20 +170,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=6.9.12";
+} from "./src/modules/abm.module.js?v=6.10.22";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=6.9.12";
+} from "./src/modules/inbox.module.js?v=6.10.22";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=6.9.12";
+} from "./src/modules/csv.module.js?v=6.10.22";
 
 window.generarBotonesPrincipalesVisibles = generarBotonesPrincipalesVisibles;
 window.generarBotonesAccion = generarBotonesAccion;
@@ -665,11 +666,18 @@ function renderFiltrosChips() {
     if (btnPopoverLimpiar) btnPopoverLimpiar.addEventListener('click', handleLimpiar);
 }
 
-// Cerrar popover si hace clic fuera
+// Cerrar popovers si hace clic fuera
 document.addEventListener('click', (e) => {
     if (filtrosPopoverAbierto && !e.target.closest('#filtros-chips')) {
         filtrosPopoverAbierto = false;
         renderFiltrosChips();
+    }
+    if (window.filtrosDashboardPopoverAbierto && !e.target.closest('#btn-toggle-filtros-dashboard') && !e.target.closest('#popover-filtros-dashboard')) {
+        window.filtrosDashboardPopoverAbierto = false;
+        const pop = document.getElementById('popover-filtros-dashboard');
+        if (pop) pop.style.display = 'none';
+        const arr = document.getElementById('arrow-filtro-dashboard');
+        if (arr) arr.textContent = '▼';
     }
 });
 
@@ -680,15 +688,12 @@ export function mostrarIndicadorCarga(mensaje = 'Procesando acción en el sistem
     const txt = document.getElementById('global-action-text');
     if (txt) txt.textContent = mensaje;
     if (loader) {
+        loader.style.display = 'flex';
         try {
-            if (typeof loader.show === 'function') {
-                if (!loader.open) loader.show();
-            } else {
-                loader.style.display = 'flex';
+            if (typeof loader.showModal === 'function' && !loader.open) {
+                loader.showModal();
             }
-        } catch(e) {
-            loader.style.display = 'flex';
-        }
+        } catch(e) {}
     }
     document.body.classList.add('body-action-busy');
     if (actionLoadingTimeout) clearTimeout(actionLoadingTimeout);
@@ -1100,6 +1105,41 @@ function mostrarSkeleton(containerId = 'lista-generica', cantidad = 5) {
     `).join('');
 }
 
+// ================================================================
+// FEEDBACK UNIVERSAL DE SINCRONIZACIÓN Y RED (Firestore Status Pill)
+// ================================================================
+let _syncTimerFade = null;
+export function notificarSincronizacion(tipo = 'loading', texto = 'Consultando base de datos...') {
+    const badge = document.getElementById('global-sync-badge');
+    if (!badge) return;
+
+    if (_syncTimerFade) {
+        clearTimeout(_syncTimerFade);
+        _syncTimerFade = null;
+    }
+
+    badge.className = 'sync-badge-pill visible';
+    if (tipo === 'loading') {
+        badge.classList.add('sync-loading');
+        badge.innerHTML = `<span class="sync-spinner-icon"></span> <span>${texto}</span>`;
+    } else if (tipo === 'ok') {
+        badge.classList.add('sync-ok');
+        badge.innerHTML = `<span>✅</span> <span>${texto}</span>`;
+        _syncTimerFade = setTimeout(() => {
+            badge.classList.remove('visible');
+        }, 1800);
+    } else if (tipo === 'warn' || tipo === 'error') {
+        badge.classList.add('sync-warn');
+        badge.innerHTML = `<span>⚠️</span> <span>${texto}</span>`;
+        _syncTimerFade = setTimeout(() => {
+            badge.classList.remove('visible');
+        }, 3500);
+    } else if (tipo === 'hide') {
+        badge.classList.remove('visible');
+    }
+}
+window.notificarSincronizacion = notificarSincronizacion;
+
 let alumnoIdActual = null;
 let estadoActualVista = 'Dashboard';
 window.tituloABMActual = '';
@@ -1155,7 +1195,6 @@ export function obtenerSnapshotFichaAlumno() {
         suscripcion: document.getElementById('tipo_suscripcion')?.value || '',
         instPrincipal: (window._instrumentoPrincipalSeleccionado || '').toLowerCase().trim(),
         instSecundarios: secArr,
-        canta: Boolean(document.getElementById('chk-alumno-canta')?.checked),
         descripcion: (typeof quill !== 'undefined' && quill) ? quill.getText().trim() : '',
         disp: disp
     });
@@ -3244,6 +3283,30 @@ function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, todosLosProfes, pr
 
 function getFechaReferenciaAlumno(al) {
     if (!al) return null;
+
+    // Alumnos en seguimiento activo: su fecha de referencia es la próxima fecha límite pautada
+    if (al.seguimiento && al.seguimiento.activo === true) {
+        if (al.seguimiento.fecha_proximo_seguimiento) {
+            const str = String(al.seguimiento.fecha_proximo_seguimiento).trim();
+            if (str.length === 10 && str.includes('-')) {
+                const parts = str.split('-');
+                const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 12, 0, 0);
+                if (!isNaN(d.getTime())) return d;
+            }
+            const d = new Date(str);
+            if (!isNaN(d.getTime())) return d;
+        }
+        if (al.seguimiento.fecha_alta_finalizada) {
+            const dAlta = new Date(al.seguimiento.fecha_alta_finalizada);
+            if (!isNaN(dAlta.getTime())) return new Date(dAlta.getTime() + 7 * 24 * 60 * 60 * 1000);
+        }
+        if (al.fecha_alta_finalizada) {
+            const dAlta = new Date(al.fecha_alta_finalizada);
+            if (!isNaN(dAlta.getTime())) return new Date(dAlta.getTime() + 7 * 24 * 60 * 60 * 1000);
+        }
+        return null;
+    }
+
     const rawEst = al.estado_agenda || '';
     const est = rawEst.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     
@@ -3965,8 +4028,9 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
     }
 
     let checklistHtml = '';
-    const esAltaConfirmadaOFinalizada = al.estado_agenda === 'Alta Efectiva' || al.estado_agenda === 'Alta Ilegal' || al.estado_agenda === 'Alta Finalizada';
-    if (esAltaConfirmadaOFinalizada) {
+    const stAgenda = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    const esAltaConfirmadaIncompleta = (stAgenda === 'alta efectiva' || stAgenda === 'alta ilegal' || stAgenda === 'alta confirmada') && !esAlumnoAltaFinalizada(al) && stAgenda !== 'alta finalizada';
+    if (esAltaConfirmadaIncompleta) {
         let rawChecks = al.checklist_alta || [false, false, false, false];
         let checks = rawChecks.length === 5 ? rawChecks.slice(1) : (rawChecks.length === 4 ? rawChecks : [false, false, false, false]);
         const pasostitulos = [
@@ -4314,6 +4378,7 @@ function actualizarBulkBar() {
     const btnFact = document.getElementById('btn-bulk-copiar-fact');
     const btnAuditCal = document.getElementById('btn-bulk-auditar-cal');
     const btnEliminar = document.getElementById('btn-bulk-eliminar');
+    const btnBulkSeg = document.getElementById('btn-bulk-iniciar-seguimiento');
     if (selectedBulkIds.length > 0) {
         document.getElementById('bulk-count').textContent = `${selectedBulkIds.length} seleccionados`;
         bar.style.display = 'flex';
@@ -4323,9 +4388,22 @@ function actualizarBulkBar() {
         const modo = (window.modoRolActivo || '').toLowerCase();
         const puedeArmarGrupos = rolesArr.includes('admin') || rolesArr.includes('coordinador_grupos') || rolesArr.includes('coordinador') || rolesArr.some(r => (r || '').toLowerCase().includes('coord')) || modo === 'admin' || modo === 'coordinador_grupos' || modo === 'coordinador' || modo === 'multi';
 
+        const esSegPendientes = estadoActualVista === 'Seguimientos - Pendientes';
+        const esFinalizadas = estadoActualVista === 'Altas - Finalizadas';
+
+        // Iniciar Seguimiento masivo disponible únicamente en Seguimientos - Pendientes
+        if (btnBulkSeg) {
+            btnBulkSeg.style.display = esSegPendientes ? 'inline-block' : 'none';
+            if (esSegPendientes) {
+                btnBulkSeg.textContent = selectedBulkIds.length === 1 
+                    ? '🎧 Iniciar Seguimiento' 
+                    : `🎧 Iniciar Seguimiento (${selectedBulkIds.length})`;
+            }
+        }
+
         // Nueva Propuesta de Grupo / Clase: solo para Coordinador y Administrador con alumnos en Lista de Espera (admisión finalizada)
         if (btnProp) {
-            const todosEnEspera = selectedBulkIds.length > 0 && selectedBulkIds.every(id => {
+            const todosEnEspera = !esFinalizadas && selectedBulkIds.length > 0 && selectedBulkIds.every(id => {
                 const al = (cachedAlumnosData || []).find(a => a.id === id);
                 if (!al) return false;
                 const est = (al.estado_agenda || '').toLowerCase();
@@ -4337,30 +4415,27 @@ function actualizarBulkBar() {
         
         // Devolver a Espera masivo disponible en vistas de Altas o Match
         if (btnDevolver) {
-            const puedeDevolver = ['Altas - Pendientes', 'Altas - En Curso', 'Altas - Suspendidas', 'Match - En Validacion'].includes(estadoActualVista);
+            const puedeDevolver = !esFinalizadas && ['Altas - Pendientes', 'Altas - En Curso', 'Altas - Suspendidas', 'Match - En Validacion'].includes(estadoActualVista);
             btnDevolver.style.display = puedeDevolver ? 'inline-block' : 'none';
         }
 
-        // Generar registro BD / Facturación SOLO en Altas Confirmadas o Finalizadas
-        const esAltasEfectivas = estadoActualVista === 'Altas - Confirmadas' || estadoActualVista === 'Altas - Finalizadas';
-        if (btnBD) btnBD.style.display = esAltasEfectivas ? 'inline-block' : 'none';
-        if (btnFact) btnFact.style.display = esAltasEfectivas ? 'inline-block' : 'none';
+        // Generar registro BD / Facturación SOLO en Altas Confirmadas (NUNCA en Finalizadas)
+        const esAltasConfirmadas = estadoActualVista === 'Altas - Confirmadas';
+        if (btnBD) btnBD.style.display = esAltasConfirmadas ? 'inline-block' : 'none';
+        if (btnFact) btnFact.style.display = esAltasConfirmadas ? 'inline-block' : 'none';
 
+        // Auditar Calendar: SOLO para Administradores
         if (btnAuditCal) {
-            const u = window.usuarioActual || {};
-            const r = (u.rol || '').toLowerCase();
-            const esAdminOAdmisor = r === 'admin' || r === 'admisor' || r === 'admisiones' || (Array.isArray(u.roles) && (u.roles.includes('admin') || u.roles.includes('admisor')));
-            btnAuditCal.style.display = esAdminOAdmisor ? 'inline-block' : 'none';
+            btnAuditCal.style.display = esUsuarioAdministrador() ? 'inline-block' : 'none';
         }
 
         if (btnEliminar) {
-            btnEliminar.style.display = esUsuarioAdministrador() ? 'inline-block' : 'none';
+            btnEliminar.style.display = (!esFinalizadas && esUsuarioAdministrador()) ? 'inline-block' : 'none';
         }
     } else {
         bar.style.display = 'none';
     }
 }
-
 document.getElementById('btn-bulk-cancelar').addEventListener('click', () => {
     selectedBulkIds.splice(0);
     document.querySelectorAll('.bulk-chk').forEach(c => c.checked = false);
@@ -4789,9 +4864,8 @@ if (btnBulkProp) {
             alert('Solo el Coordinador de Grupos y Administrador pueden armar propuestas de grupo o clase.');
             return;
         }
-        if (window.matchAlumnosSeleccionados && window.matchAlumnosSeleccionados.size >= 1) {
-            selectedBulkIds = Array.from(window.matchAlumnosSeleccionados);
-            window.selectedBulkIds = selectedBulkIds;
+        if ((!selectedBulkIds || selectedBulkIds.length === 0) && Array.isArray(window.selectedBulkIds) && window.selectedBulkIds.length > 0) {
+            selectedBulkIds = [...window.selectedBulkIds];
         }
         if (selectedBulkIds.length < 1) {
             alert('Por favor seleccioná al menos 1 alumno para armar una propuesta.');
@@ -4805,13 +4879,22 @@ if (btnBulkProp) {
             alert('Solo se pueden armar propuestas de grupo o clase con alumnos que ya tengan la admisión finalizada (en Lista de Espera).');
             return;
         }
-        if (selectedBulkIds.length > 1) {
+
+        const idsToProp = [...selectedBulkIds];
+        // Limpiar selección de la vista para evitar acumulaciones en memoria
+        selectedBulkIds = [];
+        window.selectedBulkIds = [];
+        const barBulk = document.getElementById('bulk-actions-bar');
+        if (barBulk) barBulk.style.display = 'none';
+        document.querySelectorAll('.chk-alumno-fila').forEach(c => c.checked = false);
+
+        if (idsToProp.length > 1) {
             if (window.abrirModalPrealtaGrupal) {
-                await window.abrirModalPrealtaGrupal(selectedBulkIds, '', configApp, true);
+                await window.abrirModalPrealtaGrupal(idsToProp, '', configApp, true);
             }
         } else {
             if (window.abrirModalPrealta) {
-                await window.abrirModalPrealta(selectedBulkIds[0], '', '', {}, { esPropuesta: true });
+                await window.abrirModalPrealta(idsToProp[0], '', '', {}, { esPropuesta: true });
             }
         }
     });
@@ -5224,9 +5307,10 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
         cont.style.display = 'flex';
         if (contKanban) contKanban.style.display = 'none';
         cont.innerHTML = `
-            <div style="color:var(--text-muted); text-align:center; padding:30px 20px; font-weight:500; background:var(--bg-sidebar); border-radius:12px; border:1px dashed var(--border-color); margin:15px 0; width:100%; box-sizing:border-box;">
-                <div style="font-size:15px; font-weight:700; color:var(--text-main); margin-bottom:4px;">No hay alumnos en esta vista</div>
-                <div style="font-size:12px; color:var(--text-muted);">Todas las gestiones están al día o no coinciden con los filtros aplicados.</div>
+            <div style="text-align:center; padding:50px 20px; background:white; border-radius:14px; border:1px solid var(--border-color); color:var(--text-muted); width:100%; box-sizing:border-box; margin:15px 0;">
+                <div style="font-size:2.5em; margin-bottom:10px;">📋</div>
+                <div style="font-size:16px; font-weight:700; color:var(--text-main); margin-bottom:6px;">No hay registros</div>
+                <div style="font-size:13px; max-width:450px; margin:0 auto;">Cuando haya alumnos en esta etapa se mostrarán agrupados aquí.</div>
             </div>`; 
         if (contKanban) contKanban.innerHTML = '';
         return; 
@@ -5507,6 +5591,7 @@ export function esModoEvaluadorActivo() {
 window.esModoEvaluadorActivo = esModoEvaluadorActivo;
 
 export function esModoAdmisorActivo() {
+    if (typeof esModoEvaluadorActivo === 'function' && esModoEvaluadorActivo()) return false;
     const modo = (window.modoRolActivo || '').toLowerCase().trim();
     if (modo === 'admisor' || modo === 'admisiones') return true;
     if (modo === 'evaluador' || modo === 'profesor' || modo === 'coordinador_grupos') return false;
@@ -5563,11 +5648,51 @@ export function filtrarAlumnosEvaluador(alumnos) {
     });
 }
 
+export function esEvaluadorDeSeguimientoDelAlumno(u, al) {
+    if (!u || !al) return false;
+    const norm = (txt) => (txt || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    const userNom = norm(u.nombre || '');
+    const userEmail = (u.email || '').toLowerCase().trim();
+    const userId = u.id || '';
+
+    const seg = al.seguimiento || {};
+    if (seg.responsable_id && userId && seg.responsable_id === userId) return true;
+    if (seg.responsable_email && userEmail && seg.responsable_email.toLowerCase().trim() === userEmail) return true;
+    if (seg.responsable_nombre && userNom && norm(seg.responsable_nombre) === userNom) return true;
+    if (al.seguimiento_responsable_id && userId && al.seguimiento_responsable_id === userId) return true;
+    if (al.seguimiento_responsable_email && userEmail && al.seguimiento_responsable_email.toLowerCase().trim() === userEmail) return true;
+    if (al.seguimiento_responsable_nombre && userNom && norm(al.seguimiento_responsable_nombre) === userNom) return true;
+    if (al.responsable_prealta_id && userId && al.responsable_prealta_id === userId) return true;
+    return false;
+}
+window.esEvaluadorDeSeguimientoDelAlumno = esEvaluadorDeSeguimientoDelAlumno;
+
+export function filtrarAlumnosSeguimientoEvaluador(alumnos, filtroEstado = 'activo') {
+    const u = window.usuarioActual;
+    const esEval = typeof esModoEvaluadorActivo === 'function' ? esModoEvaluadorActivo() : false;
+    
+    let pool = (alumnos || []).map(al => normalizarAlumnoSeguimiento(al));
+    if (filtroEstado === 'activo') {
+        pool = pool.filter(al => al && al.seguimiento && al.seguimiento.activo === true);
+    } else if (filtroEstado === 'pendiente') {
+        pool = pool.filter(al => esAlumnoAltaFinalizada(al) && !al.seguimiento?.activo && !al.seguimiento?.fecha_finalizacion);
+    } else if (filtroEstado === 'finalizado') {
+        pool = pool.filter(al => al && al.seguimiento && al.seguimiento.activo === false && al.seguimiento.fecha_finalizacion);
+    }
+
+    if (!esEval || !u) return pool;
+
+    return pool.filter(al => esEvaluadorDeSeguimientoDelAlumno(u, al));
+}
+window.filtrarAlumnosSeguimientoEvaluador = filtrarAlumnosSeguimientoEvaluador;
+window.normalizarAlumnoSeguimiento = normalizarAlumnoSeguimiento;
+
 // =======================================================================
 // PRIORIDADES / PRÓXIMOS A VENCER (DASHBOARD)
 // =======================================================================
 window.filtroPrioTabActual = window.filtroPrioTabActual || 'todos';
-window.filtroEvaluadorDashboard = window.filtroEvaluadorDashboard || 'todos';
+window.filtroTipoEventoDashboard = window.filtroTipoEventoDashboard || 'todos';
+window.filtrosDashboardPopoverAbierto = false;
 
 window.setFiltroPrioridadDashboard = function(tipo) {
     window.filtroPrioTabActual = tipo;
@@ -5576,33 +5701,107 @@ window.setFiltroPrioridadDashboard = function(tipo) {
     }
 };
 
-window.setFiltroEvaluadorDashboard = function(evalNom) {
-    window.filtroEvaluadorDashboard = evalNom;
+window.setFiltroTipoDashboard = function(tipoKey) {
+    window.filtroTipoEventoDashboard = tipoKey;
+    window.filtrosDashboardPopoverAbierto = false;
+    const pop = document.getElementById('popover-filtros-dashboard');
+    if (pop) pop.style.display = 'none';
+    const arr = document.getElementById('arrow-filtro-dashboard');
+    if (arr) arr.textContent = '▼';
     if (window.cachedPoolUrgenciasDashboard) {
         renderDashboardPrioridades(window.cachedPoolUrgenciasDashboard, 'Dashboard');
     }
 };
+
+window.toggleFiltrosDashboardPopover = function(e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    window.filtrosDashboardPopoverAbierto = !window.filtrosDashboardPopoverAbierto;
+    const pop = document.getElementById('popover-filtros-dashboard');
+    const arr = document.getElementById('arrow-filtro-dashboard');
+    if (pop) {
+        pop.style.display = window.filtrosDashboardPopoverAbierto ? 'block' : 'none';
+    }
+    if (arr) {
+        arr.textContent = window.filtrosDashboardPopoverAbierto ? '▲' : '▼';
+    }
+};
+
+function renderTiemposGrupo(items, vista, tabActual) {
+    const venc = items.filter(p => p.diffHs < 0);
+    const urg = items.filter(p => p.diffHs >= 0 && p.diffHs <= 24);
+    const prox = items.filter(p => p.diffHs > 24 && p.diffHs <= 48);
+
+    if (tabActual === 'vencidos') {
+        return venc.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
+    }
+    if (tabActual === 'urgentes') {
+        return urg.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
+    }
+    if (tabActual === 'proximos') {
+        return prox.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
+    }
+
+    // tabActual === 'todos'
+    let html = '';
+    if (venc.length > 0) {
+        html += `
+            <div style="display:flex; align-items:center; gap:8px; margin:4px 0 6px 0; font-size:11.5px; font-weight:800; color:#991b1b; text-transform:uppercase; letter-spacing:0.04em;">
+                <span>⚠️ Vencidas (${venc.length})</span>
+                <div style="flex:1; height:1px; background:#fecaca;"></div>
+            </div>
+        `;
+        html += venc.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
+    }
+    if (urg.length > 0) {
+        html += `
+            <div style="display:flex; align-items:center; gap:8px; margin:${venc.length > 0 ? '10px' : '4px'} 0 6px 0; font-size:11.5px; font-weight:800; color:#9a3412; text-transform:uppercase; letter-spacing:0.04em;">
+                <span>🔥 Menos de 24 hs (${urg.length})</span>
+                <div style="flex:1; height:1px; background:#fed7aa;"></div>
+            </div>
+        `;
+        html += urg.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
+    }
+    if (prox.length > 0) {
+        html += `
+            <div style="display:flex; align-items:center; gap:8px; margin:${(venc.length > 0 || urg.length > 0) ? '10px' : '4px'} 0 6px 0; font-size:11.5px; font-weight:800; color:#854d0e; text-transform:uppercase; letter-spacing:0.04em;">
+                <span>⏳ Próximas 24 a 48 hs (${prox.length})</span>
+                <div style="flex:1; height:1px; background:#fef08a;"></div>
+            </div>
+        `;
+        html += prox.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
+    }
+    return html;
+}
 
 function renderDashboardPrioridades(poolAlumnos, vista) {
     window.cachedPoolUrgenciasDashboard = poolAlumnos;
     const cont = document.getElementById('resumen-urgencias');
     if (!cont) return;
 
-    const esAdmisor = typeof esModoAdmisorActivo === 'function' ? esModoAdmisorActivo() : false;
+    const esEval = typeof esModoEvaluadorActivo === 'function' ? esModoEvaluadorActivo() : false;
+    const rolesActual = Array.isArray(window.usuarioActual?.roles) && window.usuarioActual.roles.length > 0 
+        ? window.usuarioActual.roles 
+        : [window.usuarioActual?.rol || 'admisiones'];
+    const esAdmin = rolesActual.includes('admin') || rolesActual.includes('superadmin');
+    const esAdmisor = !esEval && (esAdmin || rolesActual.includes('admisiones') || rolesActual.includes('admisor'));
+    const esCoordinador = !esEval && !esAdmin && !rolesActual.includes('admisiones') && !rolesActual.includes('admisor') && (rolesActual.includes('coordinador') || rolesActual.includes('coordinador_grupos'));
+
     const datasetCompleto = (Array.isArray(ultimosAlumnosCargados) && ultimosAlumnosCargados.length > 0)
         ? ultimosAlumnosCargados
         : (poolAlumnos || []);
 
+    // 1. Alumnos Sin Agendar y Altas Pendientes (Solo Admisor y Admin, nunca Coordinador ni Evaluador)
     let sinAgendar = [];
     let altasPendientes = [];
 
-    if (esAdmisor) {
+    if (esAdmisor && !esCoordinador) {
         sinAgendar = datasetCompleto.filter(d => {
             const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
             return st === 'pendiente procesar' || st === 'sin agendar';
         });
-
-        // Ordenar alumnos sin agendar por antigüedad de ingreso (más antiguos primero)
         sinAgendar.sort((a, b) => {
             const getRefDate = (al) => {
                 if (al.fecha_reingreso) {
@@ -5618,261 +5817,300 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
             const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
             return st === 'pre-alta pendiente';
         });
-
-        // Ordenar altas pendientes por antigüedad de ingreso
         altasPendientes.sort((a, b) => {
             const getRefDate = (al) => typeof obtenerFechaIngresoAlumno === 'function' ? (obtenerFechaIngresoAlumno(al)?.getTime() || Infinity) : Infinity;
             return getRefDate(a) - getRefDate(b);
         });
     }
 
-    const idsAdmisor = new Set([...sinAgendar.map(a => a.id), ...altasPendientes.map(a => a.id)]);
+    const idsExcluirPrio = new Set([...sinAgendar.map(a => a.id), ...altasPendientes.map(a => a.id)]);
 
-    let todasPrio = [];
+    // 2. Extraer y clasificar eventos con fecha límite en las próximas 48 hs (o vencidos)
+    let seguimientosActivos = [];
+    let entrevistasAgendadas = [];
+    let validacionesEnCurso = [];
+
     (poolAlumnos || []).forEach(al => {
-        // Si es admisor y ya está clasificado en sin agendar o altas pendientes, evitar duplicarlo en prioridades
-        if (esAdmisor && idsAdmisor.has(al.id)) return;
+        if (idsExcluirPrio.has(al.id)) return;
 
         let dateToEval = getFechaReferenciaAlumno(al);
         if (dateToEval && !isNaN(dateToEval.getTime())) {
             let diffHs = (dateToEval - new Date()) / (1000 * 60 * 60);
             if (diffHs <= 48) {
                 const info = getEstadoYBadgeLocal(al);
-                todasPrio.push({ al, info, diffHs, dateToEval });
+                const item = { al, info, diffHs, dateToEval };
+                
+                const rawEst = al.estado_agenda || '';
+                const est = rawEst.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+                if (al.seguimiento && al.seguimiento.activo === true) {
+                    seguimientosActivos.push(item);
+                } else if (est === 'agenda confirmada' || est === 'entrevista confirmada' || est.startsWith('entrevista')) {
+                    entrevistasAgendadas.push(item);
+                } else if (est === 'pendiente validacion por profe' || est === 'pendiente validacion por evaluador' || est === 'pendiente validacion por alumno') {
+                    validacionesEnCurso.push(item);
+                } else {
+                    entrevistasAgendadas.push(item);
+                }
             }
         }
     });
 
-    // Ordenar de mayor urgencia a menor: Vencidas más antiguas primero, luego las más próximas
-    todasPrio.sort((a, b) => a.dateToEval - b.dateToEval);
+    // Ordenar cada grupo por fecha de vencimiento (más antiguas primero)
+    seguimientosActivos.sort((a, b) => a.dateToEval - b.dateToEval);
+    entrevistasAgendadas.sort((a, b) => a.dateToEval - b.dateToEval);
+    validacionesEnCurso.sort((a, b) => a.dateToEval - b.dateToEval);
 
-    const vencidas = todasPrio.filter(p => p.diffHs < 0);
-    const urgentes24 = todasPrio.filter(p => p.diffHs >= 0 && p.diffHs <= 24);
-    const proximas48 = todasPrio.filter(p => p.diffHs > 24 && p.diffHs <= 48);
+    // Mapeo completo de tipos de eventos disponibles
+    const tiposDisponibles = [];
+    if (seguimientosActivos.length > 0) {
+        tiposDisponibles.push({
+            key: 'seguimiento_activo',
+            icono: '🎧',
+            label: esEval ? 'Mis Seguimientos Activos' : 'Seguimientos Activos',
+            items: seguimientosActivos,
+            esAsignable: true,
+            campoResp: (al) => al.seguimiento?.responsable_nombre || al.seguimiento_responsable_nombre || al.reserva_profe_nombre || al.profesor_asignado || 'Responsable de Seguimiento'
+        });
+    }
+    if (entrevistasAgendadas.length > 0) {
+        tiposDisponibles.push({
+            key: 'entrevista_agendada',
+            icono: '🗓️',
+            label: esEval ? 'Mis Entrevistas Agendadas' : 'Entrevistas Agendadas (Pend. Informe)',
+            items: entrevistasAgendadas,
+            esAsignable: true,
+            campoResp: (al) => (al.reserva_profe_nombre || al.profesor_asignado || 'Docente Evaluador').split('(')[0].trim()
+        });
+    }
+    if (validacionesEnCurso.length > 0) {
+        tiposDisponibles.push({
+            key: 'validacion',
+            icono: '⏳',
+            label: esEval ? 'Mis Validaciones en Curso' : 'Validaciones en Curso',
+            items: validacionesEnCurso,
+            esAsignable: true,
+            campoResp: (al) => (al.reserva_profe_nombre || al.profesor_asignado || 'Docente Asignado').split('(')[0].trim()
+        });
+    }
+    if (sinAgendar.length > 0 && esAdmisor && !esCoordinador) {
+        tiposDisponibles.push({
+            key: 'sin_agendar',
+            icono: '📥',
+            label: 'Sin Agendar (Inbox)',
+            rawAlumnos: sinAgendar,
+            items: sinAgendar.map(al => ({ al, info: getEstadoYBadgeLocal(al), diffHs: 0, dateToEval: new Date() })),
+            esAsignable: false
+        });
+    }
+    if (altasPendientes.length > 0 && esAdmisor && !esCoordinador) {
+        tiposDisponibles.push({
+            key: 'altas_pendientes',
+            icono: '🚀',
+            label: 'Altas Pendientes (Listas para Iniciar)',
+            rawAlumnos: altasPendientes,
+            items: altasPendientes.map(al => ({ al, info: getEstadoYBadgeLocal(al), diffHs: 0, dateToEval: new Date() })),
+            esAsignable: false
+        });
+    }
 
-    const totalUrgencias = esAdmisor
-        ? (sinAgendar.length + altasPendientes.length + todasPrio.length)
-        : todasPrio.length;
+    // Calcular el pool de todos los items combinados
+    let todosItemsCombinados = [];
+    tiposDisponibles.forEach(t => {
+        todosItemsCombinados.push(...t.items);
+    });
 
-    // Actualizar contadores en los botones
+    const totalGeneral = todosItemsCombinados.length;
+    const totalVencidos = todosItemsCombinados.filter(p => p.diffHs < 0).length;
+    const totalUrgentes = todosItemsCombinados.filter(p => p.diffHs >= 0 && p.diffHs <= 24).length;
+    const totalProximos = todosItemsCombinados.filter(p => p.diffHs > 24 && p.diffHs <= 48).length;
+
+    // Actualizar contadores superiores
     const elCntTodos = document.getElementById('cnt-prio-todos');
-    const elCntSinAgendar = document.getElementById('cnt-prio-sin-agendar');
-    const elCntAltasPend = document.getElementById('cnt-prio-altas-pend');
     const elCntVenc = document.getElementById('cnt-prio-vencidos');
     const elCntUrg = document.getElementById('cnt-prio-urgentes');
     const elCntProx = document.getElementById('cnt-prio-proximos');
     const elBadgeTot = document.getElementById('badge-total-urgencias');
 
-    if (elCntTodos) elCntTodos.textContent = totalUrgencias;
-    if (elBadgeTot) elBadgeTot.textContent = totalUrgencias;
-    if (elCntSinAgendar) elCntSinAgendar.textContent = sinAgendar.length;
-    if (elCntAltasPend) elCntAltasPend.textContent = altasPendientes.length;
-    if (elCntVenc) elCntVenc.textContent = vencidas.length;
-    if (elCntUrg) elCntUrg.textContent = urgentes24.length;
-    if (elCntProx) elCntProx.textContent = proximas48.length;
+    if (elCntTodos) elCntTodos.textContent = totalGeneral;
+    if (elBadgeTot) elBadgeTot.textContent = totalGeneral;
+    if (elCntVenc) elCntVenc.textContent = totalVencidos;
+    if (elCntUrg) elCntUrg.textContent = totalUrgentes;
+    if (elCntProx) elCntProx.textContent = totalProximos;
 
-    // Control de visibilidad de botones exclusivos de Admisor
-    document.querySelectorAll('.admisor-only').forEach(btn => {
-        btn.style.display = esAdmisor ? 'inline-flex' : 'none';
-    });
+    // Actualizar botón y popover de filtros desplegables
+    const btnToggleFiltro = document.getElementById('btn-toggle-filtros-dashboard');
+    const labelFiltro = document.getElementById('label-filtro-tipo-dashboard');
+    const badgeFiltro = document.getElementById('badge-filtro-tipo-dashboard');
+    const popoverCont = document.getElementById('popover-filtros-dashboard');
 
-    // Si el usuario no es admisor pero estaba en un tab exclusivo de admisor, resetear a 'todos'
-    if (!esAdmisor && (window.filtroPrioTabActual === 'sin-agendar' || window.filtroPrioTabActual === 'altas-pend')) {
-        window.filtroPrioTabActual = 'todos';
+    const tipoFiltroActual = window.filtroTipoEventoDashboard || 'todos';
+    const tipoActivoObj = tiposDisponibles.find(t => t.key === tipoFiltroActual);
+
+    if (btnToggleFiltro && labelFiltro) {
+        if (tipoFiltroActual !== 'todos' && tipoActivoObj) {
+            labelFiltro.textContent = tipoActivoObj.label;
+            if (badgeFiltro) {
+                badgeFiltro.textContent = tipoActivoObj.items.length;
+                badgeFiltro.style.display = 'inline-block';
+            }
+            btnToggleFiltro.style.borderColor = 'var(--accent-teal)';
+            btnToggleFiltro.style.background = 'rgba(0,123,143,0.06)';
+            btnToggleFiltro.style.color = 'var(--accent-teal)';
+        } else {
+            labelFiltro.textContent = 'Filtros';
+            if (badgeFiltro) badgeFiltro.style.display = 'none';
+            btnToggleFiltro.style.borderColor = '#cbd5e1';
+            btnToggleFiltro.style.background = '#ffffff';
+            btnToggleFiltro.style.color = 'var(--text-main)';
+        }
     }
 
-    // Actualizar estados activos de los botones de filtro
+    if (popoverCont) {
+        popoverCont.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid #f1f5f9; padding-bottom:6px;">
+                <span style="font-size:12px; font-weight:800; color:var(--text-main); text-transform:uppercase; letter-spacing:0.04em;">Tipo de Evento</span>
+                <button type="button" onclick="window.toggleFiltrosDashboardPopover(event)" style="background:none; border:none; cursor:pointer; font-size:13px; color:var(--text-muted); font-weight:700;">✕</button>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px;">
+                <button type="button" onclick="window.setFiltroTipoDashboard('todos')" style="text-align:left; background:${tipoFiltroActual === 'todos' ? '#f1f5f9' : 'transparent'}; border:none; padding:8px 10px; border-radius:8px; cursor:pointer; font-size:13px; font-weight:${tipoFiltroActual === 'todos' ? '700' : '500'}; color:var(--text-main); display:flex; justify-content:space-between; align-items:center;">
+                    <span>⚡ Todos los tipos</span>
+                    <span style="font-size:11px; background:#e2e8f0; color:#334155; padding:1px 6px; border-radius:10px;">${totalGeneral}</span>
+                </button>
+                ${tiposDisponibles.map(t => {
+                    const isSel = tipoFiltroActual === t.key;
+                    return `
+                        <button type="button" onclick="window.setFiltroTipoDashboard('${t.key}')" style="text-align:left; background:${isSel ? 'rgba(0,123,143,0.08)' : 'transparent'}; border:none; padding:8px 10px; border-radius:8px; cursor:pointer; font-size:13px; font-weight:${isSel ? '700' : '500'}; color:${isSel ? 'var(--accent-teal)' : 'var(--text-main)'}; display:flex; justify-content:space-between; align-items:center;">
+                            <span>${t.icono} ${t.label}</span>
+                            <span style="font-size:11px; background:${isSel ? 'var(--accent-teal)' : '#e2e8f0'}; color:${isSel ? '#fff' : '#334155'}; padding:1px 6px; border-radius:10px;">${t.items.length}</span>
+                        </button>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    }
+
+    // Actualizar estilos activos de los chips temporales fijos
+    const tabActual = window.filtroPrioTabActual || 'todos';
     document.querySelectorAll('.btn-prio-filtro').forEach(btn => {
         const prio = btn.getAttribute('data-prio');
-        const isActive = prio === window.filtroPrioTabActual;
+        const isActive = prio === tabActual;
         btn.classList.toggle('active', isActive);
         if (prio === 'todos') {
             btn.style.background = isActive ? '#1e293b' : '#ffffff';
             btn.style.color = isActive ? '#ffffff' : '#334155';
             btn.style.borderColor = isActive ? '#1e293b' : '#cbd5e1';
-            btn.style.fontWeight = isActive ? '700' : '600';
             btn.style.boxShadow = isActive ? '0 2px 6px rgba(30,41,59,0.25)' : '0 1px 2px rgba(0,0,0,0.03)';
-        } else if (prio === 'sin-agendar') {
-            btn.style.background = isActive ? '#2563eb' : '#ffffff';
-            btn.style.color = isActive ? '#ffffff' : '#1d4ed8';
-            btn.style.borderColor = isActive ? '#2563eb' : '#bfdbfe';
-            btn.style.fontWeight = isActive ? '700' : '600';
-            btn.style.boxShadow = isActive ? '0 2px 6px rgba(37,99,235,0.2)' : '0 1px 2px rgba(0,0,0,0.03)';
-        } else if (prio === 'altas-pend') {
-            btn.style.background = isActive ? '#059669' : '#ffffff';
-            btn.style.color = isActive ? '#ffffff' : '#047857';
-            btn.style.borderColor = isActive ? '#059669' : '#a7f3d0';
-            btn.style.fontWeight = isActive ? '700' : '600';
-            btn.style.boxShadow = isActive ? '0 2px 6px rgba(5,150,105,0.2)' : '0 1px 2px rgba(0,0,0,0.03)';
         } else if (prio === 'vencidos') {
             btn.style.background = isActive ? '#dc2626' : '#ffffff';
             btn.style.color = isActive ? '#ffffff' : '#b91c1c';
             btn.style.borderColor = isActive ? '#ef4444' : '#fecaca';
-            btn.style.fontWeight = isActive ? '700' : '600';
             btn.style.boxShadow = isActive ? '0 2px 6px rgba(239,68,68,0.2)' : '0 1px 2px rgba(0,0,0,0.03)';
         } else if (prio === 'urgentes') {
             btn.style.background = isActive ? '#ea580c' : '#ffffff';
             btn.style.color = isActive ? '#ffffff' : '#c2410c';
             btn.style.borderColor = isActive ? '#f97316' : '#fed7aa';
-            btn.style.fontWeight = isActive ? '700' : '600';
             btn.style.boxShadow = isActive ? '0 2px 6px rgba(249,115,22,0.2)' : '0 1px 2px rgba(0,0,0,0.03)';
         } else if (prio === 'proximos') {
             btn.style.background = isActive ? '#ca8a04' : '#ffffff';
             btn.style.color = isActive ? '#ffffff' : '#854d0e';
             btn.style.borderColor = isActive ? '#eab308' : '#fef08a';
-            btn.style.fontWeight = isActive ? '700' : '600';
             btn.style.boxShadow = isActive ? '0 2px 6px rgba(234,179,8,0.2)' : '0 1px 2px rgba(0,0,0,0.03)';
         }
     });
 
-    if (totalUrgencias === 0) {
-        const msg = esAdmisor
-            ? '✨ ¡Al día! No hay alumnos sin agendar, altas pendientes ni entrevistas urgentes o vencidas.'
-            : '✨ ¡Al día! No hay entrevistas ni tareas urgentes o vencidas en las próximas 48 hs.';
+    if (totalGeneral === 0) {
+        const msg = esEval
+            ? '✨ ¡Al día! No tienes seguimientos ni entrevistas urgentes o vencidas en las próximas 48 hs.'
+            : (esCoordinador
+                ? '✨ ¡Al día! No hay seguimientos ni entrevistas urgentes o vencidas en las próximas 48 hs.'
+                : '✨ ¡Al día! No hay alumnos sin agendar, altas pendientes ni seguimientos/entrevistas urgentes o vencidas.');
         cont.innerHTML = `<div style="color:var(--text-muted); padding:16px; text-align:center; font-weight:600; background:#f8fafc; border-radius:10px; border:1px dashed #cbd5e1;">${msg}</div>`;
         return;
     }
 
-    // Comprobación de estado vacío para filtro puntual
-    const tabActual = window.filtroPrioTabActual;
-    const esTabSinAgendar = tabActual === 'sin-agendar';
-    const esTabAltasPend = tabActual === 'altas-pend';
-    const esTabVenc = tabActual === 'vencidos';
-    const esTabUrg = tabActual === 'urgentes';
-    const esTabProx = tabActual === 'proximos';
+    // Filtrar los tipos a mostrar según tipoFiltroActual
+    const tiposAMostrar = tipoFiltroActual === 'todos'
+        ? tiposDisponibles
+        : tiposDisponibles.filter(t => t.key === tipoFiltroActual);
 
-    let totalItemsEnTab = 0;
-    if (tabActual === 'todos') totalItemsEnTab = totalUrgencias;
-    else if (esTabSinAgendar) totalItemsEnTab = sinAgendar.length;
-    else if (esTabAltasPend) totalItemsEnTab = altasPendientes.length;
-    else if (esTabVenc) totalItemsEnTab = vencidas.length;
-    else if (esTabUrg) totalItemsEnTab = urgentes24.length;
-    else if (esTabProx) totalItemsEnTab = proximas48.length;
-
-    if (tabActual !== 'todos' && totalItemsEnTab === 0) {
-        const labelTab = {
-            'sin-agendar': 'Sin Agendar',
-            'altas-pend': 'Altas Pendientes',
-            'vencidos': 'Vencidos',
-            'urgentes': '< 24 hs',
-            'proximos': '24 a 48 hs'
-        }[tabActual] || tabActual;
-        cont.innerHTML = `<div style="color:var(--text-muted); padding:16px; text-align:center; font-weight:600; background:#fff; border-radius:10px; border:1px dashed #cbd5e1;">No hay registros en esta categoría de prioridad (${labelTab}).</div>`;
+    if (tiposAMostrar.length === 0) {
+        cont.innerHTML = `<div style="color:var(--text-muted); padding:16px; text-align:center; font-weight:600; background:#fff; border-radius:10px; border:1px dashed #cbd5e1;">No hay registros disponibles para el tipo seleccionado.</div>`;
         return;
     }
 
     let html = '';
 
     // =========================================================================
-    // VISTA PARA ROL EVALUADOR (!esAdmisor)
+    // RENDERIZADO: EVALUADOR / DOCENTE (2 Niveles: Tipo de Evento -> Tiempos)
     // =========================================================================
-    if (!esAdmisor) {
-        if (tabActual === 'todos') {
-            if (vencidas.length > 0) {
-                html += `
-                    <div style="display:flex; align-items:center; gap:8px; margin:6px 0 4px 0; font-size:12px; font-weight:800; color:#991b1b; text-transform:uppercase; letter-spacing:0.04em;">
-                        <span>⚠️ Vencidas — Requiere Acción Inmediata (${vencidas.length})</span>
-                        <div style="flex:1; height:1.5px; background:#fecaca;"></div>
+    if (esEval) {
+        tiposAMostrar.forEach(t => {
+            // Filtrar items por tiempo según tabActual
+            let itemsFiltrados = t.items;
+            if (tabActual === 'vencidos') itemsFiltrados = t.items.filter(p => p.diffHs < 0);
+            else if (tabActual === 'urgentes') itemsFiltrados = t.items.filter(p => p.diffHs >= 0 && p.diffHs <= 24);
+            else if (tabActual === 'proximos') itemsFiltrados = t.items.filter(p => p.diffHs > 24 && p.diffHs <= 48);
+
+            if (itemsFiltrados.length === 0) return;
+
+            html += `
+                <div class="dash-apartado-container" style="margin-bottom:16px; border:1px solid var(--border-color); border-radius:12px; overflow:hidden; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+                    <div class="dash-apartado-header" style="background:#f8fafc; border-bottom:1px solid var(--border-color); padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:1.2em;">${t.icono}</span>
+                            <span style="font-weight:800; font-size:13.5px; color:var(--text-main);">${t.label}</span>
+                            <span class="badge" style="background:#e2e8f0; color:#1e293b; font-size:11px; font-weight:700; padding:2px 7px; border-radius:10px;">${itemsFiltrados.length}</span>
+                        </div>
                     </div>
-                `;
-                html += vencidas.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
-            }
-            if (urgentes24.length > 0) {
-                html += `
-                    <div style="display:flex; align-items:center; gap:8px; margin:14px 0 4px 0; font-size:12px; font-weight:800; color:#9a3412; text-transform:uppercase; letter-spacing:0.04em;">
-                        <span>🔥 Próximas a Vencer — Menos de 24 hs (${urgentes24.length})</span>
-                        <div style="flex:1; height:1.5px; background:#fed7aa;"></div>
+                    <div class="dash-apartado-content" style="padding:12px 14px; display:flex; flex-direction:column; gap:8px;">
+                        ${renderTiemposGrupo(itemsFiltrados, vista, tabActual)}
                     </div>
-                `;
-                html += urgentes24.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
-            }
-            if (proximas48.length > 0) {
-                html += `
-                    <div style="display:flex; align-items:center; gap:8px; margin:14px 0 4px 0; font-size:12px; font-weight:800; color:#854d0e; text-transform:uppercase; letter-spacing:0.04em;">
-                        <span>⏳ Próximas 24 a 48 hs (${proximas48.length})</span>
-                        <div style="flex:1; height:1.5px; background:#fef08a;"></div>
-                    </div>
-                `;
-                html += proximas48.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
-            }
-        } else {
-            let itemsAMostrar = [];
-            if (esTabVenc) itemsAMostrar = vencidas.map(p => p.al);
-            else if (esTabUrg) itemsAMostrar = urgentes24.map(p => p.al);
-            else if (esTabProx) itemsAMostrar = proximas48.map(p => p.al);
-            html = itemsAMostrar.map(al => generarFilaAlumno(al, al.id, vista)).join('');
+                </div>
+            `;
+        });
+
+        if (!html) {
+            cont.innerHTML = `<div style="color:var(--text-muted); padding:16px; text-align:center; font-weight:600; background:#fff; border-radius:10px; border:1px dashed #cbd5e1;">No hay registros en esta categoría de tiempo (${tabActual}).</div>`;
+            return;
         }
         cont.innerHTML = html;
         return;
     }
 
     // =========================================================================
-    // VISTA PARA ROL ADMISOR (Jerarquía Unificada en 2 Apartados)
+    // RENDERIZADO: ROLES DE GESTIÓN (Coordinador, Admisor, Admin)
+    // (Nivel 1: Tipo de Evento -> Nivel 2: Evaluador/Docente -> Nivel 3: Tiempos)
     // =========================================================================
-    const mostrarApartado1 = tabActual === 'todos' || esTabSinAgendar || esTabAltasPend;
-    const mostrarApartado2 = tabActual === 'todos' || esTabVenc || esTabUrg || esTabProx;
-
-    // -------------------------------------------------------------------------
-    // APARTADO 1: BANDEJA OPERATIVA DIRECTA DE ADMISIÓN
-    // -------------------------------------------------------------------------
-    const totalApartado1 = sinAgendar.length + altasPendientes.length;
-    if (mostrarApartado1 && totalApartado1 > 0) {
-        html += `
-            <div class="dash-apartado-container">
-                <div class="dash-apartado-header">
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <span style="font-size:1.3em;">⚡</span>
-                        <div>
-                            <div class="dash-apartado-title">
-                                <span>Acciones Inmediatas de Admisión</span>
-                                <span class="dash-apartado-badge" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd;">${totalApartado1}</span>
-                            </div>
-                            <div class="dash-apartado-subtitle">Alumnos sin agendar y altas pendientes listas para iniciar cursada</div>
+    tiposAMostrar.forEach(t => {
+        // Para tipos sin asignar (Sin Agendar / Altas Pendientes)
+        if (!t.esAsignable) {
+            if (tabActual !== 'todos') return;
+            
+            html += `
+                <div class="dash-apartado-container" style="margin-bottom:16px; border:1px solid var(--border-color); border-radius:12px; overflow:hidden; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+                    <div class="dash-apartado-header" style="background:#f8fafc; border-bottom:1px solid var(--border-color); padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:1.2em;">${t.icono}</span>
+                            <span style="font-weight:800; font-size:13.5px; color:var(--text-main);">${t.label}</span>
+                            <span class="badge" style="background:#e2e8f0; color:#1e293b; font-size:11px; font-weight:700; padding:2px 7px; border-radius:10px;">${t.rawAlumnos.length}</span>
                         </div>
                     </div>
-                </div>
-                <div class="dash-apartado-content">
-        `;
-
-        if ((tabActual === 'todos' || esTabSinAgendar) && sinAgendar.length > 0) {
-            html += `
-                <div style="display:flex; align-items:center; gap:8px; margin:4px 0 8px 0; font-size:12px; font-weight:800; color:#1d4ed8; text-transform:uppercase; letter-spacing:0.04em;">
-                    <span>📥 Sin Agendar — Inbox (${sinAgendar.length})</span>
-                    <div style="flex:1; height:1.5px; background:#bfdbfe;"></div>
+                    <div class="dash-apartado-content" style="padding:12px 14px; display:flex; flex-direction:column; gap:8px;">
+                        ${t.rawAlumnos.map(al => generarFilaAlumno(al, al.id, vista)).join('')}
+                    </div>
                 </div>
             `;
-            html += sinAgendar.map(al => generarFilaAlumno(al, al.id, vista)).join('');
+            return;
         }
 
-        if ((tabActual === 'todos' || esTabAltasPend) && altasPendientes.length > 0) {
-            html += `
-                <div style="display:flex; align-items:center; gap:8px; margin:16px 0 8px 0; font-size:12px; font-weight:800; color:#047857; text-transform:uppercase; letter-spacing:0.04em;">
-                    <span>🚀 Altas Pendientes — Listas para Iniciar (${altasPendientes.length})</span>
-                    <div style="flex:1; height:1.5px; background:#a7f3d0;"></div>
-                </div>
-            `;
-            html += altasPendientes.map(al => generarFilaAlumno(al, al.id, vista)).join('');
-        }
-
-        html += `
-                </div>
-            </div>
-        `;
-    }
-
-    // -------------------------------------------------------------------------
-    // APARTADO 2: SEGUIMIENTO DE AGENDAS Y VALIDACIONES EN CURSO
-    // (Agrupado primariamente por Evaluador / Docente, priorizando atrasados)
-    // -------------------------------------------------------------------------
-    if (mostrarApartado2 && todasPrio.length > 0) {
-        // Agrupar items por Evaluador
+        // Para tipos asignables (Seguimientos, Entrevistas, Validaciones): Sub-agrupar por Responsable / Evaluador
         const evalMap = new Map();
-        todasPrio.forEach(p => {
-            const rawNom = p.al.reserva_profe_nombre || p.al.profesor_asignado || p.al.reserva_profe_id || 'Docente Asignado';
-            const evalNom = rawNom.split('(')[0].trim() || 'Docente Asignado';
-            if (!evalMap.has(evalNom)) {
-                evalMap.set(evalNom, {
-                    nombre: evalNom,
+        t.items.forEach(p => {
+            const respNom = t.campoResp(p.al) || 'Sin asignar';
+            if (!evalMap.has(respNom)) {
+                evalMap.set(respNom, {
+                    nombre: respNom,
                     items: [],
                     vencidas: [],
                     urgentes: [],
@@ -5881,7 +6119,7 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
                     minDiffHs: Infinity
                 });
             }
-            const grp = evalMap.get(evalNom);
+            const grp = evalMap.get(respNom);
             grp.items.push(p);
             if (p.diffHs < grp.minDiffHs) grp.minDiffHs = p.diffHs;
             if (p.diffHs < 0) {
@@ -5894,131 +6132,77 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
             }
         });
 
-        // Ordenar evaluadores: Los que tienen tareas vencidas van PRIMERO, ordenados por peor retraso
+        // Ordenar responsables: Los que tienen vencidas PRIMERO, luego menor diffHs
         const evaluadoresOrdenados = Array.from(evalMap.values()).sort((a, b) => {
             if (a.tieneVencidas && !b.tieneVencidas) return -1;
             if (!a.tieneVencidas && b.tieneVencidas) return 1;
             return a.minDiffHs - b.minDiffHs;
         });
 
-        // Filtro por evaluador específico si está activo
-        const evalFiltro = window.filtroEvaluadorDashboard || 'todos';
-        const evaluadoresAMostrar = evalFiltro === 'todos'
-            ? evaluadoresOrdenados
-            : evaluadoresOrdenados.filter(e => e.nombre.toLowerCase() === evalFiltro.toLowerCase());
+        // Filtrar evaluadores que tengan items en la pestaña temporal seleccionada
+        let evalBlocksHtml = '';
+        let totalTipoEnTab = 0;
 
-        // Generar chips de filtro rápido por evaluador
-        const chipsEvaluadoresHtml = `
-            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                <button type="button" class="chip-eval-filtro ${evalFiltro === 'todos' ? 'active' : ''}" data-eval="todos">
-                    Todos (${todasPrio.length})
-                </button>
-                ${evaluadoresOrdenados.map(ev => {
-                    const isAct = evalFiltro.toLowerCase() === ev.nombre.toLowerCase();
-                    const iconAlert = ev.tieneVencidas ? '🔴 ' : '';
-                    return `
-                        <button type="button" class="chip-eval-filtro ${isAct ? 'active' : ''}" data-eval="${ev.nombre}" title="${ev.items.length} entrevistas o validaciones">
-                            ${iconAlert}${ev.nombre} (${ev.items.length})
-                        </button>
-                    `;
-                }).join('')}
-            </div>
-        `;
-
-        html += `
-            <div class="dash-apartado-container">
-                <div class="dash-apartado-header">
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <span style="font-size:1.3em;">👥</span>
-                        <div>
-                            <div class="dash-apartado-title">
-                                <span>Seguimiento de Agendas y Validaciones en Curso</span>
-                                <span class="dash-apartado-badge" style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5;">${todasPrio.length}</span>
-                            </div>
-                            <div class="dash-apartado-subtitle">Agrupado por Evaluador / Docente y ordenado por prioridad de vencimiento</div>
-                        </div>
-                    </div>
-                    <div>
-                        ${chipsEvaluadoresHtml}
-                    </div>
-                </div>
-                <div class="dash-apartado-content">
-        `;
-
-        evaluadoresAMostrar.forEach(ev => {
-            // Filtrar los items de este evaluador según el filtro de pestaña superior
+        evaluadoresOrdenados.forEach(ev => {
             let itemsEvalFiltrados = ev.items;
-            if (esTabVenc) itemsEvalFiltrados = ev.vencidas;
-            else if (esTabUrg) itemsEvalFiltrados = ev.urgentes;
-            else if (esTabProx) itemsEvalFiltrados = ev.proximas;
+            if (tabActual === 'vencidos') itemsEvalFiltrados = ev.vencidas;
+            else if (tabActual === 'urgentes') itemsEvalFiltrados = ev.urgentes;
+            else if (tabActual === 'proximos') itemsEvalFiltrados = ev.proximas;
 
             if (itemsEvalFiltrados.length === 0) return;
+            totalTipoEnTab += itemsEvalFiltrados.length;
 
             const cardClass = ev.tieneVencidas ? 'eval-card-group has-vencidas' : 'eval-card-group';
             const headClass = ev.tieneVencidas ? 'eval-card-header head-vencida' : 'eval-card-header head-normal';
-            const badgeEvClass = ev.tieneVencidas
+            const badgeEvStyle = ev.tieneVencidas
                 ? 'background:#fee2e2; color:#991b1b; border:1px solid #fca5a5;'
                 : 'background:#f1f5f9; color:#334155; border:1px solid #cbd5e1;';
 
-            html += `
-                <div class="${cardClass}">
+            evalBlocksHtml += `
+                <div class="${cardClass}" style="margin-bottom:10px;">
                     <div class="${headClass}">
                         <div style="display:flex; align-items:center; gap:8px;">
-                            <span style="font-size:1.15em;">👨‍🏫</span>
-                            <span style="font-size:14px; font-weight:800; color:#0f172a;">${ev.nombre}</span>
+                            <span style="font-size:1.1em;">👤</span>
+                            <span style="font-size:13.5px; font-weight:800; color:#0f172a;">${ev.nombre}</span>
                             ${ev.tieneVencidas ? `<span style="font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; background:#dc2626; color:#ffffff; text-transform:uppercase;">⚠️ Requiere Atención</span>` : ''}
                         </div>
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <span style="font-size:11.5px; font-weight:700; padding:2px 8px; border-radius:12px; ${badgeEvClass}">
-                                ${itemsEvalFiltrados.length} ${itemsEvalFiltrados.length === 1 ? 'registro' : 'registros'}
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            ${ev.vencidas.length > 0 ? `<span style="background:#fee2e2; color:#991b1b; font-size:10.5px; font-weight:800; padding:1px 6px; border-radius:6px;">${ev.vencidas.length} 🔴</span>` : ''}
+                            ${ev.urgentes.length > 0 ? `<span style="background:#ffedd5; color:#9a3412; font-size:10.5px; font-weight:800; padding:1px 6px; border-radius:6px;">${ev.urgentes.length} 🟠</span>` : ''}
+                            ${ev.proximas.length > 0 ? `<span style="background:#fef9c3; color:#854d0e; font-size:10.5px; font-weight:800; padding:1px 6px; border-radius:6px;">${ev.proximas.length} 🟡</span>` : ''}
+                            <span style="font-size:11.5px; font-weight:700; padding:2px 8px; border-radius:12px; ${badgeEvStyle}">
+                                ${itemsEvalFiltrados.length} ${itemsEvalFiltrados.length === 1 ? 'caso' : 'casos'}
                             </span>
                         </div>
                     </div>
-                    <div class="eval-card-body">
-            `;
-
-            if (tabActual === 'todos') {
-                if (ev.vencidas.length > 0) {
-                    html += `
-                        <div class="eval-sub-prio-header sub-prio-vencidas">
-                            <span>⚠️ Vencidas (${ev.vencidas.length})</span>
-                            <div class="sub-prio-line"></div>
-                        </div>
-                    `;
-                    html += ev.vencidas.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
-                }
-                if (ev.urgentes.length > 0) {
-                    html += `
-                        <div class="eval-sub-prio-header sub-prio-urgentes">
-                            <span>🔥 Menos de 24 hs (${ev.urgentes.length})</span>
-                            <div class="sub-prio-line"></div>
-                        </div>
-                    `;
-                    html += ev.urgentes.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
-                }
-                if (ev.proximas.length > 0) {
-                    html += `
-                        <div class="eval-sub-prio-header sub-prio-proximas">
-                            <span>⏳ Próximas 24 a 48 hs (${ev.proximas.length})</span>
-                            <div class="sub-prio-line"></div>
-                        </div>
-                    `;
-                    html += ev.proximas.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
-                }
-            } else {
-                html += itemsEvalFiltrados.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
-            }
-
-            html += `
+                    <div class="eval-card-body" style="padding:10px 12px; display:flex; flex-direction:column; gap:8px;">
+                        ${renderTiemposGrupo(itemsEvalFiltrados, vista, tabActual)}
                     </div>
                 </div>
             `;
         });
 
-        html += `
+        if (evalBlocksHtml) {
+            html += `
+                <div class="dash-apartado-container" style="margin-bottom:16px; border:1px solid var(--border-color); border-radius:12px; overflow:hidden; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+                    <div class="dash-apartado-header" style="background:#f8fafc; border-bottom:1px solid var(--border-color); padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:1.2em;">${t.icono}</span>
+                            <span style="font-weight:800; font-size:13.5px; color:var(--text-main);">${t.label}</span>
+                            <span class="badge" style="background:#e2e8f0; color:#1e293b; font-size:11px; font-weight:700; padding:2px 7px; border-radius:10px;">${totalTipoEnTab}</span>
+                        </div>
+                    </div>
+                    <div class="dash-apartado-content" style="padding:12px 14px; display:flex; flex-direction:column; gap:10px;">
+                        ${evalBlocksHtml}
+                    </div>
                 </div>
-            </div>
-        `;
+            `;
+        }
+    });
+
+    if (!html) {
+        cont.innerHTML = `<div style="color:var(--text-muted); padding:16px; text-align:center; font-weight:600; background:#fff; border-radius:10px; border:1px dashed #cbd5e1;">No hay registros en esta categoría de prioridad (${tabActual}).</div>`;
+        return;
     }
 
     cont.innerHTML = html;
@@ -6092,6 +6276,26 @@ function getModuloSubtabs() {
             { vista: 'Altas - Confirmadas', label: 'Confirmadas', icon: '⚠️', countFn: (alumnos) => alumnos.filter(d => esAlumnoAltaConfirmadaIncompleta(d)).length },
             { vista: 'Altas - Finalizadas', label: 'Finalizadas', icon: '🏆', countFn: (alumnos) => alumnos.filter(d => esAlumnoAltaFinalizada(d)).length }
         ],
+        'Seguimientos': [
+            { 
+                vista: 'Seguimientos - Pendientes', 
+                label: 'Pendientes', 
+                icon: '⏳', 
+                countFn: (alumnos) => filtrarAlumnosSeguimientoEvaluador(alumnos, 'pendiente').length
+            },
+            { 
+                vista: 'Seguimientos - En Curso', 
+                label: 'En Curso', 
+                icon: '🎧', 
+                countFn: (alumnos) => filtrarAlumnosSeguimientoEvaluador(alumnos, 'activo').length
+            },
+            { 
+                vista: 'Seguimientos - Finalizados', 
+                label: 'Finalizados', 
+                icon: '🏁', 
+                countFn: (alumnos) => filtrarAlumnosSeguimientoEvaluador(alumnos, 'finalizado').length
+            }
+        ],
         'Suspendidos': [
             { vista: 'Suspendidos - Todos', label: 'Todos', icon: '⏸️', countFn: (alumnos) => alumnos.filter(d => isAlumnoSuspendido(d)).length },
             { vista: 'Suspendidos - De Inbox', label: 'De Inbox', icon: '💬', countFn: (alumnos) => alumnos.filter(d => isAlumnoSuspendido(d) && getOrigenSuspension(d) === 'inbox').length },
@@ -6134,17 +6338,19 @@ function actualizarBadgesYNavegacion(allData) {
     const u = window.usuarioActual || {};
     const esEval = esModoEvaluadorActivo();
 
-    // Conteo Inbox según rol
+    // 1. Conteo Inbox: alumnos sin agendar, validar evaluador y validar alumno
     let countInbox = 0;
     if (esEval) {
         countInbox = filtrarAlumnosEvaluador(datos).filter(d => {
             const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-            return st === 'pendiente validacion por profe' || st === 'pendiente validacion por evaluador' || st === 'agenda confirmada' || st === 'entrevista confirmada';
+            return st === 'pendiente validacion por profe' || st === 'pendiente validacion por evaluador' || st === 'pendiente validacion por alumno';
         }).length;
     } else {
         countInbox = datos.filter(d => {
             const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-            return st === 'pendiente procesar' || st === 'sin agendar';
+            return st === 'pendiente procesar' || st === 'sin agendar' ||
+                   st === 'pendiente validacion por profe' || st === 'pendiente validacion por evaluador' ||
+                   st === 'pendiente validacion por alumno';
         }).length;
     }
 
@@ -6154,7 +6360,7 @@ function actualizarBadgesYNavegacion(allData) {
         bInbox.style.display = countInbox > 0 ? 'inline-block' : 'none';
     }
 
-    // Conteo Lista de Espera
+    // 2. Conteo Lista de Espera: todos
     const countEspera = datos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() === 'lista de espera').length;
     const bEspera = document.getElementById('badge-espera');
     if (bEspera) {
@@ -6162,19 +6368,17 @@ function actualizarBadgesYNavegacion(allData) {
         bEspera.style.display = countEspera > 0 ? 'inline-block' : 'none';
     }
 
-    // Conteo Match (Grupos en validación o candidatos)
-    const countMatchVal = datos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() === 'validando grupo').length;
+    // 3. Conteo Match: quitar contador
     const bMatch = document.getElementById('badge-match');
     if (bMatch) {
-        const txtBadge = countMatchVal > 0 ? countMatchVal : (countEspera > 0 ? countEspera : 0);
-        bMatch.textContent = txtBadge;
-        bMatch.style.display = txtBadge > 0 ? 'inline-block' : 'none';
+        bMatch.textContent = '0';
+        bMatch.style.display = 'none';
     }
 
-    // Conteo Altas (Pendientes)
+    // 4. Conteo Altas: pendientes y en curso
     const countAltas = datos.filter(d => {
         const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-        return st === 'pre-alta pendiente';
+        return st === 'pre-alta pendiente' || st === 'pre-alta iniciada';
     }).length;
     const bAltas = document.getElementById('badge-altas');
     if (bAltas) {
@@ -6182,12 +6386,21 @@ function actualizarBadgesYNavegacion(allData) {
         bAltas.style.display = countAltas > 0 ? 'inline-block' : 'none';
     }
 
-    // Conteo Suspendidos
-    const countSuspendidos = datos.filter(d => isAlumnoSuspendido(d)).length;
+    // 5. Conteo Seguimientos: pendientes y en curso
+    const countSegPend = filtrarAlumnosSeguimientoEvaluador(datos, 'pendiente').length;
+    const countSegCurso = filtrarAlumnosSeguimientoEvaluador(datos, 'activo').length;
+    const countSeg = countSegPend + countSegCurso;
+    const bSeg = document.getElementById('badge-seguimientos');
+    if (bSeg) {
+        bSeg.textContent = countSeg;
+        bSeg.style.display = countSeg > 0 ? 'inline-block' : 'none';
+    }
+
+    // 6. Conteo Suspendidos: quitar contador
     const bSusp = document.getElementById('badge-suspendidos');
     if (bSusp) {
-        bSusp.textContent = countSuspendidos;
-        bSusp.style.display = countSuspendidos > 0 ? 'inline-block' : 'none';
+        bSusp.textContent = '0';
+        bSusp.style.display = 'none';
     }
 }
 
@@ -6201,6 +6414,7 @@ function renderSegmentedTabs(vista) {
     else if (vista.startsWith('Altas')) modulo = 'Altas';
     else if (vista.startsWith('Match') || vista === 'Ajustes Match') modulo = 'Match';
     else if (vista.startsWith('Suspendidos')) modulo = 'Suspendidos';
+    else if (vista.startsWith('Seguimientos') || vista === 'Altas - Seguimientos') modulo = 'Seguimientos';
 
     const subtabsDict = getModuloSubtabs();
     if (!modulo || !subtabsDict[modulo]) {
@@ -6210,7 +6424,7 @@ function renderSegmentedTabs(vista) {
     }
 
     const tabs = subtabsDict[modulo];
-    if (!tabs || tabs.length <= 1) {
+    if (!tabs || tabs.length === 0) {
         container.style.display = 'none';
         bar.innerHTML = '';
         return;
@@ -6294,15 +6508,15 @@ export function obtenerModulosPermitidosModoActivo() {
     // Para administradores: acceso irrestricto y soporte completo para cambiar de vista de rol
     if (esAdmin) {
         if (modo === 'evaluador') {
-            return ['dashboard', 'inbox', 'espera'];
+            return ['dashboard', 'inbox', 'seguimientos'];
         } else if (modo === 'profesor' || modo === 'docente') {
             return ['portal_profesor'];
         } else if (modo === 'coordinador_grupos' || modo === 'coordinador') {
-            return ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'configuracion'];
+            return ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'configuracion'];
         } else if (modo === 'admisor' || modo === 'admisiones') {
-            return ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'metricas'];
+            return ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'metricas'];
         } else {
-            return ['dashboard', 'portal_profesor', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'metricas', 'configuracion'];
+            return ['dashboard', 'portal_profesor', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'metricas', 'configuracion'];
         }
     }
 
@@ -6323,19 +6537,19 @@ export function obtenerModulosPermitidosModoActivo() {
     }
 
     if (modo === 'evaluador') {
-        const base = ['dashboard', 'inbox', 'espera'];
-        return base.filter(m => listaPermitidaUser.includes(m));
+        const base = ['dashboard', 'inbox', 'espera', 'seguimientos'];
+        return base.filter(m => listaPermitidaUser.includes(m) || m === 'seguimientos');
     } else if (modo === 'profesor' || modo === 'docente') {
         const base = ['portal_profesor'];
         return base.filter(m => listaPermitidaUser.includes(m));
     } else if (modo === 'coordinador_grupos' || modo === 'coordinador') {
-        const base = ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'configuracion'];
+        const base = ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'configuracion'];
         return base.filter(m => listaPermitidaUser.includes(m));
     } else if (modo === 'admisor' || modo === 'admisiones') {
-        const base = ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'metricas'];
-        return base.filter(m => listaPermitidaUser.includes(m));
+        const base = ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'metricas'];
+        return base.filter(m => listaPermitidaUser.includes(m) || m === 'seguimientos');
     } else if (modo === 'admin') {
-        const base = ['dashboard', 'portal_profesor', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'metricas', 'configuracion'];
+        const base = ['dashboard', 'portal_profesor', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'metricas', 'configuracion'];
         return base.filter(m => listaPermitidaUser.includes(m));
     } else {
         // modo multi: exactamente los módulos permitidos para el usuario
@@ -6358,7 +6572,7 @@ export function cambiarModoRol(nuevoModo) {
 
     if (nuevoModo === 'profesor') {
         cargarVista('Mis Alumnos y Ensambles');
-    } else if (nuevoModo === 'evaluador' && (vistaActual.startsWith('Match') || vistaActual.startsWith('Altas') || vistaActual === 'Configuración' || vistaActual === 'Mis Alumnos y Ensambles' || vistaActual === 'Estadísticas')) {
+    } else if (nuevoModo === 'evaluador' && (vistaActual.startsWith('Match') || vistaActual.startsWith('Altas') || vistaActual === 'Configuración' || vistaActual === 'Mis Alumnos y Ensambles' || vistaActual === 'Estadísticas' || (vistaActual === 'Lista de Espera' && !modsPermitidos.includes('espera')))) {
         cargarVista('Dashboard');
     } else if ((nuevoModo === 'coordinador_grupos' || nuevoModo === 'coordinador') && vistaActual === 'Mis Alumnos y Ensambles') {
         cargarVista('Dashboard');
@@ -6536,6 +6750,17 @@ export function iniciarVerificadorVersion() {
             if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
                 navigator.serviceWorker.getRegistration().then(reg => reg?.update());
             }
+
+            // Re-hidratación inteligente por inactividad (> 3 minutos sin interacción)
+            const ahora = Date.now();
+            const ultimoFetch = window._timestampUltimaCargaAlumnos || 0;
+            const tiempoInactivo = ahora - ultimoFetch;
+            if (tiempoInactivo > 3 * 60 * 1000) {
+                console.log(`[Auto-Rehydrate] Pestaña reactivada tras ${Math.round(tiempoInactivo / 1000)}s de inactividad. Sincronizando ${estadoActualVista}...`);
+                if (typeof cargarVista === 'function' && typeof estadoActualVista === 'string') {
+                    cargarVista(estadoActualVista, false);
+                }
+            }
         }
     });
 
@@ -6677,6 +6902,7 @@ export function configurarSidebarPorPermisos() {
         'Lista de Espera': 'espera',
         'Match': 'match',
         'Altas': 'altas',
+        'Seguimientos': 'seguimientos',
         'Suspendidos': 'suspendidos',
         'Estadísticas': 'metricas',
         'Configuración': 'configuracion'
@@ -6787,6 +7013,16 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
         vista = 'Inbox - Confirmadas';
     }
 
+    // Si el modo activo es Evaluador y se intenta acceder a Altas, redirigir siempre a Seguimientos
+    if (esEvalActivo && (vista.startsWith('Altas') && vista !== 'Altas - Seguimientos')) {
+        vista = 'Seguimientos - Pendientes';
+    }
+
+    // Redirección por defecto para Seguimientos
+    if (vista === 'Seguimientos' || vista === 'Altas - Seguimientos') {
+        vista = 'Seguimientos - Pendientes';
+    }
+
     // Reseteo automático del buscador al cambiar de vista
     if (vista !== estadoActualVista) {
         const inputBuscador = document.getElementById('input-buscador-general');
@@ -6844,10 +7080,26 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
     else if (vista.startsWith('Match') || vista === 'Ajustes Match') modulo = 'Match';
     else if (vista === 'Lista de Espera') modulo = 'Lista de Espera';
     else if (vista.startsWith('Suspendidos')) modulo = 'Suspendidos';
+    else if (vista.startsWith('Seguimientos') || vista === 'Altas - Seguimientos') modulo = 'Seguimientos';
     else if (vista === 'Dashboard') modulo = 'Dashboard';
     else if (vista === 'Estadísticas') modulo = 'Estadísticas';
     else if (vista.startsWith('Configuración') || vista.startsWith('Ajustes') || vista.startsWith('ABM')) modulo = 'Configuración';
     else if (vista === 'Mis Grupos & Solicitud de Alumnos' || vista === 'Mis Alumnos y Ensambles') modulo = 'portal_profesor';
+
+    const moduloAnterior = window._moduloActual || null;
+    window._moduloActual = modulo;
+    if (moduloAnterior && modulo && moduloAnterior !== modulo) {
+        if (typeof filtrosSeleccionados === 'object' && filtrosSeleccionados !== null) {
+            filtrosSeleccionados.instrumentos?.clear();
+            filtrosSeleccionados.niveles?.clear();
+            filtrosSeleccionados.suscripciones?.clear();
+            filtrosSeleccionados.evaluadores?.clear();
+            filtrosSeleccionados.gruposEtarios?.clear();
+            filtrosSeleccionados.edadMin = null;
+            filtrosSeleccionados.edadMax = null;
+            filtrosSeleccionados.diasSinContactoMin = null;
+        }
+    }
 
     // Route Guard RBAC
     const modIdMap = {
@@ -6856,6 +7108,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
         'Lista de Espera': 'espera',
         'Match': 'match',
         'Altas': 'altas',
+        'Seguimientos': 'seguimientos',
         'Suspendidos': 'suspendidos',
         'Estadísticas': 'metricas',
         'Configuración': 'configuracion',
@@ -6901,7 +7154,11 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
             'Suspendidos - Todos': '<span style="color:var(--text-muted); font-weight:500;">Suspendidos › </span><span style="color:var(--text-main); font-weight:700;">Todos los Suspendidos</span>',
             'Suspendidos - De Inbox': '<span style="color:var(--text-muted); font-weight:500;">Suspendidos › </span><span style="color:var(--text-main); font-weight:700;">De Inbox (Entrevistas)</span>',
             'Suspendidos - De Lista de Espera': '<span style="color:var(--text-muted); font-weight:500;">Suspendidos › </span><span style="color:var(--text-main); font-weight:700;">De Lista de Espera</span>',
-            'Suspendidos - De Pre-Alta': '<span style="color:var(--text-muted); font-weight:500;">Suspendidos › </span><span style="color:var(--text-main); font-weight:700;">De Pre-Alta / Alta</span>'
+            'Suspendidos - De Pre-Alta': '<span style="color:var(--text-muted); font-weight:500;">Suspendidos › </span><span style="color:var(--text-main); font-weight:700;">De Pre-Alta / Alta</span>',
+            'Seguimientos': '<span style="color:var(--text-muted); font-weight:500;">Seguimientos › </span><span style="color:var(--text-main); font-weight:700;">Pendientes</span>',
+            'Seguimientos - Pendientes': '<span style="color:var(--text-muted); font-weight:500;">Seguimientos › </span><span style="color:var(--text-main); font-weight:700;">Pendientes</span>',
+            'Seguimientos - En Curso': '<span style="color:var(--text-muted); font-weight:500;">Seguimientos › </span><span style="color:var(--text-main); font-weight:700;">En Curso</span>',
+            'Seguimientos - Finalizados': '<span style="color:var(--text-muted); font-weight:500;">Seguimientos › </span><span style="color:var(--text-main); font-weight:700;">Finalizados</span>'
         };
 
         if (tituloMap[vista]) {
@@ -6923,7 +7180,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
     let bottomVista = vista;
     if (vista.startsWith('Inbox')) bottomVista = esEvalActivo ? 'Inbox - Confirmadas' : 'Inbox - Pendientes';
     if (vista.startsWith('Altas')) bottomVista = 'Altas - Pendientes';
-    const bottomMatch = document.querySelector(`.bottom-nav-item[data-vista="${bottomVista}"]`);
+    const bottomMatch = document.querySelector(`.bottom-nav-item[data-vista="${bottomVista}"]`) || (vista.startsWith('Altas') ? document.querySelector('.bottom-nav-item[data-modulo="Altas"]') : null);
     if(bottomMatch) bottomMatch.classList.add('active');
     const vResumen = document.getElementById('vista-resumen'), vResumenTime = document.getElementById('vista-resumen-timeline'), contLista = document.getElementById('lista-generica'), contKanban = document.getElementById('kanban-generico'), contEstad = document.getElementById('estadisticas-container');
     const formWrapper = document.getElementById('form-alumno-wrapper'), cv = document.getElementById('controles-vista');
@@ -6933,42 +7190,70 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
         if (modalAlta && !modalAlta.contains(formWrapper)) modalAlta.appendChild(formWrapper); 
     }
     
-    // Ocultar botones CSV de toda la app y resetear barra bulk flotante
+    // Ocultar botones CSV de toda la app y resetear selecciones flotantes en memoria
     const btnCSVEl = document.getElementById('btn-carga-masiva');
     if (btnCSVEl) btnCSVEl.style.display = 'none';
     const btnSyncEspera = document.getElementById('btn-sync-espera-csv');
     if (btnSyncEspera) btnSyncEspera.style.display = 'none';
     selectedBulkIds = [];
     window.selectedBulkIds = [];
+    if (window.matchAlumnosSeleccionados && typeof window.matchAlumnosSeleccionados.clear === 'function') {
+        window.matchAlumnosSeleccionados.clear();
+    }
     const barBulkGlobal = document.getElementById('bulk-actions-bar');
     if (barBulkGlobal) barBulkGlobal.style.display = 'none';
+    const barBulkMatch = document.getElementById('match-alumnos-bulk-bar');
+    if (barBulkMatch) barBulkMatch.style.display = 'none';
+    document.querySelectorAll('.chk-alumno-fila, .chk-match-alumno').forEach(c => c.checked = false);
     if (vista !== 'Lista de Espera') { filtrosSeleccionados.diasSinContactoMin = null; }
     
     const searchHeader = document.getElementById('search-container-header');
     const searchVista = document.getElementById('search-container-vista');
     if (searchHeader) searchHeader.style.display = 'none';
     if (searchVista) searchVista.style.display = 'none';
-    document.getElementById('alarm-filters').style.display = 'none';
     vResumen.style.display = 'none'; if(vResumenTime) vResumenTime.style.display = 'none'; contLista.style.display = 'none'; if(contKanban) contKanban.style.display = 'none'; contEstad.style.display = 'none'; cv.style.display = 'none';
     const contMatch = document.getElementById('match-pendientes-container'); if(contMatch) contMatch.style.display = 'none';
+
+    const esVistaConLista = vista.startsWith('Inbox') || vista.startsWith('Altas') || vista === 'Lista de Espera' || vista.startsWith('Suspendidos') || vista.startsWith('Seguimientos') || vista === 'Altas - Seguimientos';
+
+    // FEEDBACK VISUAL INMEDIATO (Milisegundo 0): Skeleton y Contenedor activos antes de esperar la red
+    if (esVistaConLista) { 
+        cv.style.display = 'flex'; 
+        contLista.style.display = 'flex';
+        const s1 = document.getElementById('select-agrupador-1');
+        const s2 = document.getElementById('select-agrupador-2');
+        const s3 = document.getElementById('select-agrupador-3');
+        if (s1 && s1.value !== agrupadorNivel1) s1.value = agrupadorNivel1;
+        if (s2 && s2.value !== agrupadorNivel2) s2.value = agrupadorNivel2;
+        if (s3 && s3.value !== agrupadorNivel3) s3.value = agrupadorNivel3;
+        renderFiltrosChips(); 
+        if (searchVista) searchVista.style.display = 'block'; 
+        if (!usarCache) mostrarSkeleton('lista-generica', 6);
+    }
+
+    if (!usarCache) notificarSincronizacion('loading', 'Consultando base de datos...');
 
     // Obtener datos globales de alumnos
     let allData = [];
     if (usarCache && Array.isArray(ultimosAlumnosCargados) && ultimosAlumnosCargados.length > 0) {
         allData = ultimosAlumnosCargados;
+        notificarSincronizacion('ok', 'Actualizado');
     } else {
         try {
             const qSnap = await getDocs(collection(db, "alumnos"));
-            qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
+            qSnap.forEach(d => allData.push(normalizarAlumnoSeguimiento({id: d.id, ...d.data()})));
             ultimosAlumnosCargados = allData;
             window.ultimosAlumnosCargados = allData;
             window.allData = allData;
+            window._timestampUltimaCargaAlumnos = Date.now();
             actualizarBadgesYNavegacion(allData);
+            notificarSincronizacion('ok', 'Actualizado');
         } catch(e) {
             console.error("Error al cargar alumnos:", e);
             allData = ultimosAlumnosCargados || [];
             window.allData = allData;
             window.ultimosAlumnosCargados = allData;
+            notificarSincronizacion('warn', 'Reconectando con la base...');
         }
     }
 
@@ -6991,30 +7276,12 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
         // En cualquier otra vista con lista, la búsqueda es contextual (ocultamos panel global)
         if (contBusqueda) contBusqueda.style.display = 'none';
     }
-
-    const esVistaConLista = vista.startsWith('Inbox') || vista.startsWith('Altas') || vista === 'Lista de Espera' || vista.startsWith('Suspendidos');
-
-    if (esVistaConLista) { 
-        cv.style.display = 'flex'; 
-        const s1 = document.getElementById('select-agrupador-1');
-        const s2 = document.getElementById('select-agrupador-2');
-        const s3 = document.getElementById('select-agrupador-3');
-        if (s1 && s1.value !== agrupadorNivel1) s1.value = agrupadorNivel1;
-        if (s2 && s2.value !== agrupadorNivel2) s2.value = agrupadorNivel2;
-        if (s3 && s3.value !== agrupadorNivel3) s3.value = agrupadorNivel3;
-        renderFiltrosChips(); 
-        if (searchVista) searchVista.style.display = 'block'; 
-        if (!usarCache) mostrarSkeleton('lista-generica', 6);
-
-        if (vista === 'Inbox - Confirmadas' || vista === 'Altas - Confirmadas') document.getElementById('alarm-filters').style.display = 'flex';
-    }
     
     if (vista === 'Dashboard') {
         if (searchHeader) searchHeader.style.display = 'block'; 
         vResumen.style.display = 'flex'; 
         cv.style.display = 'none';
         if (searchVista) searchVista.style.display = 'none';
-        document.getElementById('alarm-filters').style.display = 'none';
         
         const trayContainer = document.getElementById('timeline-tray-container');
         if (trayContainer) trayContainer.style.display = 'none';
@@ -7029,10 +7296,12 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
 
             let poolUrgencias = allData;
             if (esSoloEval) {
-                poolUrgencias = filtrarAlumnosEvaluador(allData).filter(d => {
+                const entrevistasEval = filtrarAlumnosEvaluador(allData).filter(d => {
                     const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
                     return st === 'agenda confirmada' || st === 'entrevista confirmada';
                 });
+                const seguimientosEval = filtrarAlumnosSeguimientoEvaluador(allData);
+                poolUrgencias = [...entrevistasEval, ...seguimientosEval];
             } else if (esSoloCoordinador) {
                 poolUrgencias = allData.filter(d => {
                     const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
@@ -7108,9 +7377,9 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
             });
             }
         } catch(e) {}
-    } else if (vista.startsWith('Inbox') || vista.startsWith('Altas')) {
+    } else if (vista.startsWith('Inbox') || vista.startsWith('Altas') || vista.startsWith('Seguimientos') || vista === 'Altas - Seguimientos') {
         try {
-            const qSnap = await getDocs(collection(db, "alumnos")); let allData = []; qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
+            const qSnap = await getDocs(collection(db, "alumnos")); let allData = []; qSnap.forEach(d => allData.push(normalizarAlumnoSeguimiento({id: d.id, ...d.data()})));
             actualizarBadgesYNavegacion(allData);
             renderSegmentedTabs(vista);
             
@@ -7163,6 +7432,12 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
                 dataFiltrada = allData.filter(d => esAlumnoAltaConfirmadaIncompleta(d));
             } else if (vista === 'Altas - Finalizadas') {
                 dataFiltrada = allData.filter(d => esAlumnoAltaFinalizada(d));
+            } else if (vista === 'Seguimientos - Pendientes') {
+                dataFiltrada = filtrarAlumnosSeguimientoEvaluador(allData, 'pendiente');
+            } else if (vista === 'Seguimientos - En Curso' || vista === 'Seguimientos' || vista === 'Altas - Seguimientos') {
+                dataFiltrada = filtrarAlumnosSeguimientoEvaluador(allData, 'activo');
+            } else if (vista === 'Seguimientos - Finalizados') {
+                dataFiltrada = filtrarAlumnosSeguimientoEvaluador(allData, 'finalizado');
             }
 
             if (vista === 'Inbox - Pendientes') {
@@ -7178,7 +7453,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
                 });
             }
 
-            if (vista.startsWith('Altas -')) {
+            if (vista.startsWith('Altas -') || vista.startsWith('Seguimientos') || vista === 'Altas - Seguimientos') {
                 const queryStr = (document.getElementById('input-buscador-general')?.value || '').trim().toLowerCase();
                 let datosAltas = dataFiltrada;
                 if (queryStr) {
@@ -7197,14 +7472,15 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
                         return false;
                     });
                 }
-                await renderAltasAgrupadas(contLista, datosAltas, vista, { cargarVista, setBotonCargando, configApp, generarBotonesPrincipalesVisibles, generarBotonesAccion });
+                const vistaAgrupada = (vista === 'Seguimientos') ? 'Seguimientos - En Curso' : vista;
+                await renderAltasAgrupadas(contLista, datosAltas, vistaAgrupada, { cargarVista, setBotonCargando, configApp, generarBotonesPrincipalesVisibles, generarBotonesAccion });
             } else {
                 renderListaFilas('lista-generica', dataFiltrada, 'all', null);
             }
         } catch(e) {}
     } else if (vista.startsWith('Suspendidos')) {
         try {
-            const qSnap = await getDocs(collection(db, "alumnos")); let allData = []; qSnap.forEach(d => allData.push({id: d.id, ...d.data()}));
+            const qSnap = await getDocs(collection(db, "alumnos")); let allData = []; qSnap.forEach(d => allData.push(normalizarAlumnoSeguimiento({id: d.id, ...d.data()})));
             actualizarBadgesYNavegacion(allData);
             renderSegmentedTabs(vista);
 
@@ -7233,7 +7509,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
     } else if (vista === 'Match - Pendientes') {
         try { 
             const qSnap = await getDocs(collection(db, "alumnos")); let allData = [];
-            qSnap.forEach(d => allData.push({ id: d.id, ...d.data() }));
+            qSnap.forEach(d => allData.push(normalizarAlumnoSeguimiento({ id: d.id, ...d.data() })));
             actualizarBadgesYNavegacion(allData);
             renderSegmentedTabs(vista);
         } catch(e) {}
@@ -7242,7 +7518,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
         contLista.style.display = 'flex';
         try { 
             const qSnap = await getDocs(collection(db, "alumnos")); let allData = [];
-            qSnap.forEach(d => allData.push({ id: d.id, ...d.data() }));
+            qSnap.forEach(d => allData.push(normalizarAlumnoSeguimiento({ id: d.id, ...d.data() })));
             actualizarBadgesYNavegacion(allData);
             renderSegmentedTabs(vista);
         } catch(e) {}
@@ -7250,7 +7526,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
     } else if (vista === 'Match - En Validacion') {
         try { 
             const qSnap = await getDocs(collection(db, "alumnos")); let allData = [];
-            qSnap.forEach(d => allData.push({ id: d.id, ...d.data() }));
+            qSnap.forEach(d => allData.push(normalizarAlumnoSeguimiento({ id: d.id, ...d.data() })));
             actualizarBadgesYNavegacion(allData);
             renderSegmentedTabs(vista);
         } catch(e) {}
@@ -7260,7 +7536,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
         document.getElementById('vista-titulo').textContent = 'Match — Confirmados';
         try { 
             const qSnap = await getDocs(collection(db, "alumnos")); let allData = [];
-            qSnap.forEach(d => allData.push({ id: d.id, ...d.data() }));
+            qSnap.forEach(d => allData.push(normalizarAlumnoSeguimiento({ id: d.id, ...d.data() })));
             actualizarBadgesYNavegacion(allData);
             renderSegmentedTabs(vista);
         } catch(e) {}
@@ -7569,12 +7845,12 @@ async function cambiarPasswordUsuarioLogueado(passActual, passNueva, passConfirm
 
 
 const ROLES_MODULOS_DEFAULT = {
-    admin: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'metricas', 'portal_profesor', 'configuracion', 'permisos'],
-    admisor: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'metricas'],
-    admisiones: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'metricas'],
-    coordinador_grupos: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'configuracion'],
-    coordinador: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'configuracion'],
-    evaluador: ['dashboard', 'inbox', 'espera'],
+    admin: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'metricas', 'portal_profesor', 'configuracion', 'permisos'],
+    admisor: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'metricas'],
+    admisiones: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'metricas'],
+    coordinador_grupos: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'configuracion'],
+    coordinador: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'configuracion'],
+    evaluador: ['dashboard', 'inbox', 'seguimientos'],
     profesor: ['portal_profesor'],
     personalizado: []
 };
@@ -8415,6 +8691,81 @@ document.addEventListener('click', async (e) => {
         bottomItem.classList.add('active');
         cargarVista(bottomItem.getAttribute('data-vista'));
         return;
+    }
+
+    if (target.id === 'btn-toggle-filtros-dashboard' || target.closest('#btn-toggle-filtros-dashboard')) {
+        e.stopPropagation();
+        window.toggleFiltrosDashboardPopover(e);
+        return;
+    }
+
+    if (target.classList.contains('btn-prio-filtro') || target.closest('.btn-prio-filtro')) {
+        e.stopPropagation();
+        const btn = target.closest('.btn-prio-filtro') || target;
+        const prio = btn.getAttribute('data-prio');
+        if (prio) window.setFiltroPrioridadDashboard(prio);
+        return;
+    }
+
+    if (target.classList.contains('btn-seg-contactar') || target.closest('.btn-seg-contactar')) { 
+        e.stopPropagation(); 
+        const btn = target.closest('.btn-seg-contactar') || target;
+        const id = btn.getAttribute('data-id'); 
+        if (id) window.abrirModalRegistrarSeguimiento(id);
+        return; 
+    }
+
+    if (target.classList.contains('btn-seg-finalizar') || target.closest('.btn-seg-finalizar')) { 
+        e.stopPropagation(); 
+        const btn = target.closest('.btn-seg-finalizar') || target;
+        const id = btn.getAttribute('data-id'); 
+        if (id) window.abrirModalFinalizarSeguimiento(id);
+        return; 
+    }
+
+    if (target.classList.contains('btn-seg-ver-informe') || target.closest('.btn-seg-ver-informe')) { 
+        e.stopPropagation(); 
+        const btn = target.closest('.btn-seg-ver-informe') || target;
+        const id = btn.getAttribute('data-id'); 
+        if (id) window.abrirFichaAlumnoEnTab(id, 'tab-informe');
+        return; 
+    }
+
+    if (target.classList.contains('btn-seg-ver-seguimiento') || target.closest('.btn-seg-ver-seguimiento')) { 
+        e.stopPropagation(); 
+        const btn = target.closest('.btn-seg-ver-seguimiento') || target;
+        const id = btn.getAttribute('data-id'); 
+        if (id) window.abrirFichaAlumnoEnTab(id, 'tab-seguimiento');
+        return; 
+    }
+
+    if (target.classList.contains('btn-seg-whatsapp') || target.closest('.btn-seg-whatsapp')) { 
+        e.stopPropagation(); 
+        const btn = target.closest('.btn-seg-whatsapp') || target;
+        const celular = btn.getAttribute('data-celular'); 
+        const nombre = btn.getAttribute('data-nombre'); 
+        window.abrirWhatsAppDirecto(celular, nombre);
+        return; 
+    }
+
+    if (target.classList.contains('btn-seg-reiniciar') || target.closest('.btn-seg-reiniciar')) { 
+        e.stopPropagation(); 
+        const btn = target.closest('.btn-seg-reiniciar') || target;
+        const id = btn.getAttribute('data-id'); 
+        if (id && typeof window.abrirModalNuevoSeguimiento === 'function') {
+            window.abrirModalNuevoSeguimiento(id);
+        }
+        return; 
+    }
+
+    if (target.classList.contains('btn-editar-seguimiento') || target.closest('.btn-editar-seguimiento')) { 
+        e.stopPropagation(); 
+        const btn = target.closest('.btn-editar-seguimiento') || target;
+        const id = btn.getAttribute('data-id'); 
+        if (id && typeof window.abrirModalEditarSeguimiento === 'function') {
+            window.abrirModalEditarSeguimiento(id);
+        }
+        return; 
     }
 
     if (target.classList.contains('btn-eliminar-alumno') || target.classList.contains('btn-eliminar-ficha-directo') || target.closest('.btn-eliminar-ficha-directo')) { 
@@ -9411,13 +9762,38 @@ document.addEventListener('click', async (e) => {
                     const gSnap = await getDocs(query(collection(db, "alumnos"), where("grupo_asignado", "==", al.grupo_asignado)));
                     gSnap.forEach(d => alumnosDelGrupo.push({ id: d.id, ...d.data() }));
                 }
-                const evFin = await sincronizarEventoAltaConfirmadaCalendar({ id, ...al }, esInd, alumnosDelGrupo, configApp);
+                const ahoraIso = new Date().toISOString();
+                const respId = al.seguimiento_responsable_id || al.seguimiento?.responsable_id || '';
+                const respNom = al.seguimiento_responsable_nombre || al.seguimiento?.responsable_nombre || '';
+                const respEmail = al.seguimiento_responsable_email || al.seguimiento?.responsable_email || '';
+
                 const updatesFin = {
                     estado_agenda: "Alta Finalizada",
                     checklist_alta: [true, true, true, true],
-                    fecha_alta_finalizada: new Date().toISOString(),
+                    fecha_alta_finalizada: ahoraIso,
                     historial: hist
                 };
+
+                if (respId) {
+                    const fProx = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+                    if (fProx.getDay() === 0) fProx.setDate(fProx.getDate() + 1);
+                    const fProxStr = `${fProx.getFullYear()}-${String(fProx.getMonth() + 1).padStart(2, '0')}-${String(fProx.getDate()).padStart(2, '0')}`;
+                    updatesFin.seguimiento = {
+                        activo: true,
+                        responsable_id: respId,
+                        responsable_nombre: respNom,
+                        responsable_email: respEmail,
+                        fecha_alta_finalizada: ahoraIso,
+                        fecha_proximo_seguimiento: fProxStr,
+                        dias_sin_contacto: 0,
+                        ultimo_contacto: null,
+                        historial: al.seguimiento?.historial || [],
+                        motivo_finalizacion: null,
+                        fecha_finalizacion: null
+                    };
+                    hist.push(crearEntradaHistorial(`Alta Finalizada: Asignado a seguimiento con ${respNom || 'evaluador'} (primer contacto estimado: ${fProxStr}).`, 'alta'));
+                }
+
                 if (evFin && evFin.id) {
                     updatesFin.id_evento_alta = evFin.id;
                     updatesFin.calendario_evento_alta = evFin.calendar;
@@ -9426,7 +9802,7 @@ document.addEventListener('click', async (e) => {
             } catch(calErr) {
                 console.warn("No se pudo actualizar evento al finalizar alta:", calErr);
             }
-            alert("🏁 Alta Finalizada con éxito. El registro pasó a Altas Finalizadas y el evento en Calendar fue actualizado a Alta Confirmada.");
+            alert("🏁 Alta Finalizada con éxito. Si tiene evaluador asignado, pasó a Altas - Seguimientos; de lo contrario a Altas Finalizadas.");
             cargarVista(estadoActualVista);
         }
         return;
@@ -10990,12 +11366,16 @@ document.addEventListener('click', async (e) => {
                 window.editarAlumnoModalDirecto(retornoId, 'tab-informe');
             }
             if (mId === 'modal-iniciar-prealta') {
-                const warnCont = document.getElementById('prealta-match-warnings-container');
-                if (warnCont) warnCont.style.display = 'none';
-                const warnList = document.getElementById('prealta-match-warnings-list');
-                if (warnList) warnList.innerHTML = '';
-                const alertVal = document.getElementById('prealta-alerta-validacion');
-                if (alertVal) alertVal.style.display = 'none';
+                if (typeof window.limpiarEstadoModalPrealta === 'function') {
+                    window.limpiarEstadoModalPrealta();
+                } else {
+                    const warnCont = document.getElementById('prealta-match-warnings-container');
+                    if (warnCont) warnCont.style.display = 'none';
+                    const warnList = document.getElementById('prealta-match-warnings-list');
+                    if (warnList) warnList.innerHTML = '';
+                    const alertVal = document.getElementById('prealta-alerta-validacion');
+                    if (alertVal) alertVal.style.display = 'none';
+                }
             }
         }
         return; 
@@ -11067,10 +11447,6 @@ document.addEventListener('click', async (e) => {
         
         window._instrumentoPrincipalSeleccionado = '';
         window._instrumentosSecundariosSeleccionados = [];
-        window._alumnoCantaSeleccionado = false;
-        const chkCanto = document.getElementById('chk-alumno-canta');
-        if (chkCanto) chkCanto.checked = false;
-        window.actualizarEstadoCantoAlumno(false);
 
         await cargarSelectsAlumnos(); 
         setTimeout(() => { 
@@ -11095,35 +11471,20 @@ document.addEventListener('click', async (e) => {
         document.body.appendChild(wrap); 
         if (modalAlta && modalAlta.open) modalAlta.close(); 
         window._modalEditandoModificado = false;
-        window._fichaAlumnoModificada = false;
+        window._fichaAlumnoModificada = false; 
         return; 
     }
 });
 
 // =======================================================================
-// GESTIÓN DINÁMICA DE INSTRUMENTO PRINCIPAL, SECUNDARIOS Y CANTO
+// GESTIÓN DINÁMICA DE INSTRUMENTO PRINCIPAL Y SECUNDARIOS
 // =======================================================================
 window._instrumentosCatalogo = [];
 window._instrumentoPrincipalSeleccionado = '';
 window._instrumentosSecundariosSeleccionados = [];
-window._alumnoCantaSeleccionado = false;
 
-window.toggleCantoAlumnoForm = function() {
-    const chk = document.getElementById('chk-alumno-canta');
-    if (!chk) return;
-    chk.checked = !chk.checked;
-    window.actualizarEstadoCantoAlumno(chk.checked);
-    window._modalEditandoModificado = true;
-};
-
-window.actualizarEstadoCantoAlumno = function(checked) {
-    window._alumnoCantaSeleccionado = checked;
-    const card = document.getElementById('card-toggle-canto');
-    if (card) {
-        if (checked) card.classList.add('active');
-        else card.classList.remove('active');
-    }
-};
+window.toggleCantoAlumnoForm = function() {};
+window.actualizarEstadoCantoAlumno = function() {};
 
 window.renderChipsInstrumentosAlumno = function() {
     const contP = document.getElementById('chips-instrumento-principal');
@@ -11505,6 +11866,12 @@ window.abrirModalPrealtaGrupal = async function(ids, grupoNom = '', cfg = null, 
     await abrirModalPrealtaGrupal(ids, grupoNom, cfg || configApp, Boolean(esPropuesta));
 };
 
+document.getElementById('modal-iniciar-prealta')?.addEventListener('close', () => {
+    if (typeof window.limpiarEstadoModalPrealta === 'function') {
+        window.limpiarEstadoModalPrealta();
+    }
+});
+
 window.abrirFichaAlumnoDocente = async function(id) {
     const wrap = document.getElementById('form-alumno-wrapper');
     if (!wrap) return;
@@ -11537,11 +11904,6 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
     secundariosVal = secundariosVal.map(s => s.toLowerCase() === 'teclado' ? 'Piano' : s)
                                    .filter(s => s.toLowerCase() !== principalVal.toLowerCase());
     window._instrumentosSecundariosSeleccionados = secundariosVal;
-
-    const cantaVal = d.canta_ensamble === true || (instLegacy.some(i => (i || '').toLowerCase() === 'canto') && principalVal.toLowerCase() !== 'canto');
-    const chkCanto = document.getElementById('chk-alumno-canta');
-    if (chkCanto) chkCanto.checked = cantaVal;
-    window.actualizarEstadoCantoAlumno(cantaVal);
 
     window.renderChipsInstrumentosAlumno();
 
@@ -12306,17 +12668,53 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
             }
         }
 
+        const esParaSeg = esAlumnoAltaFinalizada(d) || Boolean(d.seguimiento?.activo);
         if (btnContactarModal) {
-            btnContactarModal.style.display = 'inline-flex';
-            btnContactarModal.onclick = (e) => {
-                e.preventDefault();
-                const celSafe = d.celular || d.telefono || '';
-                window.abrirModalRegistrarContacto(id, d.nombre, celSafe, Boolean(d.es_bicicleta));
-            };
+            if (!esParaSeg) {
+                btnContactarModal.style.display = 'inline-flex';
+                btnContactarModal.onclick = (e) => {
+                    e.preventDefault();
+                    const celSafe = d.celular || d.telefono || '';
+                    window.abrirModalRegistrarContacto(id, d.nombre, celSafe, Boolean(d.es_bicicleta));
+                };
+            } else {
+                btnContactarModal.style.display = 'none';
+            }
         }
     } else {
         if (boxMetricasEspera) boxMetricasEspera.style.display = 'none';
         if (btnContactarModal) btnContactarModal.style.display = 'none';
+    }
+
+    const btnWhatsAppModal = document.getElementById('btn-modal-whatsapp');
+    if (btnWhatsAppModal) {
+        if (!modoLectura && (d.celular || d.telefono)) {
+            btnWhatsAppModal.style.display = 'inline-flex';
+            btnWhatsAppModal.onclick = (e) => {
+                e.preventDefault();
+                window.abrirWhatsAppDirecto(d.celular || d.telefono, d.nombre);
+            };
+        } else {
+            btnWhatsAppModal.style.display = 'none';
+        }
+    }
+
+    const btnRegSegModal = document.getElementById('btn-modal-reg-seguimiento');
+    if (btnRegSegModal) {
+        const esParaSeg = !modoLectura && id && (esAlumnoAltaFinalizada(d) || Boolean(d.seguimiento?.activo));
+        btnRegSegModal.style.display = esParaSeg ? 'inline-flex' : 'none';
+    }
+
+    // Pestaña Seguimiento en Ficha del Alumno
+    const btnTabSeg = document.getElementById('btn-tab-seguimiento');
+    const tieneSeg = Boolean(d.seguimiento || d.seguimiento_responsable_id || (Array.isArray(d.seguimiento?.historial) && d.seguimiento.historial.length > 0) || d.estado_agenda === 'Alta Finalizada');
+    if (btnTabSeg) {
+        if (tieneSeg) {
+            btnTabSeg.style.display = 'inline-block';
+            poblarTabSeguimientoFicha(d, id);
+        } else {
+            btnTabSeg.style.display = 'none';
+        }
     }
 
     const hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00'; 
@@ -12357,7 +12755,6 @@ document.getElementById('form-alumno').addEventListener('submit', async (e) => {
         .map(s => s.toLowerCase() === 'teclado' ? 'Piano' : s)
         .filter(s => s.toLowerCase() !== instPrincipal.toLowerCase());
 
-    const cantaVal = document.getElementById('chk-alumno-canta')?.checked || false;
     const todosInst = [instPrincipal, ...instSecundarios];
 
     const tagsPerfil = getPerfilPsicologicoSeleccionado('ficha-perfil-psicologico-chips');
@@ -12371,7 +12768,6 @@ document.getElementById('form-alumno').addEventListener('submit', async (e) => {
         nivel: document.getElementById('nivel').value, 
         instrumento_principal: instPrincipal,
         instrumentos_secundarios: instSecundarios,
-        canta_ensamble: cantaVal,
         instrumento: todosInst, 
         tipo_suscripcion: document.getElementById('tipo_suscripcion').value, 
         descripcion: quill.root.innerHTML, 
@@ -12754,7 +13150,7 @@ export async function generarCasosPruebaEvaluador(emailOverride = null) {
             const rolesArr = Array.isArray(targetUser?.roles) ? targetUser.roles : [targetUser?.rol || 'evaluador'];
             const modUnion = new Set(targetUser?.modulos_habilitados || []);
             rolesArr.forEach(r => (ROLES_MODULOS_DEFAULT[r] || []).forEach(m => modUnion.add(m)));
-            modUnion.add('espera');
+            modUnion.add('seguimientos');
             await updateDoc(doc(db, "usuarios_sistema", targetId), {
                 modulos_habilitados: Array.from(modUnion)
             });
@@ -12764,140 +13160,101 @@ export async function generarCasosPruebaEvaluador(emailOverride = null) {
             }
         }
 
-        const profId = targetUser?.profesor_id || targetId || 'prof-' + email.split('@')[0];
-        const profNombre = targetUser?.nombre || uActual.nombre || email.split('@')[0];
-        const profCalId = targetUser?.correo_calendario || targetUser?.email || email;
         const ahoraStr = new Date().toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' });
-
-        const evalTag = (profNombre.split(' ')[0] || 'TEST').trim().toUpperCase();
-        const prefix = `[TEST ${evalTag}]`;
-
         const ahora = new Date();
-        const fVencida = new Date(ahora.getTime() - 52 * 3600 * 1000);
-        const fUrgente = new Date(ahora.getTime() - 28 * 3600 * 1000);
-        const fHoy = new Date(ahora.getTime() + 2 * 3600 * 1000);
-        const fFutura = new Date(ahora.getTime() + 72 * 3600 * 1000);
+        const fFinalizada = new Date(ahora.getTime() - 2 * 86400000).toISOString();
 
         const casos = [
             {
-                nombre: `[TEST] Camila Benítez (Canto - Ariel)`,
+                nombre: '[TEST] Delfina Murature (Guitarra - Belu)',
                 celular: '+5491133445566',
-                email: `camila.test.${email.split('@')[0]}@mandalahouse.com`,
-                edad: 26,
+                email: 'delfina.test.' + email.split('@')[0] + '@mandalahouse.com',
+                edad: 24,
                 zona_vive: 'Belgrano',
-                profesion: 'Diseñadora Gráfica',
-                instrumento: ['Canto'],
-                instrumento_principal: 'Canto',
-                canta_ensamble: true,
-                nivel: 'Inicial II',
-                tipo_suscripcion: 'Ensamble',
-                estado_agenda: 'Agenda confirmada',
-                reserva_profe_id: 'ariel-bianchino',
-                reserva_profe_nombre: 'Ariel Bianchino',
-                reserva_cal_id: 'ariel@mandalahouse.com',
-                reserva_fecha_texto: 'Hoy ' + fHoy.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) + ' hs',
-                reserva_inicio: fHoy.toISOString(),
-                reserva_fin: new Date(fHoy.getTime() + 45 * 60000).toISOString(),
-                historial: [`[${ahoraStr}] Entrevista de Canto confirmada para hoy con Ariel Bianchino. Lista para completar informe técnico, tesitura y audio.`],
-                es_caso_prueba: true,
-                test_owner: email,
-                fecha_creacion: new Date().toISOString()
-            },
-            {
-                nombre: `[TEST] Lucas Bianchi (Guitarra - Belu)`,
-                celular: '+5491144556677',
-                email: `lucas.test.${email.split('@')[0]}@mandalahouse.com`,
-                edad: 28,
-                zona_vive: 'Palermo',
-                profesion: 'Abogado',
+                profesion: 'Diseñadora',
                 instrumento: ['Guitarra'],
                 instrumento_principal: 'Guitarra',
                 nivel: 'Inicial I',
-                tipo_suscripcion: 'Ensamble',
-                estado_agenda: 'Agenda confirmada',
+                tipo_suscripcion: 'Individual',
+                estado_agenda: 'Alta Finalizada',
                 reserva_profe_id: 'belu-torrents',
                 reserva_profe_nombre: 'Belu',
-                reserva_cal_id: 'belu@mandalahouse.com',
-                reserva_fecha_texto: 'Ayer (24 hs)',
-                reserva_inicio: fUrgente.toISOString(),
-                reserva_fin: new Date(fUrgente.getTime() + 45 * 60000).toISOString(),
-                historial: [`[${ahoraStr}] Entrevista confirmada con Belu.`],
+                profesor_asignado: 'Belu',
+                horario_match: 'Jueves 18:00 hs',
+                fecha_alta_finalizada: fFinalizada,
+                checklist_alta: { matricula: true, contrato: true, primer_mes: true, calendar: true },
+                historial: ['[' + ahoraStr + '] Alta Finalizada con éxito. Docente: Belu.'],
                 es_caso_prueba: true,
                 test_owner: email,
                 fecha_creacion: new Date().toISOString()
             },
             {
-                nombre: `[TEST] Mateo Rossi (Batería - Guido)`,
+                nombre: '[TEST] Mateo Rossi (Batería - Guido)',
                 celular: '+5491155667788',
-                email: `mateo.test.${email.split('@')[0]}@mandalahouse.com`,
-                edad: 23,
+                email: 'mateo.test.' + email.split('@')[0] + '@mandalahouse.com',
+                edad: 27,
                 zona_vive: 'Colegiales',
-                profesion: 'Estudiante',
+                profesion: 'Programador',
                 instrumento: ['Batería'],
                 instrumento_principal: 'Batería',
                 nivel: 'Inicial II',
-                tipo_suscripcion: 'Ensamble',
-                estado_agenda: 'Lista de espera',
+                tipo_suscripcion: 'Individual',
+                estado_agenda: 'Alta Finalizada',
+                reserva_profe_id: 'guido-doc',
                 reserva_profe_nombre: 'Guido',
                 profesor_asignado: 'Guido',
-                historial: [`[${ahoraStr}] Alumno derivado a Lista de Espera por Guido.`],
+                horario_match: 'Viernes 19:00 hs',
+                fecha_alta_finalizada: fFinalizada,
+                checklist_alta: { matricula: true, contrato: true, primer_mes: true, calendar: true },
+                historial: ['[' + ahoraStr + '] Alta Finalizada con éxito. Docente: Guido.'],
                 es_caso_prueba: true,
                 test_owner: email,
                 fecha_creacion: new Date().toISOString()
             },
             {
-                nombre: `[TEST] Mariana Pérez (Canto - Ficha Completada)`,
-                celular: '+5491166778899',
-                email: `mariana.test.${email.split('@')[0]}@mandalahouse.com`,
-                edad: 27,
-                zona_vive: 'Villa Urquiza',
-                profesion: 'Arquitecta',
-                instrumento: ['Canto'],
-                instrumento_principal: 'Canto',
-                canta_ensamble: true,
+                nombre: '[TEST] Camila Benítez (Piano - Ariel - Grupo Rock)',
+                celular: '+5491144556677',
+                email: 'camila.test.' + email.split('@')[0] + '@mandalahouse.com',
+                edad: 26,
+                zona_vive: 'Palermo',
+                profesion: 'Médica',
+                instrumento: ['Piano'],
+                instrumento_principal: 'Piano',
                 nivel: 'Inicial II',
                 tipo_suscripcion: 'Ensamble',
-                estado_agenda: 'Lista de espera',
-                reserva_profe_nombre: 'Belu',
-                profesor_asignado: 'Belu',
-                informe_entrevista: {
-                    id: 'inf_mariana_test',
-                    fecha_evaluacion: new Date().toISOString(),
-                    evaluador_nombre: 'Belu',
-                    nivel_asignado: 'Inicial II',
-                    zona_vive: 'Villa Urquiza',
-                    profesion: 'Arquitecta',
-                    motivacion_expectativas: '<p>Quiere cantar en grupo, ganar confianza y trabajar la mezcla de voz de pecho y cabeza sin fatiga vocal.</p>',
-                    propuesta_mandala_acordada: true,
-                    diagnostico_tecnico: '<p>Buena musicalidad, afinación estable en medios. Requiere afianzar apoyo costodiafragmático para el pasaje a mixta potente.</p>',
-                    artistas_estilos: 'Charly García, Fito Páez, Adele, Amy Winehouse',
-                    disp_compartir_cantante: 'compartir',
-                    cambio_tonalidades: 'no_aplica',
-                    tecnica_canto: {
-                        genero: 'fem',
-                        pecho_desde: 'do2',
-                        pecho_hasta: 'fa4',
-                        cabeza_desde: 'mi4',
-                        cabeza_hasta: 'sol5',
-                        mixta_desde: 'si3',
-                        mixta_hasta: 're5',
-                        mixta_pasaje: 'mi4',
-                        mixta_cualidad: 'potente',
-                        frito_vocal: 'si',
-                        observaciones: 'Buen timbre en pecho, pasaje en mi4 se abre adecuadamente al cubrir con liviana.'
-                    },
-                    audio_entrevista: {
-                        nombre_archivo: '21-09-26 18.30 - Mariana Perez - Belen Torrents.mp3',
-                        evaluador_carpeta: 'Belu',
-                        duracion_segundos: 84,
-                        url: ''
-                    },
-                    perfil_psicoemocional_detalle: '<p>Muy sociable y receptiva a las devoluciones. Muestra entusiasmo por ensamblar y compartir repertorio.</p>',
-                    perfil_psicologico: ['Empática', 'Buena escucha', 'Abierta al proceso'],
-                    requisitos_aceptados: true,
-                    cierre_espera_notificado: true
-                },
-                historial: [`[${ahoraStr}] Entrevista completada con éxito. Registros vocales y audio guardados en Google Drive.`],
+                estado_agenda: 'Alta Finalizada',
+                grupo_asignado: 'Grupo Rock Jueves 20hs',
+                reserva_profe_id: 'ariel-bianchino',
+                reserva_profe_nombre: 'Ariel Bianchino',
+                profesor_asignado: 'Ariel Bianchino',
+                horario_match: 'Jueves 20:00 hs',
+                fecha_alta_finalizada: fFinalizada,
+                checklist_alta: { matricula: true, contrato: true, primer_mes: true, calendar: true },
+                historial: ['[' + ahoraStr + '] Alta Finalizada en Grupo Rock Jueves 20hs. Docente: Ariel Bianchino.'],
+                es_caso_prueba: true,
+                test_owner: email,
+                fecha_creacion: new Date().toISOString()
+            },
+            {
+                nombre: '[TEST] Lucas Bianchi (Bajo - Ariel - Grupo Rock)',
+                celular: '+5491166778899',
+                email: 'lucas.test.' + email.split('@')[0] + '@mandalahouse.com',
+                edad: 29,
+                zona_vive: 'Villa Urquiza',
+                profesion: 'Contador',
+                instrumento: ['Bajo'],
+                instrumento_principal: 'Bajo',
+                nivel: 'Inicial II',
+                tipo_suscripcion: 'Ensamble',
+                estado_agenda: 'Alta Finalizada',
+                grupo_asignado: 'Grupo Rock Jueves 20hs',
+                reserva_profe_id: 'ariel-bianchino',
+                reserva_profe_nombre: 'Ariel Bianchino',
+                profesor_asignado: 'Ariel Bianchino',
+                horario_match: 'Jueves 20:00 hs',
+                fecha_alta_finalizada: fFinalizada,
+                checklist_alta: { matricula: true, contrato: true, primer_mes: true, calendar: true },
+                historial: ['[' + ahoraStr + '] Alta Finalizada en Grupo Rock Jueves 20hs. Docente: Ariel Bianchino.'],
                 es_caso_prueba: true,
                 test_owner: email,
                 fecha_creacion: new Date().toISOString()
@@ -12911,11 +13268,11 @@ export async function generarCasosPruebaEvaluador(emailOverride = null) {
         }
 
         if (typeof mostrarToast === 'function') {
-            mostrarToast(`✅ Se crearon los 4 alumnos test (incluye Ariel Bianchino y Canto)`, 'success');
+            mostrarToast('✅ Se crearon 4 alumnos test en Altas Finalizadas (Delfina con Belu, Mateo con Guido y Grupo Rock con Ariel)', 'success');
         } else {
-            alert(`✅ Se crearon los 4 alumnos test (incluye Ariel Bianchino y Canto)`);
+            alert('✅ Se crearon 4 alumnos test en Altas Finalizadas');
         }
-        if (typeof cargarVista === 'function') cargarVista(estadoActualVista);
+        if (typeof cargarVista === 'function') cargarVista('Altas - Finalizadas');
         return true;
     } catch(err) {
         console.error("Error al generar casos de prueba:", err);
@@ -12924,7 +13281,6 @@ export async function generarCasosPruebaEvaluador(emailOverride = null) {
     }
 }
 window.generarCasosPruebaEvaluador = generarCasosPruebaEvaluador;
-
 export async function limpiarCasosPrueba() {
     try {
         const uActual = window.usuarioActual || {};
@@ -13889,6 +14245,1250 @@ document.getElementById('btn-copiar-no-encontrados')?.addEventListener('click', 
         alert("No se pudo copiar al portapapeles: " + err.message);
     });
 });
+
+// =======================================================================
+// NUEVA FUNCIONALIDAD: SEGUIMIENTO DE ALUMNOS DADOS DE ALTA
+// =======================================================================
+
+const escapeHtmlSeg = (str) => String(str || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+
+function puedeEditarContactoSeguimiento(al, ctto) {
+    const u = window.usuarioActual || {};
+    const roles = Array.isArray(u.roles) ? u.roles.map(r => String(r).toLowerCase().trim()) : [String(u.rol || '').toLowerCase().trim()];
+    const esPrivilegiado = roles.includes('admin') || roles.includes('coordinador') || roles.includes('admisor');
+    if (esPrivilegiado) return true;
+
+    const respId = al?.seguimiento?.responsable_id || al?.seguimiento_responsable_id || '';
+    const respEmail = (al?.seguimiento?.responsable_email || al?.seguimiento_responsable_email || '').toLowerCase().trim();
+    const respNom = (al?.seguimiento?.responsable_nombre || al?.seguimiento_responsable_nombre || '').toLowerCase().trim();
+
+    const uId = (u.id || '').trim();
+    const uEmail = (u.email || '').toLowerCase().trim();
+    const uNom = (u.nombre || '').toLowerCase().trim();
+
+    if (respId && uId && respId === uId) return true;
+    if (respEmail && uEmail && respEmail === uEmail) return true;
+    if (respNom && uNom && respNom === uNom) return true;
+
+    if (ctto && ctto.evaluador_id && uId && ctto.evaluador_id === uId) return true;
+
+    return false;
+}
+
+function poblarTabSeguimientoFicha(al, id) {
+    window._fichaAlumnoActualId = id;
+    if (al) normalizarAlumnoSeguimiento(al);
+    const elNomEval = document.getElementById('ficha-seg-evaluador-nom');
+    const elEstadoBadge = document.getElementById('ficha-seg-estado-badge');
+    const elProxFecha = document.getElementById('ficha-seg-proxima-fecha');
+    const elTimeline = document.getElementById('ficha-seg-timeline-container');
+    const btnNuevoCtto = document.getElementById('btn-ficha-nuevo-contacto-seg');
+
+    const seg = al?.seguimiento || {};
+    const respNom = seg.responsable_nombre || al?.seguimiento_responsable_nombre || 'Sin asignar';
+    const esActivo = seg.activo === true;
+
+    if (elNomEval) elNomEval.textContent = respNom;
+    
+    if (elEstadoBadge) {
+        if (esActivo) {
+            elEstadoBadge.innerHTML = `<span class="badge bg-teal" style="font-size:12px; font-weight:700; padding:3px 10px; border-radius:12px;">Activo</span>`;
+        } else if (seg.activo === false && seg.fecha_finalizacion) {
+            elEstadoBadge.innerHTML = `<span class="badge bg-gray" style="font-size:12px; font-weight:700; padding:3px 10px; border-radius:12px;">Finalizado</span>`;
+        } else {
+            elEstadoBadge.innerHTML = `<span class="badge bg-gray" style="font-size:12px; font-weight:700; padding:3px 10px; border-radius:12px;">Pendiente</span>`;
+        }
+    }
+
+    if (elProxFecha) {
+        if (esActivo) {
+            const fProx = seg.fecha_proximo_seguimiento;
+            if (fProx) {
+                const partes = fProx.split('-');
+                const fTxt = partes.length === 3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : fProx;
+                elProxFecha.textContent = fTxt;
+            } else {
+                elProxFecha.textContent = 'A definir';
+            }
+        } else if (seg.fecha_finalizacion) {
+            const fFin = parsearFechaCualquierOrigen(seg.fecha_finalizacion);
+            elProxFecha.textContent = fFin ? `Finalizado el ${formatearSoloFecha(fFin)}` : 'Finalizado';
+        } else {
+            elProxFecha.textContent = '-';
+        }
+    }
+
+    if (btnNuevoCtto) {
+        btnNuevoCtto.setAttribute('data-id', id);
+        btnNuevoCtto.style.display = 'inline-block';
+    }
+
+    if (elTimeline) {
+        const hist = Array.isArray(seg.historial) ? [...seg.historial] : [];
+        if (hist.length === 0) {
+            elTimeline.innerHTML = `
+                <div style="text-align:center; padding:24px 12px; color:var(--text-muted); font-size:13px; background:#fff; border:1px dashed #cbd5e1; border-radius:8px;">
+                    🎧 No hay contactos de seguimiento registrados aún.<br>
+                    <span style="font-size:11.5px; opacity:0.8;">Utilizá el botón "📞 Nuevo Contacto" para registrar una llamada o consulta.</span>
+                </div>
+            `;
+        } else {
+            hist.sort((a, b) => new Date(b.fecha || 0) - new Date(a.fecha || 0));
+            elTimeline.innerHTML = hist.map((ctto) => {
+                const fDate = parsearFechaCualquierOrigen(ctto.fecha) || new Date(ctto.fecha || Date.now());
+                const fTxt = fDate && !isNaN(fDate.getTime()) ? fDate.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : (ctto.fecha || '-');
+                const esFin = ctto.tipo === 'finalizacion' || ctto.continua_seguimiento === false;
+                const icono = esFin ? '🏁' : '📞';
+                const tituloTipo = esFin ? 'Cierre de Seguimiento' : 'Contacto de Seguimiento';
+                const tagColor = esFin ? '#e11d48' : '#0d9488';
+                const tagBg = esFin ? '#ffe4e6' : '#ccfbf1';
+                
+                let proximaHtml = '';
+                if (!esFin && ctto.proxima_fecha_pautada) {
+                    const pPartes = ctto.proxima_fecha_pautada.split('-');
+                    const pTxt = pPartes.length === 3 ? `${pPartes[2]}/${pPartes[1]}/${pPartes[0]}` : ctto.proxima_fecha_pautada;
+                    proximaHtml = `<div style="font-size:11.5px; margin-top:5px; color:#0f766e; font-weight:600;">📅 Próximo contacto pautado: ${pTxt}</div>`;
+                }
+
+                const tienePermiso = puedeEditarContactoSeguimiento(al, ctto);
+                const cttoId = ctto.id || ctto.fecha;
+                const btnsAccion = tienePermiso ? `
+                    <div style="display:inline-flex; align-items:center; gap:4px; margin-left:auto;">
+                        <button type="button" class="btn-app-icon" title="Editar este contacto" onclick="window.abrirModalEditarContactoSeguimiento('${id}', '${cttoId}')" style="background:transparent; border:none; cursor:pointer; font-size:13px; padding:2px 5px; color:#475569; border-radius:4px; line-height:1;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">✏️</button>
+                        <button type="button" class="btn-app-icon" title="Eliminar este contacto" onclick="window.eliminarContactoSeguimiento('${id}', '${cttoId}')" style="background:transparent; border:none; cursor:pointer; font-size:13px; padding:2px 5px; color:#ef4444; border-radius:4px; line-height:1;" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='transparent'">🗑️</button>
+                    </div>
+                ` : '';
+
+                return `
+                    <div style="background:#fff; border:1px solid #e2e8f0; border-left:4px solid ${tagColor}; border-radius:8px; padding:12px 14px; line-height:1.45;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:6px;">
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <span style="font-size:14px;">${icono}</span>
+                                <strong style="font-size:13px; color:var(--text-main);">${tituloTipo}</strong>
+                                <span style="font-size:11px; padding:2px 7px; border-radius:10px; background:${tagBg}; color:${tagColor}; font-weight:700;">${ctto.evaluador_nombre || 'Evaluador'}</span>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="font-size:11.5px; color:var(--text-muted); font-weight:500;">${fTxt}</span>
+                                ${btnsAccion}
+                            </div>
+                        </div>
+                        <div style="font-size:12.5px; color:#334155; white-space:pre-wrap; margin-top:4px; line-height:1.5;">${escapeHtmlSeg(ctto.conversado || ctto.motivo || '')}</div>
+                        ${proximaHtml}
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+}
+window.poblarTabSeguimientoFicha = poblarTabSeguimientoFicha;
+
+window.abrirWhatsAppDirecto = function(celular, nombre) {
+    if (!celular) {
+        if (typeof window.mostrarToast === 'function') {
+            window.mostrarToast("⚠️ El alumno no tiene un número de celular cargado.", "alerta");
+        } else {
+            alert("⚠️ El alumno no tiene un número de celular cargado.");
+        }
+        return;
+    }
+    let num = String(celular).replace(/[^0-9]/g, '');
+    if (num.startsWith('15') && num.length === 10) num = '54911' + num.slice(2);
+    else if (num.length === 10) num = '549' + num;
+    const msg = encodeURIComponent(`Hola ${nombre || ''}, te escribo desde Mandala House.`);
+    window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
+};
+
+window.abrirModalNuevoSeguimiento = function(id) {
+    if (id && typeof window.abrirModalSeguimientoMasivo === 'function') {
+        window.abrirModalSeguimientoMasivo([id]);
+    }
+};
+
+window.calcularFechaHabilFutura = function(dias = 7) {
+    const d = new Date(Date.now() + dias * 24 * 60 * 60 * 1000);
+    if (d.getDay() === 0) d.setDate(d.getDate() + 1); // Domingo -> corre a Lunes
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+window.abrirModalRegistrarSeguimiento = async function(id) {
+    if (!id) return;
+    const modal = document.getElementById('modal-seguimiento-contacto');
+    if (!modal) return;
+
+    let al = (cachedAlumnosData || []).find(a => a.id === id);
+    if (!al) {
+        try {
+            const snap = await getDoc(doc(db, "alumnos", id));
+            if (snap.exists()) al = { id: snap.id, ...snap.data() };
+        } catch(e) {}
+    }
+    if (!al) return alert("Alumno no encontrado.");
+
+    window._segCttoAlumnoCelular = al.celular || al.telefono || '';
+    window._segCttoAlumnoNombre = al.nombre || '';
+    const btnWaDirecto = document.getElementById('btn-seg-ctto-whatsapp-directo');
+    if (btnWaDirecto) {
+        btnWaDirecto.style.display = (al.celular || al.telefono) ? 'inline-flex' : 'none';
+    }
+
+    document.getElementById('seg-ctto-alumno-id').value = id;
+    document.getElementById('seg-ctto-alumno-nom').textContent = al.nombre || '-';
+    
+    const instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || 'Sin instrumento');
+    document.getElementById('seg-ctto-det').textContent = `${al.nivel || 'Nivel standard'} • ${instStr}`;
+
+    const prof = al.reserva_profe_nombre || al.profesor_asignado || '-';
+    const fIni = al.fecha_inicio_clases || al.fecha_sugerida_inicio || '-';
+    document.getElementById('seg-ctto-sub-info').textContent = `Docente: ${prof} • Inicio clases: ${fIni}`;
+
+    document.getElementById('seg-ctto-conversado').value = '';
+    const chkCont = document.getElementById('chk-seg-continuar');
+    if (chkCont) chkCont.checked = true;
+
+    const wrapProx = document.getElementById('wrap-seg-proxima-fecha');
+    const wrapAviso = document.getElementById('wrap-seg-aviso-cierre');
+    if (wrapProx) wrapProx.style.display = 'block';
+    if (wrapAviso) wrapAviso.style.display = 'none';
+
+    // Fecha sugerida por defecto: +1 semana (7 días hábiles)
+    const fechaDef = window.calcularFechaHabilFutura(7);
+    const inputFecha = document.getElementById('input-seg-fecha-manual');
+    if (inputFecha) inputFecha.value = fechaDef;
+
+    // Marcar chip +1 Sem
+    document.querySelectorAll('.btn-sug-fecha-seg').forEach(btn => {
+        const d = btn.getAttribute('data-dias');
+        btn.classList.toggle('selected', d === '7');
+        btn.style.background = d === '7' ? 'var(--accent-teal)' : '#fff';
+        btn.style.color = d === '7' ? '#fff' : '#334155';
+        btn.style.borderColor = d === '7' ? 'var(--accent-teal)' : '#cbd5e1';
+    });
+
+    if (!modal.open) {
+        try { modal.showModal(); } catch(e) { modal.setAttribute('open', ''); }
+    }
+};
+
+window.abrirModalRegistrarSeguimientoDesdeFicha = function() {
+    const id = document.getElementById('alumno-id')?.value || window._fichaAlumnoActualId;
+    if (id) {
+        window.abrirModalRegistrarSeguimiento(id);
+    }
+};
+
+window.guardarContactoSeguimiento = async function() {
+    const id = document.getElementById('seg-ctto-alumno-id')?.value;
+    if (!id) return;
+
+    const conversado = (document.getElementById('seg-ctto-conversado')?.value || '').trim();
+    if (!conversado) {
+        alert("⚠️ Por favor ingresá lo conversado con el alumno.");
+        document.getElementById('seg-ctto-conversado')?.focus();
+        return;
+    }
+
+    const continua = document.getElementById('chk-seg-continuar')?.checked === true;
+    let fechaProx = (document.getElementById('input-seg-fecha-manual')?.value || '').trim();
+
+    if (continua && !fechaProx) {
+        alert("⚠️ Por favor seleccioná la fecha para el próximo seguimiento.");
+        document.getElementById('input-seg-fecha-manual')?.focus();
+        return;
+    }
+
+    const btn = document.getElementById('btn-guardar-contacto-seg');
+    if (btn) setBotonCargando(btn, true);
+
+    try {
+        const u = window.usuarioActual || {};
+        const ahoraIso = new Date().toISOString();
+        const nuevoCtto = {
+            id: 'ctto_' + Date.now(),
+            fecha: ahoraIso,
+            evaluador_id: u.id || '',
+            evaluador_nombre: u.nombre || 'Evaluador',
+            tipo: continua ? 'contacto' : 'finalizacion',
+            conversado: conversado,
+            continua_seguimiento: continua,
+            proxima_fecha_pautada: continua ? fechaProx : null
+        };
+
+        const alDoc = await getDoc(doc(db, "alumnos", id));
+        const al = alDoc.exists() ? alDoc.data() : {};
+        const seg = al.seguimiento || {};
+        const histSeg = Array.isArray(seg.historial) ? [...seg.historial] : [];
+        histSeg.push(nuevoCtto);
+
+        const updatePayload = {
+            'seguimiento.historial': histSeg,
+            'seguimiento.ultimo_contacto': ahoraIso,
+            'seguimiento.dias_sin_contacto': 0
+        };
+
+        if (continua) {
+            updatePayload['seguimiento.activo'] = true;
+            updatePayload['seguimiento.fecha_proximo_seguimiento'] = fechaProx;
+        } else {
+            updatePayload['seguimiento.activo'] = false;
+            updatePayload['seguimiento.fecha_finalizacion'] = ahoraIso;
+            updatePayload['seguimiento.motivo_finalizacion'] = conversado;
+        }
+
+        const hist = al.historial || [];
+        const txtHist = continua
+            ? `Seguimiento: Contacto registrado por ${u.nombre || 'Responsable de Seguimiento'}. Próxima fecha: ${fechaProx}.`
+            : `Seguimiento Finalizado por ${u.nombre || 'Responsable de Seguimiento'}. Motivo: ${conversado}`;
+        hist.push(crearEntradaHistorial(txtHist, 'seguimiento'));
+        updatePayload['historial'] = hist;
+
+        await updateDoc(doc(db, "alumnos", id), updatePayload);
+
+        document.getElementById('modal-seguimiento-contacto')?.close();
+        mostrarToast(continua ? "📞 Contacto de seguimiento registrado con éxito." : "🏁 Seguimiento de alumno finalizado correctamente", "success");
+
+        // Si la ficha del alumno está abierta, actualizarla
+        const modalFicha = document.getElementById('modal-alta-alumno');
+        if (modalFicha && modalFicha.open && document.getElementById('alumno-id')?.value === id) {
+            await llenarFormularioAlumno(id, false);
+            // Mantenerse en tab-seguimiento
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+            document.getElementById('btn-tab-seguimiento')?.classList.add('active');
+            if (document.getElementById('tab-seguimiento')) document.getElementById('tab-seguimiento').style.display = 'block';
+        }
+
+        await cargarVista(estadoActualVista);
+    } catch(err) {
+        console.error("Error al guardar contacto de seguimiento:", err);
+        alert("Error al guardar el contacto: " + err.message);
+    } finally {
+        if (btn) setBotonCargando(btn, false);
+    }
+};
+
+window.abrirModalFinalizarSeguimiento = async function(id) {
+    if (!id) return;
+    const modal = document.getElementById('modal-seguimiento-finalizar');
+    if (!modal) return;
+
+    let al = (cachedAlumnosData || []).find(a => a.id === id);
+    if (!al) {
+        try {
+            const snap = await getDoc(doc(db, "alumnos", id));
+            if (snap.exists()) al = { id: snap.id, ...snap.data() };
+        } catch(e) {}
+    }
+    if (!al) return alert("Alumno no encontrado.");
+
+    document.getElementById('seg-fin-alumno-id').value = id;
+    document.getElementById('seg-fin-alumno-nom').textContent = al.nombre || '-';
+    document.getElementById('seg-fin-motivo').value = '';
+
+    if (!modal.open) {
+        try { modal.showModal(); } catch(e) { modal.setAttribute('open', ''); }
+    }
+};
+
+window.confirmarFinSeguimiento = async function() {
+    const id = document.getElementById('seg-fin-alumno-id')?.value;
+    if (!id) return;
+
+    const motivo = (document.getElementById('seg-fin-motivo')?.value || '').trim();
+    if (!motivo) {
+        alert("⚠️ Por favor ingresá una conclusión o motivo de cierre del seguimiento.");
+        document.getElementById('seg-fin-motivo')?.focus();
+        return;
+    }
+
+    const btn = document.getElementById('btn-confirmar-fin-seg');
+    if (btn) setBotonCargando(btn, true);
+
+    try {
+        const u = window.usuarioActual || {};
+        const ahoraIso = new Date().toISOString();
+
+        const alDoc = await getDoc(doc(db, "alumnos", id));
+        const al = alDoc.exists() ? alDoc.data() : {};
+        const seg = al.seguimiento || {};
+        const histSeg = Array.isArray(seg.historial) ? [...seg.historial] : [];
+        histSeg.push({
+            id: 'ctto_' + Date.now(),
+            fecha: ahoraIso,
+            evaluador_id: u.id || '',
+            evaluador_nombre: u.nombre || 'Responsable de Seguimiento',
+            tipo: 'finalizacion',
+            conversado: motivo,
+            continua_seguimiento: false,
+            proxima_fecha_pautada: null
+        });
+
+        const hist = al.historial || [];
+        hist.push(crearEntradaHistorial(`Seguimiento Finalizado por ${u.nombre || 'Responsable de Seguimiento'}. Conclusión: ${motivo}`, 'seguimiento'));
+
+        await updateDoc(doc(db, "alumnos", id), {
+            'seguimiento.activo': false,
+            'seguimiento.fecha_finalizacion': ahoraIso,
+            'seguimiento.motivo_finalizacion': motivo,
+            'seguimiento.historial': histSeg,
+            'historial': hist
+        });
+
+        document.getElementById('modal-seguimiento-finalizar')?.close();
+        mostrarToast("🏁 Seguimiento de alumno finalizado correctamente", "success");
+
+        const modalFicha = document.getElementById('modal-alta-alumno');
+        if (modalFicha && modalFicha.open && document.getElementById('alumno-id')?.value === id) {
+            await llenarFormularioAlumno(id, false);
+        }
+
+        await cargarVista(estadoActualVista);
+    } catch(err) {
+        console.error("Error al finalizar seguimiento:", err);
+        alert("Error al finalizar el seguimiento: " + err.message);
+    } finally {
+        if (btn) setBotonCargando(btn, false);
+    }
+};
+
+
+
+function obtenerDatosDocenteAlumnoSeg(al) {
+    const profeNom = (al.reserva_profe_nombre || al.profesor_asignado || al.profesor_nombre || al.profesor || al.docente || '').trim();
+    const profeId = (al.reserva_profe_id || al.profesor_id || '').trim();
+    const profeEmail = (al.reserva_profe_email || al.profesor_email || '').trim().toLowerCase();
+    return { profeNom, profeId, profeEmail };
+}
+
+function esDocenteDelAlumnoSeg(evaluador, al) {
+    const { profeNom, profeId, profeEmail } = obtenerDatosDocenteAlumnoSeg(al);
+    const evId = (evaluador.id || '').trim();
+    const evNom = (evaluador.nombre || '').trim().toLowerCase();
+    const evEmail = (evaluador.email || '').trim().toLowerCase();
+    
+    if (profeId && evId && profeId === evId) return true;
+    if (profeEmail && evEmail && profeEmail === evEmail) return true;
+    if (profeNom && evNom) {
+        const pNorm = profeNom.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+        const eNorm = evNom.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+        if (pNorm === eNorm) return true;
+        const pPrimer = pNorm.split(' ')[0];
+        const ePrimer = eNorm.split(' ')[0];
+        if (pPrimer.length >= 3 && ePrimer.length >= 3 && (pPrimer === ePrimer || pPrimer.startsWith(ePrimer) || ePrimer.startsWith(pPrimer))) {
+            return true;
+        }
+    }
+    return false;
+}
+
+window.abrirModalSeguimientoMasivo = async function(idsOpcional) {
+    let idsAProcesar = [];
+    if (Array.isArray(idsOpcional) && idsOpcional.length > 0) {
+        idsAProcesar = [...idsOpcional];
+    } else if (Array.isArray(selectedBulkIds) && selectedBulkIds.length > 0) {
+        idsAProcesar = [...selectedBulkIds];
+    }
+
+    if (idsAProcesar.length === 0) {
+        alert("⚠️ No hay alumnos seleccionados para iniciar seguimiento.");
+        return;
+    }
+
+    const modal = document.getElementById('modal-seguimiento-masivo');
+    if (!modal) return;
+
+    const conteoEl = document.getElementById('seg-masivo-conteo-alumnos');
+    if (conteoEl) {
+        conteoEl.textContent = `${idsAProcesar.length} alumno${idsAProcesar.length > 1 ? 's' : ''}`;
+    }
+
+    const bloqueGlobal = document.getElementById('seg-masivo-bloque-global');
+    if (bloqueGlobal) {
+        bloqueGlobal.style.display = idsAProcesar.length > 1 ? 'block' : 'none';
+    }
+
+    const listaEl = document.getElementById('seg-masivo-lista-alumnos');
+    if (listaEl) {
+        listaEl.innerHTML = `<div style="padding:20px; text-align:center; color:var(--text-muted);"><span class="spinner-border spinner-border-sm" role="status"></span> Cargando alumnos y evaluadores...</div>`;
+    }
+
+    // Fecha defecto (+7 días hábiles)
+    const fechaDefecto = typeof window.calcularFechaHabilFutura === 'function' 
+        ? window.calcularFechaHabilFutura(7) 
+        : new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
+
+    const inputFechaGlobal = document.getElementById('seg-masivo-fecha-primer');
+    if (inputFechaGlobal) {
+        inputFechaGlobal.value = fechaDefecto;
+    }
+
+    // Cargar evaluadores activos
+    let evals = [];
+    try {
+        const qSnap = await getDocs(collection(db, "usuarios_sistema"));
+        qSnap.forEach(d => {
+            const u = { id: d.id, ...d.data() };
+            const roles = Array.isArray(u.roles) ? u.roles : [u.rol || ''];
+            const rNorm = roles.map(r => (r || '').toLowerCase().trim());
+            if (u.activo !== false && (rNorm.includes('evaluador') || rNorm.includes('admin') || rNorm.includes('coordinador'))) {
+                evals.push(u);
+            }
+        });
+        window._evaluadoresCacheSeg = evals;
+    } catch(err) {
+        console.error("Error al cargar evaluadores:", err);
+    }
+
+    // Poblar selector global
+    const selGlobal = document.getElementById('seg-masivo-evaluador-select');
+    if (selGlobal) {
+        selGlobal.innerHTML = '<option value="">Seleccionar responsable...</option>' + evals.map(ev => 
+            `<option value="${ev.id}" data-nombre="${escapeHtmlSeg(ev.nombre || ev.email)}" data-email="${escapeHtmlSeg(ev.email || '')}">${escapeHtmlSeg(ev.nombre || ev.email)}</option>`
+        ).join('');
+    }
+
+    // Cargar alumnos seleccionados
+    try {
+        const docsAlumnos = await Promise.all(idsAProcesar.map(id => getDoc(doc(db, "alumnos", id))));
+        
+        let htmlAlumnos = '';
+        docsAlumnos.forEach(docSnap => {
+            if (!docSnap.exists()) return;
+            const al = docSnap.data();
+            const alId = docSnap.id;
+            const alNom = al.nombre || 'Sin nombre';
+            const instPrincipal = al.instrumento_principal || (Array.isArray(al.instrumento) ? al.instrumento[0] : (al.instrumento || '-'));
+            const { profeNom, profeId } = obtenerDatosDocenteAlumnoSeg(al);
+
+            // Excluir al docente de este alumno de sus opciones de responsable de seguimiento
+            const evalsPermitidos = evals.filter(ev => !esDocenteDelAlumnoSeg(ev, al));
+            const evalsOptionsHtml = evalsPermitidos.map(ev => 
+                `<option value="${ev.id}" data-nombre="${escapeHtmlSeg(ev.nombre || ev.email)}" data-email="${escapeHtmlSeg(ev.email || '')}">${escapeHtmlSeg(ev.nombre || ev.email)}</option>`
+            ).join('');
+
+            htmlAlumnos += `
+            <div class="seg-indiv-item card-inner" data-id="${alId}" data-nombre="${escapeHtmlSeg(alNom)}" data-profe-nom="${escapeHtmlSeg(profeNom)}" data-profe-id="${escapeHtmlSeg(profeId)}" style="display:grid; grid-template-columns: 1.4fr 1.2fr 1fr; gap:10px; align-items:center; background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:10px 14px; box-shadow:0 1px 2px rgba(0,0,0,0.03);">
+                <div>
+                    <div style="font-weight:700; color:var(--text-main); font-size:13px; margin-bottom:2px;">${escapeHtmlSeg(alNom)}</div>
+                    <div style="font-size:11px; color:var(--text-muted); display:flex; gap:6px; flex-wrap:wrap;">
+                        <span>🎸 ${escapeHtmlSeg(instPrincipal)}</span>
+                        <span>•</span>
+                        <span>👨‍🏫 ${escapeHtmlSeg(profeNom || 'Sin docente asignado')}</span>
+                    </div>
+                </div>
+                <div>
+                    <label style="font-size:10px; font-weight:700; color:#64748b; display:block; margin-bottom:2px;">RESPONSABLE</label>
+                    <select class="seg-indiv-evaluador modern-input" data-al-id="${alId}" style="height:32px; font-size:11.5px; padding:0 6px;">
+                        <option value="">Seleccionar...</option>
+                        ${evalsOptionsHtml}
+                    </select>
+                </div>
+                <div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                        <label style="font-size:10px; font-weight:700; color:#64748b;">1° CONTACTO</label>
+                        <div style="display:flex; gap:2px;">
+                            <button type="button" class="btn-fast-date-indiv" data-dias="7" style="font-size:8.5px; padding:0 4px; border-radius:3px; border:1px solid #cbd5e1; background:#f8fafc; cursor:pointer;" title="+1 semana">+1s</button>
+                            <button type="button" class="btn-fast-date-indiv" data-dias="14" style="font-size:8.5px; padding:0 4px; border-radius:3px; border:1px solid #cbd5e1; background:#f8fafc; cursor:pointer;" title="+2 semanas">+2s</button>
+                        </div>
+                    </div>
+                    <input type="date" class="seg-indiv-fecha modern-input" value="${fechaDefecto}" style="height:32px; font-size:11.5px; font-weight:600; padding:0 6px;">
+                </div>
+            </div>`;
+        });
+
+        if (listaEl) {
+            listaEl.innerHTML = htmlAlumnos || '<div style="padding:15px; color:var(--text-muted); text-align:center;">No se encontraron datos de los alumnos.</div>';
+
+            // Preseleccionar evaluadores sugeridos si ya tenían responsable asignado y no es su docente
+            docsAlumnos.forEach(docSnap => {
+                if (!docSnap.exists()) return;
+                const al = docSnap.data();
+                const evalSugeridoId = al.seguimiento?.responsable_id || al.responsable_prealta_id || al.evaluador_asignado_id || '';
+                if (evalSugeridoId) {
+                    const selIndiv = listaEl.querySelector(`.seg-indiv-evaluador[data-al-id="${docSnap.id}"]`);
+                    if (selIndiv && selIndiv.querySelector(`option[value="${evalSugeridoId}"]`)) {
+                        selIndiv.value = evalSugeridoId;
+                    }
+                }
+            });
+
+            // Conectar botones rápidos de fecha individual
+            listaEl.querySelectorAll('.btn-fast-date-indiv').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const dias = parseInt(btn.dataset.dias || '7', 10);
+                    const contenedor = btn.closest('.seg-indiv-item');
+                    const inputFecha = contenedor?.querySelector('.seg-indiv-fecha');
+                    if (inputFecha) {
+                        inputFecha.value = typeof window.calcularFechaHabilFutura === 'function'
+                            ? window.calcularFechaHabilFutura(dias)
+                            : new Date(Date.now() + dias * 86400000).toISOString().split('T')[0];
+                    }
+                });
+            });
+        }
+    } catch(err) {
+        console.error("Error al cargar alumnos para seguimiento:", err);
+        if (listaEl) listaEl.innerHTML = `<div style="padding:15px; color:#ef4444;">Error al cargar alumnos: ${err.message}</div>`;
+    }
+
+    if (!modal.open) {
+        try { modal.showModal(); } catch(e) { modal.setAttribute('open', ''); }
+    }
+};
+
+window.confirmarSeguimientoMasivo = async function() {
+    const items = document.querySelectorAll('#seg-masivo-lista-alumnos .seg-indiv-item');
+    if (!items || items.length === 0) {
+        alert("⚠️ No hay alumnos para procesar.");
+        return;
+    }
+
+    // Validar asignaciones de cada alumno
+    const asignaciones = [];
+    for (const item of items) {
+        const alId = item.dataset.id;
+        const alNombre = item.dataset.nombre || 'Alumno';
+        const selEval = item.querySelector('.seg-indiv-evaluador');
+        const evalId = selEval?.value;
+        if (!evalId) {
+            alert(`⚠️ Por favor seleccioná un responsable de seguimiento para el alumno "${alNombre}".`);
+            selEval?.focus();
+            return;
+        }
+        const opt = selEval.selectedOptions[0];
+        const evalNom = opt?.dataset.nombre || opt?.textContent || 'Evaluador';
+        const evalEmail = opt?.dataset.email || '';
+
+        const inpFecha = item.querySelector('.seg-indiv-fecha');
+        const fechaLim = (inpFecha?.value || '').trim();
+        if (!fechaLim) {
+            alert(`⚠️ Por favor seleccioná la fecha de 1° contacto para el alumno "${alNombre}".`);
+            inpFecha?.focus();
+            return;
+        }
+
+        asignaciones.push({
+            id: alId,
+            nombre: alNombre,
+            evalId,
+            evalNom,
+            evalEmail,
+            fechaLim
+        });
+    }
+
+    const btn = document.getElementById('btn-confirmar-seg-masivo');
+    if (btn) setBotonCargando(btn, true);
+
+    const ahoraIso = new Date().toISOString();
+    mostrarIndicadorCarga(`Iniciando seguimiento para ${asignaciones.length} alumno(s)...`);
+
+    try {
+        for (const item of asignaciones) {
+            const alDoc = await getDoc(doc(db, "alumnos", item.id));
+            if (!alDoc.exists()) continue;
+            const al = alDoc.data();
+            const hist = al.historial || [];
+            hist.push(crearEntradaHistorial(`Seguimiento activado. Responsable: ${item.evalNom}. Primer contacto pactado: ${item.fechaLim}.`, 'seguimiento'));
+
+            await updateDoc(doc(db, "alumnos", item.id), {
+                seguimiento: {
+                    activo: true,
+                    responsable_id: item.evalId,
+                    responsable_nombre: item.evalNom,
+                    responsable_email: item.evalEmail,
+                    fecha_alta_finalizada: al.fecha_alta_finalizada || ahoraIso,
+                    fecha_proximo_seguimiento: item.fechaLim,
+                    fecha_inicio_seguimiento: ahoraIso.split('T')[0],
+                    dias_sin_contacto: 0,
+                    ultimo_contacto: null,
+                    historial: al.seguimiento?.historial || [],
+                    motivo_finalizacion: null,
+                    fecha_finalizacion: null
+                },
+                seguimiento_responsable_id: item.evalId,
+                seguimiento_responsable_nombre: item.evalNom,
+                fecha_proximo_seguimiento: item.fechaLim,
+                historial: hist
+            });
+        }
+
+        document.getElementById('modal-seguimiento-masivo')?.close();
+        if (Array.isArray(selectedBulkIds)) {
+            selectedBulkIds.splice(0);
+        }
+        actualizarBulkBar();
+        await cargarVista(estadoActualVista);
+        ocultarIndicadorCarga();
+        mostrarToast(`🎧 Seguimiento iniciado con éxito para ${asignaciones.length} alumno(s).`, "success");
+    } catch(err) {
+        ocultarIndicadorCarga();
+        console.error("Error al iniciar seguimiento:", err);
+        alert("Error al procesar: " + err.message);
+    } finally {
+        ocultarIndicadorCarga();
+        if (btn) setBotonCargando(btn, false);
+    }
+};
+
+// Listeners de interacción para la funcionalidad de Seguimiento
+document.getElementById('btn-guardar-contacto-seg')?.addEventListener('click', window.guardarContactoSeguimiento);
+document.getElementById('btn-confirmar-fin-seg')?.addEventListener('click', window.confirmarFinSeguimiento);
+document.getElementById('btn-bulk-iniciar-seguimiento')?.addEventListener('click', () => window.abrirModalSeguimientoMasivo());
+document.getElementById('btn-confirmar-seg-masivo')?.addEventListener('click', window.confirmarSeguimientoMasivo);
+
+// Botones de sugerencia rápida de fecha en bloque global de modal seguimiento (+1, +2, +3 Semanas)
+document.querySelectorAll('.btn-fast-date-masivo').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const dias = parseInt(btn.dataset.dias || '7', 10);
+        const inputGlobal = document.getElementById('seg-masivo-fecha-primer');
+        if (inputGlobal) {
+            inputGlobal.value = typeof window.calcularFechaHabilFutura === 'function'
+                ? window.calcularFechaHabilFutura(dias)
+                : new Date(Date.now() + dias * 86400000).toISOString().split('T')[0];
+        }
+    });
+});
+
+// Botón "⚡ Aplicar a todos" en modal de seguimiento con validación de docente
+document.getElementById('btn-seg-masivo-aplicar-todos')?.addEventListener('click', () => {
+    const selGlobal = document.getElementById('seg-masivo-evaluador-select');
+    const fechaGlobal = document.getElementById('seg-masivo-fecha-primer')?.value;
+    const evalId = selGlobal?.value || '';
+    const optGlobal = selGlobal?.selectedOptions[0];
+    const evalNom = optGlobal?.dataset.nombre || optGlobal?.textContent || 'el evaluador seleccionado';
+
+    if (!evalId && !fechaGlobal) {
+        alert("⚠️ Seleccioná un evaluador o una fecha en el bloque superior para aplicar.");
+        return;
+    }
+
+    let countModificados = 0;
+    const alumnosConConflicto = [];
+    const items = document.querySelectorAll('#seg-masivo-lista-alumnos .seg-indiv-item');
+    
+    items.forEach(item => {
+        const alNombre = item.dataset.nombre || 'Alumno';
+        const sel = item.querySelector('.seg-indiv-evaluador');
+        const f = item.querySelector('.seg-indiv-fecha');
+
+        if (evalId) {
+            const optValida = sel ? sel.querySelector(`option[value="${evalId}"]`) : null;
+            if (optValida) {
+                sel.value = evalId;
+                countModificados++;
+            } else {
+                if (sel) sel.value = "";
+                const profeNom = item.dataset.profeNom || 'su docente';
+                alumnosConConflicto.push(`${alNombre} (Docente: ${profeNom})`);
+            }
+        }
+
+        if (fechaGlobal && f) {
+            f.value = fechaGlobal;
+        }
+    });
+
+    if (alumnosConConflicto.length > 0) {
+        alert(`⚠️ ${evalNom} es docente de:\n\n• ${alumnosConConflicto.join('\n• ')}\n\nPor favor seleccioná otro responsable de seguimiento particularmente para ese/esos alumno(s).`);
+        const primerConflicto = Array.from(items).find(item => !item.querySelector('.seg-indiv-evaluador')?.value);
+        primerConflicto?.querySelector('.seg-indiv-evaluador')?.focus();
+    } else if (countModificados > 0) {
+        mostrarToast(`⚡ Configuración aplicada a los ${countModificados} alumno(s).`, "info");
+    }
+});
+document.getElementById('chk-seg-continuar')?.addEventListener('change', (e) => {
+    const continuar = e.target.checked;
+    const wrapProx = document.getElementById('wrap-seg-proxima-fecha');
+    const wrapAviso = document.getElementById('wrap-seg-aviso-cierre');
+    if (wrapProx) wrapProx.style.display = continuar ? 'block' : 'none';
+    if (wrapAviso) wrapAviso.style.display = continuar ? 'none' : 'block';
+});
+
+// Botones de sugerencia rápida de fecha (+1, +2, +3 Semanas)
+document.querySelectorAll('.btn-sug-fecha-seg').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const dias = parseInt(btn.dataset.dias || '7', 10);
+        const fStr = window.calcularFechaHabilFutura(dias);
+        const input = document.getElementById('input-seg-fecha-manual');
+        if (input) input.value = fStr;
+
+        document.querySelectorAll('.btn-sug-fecha-seg').forEach(b => {
+            const isSelf = b === btn;
+            b.classList.toggle('selected', isSelf);
+            b.style.background = isSelf ? 'var(--accent-teal)' : '#fff';
+            b.style.color = isSelf ? '#fff' : '#334155';
+            b.style.borderColor = isSelf ? 'var(--accent-teal)' : '#cbd5e1';
+        });
+    });
+});
+
+// Deseleccionar botones si se escribe manualmente en el input de fecha
+document.getElementById('input-seg-fecha-manual')?.addEventListener('input', () => {
+    document.querySelectorAll('.btn-sug-fecha-seg').forEach(b => {
+        b.classList.remove('selected');
+        b.style.background = '#fff';
+        b.style.color = '#334155';
+        b.style.borderColor = '#cbd5e1';
+    });
+});
+
+// =======================================================================
+// MODAL: EDITAR SEGUIMIENTO (Responsable y Fecha Próximo Seguimiento)
+// =======================================================================
+
+window.abrirModalEditarSeguimiento = async function(id) {
+    if (!id) return;
+    const modal = document.getElementById('modal-editar-seguimiento');
+    if (!modal) return;
+
+    let al = null;
+    if (typeof cachedAlumnosData !== 'undefined' && Array.isArray(cachedAlumnosData)) {
+        al = cachedAlumnosData.find(a => a.id === id);
+    }
+    if (!al && Array.isArray(window.cachedAlumnosData)) {
+        al = window.cachedAlumnosData.find(a => a.id === id);
+    }
+    if (!al) {
+        try {
+            const snap = await getDoc(doc(db, "alumnos", id));
+            if (snap.exists()) al = { id: snap.id, ...snap.data() };
+        } catch(e) {
+            console.error("Error al obtener alumno para editar seguimiento:", e);
+        }
+    }
+    if (!al) {
+        alert("⚠️ No se pudo cargar la información del alumno.");
+        return;
+    }
+    if (typeof window.normalizarAlumnoSeguimiento === 'function') {
+        window.normalizarAlumnoSeguimiento(al);
+    }
+
+    const inId = document.getElementById('edit-seg-alumno-id');
+    if (inId) inId.value = id;
+
+    const subEl = document.getElementById('edit-seg-subtitulo-alumno');
+    if (subEl) {
+        const { profeNom } = typeof obtenerDatosDocenteAlumnoSeg === 'function' ? obtenerDatosDocenteAlumnoSeg(al) : { profeNom: al.profesor_asignado || '-' };
+        const grupoNom = al.grupo_asignado || al.reserva_grupo_nombre || 'Clase Individual';
+        subEl.innerHTML = `Alumno: <strong>${escapeHtmlSeg(al.nombre || 'Sin nombre')}</strong> • Docente: <strong>${escapeHtmlSeg(profeNom || 'Sin docente')}</strong> • Grupo: <strong>${escapeHtmlSeg(grupoNom)}</strong>`;
+    }
+
+    // Cargar y poblar evaluadores/responsables excluyendo al docente asignado
+    const selResp = document.getElementById('edit-seg-responsable-select');
+    if (selResp) {
+        selResp.innerHTML = '<option value="">Cargando responsables...</option>';
+
+        let evals = window._evaluadoresCacheSeg || [];
+        if (!evals.length) {
+            try {
+                const qSnap = await getDocs(collection(db, "usuarios_sistema"));
+                evals = [];
+                qSnap.forEach(d => {
+                    const u = { id: d.id, ...d.data() };
+                    const roles = Array.isArray(u.roles) ? u.roles : [u.rol || ''];
+                    const rNorm = roles.map(r => (r || '').toLowerCase().trim());
+                    if (u.activo !== false && (rNorm.includes('evaluador') || rNorm.includes('admin') || rNorm.includes('coordinador') || rNorm.includes('admisor'))) {
+                        evals.push(u);
+                    }
+                });
+                evals.sort((a, b) => (a.nombre || a.email || '').localeCompare(b.nombre || b.email || ''));
+                window._evaluadoresCacheSeg = evals;
+            } catch(e) {
+                console.error("Error al obtener usuarios para responsable:", e);
+            }
+        }
+
+        const evalsPermitidos = evals.filter(ev => {
+            if (typeof esDocenteDelAlumnoSeg === 'function') {
+                return !esDocenteDelAlumnoSeg(ev, al);
+            }
+            return true;
+        });
+
+        selResp.innerHTML = '<option value="">Seleccionar responsable...</option>' + evalsPermitidos.map(ev => 
+            `<option value="${ev.id}" data-nombre="${escapeHtmlSeg(ev.nombre || ev.email)}" data-email="${escapeHtmlSeg(ev.email || '')}">${escapeHtmlSeg(ev.nombre || ev.email)} (${escapeHtmlSeg(ev.email || '')})</option>`
+        ).join('');
+
+        const respActualId = al.seguimiento?.responsable_id || al.seguimiento_responsable_id || al.evaluador_asignado_id || '';
+        if (respActualId && selResp.querySelector(`option[value="${respActualId}"]`)) {
+            selResp.value = respActualId;
+        } else {
+            const respActualNom = (al.seguimiento?.responsable_nombre || al.seguimiento_responsable_nombre || '').trim().toLowerCase();
+            if (respActualNom) {
+                for (let opt of selResp.options) {
+                    if ((opt.dataset.nombre || '').trim().toLowerCase() === respActualNom) {
+                        opt.selected = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // Fecha próximo seguimiento
+    const inpFecha = document.getElementById('edit-seg-fecha-input');
+    if (inpFecha) {
+        inpFecha.value = al.seguimiento?.fecha_proximo_seguimiento || al.fecha_proximo_seguimiento || '';
+    }
+
+    if (!modal.open) {
+        try { modal.showModal(); } catch(e) { modal.setAttribute('open', ''); }
+    }
+};
+
+window.guardarEdicionSeguimiento = async function() {
+    const id = document.getElementById('edit-seg-alumno-id')?.value;
+    if (!id) return;
+
+    const selResp = document.getElementById('edit-seg-responsable-select');
+    const respId = selResp?.value || '';
+    const selectedOpt = selResp?.selectedOptions?.[0];
+    const respNombre = respId ? (selectedOpt?.dataset.nombre || (selectedOpt?.textContent ? selectedOpt.textContent.split('(')[0].trim() : '')) : null;
+    const respEmail = respId ? (selectedOpt?.dataset.email || '') : null;
+    const fProx = (document.getElementById('edit-seg-fecha-input')?.value || '').trim() || null;
+
+    const btn = document.getElementById('btn-guardar-editar-seguimiento');
+    if (btn) setBotonCargando(btn, true);
+
+    try {
+        const u = window.usuarioActual || {};
+        const alRef = doc(db, "alumnos", id);
+        const aSnap = await getDoc(alRef);
+        const aData = aSnap.exists() ? aSnap.data() : {};
+
+        const updates = {
+            'seguimiento.responsable_id': respId || null,
+            'seguimiento.responsable_nombre': respNombre || null,
+            'seguimiento.responsable_email': respEmail || null,
+            'seguimiento.fecha_proximo_seguimiento': fProx || null,
+            seguimiento_responsable_id: respId || null,
+            seguimiento_responsable_nombre: respNombre || null,
+            seguimiento_responsable_email: respEmail || null,
+            fecha_proximo_seguimiento: fProx || null
+        };
+
+        const hist = aData.historial || [];
+        const fProxTxt = fProx ? fProx : 'Sin fecha';
+        const respTxt = respNombre ? respNombre : 'Sin responsable';
+        hist.push(crearEntradaHistorial(`Seguimiento editado por ${u.nombre || 'Usuario'}. Responsable: ${respTxt}. Próximo contacto: ${fProxTxt}.`, 'seguimiento'));
+        updates['historial'] = hist;
+
+        await updateDoc(alRef, updates);
+
+        // Actualizar en caché si existe
+        if (typeof cachedAlumnosData !== 'undefined' && Array.isArray(cachedAlumnosData)) {
+            const idx = cachedAlumnosData.findIndex(a => a.id === id);
+            if (idx !== -1) {
+                cachedAlumnosData[idx] = {
+                    ...cachedAlumnosData[idx],
+                    ...updates,
+                    seguimiento: {
+                        ...(cachedAlumnosData[idx].seguimiento || {}),
+                        responsable_id: respId || null,
+                        responsable_nombre: respNombre || null,
+                        responsable_email: respEmail || null,
+                        fecha_proximo_seguimiento: fProx || null
+                    }
+                };
+            }
+        }
+
+        document.getElementById('modal-editar-seguimiento')?.close();
+        mostrarToast("✅ Seguimiento actualizado correctamente.", "success");
+
+        // Si la ficha del alumno está abierta, actualizar tab de seguimiento
+        const modalFicha = document.getElementById('modal-alta-alumno');
+        if (modalFicha && modalFicha.open && document.getElementById('alumno-id')?.value === id) {
+            await llenarFormularioAlumno(id, false);
+            // Mantenerse en tab-seguimiento
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+            document.getElementById('btn-tab-seguimiento')?.classList.add('active');
+            if (document.getElementById('tab-seguimiento')) document.getElementById('tab-seguimiento').style.display = 'block';
+        }
+
+        await cargarVista(estadoActualVista);
+    } catch(err) {
+        console.error("Error al actualizar seguimiento:", err);
+        alert("Error al actualizar seguimiento: " + err.message);
+    } finally {
+        if (btn) setBotonCargando(btn, false);
+    }
+};
+
+document.getElementById('btn-guardar-editar-seguimiento')?.addEventListener('click', window.guardarEdicionSeguimiento);
+
+// Botones de sugerencia rápida de fecha en modal editar seguimiento
+document.querySelectorAll('.btn-fast-date-edit-seg').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const dias = parseInt(btn.dataset.dias || '7', 10);
+        const fStr = typeof window.calcularFechaHabilFutura === 'function'
+            ? window.calcularFechaHabilFutura(dias)
+            : new Date(Date.now() + dias * 86400000).toISOString().split('T')[0];
+        const input = document.getElementById('edit-seg-fecha-input');
+        if (input) input.value = fStr;
+    });
+});
+
+document.getElementById('btn-limpiar-fecha-edit-seg')?.addEventListener('click', () => {
+    const input = document.getElementById('edit-seg-fecha-input');
+    if (input) input.value = '';
+});
+
+// =======================================================================
+// MODAL: EDITAR Y ELIMINAR CONTACTOS DE SEGUIMIENTO
+// =======================================================================
+
+window.abrirModalEditarContactoSeguimiento = async function(alumnoId, contactoId) {
+    if (!alumnoId || !contactoId) return;
+    const modal = document.getElementById('modal-editar-contacto-seguimiento');
+    if (!modal) return;
+
+    let al = null;
+    if (typeof cachedAlumnosData !== 'undefined' && Array.isArray(cachedAlumnosData)) {
+        al = cachedAlumnosData.find(a => a.id === alumnoId);
+    }
+    if (!al && Array.isArray(window.cachedAlumnosData)) {
+        al = window.cachedAlumnosData.find(a => a.id === alumnoId);
+    }
+    if (!al) {
+        try {
+            const snap = await getDoc(doc(db, "alumnos", alumnoId));
+            if (snap.exists()) al = { id: snap.id, ...snap.data() };
+        } catch(e) {}
+    }
+    if (!al) return alert("Alumno no encontrado.");
+
+    const seg = al.seguimiento || {};
+    const histSeg = Array.isArray(seg.historial) ? seg.historial : [];
+    const ctto = histSeg.find(c => String(c.id || '') === String(contactoId) || String(c.fecha || '') === String(contactoId));
+    if (!ctto) return alert("Registro de contacto no encontrado.");
+
+    document.getElementById('edit-ctto-seg-alumno-id').value = alumnoId;
+    document.getElementById('edit-ctto-seg-id').value = contactoId;
+
+    const fDate = parsearFechaCualquierOrigen(ctto.fecha) || new Date(ctto.fecha || Date.now());
+    const fTxt = fDate && !isNaN(fDate.getTime()) ? fDate.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : (ctto.fecha || '-');
+
+    const infoEl = document.getElementById('edit-ctto-seg-info');
+    if (infoEl) {
+        infoEl.innerHTML = `Alumno: <strong>${escapeHtmlSeg(al.nombre || '-')}</strong> • Autor: <strong>${escapeHtmlSeg(ctto.evaluador_nombre || 'Evaluador')}</strong><br><span style="font-size:11px; opacity:0.85;">Fecha original: ${fTxt}</span>`;
+    }
+
+    const txtConversado = document.getElementById('edit-ctto-seg-conversado');
+    if (txtConversado) {
+        txtConversado.value = ctto.conversado || ctto.motivo || '';
+    }
+
+    const inpFechaProx = document.getElementById('edit-ctto-seg-fecha-prox');
+    if (inpFechaProx) {
+        inpFechaProx.value = ctto.proxima_fecha_pautada || '';
+    }
+
+    const wrapFechaProx = document.getElementById('wrap-edit-ctto-seg-fecha-prox');
+    if (wrapFechaProx) {
+        const esFin = ctto.tipo === 'finalizacion' || ctto.continua_seguimiento === false;
+        wrapFechaProx.style.display = esFin ? 'none' : 'block';
+    }
+
+    if (!modal.open) {
+        try { modal.showModal(); } catch(e) { modal.setAttribute('open', ''); }
+    }
+};
+
+window.guardarEdicionContactoSeguimiento = async function() {
+    const alumnoId = document.getElementById('edit-ctto-seg-alumno-id')?.value;
+    const contactoId = document.getElementById('edit-ctto-seg-id')?.value;
+    if (!alumnoId || !contactoId) return;
+
+    const conversado = (document.getElementById('edit-ctto-seg-conversado')?.value || '').trim();
+    if (!conversado) {
+        alert("⚠️ Por favor ingresá el detalle de lo conversado.");
+        document.getElementById('edit-ctto-seg-conversado')?.focus();
+        return;
+    }
+
+    const fechaProx = (document.getElementById('edit-ctto-seg-fecha-prox')?.value || '').trim() || null;
+
+    const btn = document.getElementById('btn-guardar-edicion-ctto-seg');
+    if (btn) setBotonCargando(btn, true);
+
+    try {
+        const alRef = doc(db, "alumnos", alumnoId);
+        const aSnap = await getDoc(alRef);
+        if (!aSnap.exists()) throw new Error("Alumno no encontrado");
+
+        const aData = aSnap.data();
+        const seg = aData.seguimiento || {};
+        const histSeg = Array.isArray(seg.historial) ? [...seg.historial] : [];
+        const idx = histSeg.findIndex(c => String(c.id || '') === String(contactoId) || String(c.fecha || '') === String(contactoId));
+        if (idx === -1) throw new Error("Contacto no encontrado en el historial.");
+
+        histSeg[idx] = {
+            ...histSeg[idx],
+            conversado: conversado,
+            proxima_fecha_pautada: fechaProx
+        };
+
+        const u = window.usuarioActual || {};
+        const hist = aData.historial || [];
+        hist.push(crearEntradaHistorial(`Registro de contacto de seguimiento editado por ${u.nombre || 'Usuario'}.`, 'seguimiento'));
+
+        const updates = {
+            'seguimiento.historial': histSeg,
+            historial: hist
+        };
+
+        // Si es el contacto más reciente y se editó la fecha próxima, sincronizarla
+        const contactosOrdenados = [...histSeg].filter(c => c.fecha).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+        if (contactosOrdenados.length > 0 && String(contactosOrdenados[0].id || contactosOrdenados[0].fecha) === String(contactoId)) {
+            if (fechaProx) {
+                updates['seguimiento.fecha_proximo_seguimiento'] = fechaProx;
+                updates['fecha_proximo_seguimiento'] = fechaProx;
+            }
+        }
+
+        await updateDoc(alRef, updates);
+
+        // Actualizar caché en memoria
+        if (typeof cachedAlumnosData !== 'undefined' && Array.isArray(cachedAlumnosData)) {
+            const aIdx = cachedAlumnosData.findIndex(a => a.id === alumnoId);
+            if (aIdx !== -1) {
+                cachedAlumnosData[aIdx] = {
+                    ...cachedAlumnosData[aIdx],
+                    ...updates,
+                    seguimiento: {
+                        ...(cachedAlumnosData[aIdx].seguimiento || {}),
+                        historial: histSeg,
+                        ...(updates['seguimiento.fecha_proximo_seguimiento'] ? { fecha_proximo_seguimiento: updates['seguimiento.fecha_proximo_seguimiento'] } : {})
+                    }
+                };
+            }
+        }
+
+        document.getElementById('modal-editar-contacto-seguimiento')?.close();
+        mostrarToast("✅ Contacto de seguimiento actualizado con éxito.", "success");
+
+        // Refrescar ficha si está abierta
+        const modalFicha = document.getElementById('modal-alta-alumno');
+        if (modalFicha && modalFicha.open && document.getElementById('alumno-id')?.value === alumnoId) {
+            await llenarFormularioAlumno(alumnoId, false);
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+            document.getElementById('btn-tab-seguimiento')?.classList.add('active');
+            if (document.getElementById('tab-seguimiento')) document.getElementById('tab-seguimiento').style.display = 'block';
+        }
+
+        await cargarVista(estadoActualVista);
+    } catch(err) {
+        console.error("Error al guardar edición de contacto de seguimiento:", err);
+        alert("Error al guardar cambios: " + err.message);
+    } finally {
+        if (btn) setBotonCargando(btn, false);
+    }
+};
+
+window.eliminarContactoSeguimiento = async function(alumnoId, contactoId) {
+    if (!alumnoId || !contactoId) return;
+
+    const ok = typeof window.confirmar === 'function'
+        ? await window.confirmar(
+            "🗑️ ¿Eliminar contacto de seguimiento?",
+            "¿Estás seguro de que deseas eliminar este registro de contacto de seguimiento?\n\nEsta acción quitará el registro del historial del alumno y no se puede deshacer.",
+            "🗑️ Eliminar Registro",
+            "🗑️"
+        )
+        : confirm("¿Estás seguro de que deseas eliminar este registro de contacto de seguimiento?");
+
+    if (!ok) return;
+
+    mostrarIndicadorCarga("Eliminando contacto de seguimiento...");
+    try {
+        const alRef = doc(db, "alumnos", alumnoId);
+        const aSnap = await getDoc(alRef);
+        if (!aSnap.exists()) throw new Error("Alumno no encontrado");
+
+        const aData = aSnap.data();
+        const seg = aData.seguimiento || {};
+        let histSeg = Array.isArray(seg.historial) ? [...seg.historial] : [];
+        
+        const cttoAEliminar = histSeg.find(c => String(c.id || '') === String(contactoId) || String(c.fecha || '') === String(contactoId));
+        histSeg = histSeg.filter(c => String(c.id || '') !== String(contactoId) && String(c.fecha || '') !== String(contactoId));
+
+        // Recalcular último contacto
+        const contactosValidos = histSeg.filter(c => c.fecha).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+        const ultimoContacto = contactosValidos.length > 0 ? contactosValidos[0].fecha : null;
+
+        const u = window.usuarioActual || {};
+        const hist = aData.historial || [];
+        hist.push(crearEntradaHistorial(`Registro de contacto de seguimiento eliminado por ${u.nombre || 'Usuario'}.`, 'seguimiento'));
+
+        const updates = {
+            'seguimiento.historial': histSeg,
+            'seguimiento.ultimo_contacto': ultimoContacto,
+            historial: hist
+        };
+
+        // Si se eliminó un contacto de tipo finalización y no quedan otras finalizaciones, restaurar estado activo
+        if (cttoAEliminar && (cttoAEliminar.tipo === 'finalizacion' || cttoAEliminar.continua_seguimiento === false)) {
+            const tieneOtraFinalizacion = histSeg.some(c => c.tipo === 'finalizacion' || c.continua_seguimiento === false);
+            if (!tieneOtraFinalizacion) {
+                updates['seguimiento.activo'] = true;
+                updates['seguimiento.fecha_finalizacion'] = null;
+                updates['seguimiento.motivo_finalizacion'] = null;
+            }
+        }
+
+        await updateDoc(alRef, updates);
+
+        // Actualizar caché en memoria
+        if (typeof cachedAlumnosData !== 'undefined' && Array.isArray(cachedAlumnosData)) {
+            const idx = cachedAlumnosData.findIndex(a => a.id === alumnoId);
+            if (idx !== -1) {
+                cachedAlumnosData[idx] = {
+                    ...cachedAlumnosData[idx],
+                    ...updates,
+                    seguimiento: {
+                        ...(cachedAlumnosData[idx].seguimiento || {}),
+                        historial: histSeg,
+                        ultimo_contacto: ultimoContacto,
+                        ...(updates['seguimiento.activo'] !== undefined ? { activo: updates['seguimiento.activo'], fecha_finalizacion: null, motivo_finalizacion: null } : {})
+                    }
+                };
+            }
+        }
+
+        mostrarToast("🗑️ Contacto de seguimiento eliminado", "success");
+
+        // Refrescar ficha si está abierta
+        const modalFicha = document.getElementById('modal-alta-alumno');
+        if (modalFicha && modalFicha.open && document.getElementById('alumno-id')?.value === alumnoId) {
+            await llenarFormularioAlumno(alumnoId, false);
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+            document.getElementById('btn-tab-seguimiento')?.classList.add('active');
+            if (document.getElementById('tab-seguimiento')) document.getElementById('tab-seguimiento').style.display = 'block';
+        }
+
+        await cargarVista(estadoActualVista);
+    } catch(err) {
+        console.error("Error al eliminar contacto de seguimiento:", err);
+        alert("Error al eliminar contacto: " + err.message);
+    } finally {
+        ocultarIndicadorCarga();
+    }
+};
+
+document.getElementById('btn-guardar-edicion-ctto-seg')?.addEventListener('click', window.guardarEdicionContactoSeguimiento);
+
+document.getElementById('btn-limpiar-fecha-edit-ctto-seg')?.addEventListener('click', () => {
+    const input = document.getElementById('edit-ctto-seg-fecha-prox');
+    if (input) input.value = '';
+});
+
+
 
 
 

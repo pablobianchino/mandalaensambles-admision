@@ -33,6 +33,22 @@ export let matchAlumnosSeleccionados = new Set();
 export let solicitudesParaMatch = [];
 window.solicitudesParaMatch = solicitudesParaMatch;
 
+export function limpiarSeleccionMatch() {
+    if (matchAlumnosSeleccionados && typeof matchAlumnosSeleccionados.clear === 'function') {
+        matchAlumnosSeleccionados.clear();
+    }
+    window.matchAlumnosSeleccionados = matchAlumnosSeleccionados;
+    window.selectedBulkIds = [];
+    const bulkBar = document.getElementById('match-alumnos-bulk-bar');
+    if (bulkBar) bulkBar.style.display = 'none';
+    const countEl = document.getElementById('match-alumnos-selected-count');
+    if (countEl) countEl.textContent = '0 seleccionados';
+    document.querySelectorAll('.chk-match-alumno').forEach(chk => {
+        chk.checked = false;
+    });
+}
+window.limpiarSeleccionMatch = limpiarSeleccionMatch;
+
 export function normalizarHoraLocal(str, fallback = '09:00') {
     if (!str || typeof str !== 'string') return fallback;
     const s = str.trim().replace('.', ':');
@@ -529,6 +545,7 @@ export function initMatchFormListeners(cfgMin = 2, cfgMax = 6, callbacks = {}) {
         if (ids.length < 1) {
             return alert("Por favor selecciona al menos 1 alumno para armar una propuesta.");
         }
+        limpiarSeleccionMatch();
         if (window.abrirModalPrealtaGrupal && ids.length > 1) {
             window.abrirModalPrealtaGrupal(ids, '', defaultCfg, true);
         } else if (window.abrirModalPrealta && ids.length === 1) {
@@ -2697,6 +2714,7 @@ window.aprobarGrupoCompletoPrealta = async function(nombreGrupo) {
             } catch(copyErr) {
                 console.warn("No se pudo copiar automáticamente aviso al admisor:", copyErr);
             }
+            if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
             alert(`✅ Grupo "${nombreGrupo}" aprobado con éxito. Pasó a Altas Pendientes.\n📋 Texto de aviso al Admisor copiado al portapapeles.`);
             if (typeof window.cargarVistaGlobal === 'function') {
                 await window.cargarVistaGlobal('Altas - Pendientes');
@@ -2705,6 +2723,7 @@ window.aprobarGrupoCompletoPrealta = async function(nombreGrupo) {
             if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
         }
     } catch(err) {
+        if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
         alert('Error al aprobar grupo: ' + err.message);
     }
 };
@@ -2744,11 +2763,13 @@ window.aprobarAlumnoIndividualPrealta = async function(alumnoId) {
             if (typeof window.removerFilaOptimista === 'function') window.removerFilaOptimista(alumnoId);
             const cont = document.getElementById('lista-generica');
             if (cont) await renderMatchEnValidacion(cont);
+            if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
             alert(`✅ ${al.nombre} aprobado a Altas Pendientes.\n📋 Texto de aviso al Admisor copiado al portapapeles.`);
         } finally {
             if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
         }
     } catch(err) {
+        if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
         alert('Error al aprobar alumno: ' + err.message);
     }
 };
@@ -2777,11 +2798,13 @@ window.rechazarAlumnoGrupoYVolverEspera = async function(alumnoId) {
             if (typeof window.removerFilaOptimista === 'function') window.removerFilaOptimista(alumnoId);
             const cont = document.getElementById('lista-generica');
             if (cont) await renderMatchEnValidacion(cont);
+            if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
             alert(`↩️ ${al.nombre} volvió a Lista de Espera.`);
         } finally {
             if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
         }
     } catch(err) {
+        if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
         alert('Error al devolver alumno a lista de espera: ' + err.message);
     }
 };
@@ -2810,8 +2833,10 @@ window.desarmarGrupoValidacion = async function(nombreGrupo) {
         }
         const cont = document.getElementById('lista-generica');
         if (cont) await renderMatchEnValidacion(cont);
+        if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
         alert(`↩️ Grupo "${nombreGrupo}" desarmado. Alumnos retornaron a Lista de Espera.`);
     } catch(err) {
+        if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
         alert('Error al desarmar grupo: ' + err.message);
     } finally {
         if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();

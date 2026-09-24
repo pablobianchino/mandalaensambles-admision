@@ -3,7 +3,7 @@
 // =======================================================================
 
 import { getEmojiInstrumento } from "./altas.module.js";
-import { esAlumnoAltaFinalizada } from "../config/constants.js?v=6.8.11";
+import { esAlumnoAltaFinalizada } from "../config/constants.js?v=6.10.0";
 import { db, doc, updateDoc } from "../config/firebase.js";
 
 export function getEstadoYBadge(al, getFechaReferenciaAlumno) {
@@ -11,7 +11,11 @@ export function getEstadoYBadge(al, getFechaReferenciaAlumno) {
     const rawEst = al.estado_agenda || '';
     const est = rawEst.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     
-    if (est === 'pendiente procesar') {
+    if (al.seguimiento?.activo === true) {
+        txtEstado = 'SEGUIMIENTO ACTIVO';
+        colorBadge = 'bg-teal';
+        colorIndicador = 'ind-teal';
+    } else if (est === 'pendiente procesar') {
         txtEstado = 'SIN AGENDAR';
         colorBadge = 'bg-blue-1';
         colorIndicador = 'ind-blue-1';
@@ -117,6 +121,14 @@ export function generarBotonesPrincipalesVisibles(al, id) {
     const rawEst = al.estado_agenda || '';
     const est = rawEst.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
+    if (al.seguimiento?.activo === true) {
+        html += `<button type="button" class="row-quick-btn primary btn-seg-contactar" data-id="${id}" title="Registrar contacto de seguimiento">📞 Contactar</button>`;
+        html += `<button type="button" class="row-quick-btn secondary btn-seg-finalizar" data-id="${id}" title="Finalizar seguimiento">🏁 Finalizar</button>`;
+        html += `<button type="button" class="row-quick-btn secondary btn-seg-ver-informe" data-id="${id}" title="Ver informe de admisión">📄 Ver Informe</button>`;
+        html += `<button type="button" class="row-quick-btn secondary btn-seg-ver-seguimiento" data-id="${id}" title="Ver seguimiento del alumno">🎧 Ver Seguimiento</button>`;
+        return html;
+    }
+
     if (est === 'pendiente procesar') {
         html += `<button type="button" class="row-quick-btn primary btn-buscar-agenda" data-id="${id}">🔍 Buscar Agenda</button>`;
         html += `<button type="button" class="row-quick-btn secondary btn-pasar-espera-directo" data-id="${id}">🛋️ A Lista de Espera</button>`;
@@ -155,6 +167,10 @@ export function generarBotonesPrincipalesVisibles(al, id) {
             html += `<button type="button" class="row-quick-btn primary btn-finalizar-alta-directa" data-id="${id}">🏁 Finalizar Alta</button>`;
         }
         html += `<button type="button" class="row-quick-btn secondary btn-aviso-alta-alumno" data-id="${id}">💬 Avisar a Alumno</button>`;
+        if (esFinalizada) {
+            html += `<button type="button" class="row-quick-btn secondary btn-seg-ver-informe" data-id="${id}">📄 Ver Informe</button>`;
+            html += `<button type="button" class="row-quick-btn secondary btn-seg-ver-seguimiento" data-id="${id}">🎧 Ver Seguimiento</button>`;
+        }
     } else if (est === 'alta suspendida' || est === 'agenda suspendida' || est.includes('suspendid')) {
         const origen = (al.origen_suspension || '').toLowerCase().trim() || (est === 'agenda suspendida' ? 'inbox' : 'altas');
         if (origen === 'inbox') {
@@ -168,12 +184,31 @@ export function generarBotonesPrincipalesVisibles(al, id) {
     return html;
 }
 
-export function generarBotonesAccion(al, id, esModal = false) {
+export function generarBotonesAccion(al, id, esModal = false, vista = '') {
     let html = '';
     const rawEst = al.estado_agenda || '';
     const est = rawEst.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const vistaActiva = vista || window.estadoActualVista || '';
+    const esVistaSeguimiento = vistaActiva.startsWith('Seguimientos') || vistaActiva === 'Altas - Seguimientos';
+    const esFinalizada = esAlumnoAltaFinalizada(al);
 
     if (esModal) {
+        if (esVistaSeguimiento || al.seguimiento?.activo === true) {
+            if (al.seguimiento?.activo === true) {
+                html += `<button type="button" class="btn-action-primary btn-seg-contactar" data-id="${id}">📞 Contactar</button>`;
+                html += `<button type="button" class="btn-action-neutral btn-seg-finalizar" data-id="${id}">🏁 Finalizar Seguimiento</button>`;
+            }
+            html += `<button type="button" class="btn-action-neutral btn-seg-ver-informe" data-id="${id}">📄 Ver Informe</button>`;
+            html += `<button type="button" class="btn-action-neutral btn-seg-ver-seguimiento" data-id="${id}">🎧 Ver Seguimiento</button>`;
+            html += `<button type="button" class="btn-action-neutral btn-editar-seguimiento" data-id="${id}">✏️ Editar Seguimiento</button>`;
+            html += `<button type="button" class="btn-action-neutral btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
+            html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
+            if (typeof window.esUsuarioAdministrador === 'function' ? window.esUsuarioAdministrador() : true) {
+                html += `<button type="button" class="btn-action-neutral btn-eliminar-ficha-directo" data-id="${id}" style="color:var(--accent-red); font-weight:700; border-color:var(--accent-red); margin-top:4px;">🗑️ Eliminar Ficha</button>`;
+            }
+            return html;
+        }
+
         if (est === 'pendiente procesar') {
             html += `<button type="button" class="btn-action-primary btn-buscar-agenda" data-id="${id}">🔍 Buscar Agenda</button>`;
             html += `<button type="button" class="btn-action-neutral btn-pasar-espera-directo" data-id="${id}">🛋️ Pasar a Lista de Espera</button>`;
@@ -248,7 +283,6 @@ export function generarBotonesAccion(al, id, esModal = false) {
             html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
             html += `<button type="button" class="btn-action-neutral btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
         } else if (est === 'alta efectiva' || est === 'alta ilegal' || est === 'alta finalizada' || est === 'alta confirmada' || est.startsWith('alta')) {
-            const esFinalizada = esAlumnoAltaFinalizada(al);
             if (!esFinalizada) {
                 html += `<button type="button" class="btn-action-primary btn-finalizar-alta-directa" data-id="${id}">🏁 Finalizar Alta</button>`;
             }
@@ -257,12 +291,31 @@ export function generarBotonesAccion(al, id, esModal = false) {
             html += `<button type="button" class="btn-action-neutral btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${al.grupo_asignado||''}">✏️ Editar Alta</button>`;
             html += `<button type="button" class="btn-action-neutral btn-aviso-alta-alumno" data-id="${id}">💬 Avisar Alta a Alumno</button>`;
             html += `<button type="button" class="btn-action-neutral btn-reenviar-alta" data-id="${id}">📢 Avisar Alta a Docente</button>`;
+            if (esFinalizada) {
+                html += `<button type="button" class="btn-action-neutral btn-seg-ver-informe" data-id="${id}">📄 Ver Informe</button>`;
+                html += `<button type="button" class="btn-action-neutral btn-seg-ver-seguimiento" data-id="${id}">🎧 Ver Seguimiento</button>`;
+                html += `<button type="button" class="btn-action-neutral btn-editar-seguimiento" data-id="${id}">✏️ Editar Seguimiento</button>`;
+            }
             html += `<button type="button" class="btn-action-neutral btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
             html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
+            if (!esFinalizada) {
+                html += `<button type="button" class="btn-action-neutral btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
+            }
         }
         if (typeof window.esUsuarioAdministrador === 'function' ? window.esUsuarioAdministrador() : true) {
             html += `<button type="button" class="btn-action-neutral btn-eliminar-ficha-directo" data-id="${id}" style="color:var(--accent-red); font-weight:700; border-color:var(--accent-red); margin-top:4px;">🗑️ Eliminar Ficha</button>`;
+        }
+        return html;
+    }
+
+    if (esVistaSeguimiento || al.seguimiento?.activo === true) {
+        html += `<button type="button" class="dropdown-item btn-seg-ver-informe" data-id="${id}">📄 Ver Informe</button>`;
+        html += `<button type="button" class="dropdown-item btn-seg-ver-seguimiento" data-id="${id}">🎧 Ver Seguimiento</button>`;
+        html += `<button type="button" class="dropdown-item btn-editar-seguimiento" data-id="${id}">✏️ Editar Seguimiento</button>`;
+        html += `<button type="button" class="dropdown-item btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
+        html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
+        if (typeof window.esUsuarioAdministrador === 'function' ? window.esUsuarioAdministrador() : true) {
+            html += `<button type="button" class="dropdown-item btn-eliminar-ficha-directo" data-id="${id}" style="color:var(--accent-red); font-weight:700; border-top:1px solid var(--border-color); margin-top:2px;">🗑️ Eliminar Ficha</button>`;
         }
         return html;
     }
@@ -329,9 +382,16 @@ export function generarBotonesAccion(al, id, esModal = false) {
         html += `<button type="button" class="dropdown-item btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${al.grupo_asignado||''}">✏️ Editar Alta</button>`;
         html += `<button type="button" class="dropdown-item btn-aviso-alta-alumno" data-id="${id}">💬 Avisar Alta a Alumno</button>`;
         html += `<button type="button" class="dropdown-item btn-reenviar-alta" data-id="${id}">📢 Avisar Alta a Docente</button>`;
+        if (esFinalizada) {
+            html += `<button type="button" class="dropdown-item btn-seg-ver-informe" data-id="${id}">📄 Ver Informe</button>`;
+            html += `<button type="button" class="dropdown-item btn-seg-ver-seguimiento" data-id="${id}">🎧 Ver Seguimiento</button>`;
+            html += `<button type="button" class="dropdown-item btn-editar-seguimiento" data-id="${id}">✏️ Editar Seguimiento</button>`;
+        }
         html += `<button type="button" class="dropdown-item btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
         html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
-        html += `<button type="button" class="dropdown-item btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
+        if (!esFinalizada) {
+            html += `<button type="button" class="dropdown-item btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
+        }
     } else if (est === 'alta suspendida' || est === 'agenda suspendida' || est.includes('suspendid')) {
         const origen = (al.origen_suspension || '').toLowerCase().trim() || (est === 'agenda suspendida' ? 'inbox' : 'altas');
         if (origen === 'inbox') {
@@ -379,6 +439,12 @@ export function renderSegmentedTabs(vista) {
             { label: 'Sugerencias', vista: 'Match - Pendientes' },
             { label: 'En Validacion', vista: 'Match - En Validacion' },
             { label: 'Confirmados', vista: 'Match - Confirmados' }
+        ];
+    } else if (vista.startsWith('Seguimientos')) {
+        subVistas = [
+            { label: 'Pendientes', vista: 'Seguimientos - Pendientes' },
+            { label: 'En Curso', vista: 'Seguimientos - En Curso' },
+            { label: 'Finalizados', vista: 'Seguimientos - Finalizados' }
         ];
     }
 
