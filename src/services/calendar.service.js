@@ -148,13 +148,20 @@ export async function fetchCalendarAPI(action, payload = {}) {
     while (retries >= 0) {
         let res;
         try { 
-            res = await fetch(SCRIPT_URL, { 
-                method: 'POST', 
-                body: JSON.stringify(payload), 
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                redirect: 'follow',
-                credentials: 'omit'
-            }); 
+            const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+            const timeoutId = controller ? setTimeout(() => controller.abort(), 6000) : null;
+            try {
+                res = await fetch(SCRIPT_URL, { 
+                    method: 'POST', 
+                    body: JSON.stringify(payload), 
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    redirect: 'follow',
+                    credentials: 'omit',
+                    signal: controller ? controller.signal : undefined
+                }); 
+            } finally {
+                if (timeoutId) clearTimeout(timeoutId);
+            }
         } catch (networkError) { 
             lastError = networkError;
             if (retries > 0) {

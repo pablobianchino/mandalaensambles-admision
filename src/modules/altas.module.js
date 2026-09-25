@@ -753,10 +753,8 @@ export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg
     limpiarEstadoModalPrealta();
     const currentSeq = window._modalPrealtaSeq;
 
-    const dSnap = await getDoc(doc(db, "alumnos", id));
-    if (!dSnap.exists()) return alert("Alumno no encontrado.");
-    if (currentSeq !== window._modalPrealtaSeq) return;
-    const al = { id: dSnap.id, ...dSnap.data() };
+    const fnMostrarCarga = window.mostrarIndicadorCarga || (typeof mostrarIndicadorCarga === 'function' ? mostrarIndicadorCarga : null);
+    const fnOcultarCarga = window.ocultarIndicadorCarga || (typeof ocultarIndicadorCarga === 'function' ? ocultarIndicadorCarga : null);
 
     let esEdicionParam = false;
     let grupoPrev = '';
@@ -783,11 +781,24 @@ export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg
     const esMatchSolicitud = Boolean(sol);
     const esPropuesta = Boolean(opts.esPropuesta);
 
-    document.getElementById('prealta-alumno-id').value = id;
-    const hiddenProp = document.getElementById('prealta-es-propuesta');
-    if (hiddenProp) hiddenProp.value = esPropuesta ? 'true' : 'false';
+    if (fnMostrarCarga) {
+        fnMostrarCarga(esPropuesta ? "Preparando propuesta de clase..." : (esEdicionParam ? "Cargando edición de alta..." : "Cargando formulario de Pre-Alta..."));
+    }
 
-    const btnGuardarPrealta = document.getElementById('btn-guardar-prealta');
+    try {
+        const dSnap = await getDoc(doc(db, "alumnos", id));
+        if (!dSnap.exists()) {
+            if (fnOcultarCarga) fnOcultarCarga();
+            return alert("Alumno no encontrado.");
+        }
+        if (currentSeq !== window._modalPrealtaSeq) return;
+        const al = { id: dSnap.id, ...dSnap.data() };
+
+        document.getElementById('prealta-alumno-id').value = id;
+        const hiddenProp = document.getElementById('prealta-es-propuesta');
+        if (hiddenProp) hiddenProp.value = esPropuesta ? 'true' : 'false';
+
+        const btnGuardarPrealta = document.getElementById('btn-guardar-prealta');
     if (btnGuardarPrealta) {
         if (esPropuesta) {
             btnGuardarPrealta.textContent = '🧩 Crear Propuesta en Validación';
@@ -1122,15 +1133,18 @@ export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg
         banner.innerHTML = `ℹ️ <strong>Pre-Alta desde Lista de Espera:</strong> Alumno ${esIndividual ? 'Individual' : (tipoSusc === 'grupal' ? 'Grupal' : 'Ensamble')} (${instsAlumno.join(', ')})${evaluadorTxt}${fechaEntTxt}`;
     }
 
-    if (fVal && selectProfe?.value) {
-        verificarPrealtaEnCalendar([al], configApp);
+        // Poblado dinámico de evaluadores para seguimiento excluyendo al profesor asignado
+        const evalIdPrevio = al.seguimiento?.responsable_id || al.seguimiento_responsable_id || '';
+        await poblarEvaluadoresPrealta(selectProfe?.value || profeActualId, evalIdPrevio);
+
+        document.getElementById('modal-iniciar-prealta')?.showModal();
+
+        if (fVal && selectProfe?.value) {
+            verificarPrealtaEnCalendar([al], configApp).catch(e => console.warn("Calendar check async warn:", e));
+        }
+    } finally {
+        if (fnOcultarCarga) fnOcultarCarga();
     }
-
-    // Poblado dinámico de evaluadores para seguimiento excluyendo al profesor asignado
-    const evalIdPrevio = al.seguimiento?.responsable_id || al.seguimiento_responsable_id || '';
-    await poblarEvaluadoresPrealta(selectProfe?.value || profeActualId, evalIdPrevio);
-
-    document.getElementById('modal-iniciar-prealta')?.showModal();
 }
 
 // -----------------------------------------------------------------------
@@ -1463,6 +1477,9 @@ export async function abrirModalPrealtaGrupal(ids, grupoNom = '', cfg = defaultC
     limpiarEstadoModalPrealta();
     const currentGrupalSeq = window._modalPrealtaSeq;
 
+    const fnMostrarCarga = window.mostrarIndicadorCarga || (typeof mostrarIndicadorCarga === 'function' ? mostrarIndicadorCarga : null);
+    const fnOcultarCarga = window.ocultarIndicadorCarga || (typeof ocultarIndicadorCarga === 'function' ? ocultarIndicadorCarga : null);
+
     // Normalizar argumentos de forma defensiva
     let realCfg = cfg;
     let realEsPropuesta = esPropuesta;
@@ -1471,34 +1488,43 @@ export async function abrirModalPrealtaGrupal(ids, grupoNom = '', cfg = defaultC
         realCfg = arguments[3] || defaultCfg;
     }
 
-    const hiddenProp = document.getElementById('prealta-es-propuesta');
-    if (hiddenProp) hiddenProp.value = realEsPropuesta ? 'true' : 'false';
+    if (fnMostrarCarga) {
+        fnMostrarCarga(realEsPropuesta ? `Preparando propuesta grupal (${ids.length} alumnos)...` : `Cargando Pre-Alta Grupal (${ids.length} alumnos)...`);
+    }
 
-    const btnGuardarPrealta = document.getElementById('btn-guardar-prealta');
-    if (btnGuardarPrealta) {
-        if (realEsPropuesta) {
-            btnGuardarPrealta.textContent = '🧩 Crear Propuesta en Validación';
-            btnGuardarPrealta.style.background = 'var(--accent-teal, #007b8f)';
-        } else {
-            btnGuardarPrealta.textContent = '🚀 Iniciar Pre-Alta y Agendar';
-            btnGuardarPrealta.style.background = '';
+    try {
+        const hiddenProp = document.getElementById('prealta-es-propuesta');
+        if (hiddenProp) hiddenProp.value = realEsPropuesta ? 'true' : 'false';
+
+        const btnGuardarPrealta = document.getElementById('btn-guardar-prealta');
+        if (btnGuardarPrealta) {
+            if (realEsPropuesta) {
+                btnGuardarPrealta.textContent = '🧩 Crear Propuesta en Validación';
+                btnGuardarPrealta.style.background = 'var(--accent-teal, #007b8f)';
+            } else {
+                btnGuardarPrealta.textContent = '🚀 Iniciar Pre-Alta y Agendar';
+                btnGuardarPrealta.style.background = '';
+            }
         }
-    }
 
-    const alumnosList = [];
-    for (let id of ids) {
-        const dSnap = await getDoc(doc(db, "alumnos", id));
-        if (dSnap.exists()) alumnosList.push({ id: dSnap.id, ...dSnap.data() });
-    }
-    if (alumnosList.length === 0) return alert("No se encontraron datos de los alumnos.");
+        const snapResults = await Promise.all(ids.map(id => getDoc(doc(db, "alumnos", id))));
+        const alumnosList = [];
+        snapResults.forEach(dSnap => {
+            if (dSnap.exists()) alumnosList.push({ id: dSnap.id, ...dSnap.data() });
+        });
+        if (alumnosList.length === 0) {
+            if (fnOcultarCarga) fnOcultarCarga();
+            return alert("No se encontraron datos de los alumnos.");
+        }
+        if (currentGrupalSeq !== window._modalPrealtaSeq) return;
 
-    const primerAl = alumnosList[0];
-    const profeActualId = primerAl.reserva_profe_id || primerAl.profesor_id || '';
+        const primerAl = alumnosList[0];
+        const profeActualId = primerAl.reserva_profe_id || primerAl.profesor_id || '';
 
-    document.getElementById('prealta-alumno-id').value = ids.join(',');
-    document.getElementById('titulo-prealta').textContent = realEsPropuesta
-        ? (ids.length > 1 ? `🧩 Nueva Propuesta de Grupo (${ids.length} alumnos)` : `🧩 Nueva Propuesta de Clase`)
-        : `Iniciar Pre-Alta Grupal (${ids.length} alumnos)`;
+        document.getElementById('prealta-alumno-id').value = ids.join(',');
+        document.getElementById('titulo-prealta').textContent = realEsPropuesta
+            ? (ids.length > 1 ? `🧩 Nueva Propuesta de Grupo (${ids.length} alumnos)` : `🧩 Nueva Propuesta de Clase`)
+            : `Iniciar Pre-Alta Grupal (${ids.length} alumnos)`;
     
     const campoGrupo = document.getElementById('prealta-campo-grupo');
     const campoProfe = document.getElementById('prealta-campo-profe');
@@ -1644,16 +1670,19 @@ export async function abrirModalPrealtaGrupal(ids, grupoNom = '', cfg = defaultC
         }
     }
 
-    const fValActual = document.getElementById('prealta-fecha-inicio')?.value;
-    if (fValActual && selectProfe?.value) {
-        verificarPrealtaEnCalendar(alumnosList, realCfg);
+        // Poblado dinámico de evaluadores para seguimiento excluyendo al profesor asignado
+        const evalIdPrevio = primerAl.seguimiento?.responsable_id || primerAl.seguimiento_responsable_id || '';
+        await poblarEvaluadoresPrealta(selectProfe?.value || profeActualId, evalIdPrevio);
+
+        document.getElementById('modal-iniciar-prealta')?.showModal();
+
+        const fValActual = document.getElementById('prealta-fecha-inicio')?.value;
+        if (fValActual && selectProfe?.value) {
+            verificarPrealtaEnCalendar(alumnosList, realCfg).catch(e => console.warn("Calendar check async warn:", e));
+        }
+    } finally {
+        if (fnOcultarCarga) fnOcultarCarga();
     }
-
-    // Poblado dinámico de evaluadores para seguimiento excluyendo al profesor asignado
-    const evalIdPrevio = primerAl.seguimiento?.responsable_id || primerAl.seguimiento_responsable_id || '';
-    await poblarEvaluadoresPrealta(selectProfe?.value || profeActualId, evalIdPrevio);
-
-    document.getElementById('modal-iniciar-prealta')?.showModal();
 }
 
 // -----------------------------------------------------------------------

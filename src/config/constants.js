@@ -2,7 +2,7 @@
 // src/config/constants.js — Constantes globales del sistema
 // =======================================================================
 
-export const APP_VERSION = "v6.10.24";
+export const APP_VERSION = "v6.10.25";
 
 export const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx033Es_BuZJk5x0MmyV-u8foA58ENNl1K3Cv-BE6ZeguXCG62UIQl5H4v94EB7MT0/exec";
 export const SCRIPT_API_KEY = "mandala-seg-2026";
