@@ -5667,6 +5667,72 @@ export function esEvaluadorDeSeguimientoDelAlumno(u, al) {
 }
 window.esEvaluadorDeSeguimientoDelAlumno = esEvaluadorDeSeguimientoDelAlumno;
 
+export async function resetearSeguimientoAlumnoIndividual(alumnoId) {
+    if (!alumnoId) return;
+    try {
+        await updateDoc(doc(db, "alumnos", alumnoId), {
+            seguimiento: {
+                activo: false,
+                responsable_id: null,
+                responsable_nombre: null,
+                responsable_email: null,
+                fecha_proximo_seguimiento: null,
+                fecha_inicio_seguimiento: null,
+                fecha_finalizacion: null,
+                motivo_finalizacion: null,
+                dias_sin_contacto: 0,
+                ultimo_contacto: null,
+                historial: []
+            },
+            seguimiento_responsable_id: null,
+            seguimiento_responsable_nombre: null,
+            seguimiento_responsable_email: null,
+            fecha_proximo_seguimiento: null
+        });
+        console.log(`[SeguimientoReset] Alumno ${alumnoId} restablecido en Firestore.`);
+    } catch(e) {
+        console.warn("Error al resetear seguimiento:", e);
+    }
+}
+window.resetearSeguimientoAlumnoIndividual = resetearSeguimientoAlumnoIndividual;
+
+let _resetJuliaClaudioEjecutado = false;
+export async function verificarAutoResetJuliaClaudio(alumnos) {
+    if (!Array.isArray(alumnos)) return;
+    for (const al of alumnos) {
+        const nom = (al.nombre || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+        const esJulia = nom.includes('julia') && nom.includes('castaneda');
+        const esClaudio = nom.includes('claudio') && nom.includes('yanez');
+        if (esJulia || esClaudio) {
+            const tieneDatosPrevios = al.seguimiento?.fecha_finalizacion || (al.seguimiento?.historial && al.seguimiento.historial.length > 0) || al.seguimiento_responsable_id || al.seguimiento?.responsable_id;
+            if (tieneDatosPrevios) {
+                al.seguimiento = {
+                    activo: false,
+                    responsable_id: null,
+                    responsable_nombre: null,
+                    responsable_email: null,
+                    fecha_proximo_seguimiento: null,
+                    fecha_inicio_seguimiento: null,
+                    fecha_finalizacion: null,
+                    motivo_finalizacion: null,
+                    dias_sin_contacto: 0,
+                    ultimo_contacto: null,
+                    historial: []
+                };
+                al.seguimiento_responsable_id = null;
+                al.seguimiento_responsable_nombre = null;
+                al.seguimiento_responsable_email = null;
+                al.fecha_proximo_seguimiento = null;
+                if (!_resetJuliaClaudioEjecutado) {
+                    resetearSeguimientoAlumnoIndividual(al.id);
+                }
+            }
+        }
+    }
+    _resetJuliaClaudioEjecutado = true;
+}
+window.verificarAutoResetJuliaClaudio = verificarAutoResetJuliaClaudio;
+
 export function filtrarAlumnosSeguimientoEvaluador(alumnos, filtroEstado = 'activo') {
     const u = window.usuarioActual;
     const esEval = typeof esModoEvaluadorActivo === 'function' ? esModoEvaluadorActivo() : false;
@@ -7242,6 +7308,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
         try {
             const qSnap = await getDocs(collection(db, "alumnos"));
             qSnap.forEach(d => allData.push(normalizarAlumnoSeguimiento({id: d.id, ...d.data()})));
+            verificarAutoResetJuliaClaudio(allData);
             ultimosAlumnosCargados = allData;
             window.ultimosAlumnosCargados = allData;
             window.allData = allData;
@@ -7251,6 +7318,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
         } catch(e) {
             console.error("Error al cargar alumnos:", e);
             allData = ultimosAlumnosCargados || [];
+            verificarAutoResetJuliaClaudio(allData);
             window.allData = allData;
             window.ultimosAlumnosCargados = allData;
             notificarSincronizacion('warn', 'Reconectando con la base...');
