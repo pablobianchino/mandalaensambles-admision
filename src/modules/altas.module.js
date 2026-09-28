@@ -3454,7 +3454,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                         ⚙️ Iniciar Pre-Alta Grupal
                     </button>
                     <button type="button" class="filter-chip btn-devolver-grupo-espera" data-grupo="${nombreGrupo}" data-ids="${idsParam}" style="padding:8px 12px; font-size:13px; color:var(--accent-red); border-color:rgba(194,86,59,0.3); cursor:pointer;" title="Devolver todo el grupo a Lista de Espera">
-                        ↩️ Devolver Grupo
+                        🛋️ Devolver Grupo a Espera
                     </button>
                 `;
             } else if (vista === 'Altas - En Curso') {
@@ -3470,8 +3470,11 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                     <button type="button" class="btn-primary btn-aprobar-todo-grupo" data-grupo="${nombreGrupo}" style="background:#16a34a; border-color:#16a34a; padding:8px 14px; font-size:13px; cursor:pointer;" title="Aprobar pago y alta de los ${miembrosRenderizar.length} integrantes pendientes">
                         ✅ Aprobar Todo el Grupo (${miembrosRenderizar.length})
                     </button>
-                    <button type="button" class="filter-chip btn-devolver-grupo-espera" data-grupo="${nombreGrupo}" data-ids="${idsPendientes}" style="padding:8px 12px; font-size:13px; color:var(--accent-red); border-color:rgba(194,86,59,0.3); cursor:pointer;" title="Devolver integrantes pendientes a Lista de Espera">
-                        ↩️ Devolver Pendientes
+                    <button type="button" class="filter-chip btn-devolver-grupo-pendientes" data-grupo="${nombreGrupo}" data-ids="${idsPendientes}" style="padding:8px 12px; font-size:13px; color:var(--accent-teal); border-color:rgba(0,123,143,0.3); background:#f0fdfa; font-weight:600; cursor:pointer;" title="Devolver integrantes pendientes a Altas - Pendientes para re-coordinar">
+                        ↩️ Devolver a Pendientes
+                    </button>
+                    <button type="button" class="filter-chip btn-devolver-grupo-espera" data-grupo="${nombreGrupo}" data-ids="${idsPendientes}" style="padding:8px 12px; font-size:13px; color:var(--accent-red); border-color:rgba(194,86,59,0.3); cursor:pointer;" title="Devolver integrantes pendientes a Lista de Espera general">
+                        🛋️ Devolver a Espera
                     </button>
                 `;
             } else if (vista === 'Altas - Confirmadas') {
@@ -3663,6 +3666,62 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
             };
         });
 
+        container.querySelectorAll('.btn-devolver-grupo-pendientes').forEach(btn => {
+            btn.onclick = async () => {
+                const ids = (btn.dataset.ids || '').split(',').filter(Boolean);
+                const grupo = btn.dataset.grupo || '';
+                if (!ids.length) return;
+                const confirmarFn = window.confirmar || ((t, d, b, i) => Promise.resolve(confirm(`${t}\n\n${d}`)));
+                const okDevolver = await confirmarFn(
+                    'Devolver Grupo a Altas - Pendientes',
+                    `¿Deseas devolver los integrantes pendientes del grupo "${grupo}" a Altas - Pendientes?\n\n• Quedarán en la lista de Altas Pendientes para re-coordinar o re-agendar su inicio.\n• Se desvincularán de este grupo y se actualizará Google Calendar.`,
+                    '↩️ Devolver a Pendientes',
+                    '⏳'
+                );
+                if (!okDevolver) return;
+
+                if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(`Devolviendo grupo "${grupo}" a Altas - Pendientes...`);
+                try {
+                    for (const id of ids) {
+                        const dSnap = await getDoc(doc(db, "alumnos", id));
+                        if (dSnap.exists()) {
+                            const al = dSnap.data();
+                            const hist = al.historial || [];
+                            const fnHist = window.crearEntradaHistorial || ((txt, t) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: t || 'sistema' }));
+                            hist.push(fnHist(`Devuelto a Altas - Pendientes desde ${vista}. Desvinculado del grupo "${grupo}".`, 'alta'));
+                            await updateDoc(doc(db, "alumnos", id), {
+                                estado_agenda: "Pre-alta pendiente",
+                                grupo_asignado: "",
+                                fecha_inicio_clases: null,
+                                fecha_sugerida_inicio: null,
+                                id_evento_alta: null,
+                                calendario_evento_alta: null,
+                                checklist_alta: null,
+                                historial: hist
+                            });
+                            await eliminarEventoAltaSeguro({ id, ...al }, callbacks.configApp || defaultCfg);
+                        }
+                    }
+                    if (typeof callbacks.cargarVista === 'function') await callbacks.cargarVista(vista);
+                    if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
+                    if (typeof window.mostrarToast === 'function') {
+                        window.mostrarToast(`↩️ Integrantes del grupo "${grupo}" devueltos a Altas - Pendientes.`, 'info');
+                    } else {
+                        alert(`↩️ Integrantes del grupo "${grupo}" devueltos a Altas - Pendientes.`);
+                    }
+                } catch(e) {
+                    if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
+                    if (typeof window.mostrarToast === 'function') {
+                        window.mostrarToast("Error al devolver grupo a pendientes: " + e.message, 'error');
+                    } else {
+                        alert("Error al devolver grupo a pendientes: " + e.message);
+                    }
+                } finally {
+                    if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
+                }
+            };
+        });
+
         container.querySelectorAll('.btn-devolver-grupo-espera').forEach(btn => {
             btn.onclick = async () => {
                 const ids = (btn.dataset.ids || '').split(',').filter(Boolean);
@@ -3672,7 +3731,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                 const okDevolver = await confirmarFn(
                     'Devolver Grupo a Lista de Espera',
                     `¿Deseas devolver los integrantes del grupo "${grupo}" a Lista de Espera? Se desvincularán del grupo y se actualizará Calendar.`,
-                    '↩️ Devolver Grupo',
+                    '🛋️ Devolver a Espera',
                     '⚠️'
                 );
                 if (!okDevolver) return;
@@ -3698,9 +3757,9 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                     if (typeof callbacks.cargarVista === 'function') await callbacks.cargarVista(vista);
                     if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
                     if (typeof window.mostrarToast === 'function') {
-                        window.mostrarToast(`↩️ Grupo "${grupo}" devuelto a Lista de Espera.`, 'info');
+                        window.mostrarToast(`🛋️ Grupo "${grupo}" devuelto a Lista de Espera.`, 'info');
                     } else {
-                        alert(`↩️ Grupo "${grupo}" devuelto a Lista de Espera.`);
+                        alert(`🛋️ Grupo "${grupo}" devuelto a Lista de Espera.`);
                     }
                 } catch(e) {
                     if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();

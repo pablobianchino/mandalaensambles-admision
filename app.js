@@ -9807,6 +9807,68 @@ document.addEventListener('click', async (e) => {
         }
         return;
     }
+    if (target.classList.contains('btn-devolver-pendientes') || target.closest('.btn-devolver-pendientes')) {
+        const btn = target.classList.contains('btn-devolver-pendientes') ? target : target.closest('.btn-devolver-pendientes');
+        const id = btn.getAttribute('data-id');
+        const alDoc = await getDoc(doc(db, "alumnos", id));
+        if (!alDoc.exists()) return alert("Alumno no encontrado.");
+        const al = alDoc.data();
+
+        const tieneEvento = Boolean(al.id_evento_alta);
+        let decisionCal = { decision: 'mantener', tieneEvento: false };
+        
+        if (tieneEvento) {
+            decisionCal = await window.preguntarAccionCalendar({ al, accionTipo: 'espera' });
+            if (decisionCal.decision === 'cancelar') return;
+        }
+
+        const confirmarFn = window.confirmar || ((t, d, b, i) => Promise.resolve(confirm(`${t}\n\n${d}`)));
+        const ok = await confirmarFn(
+            'Devolver a Altas - Pendientes',
+            `¿Deseas devolver a "${al.nombre || 'Alumno'}" a Altas - Pendientes?\n\n• El alumno quedará en la lista de Altas Pendientes para re-coordinar o re-agendar su inicio de clases.\n• Se mantendrá dentro del circuito de Altas y se desvinculará de este grupo.`,
+            '↩️ Devolver a Pendientes',
+            '⏳'
+        );
+        if (!ok) return;
+
+        if (tieneEvento && decisionCal.decision === 'eliminar') {
+            mostrarIndicadorCarga('Eliminando evento en Google Calendar y actualizando a Altas Pendientes...');
+            try {
+                if (al.id_evento_alta) await eliminarEventoAltaSeguro(al, configApp, { forzarEliminacionCalendar: true });
+            } catch(calErr) {
+                console.warn("Aviso calendar al devolver a pendientes:", calErr);
+            }
+        } else {
+            mostrarIndicadorCarga('Actualizando estado a Altas - Pendientes...');
+        }
+
+        const hist = al.historial || [];
+        const grpActual = al.grupo_asignado || '';
+        const detalleCal = (tieneEvento && decisionCal.decision === 'mantener')
+            ? ' Evento en Google Calendar MANTENIDO.'
+            : (tieneEvento && decisionCal.decision === 'eliminar' ? ' Evento en Google Calendar ELIMINADO.' : '');
+        hist.push(crearEntradaHistorial(`Devuelto a Altas - Pendientes desde ${al.estado_agenda || 'Altas - En Curso'}${grpActual ? ` (Desvinculado de ${grpActual})` : ''}.${detalleCal}`, 'alta'));
+        
+        await updateDoc(doc(db, "alumnos", id), {
+            estado_agenda: "Pre-alta pendiente",
+            grupo_asignado: "",
+            fecha_inicio_clases: null,
+            fecha_sugerida_inicio: null,
+            id_evento_alta: null,
+            calendario_evento_alta: null,
+            checklist_alta: null,
+            historial: hist
+        });
+
+        ocultarIndicadorCarga();
+        if (typeof window.mostrarToast === 'function') {
+            window.mostrarToast(`↩️ "${al.nombre || 'Alumno'}" devuelto a Altas - Pendientes.`, 'info');
+        } else {
+            alert(`↩️ "${al.nombre || 'Alumno'}" devuelto a Altas - Pendientes.`);
+        }
+        await cargarVista(estadoActualVista);
+        return;
+    }
     if (target.classList.contains('btn-devolver-espera') || target.closest('.btn-devolver-espera')) {
         const btn = target.classList.contains('btn-devolver-espera') ? target : target.closest('.btn-devolver-espera');
         const id = btn.getAttribute('data-id');

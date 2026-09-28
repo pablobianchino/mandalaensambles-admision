@@ -279,7 +279,8 @@ export function generarBotonesAccion(al, id, esModal = false, vista = '') {
             html += `<button type="button" class="btn-action-neutral btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${al.grupo_asignado||''}">✏️ Editar Pre-Alta</button>`;
             html += `<button type="button" class="btn-action-neutral btn-aviso-prealta-alumno" data-id="${id}">💬 Avisar Pre-Alta a Alumno</button>`;
             html += `<button type="button" class="btn-action-neutral btn-reenviar-prealta" data-id="${id}">📢 Avisar Pre-Alta a Coordinador</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
+            html += `<button type="button" class="btn-action-neutral btn-devolver-pendientes" data-id="${id}">↩️ Devolver a Pendientes</button>`;
+            html += `<button type="button" class="btn-action-neutral btn-devolver-espera" data-id="${id}">🛋️ Devolver a Espera</button>`;
             html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
             html += `<button type="button" class="btn-action-neutral btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
         } else if (est === 'alta efectiva' || est === 'alta ilegal' || est === 'alta finalizada' || est === 'alta confirmada' || est.startsWith('alta')) {
@@ -373,7 +374,8 @@ export function generarBotonesAccion(al, id, esModal = false, vista = '') {
         html += `<button type="button" class="dropdown-item btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${al.grupo_asignado||''}">✏️ Editar Pre-Alta</button>`;
         html += `<button type="button" class="dropdown-item btn-aviso-prealta-alumno" data-id="${id}">💬 Avisar Pre-Alta a Alumno</button>`;
         html += `<button type="button" class="dropdown-item btn-reenviar-prealta" data-id="${id}">📢 Avisar Pre-Alta a Coordinador</button>`;
-        html += `<button type="button" class="dropdown-item btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
+        html += `<button type="button" class="dropdown-item btn-devolver-pendientes" data-id="${id}">↩️ Devolver a Pendientes</button>`;
+        html += `<button type="button" class="dropdown-item btn-devolver-espera" data-id="${id}">🛋️ Devolver a Espera</button>`;
         html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
         html += `<button type="button" class="dropdown-item btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
     } else if (est === 'alta efectiva' || est === 'alta ilegal' || est === 'alta finalizada' || est === 'alta confirmada' || est.startsWith('alta')) {
