@@ -14348,14 +14348,15 @@ function poblarTabSeguimientoFicha(al, id) {
 
     const seg = al?.seguimiento || {};
     const respNom = seg.responsable_nombre || al?.seguimiento_responsable_nombre || 'Sin asignar';
-    const esActivo = seg.activo === true;
+    const fProx = seg.fecha_proximo_seguimiento || al?.fecha_proximo_seguimiento || null;
+    const esActivo = seg.activo === true || (!seg.fecha_finalizacion && Boolean(fProx));
 
     if (elNomEval) elNomEval.textContent = respNom;
     
     if (elEstadoBadge) {
         if (esActivo) {
             elEstadoBadge.innerHTML = `<span class="badge bg-teal" style="font-size:12px; font-weight:700; padding:3px 10px; border-radius:12px;">Activo</span>`;
-        } else if (seg.activo === false && seg.fecha_finalizacion) {
+        } else if (seg.fecha_finalizacion) {
             elEstadoBadge.innerHTML = `<span class="badge bg-gray" style="font-size:12px; font-weight:700; padding:3px 10px; border-radius:12px;">Finalizado</span>`;
         } else {
             elEstadoBadge.innerHTML = `<span class="badge bg-gray" style="font-size:12px; font-weight:700; padding:3px 10px; border-radius:12px;">Pendiente</span>`;
@@ -14363,15 +14364,10 @@ function poblarTabSeguimientoFicha(al, id) {
     }
 
     if (elProxFecha) {
-        if (esActivo) {
-            const fProx = seg.fecha_proximo_seguimiento;
-            if (fProx) {
-                const partes = fProx.split('-');
-                const fTxt = partes.length === 3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : fProx;
-                elProxFecha.textContent = fTxt;
-            } else {
-                elProxFecha.textContent = 'A definir';
-            }
+        if (fProx && !seg.fecha_finalizacion) {
+            const partes = fProx.split('-');
+            const fTxt = partes.length === 3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : fProx;
+            elProxFecha.textContent = fTxt;
         } else if (seg.fecha_finalizacion) {
             const fFin = parsearFechaCualquierOrigen(seg.fecha_finalizacion);
             elProxFecha.textContent = fFin ? `Finalizado el ${formatearSoloFecha(fFin)}` : 'Finalizado';
@@ -15220,7 +15216,11 @@ window.guardarEdicionSeguimiento = async function() {
         const aSnap = await getDoc(alRef);
         const aData = aSnap.exists() ? aSnap.data() : {};
 
+        const esFinalizado = Boolean(aData.seguimiento?.fecha_finalizacion && aData.seguimiento?.activo === false);
+        const activarSeg = !esFinalizado && Boolean(fProx || respId);
+
         const updates = {
+            'seguimiento.activo': esFinalizado ? false : (activarSeg ? true : (aData.seguimiento?.activo ?? true)),
             'seguimiento.responsable_id': respId || null,
             'seguimiento.responsable_nombre': respNombre || null,
             'seguimiento.responsable_email': respEmail || null,
@@ -15248,6 +15248,7 @@ window.guardarEdicionSeguimiento = async function() {
                     ...updates,
                     seguimiento: {
                         ...(cachedAlumnosData[idx].seguimiento || {}),
+                        activo: updates['seguimiento.activo'],
                         responsable_id: respId || null,
                         responsable_nombre: respNombre || null,
                         responsable_email: respEmail || null,
