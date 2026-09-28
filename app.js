@@ -12674,9 +12674,16 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
         }
     }
 
+    const esVistaSeguimiento = typeof estadoActualVista === 'string' && (
+        estadoActualVista.toLowerCase().includes('seguimiento') ||
+        estadoActualVista.toLowerCase().startsWith('seguimiento')
+    );
+    const tieneSeguimientoEnCurso = Boolean(d.seguimiento?.activo === true || (d.seguimiento && !d.seguimiento.fecha_finalizacion && d.seguimiento.fecha_proximo_seguimiento));
+
     const btnNuevaSusc = document.getElementById('btn-modal-nueva-suscripcion');
     if (btnNuevaSusc) {
-        btnNuevaSusc.style.display = (modoLectura || !id) ? 'none' : 'block';
+        const ocultarNuevaSusc = modoLectura || !id || esVistaSeguimiento || tieneSeguimientoEnCurso;
+        btnNuevaSusc.style.display = ocultarNuevaSusc ? 'none' : 'block';
         btnNuevaSusc.setAttribute('data-id', id);
     }
 

@@ -314,7 +314,6 @@ export function generarBotonesAccion(al, id, esModal = false, vista = '') {
         html += `<button type="button" class="dropdown-item btn-seg-ver-seguimiento" data-id="${id}">🎧 Ver Seguimiento</button>`;
         html += `<button type="button" class="dropdown-item btn-editar-seguimiento" data-id="${id}">✏️ Editar Seguimiento</button>`;
         html += `<button type="button" class="dropdown-item btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
-        html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
         if (typeof window.esUsuarioAdministrador === 'function' ? window.esUsuarioAdministrador() : true) {
             html += `<button type="button" class="dropdown-item btn-eliminar-ficha-directo" data-id="${id}" style="color:var(--accent-red); font-weight:700; border-top:1px solid var(--border-color); margin-top:2px;">🗑️ Eliminar Ficha</button>`;
         }
