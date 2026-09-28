@@ -2671,6 +2671,255 @@ window.toggleValidacionAlumnoGrupo = function(alumnoId, nuevoEstado) {
     window.abrirModalNotaValidacionAlumno(alumnoId, nuevoEstado);
 };
 
+// -----------------------------------------------------------------------
+// Modal de Aprobación de Match y Asignación de Responsable de Seguimiento
+// -----------------------------------------------------------------------
+window.abrirModalAprobacionMatchSeguimiento = async function(alumnosList, nombreGrupo = '') {
+    if (!alumnosList || alumnosList.length === 0) return;
+
+    const modal = document.getElementById('modal-aprobar-match-seguimiento');
+    if (!modal) return alert("Modal de asignación de seguimiento no encontrado.");
+
+    const tituloEl = document.getElementById('match-seg-modal-titulo');
+    const subTituloEl = document.getElementById('match-seg-modal-subtitulo');
+    const bannerEl = document.getElementById('match-seg-info-banner');
+    const masterContainer = document.getElementById('match-seg-master-container');
+    const masterSelect = document.getElementById('match-seg-master-select');
+    const listContainer = document.getElementById('match-seg-alumnos-list');
+    const alertaEl = document.getElementById('match-seg-alerta');
+    const btnConfirmar = document.getElementById('btn-confirmar-aprobacion-match-seg');
+
+    if (alertaEl) {
+        alertaEl.style.display = 'none';
+        alertaEl.textContent = '';
+    }
+
+    const esGrupo = alumnosList.length > 1;
+    if (tituloEl) {
+        tituloEl.textContent = esGrupo 
+            ? `Aprobar Grupo (${alumnosList.length} alumnos) y Asignar Seguimiento` 
+            : `Aprobar Alumno (${alumnosList[0].nombre || 'Alumno'}) y Asignar Seguimiento`;
+    }
+    if (subTituloEl) {
+        subTituloEl.textContent = esGrupo
+            ? `Asigná el Responsable de Seguimiento para cada alumno de "${nombreGrupo || 'Grupo'}". Pasarás todo el grupo a Altas Pendientes.`
+            : `Asigná el Responsable de Seguimiento para ${alumnosList[0].nombre || 'el alumno'}. Pasará a Altas Pendientes.`;
+    }
+
+    const primerAl = alumnosList[0];
+    const docenteNombre = primerAl.reserva_profe_nombre || primerAl.profesor_asignado || '';
+    const horarioTxt = primerAl.horario_match || primerAl.reserva_fecha_texto || '';
+
+    if (bannerEl) {
+        bannerEl.innerHTML = `
+            <strong>${nombreGrupo ? `🧩 Grupo: ${nombreGrupo}` : 'Clase Individual / Propuesta'}</strong>
+            ${docenteNombre ? ` • 👨‍🏫 Docente: <strong>${docenteNombre}</strong>` : ''}
+            ${horarioTxt ? ` • 📅 Horario: <strong>${horarioTxt}</strong>` : ''}
+            <div style="font-size:11.5px; color:#0f766e; margin-top:4px;">
+                ⚠️ <strong>Regla institucional:</strong> El Responsable de Seguimiento no puede ser el mismo docente asignado a la clase para garantizar imparcialidad.
+            </div>
+        `;
+    }
+
+    // Obtener evaluadores activos de usuarios_sistema
+    let evaluadores = [];
+    try {
+        const uSnap = await getDocs(collection(db, "usuarios_sistema"));
+        uSnap.forEach(d => {
+            const u = { id: d.id, ...d.data() };
+            if (u.activo === false) return;
+            const rolesArr = Array.isArray(u.roles) ? u.roles : [u.rol || ''];
+            if (!rolesArr.includes('evaluador')) return;
+            evaluadores.push(u);
+        });
+        evaluadores.sort((a, b) => (a.nombre || a.email || '').localeCompare(b.nombre || b.email || ''));
+    } catch(e) {
+        console.error("Error al cargar evaluadores:", e);
+        return alert("Error al cargar evaluadores del sistema.");
+    }
+
+    const norm = (s) => (s || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+    // Configurar Selector Maestro para grupos
+    if (masterContainer) {
+        masterContainer.style.display = esGrupo ? 'block' : 'none';
+    }
+    if (masterSelect) {
+        masterSelect.innerHTML = '<option value="">-- Seleccionar para aplicar a todos --</option>' + evaluadores.map(ev => {
+            return `<option value="${ev.id}" data-nombre="${ev.nombre || ''}" data-email="${ev.email || ''}">${ev.nombre || ev.email}</option>`;
+        }).join('');
+
+        masterSelect.onchange = () => {
+            const masterVal = masterSelect.value;
+            if (!masterVal) return;
+            const evObj = evaluadores.find(e => e.id === masterVal);
+            const conflictos = [];
+
+            alumnosList.forEach(al => {
+                const selectAl = document.getElementById(`match-seg-sel-${al.id}`);
+                if (!selectAl) return;
+                const optMatch = Array.from(selectAl.options).find(o => o.value === masterVal);
+                if (optMatch && !optMatch.disabled) {
+                    selectAl.value = masterVal;
+                } else {
+                    selectAl.value = '';
+                    conflictos.push(al.nombre || 'Alumno');
+                }
+            });
+
+            if (conflictos.length > 0) {
+                if (alertaEl) {
+                    alertaEl.style.display = 'block';
+                    alertaEl.textContent = `⚠️ "${evObj?.nombre || 'El evaluador seleccionado'}" es el docente a cargo de: ${conflictos.join(', ')}. No fue asignado a esos alumnos por incompatibilidad (debes elegir otro responsable para ellos).`;
+                }
+            } else if (alertaEl) {
+                alertaEl.style.display = 'none';
+            }
+        };
+    }
+
+    // Renderizar lista por alumno
+    if (listContainer) {
+        listContainer.innerHTML = alumnosList.map(al => {
+            const profeId = al.profesor_id || al.reserva_profe_id || '';
+            const profeNom = al.profesor_asignado || al.reserva_profe_nombre || docenteNombre || '';
+
+            const optionsHtml = evaluadores.map(ev => {
+                const esDocente = (profeId && (ev.id === profeId || ev.profesor_id === profeId)) || (profeNom && norm(ev.nombre) === norm(profeNom));
+                if (esDocente) {
+                    return `<option value="${ev.id}" disabled style="color:#94a3b8; background:#f1f5f9;">${ev.nombre} (Docente - No elegible)</option>`;
+                }
+                const prevId = al.seguimiento_responsable_id || al.seguimiento?.responsable_id || '';
+                const esSel = prevId === ev.id ? 'selected' : '';
+                return `<option value="${ev.id}" data-nombre="${ev.nombre || ''}" data-email="${ev.email || ''}" ${esSel}>${ev.nombre || ev.email}</option>`;
+            }).join('');
+
+            return `
+                <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; border:1px solid var(--border-color); border-radius:8px; padding:8px 12px; gap:10px;">
+                    <div style="display:flex; flex-direction:column; text-align:left;">
+                        <span style="font-size:13.5px; font-weight:700; color:var(--text-main);">👤 ${al.nombre}</span>
+                        <span style="font-size:11px; font-weight:500; color:var(--text-muted);">${profeNom ? `Docente: ${profeNom}` : 'Docente asignado'}</span>
+                    </div>
+                    <select id="match-seg-sel-${al.id}" class="match-seg-student-select modern-input" data-id="${al.id}" style="width:230px; height:36px; font-size:12.5px;" required>
+                        <option value="">Seleccionar responsable...</option>
+                        ${optionsHtml}
+                    </select>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // Botón Confirmar Aprobación
+    if (btnConfirmar) {
+        btnConfirmar.onclick = async () => {
+            if (alertaEl) alertaEl.style.display = 'none';
+
+            // Validar que todos los alumnos tengan responsable asignado y no coincida con el docente
+            const asignaciones = [];
+            for (const al of alumnosList) {
+                const selectAl = document.getElementById(`match-seg-sel-${al.id}`);
+                const segId = selectAl ? selectAl.value : '';
+                const optSel = selectAl ? selectAl.selectedOptions[0] : null;
+
+                if (!segId || !optSel || optSel.disabled) {
+                    if (alertaEl) {
+                        alertaEl.style.display = 'block';
+                        alertaEl.textContent = `⚠️ Falta asignar un Responsable de Seguimiento válido para "${al.nombre || 'el alumno'}".`;
+                    }
+                    if (selectAl) selectAl.focus();
+                    return;
+                }
+
+                const profeId = al.profesor_id || al.reserva_profe_id || '';
+                const profeNom = al.profesor_asignado || al.reserva_profe_nombre || docenteNombre || '';
+                const esDocente = (profeId && (segId === profeId || optSel.dataset.profesor_id === profeId)) || (profeNom && norm(optSel.dataset.nombre) === norm(profeNom));
+
+                if (esDocente) {
+                    if (alertaEl) {
+                        alertaEl.style.display = 'block';
+                        alertaEl.textContent = `⚠️ "${optSel.dataset.nombre}" es el docente asignado a "${al.nombre}" y no puede ser su Responsable de Seguimiento.`;
+                    }
+                    if (selectAl) selectAl.focus();
+                    return;
+                }
+
+                asignaciones.push({
+                    al,
+                    segId,
+                    segNombre: optSel.dataset.nombre || optSel.textContent.trim(),
+                    segEmail: optSel.dataset.email || ''
+                });
+            }
+
+            btnConfirmar.disabled = true;
+            if (typeof window.mostrarIndicadorCarga === 'function') {
+                window.mostrarIndicadorCarga(`Aprobando validación y pasando ${alumnosList.length} alumno(s) a Altas Pendientes...`);
+            }
+
+            try {
+                for (const item of asignaciones) {
+                    const { al, segId, segNombre, segEmail } = item;
+                    const hist = Array.isArray(al.historial) ? al.historial : [];
+                    const fnHist = window.crearEntradaHistorial || ((txt, tipo) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema' }));
+                    hist.push(fnHist(`Validación aprobada para ${nombreGrupo || al.grupo_asignado || 'clase'}. Pasa a Altas Pendientes con Responsable de Seguimiento: ${segNombre}.`, 'match'));
+
+                    await updateDoc(doc(db, "alumnos", al.id), {
+                        estado_agenda: "Pre-alta Pendiente",
+                        estado_validacion_alumno: "confirmado",
+                        seguimiento_responsable_id: segId,
+                        seguimiento_responsable_nombre: segNombre,
+                        seguimiento_responsable_email: segEmail,
+                        seguimiento: {
+                            activo: false,
+                            responsable_id: segId,
+                            responsable_nombre: segNombre,
+                            responsable_email: segEmail,
+                            historial: al.seguimiento?.historial || []
+                        },
+                        historial: hist
+                    });
+                }
+
+                // Copiar aviso automático al admisor
+                try {
+                    if (esGrupo && typeof window.copiarAvisoAdmisorGrupo === 'function') {
+                        await window.copiarAvisoAdmisorGrupo(nombreGrupo, alumnosList);
+                    } else if (!esGrupo && typeof window.copiarAvisoAdmisorAlumno === 'function') {
+                        await window.copiarAvisoAdmisorAlumno(alumnosList[0]);
+                    }
+                } catch(copyErr) {
+                    console.warn("No se pudo copiar automáticamente aviso al admisor:", copyErr);
+                }
+
+                modal.close();
+                if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
+
+                if (typeof window.mostrarToast === 'function') {
+                    window.mostrarToast(`✅ ${esGrupo ? `Grupo "${nombreGrupo}"` : alumnosList[0].nombre} aprobado a Altas Pendientes con seguimiento asignado.\n📋 Texto de aviso al Admisor copiado al portapapeles.`, 'success');
+                } else {
+                    alert(`✅ ${esGrupo ? `Grupo "${nombreGrupo}"` : alumnosList[0].nombre} aprobado a Altas Pendientes con seguimiento asignado.\n📋 Texto de aviso al Admisor copiado al portapapeles.`);
+                }
+
+                if (typeof window.cargarVistaGlobal === 'function') {
+                    await window.cargarVistaGlobal('Altas - Pendientes');
+                } else {
+                    const cont = document.getElementById('lista-generica');
+                    if (cont) await renderMatchEnValidacion(cont);
+                }
+            } catch(saveErr) {
+                console.error("Error al aprobar validación con seguimiento:", saveErr);
+                if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
+                alert("Error al guardar aprobación: " + saveErr.message);
+            } finally {
+                btnConfirmar.disabled = false;
+                if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
+            }
+        };
+    }
+
+    modal.showModal();
+};
+
 window.aprobarGrupoCompletoPrealta = async function(nombreGrupo) {
     try {
         const qSnap = await getDocs(collection(db, "alumnos"));
@@ -2693,38 +2942,9 @@ window.aprobarGrupoCompletoPrealta = async function(nombreGrupo) {
             return alert(`⚠️ No se puede aprobar el grupo "${nombreGrupo}" a Altas porque tiene ${sinConfirmar.length} alumno(s) sin confirmar disponibilidad:\n\n• ${nombres}\n\nTodos los alumnos deben estar confirmados antes de pasar a Altas.`);
         }
 
-        if (!(await window.confirmar('Aprobar grupo a Altas', `Todos los integrantes (${miembrosGrupo.length}) del grupo "${nombreGrupo}" pasarán a Altas Pendientes.`, 'Aprobar Grupo'))) return;
-
-        if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(`Aprobando grupo "${nombreGrupo}"...`);
-        try {
-            for (const al of miembrosGrupo) {
-                const hist = Array.isArray(al.historial) ? al.historial : [];
-                const fnHist = window.crearEntradaHistorial || ((txt, tipo) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema' }));
-                hist.push(fnHist(`Validación grupal aprobada: Grupo "${nombreGrupo}" pasa a Altas Pendientes.`, 'match'));
-                await updateDoc(doc(db, "alumnos", al.id), {
-                    estado_agenda: "Pre-alta Pendiente",
-                    estado_validacion_alumno: "confirmado",
-                    historial: hist
-                });
-            }
-            try {
-                if (typeof window.copiarAvisoAdmisorGrupo === 'function') {
-                    await window.copiarAvisoAdmisorGrupo(nombreGrupo, miembrosGrupo);
-                }
-            } catch(copyErr) {
-                console.warn("No se pudo copiar automáticamente aviso al admisor:", copyErr);
-            }
-            if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
-            alert(`✅ Grupo "${nombreGrupo}" aprobado con éxito. Pasó a Altas Pendientes.\n📋 Texto de aviso al Admisor copiado al portapapeles.`);
-            if (typeof window.cargarVistaGlobal === 'function') {
-                await window.cargarVistaGlobal('Altas - Pendientes');
-            }
-        } finally {
-            if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
-        }
+        await window.abrirModalAprobacionMatchSeguimiento(miembrosGrupo, nombreGrupo);
     } catch(err) {
-        if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
-        alert('Error al aprobar grupo: ' + err.message);
+        alert('Error al procesar aprobación de grupo: ' + err.message);
     }
 };
 
@@ -2738,39 +2958,9 @@ window.aprobarAlumnoIndividualPrealta = async function(alumnoId) {
             return alert(`⚠️ No se puede aprobar a ${al.nombre} a Altas porque aún no ha confirmado su disponibilidad.\n\nPrimero debe confirmarse con el botón '✔️ Confirmó'.`);
         }
 
-        if (!(await window.confirmar('Aprobar alumno', `El alumno "${al.nombre}" pasará a Altas Pendientes.`, 'Aprobar Alumno'))) return;
-
-        if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(`Aprobando a ${al.nombre}...`);
-        try {
-            const hist = Array.isArray(al.historial) ? al.historial : [];
-            const fnHist = window.crearEntradaHistorial || ((txt, tipo) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema' }));
-            hist.push(fnHist(`Validación individual aprobada para ${al.grupo_asignado || 'clase'}. Pasa a Altas Pendientes.`, 'match'));
-
-            await updateDoc(doc(db, "alumnos", alumnoId), {
-                estado_agenda: "Pre-alta Pendiente",
-                estado_validacion_alumno: "confirmado",
-                historial: hist
-            });
-
-            try {
-                if (typeof window.copiarAvisoAdmisorAlumno === 'function') {
-                    await window.copiarAvisoAdmisorAlumno({ id: alumnoId, ...al });
-                }
-            } catch(copyErr) {
-                console.warn("No se pudo copiar automáticamente aviso al admisor:", copyErr);
-            }
-
-            if (typeof window.removerFilaOptimista === 'function') window.removerFilaOptimista(alumnoId);
-            const cont = document.getElementById('lista-generica');
-            if (cont) await renderMatchEnValidacion(cont);
-            if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
-            alert(`✅ ${al.nombre} aprobado a Altas Pendientes.\n📋 Texto de aviso al Admisor copiado al portapapeles.`);
-        } finally {
-            if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
-        }
+        await window.abrirModalAprobacionMatchSeguimiento([{ id: alumnoId, ...al }], al.grupo_asignado || '');
     } catch(err) {
-        if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
-        alert('Error al aprobar alumno: ' + err.message);
+        alert('Error al procesar aprobación individual: ' + err.message);
     }
 };
 

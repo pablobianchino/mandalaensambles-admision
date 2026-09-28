@@ -1,4 +1,4 @@
-const CACHE_NAME = "mandala-app-v6.10.26";
+const CACHE_NAME = "mandala-app-v6.10.27";
 
 
 
