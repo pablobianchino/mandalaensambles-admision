@@ -3830,9 +3830,42 @@ document.addEventListener('click', (e) => {
     }
 });
 
+export function obtenerInstrumentosAlumno(al) {
+    if (!al) return [];
+    let principal = (al.instrumento_principal || '').trim();
+    if (principal.toLowerCase() === 'teclado') principal = 'Piano';
+
+    let secArr = Array.isArray(al.instrumentos_secundarios) 
+        ? al.instrumentos_secundarios 
+        : (al.instrumentos_secundarios ? String(al.instrumentos_secundarios).split(',') : []);
+    secArr = secArr.map(s => String(s).trim()).filter(Boolean).map(s => s.toLowerCase() === 'teclado' ? 'Piano' : s);
+
+    let legacyArr = Array.isArray(al.instrumento) 
+        ? al.instrumento 
+        : (al.instrumento ? String(al.instrumento).split(',') : []);
+    legacyArr = legacyArr.map(s => String(s).trim()).filter(Boolean).map(s => s.toLowerCase() === 'teclado' ? 'Piano' : s);
+
+    if (!principal && legacyArr.length > 0) {
+        principal = legacyArr[0];
+    }
+
+    const resultado = [];
+    if (principal) resultado.push(principal);
+
+    const candidatosSec = [...secArr, ...legacyArr];
+    candidatosSec.forEach(inst => {
+        if (inst && !resultado.some(r => r.toLowerCase() === inst.toLowerCase())) {
+            resultado.push(inst);
+        }
+    });
+
+    return resultado;
+}
+window.obtenerInstrumentosAlumno = obtenerInstrumentosAlumno;
+
 function generarFilaAlumno(al, id, vista, isKanban = false) {
     const info = getEstadoYBadgeLocal(al);
-    let instArray = Array.isArray(al.instrumento) ? al.instrumento : (al.instrumento ? String(al.instrumento).split(',').map(s => s.trim()).filter(Boolean) : []);
+    let instArray = obtenerInstrumentosAlumno(al);
     let instHtml = renderizarItemsConMax2(instArray, (inst) => {
         const emo = obtenerEmojiInstrumento(inst);
         return `<strong style="color:var(--accent-teal); font-weight:600; white-space:nowrap;">${emo} ${inst}</strong>`;
@@ -4424,9 +4457,18 @@ function actualizarBulkBar() {
         if (btnBD) btnBD.style.display = esAltasConfirmadas ? 'inline-block' : 'none';
         if (btnFact) btnFact.style.display = esAltasConfirmadas ? 'inline-block' : 'none';
 
-        // Auditar Calendar: SOLO para Administradores
-        if (btnAuditCal) {
-            btnAuditCal.style.display = esUsuarioAdministrador() ? 'inline-block' : 'none';
+        // Suspender masivo: Solo visible si NO es vista Suspendidos ni Finalizadas y al menos un seleccionado no está suspendido
+        const btnSuspender = document.getElementById('btn-bulk-suspender');
+        if (btnSuspender) {
+            const esVistaSuspendidos = typeof estadoActualVista === 'string' && estadoActualVista.startsWith('Suspendidos');
+            const esVistaSeguimientos = typeof estadoActualVista === 'string' && estadoActualVista.startsWith('Seguimientos');
+            const tieneNoSuspendidos = selectedBulkIds.length > 0 && selectedBulkIds.some(id => {
+                const al = (cachedAlumnosData || []).find(a => a.id === id);
+                if (!al) return true;
+                const est = (al.estado_agenda || '').toLowerCase();
+                return est !== 'agenda suspendida' && est !== 'alta suspendida';
+            });
+            btnSuspender.style.display = (!esVistaSuspendidos && !esVistaSeguimientos && !esFinalizadas && tieneNoSuspendidos) ? 'inline-block' : 'none';
         }
 
         if (btnEliminar) {
@@ -5728,6 +5770,23 @@ export async function verificarAutoResetJuliaClaudio(alumnos) {
                 }
             }
         }
+        // Sanar caso Horacio Rene Miras (Piano principal, Canto secundario)
+        if (nom.includes('horacio') && nom.includes('miras')) {
+            const instPrincipal = (al.instrumento_principal || '').toLowerCase();
+            const primerInst = Array.isArray(al.instrumento) && al.instrumento.length > 0 ? (al.instrumento[0] || '').toLowerCase() : '';
+            if (instPrincipal !== 'piano' || primerInst !== 'piano') {
+                al.instrumento_principal = "Piano";
+                al.instrumentos_secundarios = ["Canto"];
+                al.instrumento = ["Piano", "Canto"];
+                try {
+                    updateDoc(doc(db, "alumnos", al.id), {
+                        instrumento_principal: "Piano",
+                        instrumentos_secundarios: ["Canto"],
+                        instrumento: ["Piano", "Canto"]
+                    }).catch(() => {});
+                } catch(e) {}
+            }
+        }
     }
     _resetJuliaClaudioEjecutado = true;
 }
@@ -5735,7 +5794,9 @@ window.verificarAutoResetJuliaClaudio = verificarAutoResetJuliaClaudio;
 
 export function filtrarAlumnosSeguimientoEvaluador(alumnos, filtroEstado = 'activo') {
     const u = window.usuarioActual;
-    const esEval = typeof esModoEvaluadorActivo === 'function' ? esModoEvaluadorActivo() : false;
+    const modo = (window.modoRolActivo || '').toLowerCase();
+    const rolesUser = Array.isArray(u?.roles) && u.roles.length > 0 ? u.roles : [u?.rol || ''];
+    const esModoEval = modo === 'evaluador' || (rolesUser.length === 1 && rolesUser[0] === 'evaluador' && modo !== 'admin' && modo !== 'coordinador' && modo !== 'admisor' && modo !== 'multi');
     
     let pool = (alumnos || []).map(al => normalizarAlumnoSeguimiento(al));
     if (filtroEstado === 'activo') {
@@ -5746,7 +5807,7 @@ export function filtrarAlumnosSeguimientoEvaluador(alumnos, filtroEstado = 'acti
         pool = pool.filter(al => al && al.seguimiento && al.seguimiento.activo === false && al.seguimiento.fecha_finalizacion);
     }
 
-    if (!esEval || !u) return pool;
+    if (!esModoEval || !u) return pool;
 
     return pool.filter(al => esEvaluadorDeSeguimientoDelAlumno(u, al));
 }
@@ -6602,6 +6663,11 @@ export function obtenerModulosPermitidosModoActivo() {
         listaPermitidaUser.push('portal_profesor');
     }
 
+    const esSoloDocente = rolesArr.length === 1 && (rolesArr[0] === 'profesor' || rolesArr[0] === 'docente');
+    if (!esSoloDocente && !listaPermitidaUser.includes('seguimientos')) {
+        listaPermitidaUser.push('seguimientos');
+    }
+
     if (modo === 'evaluador') {
         const base = ['dashboard', 'inbox', 'espera', 'seguimientos'];
         return base.filter(m => listaPermitidaUser.includes(m) || m === 'seguimientos');
@@ -6610,13 +6676,13 @@ export function obtenerModulosPermitidosModoActivo() {
         return base.filter(m => listaPermitidaUser.includes(m));
     } else if (modo === 'coordinador_grupos' || modo === 'coordinador') {
         const base = ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'configuracion'];
-        return base.filter(m => listaPermitidaUser.includes(m));
+        return base.filter(m => listaPermitidaUser.includes(m) || m === 'seguimientos');
     } else if (modo === 'admisor' || modo === 'admisiones') {
         const base = ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'metricas'];
         return base.filter(m => listaPermitidaUser.includes(m) || m === 'seguimientos');
     } else if (modo === 'admin') {
         const base = ['dashboard', 'portal_profesor', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'metricas', 'configuracion'];
-        return base.filter(m => listaPermitidaUser.includes(m));
+        return base.filter(m => listaPermitidaUser.includes(m) || m === 'seguimientos');
     } else {
         // modo multi: exactamente los módulos permitidos para el usuario
         return listaPermitidaUser;
@@ -6983,6 +7049,11 @@ export function configurarSidebarPorPermisos() {
         const idBuscado = modIdMap[mod] || mod.toLowerCase();
         const permitido = mods.includes(idBuscado);
         item.style.display = permitido ? 'flex' : 'none';
+    });
+
+    // Dividers del Sidebar
+    document.querySelectorAll('#sidebar .nav-divider').forEach(div => {
+        div.style.display = (modo === 'profesor' || modo === 'docente') ? 'none' : 'block';
     });
 
     // Bottom nav items
@@ -7925,6 +7996,7 @@ const ROLES_MODULOS_DEFAULT = {
 
 onAuthStateChanged(auth, async (user) => { 
     if (user) { 
+        mostrarIndicadorCarga("Iniciando sesión y accesos...");
         try {
             const qSnap = await getDocs(collection(db, "usuarios_sistema")); 
             let usuarioEncontrado = null;
@@ -7962,6 +8034,7 @@ onAuthStateChanged(auth, async (user) => {
             }
 
             if (!usuarioEncontrado) { 
+                ocultarIndicadorCarga();
                 alert(`⛔ Acceso Denegado:\nTu cuenta (${user.email}) no está autorizada para ingresar a este sistema.`); 
                 await signOut(auth); 
                 document.getElementById('login-container').style.display = 'flex'; 
@@ -7970,6 +8043,7 @@ onAuthStateChanged(auth, async (user) => {
             }
 
             if (usuarioEncontrado.activo === false) {
+                ocultarIndicadorCarga();
                 alert(`⛔ Cuenta Inactiva:\nTu usuario (${user.email}) ha sido desactivado por el administrador.`);
                 await signOut(auth);
                 document.getElementById('login-container').style.display = 'flex';
@@ -8048,6 +8122,7 @@ onAuthStateChanged(auth, async (user) => {
             };
 
         } catch(e) { 
+            ocultarIndicadorCarga();
             return alert("Error al validar permisos de usuario: " + e.message); 
         }
 
@@ -9564,6 +9639,14 @@ document.addEventListener('click', async (e) => {
 
             const informeAdmisionTexto = `<strong>Nivel:</strong> ${nivel}<br><strong>Motivación:</strong> ${motivacion}<br><strong>Diagnóstico:</strong> ${diagnostico}<br><strong>Artistas:</strong> ${artistas}`;
 
+            // Preservar coherencia de instrumento principal y secundarios
+            let principalFinal = (al.instrumento_principal || '').trim();
+            if (!principalFinal || !instrumentosSeleccionados.includes(principalFinal)) {
+                principalFinal = instrumentosSeleccionados[0] || '';
+            }
+            const secundariosFinal = instrumentosSeleccionados.filter(i => i !== principalFinal);
+            const instrumentosOrdenados = principalFinal ? [principalFinal, ...secundariosFinal] : instrumentosSeleccionados;
+
             const updatePayload = { 
                 estado_agenda: "Lista de espera",
                 nivel: nivel,
@@ -9571,7 +9654,9 @@ document.addEventListener('click', async (e) => {
                 informes_entrevista: arrInformes,
                 informe_admision: informeAdmisionTexto,
                 perfil_psicologico: tags,
-                instrumento: instrumentosSeleccionados,
+                instrumento: instrumentosOrdenados,
+                instrumento_principal: principalFinal,
+                instrumentos_secundarios: secundariosFinal,
                 historial: hist
             };
 
@@ -10362,9 +10447,9 @@ document.addEventListener('click', async (e) => {
         const resDiv = document.getElementById('resultados-agenda'), dStrStart = document.getElementById('agenda-start').value, dStrEnd = document.getElementById('agenda-end').value; 
         if(!dStrStart || !dStrEnd) return alert("Fechas inválidas."); 
         const selProfe = document.getElementById('agenda-profe-filtro'), fProfs = Array.from(selProfe.selectedOptions).map(o => o.value), searchAll = fProfs.length === 0 || fProfs.includes(""); 
-        resDiv.innerHTML = '<p>Buscando...</p>'; 
+        resDiv.innerHTML = ''; 
         document.getElementById('btn-procesar-seleccion-agenda').style.display = 'none'; 
-        setBotonCargando(target, true); 
+        setBotonCargando(target, true, 'Buscando agenda...'); 
         try { 
             const al = (await getDoc(doc(db, "alumnos", alumnoIdActual))).data();
             const instElegido = document.getElementById('agenda-instrumento-select')?.value || '';
