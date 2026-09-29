@@ -10573,14 +10573,14 @@ document.addEventListener('click', async (e) => {
                         if (btnAgendar) btnAgendar.style.display = 'none';
                     } else if (chks.length === 1) {
                         btnProponer.style.display = 'block';
-                        btnProponer.textContent = '💬 Avisar a Evaluador';
+                        btnProponer.textContent = '💬 Enviar a Evaluador';
                         if (btnAgendar) {
                             btnAgendar.style.display = 'block';
-                            btnAgendar.textContent = '📅 Agendar en Calendar';
+                            btnAgendar.textContent = '📅 Enviar a Alumno';
                         }
                     } else {
                         btnProponer.style.display = 'block';
-                        btnProponer.textContent = '💬 Avisar Opciones a Evaluador';
+                        btnProponer.textContent = '💬 Enviar Opciones a Evaluador';
                         if (btnAgendar) btnAgendar.style.display = 'none';
                     }
                 };
