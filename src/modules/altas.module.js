@@ -224,7 +224,7 @@ export async function refrescarProfesoresPrealta(tipoClase, instrumentoSeleccion
     if (loadingBadge) loadingBadge.style.display = 'inline-flex';
     if (loadingBar) loadingBar.style.display = 'flex';
     selectProfe.disabled = true;
-    selectProfe.innerHTML = '<option value="">⏳ Buscando agenda y profesor disponible...</option>';
+    selectProfe.innerHTML = '<option value="">Consultando disponibilidad...</option>';
 
     try {
         const pSnap = await getDocs(collection(db, "profesores"));
@@ -1052,7 +1052,7 @@ export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg
                 if (lBar) lBar.style.display = 'flex';
                 if (selectProfe) {
                     selectProfe.disabled = true;
-                    selectProfe.innerHTML = '<option value="">⏳ Buscando agenda y profesor disponible...</option>';
+                    selectProfe.innerHTML = '<option value="">Consultando disponibilidad...</option>';
                 }
             }
             timerDebounceFechaPrealta = setTimeout(() => {
@@ -1612,7 +1612,7 @@ export async function abrirModalPrealtaGrupal(ids, grupoNom = '', cfg = defaultC
                 if (lBar) lBar.style.display = 'flex';
                 if (selectProfe) {
                     selectProfe.disabled = true;
-                    selectProfe.innerHTML = '<option value="">⏳ Buscando agenda y profesor disponible...</option>';
+                    selectProfe.innerHTML = '<option value="">Consultando disponibilidad...</option>';
                 }
             }
             timerDebounceFechaGrupal = setTimeout(() => {
