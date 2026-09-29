@@ -3863,6 +3863,47 @@ export function obtenerInstrumentosAlumno(al) {
 }
 window.obtenerInstrumentosAlumno = obtenerInstrumentosAlumno;
 
+export function obtenerEvaluadorAlumno(al) {
+    if (!al) return '-';
+    // 1. Prioridad: Evaluador guardado en el informe oficial de entrevista
+    if (al.informe_entrevista && al.informe_entrevista.evaluador_nombre) {
+        return al.informe_entrevista.evaluador_nombre;
+    }
+    if (Array.isArray(al.informes_entrevista) && al.informes_entrevista.length > 0 && al.informes_entrevista[0]?.evaluador_nombre) {
+        return al.informes_entrevista[0].evaluador_nombre;
+    }
+    if (al.evaluador_nombre) return al.evaluador_nombre;
+
+    // 2. Si es estado previo a la admisión (Inbox, entrevistas sin procesar)
+    const st = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    const esInboxOPrevio = ['pendiente procesar', 'sin agendar', 'pendiente validacion por profe', 'pendiente validacion por evaluador', 'pendiente validacion por alumno', 'agenda confirmada', 'entrevista confirmada'].includes(st);
+    if (esInboxOPrevio && al.reserva_profe_nombre) {
+        return al.reserva_profe_nombre;
+    }
+
+    // 3. Si está en Lista de Espera o posterior pero reserva_profe_nombre tiene valor y no es el profesor_asignado
+    if (al.reserva_profe_nombre && al.reserva_profe_nombre !== al.profesor_asignado) {
+        return al.reserva_profe_nombre;
+    }
+
+    // 4. Buscar en historial entradas de entrevista previa
+    if (Array.isArray(al.historial)) {
+        for (let h of al.historial) {
+            const txt = typeof h === 'string' ? h : (h.texto || '');
+            const m = txt.match(/(?:Entrevista agendada|Propuesta de horario|Informe de Entrevista).*?con\s+([A-Za-zÁÉÍÓÚáéíóúñÑ\s]+?)(?:\.|\s+enviada|\s+agendada|\s+para)/i);
+            if (m && m[1]) {
+                const cand = m[1].trim();
+                if (!cand.toLowerCase().includes('google') && !cand.toLowerCase().includes('calendar') && !cand.toLowerCase().includes('admin')) {
+                    return cand;
+                }
+            }
+        }
+    }
+
+    return al.reserva_profe_nombre || '-';
+}
+window.obtenerEvaluadorAlumno = obtenerEvaluadorAlumno;
+
 function generarFilaAlumno(al, id, vista, isKanban = false) {
     const info = getEstadoYBadgeLocal(al);
     let instArray = obtenerInstrumentosAlumno(al);
@@ -4225,7 +4266,13 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
 
                     <!-- Columna 4: Meta & Agenda / Prioridad -->
                     <div class="row-meta">
-                        <div>${((estadoActualVista && (estadoActualVista.startsWith('Inbox') || estadoActualVista === 'Lista de Espera' || estadoActualVista === 'Dashboard')) || ['Pendiente procesar', 'Pendiente validación por profe', 'Pendiente validación por alumno', 'Agenda confirmada', 'Agenda suspendida', 'Lista de espera'].includes(al.estado_agenda)) ? 'Evaluador' : 'Profe'}: <strong style="color:var(--text-main);" title="${al.reserva_profe_nombre || ''}">${al.reserva_profe_nombre ? (al.reserva_profe_nombre.length > 25 ? al.reserva_profe_nombre.split(' ').slice(0, 3).join(' ') + '...' : al.reserva_profe_nombre) : '-'}</strong></div>
+                        ${(() => {
+                            const esInboxOEspera = (estadoActualVista && (estadoActualVista.startsWith('Inbox') || estadoActualVista === 'Lista de Espera' || estadoActualVista === 'Dashboard')) || ['Pendiente procesar', 'Pendiente validación por profe', 'Pendiente validación por alumno', 'Agenda confirmada', 'Agenda suspendida', 'Lista de espera'].includes(al.estado_agenda);
+                            const labelResp = esInboxOEspera ? 'Evaluador' : 'Profe';
+                            const nomResp = esInboxOEspera ? obtenerEvaluadorAlumno(al) : (al.profesor_asignado || al.reserva_profe_nombre || '-');
+                            const nomCorto = nomResp && nomResp.length > 25 ? nomResp.split(' ').slice(0, 3).join(' ') + '...' : nomResp;
+                            return `<div>${labelResp}: <strong style="color:var(--text-main);" title="${nomResp}">${nomCorto}</strong></div>`;
+                        })()}
                         ${al.grupo_asignado ? `<div>Grupo: <strong style="color:var(--accent-teal);">${al.grupo_asignado}</strong></div>` : ''}
                         ${fechaMetaHtml}
                         ${info.badgePillHtml ? info.badgePillHtml : (info.txtTiempo ? `<div class="priority-text ${info.claseTexto}" style="margin-top:2px;">${info.txtTiempo}</div>` : '')}
@@ -5783,6 +5830,43 @@ export async function verificarAutoResetJuliaClaudio(alumnos) {
                         instrumento_principal: "Piano",
                         instrumentos_secundarios: ["Canto"],
                         instrumento: ["Piano", "Canto"]
+                    }).catch(() => {});
+                } catch(e) {}
+            }
+        }
+        // Sanar caso Alejandro Garcia: recuperar evaluador original si quedo pisado por Ari Admin
+        if (nom.includes('alejandro') && nom.includes('garcia')) {
+            let evalOriginal = null;
+            if (al.informe_entrevista && al.informe_entrevista.evaluador_nombre && !al.informe_entrevista.evaluador_nombre.toLowerCase().includes('admin')) {
+                evalOriginal = al.informe_entrevista.evaluador_nombre;
+            } else if (Array.isArray(al.historial)) {
+                for (let h of al.historial) {
+                    const txt = typeof h === 'string' ? h : (h.texto || '');
+                    const m = txt.match(/(?:Entrevista agendada|Propuesta de horario|Informe de Entrevista).*?con\s+([A-Za-zÁÉÍÓÚáéíóúñÑ\s]+?)(?:\.|\s+para|\s+enviada|\s+agendada)/i);
+                    if (m && m[1]) {
+                        const cand = m[1].trim();
+                        if (!cand.toLowerCase().includes('admin') && !cand.toLowerCase().includes('calendar') && !cand.toLowerCase().includes('google')) {
+                            evalOriginal = cand;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (!evalOriginal) {
+                evalOriginal = 'Belu';
+            }
+            if (evalOriginal && (al.reserva_profe_nombre !== evalOriginal || (al.informe_entrevista && al.informe_entrevista.evaluador_nombre !== evalOriginal))) {
+                al.reserva_profe_nombre = evalOriginal;
+                if (!al.informe_entrevista) al.informe_entrevista = {};
+                al.informe_entrevista.evaluador_nombre = evalOriginal;
+                al.profesor_asignado = "";
+                al.grupo_asignado = "";
+                try {
+                    updateDoc(doc(db, "alumnos", al.id), {
+                        reserva_profe_nombre: evalOriginal,
+                        'informe_entrevista.evaluador_nombre': evalOriginal,
+                        profesor_asignado: "",
+                        grupo_asignado: ""
                     }).catch(() => {});
                 } catch(e) {}
             }
@@ -12486,7 +12570,7 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
     } else if (d.reserva_fecha_texto) {
         fechaEntrevistaTxt = formatearFechaHoraEstandar(d.reserva_fecha_texto);
     }
-    const evaluadorTxt = d.reserva_profe_nombre || (d.informe_entrevista && d.informe_entrevista.evaluador_nombre) || '-';
+    const evaluadorTxt = obtenerEvaluadorAlumno(d);
     const elFechaInf = document.getElementById('modal-informe-fecha-val');
     const elEvalInf = document.getElementById('modal-informe-evaluador-val');
     if (elFechaInf) elFechaInf.textContent = fechaEntrevistaTxt;

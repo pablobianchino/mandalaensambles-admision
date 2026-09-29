@@ -1465,7 +1465,7 @@ export function renderResultadosAlumnosMatch(candidatos = []) {
         const susc = al.tipo_suscripcion || 'Sin suscripción';
         const nivel = al.nivel || 'Inicial I';
         const edad = al.edad ? `${al.edad} años` : 'Edad s/d';
-        const evalTxt = al.reserva_profe_nombre || al.profesor_asignado || '';
+        const evalTxt = typeof window.obtenerEvaluadorAlumno === 'function' ? window.obtenerEvaluadorAlumno(al) : ((al.informe_entrevista && al.informe_entrevista.evaluador_nombre) || al.evaluador_nombre || al.reserva_profe_nombre || '');
 
         // Resumen de disponibilidad
         const disp = al.disponibilidad || {};

@@ -1965,12 +1965,17 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
         const instSeleccionado = rowSelect ? rowSelect.value : (document.getElementById('prealta-instrumento-select')?.value || '');
         const instFinal = instSeleccionado || al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento[0] : (al.instrumento || ''));
 
-        const finalProfeId = profeId || al.reserva_profe_id || '';
-        const finalProfeNombre = profeNombre || al.reserva_profe_nombre || '';
+        const finalProfeId = profeId || al.profesor_id || '';
+        const finalProfeNombre = profeNombre || al.profesor_asignado || '';
+        const evalActualNom = (al.informe_entrevista && al.informe_entrevista.evaluador_nombre) || al.evaluador_nombre || al.reserva_profe_nombre || '';
+        const evalActualId = (al.informe_entrevista && al.informe_entrevista.evaluador_id) || al.evaluador_id || al.reserva_profe_id || '';
+
         const alParaSync = {
             ...al,
-            reserva_profe_id: finalProfeId,
-            reserva_profe_nombre: finalProfeNombre,
+            reserva_profe_id: evalActualId || finalProfeId,
+            reserva_profe_nombre: evalActualNom || finalProfeNombre,
+            profesor_asignado: finalProfeNombre,
+            profesor_id: finalProfeId,
             grupo_asignado: finalGrupo,
             instrumento_asignado: instFinal,
             instrumento: al.instrumento || []
@@ -2067,14 +2072,18 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
             fecha_inicio_clases: fIso,
             grupo_asignado: finalGrupo,
             instrumento_asignado: instFinal,
-            reserva_profe_id: finalProfeId,
-            reserva_profe_nombre: finalProfeNombre,
             profesor_asignado: finalProfeNombre,
+            profesor_id: finalProfeId,
             dia_match: diaCodigo,
             horario_inicio_match: horaInicioStr,
             horario_fin_match: horaFinStr,
             horario_match: `${mapaDiasCodigos[diaCodigo] || diaCodigo} ${horaInicioStr} a ${horaFinStr} hs`
         };
+
+        if (evalActualNom) {
+            updates.reserva_profe_nombre = evalActualNom;
+            if (evalActualId) updates.reserva_profe_id = evalActualId;
+        }
 
         if (segId) {
             updates.seguimiento_responsable_id = segId;
@@ -3720,12 +3729,21 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                             const hist = al.historial || [];
                             const fnHist = window.crearEntradaHistorial || ((txt, t) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: t || 'sistema' }));
                             hist.push(fnHist(`Devuelto a Lista de Espera desde ${vista}. Desvinculado del grupo "${grupo}".`, 'alta'));
-                            await updateDoc(doc(db, "alumnos", id), {
+                            const evalOriginal = (al.informe_entrevista && al.informe_entrevista.evaluador_nombre) || al.evaluador_nombre || '';
+                            const payloadDev = {
                                 estado_agenda: "Lista de espera",
                                 grupo_asignado: "",
+                                profesor_asignado: "",
+                                profesor_id: "",
+                                horario_match: "",
+                                dia_match: "",
+                                horario_inicio_match: "",
+                                horario_fin_match: "",
                                 id_evento_alta: null,
                                 historial: hist
-                            });
+                            };
+                            if (evalOriginal) payloadDev.reserva_profe_nombre = evalOriginal;
+                            await updateDoc(doc(db, "alumnos", id), payloadDev);
                             await eliminarEventoAltaSeguro({ id, ...al }, callbacks.configApp || defaultCfg);
                         }
                     }
@@ -3879,12 +3897,21 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                         const hist = al.historial || [];
                         const fnHist = window.crearEntradaHistorial || ((txt, t) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: t || 'sistema' }));
                         hist.push(fnHist(`Devuelto a Lista de Espera desde ${vista}${grp ? ` (Desvinculado de ${grp})` : ''}.`, 'alta'));
-                        await updateDoc(doc(db, "alumnos", id), {
+                        const evalOriginal = (al.informe_entrevista && al.informe_entrevista.evaluador_nombre) || al.evaluador_nombre || '';
+                        const payloadDev = {
                             estado_agenda: "Lista de espera",
                             grupo_asignado: "",
+                            profesor_asignado: "",
+                            profesor_id: "",
+                            horario_match: "",
+                            dia_match: "",
+                            horario_inicio_match: "",
+                            horario_fin_match: "",
                             id_evento_alta: null,
                             historial: hist
-                        });
+                        };
+                        if (evalOriginal) payloadDev.reserva_profe_nombre = evalOriginal;
+                        await updateDoc(doc(db, "alumnos", id), payloadDev);
                         await eliminarEventoAltaSeguro({ id, ...al }, callbacks.configApp || defaultCfg);
                     }
                     if (typeof callbacks.cargarVista === 'function') await callbacks.cargarVista(vista);
