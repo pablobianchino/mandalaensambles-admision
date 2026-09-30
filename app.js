@@ -5871,6 +5871,41 @@ export async function verificarAutoResetJuliaClaudio(alumnos) {
                 } catch(e) {}
             }
         }
+
+        // Sanar caso grupo desarmado: Ignacio Ponisio, Gustavo Fernández, Diego Passerieu -> Reagrupar en M18.30 Nacho
+        const esIgnacio = nom.includes('ignacio') && (nom.includes('ponisio') || nom.includes('ponicio'));
+        const esGustavo = nom.includes('gustavo') && (nom.includes('fernandez') || nom.includes('hernandez'));
+        const esDiego = nom.includes('diego') && (nom.includes('passerieu') || nom.includes('passerie') || nom.includes('passeriu'));
+        if (esIgnacio || esGustavo || esDiego) {
+            const estadoActual = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+            const necesitaReagrupacion = (!al.grupo_asignado || al.grupo_asignado !== 'M18.30 Nacho' || al.estado_agenda !== 'Pre-alta pendiente') &&
+                (estadoActual === 'pre-alta pendiente' || estadoActual === 'pre-alta iniciada' || estadoActual === 'lista de espera');
+            
+            if (necesitaReagrupacion) {
+                al.grupo_asignado = "M18.30 Nacho";
+                al.profesor_asignado = "Nacho";
+                al.horario_match = "Martes 18:30 a 19:30 hs";
+                al.dia_match = "M";
+                al.horario_inicio_match = "18:30";
+                al.horario_fin_match = "19:30";
+                al.estado_agenda = "Pre-alta pendiente";
+                if (esIgnacio) al.instrumento_asignado = "Bajo";
+                if (esGustavo) al.instrumento_asignado = "Canto";
+                if (esDiego) al.instrumento_asignado = "Batería";
+                try {
+                    updateDoc(doc(db, "alumnos", al.id), {
+                        grupo_asignado: "M18.30 Nacho",
+                        profesor_asignado: "Nacho",
+                        horario_match: "Martes 18:30 a 19:30 hs",
+                        dia_match: "M",
+                        horario_inicio_match: "18:30",
+                        horario_fin_match: "19:30",
+                        estado_agenda: "Pre-alta pendiente",
+                        instrumento_asignado: al.instrumento_asignado || null
+                    }).catch(() => {});
+                } catch(e) {}
+            }
+        }
     }
     _resetJuliaClaudioEjecutado = true;
 }
@@ -10084,11 +10119,11 @@ document.addEventListener('click', async (e) => {
         const detalleCal = (tieneEvento && decisionCal.decision === 'mantener')
             ? ' Evento en Google Calendar MANTENIDO.'
             : (tieneEvento && decisionCal.decision === 'eliminar' ? ' Evento en Google Calendar ELIMINADO.' : '');
-        hist.push(crearEntradaHistorial(`Devuelto a Altas - Pendientes desde ${al.estado_agenda || 'Altas - En Curso'}${grpActual ? ` (Desvinculado de ${grpActual})` : ''}.${detalleCal}`, 'alta'));
+        hist.push(crearEntradaHistorial(`Devuelto a Altas - Pendientes desde ${al.estado_agenda || 'Altas - En Curso'}${grpActual ? ` (Grupo ${grpActual} conservado)` : ''}.${detalleCal}`, 'alta'));
         
         await updateDoc(doc(db, "alumnos", id), {
             estado_agenda: "Pre-alta pendiente",
-            grupo_asignado: "",
+            grupo_asignado: grpActual || al.grupo_asignado || "",
             fecha_inicio_clases: null,
             fecha_sugerida_inicio: null,
             id_evento_alta: null,

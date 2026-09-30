@@ -1450,8 +1450,36 @@ export function renderizarSugerenciasFechasGrupal(alumnosList, semanaOffset = 1,
         };
     });
 
-    // Si hay slots y no se selecciono nada aun, pre-seleccionar el primero para flujo en 1 clic
-    if (slots.length > 0 && !document.getElementById('prealta-fecha-inicio')?.value) {
+    // Gestionar selección inteligente según fecha previa o sugerida
+    const valFechaActual = document.getElementById('prealta-fecha-inicio')?.value || '';
+    if (valFechaActual && slots.length > 0) {
+        let matchedSlotCard = Array.from(slotCards).find(c => {
+            const idx = parseInt(c.dataset.idx, 10);
+            const slot = slots[idx];
+            if (!slot) return false;
+            return slot.fechaIso === valFechaActual || valFechaActual.startsWith(slot.fechaIso.substring(0, 16));
+        });
+        
+        if (!matchedSlotCard && alumnosList.length > 0) {
+            const primerAl = alumnosList[0];
+            if (primerAl.dia_match && primerAl.horario_inicio_match) {
+                matchedSlotCard = Array.from(slotCards).find(c => {
+                    return c.dataset.diaCod === primerAl.dia_match && c.dataset.hini === primerAl.horario_inicio_match;
+                });
+            }
+        }
+
+        if (matchedSlotCard) {
+            slotCards.forEach(c => c.classList.remove('selected'));
+            matchedSlotCard.classList.add('selected');
+        } else {
+            // Si la fecha configurada no coincide con un slot estándar de la semana, mostrar el selector manual abierto
+            if (wrapInput) {
+                wrapInput.style.display = 'block';
+                if (iconoToggle) iconoToggle.textContent = '▲';
+            }
+        }
+    } else if (slots.length > 0 && !valFechaActual) {
         const primerSlotCard = slotCards[0];
         if (primerSlotCard) primerSlotCard.click();
     }
@@ -3672,10 +3700,10 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                             const al = dSnap.data();
                             const hist = al.historial || [];
                             const fnHist = window.crearEntradaHistorial || ((txt, t) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: t || 'sistema' }));
-                            hist.push(fnHist(`Devuelto a Altas - Pendientes desde ${vista}. Desvinculado del grupo "${grupo}".`, 'alta'));
+                            hist.push(fnHist(`Devuelto a Altas - Pendientes desde ${vista}. Grupo "${grupo}" conservado para re-coordinación.`, 'alta'));
                             await updateDoc(doc(db, "alumnos", id), {
                                 estado_agenda: "Pre-alta pendiente",
-                                grupo_asignado: "",
+                                grupo_asignado: al.grupo_asignado || grupo || "",
                                 fecha_inicio_clases: null,
                                 fecha_sugerida_inicio: null,
                                 id_evento_alta: null,
