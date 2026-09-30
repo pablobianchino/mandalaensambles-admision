@@ -189,7 +189,11 @@ export function generarBotonesAccion(al, id, esModal = false, vista = '') {
     const rawEst = al.estado_agenda || '';
     const est = rawEst.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     const vistaActiva = vista || window.estadoActualVista || '';
-    const esVistaSeguimiento = vistaActiva.startsWith('Seguimientos') || vistaActiva === 'Altas - Seguimientos';
+    const esVistaSeguimiento = (typeof vistaActiva === 'string' && (
+        vistaActiva.toLowerCase().includes('seguimiento') ||
+        vistaActiva.toLowerCase().startsWith('seguimiento') ||
+        vistaActiva === 'Altas - Seguimientos'
+    )) || Boolean(al.seguimiento?.activo === true);
     const esFinalizada = esAlumnoAltaFinalizada(al);
 
     if (esModal) {
@@ -202,7 +206,6 @@ export function generarBotonesAccion(al, id, esModal = false, vista = '') {
             html += `<button type="button" class="btn-action-neutral btn-seg-ver-seguimiento" data-id="${id}">🎧 Ver Seguimiento</button>`;
             html += `<button type="button" class="btn-action-neutral btn-editar-seguimiento" data-id="${id}">✏️ Editar Seguimiento</button>`;
             html += `<button type="button" class="btn-action-neutral btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
             if (typeof window.esUsuarioAdministrador === 'function' ? window.esUsuarioAdministrador() : true) {
                 html += `<button type="button" class="btn-action-neutral btn-eliminar-ficha-directo" data-id="${id}" style="color:var(--accent-red); font-weight:700; border-color:var(--accent-red); margin-top:4px;">🗑️ Eliminar Ficha</button>`;
             }

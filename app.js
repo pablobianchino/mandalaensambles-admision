@@ -1142,6 +1142,7 @@ window.notificarSincronizacion = notificarSincronizacion;
 
 let alumnoIdActual = null;
 let estadoActualVista = 'Dashboard';
+window.estadoActualVista = 'Dashboard';
 window.tituloABMActual = '';
 window.configApp = {};
 let configApp = window.configApp;
@@ -7332,6 +7333,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
     }
 
     estadoActualVista = vista; 
+    window.estadoActualVista = vista;
     
     let modulo = null;
     if (vista.startsWith('Inbox')) modulo = 'Inbox';
@@ -12980,7 +12982,7 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
             accionesCont.innerHTML = `
                 <button type="button" id="btn-trigger-modal-acciones" style="background:var(--accent-teal); color:white; border:none; padding:7px 14px; border-radius:8px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">Acciones ▾</button>
                 <div class="dropdown-menu-wrapper" id="modal-acciones-dropdown" style="top:100%; left:0; right:auto; z-index:1200; min-width:220px;">
-                    <div class="dropdown-menu">${generarBotonesAccion(d, id, true)}</div>
+                    <div class="dropdown-menu">${generarBotonesAccion(d, id, true, estadoActualVista)}</div>
                 </div>
             `;
         }
@@ -12990,11 +12992,11 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
         estadoActualVista.toLowerCase().includes('seguimiento') ||
         estadoActualVista.toLowerCase().startsWith('seguimiento')
     );
-    const tieneSeguimientoEnCurso = Boolean(d.seguimiento?.activo === true || (d.seguimiento && !d.seguimiento.fecha_finalizacion && d.seguimiento.fecha_proximo_seguimiento));
+    const tieneSeguimientoEnCurso = Boolean(d.seguimiento?.activo === true);
 
     const btnNuevaSusc = document.getElementById('btn-modal-nueva-suscripcion');
     if (btnNuevaSusc) {
-        const ocultarNuevaSusc = modoLectura || !id || esVistaSeguimiento || tieneSeguimientoEnCurso;
+        const ocultarNuevaSusc = modoLectura || !id || esVistaSeguimiento || tieneSeguimientoEnCurso || esAlumnoAltaFinalizada(d);
         btnNuevaSusc.style.display = ocultarNuevaSusc ? 'none' : 'block';
         btnNuevaSusc.setAttribute('data-id', id);
     }
@@ -13005,10 +13007,10 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
         btnModalEliminar.onclick = () => window.eliminarFichaAlumnoSeguro(id, d.nombre);
     }
 
-    // Métricas de Espera & Contacto y Botón Contactar en Ficha del Alumno (Lista de Espera en adelante)
+    // Métricas de Espera & Contacto (Únicamente activas para etapas de Espera y previas a Alta)
     const boxMetricasEspera = document.getElementById('modal-metricas-espera-box');
     const btnContactarModal = document.getElementById('btn-modal-contactar-alumno');
-    const esDeEsperaEnAdelante = esInstanciaEsperaOSuperior(d.estado_agenda);
+    const esDeEsperaEnAdelante = esInstanciaEsperaOSuperior(d.estado_agenda) && !esAlumnoAltaFinalizada(d) && !esVistaSeguimiento;
 
     if (esDeEsperaEnAdelante && !modoLectura && id) {
         if (boxMetricasEspera) {
@@ -13067,9 +13069,14 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
         if (btnContactarModal) btnContactarModal.style.display = 'none';
     }
 
+    // Botón WhatsApp: No mostrar en Seguimientos Pendientes (solo cuando está en curso)
+    const esSegPendiente = (esVistaSeguimiento && d.seguimiento?.activo !== true) || 
+                           (typeof estadoActualVista === 'string' && estadoActualVista === 'Seguimientos - Pendientes') || 
+                           (esAlumnoAltaFinalizada(d) && d.seguimiento?.activo !== true);
+
     const btnWhatsAppModal = document.getElementById('btn-modal-whatsapp');
     if (btnWhatsAppModal) {
-        if (!modoLectura && (d.celular || d.telefono)) {
+        if (!modoLectura && (d.celular || d.telefono) && !esSegPendiente) {
             btnWhatsAppModal.style.display = 'inline-flex';
             btnWhatsAppModal.onclick = (e) => {
                 e.preventDefault();
@@ -13080,9 +13087,10 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
         }
     }
 
+    // Botón Nuevo Feedback: Solo visible cuando el seguimiento ya está en curso
     const btnRegSegModal = document.getElementById('btn-modal-reg-seguimiento');
     if (btnRegSegModal) {
-        const esParaSeg = !modoLectura && id && (esAlumnoAltaFinalizada(d) || Boolean(d.seguimiento?.activo));
+        const esParaSeg = !modoLectura && id && Boolean(d.seguimiento?.activo === true);
         btnRegSegModal.style.display = esParaSeg ? 'inline-flex' : 'none';
     }
 
