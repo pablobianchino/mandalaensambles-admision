@@ -11787,6 +11787,18 @@ document.addEventListener('click', async (e) => {
         if (elMetricasEspera) elMetricasEspera.style.display = 'none';
         const btnContactarModal = document.getElementById('btn-modal-contactar-alumno');
         if (btnContactarModal) btnContactarModal.style.display = 'none';
+        const btnWhatsAppModal = document.getElementById('btn-modal-whatsapp');
+        if (btnWhatsAppModal) btnWhatsAppModal.style.display = 'none';
+        const btnRegSegModal = document.getElementById('btn-modal-reg-seguimiento');
+        if (btnRegSegModal) btnRegSegModal.style.display = 'none';
+        const elCalAuditBox = document.getElementById('modal-cal-audit-box');
+        if (elCalAuditBox) elCalAuditBox.style.display = 'none';
+        const badgeEl = document.getElementById('modal-alumno-estado-badge');
+        if (badgeEl) {
+            badgeEl.textContent = 'SIN AGENDAR';
+            badgeEl.className = 'badge status-val-pendiente';
+            badgeEl.style.display = 'inline-flex';
+        }
         const elFechaInf = document.getElementById('modal-informe-fecha-val');
         const elEvalInf = document.getElementById('modal-informe-evaluador-val');
         if (elFechaInf) elFechaInf.textContent = '-';
@@ -11794,20 +11806,9 @@ document.addEventListener('click', async (e) => {
         historialActual = []; 
         renderHistorial(); 
         
-        diasSemana.forEach(d => { 
-            const rangosCont = document.getElementById(`rangos-disp-${d.id}`);
-            if (rangosCont) rangosCont.innerHTML = crearFilaRangoHTML(d.id, '', '', false, 0);
-            const cA = document.getElementById(`disp-${d.id}-all`);
-            const cN = document.getElementById(`disp-${d.id}-none`);
-            const sE = document.getElementById(`estado-${d.id}`);
-            if (cA) cA.checked = false;
-            if (cN) cN.checked = false;
-            const diaRow = document.querySelector(`.dia-row[data-dia="${d.id}"]`);
-            if (diaRow) {
-                actualizarBotonesQuitarRangoEnFila(diaRow);
-                updateDispStateForRow(diaRow);
-            }
-        }); 
+        // Resetear disponibilidad horaria de manera limpia y modular
+        poblarDisponibilidadMultiRango({}, 'contenedor-disponibilidad');
+
         document.getElementById('chk-ingreso-directo').checked = false; 
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); 
         const tabBtns = document.querySelectorAll('.tab-btn'); 
@@ -11820,6 +11821,8 @@ document.addEventListener('click', async (e) => {
         if (btnNuevaSusc) btnNuevaSusc.style.display = 'none';
         const tabBtnInforme = document.querySelector('.tab-btn[data-target="tab-informe"]');
         if (tabBtnInforme) tabBtnInforme.style.display = 'none';
+        const btnTabSeg = document.getElementById('btn-tab-seguimiento');
+        if (btnTabSeg) btnTabSeg.style.display = 'none';
         
         window._instrumentoPrincipalSeleccionado = '';
         window._instrumentosSecundariosSeleccionados = [];

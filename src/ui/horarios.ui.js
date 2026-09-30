@@ -188,7 +188,6 @@ export function poblarDisponibilidadMultiRango(disp = {}, containerRef = false, 
         if (cN) cN.checked = false;
 
         if (dD.length === 0) {
-            if (cN) cN.checked = true;
             if (rangosList) rangosList.innerHTML = crearFilaRangoHTML(dia.id, '', '', esProfe, 0);
         } else if (dD.length === 1 && (dD[0].flex === true || dD[0].tipo === 'flex')) {
             if (cFlex) cFlex.checked = true;
