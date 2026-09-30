@@ -5872,23 +5872,26 @@ export async function verificarAutoResetJuliaClaudio(alumnos) {
             }
         }
 
-        // Sanar caso grupo desarmado: Ignacio Ponisio, Gustavo Fernández, Diego Passerieu -> Reagrupar en M18.30 Nacho
+        // Sanar caso grupo: Ignacio Ponisio, Gustavo Fernández, Diego Passerieu
         const esIgnacio = nom.includes('ignacio') && (nom.includes('ponisio') || nom.includes('ponicio'));
         const esGustavo = nom.includes('gustavo') && (nom.includes('fernandez') || nom.includes('hernandez'));
         const esDiego = nom.includes('diego') && (nom.includes('passerieu') || nom.includes('passerie') || nom.includes('passeriu'));
         if (esIgnacio || esGustavo || esDiego) {
             const estadoActual = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-            const necesitaReagrupacion = (!al.grupo_asignado || al.grupo_asignado !== 'M18.30 Nacho' || al.estado_agenda !== 'Pre-alta pendiente') &&
-                (estadoActual === 'pre-alta pendiente' || estadoActual === 'pre-alta iniciada' || estadoActual === 'lista de espera');
-            
-            if (necesitaReagrupacion) {
+            const tieneFechaAsignada = Boolean(al.fecha_inicio_clases || al.fecha_sugerida_inicio);
+            const debeEstarIniciada = tieneFechaAsignada && (estadoActual === 'pre-alta pendiente' || estadoActual === 'pre-alta iniciada');
+            const targetEstado = debeEstarIniciada ? "Pre-alta iniciada" : (al.estado_agenda || "Pre-alta pendiente");
+
+            const necesitaFix = (!al.grupo_asignado || al.grupo_asignado !== 'M18.30 Nacho' || al.profesor_asignado !== 'Nacho' || (debeEstarIniciada && al.estado_agenda !== 'Pre-alta iniciada'));
+
+            if (necesitaFix) {
                 al.grupo_asignado = "M18.30 Nacho";
                 al.profesor_asignado = "Nacho";
                 al.horario_match = "Martes 18:30 a 19:30 hs";
                 al.dia_match = "M";
                 al.horario_inicio_match = "18:30";
                 al.horario_fin_match = "19:30";
-                al.estado_agenda = "Pre-alta pendiente";
+                al.estado_agenda = targetEstado;
                 if (esIgnacio) al.instrumento_asignado = "Bajo";
                 if (esGustavo) al.instrumento_asignado = "Canto";
                 if (esDiego) al.instrumento_asignado = "Batería";
@@ -5900,7 +5903,7 @@ export async function verificarAutoResetJuliaClaudio(alumnos) {
                         dia_match: "M",
                         horario_inicio_match: "18:30",
                         horario_fin_match: "19:30",
-                        estado_agenda: "Pre-alta pendiente",
+                        estado_agenda: targetEstado,
                         instrumento_asignado: al.instrumento_asignado || null
                     }).catch(() => {});
                 } catch(e) {}

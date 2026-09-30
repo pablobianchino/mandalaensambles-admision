@@ -3442,7 +3442,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
             const miembrosRenderizar = integrantesEnVista;
             const primer = miembrosRenderizar[0] || {};
             const horario = primer.horario_match || primer.reserva_fecha_texto || 'Horario a coordinar';
-            const profeNom = primer.reserva_profe_nombre || primer.profesor_asignado || 'Docente';
+            const profeNom = primer.profesor_asignado || primer.profesor_nombre || primer.reserva_profe_nombre || 'Docente';
             const modalidad = primer.modalidad_ensamble || primer.tipo_ensamble || primer.tipo_suscripcion || 'Ensamble';
 
             const totalGrupo = todosMiembrosGrupo.length;
