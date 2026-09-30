@@ -1118,7 +1118,7 @@ export async function abrirModalPrealta(id, arg2 = '', arg3 = '', arg4 = {}, arg
     } else if (esEdicion) {
         banner.innerHTML = `✏️ <strong>Modificar Pre-Alta de ${al.nombre}:</strong> Podés ajustar la fecha y hora de inicio, el profesor asignado y ${esIndividual ? 'el instrumento' : 'el grupo'}.`;
     } else if (vieneDeMatch) {
-        banner.innerHTML = `🎯 <strong>Horario Match:</strong> ${al.horario_match} • 👨‍🏫 <strong>Profesor Asignado:</strong> ${al.reserva_profe_nombre || al.profesor_asignado || '-'}`;
+        banner.innerHTML = `🎯 <strong>Horario Match:</strong> ${al.horario_match} • 👨‍🏫 <strong>Profesor Asignado:</strong> ${al.profesor_asignado || al.reserva_profe_nombre || '-'}`;
     } else {
         const evaluadorTxt = al.reserva_profe_nombre ? ` • Entrevistado por: ${al.reserva_profe_nombre}` : '';
         const fechaEntTxt = al.reserva_fecha_texto ? ` (${al.reserva_fecha_texto})` : '';
@@ -1570,7 +1570,7 @@ export async function abrirModalPrealtaGrupal(ids, grupoNom = '', cfg = defaultC
     if (selectProfe) {
         if (fValGrupal && profeActualId) {
             await refrescarProfesoresPrealta(tipoSuscGrupal, '', profeActualId, realCfg);
-            asegurarOpcionProfesor(selectProfe, profeActualId, primerAl.reserva_profe_nombre || primerAl.profesor_asignado || 'Docente');
+            asegurarOpcionProfesor(selectProfe, profeActualId, primerAl.profesor_asignado || primerAl.reserva_profe_nombre || 'Docente');
         } else {
             selectProfe.innerHTML = '<option value="">Seleccionar profesor...</option>';
         }
@@ -1678,7 +1678,7 @@ export async function abrirModalPrealtaGrupal(ids, grupoNom = '', cfg = defaultC
         if (realEsPropuesta) {
             banner.innerHTML = `💡 <strong>Propuesta para Validación:</strong> Al guardar, los alumnos pasarán a <strong>"Grupos y Alumnos en Validación"</strong> para que el coordinador confirme disponibilidad.<br><span style="color:#0f766e; font-weight:700;">🚫 NO se genera ningún evento en Google Calendar en esta instancia.</span>`;
         } else if (primerAl.horario_match && primerAl.horario_match !== primerAl.reserva_fecha_texto) {
-            banner.innerHTML = `👥 <strong>Grupo:</strong> ${grupoNom || primerAl.grupo_asignado || '-'} • 🎯 <strong>Horario Match:</strong> ${primerAl.horario_match} • 👨‍🏫 <strong>Profesor Asignado:</strong> ${primerAl.reserva_profe_nombre || primerAl.profesor_asignado || '-'}`;
+            banner.innerHTML = `👥 <strong>Grupo:</strong> ${grupoNom || primerAl.grupo_asignado || '-'} • 🎯 <strong>Horario Match:</strong> ${primerAl.horario_match} • 👨‍🏫 <strong>Profesor Asignado:</strong> ${primerAl.profesor_asignado || primerAl.reserva_profe_nombre || '-'}`;
         } else {
             banner.innerHTML = `📅 <strong>Pre-Alta Oficial:</strong> Se sincronizará el evento recurrente en Google Calendar con estado ❓ y los alumnos avanzarán a "Altas en Curso".`;
         }
@@ -1851,7 +1851,7 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
     let decisionCrearEvento = 'crear'; // por defecto
 
     const fInicioTexto = `${mapaDiasCodigos[diaCodigo] || diaCodigo} ${dateObj.getDate()}/${dateObj.getMonth()+1} ${horaInicioStr} hs`;
-    const docNom = profeNombre || primerAl.reserva_profe_nombre || 'Docente';
+    const docNom = profeNombre || primerAl.profesor_asignado || primerAl.reserva_profe_nombre || 'Docente';
 
     // DETECCIÓN PREVENTIVA EN GOOGLE CALENDAR (Requerimiento Clave)
     if (!esPropuesta && profeCalId) {
@@ -2330,7 +2330,7 @@ export function generarFilaExcelBD(al) {
 
     const cols = [
         al.nombre || '',          // 1
-        al.reserva_profe_nombre || al.profesor_asignado || '', // 2
+        al.profesor_asignado || al.reserva_profe_nombre || '', // 2
         '',                       // 3 vacío
         al.grupo_asignado || 'Individual', // 4
         al.nivel || '',           // 5
@@ -2355,7 +2355,7 @@ export function generarFilaExcelFacturacion(al) {
 
     const cols = [
         al.nombre || '',          // 1
-        al.reserva_profe_nombre || al.profesor_asignado || '', // 2
+        al.profesor_asignado || al.reserva_profe_nombre || '', // 2
         al.grupo_asignado || 'Individual', // 3
         precio,                   // 4 cuota esperada
         precio,                   // 5 valor de pago
@@ -2392,7 +2392,7 @@ export async function copiarFilaExcelFacturacion(id) {
 }
 
 export function generarFilaExcelFacturacionAdmision(al, cfg = defaultCfg) {
-    const evaluador = (al.reserva_profe_nombre || al.profesor_asignado || '').trim();
+    const evaluador = ((al.informe_entrevista && al.informe_entrevista.evaluador_nombre) || al.evaluador_nombre || al.reserva_profe_nombre || al.profesor_asignado || '').trim();
     const monto = al.valor_clase_admision || al.valor_arancel || cfg?.valor_clase || '15000';
     
     let fechaStr = '';
@@ -2535,7 +2535,7 @@ export async function abrirModalAvisoPrealtaAlumno(id, cfg = defaultCfg) {
     const esIndividual = tipoSusc === 'individual';
     const esGrupal = tipoSusc === 'grupal' || (al.tipo_suscripcion || '').toLowerCase().includes('grupal');
     const nombreAlumno = al.nombre || 'Alumno';
-    const nombreProfe = al.reserva_profe_nombre || al.profesor_asignado || '-';
+    const nombreProfe = al.profesor_asignado || al.reserva_profe_nombre || '-';
     
     // Formatear cursada solo día y hora de inicio
     let horarioCursada = '';
@@ -3258,7 +3258,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                 const filasHtml = alumnosSeg.map(al => {
                     const instAsignado = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento[0] : (al.instrumento || 'Piano'));
                     const emojiInst = getEmojiInstrumento(instAsignado, callbacks.configApp || defaultCfg);
-                    const profeNom = al.reserva_profe_nombre || al.profesor_asignado || 'Docente';
+                    const profeNom = al.profesor_asignado || al.reserva_profe_nombre || 'Docente';
                     const grupoNom = al.grupo_asignado || 'Clase Individual';
 
                     // Fecha de inicio individual
@@ -3610,7 +3610,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                 const instAsignado = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento[0] : (al.instrumento || 'Piano'));
                 const emojiInst = getEmojiInstrumento(instAsignado, callbacks.configApp || defaultCfg);
                 const horario = al.horario_match || al.reserva_fecha_texto || 'Horario a convenir';
-                const profeNom = al.reserva_profe_nombre || al.profesor_asignado || 'Docente';
+                const profeNom = al.profesor_asignado || al.reserva_profe_nombre || 'Docente';
 
                 let badgeEstadoInd = '';
                 if (vista === 'Altas - Pendientes') {
@@ -3837,9 +3837,10 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                             const respEmail = al.seguimiento_responsable_email || al.seguimiento?.responsable_email || '';
 
                             if (respId) {
-                                const fProx = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-                                if (fProx.getDay() === 0) fProx.setDate(fProx.getDate() + 1);
-                                const fProxStr = `${fProx.getFullYear()}-${String(fProx.getMonth() + 1).padStart(2, '0')}-${String(fProx.getDate()).padStart(2, '0')}`;
+                                const fnCalc = typeof window.obtenerFechaSugeridaSeguimientoAlumno === 'function'
+                                    ? window.obtenerFechaSugeridaSeguimientoAlumno
+                                    : ((x, d) => (typeof window.calcularFechaSeguimientoHabil === 'function' ? window.calcularFechaSeguimientoHabil(x?.fecha_inicio_clases || null, d) : new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]));
+                                const fProxStr = fnCalc(al, 7);
                                 updateData.seguimiento = {
                                     activo: true,
                                     responsable_id: respId,
@@ -3847,12 +3848,14 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                                     responsable_email: respEmail,
                                     fecha_alta_finalizada: ahoraIso,
                                     fecha_proximo_seguimiento: fProxStr,
+                                    fecha_inicio_seguimiento: ahoraIso.split('T')[0],
                                     dias_sin_contacto: 0,
                                     ultimo_contacto: null,
                                     historial: al.seguimiento?.historial || [],
                                     motivo_finalizacion: null,
                                     fecha_finalizacion: null
                                 };
+                                updateData.fecha_proximo_seguimiento = fProxStr;
                                 updateData.seguimiento_responsable_id = respId;
                                 updateData.seguimiento_responsable_nombre = respNom;
                             }

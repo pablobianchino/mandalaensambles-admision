@@ -7810,6 +7810,8 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
     } else if (vista === 'Ajustes Generales') { contLista.style.display = 'flex'; contLista.innerHTML = ''; renderConfig(contLista, configApp, { setBotonCargando, cargarConfig });
     } else if (vista === 'Ajustes Match') { contLista.style.display = 'flex'; contLista.innerHTML = ''; renderConfigMatch(contLista, configApp, { setBotonCargando, cargarConfig });
     } else if (vista.startsWith('ABM')) { contLista.style.display = 'flex'; contLista.innerHTML = ''; const colMap = { 'ABM-Profesores': 'profesores', 'ABM-Instrumentos': 'instrumentos', 'ABM-Suscripciones': 'tipos_suscripcion', 'ABM-Usuarios': 'usuarios_sistema' }; cargarABM(colMap[vista] || vista.split('-')[1].toLowerCase(), vista.split('-')[1], contLista); }
+    
+    if (typeof ocultarIndicadorCarga === 'function') ocultarIndicadorCarga();
 }
 
 async function renderMatchPendientes() {
@@ -8256,32 +8258,43 @@ onAuthStateChanged(auth, async (user) => {
         } catch(e) {}
 
         await cargarConfig(); 
-        await autoAprovisionarUsuariosSistemaDefault();
         configurarHeaderUsuarioYRoles();
         configurarSidebarPorPermisos();
 
+        // Aprovisionamiento en segundo plano sin bloquear el renderizado inicial ni la sesión del usuario
+        setTimeout(() => {
+            autoAprovisionarUsuariosSistemaDefault().catch(e => console.warn("[AUTH-BG] Auto-aprovisionamiento:", e));
+        }, 2500);
+
         const modo = window.modoRolActivo || 'multi';
+        let promesaVistaInicial = null;
         if (modo === 'profesor' || window.usuarioActual.rol === 'profesor') {
-            cargarVista('Mis Alumnos y Ensambles');
+            promesaVistaInicial = cargarVista('Mis Alumnos y Ensambles');
         } else {
             const mods = obtenerModulosPermitidosModoActivo();
             if (mods.includes('dashboard')) {
-                cargarVista('Dashboard');
+                promesaVistaInicial = cargarVista('Dashboard');
             } else if (mods.includes('inbox')) {
-                cargarVista('Inbox - Pendientes');
+                promesaVistaInicial = cargarVista('Inbox - Pendientes');
             } else if (mods.includes('espera')) {
-                cargarVista('Lista de Espera');
+                promesaVistaInicial = cargarVista('Lista de Espera');
             } else if (mods.includes('match')) {
-                cargarVista('Match - Pendientes');
+                promesaVistaInicial = cargarVista('Match - Pendientes');
             } else if (mods.includes('altas')) {
-                cargarVista('Altas - Pendientes');
+                promesaVistaInicial = cargarVista('Altas - Pendientes');
             } else if (mods.includes('metricas')) {
-                cargarVista('Estadísticas');
+                promesaVistaInicial = cargarVista('Estadísticas');
             } else if (mods.includes('configuracion')) {
-                cargarVista('Configuración');
+                promesaVistaInicial = cargarVista('Configuración');
             } else {
-                cargarVista('Dashboard');
+                promesaVistaInicial = cargarVista('Dashboard');
             }
+        }
+
+        try {
+            if (promesaVistaInicial) await promesaVistaInicial;
+        } finally {
+            ocultarIndicadorCarga();
         }
 
         // Procesar cualquier apertura pendiente de notificación
@@ -10050,9 +10063,10 @@ document.addEventListener('click', async (e) => {
                 };
 
                 if (respId) {
-                    const fProx = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-                    if (fProx.getDay() === 0) fProx.setDate(fProx.getDate() + 1);
-                    const fProxStr = `${fProx.getFullYear()}-${String(fProx.getMonth() + 1).padStart(2, '0')}-${String(fProx.getDate()).padStart(2, '0')}`;
+                    const fnCalc = typeof window.obtenerFechaSugeridaSeguimientoAlumno === 'function'
+                        ? window.obtenerFechaSugeridaSeguimientoAlumno
+                        : ((x, d) => window.calcularFechaSeguimientoHabil(x?.fecha_inicio_clases || null, d));
+                    const fProxStr = fnCalc(al, 7);
                     updatesFin.seguimiento = {
                         activo: true,
                         responsable_id: respId,
@@ -10060,12 +10074,16 @@ document.addEventListener('click', async (e) => {
                         responsable_email: respEmail,
                         fecha_alta_finalizada: ahoraIso,
                         fecha_proximo_seguimiento: fProxStr,
+                        fecha_inicio_seguimiento: ahoraIso.split('T')[0],
                         dias_sin_contacto: 0,
                         ultimo_contacto: null,
                         historial: al.seguimiento?.historial || [],
                         motivo_finalizacion: null,
                         fecha_finalizacion: null
                     };
+                    updatesFin.fecha_proximo_seguimiento = fProxStr;
+                    updatesFin.seguimiento_responsable_id = respId;
+                    updatesFin.seguimiento_responsable_nombre = respNom;
                     hist.push(crearEntradaHistorial(`Alta Finalizada: Asignado a seguimiento con ${respNom || 'evaluador'} (primer contacto estimado: ${fProxStr}).`, 'alta'));
                 }
 
@@ -10858,14 +10876,33 @@ document.addEventListener('click', async (e) => {
     }
     
     async function generarTextoConHistorial(idAlumno, plantillaKey, overrideFecha = null, overrideProfeId = null, overrideProfeNombre = null, overrideOpciones = null, overrideMotivo = null) { 
-        const al = (await getDoc(doc(db, "alumnos", idAlumno))).data(); 
+        const al = (await getDoc(doc(db, "alumnos", idAlumno))).data() || {}; 
         let aliasP = ''; 
-        const targetProfeId = overrideProfeId || al.reserva_profe_id || al.profesor_id; 
-        const targetProfeNom = overrideProfeNombre || al.reserva_profe_nombre || al.profesor_asignado || (al.informe_entrevista && al.informe_entrevista.evaluador_nombre) || ''; 
+        
+        // En etapas y plantillas de altas y pre-altas, el docente es el profesor asignado a la cursada (profesor_asignado/profesor_id)
+        // mientras que reserva_profe_nombre almacena el evaluador de la entrevista inicial.
+        const esEtapaAlta = ['texto_alta_confirmada', 'texto_alta_alumno', 'texto_prealta', 'texto_prealta_alumno', 'texto_aviso_admisor_prealta'].includes(plantillaKey) || 
+                            ['Validando grupo', 'Pre-alta pendiente', 'Pre-alta iniciada', 'Alta Efectiva', 'Alta Ilegal', 'Alta Finalizada', 'Alta Suspendida', 'Alta Confirmada'].includes(al.estado_agenda);
+
+        const targetProfeId = overrideProfeId || (esEtapaAlta ? (al.profesor_id || al.reserva_profe_id) : (al.reserva_profe_id || al.profesor_id)); 
+        const targetProfeNom = overrideProfeNombre || (esEtapaAlta ? (al.profesor_asignado || al.reserva_profe_nombre) : (al.reserva_profe_nombre || al.profesor_asignado)) || (al.informe_entrevista && al.informe_entrevista.evaluador_nombre) || ''; 
         if (targetProfeId) { 
             const pDoc = await getDoc(doc(db, "profesores", targetProfeId)); 
             if(pDoc.exists()) aliasP = pDoc.data().alias_transferencia||''; 
-        } 
+        }
+        if (!aliasP && targetProfeNom) {
+            try {
+                const pSnap = await getDocs(query(collection(db, "profesores"), where("nombre", "==", targetProfeNom)));
+                if (!pSnap.empty) {
+                    aliasP = pSnap.docs[0].data().alias_transferencia || '';
+                } else {
+                    const pSnapApodo = await getDocs(query(collection(db, "profesores"), where("apodo", "==", targetProfeNom)));
+                    if (!pSnapApodo.empty) {
+                        aliasP = pSnapApodo.docs[0].data().alias_transferencia || '';
+                    }
+                }
+            } catch(e) {}
+        }
         let histText = formatearTextoHistorial(al.historial); 
         let template = configApp[plantillaKey] || defaultCfg[plantillaKey] || ''; 
         if (!template && plantillaKey === 'texto_cancela_alumno') {
@@ -14744,10 +14781,52 @@ window.abrirModalNuevoSeguimiento = function(id) {
     }
 };
 
-window.calcularFechaHabilFutura = function(dias = 7) {
-    const d = new Date(Date.now() + dias * 24 * 60 * 60 * 1000);
-    if (d.getDay() === 0) d.setDate(d.getDate() + 1); // Domingo -> corre a Lunes
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+window.calcularFechaSeguimientoHabil = function(fechaBase = null, dias = 7) {
+    let d;
+    if (fechaBase) {
+        if (typeof fechaBase === 'string' && fechaBase.length === 10 && fechaBase.includes('-')) {
+            const [y, m, day] = fechaBase.split('-').map(Number);
+            d = new Date(y, m - 1, day);
+        } else {
+            d = new Date(fechaBase);
+        }
+        if (isNaN(d.getTime())) d = new Date();
+    } else {
+        d = new Date();
+    }
+
+    // Sumar días
+    d.setDate(d.getDate() + parseInt(dias, 10));
+
+    // Si cae sábado (6) -> corre a lunes (+2 días)
+    // Si cae domingo (0) -> corre a lunes (+1 día)
+    const diaSem = d.getDay();
+    if (diaSem === 6) {
+        d.setDate(d.getDate() + 2);
+    } else if (diaSem === 0) {
+        d.setDate(d.getDate() + 1);
+    }
+
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+};
+
+window.obtenerFechaSugeridaSeguimientoAlumno = function(al, dias = 7) {
+    if (!al) return window.calcularFechaSeguimientoHabil(null, dias);
+    const segEnCurso = al.seguimiento?.activo === true;
+    if (segEnCurso) {
+        // En curso: 7 días a partir de la fecha actual (hoy)
+        return window.calcularFechaSeguimientoHabil(null, dias);
+    }
+    // Pendiente: 7 días a partir de la fecha de inicio de clase (o hoy si no tiene)
+    const fechaInicio = al.fecha_inicio_clases || al.reserva_inicio || al.fecha_sugerida_inicio || null;
+    return window.calcularFechaSeguimientoHabil(fechaInicio, dias);
+};
+
+window.calcularFechaHabilFutura = function(dias = 7, fechaBase = null) {
+    return window.calcularFechaSeguimientoHabil(fechaBase, dias);
 };
 
 window.abrirModalRegistrarSeguimiento = async function(id) {
@@ -14764,6 +14843,7 @@ window.abrirModalRegistrarSeguimiento = async function(id) {
     }
     if (!al) return alert("Alumno no encontrado.");
 
+    window._segCttoAlumnoObj = al;
     window._segCttoAlumnoCelular = al.celular || al.telefono || '';
     window._segCttoAlumnoNombre = al.nombre || '';
     const btnWaDirecto = document.getElementById('btn-seg-ctto-whatsapp-directo');
@@ -14777,7 +14857,7 @@ window.abrirModalRegistrarSeguimiento = async function(id) {
     const instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || 'Sin instrumento');
     document.getElementById('seg-ctto-det').textContent = `${al.nivel || 'Nivel standard'} • ${instStr}`;
 
-    const prof = al.reserva_profe_nombre || al.profesor_asignado || '-';
+    const prof = al.profesor_asignado || al.reserva_profe_nombre || '-';
     const fIni = al.fecha_inicio_clases || al.fecha_sugerida_inicio || '-';
     document.getElementById('seg-ctto-sub-info').textContent = `Docente: ${prof} • Inicio clases: ${fIni}`;
 
@@ -14790,8 +14870,8 @@ window.abrirModalRegistrarSeguimiento = async function(id) {
     if (wrapProx) wrapProx.style.display = 'block';
     if (wrapAviso) wrapAviso.style.display = 'none';
 
-    // Fecha sugerida por defecto: +1 semana (7 días hábiles)
-    const fechaDef = window.calcularFechaHabilFutura(7);
+    // Fecha sugerida según estado del alumno y fecha de inicio
+    const fechaDef = window.obtenerFechaSugeridaSeguimientoAlumno(al, 7);
     const inputFecha = document.getElementById('input-seg-fecha-manual');
     if (inputFecha) inputFecha.value = fechaDef;
 
@@ -14993,9 +15073,9 @@ window.confirmarFinSeguimiento = async function() {
 
 
 function obtenerDatosDocenteAlumnoSeg(al) {
-    const profeNom = (al.reserva_profe_nombre || al.profesor_asignado || al.profesor_nombre || al.profesor || al.docente || '').trim();
-    const profeId = (al.reserva_profe_id || al.profesor_id || '').trim();
-    const profeEmail = (al.reserva_profe_email || al.profesor_email || '').trim().toLowerCase();
+    const profeNom = (al.profesor_asignado || al.profesor_nombre || al.reserva_profe_nombre || al.profesor || al.docente || '').trim();
+    const profeId = (al.profesor_id || al.reserva_profe_id || '').trim();
+    const profeEmail = (al.profesor_email || al.reserva_profe_email || '').trim().toLowerCase();
     return { profeNom, profeId, profeEmail };
 }
 
@@ -15098,6 +15178,7 @@ window.abrirModalSeguimientoMasivo = async function(idsOpcional) {
             const alNom = al.nombre || 'Sin nombre';
             const instPrincipal = al.instrumento_principal || (Array.isArray(al.instrumento) ? al.instrumento[0] : (al.instrumento || '-'));
             const { profeNom, profeId } = obtenerDatosDocenteAlumnoSeg(al);
+            const fechaSugeridaAl = window.obtenerFechaSugeridaSeguimientoAlumno(al, 7);
 
             // Excluir al docente de este alumno de sus opciones de responsable de seguimiento
             const evalsPermitidos = evals.filter(ev => !esDocenteDelAlumnoSeg(ev, al));
@@ -15130,7 +15211,7 @@ window.abrirModalSeguimientoMasivo = async function(idsOpcional) {
                             <button type="button" class="btn-fast-date-indiv" data-dias="14" style="font-size:8.5px; padding:0 4px; border-radius:3px; border:1px solid #cbd5e1; background:#f8fafc; cursor:pointer;" title="+2 semanas">+2s</button>
                         </div>
                     </div>
-                    <input type="date" class="seg-indiv-fecha modern-input" value="${fechaDefecto}" style="height:32px; font-size:11.5px; font-weight:600; padding:0 6px;">
+                    <input type="date" class="seg-indiv-fecha modern-input" value="${fechaSugeridaAl}" style="height:32px; font-size:11.5px; font-weight:600; padding:0 6px;">
                 </div>
             </div>`;
         });
@@ -15157,11 +15238,12 @@ window.abrirModalSeguimientoMasivo = async function(idsOpcional) {
                     e.preventDefault();
                     const dias = parseInt(btn.dataset.dias || '7', 10);
                     const contenedor = btn.closest('.seg-indiv-item');
+                    const alId = contenedor?.dataset.id;
+                    const docAl = docsAlumnos.find(d => d.id === alId);
+                    const alObj = docAl?.exists() ? docAl.data() : null;
                     const inputFecha = contenedor?.querySelector('.seg-indiv-fecha');
                     if (inputFecha) {
-                        inputFecha.value = typeof window.calcularFechaHabilFutura === 'function'
-                            ? window.calcularFechaHabilFutura(dias)
-                            : new Date(Date.now() + dias * 86400000).toISOString().split('T')[0];
+                        inputFecha.value = window.obtenerFechaSugeridaSeguimientoAlumno(alObj, dias);
                     }
                 });
             });
@@ -15349,7 +15431,8 @@ document.getElementById('chk-seg-continuar')?.addEventListener('change', (e) => 
 document.querySelectorAll('.btn-sug-fecha-seg').forEach(btn => {
     btn.addEventListener('click', () => {
         const dias = parseInt(btn.dataset.dias || '7', 10);
-        const fStr = window.calcularFechaHabilFutura(dias);
+        const al = window._segCttoAlumnoObj || null;
+        const fStr = window.obtenerFechaSugeridaSeguimientoAlumno(al, dias);
         const input = document.getElementById('input-seg-fecha-manual');
         if (input) input.value = fStr;
 

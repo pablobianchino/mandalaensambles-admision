@@ -2557,7 +2557,7 @@ window.abrirModalNotaValidacionAlumno = async function(alumnoId, nuevoEstado) {
         const instAsignado = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || ''));
         const emojiInst = obtenerEmojiInstrumento(instAsignado);
         const hor = al.horario_match || al.reserva_fecha_texto || 'Horario a convenir';
-        const profeNom = al.reserva_profe_nombre || al.profesor_asignado || 'Docente';
+        const profeNom = al.profesor_asignado || al.reserva_profe_nombre || 'Docente';
         const grpNom = al.grupo_asignado || 'Clase Individual';
 
         if (infoBox) {
@@ -2707,7 +2707,7 @@ window.abrirModalAprobacionMatchSeguimiento = async function(alumnosList, nombre
     }
 
     const primerAl = alumnosList[0];
-    const docenteNombre = primerAl.reserva_profe_nombre || primerAl.profesor_asignado || '';
+    const docenteNombre = primerAl.profesor_asignado || primerAl.reserva_profe_nombre || '';
     const horarioTxt = primerAl.horario_match || primerAl.reserva_fecha_texto || '';
 
     if (bannerEl) {
