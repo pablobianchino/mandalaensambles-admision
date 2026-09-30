@@ -122,7 +122,7 @@ export function generarBotonesPrincipalesVisibles(al, id) {
     const est = rawEst.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
     if (al.seguimiento?.activo === true) {
-        html += `<button type="button" class="row-quick-btn primary btn-seg-contactar" data-id="${id}" title="Registrar contacto de seguimiento">📞 Contactar</button>`;
+        html += `<button type="button" class="row-quick-btn primary btn-seg-contactar" data-id="${id}" title="Registrar feedback de seguimiento">💬 Nuevo Feedback</button>`;
         html += `<button type="button" class="row-quick-btn secondary btn-seg-finalizar" data-id="${id}" title="Finalizar seguimiento">🏁 Finalizar</button>`;
         html += `<button type="button" class="row-quick-btn secondary btn-seg-ver-informe" data-id="${id}" title="Ver informe de admisión">📄 Ver Informe</button>`;
         html += `<button type="button" class="row-quick-btn secondary btn-seg-ver-seguimiento" data-id="${id}" title="Ver seguimiento del alumno">🎧 Ver Seguimiento</button>`;
@@ -195,7 +195,7 @@ export function generarBotonesAccion(al, id, esModal = false, vista = '') {
     if (esModal) {
         if (esVistaSeguimiento || al.seguimiento?.activo === true) {
             if (al.seguimiento?.activo === true) {
-                html += `<button type="button" class="btn-action-primary btn-seg-contactar" data-id="${id}">📞 Contactar</button>`;
+                html += `<button type="button" class="btn-action-primary btn-seg-contactar" data-id="${id}">💬 Nuevo Feedback</button>`;
                 html += `<button type="button" class="btn-action-neutral btn-seg-finalizar" data-id="${id}">🏁 Finalizar Seguimiento</button>`;
             }
             html += `<button type="button" class="btn-action-neutral btn-seg-ver-informe" data-id="${id}">📄 Ver Informe</button>`;
@@ -257,7 +257,7 @@ export function generarBotonesAccion(al, id, esModal = false, vista = '') {
             const nombreSafe = (al.nombre || '').replace(/'/g, "\\'");
             html += `<button type="button" class="btn-action-primary btn-ver-informe-espera" data-id="${id}">👁️ Ver Informe</button>`;
             html += `<button type="button" class="btn-action-primary btn-abrir-propuesta-espera" data-id="${id}">🧩 Armar Propuesta de Clase</button>`;
-            html += `<button type="button" class="btn-action-neutral" onclick="window.abrirModalRegistrarContacto('${id}', '${nombreSafe}', '${celSafe}', ${esBici})">📞 Registrar Contacto</button>`;
+            html += `<button type="button" class="btn-action-neutral" onclick="window.abrirModalRegistrarContacto('${id}', '${nombreSafe}', '${celSafe}', ${esBici})">💬 Nuevo Feedback</button>`;
             if (!esBici) {
                 html += `<button type="button" class="btn-action-neutral" onclick="window.toggleBicicletaAlumno('${id}', true, '${nombreSafe}')">🚲 Enviar a Bicicleta</button>`;
             } else {
@@ -353,7 +353,7 @@ export function generarBotonesAccion(al, id, esModal = false, vista = '') {
         const esBici = !!al.es_bicicleta;
         const celSafe = (al.celular || al.telefono || '').replace(/'/g, "\\'");
         const nombreSafe = (al.nombre || '').replace(/'/g, "\\'");
-        html += `<button type="button" class="dropdown-item" onclick="window.abrirModalRegistrarContacto('${id}', '${nombreSafe}', '${celSafe}', ${esBici})">📞 Registrar Contacto</button>`;
+        html += `<button type="button" class="dropdown-item" onclick="window.abrirModalRegistrarContacto('${id}', '${nombreSafe}', '${celSafe}', ${esBici})">💬 Nuevo Feedback</button>`;
         if (!esBici) {
             html += `<button type="button" class="dropdown-item" onclick="window.toggleBicicletaAlumno('${id}', true, '${nombreSafe}')">🚲 Enviar a Bicicleta</button>`;
         } else {

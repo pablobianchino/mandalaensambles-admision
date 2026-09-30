@@ -4209,7 +4209,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                                     return `
                                         <div class="espera-botones-row" style="display:flex; align-items:center; gap:6px; margin-top:5px;">
                                             <button type="button" class="btn-contactar-fila" onclick="event.stopPropagation(); window.abrirModalRegistrarContacto('${id}', '${nombreSafe}', '${celSafe}', ${esBici});" title="Registrar lo conversado y resetear contador a 0 días">
-                                                <span>📞</span> Contactar
+                                                <span>💬</span> Nuevo Feedback
                                             </button>
                                             ${!esBici ? `
                                                 <button type="button" class="btn-bicicleta-fila" onclick="event.stopPropagation(); window.toggleBicicletaAlumno('${id}', true, '${nombreSafe}');" title="Mover este alumno al grupo Bicicletas">
@@ -14141,7 +14141,7 @@ document.getElementById('btn-guardar-contacto')?.addEventListener('click', async
 
         const autor = window.usuarioActual?.nombre || 'Coordinación';
         const ahoraIso = new Date().toISOString();
-        const entradaHist = crearEntradaHistorial(`📞 [Contacto]: ${texto}`, 'contacto', autor);
+        const entradaHist = crearEntradaHistorial(`💬 [Feedback]: ${texto}`, 'contacto', autor);
         entradaHist.fecha_iso = ahoraIso;
         hist.push(entradaHist);
 
@@ -14181,7 +14181,7 @@ document.getElementById('btn-guardar-contacto')?.addEventListener('click', async
                 modalDecision.showModal();
             }
         } else {
-            mostrarToast("✅ Contacto registrado con éxito. Contador de último contacto reseteado a 0 días.", "success");
+            mostrarToast("💬 Feedback registrado con éxito. Contador de último contacto reseteado a 0 días.", "success");
             await cargarVista(estadoActualVista);
         }
     } catch(err) {
@@ -14705,8 +14705,8 @@ function poblarTabSeguimientoFicha(al, id) {
         if (hist.length === 0) {
             elTimeline.innerHTML = `
                 <div style="text-align:center; padding:24px 12px; color:var(--text-muted); font-size:13px; background:#fff; border:1px dashed #cbd5e1; border-radius:8px;">
-                    🎧 No hay contactos de seguimiento registrados aún.<br>
-                    <span style="font-size:11.5px; opacity:0.8;">Utilizá el botón "📞 Nuevo Contacto" para registrar una llamada o consulta.</span>
+                    🎧 No hay feedbacks de seguimiento registrados aún.<br>
+                    <span style="font-size:11.5px; opacity:0.8;">Utilizá el botón "💬 Nuevo Feedback" para registrar una llamada o consulta.</span>
                 </div>
             `;
         } else {
@@ -14715,8 +14715,8 @@ function poblarTabSeguimientoFicha(al, id) {
                 const fDate = parsearFechaCualquierOrigen(ctto.fecha) || new Date(ctto.fecha || Date.now());
                 const fTxt = fDate && !isNaN(fDate.getTime()) ? fDate.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : (ctto.fecha || '-');
                 const esFin = ctto.tipo === 'finalizacion' || ctto.continua_seguimiento === false;
-                const icono = esFin ? '🏁' : '📞';
-                const tituloTipo = esFin ? 'Cierre de Seguimiento' : 'Contacto de Seguimiento';
+                const icono = esFin ? '🏁' : '💬';
+                const tituloTipo = esFin ? 'Cierre de Seguimiento' : 'Feedback de Seguimiento';
                 const tagColor = esFin ? '#e11d48' : '#0d9488';
                 const tagBg = esFin ? '#ffe4e6' : '#ccfbf1';
                 
@@ -14724,15 +14724,15 @@ function poblarTabSeguimientoFicha(al, id) {
                 if (!esFin && ctto.proxima_fecha_pautada) {
                     const pPartes = ctto.proxima_fecha_pautada.split('-');
                     const pTxt = pPartes.length === 3 ? `${pPartes[2]}/${pPartes[1]}/${pPartes[0]}` : ctto.proxima_fecha_pautada;
-                    proximaHtml = `<div style="font-size:11.5px; margin-top:5px; color:#0f766e; font-weight:600;">📅 Próximo contacto pautado: ${pTxt}</div>`;
+                    proximaHtml = `<div style="font-size:11.5px; margin-top:5px; color:#0f766e; font-weight:600;">📅 Próximo seguimiento pautado: ${pTxt}</div>`;
                 }
 
                 const tienePermiso = puedeEditarContactoSeguimiento(al, ctto);
                 const cttoId = ctto.id || ctto.fecha;
                 const btnsAccion = tienePermiso ? `
                     <div style="display:inline-flex; align-items:center; gap:4px; margin-left:auto;">
-                        <button type="button" class="btn-app-icon" title="Editar este contacto" onclick="window.abrirModalEditarContactoSeguimiento('${id}', '${cttoId}')" style="background:transparent; border:none; cursor:pointer; font-size:13px; padding:2px 5px; color:#475569; border-radius:4px; line-height:1;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">✏️</button>
-                        <button type="button" class="btn-app-icon" title="Eliminar este contacto" onclick="window.eliminarContactoSeguimiento('${id}', '${cttoId}')" style="background:transparent; border:none; cursor:pointer; font-size:13px; padding:2px 5px; color:#ef4444; border-radius:4px; line-height:1;" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='transparent'">🗑️</button>
+                        <button type="button" class="btn-app-icon" title="Editar este feedback" onclick="window.abrirModalEditarContactoSeguimiento('${id}', '${cttoId}')" style="background:transparent; border:none; cursor:pointer; font-size:13px; padding:2px 5px; color:#475569; border-radius:4px; line-height:1;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">✏️</button>
+                        <button type="button" class="btn-app-icon" title="Eliminar este feedback" onclick="window.eliminarContactoSeguimiento('${id}', '${cttoId}')" style="background:transparent; border:none; cursor:pointer; font-size:13px; padding:2px 5px; color:#ef4444; border-radius:4px; line-height:1;" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='transparent'">🗑️</button>
                     </div>
                 ` : '';
 
@@ -14956,7 +14956,7 @@ window.guardarContactoSeguimiento = async function() {
 
         const hist = al.historial || [];
         const txtHist = continua
-            ? `Seguimiento: Contacto registrado por ${u.nombre || 'Responsable de Seguimiento'}. Próxima fecha: ${fechaProx}.`
+            ? `Seguimiento: Feedback registrado por ${u.nombre || 'Responsable de Seguimiento'}. Próxima fecha: ${fechaProx}.`
             : `Seguimiento Finalizado por ${u.nombre || 'Responsable de Seguimiento'}. Motivo: ${conversado}`;
         hist.push(crearEntradaHistorial(txtHist, 'seguimiento'));
         updatePayload['historial'] = hist;
@@ -14964,7 +14964,7 @@ window.guardarContactoSeguimiento = async function() {
         await updateDoc(doc(db, "alumnos", id), updatePayload);
 
         document.getElementById('modal-seguimiento-contacto')?.close();
-        mostrarToast(continua ? "📞 Contacto de seguimiento registrado con éxito." : "🏁 Seguimiento de alumno finalizado correctamente", "success");
+        mostrarToast(continua ? "💬 Feedback de seguimiento registrado con éxito." : "🏁 Seguimiento de alumno finalizado correctamente", "success");
 
         // Si la ficha del alumno está abierta, actualizarla
         const modalFicha = document.getElementById('modal-alta-alumno');
@@ -15692,7 +15692,7 @@ window.abrirModalEditarContactoSeguimiento = async function(alumnoId, contactoId
     const seg = al.seguimiento || {};
     const histSeg = Array.isArray(seg.historial) ? seg.historial : [];
     const ctto = histSeg.find(c => String(c.id || '') === String(contactoId) || String(c.fecha || '') === String(contactoId));
-    if (!ctto) return alert("Registro de contacto no encontrado.");
+    if (!ctto) return alert("Registro de feedback no encontrado.");
 
     document.getElementById('edit-ctto-seg-alumno-id').value = alumnoId;
     document.getElementById('edit-ctto-seg-id').value = contactoId;
@@ -15752,7 +15752,7 @@ window.guardarEdicionContactoSeguimiento = async function() {
         const seg = aData.seguimiento || {};
         const histSeg = Array.isArray(seg.historial) ? [...seg.historial] : [];
         const idx = histSeg.findIndex(c => String(c.id || '') === String(contactoId) || String(c.fecha || '') === String(contactoId));
-        if (idx === -1) throw new Error("Contacto no encontrado en el historial.");
+        if (idx === -1) throw new Error("Feedback no encontrado en el historial.");
 
         histSeg[idx] = {
             ...histSeg[idx],
@@ -15762,7 +15762,7 @@ window.guardarEdicionContactoSeguimiento = async function() {
 
         const u = window.usuarioActual || {};
         const hist = aData.historial || [];
-        hist.push(crearEntradaHistorial(`Registro de contacto de seguimiento editado por ${u.nombre || 'Usuario'}.`, 'seguimiento'));
+        hist.push(crearEntradaHistorial(`Registro de feedback de seguimiento editado por ${u.nombre || 'Usuario'}.`, 'seguimiento'));
 
         const updates = {
             'seguimiento.historial': histSeg,
@@ -15797,7 +15797,7 @@ window.guardarEdicionContactoSeguimiento = async function() {
         }
 
         document.getElementById('modal-editar-contacto-seguimiento')?.close();
-        mostrarToast("✅ Contacto de seguimiento actualizado con éxito.", "success");
+        mostrarToast("✅ Feedback de seguimiento actualizado con éxito.", "success");
 
         // Refrescar ficha si está abierta
         const modalFicha = document.getElementById('modal-alta-alumno');
@@ -15811,7 +15811,7 @@ window.guardarEdicionContactoSeguimiento = async function() {
 
         await cargarVista(estadoActualVista);
     } catch(err) {
-        console.error("Error al guardar edición de contacto de seguimiento:", err);
+        console.error("Error al guardar edición de feedback de seguimiento:", err);
         alert("Error al guardar cambios: " + err.message);
     } finally {
         if (btn) setBotonCargando(btn, false);
@@ -15823,16 +15823,16 @@ window.eliminarContactoSeguimiento = async function(alumnoId, contactoId) {
 
     const ok = typeof window.confirmar === 'function'
         ? await window.confirmar(
-            "🗑️ ¿Eliminar contacto de seguimiento?",
-            "¿Estás seguro de que deseas eliminar este registro de contacto de seguimiento?\n\nEsta acción quitará el registro del historial del alumno y no se puede deshacer.",
+            "🗑️ ¿Eliminar feedback de seguimiento?",
+            "¿Estás seguro de que deseas eliminar este registro de feedback de seguimiento?\n\nEsta acción quitará el registro del historial del alumno y no se puede deshacer.",
             "🗑️ Eliminar Registro",
             "🗑️"
         )
-        : confirm("¿Estás seguro de que deseas eliminar este registro de contacto de seguimiento?");
+        : confirm("¿Estás seguro de que deseas eliminar este registro de feedback de seguimiento?");
 
     if (!ok) return;
 
-    mostrarIndicadorCarga("Eliminando contacto de seguimiento...");
+    mostrarIndicadorCarga("Eliminando feedback de seguimiento...");
     try {
         const alRef = doc(db, "alumnos", alumnoId);
         const aSnap = await getDoc(alRef);
@@ -15851,7 +15851,7 @@ window.eliminarContactoSeguimiento = async function(alumnoId, contactoId) {
 
         const u = window.usuarioActual || {};
         const hist = aData.historial || [];
-        hist.push(crearEntradaHistorial(`Registro de contacto de seguimiento eliminado por ${u.nombre || 'Usuario'}.`, 'seguimiento'));
+        hist.push(crearEntradaHistorial(`Registro de feedback de seguimiento eliminado por ${u.nombre || 'Usuario'}.`, 'seguimiento'));
 
         const updates = {
             'seguimiento.historial': histSeg,
@@ -15888,7 +15888,7 @@ window.eliminarContactoSeguimiento = async function(alumnoId, contactoId) {
             }
         }
 
-        mostrarToast("🗑️ Contacto de seguimiento eliminado", "success");
+        mostrarToast("🗑️ Feedback de seguimiento eliminado", "success");
 
         // Refrescar ficha si está abierta
         const modalFicha = document.getElementById('modal-alta-alumno');
@@ -15902,8 +15902,8 @@ window.eliminarContactoSeguimiento = async function(alumnoId, contactoId) {
 
         await cargarVista(estadoActualVista);
     } catch(err) {
-        console.error("Error al eliminar contacto de seguimiento:", err);
-        alert("Error al eliminar contacto: " + err.message);
+        console.error("Error al eliminar feedback de seguimiento:", err);
+        alert("Error al eliminar feedback: " + err.message);
     } finally {
         ocultarIndicadorCarga();
     }

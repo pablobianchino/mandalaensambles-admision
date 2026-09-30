@@ -3331,7 +3331,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                     } else {
                         // En Curso (default)
                         botonesPrincipalesHtml = `
-                            <button type="button" class="row-quick-btn primary btn-seg-contactar" data-id="${al.id}" onclick="event.stopPropagation(); window.abrirModalRegistrarSeguimiento('${al.id}');" style="font-size:11.5px; padding:3px 10px;">📞 Registrar Contacto</button>
+                            <button type="button" class="row-quick-btn primary btn-seg-contactar" data-id="${al.id}" onclick="event.stopPropagation(); window.abrirModalRegistrarSeguimiento('${al.id}');" style="font-size:11.5px; padding:3px 10px;">💬 Nuevo Feedback</button>
                             <button type="button" class="row-quick-btn secondary btn-seg-finalizar" data-id="${al.id}" onclick="event.stopPropagation(); window.abrirModalFinalizarSeguimiento('${al.id}');" style="font-size:11.5px; padding:3px 10px;">🏁 Finalizar Seguimiento</button>
                         `;
                     }
@@ -3344,7 +3344,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                                     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; text-align:left;">
                                         <span class="group-member-name" style="font-size:14px; font-weight:700; color:var(--text-main);">👤 ${al.nombre}</span>
                                         ${badgeUrg}
-                                        <span class="badge-tag" style="background:#f1f5f9; color:#475569; font-size:10.5px; padding:2px 7px; border-radius:6px;">${cantCtto} contacto(s)</span>
+                                        <span class="badge-tag" style="background:#f1f5f9; color:#475569; font-size:10.5px; padding:2px 7px; border-radius:6px;">${cantCtto} feedback(s)</span>
                                     </div>
                                     <div class="group-member-details" style="font-size:12px; color:var(--text-muted); display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
                                         ${al.edad ? `<span>${al.edad} años</span> • ` : ''}

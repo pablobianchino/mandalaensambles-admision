@@ -1188,10 +1188,10 @@
                             <span>💬</span> WhatsApp
                         </button>
                         <button type="button" id="btn-modal-reg-seguimiento" class="btn-app btn-primary" style="display:none; height:42px; padding:0 16px; font-size:13px; font-weight:700; border-radius:8px; box-sizing:border-box; align-items:center; gap:6px; cursor:pointer;" onclick="window.abrirModalRegistrarSeguimientoDesdeFicha()">
-                            <span>📞</span> Registrar Contacto
+                            <span>💬</span> Nuevo Feedback
                         </button>
-                        <button type="button" id="btn-modal-contactar-alumno" class="btn-app btn-secondary btn-contactar-modal" style="display:none; height:42px; padding:0 18px; font-size:13px; font-weight:700; border-radius:8px; border-color:#22c55e; color:#15803d; background:#f0fdf4; box-sizing:border-box; align-items:center; gap:6px; cursor:pointer;" title="Registrar contacto con el alumno">
-                            <span>📞</span> Contactar
+                        <button type="button" id="btn-modal-contactar-alumno" class="btn-app btn-secondary btn-contactar-modal" style="display:none; height:42px; padding:0 18px; font-size:13px; font-weight:700; border-radius:8px; border-color:#22c55e; color:#15803d; background:#f0fdf4; box-sizing:border-box; align-items:center; gap:6px; cursor:pointer;" title="Registrar feedback del alumno">
+                            <span>💬</span> Nuevo Feedback
                         </button>
                         <button type="submit" id="btn-submit-alumno" class="btn-primary" style="flex:2; min-width:140px; height:42px; box-sizing:border-box;">Guardar Alumno</button>
                         <button type="button" id="btn-modal-eliminar-alumno" class="btn-secondary btn-modal-eliminar" style="display:none; height:42px; padding:0 18px; box-sizing:border-box;" title="Eliminar ficha permanentemente (Solo Administrador)">🗑️ Eliminar</button>
@@ -2163,11 +2163,11 @@
         </div>
     </dialog>
 
-    <!-- MODAL 1: REGISTRAR CONTACTO DE SEGUIMIENTO -->
+    <!-- MODAL 1: REGISTRAR FEEDBACK DE SEGUIMIENTO -->
     <dialog id="modal-seguimiento-contacto" class="modern-modal auto-height-modal" style="max-width:520px;">
         <div style="padding:24px;">
             <div class="modal-drag-pill"></div>
-            <h3 id="modal-seg-ctto-titulo" style="margin:0 0 12px 0; color:var(--text-main); font-weight:700;">📞 Registrar Contacto de Seguimiento</h3>
+            <h3 id="modal-seg-ctto-titulo" style="margin:0 0 12px 0; color:var(--text-main); font-weight:700;">💬 Nuevo Feedback de Seguimiento</h3>
             <input type="hidden" id="seg-ctto-alumno-id">
             
             <div id="modal-seg-ctto-info-box" style="background:#f8fafc; padding:10px 14px; border-radius:8px; border:1px solid #e2e8f0; font-size:12.5px; margin-bottom:14px; line-height:1.45;">
@@ -2215,7 +2215,7 @@
 
             <div style="display:flex; justify-content:flex-end; gap:10px; border-top:1px solid var(--border-color); padding-top:15px;">
                 <button type="button" class="btn-cerrar-modal" data-modal="modal-seguimiento-contacto" style="padding:10px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted);">Cancelar</button>
-                <button type="button" id="btn-guardar-contacto-seg" class="btn-primary" style="padding:10px 18px;">💾 Guardar Contacto</button>
+                <button type="button" id="btn-guardar-contacto-seg" class="btn-primary" style="padding:10px 18px;">💾 Guardar Feedback</button>
             </div>
         </div>
     </dialog>
@@ -2362,7 +2362,7 @@
             <div class="modal-drag-pill"></div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                 <h3 style="margin:0; font-size:16px; font-weight:800; color:var(--text-main); display:flex; align-items:center; gap:6px;">
-                    <span>✏️</span> Editar Contacto de Seguimiento
+                    <span>✏️</span> Editar Feedback de Seguimiento
                 </h3>
                 <button type="button" class="btn-cerrar-modal" data-modal="modal-editar-contacto-seguimiento" style="background:transparent; border:none; cursor:pointer; font-size:1.5em; color:#9a9388; line-height:1;">&times;</button>
             </div>
@@ -3235,7 +3235,7 @@
             <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;">
                 <div>
                     <h3 style="margin:0; font-size:17px; font-weight:800; color:var(--text-main); display:flex; align-items:center; gap:8px;">
-                        <span>📞</span> Registrar Contacto
+                        <span>💬</span> Nuevo Feedback
                     </h3>
                     <div id="modal-contacto-subtitulo" style="font-size:12.5px; color:var(--text-muted); margin-top:3px; font-weight:500;">
                         Alumno: <strong id="modal-contacto-alumno-nombre" style="color:var(--text-main);"></strong>
@@ -3572,7 +3572,7 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=6.11.2"></script>
+    <script type="module" src="app.js?v=6.11.3"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
