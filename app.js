@@ -11806,8 +11806,8 @@ document.addEventListener('click', async (e) => {
         historialActual = []; 
         renderHistorial(); 
         
-        // Resetear disponibilidad horaria de manera limpia y modular
-        poblarDisponibilidadMultiRango({}, 'contenedor-disponibilidad');
+        // Resetear disponibilidad horaria de manera limpia y modular (todo destildado para nuevo alumno)
+        poblarDisponibilidadMultiRango({}, 'contenedor-disponibilidad', '09:00', '22:00', false, true);
 
         document.getElementById('chk-ingreso-directo').checked = false; 
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); 
