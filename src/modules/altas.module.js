@@ -2239,6 +2239,115 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
 // -----------------------------------------------------------------------
 // Formateo y Copiado para Excel / Sheets (BD y Facturacion)
 // -----------------------------------------------------------------------
+export function resolverSuscripcionYTipoExcel(al) {
+    const suscRaw = (al.tipo_suscripcion || '').toLowerCase();
+    const tipoEnsRaw = (al.tipo_ensamble || '').toLowerCase();
+    const grpRaw = (al.grupo_asignado || al.clase_asignada || '').toLowerCase();
+    const durMin = al.duracion_clase_minutos || al.duracion_minutos || 0;
+
+    // 1. Detección de Clase Grupal
+    if (suscRaw.includes('grupal') || suscRaw.includes('taller') || suscRaw.includes('coro') || grpRaw.includes('taller') || grpRaw.includes('grupal') || grpRaw.includes('coro')) {
+        return {
+            suscripcion: 'Clase Grupal',
+            tipo: 'Clase Grupal'
+        };
+    }
+
+    // 2. Detección de Ensamble (Regular o Mandalorian)
+    const esMandalorian = suscRaw.includes('mandalorian') || tipoEnsRaw.includes('mandalorian') || grpRaw.includes('mandalorian') || durMin === 90;
+    const esEnsamble = esMandalorian || suscRaw.includes('ensamble') || suscRaw.includes('banda') || (grpRaw && grpRaw !== 'individual' && !grpRaw.includes('individual'));
+
+    if (esEnsamble) {
+        return {
+            suscripcion: 'Ensamble',
+            tipo: esMandalorian ? 'Ensamble Mandalorian' : 'Ensamble'
+        };
+    }
+
+    // 3. Por defecto: Individual
+    return {
+        suscripcion: 'Individual',
+        tipo: 'Individual'
+    };
+}
+
+export function resolverNumeroDiaExcel(al) {
+    if (al.fecha_inicio_clases) {
+        const d = (typeof al.fecha_inicio_clases.toDate === 'function') 
+            ? al.fecha_inicio_clases.toDate() 
+            : new Date(al.fecha_inicio_clases);
+        if (!isNaN(d.getTime())) {
+            const day = d.getDay(); // 0: Dom, 1: Lun, 2: Mar, 3: Mie, 4: Jue, 5: Vie, 6: Sab
+            return day === 0 ? '7' : String(day);
+        }
+    }
+    const diaStr = (al.dia_match || '').trim().toUpperCase();
+    const mapLetras = { 'L': '1', 'M': '2', 'X': '3', 'J': '4', 'V': '5', 'S': '6', 'D': '7' };
+    if (mapLetras[diaStr]) return mapLetras[diaStr];
+    if (diaStr.startsWith('LUN')) return '1';
+    if (diaStr.startsWith('MAR')) return '2';
+    if (diaStr.startsWith('MIE') || diaStr.startsWith('MIÉ')) return '3';
+    if (diaStr.startsWith('JUE')) return '4';
+    if (diaStr.startsWith('VIE')) return '5';
+    if (diaStr.startsWith('SAB') || diaStr.startsWith('SÁB')) return '6';
+    if (diaStr.startsWith('DOM')) return '7';
+
+    const grp = (al.grupo_asignado || al.clase_asignada || '').trim().toUpperCase();
+    if (grp && mapLetras[grp[0]]) {
+        return mapLetras[grp[0]];
+    }
+    return '';
+}
+
+export function formatearFechaAltaParaExcelBD(al) {
+    let d = null;
+    if (al.fecha_alta_confirmada) {
+        d = (typeof al.fecha_alta_confirmada.toDate === 'function') ? al.fecha_alta_confirmada.toDate() : new Date(al.fecha_alta_confirmada);
+    } else if (al.fecha_alta_finalizada) {
+        d = (typeof al.fecha_alta_finalizada.toDate === 'function') ? al.fecha_alta_finalizada.toDate() : new Date(al.fecha_alta_finalizada);
+    } else if (al.fecha_prealta) {
+        d = (typeof al.fecha_prealta.toDate === 'function') ? al.fecha_prealta.toDate() : new Date(al.fecha_prealta);
+    } else {
+        d = new Date();
+    }
+    if (!isNaN(d?.getTime())) {
+        return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+    }
+    const now = new Date();
+    return `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
+}
+
+export function formatearFechaInicioParaExcelBD(al) {
+    if (al.fecha_inicio_clases) {
+        const d = (typeof al.fecha_inicio_clases.toDate === 'function') ? al.fecha_inicio_clases.toDate() : new Date(al.fecha_inicio_clases);
+        if (!isNaN(d.getTime())) {
+            return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+        }
+    }
+    return '';
+}
+
+export function obtenerDuracionHorasDecimal(al, tipo) {
+    if (tipo === 'Ensamble Mandalorian') return '1,50';
+    if (al.duracion_clase_minutos) {
+        const h = al.duracion_clase_minutos / 60;
+        return h.toFixed(2).replace('.', ',');
+    }
+    if (al.duracion_minutos) {
+        const h = al.duracion_minutos / 60;
+        return h.toFixed(2).replace('.', ',');
+    }
+    if (al.horario_inicio_match && al.horario_fin_match) {
+        const ini = convertirHoraAMinutos(al.horario_inicio_match);
+        const fin = convertirHoraAMinutos(al.horario_fin_match, true);
+        if (fin > ini) {
+            const h = (fin - ini) / 60;
+            return h.toFixed(2).replace('.', ',');
+        }
+    }
+    return '1,00';
+}
+
 export function formatearFechaAltaParaExcel(al) {
     if (al.fecha_alta_confirmada) {
         const d = new Date(al.fecha_alta_confirmada);
@@ -2325,26 +2434,26 @@ function resolverPrecioSuscripcion(al) {
 
 export function generarFilaExcelBD(al) {
     const instFinal = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento[0] : (al.instrumento || ''));
-    const fechaAlta = formatearFechaAltaParaExcel(al);
-    const fechaInicio = formatearFechaInicioParaExcel(al);
+    const { suscripcion, tipo } = resolverSuscripcionYTipoExcel(al);
+    const diaNum = resolverNumeroDiaExcel(al);
+    const fechaAlta = formatearFechaAltaParaExcelBD(al);
+    const fechaInicio = formatearFechaInicioParaExcelBD(al);
+    const duracionStr = obtenerDuracionHorasDecimal(al, tipo);
 
     const cols = [
-        al.nombre || '',          // 1
-        al.profesor_asignado || al.reserva_profe_nombre || '', // 2
-        '',                       // 3 vacío
-        al.grupo_asignado || 'Individual', // 4
-        al.nivel || '',           // 5
-        instFinal,                // 6
-        al.tipo_suscripcion || '', // 7
-        '',                       // 8 vacío
-        'Alta',                   // 9
-        '',                       // 10 vacío
-        '',                       // 11 vacío
-        '',                       // 12 vacío
-        '',                       // 13 vacío
-        fechaAlta,                // 14 fecha de alta
-        '',                       // 15 vacío (NUEVO)
-        fechaInicio               // 16 fecha y horario de inicio
+        al.nombre || '',                                       // 1. Alumno
+        al.profesor_asignado || al.reserva_profe_nombre || '',  // 2. Profesor
+        diaNum,                                                // 3. Día (1 a 7)
+        al.grupo_asignado || al.clase_asignada || 'Individual', // 4. Ensamble / Clase
+        al.nivel_grupo || al.nivel || al.nivel_sugerido || '', // 5. Nivel del Ensamble / Clase
+        instFinal,                                             // 6. Instrumento
+        suscripcion,                                           // 7. Suscripción
+        tipo,                                                  // 8. Tipo
+        'Regular',                                             // 9. Estado
+        fechaAlta,                                             // 10. F ALTA
+        '',                                                    // 11. F BAJA (vacío)
+        fechaInicio,                                           // 12. INICIO CLASES
+        duracionStr                                            // 13. Duración de clase (h)
     ];
     return cols.join('\t');
 }
