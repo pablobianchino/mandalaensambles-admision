@@ -15,8 +15,9 @@ import {
     configNodosFlujoCoordinador,
     esAlumnoAltaFinalizada,
     esAlumnoAltaConfirmadaIncompleta,
-    normalizarAlumnoSeguimiento
-} from "./src/config/constants.js?v=6.10.22";
+    normalizarAlumnoSeguimiento,
+    calcularFechaSeguimiento72hs
+} from "./src/config/constants.js?v=7.0";
 
 import { 
     app, 
@@ -191,6 +192,28 @@ window.generarBotonesAccion = generarBotonesAccion;
 // Inicializar versión en el sidebar de inmediato para evitar números fantasmas
 const vLabelInit = document.getElementById('sidebar-version-label');
 if (vLabelInit) vLabelInit.textContent = APP_VERSION;
+
+// MODO DE VISTA (PROPUESTA V7): Simple por defecto, configurable por usuario
+window.modoVistaSimple = localStorage.getItem('mandala_vista_modo') !== 'completo';
+
+window.setModoVistaApp = function(simple) {
+    window.modoVistaSimple = Boolean(simple);
+    localStorage.setItem('mandala_vista_modo', simple ? 'simple' : 'completo');
+    window.actualizarUIModoVistaSwitch();
+    if (typeof cargarVista === 'function' && typeof estadoActualVista !== 'undefined') {
+        cargarVista(estadoActualVista);
+    }
+};
+
+window.actualizarUIModoVistaSwitch = function() {
+    const btnS = document.getElementById('btn-modo-simple');
+    const btnC = document.getElementById('btn-modo-completo');
+    const esSimple = window.modoVistaSimple !== false;
+    if (btnS && btnC) {
+        btnS.classList.toggle('active', esSimple);
+        btnC.classList.toggle('active', !esSimple);
+    }
+};
 
 let agrupadorActual = 'ninguno';
 let filtrosSeleccionados = {
@@ -2808,6 +2831,59 @@ export function crearEntradaHistorial(texto, tipo = 'sistema', autor = null) {
 }
 window.crearEntradaHistorial = crearEntradaHistorial;
 
+export function parsearFechaNotaHistorial(nota, idxFallback = 0) {
+    if (!nota) return 0;
+    
+    // 1. Si tiene fecha_iso válida
+    if (nota.fecha_iso) {
+        const d = new Date(nota.fecha_iso);
+        if (!isNaN(d.getTime())) return d.getTime();
+    }
+    
+    // 2. Si tiene nota.fecha en formato texto o estándar
+    if (nota.fecha) {
+        const fStr = String(nota.fecha).trim();
+        const m = fStr.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+        if (m) {
+            const dia = parseInt(m[1], 10);
+            const mes = parseInt(m[2], 10) - 1;
+            let anio = parseInt(m[3], 10);
+            if (anio < 100) anio += 2000;
+            const hora = m[4] ? parseInt(m[4], 10) : 0;
+            const min = m[5] ? parseInt(m[5], 10) : 0;
+            const sec = m[6] ? parseInt(m[6], 10) : 0;
+            const d = new Date(anio, mes, dia, hora, min, sec);
+            if (!isNaN(d.getTime())) return d.getTime();
+        }
+        const dAny = parsearFechaCualquierOrigen(fStr);
+        if (dAny && !isNaN(dAny.getTime())) return dAny.getTime();
+    }
+    
+    // 3. Extraer fecha desde el prefijo del texto: [DD/MM/YYYY HH:mm] o [DD-MM-YYYY]
+    const txt = String(nota.texto || nota.mensaje || nota.nota || '');
+    const mTxt = txt.match(/^\[(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?\]/);
+    if (mTxt) {
+        const dia = parseInt(mTxt[1], 10);
+        const mes = parseInt(mTxt[2], 10) - 1;
+        let anio = parseInt(mTxt[3], 10);
+        if (anio < 100) anio += 2000;
+        const hora = mTxt[4] ? parseInt(mTxt[4], 10) : 0;
+        const min = mTxt[5] ? parseInt(mTxt[5], 10) : 0;
+        const sec = mTxt[6] ? parseInt(mTxt[6], 10) : 0;
+        const d = new Date(anio, mes, dia, hora, min, sec);
+        if (!isNaN(d.getTime())) return d.getTime();
+    }
+
+    // 4. Si tiene nota.id numérico mayor a un timestamp moderno (año 2020+)
+    if (typeof nota.id === 'number' && nota.id > 1577836800000) {
+        return nota.id;
+    }
+
+    // 5. Fallback por orden original del array
+    return typeof idxFallback === 'number' ? idxFallback : 0;
+}
+window.parsearFechaNotaHistorial = parsearFechaNotaHistorial;
+
 export function normalizarHistorial(arr) {
     if (!Array.isArray(arr)) return [];
     return arr.map((item, idx) => {
@@ -2817,21 +2893,24 @@ export function normalizarHistorial(arr) {
             if (!str) return null;
             const matchFecha = str.match(/^\[(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}(?:\s+\d{1,2}:\d{2})?)\]\s*(.*)/s);
             return {
-                id: Date.now() - (idx * 1000) - Math.floor(Math.random() * 500),
+                id: Date.now() + idx,
                 fecha: matchFecha ? matchFecha[1] : '',
                 texto: str,
                 autor: '',
-                tipo: 'sistema'
+                tipo: 'sistema',
+                _posOriginal: idx
             };
         } else if (typeof item === 'object') {
             const rawTexto = (item.texto || item.mensaje || item.nota || '').trim();
             if (!rawTexto) return null;
             return {
-                id: item.id || (Date.now() - (idx * 1000)),
+                id: item.id || (Date.now() + idx),
                 fecha: item.fecha || '',
+                fecha_iso: item.fecha_iso || null,
                 texto: rawTexto,
                 autor: item.autor || item.creador || '',
-                tipo: item.tipo || 'sistema'
+                tipo: item.tipo || 'sistema',
+                _posOriginal: idx
             };
         }
         return null;
@@ -2850,7 +2929,14 @@ function renderHistorial() {
         container.innerHTML = '<p style="color:var(--text-muted); font-size:13px; margin:0;">No hay registros en el historial.</p>'; 
         return; 
     }
-    const sorted = [...historialActual].sort((a, b) => (b.id || 0) - (a.id || 0));
+
+    // Ordenar de la más reciente a la más vieja (descendente cronológico: lo primero que se ve es lo último ingresado)
+    const sorted = [...historialActual].sort((a, b) => {
+        const tA = parsearFechaNotaHistorial(a, a._posOriginal !== undefined ? a._posOriginal : 0);
+        const tB = parsearFechaNotaHistorial(b, b._posOriginal !== undefined ? b._posOriginal : 0);
+        if (tB !== tA) return tB - tA;
+        return (b.id || 0) - (a.id || 0);
+    });
     sorted.forEach(nota => {
         const textoLimpio = (nota.texto || '').replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
         
@@ -2866,6 +2952,8 @@ function renderHistorial() {
             badgeTipoHtml = '<span style="background:rgba(49,163,100,0.12); color:#31a364; font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px; border:1px solid rgba(49,163,100,0.25);">🚀 Alta</span>';
         } else if (tipo === 'suspension') {
             badgeTipoHtml = '<span style="background:rgba(194,86,59,0.12); color:var(--accent-red); font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px; border:1px solid rgba(194,86,59,0.25);">⏸️ Suspensión</span>';
+        } else if (tipo === 'baja') {
+            badgeTipoHtml = '<span style="background:rgba(153,27,27,0.12); color:#991b1b; font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px; border:1px solid rgba(153,27,27,0.25);">🛑 Baja</span>';
         } else if (tipo === 'informe') {
             badgeTipoHtml = '<span style="background:rgba(0,123,143,0.12); color:var(--accent-teal); font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px; border:1px solid rgba(0,123,143,0.25);">📝 Informe</span>';
         } else if (tipo === 'contacto') {
@@ -2931,9 +3019,8 @@ window.editarNotaHistorial = async function(notaId) {
     if (!nota) return;
 
     let textoBase = (nota.texto || '').trim();
-    const esSuspension = (nota.tipo === 'suspension') || 
-        textoBase.toLowerCase().includes('alumno suspendido') || 
-        textoBase.toLowerCase().includes('motivo:');
+    const esBaja = (nota.tipo === 'baja') || textoBase.toLowerCase().includes('alumno dado de baja') || textoBase.toLowerCase().includes('alumno de baja');
+    const esSuspension = !esBaja && ((nota.tipo === 'suspension') || textoBase.toLowerCase().includes('alumno suspendido'));
 
     if (esSuspension) {
         // Abrir modal de suspensión para editar motivo y detalle
@@ -3534,7 +3621,7 @@ export function calcularMetricasEspera(al) {
             return {
                 diasEsperando: dFaustino,
                 diasContacto: dFaustino,
-                claseSemaforo: dFaustino >= 30 ? 'rojo' : (dFaustino >= 15 ? 'amarillo' : 'blanco')
+                claseSemaforo: dFaustino > 7 ? 'rojo' : (dFaustino >= 4 ? 'ambar' : 'verde')
             };
         }
     }
@@ -3599,12 +3686,14 @@ export function calcularMetricasEspera(al) {
         }
     }
 
-    // 3. Semáforo: <15 días blanco, 15-30 días amarillo, >30 días rojo
-    let claseSemaforo = 'blanco';
-    if (diasContacto >= 30) {
+    // 3. Semáforo Dinámico: <=3 días verde, 4-7 días ámbar, >7 días rojo suave
+    let claseSemaforo = 'verde';
+    if (diasContacto > 7) {
         claseSemaforo = 'rojo';
-    } else if (diasContacto >= 15) {
-        claseSemaforo = 'amarillo';
+    } else if (diasContacto >= 4) {
+        claseSemaforo = 'ambar';
+    } else {
+        claseSemaforo = 'verde';
     }
 
     return {
@@ -3615,9 +3704,18 @@ export function calcularMetricasEspera(al) {
 }
 window.calcularMetricasEspera = calcularMetricasEspera;
 
-export function isAlumnoSuspendido(al) {
+export function isAlumnoBaja(al) {
+    if (!al) return false;
     const rawEst = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-    return rawEst === 'agenda suspendida' || rawEst === 'alta suspendida' || rawEst === 'suspendido' || !!al.suspendido;
+    return al.es_baja === true || rawEst === 'baja' || al.estado === 'Baja';
+}
+window.isAlumnoBaja = isAlumnoBaja;
+
+export function isAlumnoSuspendido(al) {
+    if (!al) return false;
+    if (isAlumnoBaja(al)) return false;
+    const rawEst = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    return rawEst === 'agenda suspendida' || rawEst === 'alta suspendida' || rawEst === 'suspendido' || (!!al.suspendido && !isAlumnoBaja(al));
 }
 window.isAlumnoSuspendido = isAlumnoSuspendido;
 
@@ -3625,7 +3723,7 @@ export function getOrigenSuspension(al) {
     if (al.origen_suspension) return al.origen_suspension.toLowerCase().trim();
     const rawEst = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
     if (rawEst === 'agenda suspendida') return 'inbox';
-    if (rawEst === 'alta suspendida') {
+    if (rawEst === 'alta suspendida' || rawEst === 'baja') {
         const hist = al.historial || [];
         const lastSusp = [...hist].reverse().find(h => (h.tipo === 'suspension' || (h.nota && h.nota.toLowerCase().includes('suspendid'))));
         if (lastSusp && lastSusp.nota && lastSusp.nota.toLowerCase().includes('espera')) return 'espera';
@@ -3905,8 +4003,162 @@ export function obtenerEvaluadorAlumno(al) {
 }
 window.obtenerEvaluadorAlumno = obtenerEvaluadorAlumno;
 
+export function obtenerFechaSuspensionAlumno(al) {
+    if (!al) return new Date();
+    if (al.fecha_suspension) {
+        const d = parsearFechaCualquierOrigen(al.fecha_suspension);
+        if (d) return d;
+    }
+    if (Array.isArray(al.historial) && al.historial.length > 0) {
+        for (let i = al.historial.length - 1; i >= 0; i--) {
+            const h = al.historial[i];
+            const txt = (h.texto || h.nota || h.cuerpo || h.mensaje || '').toLowerCase();
+            const tipo = (h.tipo || '').toLowerCase();
+            if (tipo === 'suspension' || txt.includes('suspendid') || txt.includes('cancelad') || txt.includes('baja')) {
+                if (h.fecha) {
+                    const d = parsearFechaCualquierOrigen(h.fecha);
+                    if (d) return d;
+                }
+                const dTxt = parsearFechaCualquierOrigen(h.texto || h.nota || h.cuerpo || h.mensaje);
+                if (dTxt) return dTxt;
+            }
+        }
+    }
+    if (al.fecha_creacion) {
+        const d = parsearFechaCualquierOrigen(al.fecha_creacion);
+        if (d) return d;
+    }
+    if (al.creado) {
+        const d = parsearFechaCualquierOrigen(al.creado);
+        if (d) return d;
+    }
+    return new Date();
+}
+export function obtenerFechaBajaAlumno(al) {
+    if (!al) return new Date();
+    if (al.fecha_baja) {
+        const d = parsearFechaCualquierOrigen(al.fecha_baja);
+        if (d) return d;
+    }
+    if (Array.isArray(al.historial) && al.historial.length > 0) {
+        for (let i = al.historial.length - 1; i >= 0; i--) {
+            const h = al.historial[i];
+            const txt = (h.texto || h.nota || h.cuerpo || h.mensaje || '').toLowerCase();
+            const tipo = (h.tipo || '').toLowerCase();
+            if (tipo === 'baja' || txt.includes('baja')) {
+                if (h.fecha) {
+                    const d = parsearFechaCualquierOrigen(h.fecha);
+                    if (d) return d;
+                }
+                const dTxt = parsearFechaCualquierOrigen(h.texto || h.nota || h.cuerpo || h.mensaje);
+                if (dTxt) return dTxt;
+            }
+        }
+    }
+    if (al.fecha_alta_suspendida) {
+        const d = parsearFechaCualquierOrigen(al.fecha_alta_suspendida);
+        if (d) return d;
+    }
+    if (al.fecha_suspension) {
+        const d = parsearFechaCualquierOrigen(al.fecha_suspension);
+        if (d) return d;
+    }
+    if (al.fecha_creacion) {
+        const d = parsearFechaCualquierOrigen(al.fecha_creacion);
+        if (d) return d;
+    }
+    return new Date();
+}
+window.obtenerFechaBajaAlumno = obtenerFechaBajaAlumno;
+
+export function obtenerMotivoBajaAlumno(al) {
+    if (!al) return '';
+    // 1. Priorizar el historial activo (la nota más reciente de baja)
+    if (Array.isArray(al.historial) && al.historial.length > 0) {
+        for (let i = al.historial.length - 1; i >= 0; i--) {
+            const h = al.historial[i];
+            const raw = (h.texto || h.nota || h.cuerpo || h.mensaje || '').trim();
+            const tipo = (h.tipo || '').toLowerCase();
+            if (tipo === 'baja' || raw.toLowerCase().includes('baja')) {
+                const matchM = raw.match(/Motivo:\s*([^\n\r]+)/i);
+                if (matchM && matchM[1]) {
+                    let mot = matchM[1].replace(/\.?\s*Evento en Google Calendar mantenido\.?/gi, '').trim();
+                    if (mot) return mot;
+                }
+                let limpio = raw.replace(/^\[.*?\]\s*/, '').replace(/\.?\s*Evento en Google Calendar mantenido\.?/gi, '').trim();
+                if (limpio) return limpio;
+            }
+        }
+    }
+    // 2. Si no hay notas de baja en el historial, consultar campos raíz como fallback
+    if (al.motivo_baja && typeof al.motivo_baja === 'string' && al.motivo_baja.trim()) {
+        return al.motivo_baja.replace(/\.?\s*Evento en Google Calendar mantenido\.?/gi, '').trim();
+    }
+    if (al.detalle_baja && typeof al.detalle_baja === 'string' && al.detalle_baja.trim()) {
+        return al.detalle_baja.replace(/\.?\s*Evento en Google Calendar mantenido\.?/gi, '').trim();
+    }
+    if (al.motivo_suspension) return String(al.motivo_suspension).replace(/\.?\s*Evento en Google Calendar mantenido\.?/gi, '').trim();
+    return '';
+}
+window.obtenerMotivoBajaAlumno = obtenerMotivoBajaAlumno;
+
+export function renderMotivoTruncableHtml(motivoTxt, esBaja = false) {
+    if (!motivoTxt) return '';
+    const cleanTxt = motivoTxt.trim();
+    const esLargo = cleanTxt.length > 32;
+    const corto = esLargo ? cleanTxt.slice(0, 28) + '...' : cleanTxt;
+    const bgStyle = esBaja ? 'background:rgba(153, 27, 27, 0.07); border:1px solid rgba(153, 27, 27, 0.2); color:#991b1b;' : 'background:rgba(239, 68, 68, 0.07); border:1px solid rgba(239, 68, 68, 0.2); color:#991b1b;';
+    
+    if (!esLargo) {
+        return `
+            <div style="${bgStyle} border-radius:8px; padding:3px 8px; font-size:11px; line-height:1.3; width:fit-content; max-width:320px; box-sizing:border-box; white-space:nowrap;">
+                <strong>🛑 Motivo:</strong> ${cleanTxt}
+            </div>
+        `;
+    }
+
+    return `
+        <div class="box-motivo-expandible" onclick="event.stopPropagation(); window.toggleExpandMotivoFila(this);" style="${bgStyle} border-radius:8px; padding:3px 8px; font-size:11px; line-height:1.3; width:fit-content; max-width:320px; box-sizing:border-box; cursor:pointer; transition:all 0.15s ease;" title="Clic para expandir / contraer texto completo">
+            <strong>🛑 Motivo:</strong> 
+            <span class="motivo-txt-corto">${corto} <span style="font-size:9.5px; opacity:0.75;">🔍</span></span>
+            <span class="motivo-txt-largo" style="display:none;">${cleanTxt} <span style="font-size:9.5px; opacity:0.75;">▲</span></span>
+        </div>
+    `;
+}
+window.renderMotivoTruncableHtml = renderMotivoTruncableHtml;
+
+window.toggleExpandMotivoFila = function(boxEl) {
+    if (!boxEl) return;
+    const corto = boxEl.querySelector('.motivo-txt-corto');
+    const largo = boxEl.querySelector('.motivo-txt-largo');
+    if (corto && largo) {
+        const isCortoHidden = corto.style.display === 'none';
+        if (isCortoHidden) {
+            corto.style.display = 'inline';
+            largo.style.display = 'none';
+            boxEl.style.whiteSpace = 'nowrap';
+        } else {
+            corto.style.display = 'none';
+            largo.style.display = 'inline';
+            boxEl.style.whiteSpace = 'normal';
+        }
+    }
+};
+
 function generarFilaAlumno(al, id, vista, isKanban = false) {
     const info = getEstadoYBadgeLocal(al);
+    const esSimple = window.modoVistaSimple !== false;
+    const esAdmin = typeof window.esUsuarioAdministrador === 'function' ? window.esUsuarioAdministrador() : false;
+    const rawStAgenda = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    const esSeg = Boolean(
+        al.seguimiento?.activo === true || 
+        al.seguimiento?.finalizado === true || 
+        al.seguimiento?.pendiente === true || 
+        al.seguimiento_pendiente === true || 
+        (typeof vista === 'string' && (vista.startsWith('Seguimientos') || vista === 'Altas - Seguimientos'))
+    );
+    const esAltaFinalizada = esAlumnoAltaFinalizada(al) || rawStAgenda === 'alta finalizada';
+
     let instArray = obtenerInstrumentosAlumno(al);
     let instHtml = renderizarItemsConMax2(instArray, (inst) => {
         const emo = obtenerEmojiInstrumento(inst);
@@ -3928,10 +4180,29 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
     const botonesVisibles = generarBotonesPrincipalesVisibles(al, id);
     const botonesSecundarios = generarBotonesAccion(al, id);
 
-    let datosAlumnoParts = [];
+    // Badge Urgencia / Estado para Seguimientos en Línea 1 (oculto en Dashboard ya que está agrupado por sección)
+    let tagSegUrgencia = '';
+    let tagFeedbacks = '';
+    const esDashboardVista = (vista === 'Dashboard' || (typeof estadoActualVista !== 'undefined' && estadoActualVista === 'Dashboard'));
+    if (esSeg && !esDashboardVista) {
+        if (al.seguimiento?.activo === true) {
+            tagSegUrgencia = info.badgePillHtml || `<span class="pill-urgencia pill-verde-plazo">🟢 En término</span>`;
+        } else if (al.seguimiento?.finalizado === true) {
+            tagSegUrgencia = `<span class="badge-tag" style="background:#dbeafe; color:#1e40af; font-weight:700; font-size:10.5px; padding:2px 7px; border-radius:10px;">🔵 Finalizado</span>`;
+        } else {
+            tagSegUrgencia = `<span class="badge-tag" style="background:#fef3c7; color:#92400e; font-weight:700; font-size:10.5px; padding:2px 7px; border-radius:10px;">🟡 Pendiente</span>`;
+        }
+    }
+    if (esSeg) {
+        const cantCtto = Array.isArray(al.seguimiento?.historial) ? al.seguimiento.historial.length : 0;
+        if (cantCtto > 0) {
+            tagFeedbacks = `<span class="badge-tag" style="background:#f1f5f9; color:#475569; font-size:10px; padding:1px 6px; border-radius:6px;" title="${cantCtto} feedback(s) registrado(s)">${cantCtto} fb</span>`;
+        }
+    }
 
     // Fecha de ingreso visible: para la vista Inbox Sin Agendar (Inbox - Pendientes) y en Dashboard para alumnos sin agendar
-    const stAgendaLocal = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    let badgeIngresoHtml = '';
+    const stAgendaLocal = rawStAgenda;
     const esEstadoSinAgendar = stAgendaLocal === 'pendiente procesar' || stAgendaLocal === 'sin agendar' || !stAgendaLocal;
     const esVistaSinAgendar = (vista === 'Inbox - Pendientes' || estadoActualVista === 'Inbox - Pendientes' || (vista === 'Dashboard' && esEstadoSinAgendar));
     if (esVistaSinAgendar) {
@@ -3956,55 +4227,34 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
             if (esReingreso) {
                 const fOrig = obtenerFechaIngresoAlumno(al);
                 const fOrigTxt = fOrig ? ` (Ingreso original: ${String(fOrig.getDate()).padStart(2, '0')}/${String(fOrig.getMonth() + 1).padStart(2, '0')}/${fOrig.getFullYear()})` : '';
-                datosAlumnoParts.push(`<span class="badge-fecha-ingreso badge-reingreso ${badgeClass}" title="Fecha de reingreso: ${diaStr}/${mesStr}/${anioStr}${fOrigTxt}">🔄 Reingreso: ${diaStr}/${mesStr}/${anioStr} <span class="badge-ingreso-tiempo">(${antiguedadTxt})</span></span>`);
+                badgeIngresoHtml = `<span class="badge-fecha-ingreso badge-reingreso ${badgeClass}" title="Fecha de reingreso: ${diaStr}/${mesStr}/${anioStr}${fOrigTxt}">🔄 Reingreso: ${diaStr}/${mesStr}/${anioStr} <span class="badge-ingreso-tiempo">(${antiguedadTxt})</span></span>`;
             } else {
-                datosAlumnoParts.push(`<span class="badge-fecha-ingreso ${badgeClass}" title="Fecha de ingreso: ${diaStr}/${mesStr}/${anioStr}">📅 Ingreso: ${diaStr}/${mesStr}/${anioStr} <span class="badge-ingreso-tiempo">(${antiguedadTxt})</span></span>`);
+                badgeIngresoHtml = `<span class="badge-fecha-ingreso ${badgeClass}" title="Fecha de ingreso: ${diaStr}/${mesStr}/${anioStr}">📅 Ingreso: ${diaStr}/${mesStr}/${anioStr} <span class="badge-ingreso-tiempo">(${antiguedadTxt})</span></span>`;
             }
         }
     }
 
-    if (edad) datosAlumnoParts.push(edad);
-    if (nivelHtml) datosAlumnoParts.push(nivelHtml);
-    if (instHtml) datosAlumnoParts.push(instHtml);
-    if (suscHtml) datosAlumnoParts.push(suscHtml);
+    // Línea 2: Instrumento Principal debajo (EXCLUSIVAMENTE instrumento)
+    let filaDatosHtml = `
+        <div class="row-sub-line" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:12px; margin-top:2px;">
+            ${instHtml ? `<span style="display:inline-flex; align-items:center;">${instHtml}</span>` : ''}
+            ${(!esSimple && suscHtml) ? `<span style="display:inline-flex; align-items:center;">• ${suscHtml}</span>` : ''}
+        </div>
+    `;
 
-    let filaDatosHtml = datosAlumnoParts.length > 0
-        ? `<div class="row-sub-line" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:12px; color:var(--text-muted);">${datosAlumnoParts.join(' • ')}</div>`
-        : '';
-
+    // Perfil psicoemocional (oculto en modo simple y en Lista de Espera)
     let tagsHtml = '';
-    const perfilArray = Array.isArray(al.perfil_psicologico) ? al.perfil_psicologico : [];
-    if (perfilArray.length > 0) {
-        tagsHtml = `<div class="row-sub-line" style="display:flex; flex-wrap:wrap; gap:4px; margin-top:2px;">` +
-            renderizarItemsConMax2(perfilArray, (t) => `<span class="profile-tag-badge" style="font-size:9.5px; padding:1px 6px; white-space:nowrap;">🧠 ${t}</span>`, 'Perfil Psicoemocional', id) +
-            `</div>`;
+    const esListaEspera = al.estado_agenda === 'Lista de espera';
+    if (!esSimple && !esListaEspera && !esSeg) {
+        const perfilArray = Array.isArray(al.perfil_psicologico) ? al.perfil_psicologico : [];
+        if (perfilArray.length > 0) {
+            tagsHtml = `<div class="row-sub-line" style="display:flex; flex-wrap:wrap; gap:4px; margin-top:2px;">` +
+                renderizarItemsConMax2(perfilArray, (t) => `<span class="profile-tag-badge" style="font-size:9.5px; padding:1px 6px; white-space:nowrap;">🧠 ${t}</span>`, 'Perfil Psicoemocional', id) +
+                `</div>`;
+        }
     }
 
     let suspInfoHtml = '';
-    if (isAlumnoSuspendido(al)) {
-        const orig = getOrigenSuspension(al);
-        let origLabel = '💬 De Inbox';
-        let origStyle = 'background:#dbeafe; color:#1e40af; border:1px solid #bfdbfe;';
-        if (orig === 'espera') {
-            origLabel = '⏳ De Lista de Espera';
-            origStyle = 'background:#fef3c7; color:#92400e; border:1px solid #fde68a;';
-        } else if (orig === 'altas') {
-            origLabel = '📋 De Pre-Alta';
-            origStyle = 'background:#f3e8ff; color:#6b21a8; border:1px solid #e9d5ff;';
-        }
-        
-        const motivoTxt = al.motivo_suspension || al.detalle_suspension || 'Sin motivo especificado';
-        suspInfoHtml = `
-            <div style="margin-top:6px; display:flex; flex-direction:column; gap:4px; max-width:550px;">
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <span class="badge" style="${origStyle} font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:12px;">${origLabel}</span>
-                </div>
-                <div style="background:rgba(239, 68, 68, 0.07); border:1px solid rgba(239, 68, 68, 0.2); border-radius:8px; padding:6px 10px; font-size:11.5px; color:#991b1b; line-height:1.4;">
-                    <strong>🛑 Motivo:</strong> ${motivoTxt}
-                </div>
-            </div>
-        `;
-    }
 
     if (isKanban) {
         let opcionesKanbanHtml = '';
@@ -4024,7 +4274,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                 <span style="display:flex; align-items:center; gap:6px;"><div class="row-indicator ${info.colorIndicador}"></div>${al.nombre}</span>
                 <span style="font-size:16px;" class="btn-row-action" onclick="event.stopPropagation(); window.abrirOpcionesKanban('${id}', this)">⋮</span>
             </div>
-            <div class="kanban-card-sub">${edad || '-'} • <strong style="color:var(--accent-teal);">${instStr || 'Sin inst.'}</strong></div>
+            <div class="kanban-card-sub">${edad || '-'} • <strong style="color:var(--accent-teal);">${instHtml || 'Sin inst.'}</strong></div>
             ${al.nivel ? `<div style="font-size:11px; margin-top:2px;"><span class="match-student-tag nivel" style="font-size:10px; padding:2px 7px;">${al.nivel}</span></div>` : ''}
             ${tagsHtml}
             ${opcionesKanbanHtml}
@@ -4066,7 +4316,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
     `;
 
     let checklistAdmisionHtml = '';
-    const rawEstadoAdm = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    const rawEstadoAdm = rawStAgenda;
     const esPendienteAlumno = rawEstadoAdm === 'pendiente validacion por alumno';
     if (esPendienteAlumno) {
         const checksAdm = al.checklist_admision || [false, false];
@@ -4103,7 +4353,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
     }
 
     let checklistHtml = '';
-    const stAgenda = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    const stAgenda = rawStAgenda;
     const esAltaConfirmadaIncompleta = (stAgenda === 'alta efectiva' || stAgenda === 'alta ilegal' || stAgenda === 'alta confirmada') && !esAlumnoAltaFinalizada(al) && stAgenda !== 'alta finalizada';
     if (esAltaConfirmadaIncompleta) {
         let rawChecks = al.checklist_alta || [false, false, false, false];
@@ -4143,7 +4393,41 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
     }
 
     let fechaMetaHtml = '';
-    if (al.opciones_propuestas && al.opciones_propuestas.length > 1) {
+    const esBajaRow = isAlumnoBaja(al) || (typeof estadoActualVista !== 'undefined' && estadoActualVista.startsWith('Bajas'));
+    const esSuspendidoRow = isAlumnoSuspendido(al) || (typeof estadoActualVista !== 'undefined' && estadoActualVista.startsWith('Suspendidos'));
+
+    if (esBajaRow) {
+        const fBaja = obtenerFechaBajaAlumno(al);
+        const fBajaTxt = `${String(fBaja.getDate()).padStart(2, '0')}/${String(fBaja.getMonth() + 1).padStart(2, '0')}/${fBaja.getFullYear()}`;
+        fechaMetaHtml = `
+            <div style="font-size:11px; color:var(--text-muted); font-weight:600; display:flex; align-items:center; gap:4px; flex-wrap:wrap;"><span>📅 ${fBajaTxt}</span></div>
+        `;
+    } else if (esSuspendidoRow) {
+        const fSusp = obtenerFechaSuspensionAlumno(al);
+        const fSuspTxt = `${String(fSusp.getDate()).padStart(2, '0')}/${String(fSusp.getMonth() + 1).padStart(2, '0')}/${fSusp.getFullYear()}`;
+        fechaMetaHtml = `
+            <div style="font-size:11px; color:var(--text-muted); font-weight:600; display:flex; align-items:center; gap:4px; flex-wrap:wrap;"><span>📅 ${fSuspTxt}</span></div>
+        `;
+    } else if (esSeg) {
+        let fSegTxt = '';
+        const rawFSeg = al.seguimiento?.fecha_proximo_seguimiento || al.seguimiento_fecha_proxima || al.seguimiento?.fecha_inicio_seguimiento || al.fecha_proximo_seguimiento;
+        if (rawFSeg) {
+            const parts = String(rawFSeg).split('T')[0].split('-');
+            if (parts.length === 3) {
+                fSegTxt = `${String(parts[2]).padStart(2, '0')}/${String(parts[1]).padStart(2, '0')}/${parts[0]}`;
+            } else {
+                const d = new Date(rawFSeg);
+                if (!isNaN(d.getTime())) {
+                    fSegTxt = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+                } else {
+                    fSegTxt = String(rawFSeg);
+                }
+            }
+        }
+        fechaMetaHtml = `
+            <div style="font-size:11px; color:var(--text-muted); font-weight:600; display:flex; align-items:center; gap:4px; flex-wrap:wrap;"><span>📅 ${fSegTxt || '-'}</span></div>
+        `;
+    } else if (al.opciones_propuestas && al.opciones_propuestas.length > 1) {
         const opcHtml = renderizarItemsConMax2(al.opciones_propuestas, (o) => `<span style="display:inline-block; margin-right:4px;"><strong>${o.letra || '-'}:</strong> ${o.fechaTexto}</span>`, 'Opciones propuestas', id);
         fechaMetaHtml = `
             <div style="margin-top:3px; background:rgba(0, 123, 143, 0.07); border:1px solid rgba(0, 123, 143, 0.2); border-radius:6px; padding:4px 8px;">
@@ -4167,10 +4451,41 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
             fechaTxt = formatearFechaHoraEstandar(al.reserva_fecha_texto);
         }
         const tieneEv = Boolean(al.id_evento_alta || al.id_evento_reserva || al.reserva_id_evento || al.fecha_inicio_clases || al.horario_match);
-        const syncBadge = tieneEv 
+        const syncBadge = (tieneEv && esAdmin) 
             ? `<button type="button" class="btn-auditar-cal-fila" data-id="${id}" onclick="event.stopPropagation(); window.auditarCalendarioAlumnoFila('${id}', this);" title="Verificar sincronización con Google Calendar" style="background:none; border:none; cursor:pointer; font-size:12px; padding:1px 4px; border-radius:4px; line-height:1; vertical-align:middle; transition:transform 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.06)'" onmouseout="this.style.background='none'"><span class="icon-spin-fila">🔄</span></button>` 
             : '';
-        fechaMetaHtml = `<div style="font-size:11px; color:var(--text-muted); font-weight:600; display:flex; align-items:center; gap:4px; flex-wrap:wrap;"><span>📅 ${fechaTxt}</span>${syncBadge}</div>`;
+        
+        let labelFecha = 'Fecha:';
+        const stAg = (al.estado_agenda || '').toLowerCase();
+        if (stAg.includes('espera') || (typeof estadoActualVista !== 'undefined' && estadoActualVista === 'Lista de Espera')) {
+            labelFecha = 'INICIO DE CLASES:';
+        } else if (stAg.includes('alta') || (typeof estadoActualVista !== 'undefined' && estadoActualVista.startsWith('Altas'))) {
+            labelFecha = 'INICIO DE CLASES:';
+        } else if (stAg.includes('pendiente') || stAg.includes('agenda confirmada') || (typeof estadoActualVista !== 'undefined' && estadoActualVista.startsWith('Inbox'))) {
+            labelFecha = 'Entrevista:';
+        }
+
+        fechaMetaHtml = `
+            <div style="font-size:10px; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:1px;">${labelFecha}</div>
+            <div style="font-size:11px; color:var(--text-muted); font-weight:600; display:flex; align-items:center; gap:4px; flex-wrap:wrap;"><span>📅 ${fechaTxt}</span>${syncBadge}</div>
+        `;
+    } else if (esVistaSinAgendar) {
+        const esReingreso = Boolean(al.fecha_reingreso);
+        const fechaRef = esReingreso ? parsearFechaCualquierOrigen(al.fecha_reingreso) : obtenerFechaIngresoAlumno(al);
+        if (fechaRef) {
+            const diaStr = String(fechaRef.getDate()).padStart(2, '0');
+            const mesStr = String(fechaRef.getMonth() + 1).padStart(2, '0');
+            const anioStr = fechaRef.getFullYear();
+            const diffDias = calcularDiasCalendario(fechaRef);
+            const antiguedadTxt = diffDias === 0 ? 'hoy' : (diffDias === 1 ? 'ayer' : `hace ${diffDias}d`);
+            const labelIngreso = esReingreso ? 'Reingreso:' : 'Ingreso:';
+            fechaMetaHtml = `
+                <div style="font-size:10px; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:1px;">${labelIngreso}</div>
+                <div style="font-size:11px; color:var(--text-muted); font-weight:600; display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+                    <span>📅 ${diaStr}/${mesStr}/${anioStr} (${antiguedadTxt})</span>
+                </div>
+            `;
+        }
     }
 
     let rowBorderExtra = '';
@@ -4190,27 +4505,29 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
             </div>
             <div class="row-item swipe-content btn-editar-alumno" data-id="${id}" style="${rowBorderExtra}">
                 <div class="row-content-wrapper">
-                    <!-- Columna 1: Alumno y Datos -->
+                    <!-- Columna 1: Alumno y Datos (Línea 1: Nombre • Edad • Nivel + Badges | Línea 2: Instrumento) -->
                     <div class="row-header">
                         <input type="checkbox" class="bulk-chk" data-id="${id}" onclick="event.stopPropagation(); window.toggleBulkSelection('${id}', this.checked)">
                         <div class="row-indicator ${info.colorIndicador}"></div>
                         <div class="row-main-info" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:2px;">
                             <div class="row-name" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; text-align:left;">
                                 <span style="font-weight:700; color:var(--text-main); font-size:14.5px;">${al.nombre}</span>
-                                <button type="button" class="btn-nota-rapida-directo" data-id="${id}" onclick="event.stopPropagation(); window.abrirNotaRapidaDirecta('${id}', '${(al.nombre || '').replace(/'/g, "\\'")}');" title="Agregar nota rápida al historial" style="background:none; border:none; cursor:pointer; font-size:13px; padding:1px 4px; border-radius:4px; opacity:0.65; vertical-align:middle; line-height:1; transition:opacity 0.2s, background 0.2s;" onmouseover="this.style.opacity='1'; this.style.background='rgba(0,0,0,0.06)';" onmouseout="this.style.opacity='0.65'; this.style.background='none';">📝</button>
+                                ${edad ? `<span style="font-size:12.5px; color:var(--text-muted); font-weight:600;">• ${edad}</span>` : ''}
+                                ${nivelHtml ? `<span style="display:inline-flex; align-items:center;">• ${nivelHtml}</span>` : ''}
+                                ${tagSegUrgencia}
+                                ${tagFeedbacks}
                             </div>
                             ${filaDatosHtml}
                             ${tagsHtml}
-                            ${suspInfoHtml}
                             ${(() => {
-                                if (al.estado_agenda === 'Lista de espera') {
+                                if (al.estado_agenda === 'Lista de espera' && !esSimple) {
                                     const esBici = Boolean(al.es_bicicleta);
                                     const celSafe = (al.celular || al.telefono || '').replace(/'/g, "\\'");
                                     const nombreSafe = (al.nombre || '').replace(/'/g, "\\'");
                                     return `
                                         <div class="espera-botones-row" style="display:flex; align-items:center; gap:6px; margin-top:5px;">
-                                            <button type="button" class="btn-contactar-fila" onclick="event.stopPropagation(); window.abrirModalRegistrarContacto('${id}', '${nombreSafe}', '${celSafe}', ${esBici});" title="Registrar lo conversado y resetear contador a 0 días">
-                                                <span>💬</span> Nuevo Feedback
+                                            <button type="button" class="btn-contactar-fila" onclick="event.stopPropagation(); window.abrirModalRegistrarContacto('${id}', '${nombreSafe}', '${celSafe}', ${esBici});" title="Registrar recall y resetear contador a 0 días">
+                                                <span>☎️</span> Recall
                                             </button>
                                             ${!esBici ? `
                                                 <button type="button" class="btn-bicicleta-fila" onclick="event.stopPropagation(); window.toggleBicicletaAlumno('${id}', true, '${nombreSafe}');" title="Mover este alumno al grupo Bicicletas">
@@ -4229,9 +4546,48 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                         </div>
                     </div>
 
-                    <!-- Columna 2: Estado del Alumno / Métricas de Espera -->
+                    <!-- Columna 2: Estado del Alumno / Motivo Suspensión / Métricas de Espera / Motivo Baja -->
                     <div class="col-status-wrapper">
                         ${(() => {
+                            if (esBajaRow) {
+                                const motivoTxt = obtenerMotivoBajaAlumno(al);
+                                if (motivoTxt) {
+                                    return `
+                                        <div style="display:flex; flex-direction:column; align-items:flex-start; gap:4px; max-width:320px; width:fit-content;">
+                                            ${renderMotivoTruncableHtml(motivoTxt, true)}
+                                        </div>
+                                    `;
+                                }
+                                return '';
+                            }
+                            if (esSuspendidoRow) {
+                                const esVistaTodos = (typeof estadoActualVista !== 'undefined' && (estadoActualVista === 'Suspendidos - Todos' || estadoActualVista === 'Suspendidos')) || vista === 'Suspendidos - Todos';
+                                const orig = getOrigenSuspension(al);
+                                let origLabel = '💬 De Inbox';
+                                let origStyle = 'background:#dbeafe; color:#1e40af; border:1px solid #bfdbfe;';
+                                if (orig === 'espera') {
+                                    origLabel = '⏳ De Lista de Espera';
+                                    origStyle = 'background:#fef3c7; color:#92400e; border:1px solid #fde68a;';
+                                } else if (orig === 'altas') {
+                                    origLabel = '📋 De Pre-Alta';
+                                    origStyle = 'background:#f3e8ff; color:#6b21a8; border:1px solid #e9d5ff;';
+                                }
+                                const motivoTxt = al.motivo_suspension || al.detalle_suspension || al.motivo_suspension_cat || 'Sin motivo especificado';
+
+                                return `
+                                    <div style="display:flex; flex-direction:column; align-items:flex-start; gap:4px; max-width:320px; width:fit-content;">
+                                        ${esVistaTodos ? `
+                                            <div style="display:flex; align-items:center;">
+                                                <span class="badge" style="${origStyle} font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:12px;">${origLabel}</span>
+                                            </div>
+                                        ` : ''}
+                                        ${renderMotivoTruncableHtml(motivoTxt, false)}
+                                    </div>
+                                `;
+                            }
+                            if (esSeg || vista === 'Dashboard' || (typeof estadoActualVista !== 'undefined' && estadoActualVista === 'Dashboard')) {
+                                return '';
+                            }
                             if (al.estado_agenda === 'Lista de espera') {
                                 const met = calcularMetricasEspera(al);
                                 const fIngEspera = typeof obtenerFechaIngresoEspera === 'function' ? obtenerFechaIngresoEspera(al) : null;
@@ -4240,43 +4596,67 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                                 const esAdminOCoord = window.usuarioActual?.rol === 'admin' || window.usuarioActual?.rol === 'coordinador' || window.usuarioActual?.rol_activo === 'admin' || window.usuarioActual?.rol_activo === 'coordinador';
 
                                 const contactoClickAttr = esAdminOCoord 
-                                    ? `onclick="event.stopPropagation(); window.abrirModalEditarContacto('${id}', '${nombreSafe}', ${met.diasContacto});" style="cursor:pointer;" title="✏️ Clic para corregir manualmente los días sin contacto (Admin/Coordinador)"`
-                                    : `title="Días desde el último contacto con el alumno (reseteable a 0)"`;
+                                ? `onclick="event.stopPropagation(); window.abrirModalEditarContacto('${id}', '${nombreSafe}', ${met.diasContacto});" class="micro-chip-contacto ${met.claseSemaforo} editable" title="✏️ Clic para corregir manualmente los días sin contacto (Admin/Coordinador)"`
+                                : `class="micro-chip-contacto ${met.claseSemaforo}" title="Días desde el último contacto con el alumno (reseteable a 0)"`;
                                 const contactoLapiz = esAdminOCoord ? ' ✏️' : '';
 
                                 return `
-                                    <div class="metricas-espera-texto">
-                                        <div class="txt-fecha-ingreso-espera" title="Fecha de pase a Lista de Espera">
-                                            INGRESO: ${txtFechaIngreso}
+                                    <div class="micro-chips-espera-wrapper">
+                                        ${!esSimple ? `
+                                        <div style="font-size:10px; color:#64748b; font-weight:700; text-transform:uppercase; margin-bottom:1px;" title="Fecha de pase a Lista de Espera">
+                                            Ingreso: ${txtFechaIngreso}
+                                        </div>` : ''}
+                                        <div class="micro-chip-espera-neutro" title="Días acumulados en lista de espera (nunca se resetea)">
+                                            <span>⏳</span> ${met.diasEsperando}d Esperando
                                         </div>
-                                        <div class="txt-esperando-fila" title="Días acumulados en lista de espera (nunca se resetea)">
-                                            ESPERANDO: ${met.diasEsperando}d
-                                        </div>
-                                        <div class="txt-contacto-fila" ${contactoClickAttr}>
-                                            ÚLTIMO CTTO: ${met.diasContacto}d${contactoLapiz}
+                                        <div ${contactoClickAttr}>
+                                            <span>💬</span> ${met.diasContacto}d Contactado${contactoLapiz}
                                         </div>
                                     </div>
                                 `;
+                            }
+                            // En vistas con subtabs o vistas donde el estado ya está definido en la navegación, no renderizar badge redundante
+                            const vistaActiva = typeof estadoActualVista !== 'undefined' ? estadoActualVista : vista;
+                            if (vistaActiva && (
+                                vistaActiva.startsWith('Inbox') || 
+                                vistaActiva.startsWith('Altas') || 
+                                vistaActiva.startsWith('Seguimientos') || 
+                                vistaActiva.startsWith('Bajas') || 
+                                vistaActiva.startsWith('Suspendidos') || 
+                                vistaActiva === 'Lista de Espera' || 
+                                vistaActiva === 'Dashboard'
+                            )) {
+                                return '';
                             }
                             return `<span class="status-badge ${info.colorBadge}">${info.txtEstado}</span>`;
                         })()}
                     </div>
 
-                    <!-- Columna 3: Grilla Semanal Fija o Checklist según estado -->
-                    ${checklistAdmisionHtml ? checklistAdmisionHtml : (checklistHtml ? checklistHtml : dispHtml)}
+                    <!-- Columna 3: Grilla Semanal Fija o Checklist según estado (oculta en Bajas y Suspendidos) -->
+                    ${checklistAdmisionHtml ? checklistAdmisionHtml : (checklistHtml ? checklistHtml : ((esSeg || esAltaFinalizada || esSuspendidoRow || esBajaRow) ? '' : dispHtml))}
 
                     <!-- Columna 4: Meta & Agenda / Prioridad -->
                     <div class="row-meta">
                         ${(() => {
-                            const esInboxOEspera = (estadoActualVista && (estadoActualVista.startsWith('Inbox') || estadoActualVista === 'Lista de Espera' || estadoActualVista === 'Dashboard')) || ['Pendiente procesar', 'Pendiente validación por profe', 'Pendiente validación por alumno', 'Agenda confirmada', 'Agenda suspendida', 'Lista de espera'].includes(al.estado_agenda);
-                            const labelResp = esInboxOEspera ? 'Evaluador' : 'Profe';
-                            const nomResp = esInboxOEspera ? obtenerEvaluadorAlumno(al) : (al.profesor_asignado || al.reserva_profe_nombre || '-');
+                            if (esBajaRow || esSuspendidoRow) {
+                                return fechaMetaHtml;
+                            }
+                            const esInbox = (estadoActualVista && estadoActualVista.startsWith('Inbox')) || ['Pendiente procesar', 'Pendiente validación por profe', 'Pendiente validación por alumno', 'Agenda confirmada', 'Agenda suspendida'].includes(al.estado_agenda);
+                            const esEspera = estadoActualVista === 'Lista de Espera' || al.estado_agenda === 'Lista de espera';
+                            const esAltas = (estadoActualVista && estadoActualVista.startsWith('Altas')) || (al.estado_agenda && al.estado_agenda.toLowerCase().includes('alta'));
+
+                            if (esSimple && (esInbox || esEspera || esAltas || esSeg)) {
+                                return '';
+                            }
+
+                            const labelResp = (esInbox || esEspera) ? 'Evaluador' : (esSeg ? 'Responsable' : 'Profe');
+                            const nomResp = (esInbox || esEspera) ? obtenerEvaluadorAlumno(al) : (esSeg ? (al.seguimiento?.responsable_nombre || al.seguimiento_responsable_nombre || '-') : (al.profesor_asignado || al.reserva_profe_nombre || '-'));
                             const nomCorto = nomResp && nomResp.length > 25 ? nomResp.split(' ').slice(0, 3).join(' ') + '...' : nomResp;
                             return `<div>${labelResp}: <strong style="color:var(--text-main);" title="${nomResp}">${nomCorto}</strong></div>`;
                         })()}
-                        ${al.grupo_asignado ? `<div>Grupo: <strong style="color:var(--accent-teal);">${al.grupo_asignado}</strong></div>` : ''}
-                        ${fechaMetaHtml}
-                        ${info.badgePillHtml ? info.badgePillHtml : (info.txtTiempo ? `<div class="priority-text ${info.claseTexto}" style="margin-top:2px;">${info.txtTiempo}</div>` : '')}
+                        ${(!esSeg && !esSuspendidoRow && !esBajaRow && al.grupo_asignado) ? `<div>Grupo: <strong style="color:var(--accent-teal);">${al.grupo_asignado}</strong></div>` : ''}
+                        ${(!esSuspendidoRow && !esBajaRow) ? fechaMetaHtml : ''}
+                        ${(!esSeg && !esSuspendidoRow && !esBajaRow) ? (info.badgePillHtml ? info.badgePillHtml : (info.txtTiempo ? `<div class="priority-text ${info.claseTexto}" style="margin-top:2px;">${info.txtTiempo}</div>` : '')) : ''}
                     </div>
 
                     <!-- Columna 5: Botones de Acción -->
@@ -4471,6 +4851,17 @@ function actualizarBulkBar() {
 
         const esSegPendientes = estadoActualVista === 'Seguimientos - Pendientes';
         const esFinalizadas = estadoActualVista === 'Altas - Finalizadas';
+        const esAltasEnCurso = estadoActualVista === 'Altas - En Curso';
+        const esAltasPendientes = estadoActualVista === 'Altas - Pendientes';
+
+        // Botones de acciones masivas en Altas - En Curso
+        const btnBulkAvisarCoord = document.getElementById('btn-bulk-avisar-coordinador');
+        const btnBulkSuscripcion = document.getElementById('btn-bulk-suscripcion-abonada');
+        const btnBulkDevolverPend = document.getElementById('btn-bulk-devolver-pendientes');
+
+        if (btnBulkAvisarCoord) btnBulkAvisarCoord.style.display = esAltasEnCurso ? 'inline-block' : 'none';
+        if (btnBulkSuscripcion) btnBulkSuscripcion.style.display = esAltasEnCurso ? 'inline-block' : 'none';
+        if (btnBulkDevolverPend) btnBulkDevolverPend.style.display = esAltasEnCurso ? 'inline-block' : 'none';
 
         // Iniciar Seguimiento masivo disponible únicamente en Seguimientos - Pendientes
         if (btnBulkSeg) {
@@ -4530,6 +4921,79 @@ document.getElementById('btn-bulk-cancelar').addEventListener('click', () => {
     selectedBulkIds.splice(0);
     document.querySelectorAll('.bulk-chk').forEach(c => c.checked = false);
     actualizarBulkBar();
+});
+
+// Botón Bulk: Avisar al Coordinador
+document.getElementById('btn-bulk-avisar-coordinador')?.addEventListener('click', async () => {
+    if (selectedBulkIds.length === 0) return;
+    if (typeof window.copiarAvisoCoordinadorGrupo === 'function') {
+        await window.copiarAvisoCoordinadorGrupo('Selección de Alumnos', [...selectedBulkIds]);
+    } else {
+        alert("Texto copiado para el coordinador.");
+    }
+});
+
+// Botón Bulk: Suscripción Abonada
+document.getElementById('btn-bulk-suscripcion-abonada')?.addEventListener('click', async () => {
+    if (selectedBulkIds.length === 0) return;
+    const ok = await window.confirmar(
+        `✅ ¿Confirmar suscripción y alta para ${selectedBulkIds.length} alumno(s)?`,
+        `Se confirmará el alta de los alumnos seleccionados, avanzando al paso de Altas Confirmadas.`,
+        `✅ Confirmar ${selectedBulkIds.length} Alta(s)`,
+        'info'
+    );
+    if (!ok) return;
+    mostrarIndicadorCarga(`Confirmando alta para ${selectedBulkIds.length} alumno(s)...`);
+    const idsToProcess = [...selectedBulkIds];
+    for (let id of idsToProcess) {
+        try {
+            if (typeof window.confirmarAlumnoAltaAction === 'function') {
+                await window.confirmarAlumnoAltaAction(id);
+            }
+        } catch(e) {
+            console.error("Error al confirmar alta bulk:", id, e);
+        }
+    }
+    selectedBulkIds.splice(0);
+    actualizarBulkBar();
+    await cargarVista(estadoActualVista);
+    ocultarIndicadorCarga();
+    mostrarToast("✅ Alumnos confirmados correctamente.", "success");
+});
+
+// Botón Bulk: Devolver a Pendientes
+document.getElementById('btn-bulk-devolver-pendientes')?.addEventListener('click', async () => {
+    if (selectedBulkIds.length === 0) return;
+    const ok = await window.confirmar(
+        `↩️ ¿Devolver ${selectedBulkIds.length} alumno(s) a Altas - Pendientes?`,
+        `Los alumnos seleccionados volverán al estado "Pre-alta pendiente" para reconfigurar sus datos.`,
+        `↩️ Devolver a Pendientes`,
+        'warning'
+    );
+    if (!ok) return;
+    mostrarIndicadorCarga(`Devolviendo ${selectedBulkIds.length} alumno(s) a Pendientes...`);
+    const idsToProcess = [...selectedBulkIds];
+    for (let id of idsToProcess) {
+        try {
+            const alSnap = await getDoc(doc(db, "alumnos", id));
+            if (alSnap.exists()) {
+                const al = alSnap.data();
+                const hist = al.historial || [];
+                hist.push(crearEntradaHistorial(`Alumno devuelto masivamente a Pre-alta pendiente.`, 'devolucion_pendientes'));
+                await updateDoc(doc(db, "alumnos", id), {
+                    estado_agenda: "Pre-alta pendiente",
+                    historial: hist
+                });
+            }
+        } catch(e) {
+            console.error("Error al devolver a pendientes bulk:", id, e);
+        }
+    }
+    selectedBulkIds.splice(0);
+    actualizarBulkBar();
+    await cargarVista(estadoActualVista);
+    ocultarIndicadorCarga();
+    mostrarToast("↩️ Alumnos devueltos a Altas - Pendientes.", "info");
 });
 
 const btnBulkDevolver = document.getElementById('btn-bulk-devolver-espera');
@@ -5384,12 +5848,17 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
         });
     }
 
-    // Ordenamiento cronológico LIFO (del más reciente al menos reciente) exclusivo para Lista de Espera
+    // Ordenamiento por edad (menor a mayor) exclusivo para Lista de Espera
     if (estadoActualVista === 'Lista de Espera') {
         filtrados.sort((a, b) => {
+            const numA = parseInt(a.edad, 10);
+            const numB = parseInt(b.edad, 10);
+            const valA = isNaN(numA) ? 999 : numA;
+            const valB = isNaN(numB) ? 999 : numB;
+            if (valA !== valB) return valA - valB;
             const fA = typeof obtenerFechaIngresoEspera === 'function' ? (obtenerFechaIngresoEspera(a)?.getTime() || 0) : 0;
             const fB = typeof obtenerFechaIngresoEspera === 'function' ? (obtenerFechaIngresoEspera(b)?.getTime() || 0) : 0;
-            return fB - fA;
+            return fA - fB;
         });
     }
 
@@ -5424,7 +5893,8 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
             else if (criterio === 'suscripcion') clave = al.tipo_suscripcion || clave;
             else if (criterio === 'profe') {
                 const esEtapaAdmision = (estadoActualVista && (estadoActualVista.startsWith('Inbox') || estadoActualVista === 'Lista de Espera' || estadoActualVista === 'Dashboard')) || (['Pendiente procesar', 'Pendiente validación por profe', 'Pendiente validación por alumno', 'Agenda confirmada', 'Agenda suspendida', 'Lista de espera'].includes(al.estado_agenda));
-                clave = al.reserva_profe_nombre || (esEtapaAdmision ? 'Sin Evaluador' : 'Sin Profesor');
+                const profeNombre = al.profesor_asignado || al.profesor_nombre || al.profesor || al.reserva_profe_nombre || al.reserva_profe_nombre_previo || '';
+                clave = profeNombre || (esEtapaAdmision ? 'Sin Evaluador' : 'Sin Profesor');
             }
             return clave;
         }
@@ -5474,9 +5944,14 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
             if (nivelIndex >= nivelesActivos.length) {
                 if (estadoActualVista === 'Lista de Espera') {
                     alumnos.sort((a, b) => {
+                        const numA = parseInt(a.edad, 10);
+                        const numB = parseInt(b.edad, 10);
+                        const valA = isNaN(numA) ? 999 : numA;
+                        const valB = isNaN(numB) ? 999 : numB;
+                        if (valA !== valB) return valA - valB;
                         const fA = typeof obtenerFechaIngresoEspera === 'function' ? (obtenerFechaIngresoEspera(a)?.getTime() || 0) : 0;
                         const fB = typeof obtenerFechaIngresoEspera === 'function' ? (obtenerFechaIngresoEspera(b)?.getTime() || 0) : 0;
-                        return fB - fA;
+                        return fA - fB;
                     });
                 } else if (estadoActualVista === 'Inbox - Pendientes') {
                     alumnos.sort((a, b) => {
@@ -5786,38 +6261,10 @@ export async function resetearSeguimientoAlumnoIndividual(alumnoId) {
 }
 window.resetearSeguimientoAlumnoIndividual = resetearSeguimientoAlumnoIndividual;
 
-let _resetJuliaClaudioEjecutado = false;
-export async function verificarAutoResetJuliaClaudio(alumnos) {
+export async function sanearDatosCasosPuntuales(alumnos) {
     if (!Array.isArray(alumnos)) return;
     for (const al of alumnos) {
         const nom = (al.nombre || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-        const esJulia = nom.includes('julia') && nom.includes('castaneda');
-        const esClaudio = nom.includes('claudio') && nom.includes('yanez');
-        if (esJulia || esClaudio) {
-            const tieneDatosPrevios = al.seguimiento?.fecha_finalizacion || (al.seguimiento?.historial && al.seguimiento.historial.length > 0) || al.seguimiento_responsable_id || al.seguimiento?.responsable_id;
-            if (tieneDatosPrevios) {
-                al.seguimiento = {
-                    activo: false,
-                    responsable_id: null,
-                    responsable_nombre: null,
-                    responsable_email: null,
-                    fecha_proximo_seguimiento: null,
-                    fecha_inicio_seguimiento: null,
-                    fecha_finalizacion: null,
-                    motivo_finalizacion: null,
-                    dias_sin_contacto: 0,
-                    ultimo_contacto: null,
-                    historial: []
-                };
-                al.seguimiento_responsable_id = null;
-                al.seguimiento_responsable_nombre = null;
-                al.seguimiento_responsable_email = null;
-                al.fecha_proximo_seguimiento = null;
-                if (!_resetJuliaClaudioEjecutado) {
-                    resetearSeguimientoAlumnoIndividual(al.id);
-                }
-            }
-        }
         // Sanar caso Horacio Rene Miras (Piano principal, Canto secundario)
         if (nom.includes('horacio') && nom.includes('miras')) {
             const instPrincipal = (al.instrumento_principal || '').toLowerCase();
@@ -5831,6 +6278,26 @@ export async function verificarAutoResetJuliaClaudio(alumnos) {
                         instrumento_principal: "Piano",
                         instrumentos_secundarios: ["Canto"],
                         instrumento: ["Piano", "Canto"]
+                    }).catch(() => {});
+                } catch(e) {}
+            }
+        }
+        // Sanar caso Claudio Yañez: migrar de suspensión a Baja formal
+        if (nom.includes('claudio') && (nom.includes('yanez') || nom.includes('yañez'))) {
+            if (al.suspendido === true || al.estado_agenda === 'Alta suspendida' || al.estado_agenda === 'Agenda suspendida') {
+                al.es_baja = true;
+                al.estado_agenda = "Baja";
+                al.suspendido = false;
+                al.fecha_baja = al.fecha_suspension || new Date().toISOString();
+                al.motivo_baja = al.motivo_suspension || al.detalle_suspension || "Baja formal";
+                try {
+                    updateDoc(doc(db, "alumnos", al.id), {
+                        es_baja: true,
+                        estado_agenda: "Baja",
+                        suspendido: false,
+                        fecha_baja: al.fecha_baja,
+                        motivo_baja: al.motivo_baja,
+                        origen_suspension: null
                     }).catch(() => {});
                 } catch(e) {}
             }
@@ -5910,10 +6377,73 @@ export async function verificarAutoResetJuliaClaudio(alumnos) {
                 } catch(e) {}
             }
         }
+
+        // Sanar caso Julia Castañeda / Reconciliar Seguimiento Activo
+        const esJulia = nom.includes('julia') && (nom.includes('castaneda') || nom.includes('castañeda'));
+        if (esJulia) {
+            const respNom = al.seguimiento?.responsable_nombre || al.seguimiento_responsable_nombre || "Nacho";
+            const fecPactada = al.seguimiento?.fecha_proximo_seguimiento || al.fecha_proximo_seguimiento || "2026-10-12";
+            if (!al.seguimiento || al.seguimiento.activo !== true || al.seguimiento.responsable_nombre !== respNom) {
+                if (!al.seguimiento) al.seguimiento = {};
+                al.seguimiento.activo = true;
+                al.seguimiento.responsable_nombre = respNom;
+                al.seguimiento.fecha_proximo_seguimiento = fecPactada;
+                al.seguimiento_responsable_nombre = respNom;
+                al.fecha_proximo_seguimiento = fecPactada;
+                try {
+                    updateDoc(doc(db, "alumnos", al.id), {
+                        'seguimiento.activo': true,
+                        'seguimiento.responsable_nombre': respNom,
+                        'seguimiento.fecha_proximo_seguimiento': fecPactada,
+                        seguimiento_responsable_nombre: respNom,
+                        fecha_proximo_seguimiento: fecPactada
+                    }).catch(() => {});
+                } catch(e) {}
+            }
+        }
+
+        // Sanar caso Felipe Gialdino: Asignar fecha automática de seguimiento a las 72hs de inicio de clase
+        const esFelipe = nom.includes('felipe') && (nom.includes('gialdino') || nom.includes('gialdini') || nom.includes('gialdin'));
+        if (esFelipe) {
+            const fIni = al.fecha_inicio_clases || al.fecha_sugerida_inicio || "2026-10-08";
+            const fProxCalc = calcularFechaSeguimiento72hs(fIni);
+            const respId = al.seguimiento_responsable_id || al.seguimiento?.responsable_id || al.profesor_id || al.reserva_profe_id || '';
+            const respNom = al.seguimiento_responsable_nombre || al.seguimiento?.responsable_nombre || al.profesor_asignado || al.reserva_profe_nombre || 'Belu';
+            if (!al.seguimiento || !al.seguimiento.activo || !al.seguimiento.fecha_proximo_seguimiento || al.seguimiento.responsable_nombre !== respNom) {
+                if (!al.seguimiento) al.seguimiento = {};
+                al.seguimiento.activo = true;
+                al.seguimiento.responsable_id = respId || al.seguimiento.responsable_id || '';
+                al.seguimiento.responsable_nombre = respNom;
+                al.seguimiento.fecha_proximo_seguimiento = fProxCalc;
+                al.seguimiento_responsable_id = respId || al.seguimiento_responsable_id || '';
+                al.seguimiento_responsable_nombre = respNom;
+                al.fecha_proximo_seguimiento = fProxCalc;
+                try {
+                    updateDoc(doc(db, "alumnos", al.id), {
+                        'seguimiento.activo': true,
+                        'seguimiento.responsable_id': respId || '',
+                        'seguimiento.responsable_nombre': respNom,
+                        'seguimiento.fecha_proximo_seguimiento': fProxCalc,
+                        seguimiento_responsable_id: respId || '',
+                        seguimiento_responsable_nombre: respNom,
+                        fecha_proximo_seguimiento: fProxCalc
+                    }).catch(() => {});
+                } catch(e) {}
+            }
+        }
+
+        // Sanar casos con Alta No Finalizada (Liliana Bliman, Martina Guggiari, etc.): No deben tener seguimiento activo
+        if (!esAlumnoAltaFinalizada(al) && al.seguimiento && al.seguimiento.activo === true) {
+            al.seguimiento.activo = false;
+            try {
+                updateDoc(doc(db, "alumnos", al.id), {
+                    'seguimiento.activo': false
+                }).catch(() => {});
+            } catch(e) {}
+        }
     }
-    _resetJuliaClaudioEjecutado = true;
 }
-window.verificarAutoResetJuliaClaudio = verificarAutoResetJuliaClaudio;
+window.sanearDatosCasosPuntuales = sanearDatosCasosPuntuales;
 
 export function filtrarAlumnosSeguimientoEvaluador(alumnos, filtroEstado = 'activo') {
     const u = window.usuarioActual;
@@ -5922,12 +6452,15 @@ export function filtrarAlumnosSeguimientoEvaluador(alumnos, filtroEstado = 'acti
     const esModoEval = modo === 'evaluador' || (rolesUser.length === 1 && rolesUser[0] === 'evaluador' && modo !== 'admin' && modo !== 'coordinador' && modo !== 'admisor' && modo !== 'multi');
     
     let pool = (alumnos || []).map(al => normalizarAlumnoSeguimiento(al));
+    // REGLA CRÍTICA: Solo alumnos con Alta Finalizada y que no sean baja ni suspendidos
+    pool = pool.filter(al => esAlumnoAltaFinalizada(al) && !al.es_baja && !al.suspendido && al.estado_agenda !== 'Baja');
+
     if (filtroEstado === 'activo') {
-        pool = pool.filter(al => al && al.seguimiento && al.seguimiento.activo === true);
+        pool = pool.filter(al => al && al.seguimiento && al.seguimiento.activo === true && !al.seguimiento.fecha_finalizacion);
     } else if (filtroEstado === 'pendiente') {
-        pool = pool.filter(al => esAlumnoAltaFinalizada(al) && !al.seguimiento?.activo && !al.seguimiento?.fecha_finalizacion);
+        pool = pool.filter(al => !al.seguimiento?.activo && !al.seguimiento?.fecha_finalizacion);
     } else if (filtroEstado === 'finalizado') {
-        pool = pool.filter(al => al && al.seguimiento && al.seguimiento.activo === false && al.seguimiento.fecha_finalizacion);
+        pool = pool.filter(al => al && al.seguimiento && (al.seguimiento.activo === false || !al.seguimiento.activo) && Boolean(al.seguimiento.fecha_finalizacion));
     }
 
     if (!esModoEval || !u) return pool;
@@ -5980,9 +6513,10 @@ window.toggleFiltrosDashboardPopover = function(e) {
 };
 
 function renderTiemposGrupo(items, vista, tabActual) {
-    const venc = items.filter(p => p.diffHs < 0);
-    const urg = items.filter(p => p.diffHs >= 0 && p.diffHs <= 24);
-    const prox = items.filter(p => p.diffHs > 24 && p.diffHs <= 48);
+    const venc = items.filter(p => p.info?.nivelUrgencia === 'vencido');
+    const urg = items.filter(p => p.info?.nivelUrgencia === 'urgente-24');
+    const prox = items.filter(p => p.info?.nivelUrgencia === 'urgente-48');
+    const term = items.filter(p => p.info?.nivelUrgencia === 'programado' || (!['vencido','urgente-24','urgente-48'].includes(p.info?.nivelUrgencia)));
 
     if (tabActual === 'vencidos') {
         return venc.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
@@ -5993,13 +6527,16 @@ function renderTiemposGrupo(items, vista, tabActual) {
     if (tabActual === 'proximos') {
         return prox.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
     }
+    if (tabActual === 'entermino') {
+        return term.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
+    }
 
     // tabActual === 'todos'
     let html = '';
     if (venc.length > 0) {
         html += `
             <div style="display:flex; align-items:center; gap:8px; margin:4px 0 6px 0; font-size:11.5px; font-weight:800; color:#991b1b; text-transform:uppercase; letter-spacing:0.04em;">
-                <span>⚠️ Vencidas (${venc.length})</span>
+                <span>🔴 Crítico (${venc.length})</span>
                 <div style="flex:1; height:1px; background:#fecaca;"></div>
             </div>
         `;
@@ -6008,7 +6545,7 @@ function renderTiemposGrupo(items, vista, tabActual) {
     if (urg.length > 0) {
         html += `
             <div style="display:flex; align-items:center; gap:8px; margin:${venc.length > 0 ? '10px' : '4px'} 0 6px 0; font-size:11.5px; font-weight:800; color:#9a3412; text-transform:uppercase; letter-spacing:0.04em;">
-                <span>🔥 Menos de 24 hs (${urg.length})</span>
+                <span>🟠 Retraso leve (${urg.length})</span>
                 <div style="flex:1; height:1px; background:#fed7aa;"></div>
             </div>
         `;
@@ -6017,11 +6554,20 @@ function renderTiemposGrupo(items, vista, tabActual) {
     if (prox.length > 0) {
         html += `
             <div style="display:flex; align-items:center; gap:8px; margin:${(venc.length > 0 || urg.length > 0) ? '10px' : '4px'} 0 6px 0; font-size:11.5px; font-weight:800; color:#854d0e; text-transform:uppercase; letter-spacing:0.04em;">
-                <span>⏳ Próximas 24 a 48 hs (${prox.length})</span>
+                <span>🟡 Ver hoy (${prox.length})</span>
                 <div style="flex:1; height:1px; background:#fef08a;"></div>
             </div>
         `;
         html += prox.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
+    }
+    if (term.length > 0) {
+        html += `
+            <div style="display:flex; align-items:center; gap:8px; margin:${(venc.length > 0 || urg.length > 0 || prox.length > 0) ? '10px' : '4px'} 0 6px 0; font-size:11.5px; font-weight:800; color:#15803d; text-transform:uppercase; letter-spacing:0.04em;">
+                <span>🟢 En término (${term.length})</span>
+                <div style="flex:1; height:1px; background:#bbf7d0;"></div>
+            </div>
+        `;
+        html += term.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
     }
     return html;
 }
@@ -6075,7 +6621,7 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
 
     const idsExcluirPrio = new Set([...sinAgendar.map(a => a.id), ...altasPendientes.map(a => a.id)]);
 
-    // 2. Extraer y clasificar eventos con fecha límite en las próximas 48 hs (o vencidos)
+    // 2. Extraer y clasificar eventos con fecha límite o seguimientos activos
     let seguimientosActivos = [];
     let entrevistasAgendadas = [];
     let validacionesEnCurso = [];
@@ -6083,8 +6629,15 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
     (poolAlumnos || []).forEach(al => {
         if (idsExcluirPrio.has(al.id)) return;
 
+        const esSegActivo = al.seguimiento && al.seguimiento.activo === true && !al.seguimiento.fecha_finalizacion && esAlumnoAltaFinalizada(al) && !al.es_baja && !al.suspendido && al.estado_agenda !== 'Baja';
         let dateToEval = getFechaReferenciaAlumno(al);
-        if (dateToEval && !isNaN(dateToEval.getTime())) {
+
+        if (esSegActivo) {
+            const info = getEstadoYBadgeLocal(al);
+            const diffHs = dateToEval ? (dateToEval - new Date()) / (1000 * 60 * 60) : 0;
+            const item = { al, info, diffHs, dateToEval: dateToEval || new Date() };
+            seguimientosActivos.push(item);
+        } else if (dateToEval && !isNaN(dateToEval.getTime())) {
             let diffHs = (dateToEval - new Date()) / (1000 * 60 * 60);
             if (diffHs <= 48) {
                 const info = getEstadoYBadgeLocal(al);
@@ -6093,9 +6646,7 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
                 const rawEst = al.estado_agenda || '';
                 const est = rawEst.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 
-                if (al.seguimiento && al.seguimiento.activo === true) {
-                    seguimientosActivos.push(item);
-                } else if (est === 'agenda confirmada' || est === 'entrevista confirmada' || est.startsWith('entrevista')) {
+                if (est === 'agenda confirmada' || est === 'entrevista confirmada' || est.startsWith('entrevista')) {
                     entrevistasAgendadas.push(item);
                 } else if (est === 'pendiente validacion por profe' || est === 'pendiente validacion por evaluador' || est === 'pendiente validacion por alumno') {
                     validacionesEnCurso.push(item);
@@ -6111,57 +6662,71 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
     entrevistasAgendadas.sort((a, b) => a.dateToEval - b.dateToEval);
     validacionesEnCurso.sort((a, b) => a.dateToEval - b.dateToEval);
 
-    // Mapeo completo de tipos de eventos disponibles
+    // Mapeo de bloques modulares disponibles
+    const objSinAgendar = (sinAgendar.length > 0 && esAdmisor && !esCoordinador) ? {
+        key: 'sin_agendar',
+        icono: '📥',
+        label: 'Sin Agendar (Inbox)',
+        rawAlumnos: sinAgendar,
+        items: sinAgendar.map(al => ({ al, info: getEstadoYBadgeLocal(al), diffHs: 0, dateToEval: new Date() })),
+        esAsignable: false
+    } : null;
+
+    const objValidaciones = (validacionesEnCurso.length > 0) ? {
+        key: 'validacion',
+        icono: '⏳',
+        label: esEval ? 'Mis Validaciones en Curso' : 'Validaciones en Curso',
+        items: validacionesEnCurso,
+        esAsignable: true,
+        campoResp: (al) => (al.reserva_profe_nombre || al.profesor_asignado || 'Docente Asignado').split('(')[0].trim()
+    } : null;
+
+    const objEntrevistas = (entrevistasAgendadas.length > 0) ? {
+        key: 'entrevista_agendada',
+        icono: '🗓️',
+        label: esEval ? 'Mis Entrevistas Agendadas' : 'Entrevistas Agendadas (Pend. Informe)',
+        items: entrevistasAgendadas,
+        esAsignable: true,
+        campoResp: (al) => (al.reserva_profe_nombre || al.profesor_asignado || 'Docente Evaluador').split('(')[0].trim()
+    } : null;
+
+    const objAltasPendientes = (altasPendientes.length > 0 && esAdmisor && !esCoordinador) ? {
+        key: 'altas_pendientes',
+        icono: '🚀',
+        label: 'Altas Pendientes (Listas para Iniciar)',
+        rawAlumnos: altasPendientes,
+        items: altasPendientes.map(al => ({ al, info: getEstadoYBadgeLocal(al), diffHs: 0, dateToEval: new Date() })),
+        esAsignable: false
+    } : null;
+
+    const objSeguimientos = (seguimientosActivos.length > 0) ? {
+        key: 'seguimiento_activo',
+        icono: '🎧',
+        label: esEval ? 'Mis Seguimientos Activos' : 'Seguimientos Activos',
+        items: seguimientosActivos,
+        esAsignable: true,
+        campoResp: (al) => al.seguimiento?.responsable_nombre || al.seguimiento_responsable_nombre || al.reserva_profe_nombre || al.profesor_asignado || 'Responsable de Seguimiento'
+    } : null;
+
+    // Construcción del array ordenado estrictamente por rol activo
     const tiposDisponibles = [];
-    if (seguimientosActivos.length > 0) {
-        tiposDisponibles.push({
-            key: 'seguimiento_activo',
-            icono: '🎧',
-            label: esEval ? 'Mis Seguimientos Activos' : 'Seguimientos Activos',
-            items: seguimientosActivos,
-            esAsignable: true,
-            campoResp: (al) => al.seguimiento?.responsable_nombre || al.seguimiento_responsable_nombre || al.reserva_profe_nombre || al.profesor_asignado || 'Responsable de Seguimiento'
-        });
-    }
-    if (entrevistasAgendadas.length > 0) {
-        tiposDisponibles.push({
-            key: 'entrevista_agendada',
-            icono: '🗓️',
-            label: esEval ? 'Mis Entrevistas Agendadas' : 'Entrevistas Agendadas (Pend. Informe)',
-            items: entrevistasAgendadas,
-            esAsignable: true,
-            campoResp: (al) => (al.reserva_profe_nombre || al.profesor_asignado || 'Docente Evaluador').split('(')[0].trim()
-        });
-    }
-    if (validacionesEnCurso.length > 0) {
-        tiposDisponibles.push({
-            key: 'validacion',
-            icono: '⏳',
-            label: esEval ? 'Mis Validaciones en Curso' : 'Validaciones en Curso',
-            items: validacionesEnCurso,
-            esAsignable: true,
-            campoResp: (al) => (al.reserva_profe_nombre || al.profesor_asignado || 'Docente Asignado').split('(')[0].trim()
-        });
-    }
-    if (sinAgendar.length > 0 && esAdmisor && !esCoordinador) {
-        tiposDisponibles.push({
-            key: 'sin_agendar',
-            icono: '📥',
-            label: 'Sin Agendar (Inbox)',
-            rawAlumnos: sinAgendar,
-            items: sinAgendar.map(al => ({ al, info: getEstadoYBadgeLocal(al), diffHs: 0, dateToEval: new Date() })),
-            esAsignable: false
-        });
-    }
-    if (altasPendientes.length > 0 && esAdmisor && !esCoordinador) {
-        tiposDisponibles.push({
-            key: 'altas_pendientes',
-            icono: '🚀',
-            label: 'Altas Pendientes (Listas para Iniciar)',
-            rawAlumnos: altasPendientes,
-            items: altasPendientes.map(al => ({ al, info: getEstadoYBadgeLocal(al), diffHs: 0, dateToEval: new Date() })),
-            esAsignable: false
-        });
+    if (esEval) {
+        if (objEntrevistas) tiposDisponibles.push(objEntrevistas);
+        if (objValidaciones) tiposDisponibles.push(objValidaciones);
+        if (objSeguimientos) tiposDisponibles.push(objSeguimientos);
+    } else if (esCoordinador) {
+        if (objValidaciones) tiposDisponibles.push(objValidaciones);
+        if (objEntrevistas) tiposDisponibles.push(objEntrevistas);
+        if (objAltasPendientes) tiposDisponibles.push(objAltasPendientes);
+        if (objSeguimientos) tiposDisponibles.push(objSeguimientos);
+    } else {
+        // Modo Admisor / Admin / General
+        // 1° Sin Agendar -> 2° Validaciones -> 3° Entrevistas Agendadas -> 4° Altas Pendientes -> 5° Seguimientos
+        if (objSinAgendar) tiposDisponibles.push(objSinAgendar);
+        if (objValidaciones) tiposDisponibles.push(objValidaciones);
+        if (objEntrevistas) tiposDisponibles.push(objEntrevistas);
+        if (objAltasPendientes) tiposDisponibles.push(objAltasPendientes);
+        if (objSeguimientos) tiposDisponibles.push(objSeguimientos);
     }
 
     // Calcular el pool de todos los items combinados
@@ -6171,15 +6736,17 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
     });
 
     const totalGeneral = todosItemsCombinados.length;
-    const totalVencidos = todosItemsCombinados.filter(p => p.diffHs < 0).length;
-    const totalUrgentes = todosItemsCombinados.filter(p => p.diffHs >= 0 && p.diffHs <= 24).length;
-    const totalProximos = todosItemsCombinados.filter(p => p.diffHs > 24 && p.diffHs <= 48).length;
+    const totalVencidos = todosItemsCombinados.filter(p => p.info?.nivelUrgencia === 'vencido').length;
+    const totalUrgentes = todosItemsCombinados.filter(p => p.info?.nivelUrgencia === 'urgente-24').length;
+    const totalProximos = todosItemsCombinados.filter(p => p.info?.nivelUrgencia === 'urgente-48').length;
+    const totalEnTermino = todosItemsCombinados.filter(p => p.info?.nivelUrgencia === 'programado' || (!['vencido','urgente-24','urgente-48'].includes(p.info?.nivelUrgencia))).length;
 
     // Actualizar contadores superiores
     const elCntTodos = document.getElementById('cnt-prio-todos');
     const elCntVenc = document.getElementById('cnt-prio-vencidos');
     const elCntUrg = document.getElementById('cnt-prio-urgentes');
     const elCntProx = document.getElementById('cnt-prio-proximos');
+    const elCntTerm = document.getElementById('cnt-prio-entermino');
     const elBadgeTot = document.getElementById('badge-total-urgencias');
 
     if (elCntTodos) elCntTodos.textContent = totalGeneral;
@@ -6187,6 +6754,7 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
     if (elCntVenc) elCntVenc.textContent = totalVencidos;
     if (elCntUrg) elCntUrg.textContent = totalUrgentes;
     if (elCntProx) elCntProx.textContent = totalProximos;
+    if (elCntTerm) elCntTerm.textContent = totalEnTermino;
 
     // Actualizar botón y popover de filtros desplegables
     const btnToggleFiltro = document.getElementById('btn-toggle-filtros-dashboard');
@@ -6266,15 +6834,20 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
             btn.style.color = isActive ? '#ffffff' : '#854d0e';
             btn.style.borderColor = isActive ? '#eab308' : '#fef08a';
             btn.style.boxShadow = isActive ? '0 2px 6px rgba(234,179,8,0.2)' : '0 1px 2px rgba(0,0,0,0.03)';
+        } else if (prio === 'entermino') {
+            btn.style.background = isActive ? '#15803d' : '#ffffff';
+            btn.style.color = isActive ? '#ffffff' : '#15803d';
+            btn.style.borderColor = isActive ? '#16a34a' : '#86efac';
+            btn.style.boxShadow = isActive ? '0 2px 6px rgba(22,163,74,0.2)' : '0 1px 2px rgba(0,0,0,0.03)';
         }
     });
 
     if (totalGeneral === 0) {
         const msg = esEval
-            ? '✨ ¡Al día! No tienes seguimientos ni entrevistas urgentes o vencidas en las próximas 48 hs.'
+            ? '✨ ¡Al día! No tienes seguimientos ni entrevistas registradas.'
             : (esCoordinador
-                ? '✨ ¡Al día! No hay seguimientos ni entrevistas urgentes o vencidas en las próximas 48 hs.'
-                : '✨ ¡Al día! No hay alumnos sin agendar, altas pendientes ni seguimientos/entrevistas urgentes o vencidas.');
+                ? '✨ ¡Al día! No hay seguimientos ni entrevistas registradas.'
+                : '✨ ¡Al día! No hay alumnos sin agendar, altas pendientes ni seguimientos/entrevistas pendientes.');
         cont.innerHTML = `<div style="color:var(--text-muted); padding:16px; text-align:center; font-weight:600; background:#f8fafc; border-radius:10px; border:1px dashed #cbd5e1;">${msg}</div>`;
         return;
     }
@@ -6298,14 +6871,15 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
         tiposAMostrar.forEach(t => {
             // Filtrar items por tiempo según tabActual
             let itemsFiltrados = t.items;
-            if (tabActual === 'vencidos') itemsFiltrados = t.items.filter(p => p.diffHs < 0);
-            else if (tabActual === 'urgentes') itemsFiltrados = t.items.filter(p => p.diffHs >= 0 && p.diffHs <= 24);
-            else if (tabActual === 'proximos') itemsFiltrados = t.items.filter(p => p.diffHs > 24 && p.diffHs <= 48);
+            if (tabActual === 'vencidos') itemsFiltrados = t.items.filter(p => p.info?.nivelUrgencia === 'vencido');
+            else if (tabActual === 'urgentes') itemsFiltrados = t.items.filter(p => p.info?.nivelUrgencia === 'urgente-24');
+            else if (tabActual === 'proximos') itemsFiltrados = t.items.filter(p => p.info?.nivelUrgencia === 'urgente-48');
+            else if (tabActual === 'entermino') itemsFiltrados = t.items.filter(p => p.info?.nivelUrgencia === 'programado' || (!['vencido','urgente-24','urgente-48'].includes(p.info?.nivelUrgencia)));
 
             if (itemsFiltrados.length === 0) return;
 
             html += `
-                <div class="dash-apartado-container" style="margin-bottom:16px; border:1px solid var(--border-color); border-radius:12px; overflow:hidden; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+                <div class="dash-apartado-container" style="margin-bottom:16px; border:1px solid var(--border-color); border-radius:12px; overflow:visible; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
                     <div class="dash-apartado-header" style="background:#f8fafc; border-bottom:1px solid var(--border-color); padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
                         <div style="display:flex; align-items:center; gap:8px;">
                             <span style="font-size:1.2em;">${t.icono}</span>
@@ -6321,7 +6895,7 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
         });
 
         if (!html) {
-            cont.innerHTML = `<div style="color:var(--text-muted); padding:16px; text-align:center; font-weight:600; background:#fff; border-radius:10px; border:1px dashed #cbd5e1;">No hay registros en esta categoría de tiempo (${tabActual}).</div>`;
+            cont.innerHTML = `<div style="color:var(--text-muted); padding:16px; text-align:center; font-weight:600; background:#fff; border-radius:10px; border:1px dashed #cbd5e1;">No hay registros en esta categoría de prioridad (${tabActual}).</div>`;
             return;
         }
         cont.innerHTML = html;
@@ -6338,7 +6912,7 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
             if (tabActual !== 'todos') return;
             
             html += `
-                <div class="dash-apartado-container" style="margin-bottom:16px; border:1px solid var(--border-color); border-radius:12px; overflow:hidden; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+                <div class="dash-apartado-container" style="margin-bottom:16px; border:1px solid var(--border-color); border-radius:12px; overflow:visible; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
                     <div class="dash-apartado-header" style="background:#f8fafc; border-bottom:1px solid var(--border-color); padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
                         <div style="display:flex; align-items:center; gap:8px;">
                             <span style="font-size:1.2em;">${t.icono}</span>
@@ -6365,6 +6939,7 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
                     vencidas: [],
                     urgentes: [],
                     proximas: [],
+                    entermino: [],
                     tieneVencidas: false,
                     minDiffHs: Infinity
                 });
@@ -6372,13 +6947,15 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
             const grp = evalMap.get(respNom);
             grp.items.push(p);
             if (p.diffHs < grp.minDiffHs) grp.minDiffHs = p.diffHs;
-            if (p.diffHs < 0) {
+            if (p.info?.nivelUrgencia === 'vencido') {
                 grp.vencidas.push(p);
                 grp.tieneVencidas = true;
-            } else if (p.diffHs <= 24) {
+            } else if (p.info?.nivelUrgencia === 'urgente-24') {
                 grp.urgentes.push(p);
-            } else {
+            } else if (p.info?.nivelUrgencia === 'urgente-48') {
                 grp.proximas.push(p);
+            } else {
+                grp.entermino.push(p);
             }
         });
 
@@ -6398,6 +6975,7 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
             if (tabActual === 'vencidos') itemsEvalFiltrados = ev.vencidas;
             else if (tabActual === 'urgentes') itemsEvalFiltrados = ev.urgentes;
             else if (tabActual === 'proximos') itemsEvalFiltrados = ev.proximas;
+            else if (tabActual === 'entermino') itemsEvalFiltrados = ev.entermino;
 
             if (itemsEvalFiltrados.length === 0) return;
             totalTipoEnTab += itemsEvalFiltrados.length;
@@ -6417,9 +6995,10 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
                             ${ev.tieneVencidas ? `<span style="font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; background:#dc2626; color:#ffffff; text-transform:uppercase;">⚠️ Requiere Atención</span>` : ''}
                         </div>
                         <div style="display:flex; align-items:center; gap:6px;">
-                            ${ev.vencidas.length > 0 ? `<span style="background:#fee2e2; color:#991b1b; font-size:10.5px; font-weight:800; padding:1px 6px; border-radius:6px;">${ev.vencidas.length} 🔴</span>` : ''}
-                            ${ev.urgentes.length > 0 ? `<span style="background:#ffedd5; color:#9a3412; font-size:10.5px; font-weight:800; padding:1px 6px; border-radius:6px;">${ev.urgentes.length} 🟠</span>` : ''}
-                            ${ev.proximas.length > 0 ? `<span style="background:#fef9c3; color:#854d0e; font-size:10.5px; font-weight:800; padding:1px 6px; border-radius:6px;">${ev.proximas.length} 🟡</span>` : ''}
+                            ${ev.vencidas.length > 0 ? `<span style="background:#fee2e2; color:#991b1b; font-size:10.5px; font-weight:800; padding:1px 6px; border-radius:6px;" title="${ev.vencidas.length} Críticos">${ev.vencidas.length} 🔴</span>` : ''}
+                            ${ev.urgentes.length > 0 ? `<span style="background:#ffedd5; color:#9a3412; font-size:10.5px; font-weight:800; padding:1px 6px; border-radius:6px;" title="${ev.urgentes.length} Retraso leve">${ev.urgentes.length} 🟠</span>` : ''}
+                            ${ev.proximas.length > 0 ? `<span style="background:#fef9c3; color:#854d0e; font-size:10.5px; font-weight:800; padding:1px 6px; border-radius:6px;" title="${ev.proximas.length} Ver hoy">${ev.proximas.length} 🟡</span>` : ''}
+                            ${ev.entermino.length > 0 ? `<span style="background:#dcfce7; color:#15803d; font-size:10.5px; font-weight:800; padding:1px 6px; border-radius:6px;" title="${ev.entermino.length} En término">${ev.entermino.length} 🟢</span>` : ''}
                             <span style="font-size:11.5px; font-weight:700; padding:2px 8px; border-radius:12px; ${badgeEvStyle}">
                                 ${itemsEvalFiltrados.length} ${itemsEvalFiltrados.length === 1 ? 'caso' : 'casos'}
                             </span>
@@ -6434,7 +7013,7 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
 
         if (evalBlocksHtml) {
             html += `
-                <div class="dash-apartado-container" style="margin-bottom:16px; border:1px solid var(--border-color); border-radius:12px; overflow:hidden; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+                <div class="dash-apartado-container" style="margin-bottom:16px; border:1px solid var(--border-color); border-radius:12px; overflow:visible; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
                     <div class="dash-apartado-header" style="background:#f8fafc; border-bottom:1px solid var(--border-color); padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
                         <div style="display:flex; align-items:center; gap:8px;">
                             <span style="font-size:1.2em;">${t.icono}</span>
@@ -6552,6 +7131,9 @@ function getModuloSubtabs() {
             { vista: 'Suspendidos - De Lista de Espera', label: 'De Lista de Espera', icon: '⏳', countFn: (alumnos) => alumnos.filter(d => isAlumnoSuspendido(d) && getOrigenSuspension(d) === 'espera').length },
             { vista: 'Suspendidos - De Pre-Alta', label: 'De Pre-Alta', icon: '📋', countFn: (alumnos) => alumnos.filter(d => isAlumnoSuspendido(d) && getOrigenSuspension(d) === 'altas').length }
         ],
+        'Bajas': [
+            { vista: 'Bajas - Todas', label: 'Todas las Bajas', icon: '🛑', countFn: (alumnos) => alumnos.filter(d => isAlumnoBaja(d)).length }
+        ],
         'Match': [
             { vista: 'Match - Pendientes', label: 'Armar Grupos y Clases', icon: '🔍', countFn: (alumnos) => alumnos.filter(d => (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === 'lista de espera').length },
             { vista: 'Match - Solicitudes Profes', label: 'Solicitudes de Profes', icon: '📩', countFn: () => cachedSolicitudesVacantesCount, className: 'tab-badge-solicitudes' },
@@ -6651,6 +7233,13 @@ function actualizarBadgesYNavegacion(allData) {
     if (bSusp) {
         bSusp.textContent = '0';
         bSusp.style.display = 'none';
+    }
+
+    // 7. Conteo Bajas: quitar contador
+    const bBajas = document.getElementById('badge-bajas');
+    if (bBajas) {
+        bBajas.textContent = '0';
+        bBajas.style.display = 'none';
     }
 }
 
@@ -6762,11 +7351,11 @@ export function obtenerModulosPermitidosModoActivo() {
         } else if (modo === 'profesor' || modo === 'docente') {
             return ['portal_profesor'];
         } else if (modo === 'coordinador_grupos' || modo === 'coordinador') {
-            return ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'configuracion'];
+            return ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'bajas', 'configuracion'];
         } else if (modo === 'admisor' || modo === 'admisiones') {
-            return ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'metricas'];
+            return ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'bajas', 'metricas'];
         } else {
-            return ['dashboard', 'portal_profesor', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'metricas', 'configuracion'];
+            return ['dashboard', 'portal_profesor', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'bajas', 'metricas', 'configuracion'];
         }
     }
 
@@ -6774,6 +7363,10 @@ export function obtenerModulosPermitidosModoActivo() {
     let listaPermitidaUser = [];
     if (Array.isArray(usuario.modulos_habilitados)) {
         listaPermitidaUser = [...usuario.modulos_habilitados];
+        // Si tiene 'suspendidos' o roles de gestión y no tiene 'bajas', habilitar 'bajas' automáticamente
+        if (listaPermitidaUser.includes('suspendidos') && !listaPermitidaUser.includes('bajas')) {
+            listaPermitidaUser.push('bajas');
+        }
     } else {
         const setMods = new Set();
         rolesArr.forEach(r => {
@@ -6798,14 +7391,14 @@ export function obtenerModulosPermitidosModoActivo() {
         const base = ['portal_profesor'];
         return base.filter(m => listaPermitidaUser.includes(m));
     } else if (modo === 'coordinador_grupos' || modo === 'coordinador') {
-        const base = ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'configuracion'];
-        return base.filter(m => listaPermitidaUser.includes(m) || m === 'seguimientos');
+        const base = ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'bajas', 'configuracion'];
+        return base.filter(m => listaPermitidaUser.includes(m) || m === 'seguimientos' || m === 'bajas');
     } else if (modo === 'admisor' || modo === 'admisiones') {
-        const base = ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'metricas'];
-        return base.filter(m => listaPermitidaUser.includes(m) || m === 'seguimientos');
+        const base = ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'bajas', 'metricas'];
+        return base.filter(m => listaPermitidaUser.includes(m) || m === 'seguimientos' || m === 'bajas');
     } else if (modo === 'admin') {
-        const base = ['dashboard', 'portal_profesor', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'metricas', 'configuracion'];
-        return base.filter(m => listaPermitidaUser.includes(m) || m === 'seguimientos');
+        const base = ['dashboard', 'portal_profesor', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'bajas', 'metricas', 'configuracion'];
+        return base.filter(m => listaPermitidaUser.includes(m) || m === 'seguimientos' || m === 'bajas');
     } else {
         // modo multi: exactamente los módulos permitidos para el usuario
         return listaPermitidaUser;
@@ -7159,6 +7752,7 @@ export function configurarSidebarPorPermisos() {
         'Altas': 'altas',
         'Seguimientos': 'seguimientos',
         'Suspendidos': 'suspendidos',
+        'Bajas': 'bajas',
         'Estadísticas': 'metricas',
         'Configuración': 'configuracion'
     };
@@ -7197,9 +7791,89 @@ export function configurarSidebarPorPermisos() {
 }
 
 // =======================================================================
-// BÚSQUEDA GLOBAL UNIVERSAL
+// BÚSQUEDA GLOBAL UNIVERSAL & SINCRONIZACIÓN REACTIVA EN MEMORIA
 // =======================================================================
 let ultimosAlumnosCargados = [];
+
+export function deepMergeAndExpandDotNotation(target, updates) {
+    if (!target || typeof target !== 'object' || !updates || typeof updates !== 'object') return target;
+
+    for (const [key, val] of Object.entries(updates)) {
+        if (key.includes('.')) {
+            // Manejar dot-notation de Firestore (ej. "seguimiento.activo": true)
+            const parts = key.split('.');
+            let curr = target;
+            for (let i = 0; i < parts.length - 1; i++) {
+                const part = parts[i];
+                if (!curr[part] || typeof curr[part] !== 'object') {
+                    curr[part] = {};
+                }
+                curr = curr[part];
+            }
+            curr[parts[parts.length - 1]] = val;
+        } else if (val && typeof val === 'object' && !Array.isArray(val) && !(val instanceof Date)) {
+            // Merge recursivo para objetos anidados estándar (ej. seguimiento: { ... })
+            if (!target[key] || typeof target[key] !== 'object' || Array.isArray(target[key])) {
+                target[key] = {};
+            }
+            deepMergeAndExpandDotNotation(target[key], val);
+        } else {
+            // Primitivos, arrays o fechas
+            target[key] = val;
+        }
+    }
+    return target;
+}
+window.deepMergeAndExpandDotNotation = deepMergeAndExpandDotNotation;
+
+export function actualizarAlumnoEnMemoriaLocal(id, updates) {
+    if (!id || !updates || typeof updates !== 'object') return;
+    
+    // 1. Actualizar en ultimosAlumnosCargados
+    if (Array.isArray(ultimosAlumnosCargados)) {
+        const idx = ultimosAlumnosCargados.findIndex(a => a.id === id);
+        if (idx !== -1) {
+            deepMergeAndExpandDotNotation(ultimosAlumnosCargados[idx], updates);
+        } else if (updates.nombre) {
+            const nuevo = { id };
+            deepMergeAndExpandDotNotation(nuevo, updates);
+            ultimosAlumnosCargados.push(nuevo);
+        }
+    }
+    
+    // 2. Actualizar en window.allData
+    if (Array.isArray(window.allData)) {
+        const idx = window.allData.findIndex(a => a.id === id);
+        if (idx !== -1) {
+            deepMergeAndExpandDotNotation(window.allData[idx], updates);
+        } else if (updates.nombre) {
+            const nuevo = { id };
+            deepMergeAndExpandDotNotation(nuevo, updates);
+            window.allData.push(nuevo);
+        }
+    }
+
+    // 3. Actualizar en cachedAlumnosData
+    if (Array.isArray(cachedAlumnosData)) {
+        const idx = cachedAlumnosData.findIndex(a => a.id === id);
+        if (idx !== -1) {
+            deepMergeAndExpandDotNotation(cachedAlumnosData[idx], updates);
+        } else if (updates.nombre) {
+            const nuevo = { id };
+            deepMergeAndExpandDotNotation(nuevo, updates);
+            cachedAlumnosData.push(nuevo);
+        }
+    }
+
+    // 4. Inmediatamente recalcular contadores y badges en la barra lateral y pestañas
+    if (typeof actualizarBadgesYNavegacion === 'function') {
+        actualizarBadgesYNavegacion(ultimosAlumnosCargados || window.allData || cachedAlumnosData || []);
+    }
+
+    // 5. Invalidar timestamp de background sync para habilitar sincronización limpia
+    window._timestampUltimaCargaAlumnos = 0;
+}
+window.actualizarAlumnoEnMemoriaLocal = actualizarAlumnoEnMemoriaLocal;
 
 export function ejecutarBusquedaGlobal(queryStr, allData = null) {
     const data = allData || ultimosAlumnosCargados || [];
@@ -7256,7 +7930,23 @@ export function ejecutarBusquedaGlobal(queryStr, allData = null) {
                 <div style="font-size:12px; color:var(--text-muted);">No hay ningún alumno en el sistema que coincida con "${queryStr.trim()}".</div>
             </div>`;
     } else {
-        listaResultados.innerHTML = coincidencias.map(al => generarFilaAlumno(al, al.id, 'Busqueda')).join('');
+        listaResultados.innerHTML = coincidencias.map(al => {
+            let vistaContextual = 'Dashboard';
+            if (isAlumnoSuspendido(al)) {
+                vistaContextual = 'Suspendidos - Todos';
+            } else if (al.seguimiento && (al.seguimiento.activo || al.seguimiento.pendiente || al.seguimiento.finalizado)) {
+                vistaContextual = al.seguimiento.finalizado ? 'Seguimientos - Finalizados' : (al.seguimiento.activo ? 'Seguimientos - En Curso' : 'Seguimientos - Pendientes');
+            } else if (al.estado_agenda === 'Lista de espera') {
+                vistaContextual = 'Lista de Espera';
+            } else if ((al.estado_agenda || '').toLowerCase().includes('alta')) {
+                vistaContextual = 'Altas - En Curso';
+            } else if ((al.estado_agenda || '').toLowerCase().includes('valid')) {
+                vistaContextual = 'Inbox - Validar Evaluador';
+            } else if ((al.estado_agenda || '').toLowerCase().includes('confirmad')) {
+                vistaContextual = 'Inbox - Confirmadas';
+            }
+            return generarFilaAlumno(al, al.id, vistaContextual);
+        }).join('');
     }
 
     return true;
@@ -7265,6 +7955,9 @@ window.ejecutarBusquedaGlobal = ejecutarBusquedaGlobal;
 
 export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = false) {
     window.cargarVistaGlobal = cargarVista;
+    if (typeof window.actualizarUIModoVistaSwitch === 'function') {
+        window.actualizarUIModoVistaSwitch();
+    }
 
     const esEvalActivo = esModoEvaluadorActivo();
     
@@ -7329,6 +8022,41 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
             if (s1) s1.value = 'ninguno';
             if (s2) s2.value = 'ninguno';
             if (s3) s3.value = 'ninguno';
+        } else if (vista.startsWith('Suspendidos')) {
+            agrupadorNivel1 = 'ninguno';
+            agrupadorNivel2 = 'ninguno';
+            agrupadorNivel3 = 'ninguno';
+            if (s1) s1.value = 'ninguno';
+            if (s2) s2.value = 'ninguno';
+            if (s3) s3.value = 'ninguno';
+        } else if (vista.startsWith('Altas')) {
+            agrupadorNivel1 = 'profe';
+            agrupadorNivel2 = 'grupo';
+            agrupadorNivel3 = 'ninguno';
+            if (s1) s1.value = 'profe';
+            if (s2) s2.value = 'grupo';
+            if (s3) s3.value = 'ninguno';
+        } else if (vista.startsWith('Seguimientos') || vista === 'Altas - Seguimientos') {
+            agrupadorNivel1 = 'profe';
+            agrupadorNivel2 = 'ninguno';
+            agrupadorNivel3 = 'ninguno';
+            if (s1) s1.value = 'profe';
+            if (s2) s2.value = 'ninguno';
+            if (s3) s3.value = 'ninguno';
+        } else if (vista === 'Match - En Validacion') {
+            agrupadorNivel1 = 'grupo';
+            agrupadorNivel2 = 'profe';
+            agrupadorNivel3 = 'ninguno';
+            if (s1) s1.value = 'grupo';
+            if (s2) s2.value = 'profe';
+            if (s3) s3.value = 'ninguno';
+        } else if (vista.startsWith('Bajas') || vista === 'Bajas') {
+            agrupadorNivel1 = 'profe';
+            agrupadorNivel2 = 'suscripcion';
+            agrupadorNivel3 = 'ninguno';
+            if (s1) s1.value = 'profe';
+            if (s2) s2.value = 'suscripcion';
+            if (s3) s3.value = 'ninguno';
         }
     }
 
@@ -7341,6 +8069,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
     else if (vista.startsWith('Match') || vista === 'Ajustes Match') modulo = 'Match';
     else if (vista === 'Lista de Espera') modulo = 'Lista de Espera';
     else if (vista.startsWith('Suspendidos')) modulo = 'Suspendidos';
+    else if (vista.startsWith('Bajas') || vista === 'Bajas') modulo = 'Bajas';
     else if (vista.startsWith('Seguimientos') || vista === 'Altas - Seguimientos') modulo = 'Seguimientos';
     else if (vista === 'Dashboard') modulo = 'Dashboard';
     else if (vista === 'Estadísticas') modulo = 'Estadísticas';
@@ -7371,6 +8100,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
         'Altas': 'altas',
         'Seguimientos': 'seguimientos',
         'Suspendidos': 'suspendidos',
+        'Bajas': 'bajas',
         'Estadísticas': 'metricas',
         'Configuración': 'configuracion',
         'portal_profesor': 'portal_profesor'
@@ -7475,9 +8205,10 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
     vResumen.style.display = 'none'; if(vResumenTime) vResumenTime.style.display = 'none'; contLista.style.display = 'none'; if(contKanban) contKanban.style.display = 'none'; contEstad.style.display = 'none'; cv.style.display = 'none';
     const contMatch = document.getElementById('match-pendientes-container'); if(contMatch) contMatch.style.display = 'none';
 
-    const esVistaConLista = vista.startsWith('Inbox') || vista.startsWith('Altas') || vista === 'Lista de Espera' || vista.startsWith('Suspendidos') || vista.startsWith('Seguimientos') || vista === 'Altas - Seguimientos';
+    const esVistaConLista = vista.startsWith('Inbox') || vista.startsWith('Altas') || vista === 'Lista de Espera' || vista.startsWith('Suspendidos') || vista.startsWith('Bajas') || vista.startsWith('Seguimientos') || vista === 'Altas - Seguimientos';
 
     // FEEDBACK VISUAL INMEDIATO (Milisegundo 0): Skeleton y Contenedor activos antes de esperar la red
+    const hayDatosEnMemoria = Array.isArray(ultimosAlumnosCargados) && ultimosAlumnosCargados.length > 0;
     if (esVistaConLista) { 
         cv.style.display = 'flex'; 
         contLista.style.display = 'flex';
@@ -7489,21 +8220,39 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
         if (s3 && s3.value !== agrupadorNivel3) s3.value = agrupadorNivel3;
         renderFiltrosChips(); 
         if (searchVista) searchVista.style.display = 'block'; 
-        if (!usarCache) mostrarSkeleton('lista-generica', 6);
+        // Solo mostrar skeleton si la aplicación está arrancando desde 0 y no hay nada en memoria
+        if (!hayDatosEnMemoria) mostrarSkeleton('lista-generica', 6);
     }
 
-    if (!usarCache) notificarSincronizacion('loading', 'Consultando base de datos...');
+    let allData = hayDatosEnMemoria ? [...ultimosAlumnosCargados] : [];
+    
+    // Función de refresco en segundo plano sin congelar ni vaciar la pantalla
+    const refrescarFirestoreEnBackground = async () => {
+        try {
+            notificarSincronizacion('loading', 'Sincronizando...');
+            const qSnap = await getDocs(collection(db, "alumnos"));
+            const nuevaData = [];
+            qSnap.forEach(d => nuevaData.push(normalizarAlumnoSeguimiento({id: d.id, ...d.data()})));
+            sanearDatosCasosPuntuales(nuevaData);
+            ultimosAlumnosCargados = nuevaData;
+            window.ultimosAlumnosCargados = nuevaData;
+            window.allData = nuevaData;
+            window._timestampUltimaCargaAlumnos = Date.now();
+            actualizarBadgesYNavegacion(nuevaData);
+            notificarSincronizacion('ok', 'Actualizado');
+        } catch(e) {
+            console.warn("Aviso en sincronización en segundo plano:", e);
+            notificarSincronizacion('warn', 'Reconectando con la base...');
+        }
+    };
 
-    // Obtener datos globales de alumnos
-    let allData = [];
-    if (usarCache && Array.isArray(ultimosAlumnosCargados) && ultimosAlumnosCargados.length > 0) {
-        allData = ultimosAlumnosCargados;
-        notificarSincronizacion('ok', 'Actualizado');
-    } else {
+    if (!hayDatosEnMemoria) {
+        // Primera carga absoluta: consultar a Firestore
+        notificarSincronizacion('loading', 'Consultando base de datos...');
         try {
             const qSnap = await getDocs(collection(db, "alumnos"));
             qSnap.forEach(d => allData.push(normalizarAlumnoSeguimiento({id: d.id, ...d.data()})));
-            verificarAutoResetJuliaClaudio(allData);
+            sanearDatosCasosPuntuales(allData);
             ultimosAlumnosCargados = allData;
             window.ultimosAlumnosCargados = allData;
             window.allData = allData;
@@ -7511,12 +8260,18 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
             actualizarBadgesYNavegacion(allData);
             notificarSincronizacion('ok', 'Actualizado');
         } catch(e) {
-            console.error("Error al cargar alumnos:", e);
-            allData = ultimosAlumnosCargados || [];
-            verificarAutoResetJuliaClaudio(allData);
-            window.allData = allData;
-            window.ultimosAlumnosCargados = allData;
+            console.error("Error al cargar alumnos inicial:", e);
+            allData = [];
             notificarSincronizacion('warn', 'Reconectando con la base...');
+        }
+    } else {
+        // Hay datos en memoria: renderizado instantáneo y sincronización si hace más de 12s o cambio de vista
+        const ahora = Date.now();
+        const ultimaCarga = window._timestampUltimaCargaAlumnos || 0;
+        if (!usarCache && (ahora - ultimaCarga > 12000)) {
+            refrescarFirestoreEnBackground();
+        } else {
+            notificarSincronizacion('ok', 'Actualizado');
         }
     }
 
@@ -7528,10 +8283,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
     // Búsqueda global ÚNICAMENTE si estamos en el Dashboard
     if (vista === 'Dashboard') {
         if (queryDashStr.length > 0) {
-            const busquedaActiva = ejecutarBusquedaGlobal(queryDashStr, allData);
-            if (busquedaActiva) {
-                return;
-            }
+            ejecutarBusquedaGlobal(queryDashStr, allData);
         } else {
             if (contBusqueda) contBusqueda.style.display = 'none';
         }
@@ -7642,8 +8394,6 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
         } catch(e) {}
     } else if (vista.startsWith('Inbox') || vista.startsWith('Altas') || vista.startsWith('Seguimientos') || vista === 'Altas - Seguimientos') {
         try {
-            const qSnap = await getDocs(collection(db, "alumnos")); let allData = []; qSnap.forEach(d => allData.push(normalizarAlumnoSeguimiento({id: d.id, ...d.data()})));
-            actualizarBadgesYNavegacion(allData);
             renderSegmentedTabs(vista);
             
             const esSoloEval = esModoEvaluadorActivo();
@@ -7740,11 +8490,11 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
             } else {
                 renderListaFilas('lista-generica', dataFiltrada, 'all', null);
             }
-        } catch(e) {}
+        } catch(e) {
+            console.error("Error al renderizar lista en vista:", vista, e);
+        }
     } else if (vista.startsWith('Suspendidos')) {
         try {
-            const qSnap = await getDocs(collection(db, "alumnos")); let allData = []; qSnap.forEach(d => allData.push(normalizarAlumnoSeguimiento({id: d.id, ...d.data()})));
-            actualizarBadgesYNavegacion(allData);
             renderSegmentedTabs(vista);
 
             let dataFiltrada = allData.filter(d => isAlumnoSuspendido(d));
@@ -7755,9 +8505,34 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
             } else if (vista === 'Suspendidos - De Pre-Alta') {
                 dataFiltrada = dataFiltrada.filter(d => getOrigenSuspension(d) === 'altas');
             }
+            
+            // Ordenamiento cronológico LIFO por fecha de baja (la más actual primero)
+            dataFiltrada.sort((a, b) => {
+                const fa = typeof obtenerFechaSuspensionAlumno === 'function' ? (obtenerFechaSuspensionAlumno(a)?.getTime() || 0) : 0;
+                const fb = typeof obtenerFechaSuspensionAlumno === 'function' ? (obtenerFechaSuspensionAlumno(b)?.getTime() || 0) : 0;
+                return fb - fa;
+            });
+
             renderListaFilas('lista-generica', dataFiltrada, 'all', null);
         } catch(e) {
             console.error("Error al cargar suspendidos:", e);
+        }
+    } else if (vista.startsWith('Bajas') || vista === 'Bajas') {
+        try {
+            renderSegmentedTabs(vista);
+
+            let dataFiltrada = allData.filter(d => isAlumnoBaja(d));
+            
+            // Ordenamiento cronológico LIFO por fecha de baja (la más actual primero)
+            dataFiltrada.sort((a, b) => {
+                const fa = typeof obtenerFechaBajaAlumno === 'function' ? (obtenerFechaBajaAlumno(a)?.getTime() || 0) : 0;
+                const fb = typeof obtenerFechaBajaAlumno === 'function' ? (obtenerFechaBajaAlumno(b)?.getTime() || 0) : 0;
+                return fb - fa;
+            });
+
+            renderListaFilas('lista-generica', dataFiltrada, 'all', null);
+        } catch(e) {
+            console.error("Error al cargar bajas:", e);
         }
     } else if (vista === 'Lista de Espera') {
         const btnSyncEspera = document.getElementById('btn-sync-espera-csv');
@@ -7771,26 +8546,17 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
         }
     } else if (vista === 'Match - Pendientes') {
         try { 
-            const qSnap = await getDocs(collection(db, "alumnos")); let allData = [];
-            qSnap.forEach(d => allData.push(normalizarAlumnoSeguimiento({ id: d.id, ...d.data() })));
-            actualizarBadgesYNavegacion(allData);
             renderSegmentedTabs(vista);
         } catch(e) {}
         await renderMatchPendientes();
     } else if (vista === 'Match - Solicitudes Profes') {
         contLista.style.display = 'flex';
         try { 
-            const qSnap = await getDocs(collection(db, "alumnos")); let allData = [];
-            qSnap.forEach(d => allData.push(normalizarAlumnoSeguimiento({ id: d.id, ...d.data() })));
-            actualizarBadgesYNavegacion(allData);
             renderSegmentedTabs(vista);
         } catch(e) {}
         await renderMatchSolicitudesProfes(contLista, configApp, { setBotonCargando, cargarVista });
     } else if (vista === 'Match - En Validacion') {
         try { 
-            const qSnap = await getDocs(collection(db, "alumnos")); let allData = [];
-            qSnap.forEach(d => allData.push(normalizarAlumnoSeguimiento({ id: d.id, ...d.data() })));
-            actualizarBadgesYNavegacion(allData);
             renderSegmentedTabs(vista);
         } catch(e) {}
         await renderMatchEnValidacion(contLista);
@@ -7798,9 +8564,6 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
         contLista.style.display = 'flex';
         document.getElementById('vista-titulo').textContent = 'Match — Confirmados';
         try { 
-            const qSnap = await getDocs(collection(db, "alumnos")); let allData = [];
-            qSnap.forEach(d => allData.push(normalizarAlumnoSeguimiento({ id: d.id, ...d.data() })));
-            actualizarBadgesYNavegacion(allData);
             renderSegmentedTabs(vista);
         } catch(e) {}
         await renderMatchConfirmados(contLista);
@@ -8110,11 +8873,11 @@ async function cambiarPasswordUsuarioLogueado(passActual, passNueva, passConfirm
 
 
 const ROLES_MODULOS_DEFAULT = {
-    admin: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'metricas', 'portal_profesor', 'configuracion', 'permisos'],
-    admisor: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'metricas'],
-    admisiones: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'metricas'],
-    coordinador_grupos: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'configuracion'],
-    coordinador: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'configuracion'],
+    admin: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'bajas', 'metricas', 'portal_profesor', 'configuracion', 'permisos'],
+    admisor: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'bajas', 'metricas'],
+    admisiones: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'bajas', 'metricas'],
+    coordinador_grupos: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'bajas', 'configuracion'],
+    coordinador: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'bajas', 'configuracion'],
     evaluador: ['dashboard', 'inbox', 'seguimientos'],
     profesor: ['portal_profesor'],
     personalizado: []
@@ -8561,15 +9324,10 @@ document.addEventListener('change', async (e) => {
                 labelPadre.style.color = e.target.checked ? 'var(--text-main)' : 'var(--text-muted)';
             }
 
-            if (Array.isArray(cachedAlumnosData)) {
-                const item = cachedAlumnosData.find(x => x.id === id);
-                if (item) item.checklist_admision = checks;
-            }
-            if (Array.isArray(ultimosAlumnosCargados)) {
-                const item = ultimosAlumnosCargados.find(x => x.id === id);
-                if (item) item.checklist_admision = checks;
-            }
-            await updateDoc(docRef, { checklist_admision: checks });
+            const updatesAdm = { checklist_admision: checks };
+            actualizarAlumnoEnMemoriaLocal(id, updatesAdm);
+            await updateDoc(docRef, updatesAdm);
+
             if (completados === 2) {
                 mostrarToast("🎉 ¡Requisitos de Admisión completos! Listo para confirmar agenda.", "success");
             } else {
@@ -8609,17 +9367,6 @@ document.addEventListener('change', async (e) => {
                 labelPadre.style.color = e.target.checked ? 'var(--text-main)' : 'var(--text-muted)';
             }
 
-            // Actualizar datos en memoria para badges y filtros
-            if (Array.isArray(cachedAlumnosData)) {
-                const item = cachedAlumnosData.find(x => x.id === id);
-                if (item) item.checklist_alta = checks;
-            }
-            if (Array.isArray(ultimosAlumnosCargados)) {
-                const item = ultimosAlumnosCargados.find(x => x.id === id);
-                if (item) item.checklist_alta = checks;
-            }
-            actualizarBadgesYNavegacion(cachedAlumnosData);
-
             if (completados === 4) {
                 // Deshabilitar checkboxes de esa fila para evitar re-clicks
                 document.querySelectorAll(`[data-id="${id}"].chk-alta-paso`).forEach(i => i.disabled = true);
@@ -8657,15 +9404,61 @@ document.addEventListener('change', async (e) => {
                     console.warn("No se pudo actualizar evento al completar checklist:", calErr);
                 }
 
-                await updateDoc(docRef, { 
+                const ahoraIso = new Date().toISOString();
+                const respId = al.seguimiento_responsable_id || al.seguimiento?.responsable_id || '';
+                const respNom = al.seguimiento_responsable_nombre || al.seguimiento?.responsable_nombre || '';
+                const respEmail = al.seguimiento_responsable_email || al.seguimiento?.responsable_email || '';
+
+                const updatesFinal = { 
                     checklist_alta: checks,
-                    fecha_alta_finalizada: new Date().toISOString(),
+                    fecha_alta_finalizada: ahoraIso,
                     historial: hist
-                });
+                };
+
+                if (respId && respNom) {
+                    const fProxStr = calcularFechaSeguimiento72hs(al.fecha_inicio_clases || null);
+                    updatesFinal.seguimiento = {
+                        activo: true,
+                        responsable_id: respId,
+                        responsable_nombre: respNom,
+                        responsable_email: respEmail,
+                        fecha_alta_finalizada: ahoraIso,
+                        fecha_proximo_seguimiento: fProxStr,
+                        fecha_inicio_seguimiento: ahoraIso.split('T')[0],
+                        dias_sin_contacto: 0,
+                        ultimo_contacto: null,
+                        historial: al.seguimiento?.historial || [],
+                        motivo_finalizacion: null,
+                        fecha_finalizacion: null
+                    };
+                    updatesFinal.fecha_proximo_seguimiento = fProxStr;
+                    updatesFinal.seguimiento_responsable_id = respId;
+                    updatesFinal.seguimiento_responsable_nombre = respNom;
+                } else {
+                    updatesFinal.seguimiento = {
+                        activo: false,
+                        responsable_id: null,
+                        responsable_nombre: null,
+                        responsable_email: null,
+                        fecha_alta_finalizada: ahoraIso,
+                        fecha_proximo_seguimiento: null,
+                        fecha_inicio_seguimiento: null,
+                        dias_sin_contacto: 0,
+                        ultimo_contacto: null,
+                        historial: al.seguimiento?.historial || [],
+                        motivo_finalizacion: null,
+                        fecha_finalizacion: null
+                    };
+                }
+
+                actualizarAlumnoEnMemoriaLocal(id, updatesFinal);
+                await updateDoc(docRef, updatesFinal);
                 mostrarToast(`🏆 ¡Felicitaciones! Checklist completo. ${al.nombre || 'El alumno'} pasó a Altas Finalizadas.`, "success");
-                cargarVista(estadoActualVista);
+                await cargarVista(estadoActualVista, false);
             } else {
-                await updateDoc(docRef, { checklist_alta: checks });
+                const updatesPaso = { checklist_alta: checks };
+                actualizarAlumnoEnMemoriaLocal(id, updatesPaso);
+                await updateDoc(docRef, updatesPaso);
                 mostrarToast(`✓ Paso ${e.target.checked ? 'marcado' : 'desmarcado'} (${completados}/4)`, "info");
             }
         } catch(err) {
@@ -8908,7 +9701,8 @@ document.addEventListener('click', async (e) => {
         document.querySelectorAll('.dropdown-menu-wrapper.show').forEach(d => {
             if (d.id !== 'modal-acciones-dropdown') {
                 d.classList.remove('show');
-                const pRow = d.closest('.row-item, .swipe-wrapper, .group-card-l1, .group-card-l2, .tray-chip, .group-member-row, .group-box-card');
+                d.classList.remove('dropup');
+                const pRow = d.closest('.row-item, .swipe-wrapper, .group-card-l1, .group-card-l2, .tray-chip, .group-member-row, .group-box-card, .dash-apartado-container, .eval-card-group');
                 if (pRow) pRow.classList.remove('has-open-dropdown');
             }
         });
@@ -9075,16 +9869,25 @@ document.addEventListener('click', async (e) => {
                 document.querySelectorAll('.dropdown-menu-wrapper.show').forEach(d => {
                     if (d !== wrapper && d.id !== 'modal-acciones-dropdown') {
                         d.classList.remove('show');
-                        const pRow = d.closest('.row-item, .swipe-wrapper, .group-card-l1, .group-card-l2, .tray-chip, .group-member-row, .group-box-card');
+                        d.classList.remove('dropup');
+                        const pRow = d.closest('.row-item, .swipe-wrapper, .group-card-l1, .group-card-l2, .tray-chip, .group-member-row, .group-box-card, .dash-apartado-container, .eval-card-group');
                         if (pRow) pRow.classList.remove('has-open-dropdown');
                     }
                 });
-                const parentRow = wrapper.closest('.row-item, .swipe-wrapper, .group-card-l1, .group-card-l2, .tray-chip, .group-member-row, .group-box-card');
+                const parentRow = wrapper.closest('.row-item, .swipe-wrapper, .group-card-l1, .group-card-l2, .tray-chip, .group-member-row, .group-box-card, .dash-apartado-container, .eval-card-group');
                 if (!isShown) {
+                    const rect = btn.getBoundingClientRect();
+                    const spaceBelow = window.innerHeight - rect.bottom;
+                    if (spaceBelow < 280) {
+                        wrapper.classList.add('dropup');
+                    } else {
+                        wrapper.classList.remove('dropup');
+                    }
                     wrapper.classList.add('show');
                     if (parentRow) parentRow.classList.add('has-open-dropdown');
                 } else {
                     wrapper.classList.remove('show');
+                    wrapper.classList.remove('dropup');
                     if (parentRow) parentRow.classList.remove('has-open-dropdown');
                 }
             }
@@ -9103,9 +9906,10 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    if (target.classList.contains('btn-nota-rapida')) { 
+    if (target.classList.contains('btn-nota-rapida') || target.closest('.btn-nota-rapida')) { 
         e.stopPropagation(); 
-        const id = target.getAttribute('data-id');
+        const btn = target.closest('.btn-nota-rapida') || target;
+        const id = btn.getAttribute('data-id');
         const swipeContent = target.closest('.swipe-wrapper');
         if(swipeContent) swipeContent.querySelector('.swipe-content').style.transform = 'translateX(0)';
         document.getElementById('nota-rapida-id').value = id; 
@@ -11573,7 +12377,7 @@ document.addEventListener('click', async (e) => {
             hist.push(crearEntradaHistorial(`Alumno suspendido. Motivo: ${motivoCompleto}.${detalleCal}`, 'suspension')); 
             
             const nuevoEstado = esDeAltaOEspera ? "Alta suspendida" : "Agenda suspendida";
-            await updateDoc(doc(db, "alumnos", id), { 
+            const updateDataSusp = { 
                 estado_agenda: nuevoEstado, 
                 suspendido: true,
                 origen_suspension: origen,
@@ -11596,10 +12400,12 @@ document.addEventListener('click', async (e) => {
                 id_evento_alta: null,
                 calendario_evento_alta: null,
                 historial: hist 
-            }); 
+            };
+            actualizarAlumnoEnMemoriaLocal(id, updateDataSusp);
+            await updateDoc(doc(db, "alumnos", id), updateDataSusp); 
             document.getElementById('modal-suspender')?.close(); 
             removerFilaOptimista(id);
-            await cargarVista(estadoActualVista); 
+            await cargarVista(estadoActualVista, false); 
 
             if (teniaReserva) {
                 try {
@@ -11616,7 +12422,7 @@ document.addEventListener('click', async (e) => {
                     console.warn("No se pudo generar texto de cancelación:", errTxt);
                 }
             }
-            alert("Ficha suspendida correctamente.");
+            mostrarToast("🛑 Ficha suspendida correctamente.", "info");
         } catch(err){ 
             alert("❌ Error:\n\n" + err.message); 
         } finally { 
@@ -11647,6 +12453,40 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
+    if (target.classList.contains('btn-dar-baja-alumno') || target.closest('.btn-dar-baja-alumno')) { 
+        e.stopPropagation();
+        const btn = target.classList.contains('btn-dar-baja-alumno') ? target : target.closest('.btn-dar-baja-alumno');
+        const id = btn.getAttribute('data-id') || btn.closest('.btn-editar-alumno')?.getAttribute('data-id') || document.getElementById('alumno-id')?.value;
+        const nombre = btn.getAttribute('data-nombre') || btn.closest('.btn-editar-alumno')?.dataset?.nombre || '';
+        if (id) {
+            const modalFicha = document.getElementById('modal-alta-alumno');
+            if (modalFicha && modalFicha.open) {
+                const wrap = document.getElementById('form-alumno-wrapper');
+                if (wrap) { wrap.style.display = 'none'; document.body.appendChild(wrap); }
+                modalFicha.close();
+            }
+            window.abrirModalDarDeBaja(id, nombre);
+        }
+        return;
+    }
+
+    if (target.classList.contains('btn-reingresar-alumno') || target.closest('.btn-reingresar-alumno')) { 
+        e.stopPropagation();
+        const btn = target.classList.contains('btn-reingresar-alumno') ? target : target.closest('.btn-reingresar-alumno');
+        const id = btn.getAttribute('data-id') || btn.closest('.btn-editar-alumno')?.getAttribute('data-id') || document.getElementById('alumno-id')?.value;
+        const nombre = btn.getAttribute('data-nombre') || btn.closest('.btn-editar-alumno')?.dataset?.nombre || '';
+        if (id) {
+            const modalFicha = document.getElementById('modal-alta-alumno');
+            if (modalFicha && modalFicha.open) {
+                const wrap = document.getElementById('form-alumno-wrapper');
+                if (wrap) { wrap.style.display = 'none'; document.body.appendChild(wrap); }
+                modalFicha.close();
+            }
+            window.abrirModalReingresoAlumno(id, nombre);
+        }
+        return;
+    }
+
     if (target.classList.contains('btn-reactivar-inbox') || target.closest('.btn-reactivar-inbox') || target.classList.contains('btn-recuperar-agenda') || target.closest('.btn-recuperar-agenda')) { 
         const btn = target.closest('.btn-reactivar-inbox') || target.closest('.btn-recuperar-agenda') || target;
         const id = btn.getAttribute('data-id');
@@ -11664,22 +12504,27 @@ document.addEventListener('click', async (e) => {
             if (!ok) return;
 
             setBotonCargando(btn, true, 'Reactivando...');
+            const ahoraIso = new Date().toISOString();
             const hist = al.historial || [];
             hist.push(crearEntradaHistorial(`Alumno reactivado desde Suspendidos hacia Inbox (Sin Agendar).`, 'sistema'));
 
-            await updateDoc(doc(db, "alumnos", id), { 
+            const updateData = { 
                 estado_agenda: "Pendiente procesar", 
-                fecha_reingreso: new Date().toISOString(),
+                fecha_reingreso: ahoraIso,
                 suspendido: false,
+                es_baja: false,
                 motivo_suspension: null,
                 motivo_suspension_cat: null,
                 origen_suspension: null,
                 detalle_suspension: null,
                 historial: hist
-            }); 
+            };
+
+            actualizarAlumnoEnMemoriaLocal(id, updateData);
+            await updateDoc(doc(db, "alumnos", id), updateData); 
             removerFilaOptimista(id);
             if (typeof mostrarToast === 'function') mostrarToast(`✓ ${al.nombre} fue reactivado en Inbox.`, "success");
-            await cargarVista(estadoActualVista); 
+            await cargarVista(estadoActualVista, false); 
         } catch(e) {
             alert("❌ Error al reactivar: " + e.message);
         } finally {
@@ -11705,21 +12550,28 @@ document.addEventListener('click', async (e) => {
             if (!ok) return;
 
             setBotonCargando(btn, true, 'Reactivando...');
+            const ahoraIso = new Date().toISOString();
             const hist = al.historial || [];
             hist.push(crearEntradaHistorial(`Alumno reactivado desde Suspendidos hacia Lista de Espera.`, 'sistema'));
 
-            await updateDoc(doc(db, "alumnos", id), { 
+            const updateData = { 
                 estado_agenda: "Lista de espera", 
+                fecha_ingreso_espera: ahoraIso,
+                fecha_reingreso: ahoraIso,
                 suspendido: false,
+                es_baja: false,
                 motivo_suspension: null,
                 motivo_suspension_cat: null,
                 origen_suspension: null,
                 detalle_suspension: null,
                 historial: hist
-            }); 
+            };
+
+            actualizarAlumnoEnMemoriaLocal(id, updateData);
+            await updateDoc(doc(db, "alumnos", id), updateData); 
             removerFilaOptimista(id);
             if (typeof mostrarToast === 'function') mostrarToast(`✓ ${al.nombre} fue reactivado en Lista de Espera.`, "success");
-            await cargarVista(estadoActualVista); 
+            await cargarVista(estadoActualVista, false); 
         } catch(e) {
             alert("❌ Error al reactivar: " + e.message);
         } finally {
@@ -11793,11 +12645,17 @@ document.addEventListener('click', async (e) => {
         if (btnRegSegModal) btnRegSegModal.style.display = 'none';
         const elCalAuditBox = document.getElementById('modal-cal-audit-box');
         if (elCalAuditBox) elCalAuditBox.style.display = 'none';
+        const badgeStatus = document.getElementById('modal-status-badge');
+        if (badgeStatus) {
+            badgeStatus.textContent = '';
+            badgeStatus.className = 'status-badge';
+            badgeStatus.style.display = 'none';
+        }
         const badgeEl = document.getElementById('modal-alumno-estado-badge');
         if (badgeEl) {
-            badgeEl.textContent = 'SIN AGENDAR';
-            badgeEl.className = 'badge status-val-pendiente';
-            badgeEl.style.display = 'inline-flex';
+            badgeEl.textContent = '';
+            badgeEl.className = 'badge';
+            badgeEl.style.display = 'none';
         }
         const elFechaInf = document.getElementById('modal-informe-fecha-val');
         const elEvalInf = document.getElementById('modal-informe-evaluador-val');
@@ -11852,6 +12710,209 @@ document.addEventListener('click', async (e) => {
         window._modalEditandoModificado = false;
         window._fichaAlumnoModificada = false; 
         return; 
+    }
+});
+
+// =======================================================================
+// MODAL Y CONTROL DE REINGRESO DE ALUMNO (BAJAS & SUSPENDIDOS)
+// =======================================================================
+export function abrirModalReingresoAlumno(id, nombre = '') {
+    if (!id) return;
+    let alNom = nombre;
+    if (!alNom) {
+        const al = (Array.isArray(ultimosAlumnosCargados) ? ultimosAlumnosCargados : []).find(a => a.id === id);
+        alNom = al?.nombre || 'este alumno';
+    }
+    const inputId = document.getElementById('reingreso-alumno-id');
+    const nomEl = document.getElementById('reingreso-alumno-nombre');
+    if (inputId) inputId.value = id;
+    if (nomEl) nomEl.textContent = alNom;
+
+    const radInbox = document.querySelector('input[name="reingreso-destino"][value="inbox"]');
+    if (radInbox) radInbox.checked = true;
+
+    const modal = document.getElementById('modal-reingresar-alumno');
+    if (modal) {
+        try {
+            if (modal.open) modal.close();
+            modal.showModal();
+        } catch(e) {
+            modal.setAttribute('open', '');
+        }
+    }
+}
+window.abrirModalReingresoAlumno = abrirModalReingresoAlumno;
+
+document.getElementById('btn-confirmar-reingreso')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-confirmar-reingreso');
+    const id = document.getElementById('reingreso-alumno-id')?.value;
+    if (!id) return alert("ID de alumno no encontrado.");
+
+    const destino = document.querySelector('input[name="reingreso-destino"]:checked')?.value || 'inbox';
+    if (btn) setBotonCargando(btn, true, 'Reingresando...');
+
+    try {
+        const alDoc = await getDoc(doc(db, "alumnos", id));
+        if (!alDoc.exists()) throw new Error("Alumno no encontrado.");
+        const al = alDoc.data();
+
+        const ahoraIso = new Date().toISOString();
+        const hist = Array.isArray(al.historial) ? [...al.historial] : [];
+        const autor = window.usuarioActual?.nombre || 'Coordinación';
+
+        let updateData = {};
+        if (destino === 'espera') {
+            hist.push(crearEntradaHistorial(`Alumno reingresado a la escuela desde Bajas/Suspendidos hacia Lista de Espera.`, 'sistema', autor));
+            updateData = {
+                estado_agenda: "Lista de espera",
+                fecha_ingreso_espera: ahoraIso,
+                fecha_reingreso: ahoraIso,
+                suspendido: false,
+                es_baja: false,
+                motivo_suspension: null,
+                motivo_suspension_cat: null,
+                origen_suspension: null,
+                detalle_suspension: null,
+                historial: hist
+            };
+        } else {
+            hist.push(crearEntradaHistorial(`Alumno reingresado a la escuela desde Bajas/Suspendidos hacia Inbox (Sin Agendar).`, 'sistema', autor));
+            updateData = {
+                estado_agenda: "Pendiente procesar",
+                fecha_reingreso: ahoraIso,
+                suspendido: false,
+                es_baja: false,
+                motivo_suspension: null,
+                motivo_suspension_cat: null,
+                origen_suspension: null,
+                detalle_suspension: null,
+                historial: hist
+            };
+        }
+
+        // Sincronizar en memoria local inmediatamente
+        actualizarAlumnoEnMemoriaLocal(id, updateData);
+        await updateDoc(doc(db, "alumnos", id), updateData);
+
+        document.getElementById('modal-reingresar-alumno')?.close();
+        removerFilaOptimista(id);
+        await cargarVista(estadoActualVista, false);
+        mostrarToast(destino === 'espera' ? `✅ ${al.nombre || 'Alumno'} reingresado a Lista de Espera.` : `✅ ${al.nombre || 'Alumno'} reingresado a Inbox (Sin Agendar).`, "success");
+    } catch(err) {
+        console.error("Error al reingresar alumno:", err);
+        alert("❌ Error al reingresar: " + err.message);
+    } finally {
+        if (btn) setBotonCargando(btn, false);
+    }
+});
+
+// =======================================================================
+// MODAL Y CONTROL DE DAR DE BAJA (ALUMNOS REGULARES / CURSANTES)
+// =======================================================================
+export function abrirModalDarDeBaja(id, nombre = '') {
+    if (!id) return;
+    let alNom = nombre;
+    if (!alNom) {
+        const al = (Array.isArray(ultimosAlumnosCargados) ? ultimosAlumnosCargados : []).find(a => a.id === id);
+        alNom = al?.nombre || 'este alumno';
+    }
+    const inputId = document.getElementById('baja-alumno-id');
+    const nomEl = document.getElementById('baja-alumno-nombre');
+    const obsEl = document.getElementById('baja-observacion');
+    if (inputId) inputId.value = id;
+    if (nomEl) nomEl.textContent = alNom;
+    if (obsEl) {
+        obsEl.value = '';
+        setTimeout(() => obsEl.focus(), 150);
+    }
+
+    const modal = document.getElementById('modal-dar-baja');
+    if (modal) {
+        try {
+            if (modal.open) modal.close();
+            modal.showModal();
+        } catch(e) {
+            modal.setAttribute('open', '');
+        }
+    }
+}
+window.abrirModalDarDeBaja = abrirModalDarDeBaja;
+
+document.getElementById('btn-confirmar-baja-alumno')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-confirmar-baja-alumno');
+    const id = document.getElementById('baja-alumno-id')?.value;
+    const obs = document.getElementById('baja-observacion')?.value?.trim();
+
+    if (!id) return alert("ID de alumno no encontrado.");
+    if (!obs) {
+        alert("⚠️ Por favor ingresá la observación obligatoria del motivo de la baja.");
+        document.getElementById('baja-observacion')?.focus();
+        return;
+    }
+
+    if (btn) setBotonCargando(btn, true, 'Procesando baja...');
+
+    try {
+        const alDoc = await getDoc(doc(db, "alumnos", id));
+        if (!alDoc.exists()) throw new Error("Alumno no encontrado.");
+        const al = alDoc.data();
+
+        const teniaReserva = !!(al.id_evento_reserva || al.id_evento_alta || al.reserva_profe_id || al.reserva_fecha_texto || al.fecha_inicio_clases);
+        let decisionCal = { decision: 'mantener', tieneEvento: false };
+        if (teniaReserva && (al.id_evento_alta || al.id_evento_reserva)) {
+            document.getElementById('modal-dar-baja')?.close();
+            decisionCal = await window.preguntarAccionCalendar({ al, accionTipo: 'baja' });
+            if (decisionCal.decision === 'cancelar') {
+                if (btn) setBotonCargando(btn, false);
+                document.getElementById('modal-dar-baja')?.showModal();
+                return;
+            }
+        }
+
+        if (al.id_evento_reserva && decisionCal.decision === 'eliminar') await eliminarEventoSeguro(al, configApp);
+        if (al.id_evento_alta && decisionCal.decision === 'eliminar') {
+            await eliminarEventoAltaSeguro(al, configApp, { forzarEliminacionCalendar: true });
+        }
+
+        const ahoraIso = new Date().toISOString();
+        const hist = Array.isArray(al.historial) ? [...al.historial] : [];
+        const autor = window.usuarioActual?.nombre || 'Coordinación';
+        const detalleCal = (decisionCal.decision === 'eliminar' ? ' Eventos y cupos liberados en Google Calendar.' : '');
+        hist.push(crearEntradaHistorial(`Alumno dado de baja. Motivo: ${obs}.${detalleCal ? ' ' + detalleCal : ''}`, 'baja', autor));
+
+        const updateData = {
+            estado_agenda: "Baja",
+            es_baja: true,
+            suspendido: false,
+            fecha_baja: ahoraIso,
+            motivo_baja: obs,
+            detalle_baja: obs,
+            motivo_suspension: null,
+            motivo_suspension_cat: null,
+            detalle_suspension: null,
+            origen_suspension: null,
+            seguimiento: {
+                ...(al.seguimiento || {}),
+                activo: false,
+                fecha_finalizacion: ahoraIso,
+                motivo_finalizacion: `Baja de alumno: ${obs}`
+            },
+            historial: hist
+        };
+
+        // Sincronización reactiva inmediata en memoria local
+        actualizarAlumnoEnMemoriaLocal(id, updateData);
+        await updateDoc(doc(db, "alumnos", id), updateData);
+
+        document.getElementById('modal-dar-baja')?.close();
+        removerFilaOptimista(id);
+        await cargarVista(estadoActualVista, false);
+        mostrarToast(`✅ Ficha de ${al.nombre || 'Alumno'} dada de baja con éxito.`, "success");
+    } catch(err) {
+        console.error("Error al dar de baja al alumno:", err);
+        alert("❌ Error al procesar baja: " + err.message);
+    } finally {
+        if (btn) setBotonCargando(btn, false);
     }
 });
 
@@ -12914,17 +13975,14 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
         if (inpIni) inpIni.value = '';
     }
 
-    // Estado de Auditoría de Calendar en el Modal (Oculto para Docentes/Profesores)
+    // Estado de Auditoría de Calendar en el Modal (Visible ÚNICAMENTE para Administrador)
     const elCalAuditBox = document.getElementById('modal-cal-audit-box');
     const badgeCalStatus = document.getElementById('badge-modal-cal-status');
     const tieneEventoCalendar = Boolean(d.id_evento_alta || d.id_evento_reserva || d.fecha_inicio_clases || d.horario_match || d.reserva_fecha_texto);
-    
-    const u = window.usuarioActual || {};
-    const r = (u.rol || '').toLowerCase();
-    const esDocenteOModoLectura = modoLectura || r === 'docente' || r === 'profesor' || (Array.isArray(u.roles) && (u.roles.includes('docente') || u.roles.includes('profesor')) && !u.roles.includes('admin') && !u.roles.includes('admisor'));
+    const esAdminModal = typeof window.esUsuarioAdministrador === 'function' ? window.esUsuarioAdministrador() : false;
 
     if (elCalAuditBox) {
-        elCalAuditBox.style.display = (!esDocenteOModoLectura && tieneEventoCalendar) ? 'flex' : 'none';
+        elCalAuditBox.style.display = (!modoLectura && esAdminModal && tieneEventoCalendar) ? 'flex' : 'none';
         if (badgeCalStatus) {
             badgeCalStatus.textContent = '⚪ Sin verificar';
             badgeCalStatus.style.background = '#e2e8f0';
@@ -12999,9 +14057,7 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
 
     const btnNuevaSusc = document.getElementById('btn-modal-nueva-suscripcion');
     if (btnNuevaSusc) {
-        const ocultarNuevaSusc = modoLectura || !id || esVistaSeguimiento || tieneSeguimientoEnCurso || esAlumnoAltaFinalizada(d);
-        btnNuevaSusc.style.display = ocultarNuevaSusc ? 'none' : 'block';
-        btnNuevaSusc.setAttribute('data-id', id);
+        btnNuevaSusc.style.display = 'none';
     }
 
     const btnModalEliminar = document.getElementById('btn-modal-eliminar-alumno');
@@ -13072,14 +14128,14 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
         if (btnContactarModal) btnContactarModal.style.display = 'none';
     }
 
-    // Botón WhatsApp: No mostrar en Seguimientos Pendientes (solo cuando está en curso)
-    const esSegPendiente = (esVistaSeguimiento && d.seguimiento?.activo !== true) || 
-                           (typeof estadoActualVista === 'string' && estadoActualVista === 'Seguimientos - Pendientes') || 
-                           (esAlumnoAltaFinalizada(d) && d.seguimiento?.activo !== true);
+    // Botón WhatsApp: Únicamente visible para Lista de Espera y Seguimientos En Curso
+    const esListaDeEspera = d.estado_agenda === 'Lista de espera';
+    const esSegEnCurso = Boolean(d.seguimiento?.activo === true) && !esAlumnoAltaFinalizada(d) && estadoActualVista !== 'Seguimientos - Pendientes' && estadoActualVista !== 'Seguimientos - Finalizados';
+    const permitirWhatsApp = !modoLectura && (d.celular || d.telefono) && (esListaDeEspera || esSegEnCurso);
 
     const btnWhatsAppModal = document.getElementById('btn-modal-whatsapp');
     if (btnWhatsAppModal) {
-        if (!modoLectura && (d.celular || d.telefono) && !esSegPendiente) {
+        if (permitirWhatsApp) {
             btnWhatsAppModal.style.display = 'inline-flex';
             btnWhatsAppModal.onclick = (e) => {
                 e.preventDefault();
@@ -13194,6 +14250,7 @@ document.getElementById('form-alumno').addEventListener('submit', async (e) => {
             return;
         }
         if (id) {
+            actualizarAlumnoEnMemoriaLocal(id, data);
             await updateDoc(doc(db, "alumnos", id), data);
         } else {
             const esDirecto = document.getElementById('chk-ingreso-directo').checked;
@@ -13204,7 +14261,8 @@ document.getElementById('form-alumno').addEventListener('submit', async (e) => {
                 data.estado_agenda = "Pendiente procesar";
                 data.historial.push(crearEntradaHistorial("Nuevo alumno registrado en bandeja de admisión.", 'sistema'));
             }
-            await addDoc(collection(db, "alumnos"), data);
+            const docRef = await addDoc(collection(db, "alumnos"), data);
+            actualizarAlumnoEnMemoriaLocal(docRef.id, { id: docRef.id, ...data });
         }
         window._modalEditandoModificado = false;
         window._fichaAlumnoModificada = false;
@@ -13212,7 +14270,7 @@ document.getElementById('form-alumno').addEventListener('submit', async (e) => {
         wrap.style.display = 'none';
         document.body.appendChild(wrap);
         document.getElementById('modal-alta-alumno').close();
-        await cargarVista(estadoActualVista);
+        await cargarVista(estadoActualVista, false);
         alert("✅ Datos del alumno guardados correctamente.");
     } catch(err) {
         alert("❌ Error al guardar: " + err.message);
@@ -14100,10 +15158,32 @@ export function abrirModalRegistrarContacto(id, nombre, celular, esBicicleta) {
     document.getElementById('modal-contacto-alumno-nombre').textContent = nombre;
     document.getElementById('modal-contacto-es-bicicleta').value = esBicicleta ? 'true' : 'false';
 
+    // Inicializar selector de fecha a hoy (soporte retroactivo)
+    const fechaInput = document.getElementById('modal-contacto-fecha-input');
+    if (fechaInput) {
+        const hoy = new Date();
+        const yyyy = hoy.getFullYear();
+        const mm = String(hoy.getMonth() + 1).padStart(2, '0');
+        const dd = String(hoy.getDate()).padStart(2, '0');
+        const hoyStr = `${yyyy}-${mm}-${dd}`;
+        fechaInput.value = hoyStr;
+        fechaInput.max = hoyStr;
+    }
+
     const cleanCel = (celular || '').replace(/\D/g, '');
     const boxCel = document.getElementById('modal-contacto-celular-box');
     const valCel = document.getElementById('modal-contacto-celular-val');
     const btnWa = document.getElementById('modal-contacto-whatsapp-btn');
+
+    // Adaptar título y botón según contexto (Recall para Espera vs Feedback para Seguimiento)
+    const iconEl = document.getElementById('modal-contacto-icon');
+    const titleEl = document.getElementById('modal-contacto-titulo-texto');
+    const btnGuardar = document.getElementById('btn-guardar-contacto');
+    const esVistaSeg = typeof estadoActualVista === 'string' && estadoActualVista.startsWith('Seguimientos');
+
+    if (iconEl) iconEl.textContent = esVistaSeg ? '💬' : '☎️';
+    if (titleEl) titleEl.textContent = esVistaSeg ? 'Registrar Feedback de Seguimiento' : 'Registrar Recall / Contacto';
+    if (btnGuardar) btnGuardar.textContent = esVistaSeg ? '💾 Guardar Feedback' : '☎️ Guardar Recall';
 
     if (cleanCel) {
         if (boxCel) boxCel.style.display = 'flex';
@@ -14128,7 +15208,7 @@ export function abrirModalRegistrarContacto(id, nombre, celular, esBicicleta) {
 }
 window.abrirModalRegistrarContacto = abrirModalRegistrarContacto;
 
-// Listener de guardado de contacto
+// Listener de guardado de contacto / recall
 document.getElementById('btn-guardar-contacto')?.addEventListener('click', async () => {
     const id = document.getElementById('modal-contacto-alumno-id')?.value;
     const nombre = document.getElementById('modal-contacto-alumno-nombre')?.textContent || '';
@@ -14148,20 +15228,68 @@ document.getElementById('btn-guardar-contacto')?.addEventListener('click', async
     try {
         const alDoc = await getDoc(doc(db, "alumnos", id));
         const alData = alDoc.exists() ? alDoc.data() : {};
-        const hist = Array.isArray(alData.historial) ? alData.historial : [];
+        const hist = Array.isArray(alData.historial) ? [...alData.historial] : [];
 
         const autor = window.usuarioActual?.nombre || 'Coordinación';
-        const ahoraIso = new Date().toISOString();
-        const entradaHist = crearEntradaHistorial(`💬 [Feedback]: ${texto}`, 'contacto', autor);
-        entradaHist.fecha_iso = ahoraIso;
+        
+        // Obtener fecha del feedback (soporte retroactivo)
+        let fechaContactoIso = new Date().toISOString();
+        const fechaInputVal = document.getElementById('modal-contacto-fecha-input')?.value;
+        if (fechaInputVal) {
+            const parts = fechaInputVal.split('-');
+            if (parts.length === 3) {
+                const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 12, 0, 0);
+                if (!isNaN(d.getTime())) {
+                    fechaContactoIso = d.toISOString();
+                }
+            }
+        }
+
+        const esEspera = (alData.estado_agenda || '') === 'Lista de espera';
+        const prefijoNota = esEspera ? '☎️ [Recall]' : '💬 [Feedback]';
+        const entradaHist = crearEntradaHistorial(`${prefijoNota}: ${texto}`, 'contacto', autor);
+        entradaHist.fecha_iso = fechaContactoIso;
         hist.push(entradaHist);
 
-        await updateDoc(doc(db, "alumnos", id), {
-            fecha_ultimo_contacto: ahoraIso,
-            dias_contacto_manual: null,
+        // Ordenar historial cronológicamente
+        hist.sort((a, b) => {
+            const tA = new Date(a.fecha_iso || a.fecha || 0).getTime();
+            const tB = new Date(b.fecha_iso || b.fecha || 0).getTime();
+            return tA - tB;
+        });
+
+        const updatePayload = {
             ultimo_contacto_nota: texto,
             historial: hist
-        });
+        };
+
+        // Actualizar fecha_ultimo_contacto si esta fecha es más reciente o igual a la existente
+        const fechaPrevMs = alData.fecha_ultimo_contacto ? new Date(alData.fecha_ultimo_contacto).getTime() : 0;
+        if (new Date(fechaContactoIso).getTime() >= fechaPrevMs) {
+            updatePayload.fecha_ultimo_contacto = fechaContactoIso;
+            updatePayload.dias_contacto_manual = null;
+        }
+
+        // Si tiene seguimiento activo, registrar también en el historial de seguimiento
+        if (alData.seguimiento) {
+            const histSeg = Array.isArray(alData.seguimiento.historial) ? [...alData.seguimiento.historial] : [];
+            histSeg.push({
+                id: 'ctto_' + Date.now(),
+                fecha: fechaContactoIso,
+                evaluador_id: window.usuarioActual?.id || '',
+                evaluador_nombre: autor,
+                tipo: 'contacto',
+                conversado: texto,
+                continua_seguimiento: true
+            });
+            updatePayload['seguimiento.historial'] = histSeg;
+            if (new Date(fechaContactoIso).getTime() >= fechaPrevMs) {
+                updatePayload['seguimiento.ultimo_contacto'] = fechaContactoIso;
+                updatePayload['seguimiento.dias_sin_contacto'] = 0;
+            }
+        }
+
+        await updateDoc(doc(db, "alumnos", id), updatePayload);
 
         document.getElementById('modal-registrar-contacto')?.close();
 
@@ -14178,7 +15306,7 @@ document.getElementById('btn-guardar-contacto')?.addEventListener('click', async
             }
             const elFechaCtto = document.getElementById('modal-contacto-fecha-val');
             if (elFechaCtto) {
-                elFechaCtto.textContent = `(${formatearSoloFecha(new Date(ahoraIso))})`;
+                elFechaCtto.textContent = `(${formatearSoloFecha(new Date(fechaContactoIso))})`;
             }
         }
 
@@ -14192,7 +15320,7 @@ document.getElementById('btn-guardar-contacto')?.addEventListener('click', async
                 modalDecision.showModal();
             }
         } else {
-            mostrarToast("💬 Feedback registrado con éxito. Contador de último contacto reseteado a 0 días.", "success");
+            mostrarToast("💬 Feedback registrado con éxito.", "success");
             await cargarVista(estadoActualVista);
         }
     } catch(err) {
@@ -14721,7 +15849,13 @@ function poblarTabSeguimientoFicha(al, id) {
                 </div>
             `;
         } else {
-            hist.sort((a, b) => new Date(b.fecha || 0) - new Date(a.fecha || 0));
+            hist.sort((a, b) => {
+                const da = parsearFechaCualquierOrigen(a.fecha) || new Date(a.fecha || 0);
+                const db = parsearFechaCualquierOrigen(b.fecha) || new Date(b.fecha || 0);
+                const ta = da && !isNaN(da.getTime()) ? da.getTime() : 0;
+                const tb = db && !isNaN(db.getTime()) ? db.getTime() : 0;
+                return tb - ta;
+            });
             elTimeline.innerHTML = hist.map((ctto) => {
                 const fDate = parsearFechaCualquierOrigen(ctto.fecha) || new Date(ctto.fecha || Date.now());
                 const fTxt = fDate && !isNaN(fDate.getTime()) ? fDate.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : (ctto.fecha || '-');
@@ -14840,6 +15974,65 @@ window.calcularFechaHabilFutura = function(dias = 7, fechaBase = null) {
     return window.calcularFechaSeguimientoHabil(fechaBase, dias);
 };
 
+window._modoFeedbackSeguimientoActual = 'actual';
+
+window.setModoFeedbackSeguimiento = function(modo = 'actual') {
+    window._modoFeedbackSeguimientoActual = modo;
+    const btnActual = document.getElementById('btn-modo-seg-actual');
+    const btnRetro = document.getElementById('btn-modo-seg-retroactivo');
+    const inputFechaReal = document.getElementById('seg-ctto-fecha-real');
+    const hintFecha = document.getElementById('seg-ctto-fecha-real-hint');
+    const wrapActualBox = document.getElementById('wrap-seg-actual-box');
+    const wrapRetroInfo = document.getElementById('wrap-seg-retroactivo-info');
+
+    const hoy = new Date();
+    const yyyy = hoy.getFullYear();
+    const mm = String(hoy.getMonth() + 1).padStart(2, '0');
+    const dd = String(hoy.getDate()).padStart(2, '0');
+    const hoyStr = `${yyyy}-${mm}-${dd}`;
+
+    if (modo === 'retroactivo') {
+        if (btnActual) {
+            btnActual.classList.remove('active');
+            btnActual.style.background = '#fff';
+            btnActual.style.color = '#475569';
+            btnActual.style.borderColor = '#cbd5e1';
+        }
+        if (btnRetro) {
+            btnRetro.classList.add('active');
+            btnRetro.style.background = '#475569';
+            btnRetro.style.color = '#fff';
+            btnRetro.style.borderColor = '#475569';
+        }
+        if (hintFecha) hintFecha.textContent = '(Seleccioná la fecha pasada en que ocurrió)';
+        if (inputFechaReal) {
+            inputFechaReal.max = hoyStr;
+        }
+        if (wrapActualBox) wrapActualBox.style.display = 'none';
+        if (wrapRetroInfo) wrapRetroInfo.style.display = 'block';
+    } else {
+        if (btnActual) {
+            btnActual.classList.add('active');
+            btnActual.style.background = 'var(--accent-teal)';
+            btnActual.style.color = '#fff';
+            btnActual.style.borderColor = 'var(--accent-teal)';
+        }
+        if (btnRetro) {
+            btnRetro.classList.remove('active');
+            btnRetro.style.background = '#fff';
+            btnRetro.style.color = '#475569';
+            btnRetro.style.borderColor = '#cbd5e1';
+        }
+        if (hintFecha) hintFecha.textContent = '(Hoy)';
+        if (inputFechaReal) {
+            inputFechaReal.value = hoyStr;
+            inputFechaReal.max = hoyStr;
+        }
+        if (wrapActualBox) wrapActualBox.style.display = 'block';
+        if (wrapRetroInfo) wrapRetroInfo.style.display = 'none';
+    }
+};
+
 window.abrirModalRegistrarSeguimiento = async function(id) {
     if (!id) return;
     const modal = document.getElementById('modal-seguimiento-contacto');
@@ -14872,6 +16065,9 @@ window.abrirModalRegistrarSeguimiento = async function(id) {
     const fIni = al.fecha_inicio_clases || al.fecha_sugerida_inicio || '-';
     document.getElementById('seg-ctto-sub-info').textContent = `Docente: ${prof} • Inicio clases: ${fIni}`;
 
+    // Resetear a modo Actual por defecto
+    window.setModoFeedbackSeguimiento('actual');
+
     document.getElementById('seg-ctto-conversado').value = '';
     const chkCont = document.getElementById('chk-seg-continuar');
     if (chkCont) chkCont.checked = true;
@@ -14881,19 +16077,10 @@ window.abrirModalRegistrarSeguimiento = async function(id) {
     if (wrapProx) wrapProx.style.display = 'block';
     if (wrapAviso) wrapAviso.style.display = 'none';
 
-    // Fecha sugerida según estado del alumno y fecha de inicio
+    // Fecha manual para próximo seguimiento sugerida por defecto
     const fechaDef = window.obtenerFechaSugeridaSeguimientoAlumno(al, 7);
     const inputFecha = document.getElementById('input-seg-fecha-manual');
     if (inputFecha) inputFecha.value = fechaDef;
-
-    // Marcar chip +1 Sem
-    document.querySelectorAll('.btn-sug-fecha-seg').forEach(btn => {
-        const d = btn.getAttribute('data-dias');
-        btn.classList.toggle('selected', d === '7');
-        btn.style.background = d === '7' ? 'var(--accent-teal)' : '#fff';
-        btn.style.color = d === '7' ? '#fff' : '#334155';
-        btn.style.borderColor = d === '7' ? 'var(--accent-teal)' : '#cbd5e1';
-    });
 
     if (!modal.open) {
         try { modal.showModal(); } catch(e) { modal.setAttribute('open', ''); }
@@ -14918,10 +16105,19 @@ window.guardarContactoSeguimiento = async function() {
         return;
     }
 
-    const continua = document.getElementById('chk-seg-continuar')?.checked === true;
+    const hoy = new Date();
+    const yyyy = hoy.getFullYear();
+    const mm = String(hoy.getMonth() + 1).padStart(2, '0');
+    const dd = String(hoy.getDate()).padStart(2, '0');
+    const hoyStr = `${yyyy}-${mm}-${dd}`;
+
+    const fechaRealVal = document.getElementById('seg-ctto-fecha-real')?.value || hoyStr;
+    const esRetroactivo = window._modoFeedbackSeguimientoActual === 'retroactivo' || (fechaRealVal < hoyStr);
+
+    const continua = esRetroactivo ? true : (document.getElementById('chk-seg-continuar')?.checked === true);
     let fechaProx = (document.getElementById('input-seg-fecha-manual')?.value || '').trim();
 
-    if (continua && !fechaProx) {
+    if (!esRetroactivo && continua && !fechaProx) {
         alert("⚠️ Por favor seleccioná la fecha para el próximo seguimiento.");
         document.getElementById('input-seg-fecha-manual')?.focus();
         return;
@@ -14932,16 +16128,26 @@ window.guardarContactoSeguimiento = async function() {
 
     try {
         const u = window.usuarioActual || {};
-        const ahoraIso = new Date().toISOString();
+        
+        let fechaContactoIso = new Date().toISOString();
+        if (fechaRealVal) {
+            const parts = fechaRealVal.split('-');
+            if (parts.length === 3) {
+                const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 12, 0, 0);
+                if (!isNaN(d.getTime())) fechaContactoIso = d.toISOString();
+            }
+        }
+
         const nuevoCtto = {
             id: 'ctto_' + Date.now(),
-            fecha: ahoraIso,
+            fecha: fechaContactoIso,
             evaluador_id: u.id || '',
             evaluador_nombre: u.nombre || 'Evaluador',
-            tipo: continua ? 'contacto' : 'finalizacion',
+            tipo: esRetroactivo ? 'contacto' : (continua ? 'contacto' : 'finalizacion'),
             conversado: conversado,
             continua_seguimiento: continua,
-            proxima_fecha_pautada: continua ? fechaProx : null
+            proxima_fecha_pautada: (!esRetroactivo && continua) ? fechaProx : null,
+            es_retroactivo: esRetroactivo
         };
 
         const alDoc = await getDoc(doc(db, "alumnos", id));
@@ -14950,38 +16156,52 @@ window.guardarContactoSeguimiento = async function() {
         const histSeg = Array.isArray(seg.historial) ? [...seg.historial] : [];
         histSeg.push(nuevoCtto);
 
+        // Ordenar historial de seguimiento cronológicamente
+        histSeg.sort((a, b) => new Date(a.fecha || 0).getTime() - new Date(b.fecha || 0).getTime());
+
+        const prevUltimoMs = seg.ultimo_contacto ? new Date(seg.ultimo_contacto).getTime() : 0;
         const updatePayload = {
-            'seguimiento.historial': histSeg,
-            'seguimiento.ultimo_contacto': ahoraIso,
-            'seguimiento.dias_sin_contacto': 0
+            'seguimiento.historial': histSeg
         };
 
-        if (continua) {
+        if (new Date(fechaContactoIso).getTime() >= prevUltimoMs) {
+            updatePayload['seguimiento.ultimo_contacto'] = fechaContactoIso;
+            updatePayload['seguimiento.dias_sin_contacto'] = 0;
+        }
+
+        if (esRetroactivo) {
+            // Carga retroactiva: se preserva la fecha de próximo seguimiento y estado activo actual del alumno
+        } else if (continua) {
             updatePayload['seguimiento.activo'] = true;
             updatePayload['seguimiento.fecha_proximo_seguimiento'] = fechaProx;
+            updatePayload['fecha_proximo_seguimiento'] = fechaProx;
         } else {
             updatePayload['seguimiento.activo'] = false;
-            updatePayload['seguimiento.fecha_finalizacion'] = ahoraIso;
+            updatePayload['seguimiento.fecha_finalizacion'] = fechaContactoIso;
             updatePayload['seguimiento.motivo_finalizacion'] = conversado;
         }
 
-        const hist = al.historial || [];
-        const txtHist = continua
-            ? `Seguimiento: Feedback registrado por ${u.nombre || 'Responsable de Seguimiento'}. Próxima fecha: ${fechaProx}.`
-            : `Seguimiento Finalizado por ${u.nombre || 'Responsable de Seguimiento'}. Motivo: ${conversado}`;
-        hist.push(crearEntradaHistorial(txtHist, 'seguimiento'));
+        const hist = Array.isArray(al.historial) ? [...al.historial] : [];
+        const labelTipoHist = esRetroactivo ? 'Feedback Retroactivo' : 'Feedback';
+        const txtHist = (!esRetroactivo && !continua)
+            ? `Seguimiento Finalizado por ${u.nombre || 'Responsable de Seguimiento'}. Motivo: ${conversado}`
+            : `Seguimiento: ${labelTipoHist} (${formatearSoloFecha(new Date(fechaContactoIso))}) registrado por ${u.nombre || 'Responsable de Seguimiento'}.${(!esRetroactivo && fechaProx) ? ' Próxima fecha: ' + fechaProx + '.' : ''}`;
+        
+        const entradaH = crearEntradaHistorial(txtHist, 'seguimiento');
+        entradaH.fecha_iso = fechaContactoIso;
+        hist.push(entradaH);
+        hist.sort((a, b) => new Date(a.fecha_iso || a.fecha || 0).getTime() - new Date(b.fecha_iso || b.fecha || 0).getTime());
         updatePayload['historial'] = hist;
 
         await updateDoc(doc(db, "alumnos", id), updatePayload);
 
         document.getElementById('modal-seguimiento-contacto')?.close();
-        mostrarToast(continua ? "💬 Feedback de seguimiento registrado con éxito." : "🏁 Seguimiento de alumno finalizado correctamente", "success");
+        mostrarToast(esRetroactivo ? "🕒 Feedback retroactivo registrado con éxito en el historial." : (continua ? "💬 Feedback de seguimiento registrado con éxito." : "🏁 Seguimiento de alumno finalizado correctamente"), "success");
 
         // Si la ficha del alumno está abierta, actualizarla
         const modalFicha = document.getElementById('modal-alta-alumno');
         if (modalFicha && modalFicha.open && document.getElementById('alumno-id')?.value === id) {
             await llenarFormularioAlumno(id, false);
-            // Mantenerse en tab-seguimiento
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
             document.getElementById('btn-tab-seguimiento')?.classList.add('active');
@@ -15438,33 +16658,28 @@ document.getElementById('chk-seg-continuar')?.addEventListener('change', (e) => 
     if (wrapAviso) wrapAviso.style.display = continuar ? 'none' : 'block';
 });
 
-// Botones de sugerencia rápida de fecha (+1, +2, +3 Semanas)
-document.querySelectorAll('.btn-sug-fecha-seg').forEach(btn => {
-    btn.addEventListener('click', () => {
-        const dias = parseInt(btn.dataset.dias || '7', 10);
-        const al = window._segCttoAlumnoObj || null;
-        const fStr = window.obtenerFechaSugeridaSeguimientoAlumno(al, dias);
-        const input = document.getElementById('input-seg-fecha-manual');
-        if (input) input.value = fStr;
-
-        document.querySelectorAll('.btn-sug-fecha-seg').forEach(b => {
-            const isSelf = b === btn;
-            b.classList.toggle('selected', isSelf);
-            b.style.background = isSelf ? 'var(--accent-teal)' : '#fff';
-            b.style.color = isSelf ? '#fff' : '#334155';
-            b.style.borderColor = isSelf ? 'var(--accent-teal)' : '#cbd5e1';
-        });
-    });
+// Listeners para conmutar entre Feedback Actual y Carga Retroactiva
+document.getElementById('btn-modo-seg-actual')?.addEventListener('click', () => {
+    window.setModoFeedbackSeguimiento('actual');
 });
 
-// Deseleccionar botones si se escribe manualmente en el input de fecha
-document.getElementById('input-seg-fecha-manual')?.addEventListener('input', () => {
-    document.querySelectorAll('.btn-sug-fecha-seg').forEach(b => {
-        b.classList.remove('selected');
-        b.style.background = '#fff';
-        b.style.color = '#334155';
-        b.style.borderColor = '#cbd5e1';
-    });
+document.getElementById('btn-modo-seg-retroactivo')?.addEventListener('click', () => {
+    window.setModoFeedbackSeguimiento('retroactivo');
+});
+
+document.getElementById('seg-ctto-fecha-real')?.addEventListener('change', (e) => {
+    const val = e.target.value;
+    const hoy = new Date();
+    const yyyy = hoy.getFullYear();
+    const mm = String(hoy.getMonth() + 1).padStart(2, '0');
+    const dd = String(hoy.getDate()).padStart(2, '0');
+    const hoyStr = `${yyyy}-${mm}-${dd}`;
+    
+    if (val && val < hoyStr) {
+        window.setModoFeedbackSeguimiento('retroactivo');
+    } else if (val && val === hoyStr) {
+        window.setModoFeedbackSeguimiento('actual');
+    }
 });
 
 // =======================================================================

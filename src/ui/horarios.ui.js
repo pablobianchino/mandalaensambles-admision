@@ -86,12 +86,38 @@ export function renderContenedorDisponibilidad(containerId, esProfe = false) {
             <div class="rangos-list" style="display:flex; flex-direction:column; gap:2px; margin-top:4px;">
                 ${crearFilaRangoHTML(dia.id, '', '', esProfe, 0)}
             </div>
-            <div style="display:flex; justify-content:flex-start; margin-top:2px;">
-                <button type="button" class="btn-agregar-rango" data-dia="${dia.id}" data-profe="${esProfe}" style="background:#fff; border:1px dashed var(--border-color); border-radius:6px; padding:3px 8px; font-size:11.5px; font-weight:600; color:var(--accent-teal); cursor:pointer; display:inline-flex; align-items:center; gap:4px;">➕ Agregar Rango</button>
+            <div style="display:flex; justify-content:flex-start; align-items:center; margin-top:4px; flex-wrap:wrap; gap:8px;">
+                <button type="button" class="btn-agregar-rango" data-dia="${dia.id}" data-profe="${esProfe}" title="Añadir otro intervalo horario">⏱️ + Agregar Rango</button>
+                <button type="button" class="btn-obs-dia-disp" data-dia="${dia.id}" title="Añadir observación o aclaración para este día">💬 + Observación</button>
             </div>
         `;
         cont.appendChild(diaRow);
     });
+}
+
+export function actualizarBotonObsDia(diaRow, obs = '') {
+    if (!diaRow) return;
+    const btnObs = diaRow.querySelector('.btn-obs-dia-disp');
+    if (!btnObs) return;
+    const obsTrim = (obs || '').trim();
+    if (obsTrim) {
+        btnObs.classList.add('has-obs');
+        btnObs.style.background = '#f0fdfa';
+        btnObs.style.borderColor = 'rgba(0, 123, 143, 0.4)';
+        btnObs.style.color = 'var(--accent-teal, #007b8f)';
+        btnObs.style.fontWeight = '700';
+        const preview = obsTrim.length > 25 ? obsTrim.slice(0, 22) + '...' : obsTrim;
+        btnObs.innerHTML = `💬 Obs: "${preview}" ✏️`;
+        btnObs.title = `Observación: "${obsTrim}" (Clic para editar o borrar)`;
+    } else {
+        btnObs.classList.remove('has-obs');
+        btnObs.style.background = '#fff';
+        btnObs.style.borderColor = '#cbd5e1';
+        btnObs.style.color = 'var(--text-muted, #64748b)';
+        btnObs.style.fontWeight = '600';
+        btnObs.innerHTML = `💬 + Observación`;
+        btnObs.title = `Añadir observación o aclaración para este día`;
+    }
 }
 
 export function actualizarBotonesQuitarRangoEnFila(diaRow) {
@@ -182,6 +208,15 @@ export function poblarDisponibilidadMultiRango(disp = {}, containerRef = false, 
         const cN = diaRow.querySelector('.chk-disp-none');
         const esProfe = diaRow.getAttribute('data-profe') === 'true';
 
+        // Cargar observación por día
+        const obsDia = (disp && disp._obs && disp._obs[dia.id]) ? String(disp._obs[dia.id]).trim() : '';
+        if (obsDia) {
+            diaRow.setAttribute('data-obs', obsDia);
+        } else {
+            diaRow.removeAttribute('data-obs');
+        }
+        actualizarBotonObsDia(diaRow, obsDia);
+
         if (rangosList) rangosList.innerHTML = '';
         if (cA) cA.checked = false;
         if (cFlex) cFlex.checked = false;
@@ -210,11 +245,19 @@ export function poblarDisponibilidadMultiRango(disp = {}, containerRef = false, 
 
         if (modoLectura) {
             diaRow.querySelectorAll('input, button, select').forEach(el => {
-                el.disabled = true;
-                if (el.tagName === 'BUTTON') el.style.display = 'none';
+                // Permitir visualizar el botón de observación en modo lectura si tiene texto o si el usuario quiere inspeccionar
+                if (el.classList.contains('btn-obs-dia-disp')) {
+                    el.disabled = false;
+                } else {
+                    el.disabled = true;
+                    if (el.tagName === 'BUTTON') el.style.display = 'none';
+                }
             });
         } else {
-            diaRow.querySelectorAll('input, select').forEach(el => el.disabled = false);
+            diaRow.querySelectorAll('input, select, button').forEach(el => {
+                el.disabled = false;
+                if (el.tagName === 'BUTTON' && !el.classList.contains('btn-quitar-rango')) el.style.display = '';
+            });
         }
     });
 }
@@ -243,11 +286,19 @@ export function extraerDisponibilidadMultiRango(containerRef = false, hApe = '09
     if (!cont) return {};
 
     const disp = {};
+    const obsObj = {};
+
     diasSemana.forEach(d => {
         const diaRow = cont.querySelector(`.dia-disponibilidad-row[data-dia="${d.id}"]`);
         if (!diaRow) {
             disp[d.id] = [];
             return;
+        }
+
+        // Extraer observación del día si existe
+        const obs = (diaRow.getAttribute('data-obs') || '').trim();
+        if (obs) {
+            obsObj[d.id] = obs;
         }
 
         const cA = diaRow.querySelector('.chk-disp-all')?.checked;
@@ -281,6 +332,11 @@ export function extraerDisponibilidadMultiRango(containerRef = false, hApe = '09
             disp[d.id] = arr;
         }
     });
+
+    if (Object.keys(obsObj).length > 0) {
+        disp._obs = obsObj;
+    }
+
     return disp;
 }
 
@@ -350,11 +406,88 @@ export function inicializarAutocompletadoHorarios() {
     }, true);
 }
 
+export function inicializarModalObservacionesDisponibilidad() {
+    if (window._modalObsDispInit) return;
+    window._modalObsDispInit = true;
+
+    // Delegación de click para abrir modal de observación
+    document.addEventListener('click', (e) => {
+        const btnObs = e.target.closest('.btn-obs-dia-disp');
+        if (!btnObs) return;
+
+        const diaRow = btnObs.closest('.dia-disponibilidad-row');
+        if (!diaRow) return;
+
+        const diaId = diaRow.getAttribute('data-dia');
+        const diaObj = diasSemana.find(d => d.id === diaId) || { nombre: diaId };
+        const currentObs = diaRow.getAttribute('data-obs') || '';
+
+        window._activeDiaRowParaObs = diaRow;
+
+        const modal = document.getElementById('modal-obs-disponibilidad');
+        const spanNombre = document.getElementById('obs-disp-dia-nombre');
+        const txtArea = document.getElementById('obs-disp-texto');
+
+        if (spanNombre) spanNombre.textContent = diaObj.nombre;
+        if (txtArea) {
+            txtArea.value = currentObs;
+            // Si el modal padre está en modo lectura, deshabilitar edición o dejarlo editable según contexto
+            txtArea.focus();
+        }
+
+        if (modal) {
+            if (typeof modal.showModal === 'function') {
+                modal.showModal();
+            } else {
+                modal.setAttribute('open', '');
+            }
+        }
+    });
+
+    // Guardar observación
+    document.getElementById('btn-guardar-obs-disp')?.addEventListener('click', () => {
+        const diaRow = window._activeDiaRowParaObs;
+        const txtArea = document.getElementById('obs-disp-texto');
+        const modal = document.getElementById('modal-obs-disponibilidad');
+        if (diaRow && txtArea) {
+            const nuevaObs = txtArea.value.trim();
+            if (nuevaObs) {
+                diaRow.setAttribute('data-obs', nuevaObs);
+            } else {
+                diaRow.removeAttribute('data-obs');
+            }
+            actualizarBotonObsDia(diaRow, nuevaObs);
+        }
+        if (modal) {
+            if (typeof modal.close === 'function') modal.close();
+            else modal.removeAttribute('open');
+        }
+    });
+
+    // Eliminar observación
+    document.getElementById('btn-eliminar-obs-disp')?.addEventListener('click', () => {
+        const diaRow = window._activeDiaRowParaObs;
+        const modal = document.getElementById('modal-obs-disponibilidad');
+        if (diaRow) {
+            diaRow.removeAttribute('data-obs');
+            actualizarBotonObsDia(diaRow, '');
+        }
+        if (modal) {
+            if (typeof modal.close === 'function') modal.close();
+            else modal.removeAttribute('open');
+        }
+    });
+}
+
 // Global helpers
 window.poblarDisponibilidadMultiRango = poblarDisponibilidadMultiRango;
 window.extraerDisponibilidadMultiRango = extraerDisponibilidadMultiRango;
+window.actualizarBotonObsDia = actualizarBotonObsDia;
 window.normalizarHora = normalizarHora;
+window.inicializarModalObservacionesDisponibilidad = inicializarModalObservacionesDisponibilidad;
 
 if (typeof document !== 'undefined') {
     inicializarAutocompletadoHorarios();
+    inicializarModalObservacionesDisponibilidad();
 }
+

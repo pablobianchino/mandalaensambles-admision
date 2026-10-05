@@ -1,6 +1,4 @@
-const CACHE_NAME = "mandala-app-v6.11.6";
-
-
+const CACHE_NAME = "mandala-app-v7.0";
 
 self.addEventListener('install', (event) => {
     self.skipWaiting();
@@ -27,6 +25,11 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
+    // Bypass de esquemas no HTTP (ej: chrome-extension:)
+    if (!url.protocol.startsWith('http')) {
+        return;
+    }
+
     // Bypass estricto de caché para APIs, Firebase y Google Calendar
     if (
         event.request.method !== 'GET' ||
@@ -41,25 +44,43 @@ self.addEventListener('fetch', (event) => {
     // Network-First para version.json
     if (url.pathname.endsWith('version.json')) {
         event.respondWith(
-            fetch(event.request).catch(() => caches.match(event.request))
+            fetch(event.request)
+                .catch(async () => {
+                    const matched = await caches.match(event.request);
+                    if (matched) return matched;
+                    return new Response(JSON.stringify({ version: "7.0.0" }), {
+                        headers: { "Content-Type": "application/json" }
+                    });
+                })
         );
         return;
     }
 
-    // Stale-While-Revalidate para recursos estáticos
+    // Cache-First con Network Fallback seguro garantizando siempre un Response válido
     event.respondWith(
         caches.match(event.request).then((cachedResponse) => {
-            const fetchPromise = fetch(event.request).then((networkResponse) => {
+            if (cachedResponse) {
+                // Actualizar caché en segundo plano de forma silenciosa
+                fetch(event.request).then((networkResponse) => {
+                    if (networkResponse && networkResponse.status === 200) {
+                        const responseClone = networkResponse.clone();
+                        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+                    }
+                }).catch(() => {});
+                return cachedResponse;
+            }
+
+            return fetch(event.request).then((networkResponse) => {
                 if (networkResponse && networkResponse.status === 200) {
                     const responseClone = networkResponse.clone();
-                    caches.open(CACHE_NAME).then((cache) => {
-                        cache.put(event.request, responseClone);
-                    });
+                    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
                 }
                 return networkResponse;
-            }).catch(() => cachedResponse);
-
-            return cachedResponse || fetchPromise;
+            }).catch(async () => {
+                const fallback = await caches.match(event.request);
+                if (fallback) return fallback;
+                return new Response("Recurso offline no disponible", { status: 503, statusText: "Offline" });
+            });
         })
     );
 });

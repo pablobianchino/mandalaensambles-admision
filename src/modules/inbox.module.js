@@ -76,40 +76,87 @@ export function getEstadoYBadge(al, getFechaReferenciaAlumno) {
     let diffHorasReal = null;
 
     if (fechaCalculo && !isNaN(fechaCalculo.getTime())) {
-        let diffHs = (fechaCalculo - new Date()) / (1000 * 60 * 60);
-        diffHorasReal = diffHs;
+        const esSegActivo = al.seguimiento && al.seguimiento.activo === true;
+        
+        if (esSegActivo && al.seguimiento.fecha_proximo_seguimiento) {
+            const parts = String(al.seguimiento.fecha_proximo_seguimiento).split('-');
+            if (parts.length === 3) {
+                const anio = parseInt(parts[0], 10);
+                const mes = parseInt(parts[1], 10) - 1;
+                const dia = parseInt(parts[2], 10);
+                const hoy = new Date();
+                const hoyInicio = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
+                const fechaPautada = new Date(anio, mes, dia).getTime();
+                const diffDias = Math.round((hoyInicio - fechaPautada) / (24 * 60 * 60 * 1000));
+                const pTxt = `${String(dia).padStart(2,'0')}/${String(mes+1).padStart(2,'0')}/${anio}`;
 
-        if (diffHs < 0) { 
-            nivelUrgencia = 'vencido';
-            colorIndicador = 'ind-red';
-            claseTexto = 'text-red font-bold'; 
-            let horas = Math.abs(Math.round(diffHs));
-            let dias = Math.floor(horas / 24);
-            let txtVencido = dias >= 1 ? (dias === 1 ? `hace 1 día` : `hace ${dias} días`) : `hace ${horas} hs`;
-            txtTiempo = `⚠️ Vencida (${txtVencido})`;
-            badgePillHtml = `<span class="pill-urgencia pill-vencida">⚠️ VENCIDA (${txtVencido})</span>`;
-        } else if (diffHs <= 24) { 
-            nivelUrgencia = 'urgente-24';
-            colorIndicador = 'ind-red';
-            claseTexto = 'text-red font-bold'; 
-            let hsRestantes = Math.round(diffHs);
-            txtTiempo = `🔥 Faltan ${hsRestantes} hs (Urgente hoy)`;
-            badgePillHtml = `<span class="pill-urgencia pill-urgente-24">🔥 FALTAN ${hsRestantes} HS</span>`;
-        } else if (diffHs <= 48) { 
-            nivelUrgencia = 'urgente-48';
-            colorIndicador = 'ind-yellow';
-            claseTexto = 'text-yellow font-bold'; 
-            let hsRestantes = Math.round(diffHs);
-            txtTiempo = `⏳ Faltan ${hsRestantes} hs (en 1-2 días)`;
-            badgePillHtml = `<span class="pill-urgencia pill-urgente-48">⏳ FALTAN ${hsRestantes} HS</span>`;
-        } else { 
-            nivelUrgencia = 'programado';
-            colorIndicador = 'ind-teal';
-            claseTexto = 'text-teal'; 
-            let dias = Math.round(diffHs / 24);
-            txtTiempo = `📅 Faltan ${dias} día${dias > 1 ? 's' : ''}`;
-            const txtDias = dias <= 0 ? 'HOY' : (dias === 1 ? 'MAÑANA' : `FALTAN ${dias} DÍAS`);
-            badgePillHtml = `<span class="pill-urgencia pill-programado">📅 ${txtDias}</span>`;
+                if (diffDias >= 2) {
+                    nivelUrgencia = 'vencido';
+                    colorIndicador = 'ind-red';
+                    claseTexto = 'text-red font-bold';
+                    txtTiempo = `🔴 Crítico (+${diffDias}d)`;
+                    badgePillHtml = `<span class="pill-urgencia pill-rojo-critico" title="Crítico: ${diffDias} días de retraso (Pactado: ${pTxt})">🔴 Crítico</span>`;
+                    diffHorasReal = -48;
+                } else if (diffDias === 1) {
+                    nivelUrgencia = 'urgente-24';
+                    colorIndicador = 'ind-red';
+                    claseTexto = 'text-red font-bold';
+                    txtTiempo = `🟠 Retraso leve (+24h)`;
+                    badgePillHtml = `<span class="pill-urgencia pill-naranja-retraso" title="Retraso leve: 1 día (+24hs) (Pactado: ${pTxt})">🟠 Retraso leve</span>`;
+                    diffHorasReal = -24;
+                } else if (diffDias === 0) {
+                    nivelUrgencia = 'urgente-48';
+                    colorIndicador = 'ind-yellow';
+                    claseTexto = 'text-yellow font-bold';
+                    txtTiempo = `🟡 Ver hoy`;
+                    badgePillHtml = `<span class="pill-urgencia pill-amarillo-hoy" title="Ver hoy: Fecha pactada de contacto (${pTxt})">🟡 Ver hoy</span>`;
+                    diffHorasReal = 0;
+                } else {
+                    nivelUrgencia = 'programado';
+                    colorIndicador = 'ind-teal';
+                    claseTexto = 'text-teal';
+                    txtTiempo = `🟢 En término`;
+                    badgePillHtml = `<span class="pill-urgencia pill-verde-plazo" title="En término: Próximo contacto el ${pTxt}">🟢 En término</span>`;
+                    diffHorasReal = 48;
+                }
+            }
+        }
+
+        if (!badgePillHtml) {
+            let diffHs = (fechaCalculo - new Date()) / (1000 * 60 * 60);
+            diffHorasReal = diffHs;
+
+            if (diffHs < 0) { 
+                nivelUrgencia = 'vencido';
+                colorIndicador = 'ind-red';
+                claseTexto = 'text-red font-bold'; 
+                let horas = Math.abs(Math.round(diffHs));
+                let dias = Math.floor(horas / 24);
+                let txtVencido = dias >= 1 ? (dias === 1 ? `hace 1 día` : `hace ${dias} días`) : `hace ${horas} hs`;
+                txtTiempo = `🔴 Crítico (${txtVencido})`;
+                badgePillHtml = `<span class="pill-urgencia pill-rojo-critico" title="Vencida (${txtVencido})">🔴 Crítico</span>`;
+            } else if (diffHs <= 24) { 
+                nivelUrgencia = 'urgente-24';
+                colorIndicador = 'ind-red';
+                claseTexto = 'text-red font-bold'; 
+                let hsRestantes = Math.round(diffHs);
+                txtTiempo = `🟠 Retraso leve (${hsRestantes} hs)`;
+                badgePillHtml = `<span class="pill-urgencia pill-naranja-retraso" title="Urgente hoy (Faltan ${hsRestantes} hs)">🟠 Retraso leve</span>`;
+            } else if (diffHs <= 48) { 
+                nivelUrgencia = 'urgente-48';
+                colorIndicador = 'ind-yellow';
+                claseTexto = 'text-yellow font-bold'; 
+                let hsRestantes = Math.round(diffHs);
+                txtTiempo = `🟡 Ver hoy`;
+                badgePillHtml = `<span class="pill-urgencia pill-amarillo-hoy" title="Próxima en 24-48 hs (Faltan ${hsRestantes} hs)">🟡 Ver hoy</span>`;
+            } else { 
+                nivelUrgencia = 'programado';
+                colorIndicador = 'ind-teal';
+                claseTexto = 'text-teal'; 
+                let dias = Math.round(diffHs / 24);
+                txtTiempo = `🟢 En término`;
+                badgePillHtml = `<span class="pill-urgencia pill-verde-plazo" title="En término: Programada en ${dias} días">🟢 En término</span>`;
+            }
         }
     }
 
@@ -117,6 +164,10 @@ export function getEstadoYBadge(al, getFechaReferenciaAlumno) {
 }
 
 export function generarBotonesPrincipalesVisibles(al, id) {
+    if (window.modoVistaSimple) {
+        return '';
+    }
+
     let html = '';
     const rawEst = al.estado_agenda || '';
     const est = rawEst.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -124,8 +175,8 @@ export function generarBotonesPrincipalesVisibles(al, id) {
     if (al.seguimiento?.activo === true) {
         html += `<button type="button" class="row-quick-btn primary btn-seg-contactar" data-id="${id}" title="Registrar feedback de seguimiento">💬 Nuevo Feedback</button>`;
         html += `<button type="button" class="row-quick-btn secondary btn-seg-finalizar" data-id="${id}" title="Finalizar seguimiento">🏁 Finalizar</button>`;
-        html += `<button type="button" class="row-quick-btn secondary btn-seg-ver-informe" data-id="${id}" title="Ver informe de admisión">📄 Ver Informe</button>`;
-        html += `<button type="button" class="row-quick-btn secondary btn-seg-ver-seguimiento" data-id="${id}" title="Ver seguimiento del alumno">🎧 Ver Seguimiento</button>`;
+        html += `<button type="button" class="row-quick-btn secondary btn-seg-ver-informe" data-id="${id}" title="Ver informe de admisión">👁️ Ver Informe</button>`;
+        html += `<button type="button" class="row-quick-btn secondary btn-seg-ver-seguimiento" data-id="${id}" title="Ver seguimiento del alumno">👁️ Ver Seguimiento</button>`;
         return html;
     }
 
@@ -168,17 +219,11 @@ export function generarBotonesPrincipalesVisibles(al, id) {
         }
         html += `<button type="button" class="row-quick-btn secondary btn-aviso-alta-alumno" data-id="${id}">💬 Avisar a Alumno</button>`;
         if (esFinalizada) {
-            html += `<button type="button" class="row-quick-btn secondary btn-seg-ver-informe" data-id="${id}">📄 Ver Informe</button>`;
-            html += `<button type="button" class="row-quick-btn secondary btn-seg-ver-seguimiento" data-id="${id}">🎧 Ver Seguimiento</button>`;
+            html += `<button type="button" class="row-quick-btn secondary btn-seg-ver-informe" data-id="${id}">👁️ Ver Informe</button>`;
+            html += `<button type="button" class="row-quick-btn secondary btn-seg-ver-seguimiento" data-id="${id}">👁️ Ver Seguimiento</button>`;
         }
-    } else if (est === 'alta suspendida' || est === 'agenda suspendida' || est.includes('suspendid')) {
-        const origen = (al.origen_suspension || '').toLowerCase().trim() || (est === 'agenda suspendida' ? 'inbox' : 'altas');
-        if (origen === 'inbox') {
-            html += `<button type="button" class="row-quick-btn primary btn-reactivar-inbox" data-id="${id}">♻️ Reactivar en Inbox</button>`;
-        } else {
-            html += `<button type="button" class="row-quick-btn primary btn-reactivar-espera" data-id="${id}">♻️ Reactivar en Lista de Espera</button>`;
-        }
-        html += `<button type="button" class="row-quick-btn secondary btn-copiar-aviso-cancelacion" data-id="${id}">💬 Avisar Cancelación a Docente</button>`;
+    } else if (est === 'alta suspendida' || est === 'baja' || est === 'agenda suspendida' || est.includes('suspendid')) {
+        html += `<button type="button" class="row-quick-btn primary btn-reingresar-alumno" data-id="${id}">🔄 Reingresar</button>`;
     }
 
     return html;
@@ -189,226 +234,176 @@ export function generarBotonesAccion(al, id, esModal = false, vista = '') {
     const rawEst = al.estado_agenda || '';
     const est = rawEst.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     const vistaActiva = vista || window.estadoActualVista || '';
-    const esVistaSeguimiento = (typeof vistaActiva === 'string' && (
+    const esVistaSeguimiento = typeof vistaActiva === 'string' && (
         vistaActiva.toLowerCase().includes('seguimiento') ||
-        vistaActiva.toLowerCase().startsWith('seguimiento') ||
         vistaActiva === 'Altas - Seguimientos'
-    )) || Boolean(al.seguimiento?.activo === true);
+    );
     const esFinalizada = esAlumnoAltaFinalizada(al);
+    const esAdmin = typeof window.esUsuarioAdministrador === 'function' ? window.esUsuarioAdministrador() : false;
 
-    if (esModal) {
-        if (esVistaSeguimiento || al.seguimiento?.activo === true) {
-            if (al.seguimiento?.activo === true) {
-                html += `<button type="button" class="btn-action-primary btn-seg-contactar" data-id="${id}">💬 Nuevo Feedback</button>`;
-                html += `<button type="button" class="btn-action-neutral btn-seg-finalizar" data-id="${id}">🏁 Finalizar Seguimiento</button>`;
-            }
-            html += `<button type="button" class="btn-action-neutral btn-seg-ver-informe" data-id="${id}">📄 Ver Informe</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-seg-ver-seguimiento" data-id="${id}">🎧 Ver Seguimiento</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-editar-seguimiento" data-id="${id}">✏️ Editar Seguimiento</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
-            if (typeof window.esUsuarioAdministrador === 'function' ? window.esUsuarioAdministrador() : true) {
-                html += `<button type="button" class="btn-action-neutral btn-eliminar-ficha-directo" data-id="${id}" style="color:var(--accent-red); font-weight:700; border-color:var(--accent-red); margin-top:4px;">🗑️ Eliminar Ficha</button>`;
-            }
-            return html;
-        }
+    // Helper para asignar la clase correcta según sea Modal o Dropdown 3 puntos (⋮)
+    const btnClass = (isPrimary = false) => esModal ? (isPrimary ? 'btn-action-primary' : 'btn-action-neutral') : 'dropdown-item';
 
-        if (est === 'pendiente procesar') {
-            html += `<button type="button" class="btn-action-primary btn-buscar-agenda" data-id="${id}">🔍 Buscar Agenda</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-pasar-espera-directo" data-id="${id}">🛋️ Pasar a Lista de Espera</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Contacto</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
-        } else if (est === 'pendiente validacion por profe' || est === 'pendiente validacion por evaluador') {
-            html += `<button type="button" class="btn-action-primary btn-validado-profe-popup" data-id="${id}">✅ Validado por Evaluador</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-buscar-agenda" data-id="${id}">🗓️ Re-Agendar</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-reenviar-profe" data-id="${id}">💬 Avisar a Evaluador</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-cancelar-alumno" data-id="${id}">❌ Alumno Cancela</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Contacto</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
-        } else if (est === 'pendiente validacion por alumno') {
-            html += `<button type="button" class="btn-action-primary btn-confirmar-entrevista" data-id="${id}">✅ Confirmar Agenda</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-buscar-agenda" data-id="${id}">🗓️ Re-Agendar</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-reenviar-alumno" data-id="${id}">💬 Avisar a Alumno</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-cancelar-alumno" data-id="${id}">❌ Alumno Cancela</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Contacto</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
-        } else if (est === 'agenda confirmada' || est === 'entrevista confirmada' || est.startsWith('entrevista')) {
-            html += `<button type="button" class="btn-action-primary btn-admision-finalizada" data-id="${id}">🏁 Finalizar Admisión</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-enviar-conf-alumno" data-id="${id}">💬 Avisar a Alumno</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-enviar-conf-profe" data-id="${id}">💬 Avisar a Evaluador</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-copiar-facturacion-admision" data-id="${id}">💰 Copiar Facturación</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-buscar-agenda" data-id="${id}">🗓️ Re-Agendar</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-auditar-cal-directo" data-id="${id}">🔍 Auditar calendario</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-cancelar-alumno" data-id="${id}">❌ Alumno Cancela</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Contacto</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
-        } else if (est === 'agenda suspendida' || est === 'alta suspendida' || est.includes('suspendid')) {
-            const origen = (al.origen_suspension || '').toLowerCase().trim() || (est === 'agenda suspendida' ? 'inbox' : 'altas');
-            if (origen === 'inbox') {
-                html += `<button type="button" class="btn-action-primary btn-reactivar-inbox" data-id="${id}">♻️ Reactivar en Inbox</button>`;
-            } else {
-                html += `<button type="button" class="btn-action-primary btn-reactivar-espera" data-id="${id}">♻️ Reactivar en Lista de Espera</button>`;
-            }
-            html += `<button type="button" class="btn-action-neutral btn-copiar-aviso-cancelacion" data-id="${id}">💬 Avisar Cancelación a Profe</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
-        } else if (est === 'lista de espera') {
-            const esBici = !!al.es_bicicleta;
-            const celSafe = (al.celular || al.telefono || '').replace(/'/g, "\\'");
-            const nombreSafe = (al.nombre || '').replace(/'/g, "\\'");
-            html += `<button type="button" class="btn-action-primary btn-ver-informe-espera" data-id="${id}">👁️ Ver Informe</button>`;
-            html += `<button type="button" class="btn-action-primary btn-abrir-propuesta-espera" data-id="${id}">🧩 Armar Propuesta de Clase</button>`;
-            html += `<button type="button" class="btn-action-neutral" onclick="window.abrirModalRegistrarContacto('${id}', '${nombreSafe}', '${celSafe}', ${esBici})">💬 Nuevo Feedback</button>`;
-            if (!esBici) {
-                html += `<button type="button" class="btn-action-neutral" onclick="window.toggleBicicletaAlumno('${id}', true, '${nombreSafe}')">🚲 Enviar a Bicicleta</button>`;
-            } else {
-                html += `<button type="button" class="btn-action-neutral" onclick="window.toggleBicicletaAlumno('${id}', false, '${nombreSafe}')">↩️ Quitar de Bicicleta</button>`;
-            }
-            html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
-        } else if (est === 'validando grupo') {
-            html += `<button type="button" class="btn-action-neutral" onclick="window.editarAlumnoModalDirecto('${id}')">✏️ Editar Ficha</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
-        } else if (est === 'pre-alta pendiente') {
-            html += `<button type="button" class="btn-action-primary btn-abrir-prealta" data-id="${id}">⚙️ Iniciar Pre-Alta</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-avisar-admisor-alumno" data-id="${id}">📢 Avisar al Admisor</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
-        } else if (est === 'pre-alta iniciada') {
-            html += `<button type="button" class="btn-action-primary btn-abrir-confirmar-alta" data-id="${id}">💳 Suscripción Abonada</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${al.grupo_asignado||''}">✏️ Editar Pre-Alta</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-aviso-prealta-alumno" data-id="${id}">💬 Avisar Pre-Alta a Alumno</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-reenviar-prealta" data-id="${id}">📢 Avisar Pre-Alta a Coordinador</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-devolver-pendientes" data-id="${id}">↩️ Devolver a Pendientes</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-devolver-espera" data-id="${id}">🛋️ Devolver a Espera</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
-        } else if (est === 'alta efectiva' || est === 'alta ilegal' || est === 'alta finalizada' || est === 'alta confirmada' || est.startsWith('alta')) {
-            if (!esFinalizada) {
-                html += `<button type="button" class="btn-action-primary btn-finalizar-alta-directa" data-id="${id}">🏁 Finalizar Alta</button>`;
-            }
-            html += `<button type="button" class="btn-action-neutral btn-copiar-fila-excel-bd" data-id="${id}">📋 Copiar Registro BD</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-copiar-fila-excel-fact" data-id="${id}">💰 Copiar Facturación</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${al.grupo_asignado||''}">✏️ Editar Alta</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-aviso-alta-alumno" data-id="${id}">💬 Avisar Alta a Alumno</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-reenviar-alta" data-id="${id}">📢 Avisar Alta a Docente</button>`;
-            if (esFinalizada) {
-                html += `<button type="button" class="btn-action-neutral btn-seg-ver-informe" data-id="${id}">📄 Ver Informe</button>`;
-                html += `<button type="button" class="btn-action-neutral btn-seg-ver-seguimiento" data-id="${id}">🎧 Ver Seguimiento</button>`;
-                html += `<button type="button" class="btn-action-neutral btn-editar-seguimiento" data-id="${id}">✏️ Editar Seguimiento</button>`;
-            }
-            html += `<button type="button" class="btn-action-neutral btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
-            html += `<button type="button" class="btn-action-neutral btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
-            if (!esFinalizada) {
-                html += `<button type="button" class="btn-action-neutral btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
-            }
+    // 13 & 14. Bajas / Suspendidos (Acciones Unificadas)
+    if (est === 'alta suspendida' || est === 'baja' || est === 'agenda suspendida' || est.includes('suspendid') || vistaActiva.toLowerCase().includes('suspendid') || vistaActiva.toLowerCase().includes('baja')) {
+        html += `<button type="button" class="${btnClass(true)} btn-reingresar-alumno" data-id="${id}">🔄 Reingresar Alumno</button>`;
+        html += `<button type="button" class="${btnClass()} btn-nota-rapida" data-id="${id}">📝 Agregar Nota</button>`;
+        if (esModal) {
+            html += `<button type="button" class="${btnClass()} btn-seg-ver-informe" data-id="${id}">📄 Ver Informe</button>`;
         }
-        if (typeof window.esUsuarioAdministrador === 'function' ? window.esUsuarioAdministrador() : true) {
-            html += `<button type="button" class="btn-action-neutral btn-eliminar-ficha-directo" data-id="${id}" style="color:var(--accent-red); font-weight:700; border-color:var(--accent-red); margin-top:4px;">🗑️ Eliminar Ficha</button>`;
+        if (esAdmin) {
+            html += `<button type="button" class="${btnClass()} btn-eliminar-ficha-directo" data-id="${id}" style="color:var(--accent-red); font-weight:700; ${esModal ? 'border-color:var(--accent-red); margin-top:4px;' : 'border-top:1px solid var(--border-color); margin-top:2px;'}">🗑️ Eliminar Ficha</button>`;
         }
         return html;
     }
 
-    if (esVistaSeguimiento || al.seguimiento?.activo === true) {
-        html += `<button type="button" class="dropdown-item btn-seg-ver-informe" data-id="${id}">📄 Ver Informe</button>`;
-        html += `<button type="button" class="dropdown-item btn-seg-ver-seguimiento" data-id="${id}">🎧 Ver Seguimiento</button>`;
-        html += `<button type="button" class="dropdown-item btn-editar-seguimiento" data-id="${id}">✏️ Editar Seguimiento</button>`;
-        html += `<button type="button" class="dropdown-item btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
-        if (typeof window.esUsuarioAdministrador === 'function' ? window.esUsuarioAdministrador() : true) {
-            html += `<button type="button" class="dropdown-item btn-eliminar-ficha-directo" data-id="${id}" style="color:var(--accent-red); font-weight:700; border-top:1px solid var(--border-color); margin-top:2px;">🗑️ Eliminar Ficha</button>`;
+    // 1. Inbox > Sin Agendar
+    if (est === 'pendiente procesar' || vistaActiva === 'Inbox - Pendientes') {
+        html += `<button type="button" class="${btnClass(true)} btn-buscar-agenda" data-id="${id}">🔍 Buscar Agenda</button>`;
+        html += `<button type="button" class="${btnClass()} btn-pasar-espera-directo" data-id="${id}">🛋️ Pasar a Lista de Espera</button>`;
+        html += `<button type="button" class="${btnClass()} btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Contacto</button>`;
+        html += `<button type="button" class="${btnClass()} btn-nota-rapida" data-id="${id}">📝 Agregar Nota</button>`;
+        html += `<button type="button" class="${btnClass()} btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
+    } 
+    // 2. Inbox > Validando Evaluador
+    else if (est === 'pendiente validacion por profe' || est === 'pendiente validacion por evaluador') {
+        html += `<button type="button" class="${btnClass(true)} btn-validado-profe-popup" data-id="${id}">✅ Validado por Evaluador</button>`;
+        html += `<button type="button" class="${btnClass()} btn-buscar-agenda" data-id="${id}">🗓️ Re-Agendar</button>`;
+        html += `<button type="button" class="${btnClass()} btn-reenviar-profe" data-id="${id}">💬 Avisar a Evaluador</button>`;
+        html += `<button type="button" class="${btnClass()} btn-cancelar-alumno" data-id="${id}">❌ Alumno Cancela</button>`;
+        html += `<button type="button" class="${btnClass()} btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Contacto</button>`;
+        html += `<button type="button" class="${btnClass()} btn-nota-rapida" data-id="${id}">📝 Agregar Nota</button>`;
+        html += `<button type="button" class="${btnClass()} btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
+    } 
+    // 3. Inbox > Validando Alumno
+    else if (est === 'pendiente validacion por alumno') {
+        html += `<button type="button" class="${btnClass(true)} btn-confirmar-entrevista" data-id="${id}">✅ Confirmar Agenda</button>`;
+        html += `<button type="button" class="${btnClass()} btn-buscar-agenda" data-id="${id}">🗓️ Re-Agendar</button>`;
+        html += `<button type="button" class="${btnClass()} btn-reenviar-alumno" data-id="${id}">💬 Avisar a Alumno</button>`;
+        html += `<button type="button" class="${btnClass()} btn-cancelar-alumno" data-id="${id}">❌ Alumno Cancela</button>`;
+        html += `<button type="button" class="${btnClass()} btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Contacto</button>`;
+        html += `<button type="button" class="${btnClass()} btn-nota-rapida" data-id="${id}">📝 Agregar Nota</button>`;
+        html += `<button type="button" class="${btnClass()} btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
+    } 
+    // 4. Inbox > Entrevista Confirmada
+    else if (est === 'agenda confirmada' || est === 'entrevista confirmada' || est.startsWith('entrevista') || vistaActiva === 'Inbox - Confirmadas') {
+        html += `<button type="button" class="${btnClass(true)} btn-admision-finalizada" data-id="${id}">🏁 Finalizar Admisión</button>`;
+        html += `<button type="button" class="${btnClass()} btn-enviar-conf-alumno" data-id="${id}">💬 Avisar a Alumno</button>`;
+        html += `<button type="button" class="${btnClass()} btn-enviar-conf-profe" data-id="${id}">💬 Avisar a Evaluador</button>`;
+        html += `<button type="button" class="${btnClass()} btn-copiar-facturacion-admision" data-id="${id}">💰 Copiar Facturación</button>`;
+        html += `<button type="button" class="${btnClass()} btn-buscar-agenda" data-id="${id}">🗓️ Re-Agendar</button>`;
+        if (esAdmin) {
+            html += `<button type="button" class="${btnClass()} btn-auditar-cal-directo" data-id="${id}">🔍 Auditar calendario</button>`;
         }
-        return html;
-    }
-
-    if (est === 'pendiente procesar') {
-        html += `<button type="button" class="dropdown-item btn-pasar-espera-directo" data-id="${id}">🛋️ Pasar a Lista de Espera</button>`;
-        html += `<button type="button" class="dropdown-item btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Contacto</button>`;
-        html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
-        html += `<button type="button" class="dropdown-item btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
-    } else if (est === 'pendiente validacion por profe' || est === 'pendiente validacion por evaluador') {
-        html += `<button type="button" class="dropdown-item btn-buscar-agenda" data-id="${id}">🗓️ Re-Agendar</button>`;
-        html += `<button type="button" class="dropdown-item btn-reenviar-profe" data-id="${id}">💬 Avisar a Evaluador</button>`;
-        html += `<button type="button" class="dropdown-item btn-cancelar-alumno" data-id="${id}">❌ Alumno Cancela</button>`;
-        html += `<button type="button" class="dropdown-item btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Contacto</button>`;
-        html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
-        html += `<button type="button" class="dropdown-item btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
-    } else if (est === 'pendiente validacion por alumno') {
-        html += `<button type="button" class="dropdown-item btn-buscar-agenda" data-id="${id}">🗓️ Re-Agendar</button>`;
-        html += `<button type="button" class="dropdown-item btn-reenviar-alumno" data-id="${id}">💬 Avisar a Alumno</button>`;
-        html += `<button type="button" class="dropdown-item btn-cancelar-alumno" data-id="${id}">❌ Alumno Cancela</button>`;
-        html += `<button type="button" class="dropdown-item btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Contacto</button>`;
-        html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
-        html += `<button type="button" class="dropdown-item btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
-    } else if (est === 'agenda confirmada' || est === 'entrevista confirmada' || est.startsWith('entrevista')) {
-        html += `<button type="button" class="dropdown-item btn-enviar-conf-alumno" data-id="${id}">💬 Avisar a Alumno</button>`;
-        html += `<button type="button" class="dropdown-item btn-enviar-conf-profe" data-id="${id}">💬 Avisar a Evaluador</button>`;
-        html += `<button type="button" class="dropdown-item btn-copiar-facturacion-admision" data-id="${id}">💰 Copiar Facturación</button>`;
-        html += `<button type="button" class="dropdown-item btn-buscar-agenda" data-id="${id}">🗓️ Re-Agendar</button>`;
-        html += `<button type="button" class="dropdown-item btn-auditar-cal-directo" data-id="${id}">🔍 Auditar calendario</button>`;
-        html += `<button type="button" class="dropdown-item btn-cancelar-alumno" data-id="${id}">❌ Alumno Cancela</button>`;
-        html += `<button type="button" class="dropdown-item btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Contacto</button>`;
-        html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
-        html += `<button type="button" class="dropdown-item btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
-    } else if (est === 'lista de espera') {
+        html += `<button type="button" class="${btnClass()} btn-cancelar-alumno" data-id="${id}">❌ Alumno Cancela</button>`;
+        html += `<button type="button" class="${btnClass()} btn-nota-rapida" data-id="${id}">📝 Agregar Nota</button>`;
+        html += `<button type="button" class="${btnClass()} btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
+    } 
+    // 5. Lista de Espera
+    else if (est === 'lista de espera' || est === 'espera' || vistaActiva === 'Lista de Espera') {
         const esBici = !!al.es_bicicleta;
         const celSafe = (al.celular || al.telefono || '').replace(/'/g, "\\'");
         const nombreSafe = (al.nombre || '').replace(/'/g, "\\'");
-        html += `<button type="button" class="dropdown-item" onclick="window.abrirModalRegistrarContacto('${id}', '${nombreSafe}', '${celSafe}', ${esBici})">💬 Nuevo Feedback</button>`;
+        html += `<button type="button" class="${btnClass(true)} btn-ver-informe-espera" data-id="${id}">👁️ Ver Informe</button>`;
         if (!esBici) {
-            html += `<button type="button" class="dropdown-item" onclick="window.toggleBicicletaAlumno('${id}', true, '${nombreSafe}')">🚲 Enviar a Bicicleta</button>`;
+            html += `<button type="button" class="${btnClass(true)} btn-abrir-propuesta-espera" data-id="${id}">🧩 Armar Propuesta</button>`;
+        }
+        html += `<button type="button" class="${btnClass()} btn-recall-espera" onclick="window.abrirModalRegistrarContacto('${id}', '${nombreSafe}', '${celSafe}', ${esBici})">☎️ Recall</button>`;
+        if (!esBici) {
+            html += `<button type="button" class="${btnClass()}" onclick="window.toggleBicicletaAlumno('${id}', true, '${nombreSafe}')">🚲 Enviar a Bicicleta</button>`;
         } else {
-            html += `<button type="button" class="dropdown-item" onclick="window.toggleBicicletaAlumno('${id}', false, '${nombreSafe}')">↩️ Quitar de Bicicleta</button>`;
+            html += `<button type="button" class="${btnClass()}" onclick="window.toggleBicicletaAlumno('${id}', false, '${nombreSafe}')">↩️ Quitar de Bicicleta</button>`;
         }
-        html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
-        html += `<button type="button" class="dropdown-item btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
-    } else if (est === 'validando grupo') {
-        html += `<button type="button" class="dropdown-item" onclick="window.editarAlumnoModalDirecto('${id}')">✏️ Editar Ficha</button>`;
-        html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
-    } else if (est === 'pre-alta pendiente') {
-        html += `<button type="button" class="dropdown-item btn-avisar-admisor-alumno" data-id="${id}">📢 Avisar al Admisor</button>`;
-        html += `<button type="button" class="dropdown-item btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
-        html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
-        html += `<button type="button" class="dropdown-item btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
-    } else if (est === 'pre-alta iniciada') {
-        html += `<button type="button" class="dropdown-item btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${al.grupo_asignado||''}">✏️ Editar Pre-Alta</button>`;
-        html += `<button type="button" class="dropdown-item btn-aviso-prealta-alumno" data-id="${id}">💬 Avisar Pre-Alta a Alumno</button>`;
-        html += `<button type="button" class="dropdown-item btn-reenviar-prealta" data-id="${id}">📢 Avisar Pre-Alta a Coordinador</button>`;
-        html += `<button type="button" class="dropdown-item btn-devolver-pendientes" data-id="${id}">↩️ Devolver a Pendientes</button>`;
-        html += `<button type="button" class="dropdown-item btn-devolver-espera" data-id="${id}">🛋️ Devolver a Espera</button>`;
-        html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
-        html += `<button type="button" class="dropdown-item btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
-    } else if (est === 'alta efectiva' || est === 'alta ilegal' || est === 'alta finalizada' || est === 'alta confirmada' || est.startsWith('alta')) {
-        html += `<button type="button" class="dropdown-item btn-copiar-fila-excel-bd" data-id="${id}">📋 Copiar Registro BD</button>`;
-        html += `<button type="button" class="dropdown-item btn-copiar-fila-excel-fact" data-id="${id}">💰 Copiar Facturación</button>`;
-        html += `<button type="button" class="dropdown-item btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${al.grupo_asignado||''}">✏️ Editar Alta</button>`;
-        html += `<button type="button" class="dropdown-item btn-aviso-alta-alumno" data-id="${id}">💬 Avisar Alta a Alumno</button>`;
-        html += `<button type="button" class="dropdown-item btn-reenviar-alta" data-id="${id}">📢 Avisar Alta a Docente</button>`;
-        if (esFinalizada) {
-            html += `<button type="button" class="dropdown-item btn-seg-ver-informe" data-id="${id}">📄 Ver Informe</button>`;
-            html += `<button type="button" class="dropdown-item btn-seg-ver-seguimiento" data-id="${id}">🎧 Ver Seguimiento</button>`;
-            html += `<button type="button" class="dropdown-item btn-editar-seguimiento" data-id="${id}">✏️ Editar Seguimiento</button>`;
+        html += `<button type="button" class="${btnClass()} btn-nota-rapida" data-id="${id}">📝 Agregar Nota</button>`;
+        html += `<button type="button" class="${btnClass()} btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
+    } 
+    // 6. Match > En Validación
+    else if (est === 'validando grupo' || est === 'en validacion' || vistaActiva.startsWith('Match')) {
+        html += `<button type="button" class="${btnClass()} btn-editar-match" onclick="window.editarAlumnoModalDirecto('${id}')">✏️ Editar Ficha</button>`;
+        html += `<button type="button" class="${btnClass()} btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
+        html += `<button type="button" class="${btnClass()} btn-nota-rapida" data-id="${id}">📝 Agregar Nota</button>`;
+        html += `<button type="button" class="${btnClass()} btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
+    } 
+    // 7. Altas > Pendientes
+    else if (est === 'pre-alta pendiente' || vistaActiva === 'Altas - Pendientes') {
+        html += `<button type="button" class="${btnClass(true)} btn-abrir-prealta" data-id="${id}">⚙️ Iniciar Pre-Alta</button>`;
+        html += `<button type="button" class="${btnClass()} btn-avisar-admisor-alumno" data-id="${id}">📢 Avisar al Admisor</button>`;
+        html += `<button type="button" class="${btnClass()} btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
+        html += `<button type="button" class="${btnClass()} btn-nota-rapida" data-id="${id}">📝 Agregar Nota</button>`;
+        html += `<button type="button" class="${btnClass()} btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
+    } 
+    // 8. Altas > En Curso
+    else if (est === 'pre-alta iniciada' || vistaActiva === 'Altas - En Curso') {
+        html += `<button type="button" class="${btnClass(true)} btn-abrir-confirmar-alta" data-id="${id}">💳 Suscripción Abonada</button>`;
+        html += `<button type="button" class="${btnClass()} btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${al.grupo_asignado||''}">✏️ Editar Pre-Alta</button>`;
+        html += `<button type="button" class="${btnClass()} btn-aviso-prealta-alumno" data-id="${id}">💬 Avisar Alumno</button>`;
+        html += `<button type="button" class="${btnClass()} btn-reenviar-prealta" data-id="${id}">📢 Avisar Coordinador</button>`;
+        html += `<button type="button" class="${btnClass()} btn-devolver-pendientes" data-id="${id}">↩️ Devolver a Pendientes</button>`;
+        html += `<button type="button" class="${btnClass()} btn-devolver-espera" data-id="${id}">🛋️ Devolver a Espera</button>`;
+        html += `<button type="button" class="${btnClass()} btn-nota-rapida" data-id="${id}">📝 Agregar Nota</button>`;
+        html += `<button type="button" class="${btnClass()} btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
+    } 
+    // 10, 11 & 12. Seguimientos (Pendientes, En Curso, Finalizados) - PRIORIDAD 1 SI TIENE SEGUIMIENTO
+    else if (esVistaSeguimiento || al.seguimiento?.activo === true || al.seguimiento?.finalizado === true) {
+        const segActivo = al.seguimiento?.activo === true;
+        const segFinalizado = al.seguimiento?.finalizado === true || vistaActiva.includes('Finalizados');
+
+        if (segActivo) {
+            // 11. Seguimientos > En Curso
+            html += `<button type="button" class="${btnClass(true)} btn-seg-contactar" data-id="${id}">💬 Nuevo Feedback</button>`;
+            html += `<button type="button" class="${btnClass()} btn-seg-finalizar" data-id="${id}">🏁 Finalizar Seguimiento</button>`;
+            html += `<button type="button" class="${btnClass()} btn-seg-ver-informe" data-id="${id}">👁️ Ver Informe</button>`;
+            html += `<button type="button" class="${btnClass()} btn-seg-ver-seguimiento" data-id="${id}">👁️ Ver Seguimiento</button>`;
+            html += `<button type="button" class="${btnClass()} btn-editar-seguimiento" data-id="${id}">✏️ Editar Seguimiento</button>`;
+            html += `<button type="button" class="${btnClass()} btn-devolver-espera" data-id="${id}">🛋️ Devolver a Espera</button>`;
+            html += `<button type="button" class="${btnClass()} btn-nota-rapida" data-id="${id}">📝 Agregar Nota</button>`;
+            html += `<button type="button" class="${btnClass()} btn-dar-baja-alumno" data-id="${id}">🛑 Dar de Baja</button>`;
+        } else if (segFinalizado) {
+            // 12. Seguimientos > Finalizados
+            html += `<button type="button" class="${btnClass()} btn-seg-ver-informe" data-id="${id}">👁️ Ver Informe</button>`;
+            html += `<button type="button" class="${btnClass()} btn-seg-ver-seguimiento" data-id="${id}">👁️ Ver Seguimiento</button>`;
+            html += `<button type="button" class="${btnClass()} btn-editar-seguimiento" data-id="${id}">✏️ Editar Seguimiento</button>`;
+            html += `<button type="button" class="${btnClass()} btn-devolver-espera" data-id="${id}">🛋️ Devolver a Espera</button>`;
+            html += `<button type="button" class="${btnClass()} btn-nota-rapida" data-id="${id}">📝 Agregar Nota</button>`;
+            html += `<button type="button" class="${btnClass()} btn-dar-baja-alumno" data-id="${id}">🛑 Dar de Baja</button>`;
+        } else {
+            // 10. Seguimientos > Pendientes
+            html += `<button type="button" class="${btnClass(true)} btn-seg-reiniciar" data-id="${id}">🎧 Iniciar Seguimiento</button>`;
+            html += `<button type="button" class="${btnClass()} btn-seg-ver-informe" data-id="${id}">👁️ Ver Informe</button>`;
+            html += `<button type="button" class="${btnClass()} btn-seg-ver-seguimiento" data-id="${id}">👁️ Ver Seguimiento</button>`;
+            html += `<button type="button" class="${btnClass()} btn-devolver-espera" data-id="${id}">🛋️ Devolver a Espera</button>`;
+            html += `<button type="button" class="${btnClass()} btn-nota-rapida" data-id="${id}">📝 Agregar Nota</button>`;
+            html += `<button type="button" class="${btnClass()} btn-dar-baja-alumno" data-id="${id}">🛑 Dar de Baja</button>`;
         }
-        html += `<button type="button" class="dropdown-item btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
-        html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
+    }
+    // 9. Altas > Finalizadas / Confirmadas (Solo si NO es seguimiento activo)
+    else if (est === 'alta efectiva' || est === 'alta ilegal' || est === 'alta finalizada' || est === 'alta confirmada' || est.startsWith('alta') || vistaActiva === 'Altas - Confirmadas' || vistaActiva === 'Altas - Finalizadas') {
         if (!esFinalizada) {
-            html += `<button type="button" class="dropdown-item btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
-        }
-    } else if (est === 'alta suspendida' || est === 'agenda suspendida' || est.includes('suspendid')) {
-        const origen = (al.origen_suspension || '').toLowerCase().trim() || (est === 'agenda suspendida' ? 'inbox' : 'altas');
-        if (origen === 'inbox') {
-            html += `<button type="button" class="dropdown-item btn-reactivar-inbox" data-id="${id}">♻️ Reactivar en Inbox</button>`;
+            html += `<button type="button" class="${btnClass(true)} btn-finalizar-alta-directa" data-id="${id}">🏁 Finalizar Alta</button>`;
+            html += `<button type="button" class="${btnClass()} btn-copiar-fila-excel-bd" data-id="${id}">📋 Copiar Registro BD</button>`;
+            html += `<button type="button" class="${btnClass()} btn-copiar-fila-excel-fact" data-id="${id}">💰 Copiar Facturación</button>`;
+            html += `<button type="button" class="${btnClass()} btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${al.grupo_asignado||''}">✏️ Editar Alta</button>`;
+            html += `<button type="button" class="${btnClass()} btn-aviso-alta-alumno" data-id="${id}">💬 Avisar Alta a Alumno</button>`;
+            html += `<button type="button" class="${btnClass()} btn-reenviar-alta" data-id="${id}">📢 Avisar Alta a Docente</button>`;
+            html += `<button type="button" class="${btnClass()} btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
+            html += `<button type="button" class="${btnClass()} btn-nota-rapida" data-id="${id}">📝 Agregar Nota</button>`;
+            html += `<button type="button" class="${btnClass()} btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
         } else {
-            html += `<button type="button" class="dropdown-item btn-reactivar-espera" data-id="${id}">♻️ Reactivar en Lista de Espera</button>`;
+            html += `<button type="button" class="${btnClass()} btn-seg-ver-informe" data-id="${id}">👁️ Ver Informe</button>`;
+            html += `<button type="button" class="${btnClass()} btn-seg-ver-seguimiento" data-id="${id}">👁️ Ver Seguimiento</button>`;
+            html += `<button type="button" class="${btnClass()} btn-copiar-fila-excel-bd" data-id="${id}">📋 Copiar Registro BD</button>`;
+            html += `<button type="button" class="${btnClass()} btn-copiar-fila-excel-fact" data-id="${id}">💰 Copiar Facturación</button>`;
+            html += `<button type="button" class="${btnClass()} btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${al.grupo_asignado||''}">✏️ Editar Alta</button>`;
+            html += `<button type="button" class="${btnClass()} btn-aviso-alta-alumno" data-id="${id}">💬 Avisar Alta a Alumno</button>`;
+            html += `<button type="button" class="${btnClass()} btn-reenviar-alta" data-id="${id}">📢 Avisar Alta a Docente</button>`;
+            html += `<button type="button" class="${btnClass()} btn-devolver-espera" data-id="${id}">🛋️ Devolver a Espera</button>`;
+            html += `<button type="button" class="${btnClass()} btn-nota-rapida" data-id="${id}">📝 Agregar Nota</button>`;
+            html += `<button type="button" class="${btnClass()} btn-dar-baja-alumno" data-id="${id}">🛑 Dar de Baja</button>`;
         }
-        html += `<button type="button" class="dropdown-item btn-copiar-aviso-cancelacion" data-id="${id}">💬 Avisar Cancelación a Profe</button>`;
-        html += `<button type="button" class="dropdown-item btn-abrir-nueva-suscripcion" data-id="${id}">➕ Nueva Suscripción</button>`;
     }
 
-    if (typeof window.esUsuarioAdministrador === 'function' ? window.esUsuarioAdministrador() : true) {
-        html += `<button type="button" class="dropdown-item btn-eliminar-ficha-directo" data-id="${id}" style="color:var(--accent-red); font-weight:700; border-top:1px solid var(--border-color); margin-top:2px;">🗑️ Eliminar Ficha</button>`;
+    if (esAdmin) {
+        html += `<button type="button" class="${btnClass()} btn-eliminar-ficha-directo" data-id="${id}" style="color:var(--accent-red); font-weight:700; ${esModal ? 'border-color:var(--accent-red); margin-top:4px;' : 'border-top:1px solid var(--border-color); margin-top:2px;'}">🗑️ Eliminar Ficha</button>`;
     }
 
     return html;

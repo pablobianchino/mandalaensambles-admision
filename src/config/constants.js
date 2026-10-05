@@ -2,7 +2,7 @@
 // src/config/constants.js — Constantes globales del sistema
 // =======================================================================
 
-export const APP_VERSION = "v6.11.6";
+export const APP_VERSION = "v7.0";
 
 export const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx033Es_BuZJk5x0MmyV-u8foA58ENNl1K3Cv-BE6ZeguXCG62UIQl5H4v94EB7MT0/exec";
 export const SCRIPT_API_KEY = "mandala-seg-2026";
@@ -209,7 +209,114 @@ export const configNodosFlujoEvaluador = [
     }
 ];
 
+export function calcularFechaSeguimiento72hs(fechaBase = null) {
+    let d;
+    if (fechaBase) {
+        if (typeof fechaBase === 'string' && fechaBase.length === 10 && fechaBase.includes('-')) {
+            const [y, m, day] = fechaBase.split('-').map(Number);
+            d = new Date(y, m - 1, day);
+        } else {
+            d = new Date(fechaBase);
+        }
+        if (isNaN(d.getTime())) d = new Date();
+    } else {
+        d = new Date();
+    }
+
+    // Avanzar iterativamente 3 días hábiles reales (72hs hábiles)
+    let diasHabilesRestantes = 3;
+    while (diasHabilesRestantes > 0) {
+        d.setDate(d.getDate() + 1);
+        const diaSem = d.getDay();
+        // Si no es sábado (6) ni domingo (0), cuenta como día hábil
+        if (diaSem !== 0 && diaSem !== 6) {
+            diasHabilesRestantes--;
+        }
+    }
+
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
 export function normalizarAlumnoSeguimiento(al) {
+    if (!al || typeof al !== 'object') return al;
+
+    // Si el alta no está finalizada, o es baja o está suspendido, NO puede tener seguimiento activo
+    if (!esAlumnoAltaFinalizada(al) || al.es_baja || al.suspendido || al.estado_agenda === 'Baja') {
+        if (al.seguimiento) {
+            al.seguimiento.activo = false;
+        }
+        return al;
+    }
+
+    // Si ya tiene fecha de finalización o motivo de finalización, está finalizado
+    const estaFinalizado = Boolean(al.seguimiento?.fecha_finalizacion || al.seguimiento?.motivo_finalizacion);
+    if (estaFinalizado) {
+        if (!al.seguimiento) al.seguimiento = {};
+        al.seguimiento.activo = false;
+        return al;
+    }
+
+    // Comprobar si fue activado formalmente por entrada en el historial
+    let tieneEntradaActivacionHistorial = false;
+    let respHistorial = null;
+    let fechaHistorial = null;
+
+    if (Array.isArray(al.historial)) {
+        for (let i = al.historial.length - 1; i >= 0; i--) {
+            const h = al.historial[i];
+            const txt = typeof h === 'string' ? h : (h?.texto || '');
+            if (/seguimiento activado/i.test(txt)) {
+                tieneEntradaActivacionHistorial = true;
+                const mResp = txt.match(/Responsable:\s*([A-Za-zÁÉÍÓÚáéíóúñÑ\s]+?)(?:\.|$)/i);
+                if (mResp && mResp[1]) respHistorial = mResp[1].trim();
+                const mFec = txt.match(/Primer contacto pactado:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})/i);
+                if (mFec && mFec[1]) fechaHistorial = mFec[1].trim();
+                break;
+            }
+        }
+    }
+
+    const estaActivoExplicito = al.seguimiento?.activo === true;
+
+    if (estaActivoExplicito || tieneEntradaActivacionHistorial) {
+        if (!al.seguimiento) al.seguimiento = {};
+        al.seguimiento.activo = true;
+        
+        if (!al.seguimiento.responsable_nombre) {
+            al.seguimiento.responsable_nombre = al.seguimiento_responsable_nombre || respHistorial || 'Sin Asignar';
+        }
+        if (!al.seguimiento.responsable_id && al.seguimiento_responsable_id) {
+            al.seguimiento.responsable_id = al.seguimiento_responsable_id;
+        }
+        if (!al.seguimiento.fecha_proximo_seguimiento) {
+            al.seguimiento.fecha_proximo_seguimiento = al.fecha_proximo_seguimiento || fechaHistorial || null;
+        }
+        if (al.seguimiento.responsable_nombre && !al.seguimiento_responsable_nombre) {
+            al.seguimiento_responsable_nombre = al.seguimiento.responsable_nombre;
+        }
+        if (al.seguimiento.fecha_proximo_seguimiento && !al.fecha_proximo_seguimiento) {
+            al.fecha_proximo_seguimiento = al.seguimiento.fecha_proximo_seguimiento;
+        }
+    } else {
+        // Alumno con alta finalizada pero SIN seguimiento iniciado -> Pendiente
+        if (!al.seguimiento) {
+            al.seguimiento = {
+                activo: false,
+                responsable_id: al.seguimiento_responsable_id || null,
+                responsable_nombre: al.seguimiento_responsable_nombre || null,
+                fecha_proximo_seguimiento: al.fecha_proximo_seguimiento || null,
+                fecha_finalizacion: null
+            };
+        } else {
+            al.seguimiento.activo = false;
+        }
+    }
+
     return al;
 }
+
+
 

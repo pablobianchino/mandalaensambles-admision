@@ -2,7 +2,7 @@
 // src/modules/altas.module.js -- Modulo de Altas, Pre-altas, Calendar & Export
 // =======================================================================
 
-import { defaultCfg, esAlumnoAltaFinalizada, esAlumnoAltaConfirmadaIncompleta, normalizarAlumnoSeguimiento } from "../config/constants.js";
+import { defaultCfg, esAlumnoAltaFinalizada, esAlumnoAltaConfirmadaIncompleta, normalizarAlumnoSeguimiento, calcularFechaSeguimiento72hs } from "../config/constants.js";
 import { 
     db, 
     collection, 
@@ -3253,9 +3253,6 @@ export function getSeguimientoBadgeStatus(al) {
 
 function construirAccionesFilaAlta(al, id, vista, isConfirmed, nombreGrupo, callbacks = {}) {
     const fnAccion = callbacks.generarBotonesAccion || window.generarBotonesAccion;
-    const esFinalizada = typeof window.esAlumnoAltaFinalizada === 'function' ? window.esAlumnoAltaFinalizada(al) : false;
-
-    let botonesVisibles = '';
     let botonesSecundarios = '';
 
     if (typeof fnAccion === 'function') {
@@ -3265,46 +3262,13 @@ function construirAccionesFilaAlta(al, id, vista, isConfirmed, nombreGrupo, call
         } else if (vista === 'Altas - Finalizadas' && (!alClon.estado_agenda || !alClon.estado_agenda.toLowerCase().includes('alta'))) {
             alClon.estado_agenda = 'Alta Finalizada';
         }
-        botonesSecundarios = fnAccion(alClon, id, false);
-    }
-
-    if (vista === 'Altas - Pendientes') {
-        if (nombreGrupo && nombreGrupo !== 'Clase Individual') {
-            botonesVisibles = `<button type="button" class="row-quick-btn secondary btn-prealta-individual-row" data-id="${id}" title="Iniciar Pre-Alta solo para este alumno">⚙️ Pre-Alta Individual</button>`;
-        } else {
-            botonesVisibles = `<button type="button" class="row-quick-btn primary btn-prealta-individual-row" data-id="${id}" title="Iniciar Pre-Alta">⚙️ Iniciar Pre-Alta</button>`;
-        }
-    } else if (vista === 'Altas - En Curso') {
-        if (!isConfirmed) {
-            botonesVisibles = `
-                <button type="button" class="row-quick-btn success btn-confirmar-alumno-row" data-id="${id}" data-nombre="${al.nombre || ''}" data-grupo="${nombreGrupo || ''}" title="Confirmar pago y marcar como alta activa">✅ Confirmar</button>
-                <button type="button" class="row-quick-btn secondary btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${nombreGrupo||al.grupo_asignado||''}" title="Editar día, horario o profesor">✏️ Editar</button>
-            `;
-        } else {
-            botonesVisibles = `
-                <button type="button" class="row-quick-btn secondary btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${nombreGrupo||al.grupo_asignado||''}" title="Editar día, horario o profesor">✏️ Editar</button>
-            `;
-        }
-    } else if (vista === 'Altas - Confirmadas') {
-        botonesVisibles = `
-            ${!esFinalizada ? `<button type="button" class="row-quick-btn primary btn-finalizar-alta-directa" data-id="${id}" title="Finalizar alta y cerrar admisión">🏁 Finalizar Alta</button>` : ''}
-            <button type="button" class="row-quick-btn secondary btn-aviso-alta-alumno" data-id="${id}" title="Copiar mensaje de confirmación y bienvenida para el alumno">💬 Avisar a Alumno</button>
-        `;
-    } else if (vista === 'Altas - Finalizadas') {
-        botonesVisibles = `
-            <button type="button" class="row-quick-btn secondary btn-aviso-alta-alumno" data-id="${id}" title="Copiar mensaje de confirmación y bienvenida para el alumno">💬 Avisar a Alumno</button>
-            <div style="display:flex; flex-direction:column; gap:4px;">
-                <button type="button" class="row-quick-btn secondary btn-seg-ver-informe" data-id="${id}" onclick="event.stopPropagation(); window.abrirFichaAlumnoEnTab('${id}', 'tab-informe');" title="Ver informe de admisión" style="font-size:11px; padding:3px 8px; width:100%; white-space:nowrap;">📄 Ver Informe</button>
-                <button type="button" class="row-quick-btn secondary btn-seg-ver-seguimiento" data-id="${id}" onclick="event.stopPropagation(); window.abrirFichaAlumnoEnTab('${id}', 'tab-seguimiento');" title="Ver seguimiento del alumno" style="font-size:11px; padding:3px 8px; width:100%; white-space:nowrap;">🎧 Ver Seguimiento</button>
-            </div>
-        `;
+        botonesSecundarios = fnAccion(alClon, id, false, vista);
     }
 
     const tieneSecundarios = Boolean(botonesSecundarios && botonesSecundarios.trim().length > 0);
 
     return `
-        <div class="row-actions-group" style="display:flex; align-items:center; gap:6px; flex-wrap:nowrap;">
-            ${botonesVisibles ? `<div class="row-quick-btns-col" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">${botonesVisibles}</div>` : ''}
+        <div class="row-actions-group" style="display:flex; align-items:center; gap:6px; flex-wrap:nowrap; margin-left:auto;">
             ${tieneSecundarios ? `
                 <div class="alumno-actions row-actions-container" style="position:relative;">
                     <button type="button" class="btn-row-action" title="Más opciones">⋮</button>
@@ -3334,27 +3298,62 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
             return;
         }
 
-        const qSnapAll = await getDocs(collection(db, "alumnos"));
-        const todosAlumnos = [];
-        qSnapAll.forEach(d => todosAlumnos.push(normalizarAlumnoSeguimiento({ id: d.id, ...d.data() })));
+        const getFechaInicioVisual = (al) => {
+            const fIniIndiv = al.fecha_inicio_clases || al.fecha_sugerida_inicio || '';
+            if (fIniIndiv) {
+                const dObj = (typeof fIniIndiv?.toDate === 'function') ? fIniIndiv.toDate() : new Date(fIniIndiv);
+                if (!isNaN(dObj.getTime())) {
+                    return `${String(dObj.getDate()).padStart(2, '0')}/${String(dObj.getMonth() + 1).padStart(2, '0')}/${dObj.getFullYear()}`;
+                }
+            }
+            if (al.horario_match) return al.horario_match;
+            if (al.reserva_fecha_texto) return al.reserva_fecha_texto;
+            return '-';
+        };
 
+        // =====================================================================
+        // 1. SEGUIMIENTOS (Pendientes, En Curso, Finalizados)
+        // =====================================================================
         if (vista.startsWith('Seguimientos') || vista === 'Altas - Seguimientos') {
             const u = window.usuarioActual || {};
             const esEval = typeof window.esModoEvaluadorActivo === 'function' ? window.esModoEvaluadorActivo() : false;
+            const esPendientes = (vista === 'Seguimientos - Pendientes');
 
-            // Agrupar alumnos en seguimiento por Responsable de Seguimiento
+            // Agrupar alumnos:
+            // - Si es 'Seguimientos - Pendientes' -> Agrupar por DOCENTE
+            // - Si es 'Seguimientos - En Curso' o 'Seguimientos - Finalizados' -> Agrupar por Responsable de Seguimiento
             const segMap = {};
             dataFiltrada.forEach(al => {
                 normalizarAlumnoSeguimiento(al);
-                const respNom = al.seguimiento?.responsable_nombre || al.seguimiento_responsable_nombre || 'Sin Responsable Asignado';
-                if (!segMap[respNom]) segMap[respNom] = [];
-                segMap[respNom].push(al);
+                let claveGrupo = '';
+                if (esPendientes) {
+                    claveGrupo = al.profesor_asignado || al.profesor_nombre || al.reserva_profe_nombre || 'Docente sin asignar';
+                } else {
+                    claveGrupo = al.seguimiento?.responsable_nombre || al.seguimiento_responsable_nombre || 'Sin Responsable Asignado';
+                }
+                if (!segMap[claveGrupo]) segMap[claveGrupo] = [];
+                segMap[claveGrupo].push(al);
             });
 
             let segHtml = '';
+            let groupCounter = 0;
 
-            for (const [evalNom, alumnosSeg] of Object.entries(segMap)) {
+            for (const [grupoClave, alumnosSeg] of Object.entries(segMap)) {
+                groupCounter++;
+                const groupId = `seg-grp-${groupCounter}-${Math.random().toString(36).substr(2, 6)}`;
+
                 alumnosSeg.sort((a, b) => {
+                    if (esPendientes) {
+                        const getFechaIni = (x) => {
+                            const f = x.fecha_inicio_clases || x.fecha_sugerida_inicio || '';
+                            if (f) {
+                                const d = (typeof f?.toDate === 'function') ? f.toDate() : new Date(f);
+                                if (!isNaN(d.getTime())) return d.getTime();
+                            }
+                            return Infinity;
+                        };
+                        return getFechaIni(a) - getFechaIni(b);
+                    }
                     const getFechaLim = (x) => {
                         if (x.seguimiento?.fecha_proximo_seguimiento) {
                             return new Date(x.seguimiento.fecha_proximo_seguimiento).getTime();
@@ -3367,23 +3366,12 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                 const filasHtml = alumnosSeg.map(al => {
                     const instAsignado = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento[0] : (al.instrumento || 'Piano'));
                     const emojiInst = getEmojiInstrumento(instAsignado, callbacks.configApp || defaultCfg);
-                    const profeNom = al.profesor_asignado || al.reserva_profe_nombre || 'Docente';
-                    const grupoNom = al.grupo_asignado || 'Clase Individual';
-
-                    // Fecha de inicio individual
-                    const fIniIndiv = al.fecha_inicio_clases || al.fecha_sugerida_inicio || '';
-                    let fIniTxt = '-';
-                    if (fIniIndiv) {
-                        const dObj = new Date(fIniIndiv);
-                        if (!isNaN(dObj.getTime())) {
-                            fIniTxt = `${String(dObj.getDate()).padStart(2, '0')}/${String(dObj.getMonth() + 1).padStart(2, '0')}/${dObj.getFullYear()}`;
-                        }
-                    }
+                    const fIniTxt = getFechaInicioVisual(al);
 
                     // Urgencia / Estado del badge según la sub-vista de seguimiento
                     let badgeUrg = '';
                     if (vista === 'Seguimientos - Pendientes') {
-                        badgeUrg = `<span class="badge-tag" style="background:#fef3c7; color:#92400e; font-weight:700; font-size:11px; padding:2px 8px; border-radius:12px;">🟡 Pendiente de Inicio</span>`;
+                        badgeUrg = `<span class="badge-tag" style="background:#fef3c7; color:#92400e; font-weight:700; font-size:10.5px; padding:2px 7px; border-radius:10px;">🟡 Pendiente</span>`;
                     } else if (vista === 'Seguimientos - Finalizados') {
                         let fFinTxt = '';
                         if (al.seguimiento?.fecha_finalizacion) {
@@ -3392,112 +3380,138 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                                 fFinTxt = ` (${String(fObj.getDate()).padStart(2,'0')}/${String(fObj.getMonth()+1).padStart(2,'0')}/${fObj.getFullYear()})`;
                             }
                         }
-                        badgeUrg = `<span class="badge-tag" style="background:#dbeafe; color:#1e40af; font-weight:700; font-size:11px; padding:2px 8px; border-radius:12px;">🔵 Finalizado${fFinTxt}</span>`;
+                        badgeUrg = `<span class="badge-tag" style="background:#dbeafe; color:#1e40af; font-weight:700; font-size:10.5px; padding:2px 7px; border-radius:10px;">🔵 Finalizado${fFinTxt}</span>`;
                     } else {
                         // En Curso (o por defecto)
                         const proxSegStr = al.seguimiento?.fecha_proximo_seguimiento;
                         if (proxSegStr) {
-                            const parts = proxSegStr.split('-');
+                            const parts = String(proxSegStr).split('-');
                             if (parts.length === 3) {
-                                const dSeg = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 20, 0, 0);
-                                const diffHs = (dSeg - new Date()) / (1000 * 60 * 60);
-                                const pTxt = `${parts[2]}/${parts[1]}/${parts[0]}`;
-                                if (diffHs < 0) {
-                                    const diasVenc = Math.abs(Math.round(diffHs / 24));
-                                    badgeUrg = `<span class="pill-urgencia pill-vencida">🔴 Vencido (${diasVenc >= 1 ? diasVenc + 'd' : Math.abs(Math.round(diffHs)) + 'hs'})</span>`;
-                                } else if (diffHs <= 24) {
-                                    badgeUrg = `<span class="pill-urgencia pill-urgente-24">🟠 < 24 hs</span>`;
-                                } else if (diffHs <= 48) {
-                                    badgeUrg = `<span class="pill-urgencia pill-urgente-48">🟡 24 a 48 hs</span>`;
+                                const anio = parseInt(parts[0], 10);
+                                const mes = parseInt(parts[1], 10) - 1;
+                                const dia = parseInt(parts[2], 10);
+                                const hoy = new Date();
+                                const hoyInicio = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
+                                const fechaPautada = new Date(anio, mes, dia).getTime();
+                                const diffDias = Math.round((hoyInicio - fechaPautada) / (24 * 60 * 60 * 1000));
+                                const pTxt = `${String(dia).padStart(2,'0')}/${String(mes+1).padStart(2,'0')}/${anio}`;
+
+                                if (diffDias >= 2) {
+                                    badgeUrg = `<span class="pill-urgencia pill-rojo-critico" title="Crítico: ${diffDias} días de retraso (Pactado: ${pTxt})">🔴 Crítico</span>`;
+                                } else if (diffDias === 1) {
+                                    badgeUrg = `<span class="pill-urgencia pill-naranja-retraso" title="Retraso leve: 1 día (+24hs) (Pactado: ${pTxt})">🟠 Retraso leve</span>`;
+                                } else if (diffDias === 0) {
+                                    badgeUrg = `<span class="pill-urgencia pill-amarillo-hoy" title="Ver hoy: Fecha pactada de contacto (${pTxt})">🟡 Ver hoy</span>`;
                                 } else {
-                                    badgeUrg = `<span class="group-member-status-chip status-val-ok">🟢 Próx: ${pTxt}</span>`;
+                                    badgeUrg = `<span class="pill-urgencia pill-verde-plazo" title="En término: Próximo contacto el ${pTxt}">🟢 En término</span>`;
                                 }
+                            } else {
+                                badgeUrg = `<span class="pill-urgencia pill-verde-plazo" title="Seguimiento en curso">🟢 En término</span>`;
                             }
                         } else {
-                            badgeUrg = `<span class="group-member-status-chip status-val-ok">🟢 En Curso</span>`;
+                            badgeUrg = `<span class="pill-urgencia pill-verde-plazo" title="Seguimiento en curso">🟢 En término</span>`;
                         }
                     }
 
                     const cantCtto = Array.isArray(al.seguimiento?.historial) ? al.seguimiento.historial.length : 0;
-                    const fnAccion = callbacks.generarBotonesAccion || window.generarBotonesAccion;
-                    const botonesSecundarios = typeof fnAccion === 'function' ? fnAccion(al, al.id, false, vista) : '';
-
-                    // Checkbox bulk solo en Pendientes
-                    const chkBulkSeg = (vista === 'Seguimientos - Pendientes')
-                        ? `<input type="checkbox" class="bulk-chk" data-id="${al.id}" onclick="event.stopPropagation(); window.toggleBulkSelection('${al.id}', this.checked)" style="margin-right:10px; cursor:pointer; width:17px; height:17px; accent-color:var(--accent-teal); flex-shrink:0;">`
-                        : '';
-
-                    // Botones de acción principales según la sub-vista
-                    let botonesPrincipalesHtml = '';
-                    if (vista === 'Seguimientos - Pendientes') {
-                        botonesPrincipalesHtml = `
-                            <button type="button" class="row-quick-btn primary btn-iniciar-seg-indiv" data-id="${al.id}" onclick="event.stopPropagation(); window.confirmarSeguimientoMasivo ? window.confirmarSeguimientoMasivo(['${al.id}']) : null;" style="font-size:11.5px; padding:3px 10px;">🎧 Iniciar Seguimiento</button>
-                        `;
-                    } else if (vista === 'Seguimientos - Finalizados') {
-                        botonesPrincipalesHtml = `
-                            <button type="button" class="row-quick-btn primary btn-seg-reiniciar" data-id="${al.id}" onclick="event.stopPropagation(); typeof window.abrirModalNuevoSeguimiento === 'function' ? window.abrirModalNuevoSeguimiento('${al.id}') : null;" style="font-size:11.5px; padding:3px 10px;" title="Comenzar un nuevo ciclo de seguimiento">🔄 Comenzar nuevo seguimiento</button>
-                        `;
-                    } else {
-                        // En Curso (default)
-                        botonesPrincipalesHtml = `
-                            <button type="button" class="row-quick-btn primary btn-seg-contactar" data-id="${al.id}" onclick="event.stopPropagation(); window.abrirModalRegistrarSeguimiento('${al.id}');" style="font-size:11.5px; padding:3px 10px;">💬 Nuevo Feedback</button>
-                            <button type="button" class="row-quick-btn secondary btn-seg-finalizar" data-id="${al.id}" onclick="event.stopPropagation(); window.abrirModalFinalizarSeguimiento('${al.id}');" style="font-size:11.5px; padding:3px 10px;">🏁 Finalizar Seguimiento</button>
-                        `;
-                    }
+                    const tagFeedbacks = cantCtto > 0 ? `<span class="badge-tag" style="background:#f1f5f9; color:#475569; font-size:10px; padding:1px 6px; border-radius:6px;" title="${cantCtto} feedback(s) registrado(s)">${cantCtto} fb</span>` : '';
+                    const botonesRow = construirAccionesFilaAlta(al, al.id, vista, true, '', callbacks);
+                    const chkBulkSeg = `<input type="checkbox" class="bulk-chk" data-id="${al.id}" onclick="event.stopPropagation(); window.toggleBulkSelection('${al.id}', this.checked)" style="margin-right:8px; cursor:pointer; width:16px; height:16px; accent-color:var(--accent-teal); flex-shrink:0;">`;
 
                     return `
-                        <div class="group-member-row" style="padding:12px 14px; align-items:center; justify-content:space-between; gap:12px; border-bottom:1px solid var(--border-color);">
-                            <div style="display:flex; align-items:center; flex:1; gap:6px;">
-                                ${chkBulkSeg}
-                                <div class="group-member-info" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:4px; flex:1; cursor:pointer;" title="Ver y editar ficha de ${al.nombre}" onclick="window.editarAlumnoModalDirecto('${al.id}')">
-                                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; text-align:left;">
-                                        <span class="group-member-name" style="font-size:14px; font-weight:700; color:var(--text-main);">👤 ${al.nombre}</span>
-                                        ${badgeUrg}
-                                        <span class="badge-tag" style="background:#f1f5f9; color:#475569; font-size:10.5px; padding:2px 7px; border-radius:6px;">${cantCtto} feedback(s)</span>
-                                    </div>
-                                    <div class="group-member-details" style="font-size:12px; color:var(--text-muted); display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                                        ${al.edad ? `<span>${al.edad} años</span> • ` : ''}
-                                        ${al.nivel ? `<span class="match-student-tag nivel" style="font-size:10px; padding:2px 7px;">${al.nivel}</span> • ` : ''}
-                                        <strong style="color:var(--accent-teal); font-weight:600;">${emojiInst} ${instAsignado}</strong> • 
-                                        <span style="color:var(--accent-purple); font-weight:600;">🧩 ${al.tipo_suscripcion || 'Ensamble'}</span> • 
-                                        <span>👨‍🏫 ${profeNom} (${grupoNom})</span> • 
-                                        <span style="color:#0f766e; font-weight:700; background:#f0fdfa; border:1px solid #ccfbf1; padding:1px 6px; border-radius:4px;">📅 Inicio: ${fIniTxt}</span>
-                                        ${al.celular ? ` • <span>📱 ${al.celular}</span>` : ''}
-                                    </div>
-                                    <div style="display:flex; gap:8px; align-items:center; margin-top:4px; flex-wrap:wrap;" onclick="event.stopPropagation();">
-                                        ${botonesPrincipalesHtml}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="group-member-actions" style="display:flex; gap:6px; align-items:center; flex-shrink:0;">
-                                <div style="display:flex; flex-direction:column; gap:4px;">
-                                    <button type="button" class="row-quick-btn secondary btn-seg-ver-informe" data-id="${al.id}" onclick="event.stopPropagation(); window.abrirFichaAlumnoEnTab('${al.id}', 'tab-informe');" title="Ver informe de admisión" style="font-size:11px; padding:3px 8px; width:100%; white-space:nowrap;">📄 Ver Informe</button>
-                                    <button type="button" class="row-quick-btn secondary btn-seg-ver-seguimiento" data-id="${al.id}" onclick="event.stopPropagation(); window.abrirFichaAlumnoEnTab('${al.id}', 'tab-seguimiento');" title="Ver seguimiento del alumno" style="font-size:11px; padding:3px 8px; width:100%; white-space:nowrap;">🎧 Ver Seguimiento</button>
-                                </div>
-                                ${botonesSecundarios ? `
-                                    <div class="alumno-actions row-actions-container" style="position:relative;">
-                                        <button type="button" class="btn-row-action" title="Más opciones">⋮</button>
-                                        <div class="dropdown-menu-wrapper">
-                                            <div class="dropdown-menu">${botonesSecundarios}</div>
+                        <div class="row-item btn-editar-alumno" data-id="${al.id}" style="padding:7px 12px; margin-bottom:4px; border-radius:10px; border:1px solid var(--border-color); background:#fff; cursor:pointer;">
+                            <div class="row-content-wrapper" style="display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%;">
+                                <!-- Columna 1: Alumno y Datos (Línea 1: Nombre • Edad • Nivel + Badge | Línea 2: Instrumento) -->
+                                <div class="row-header" style="display:flex; align-items:center; flex:1; gap:6px; min-width:0;">
+                                    ${chkBulkSeg}
+                                    <div class="row-main-info" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:1px; flex:1; min-width:0;">
+                                        <div class="row-name" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; text-align:left;">
+                                            <span style="font-weight:700; color:var(--text-main); font-size:14px;">${al.nombre}</span>
+                                            ${al.edad ? `<span style="font-size:12px; color:var(--text-muted); font-weight:600;">• ${al.edad} años</span>` : ''}
+                                            ${al.nivel ? `<span style="display:inline-flex; align-items:center;">• <span class="match-student-tag nivel" style="font-size:10px; padding:1px 6px;">${al.nivel}</span></span>` : ''}
+                                            ${badgeUrg}
+                                            ${tagFeedbacks}
+                                        </div>
+                                        <div class="row-sub-line" style="display:flex; align-items:center; gap:6px; font-size:12px; margin-top:1px;">
+                                            <strong style="color:var(--accent-teal); font-weight:600;">${emojiInst} ${instAsignado}</strong>
                                         </div>
                                     </div>
-                                ` : ''}
+                                </div>
+
+                                <!-- Columna Derecha: Sector de Fechas -->
+                                ${(() => {
+                                    if (vista === 'Seguimientos - En Curso' || (vista.startsWith('Seguimientos') && al.seguimiento?.activo === true)) {
+                                        let fechaSegTxt = '-';
+                                        if (al.seguimiento?.fecha_proximo_seguimiento) {
+                                            const parts = String(al.seguimiento.fecha_proximo_seguimiento).split('-');
+                                            if (parts.length === 3) {
+                                                fechaSegTxt = `${String(parts[2]).padStart(2, '0')}/${String(parts[1]).padStart(2, '0')}/${parts[0]}`;
+                                            } else {
+                                                fechaSegTxt = al.seguimiento.fecha_proximo_seguimiento;
+                                            }
+                                        } else if (al.seguimiento?.ultimo_contacto) {
+                                            const fUlt = new Date(al.seguimiento.ultimo_contacto);
+                                            if (!isNaN(fUlt.getTime())) {
+                                                fechaSegTxt = `${String(fUlt.getDate()).padStart(2, '0')}/${String(fUlt.getMonth() + 1).padStart(2, '0')}/${fUlt.getFullYear()}`;
+                                            }
+                                        }
+                                        return `
+                                            <div class="row-meta" style="display:flex; flex-direction:column; align-items:flex-end; text-align:right; min-width:95px; flex-shrink:0;">
+                                                <div style="font-size:11px; color:var(--text-muted); font-weight:600;">📅 ${fechaSegTxt}</div>
+                                            </div>
+                                        `;
+                                    } else if (vista === 'Seguimientos - Finalizados') {
+                                        let fFinTxt = '-';
+                                        if (al.seguimiento?.fecha_finalizacion) {
+                                            const fObj = new Date(al.seguimiento.fecha_finalizacion);
+                                            if (!isNaN(fObj.getTime())) {
+                                                fFinTxt = `${String(fObj.getDate()).padStart(2, '0')}/${String(fObj.getMonth() + 1).padStart(2, '0')}/${fObj.getFullYear()}`;
+                                            }
+                                        }
+                                        return `
+                                            <div class="row-meta" style="display:flex; flex-direction:column; align-items:flex-end; text-align:right; min-width:105px; flex-shrink:0;">
+                                                <div style="font-size:10px; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:1px;">FINALIZADO:</div>
+                                                <div style="font-size:11px; color:var(--text-muted); font-weight:600;">📅 ${fFinTxt}</div>
+                                            </div>
+                                        `;
+                                    } else {
+                                        return `
+                                            <div class="row-meta" style="display:flex; flex-direction:column; align-items:flex-end; text-align:right; min-width:110px; flex-shrink:0;">
+                                                <div style="font-size:10px; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:1px;">INICIO DE CLASES:</div>
+                                                <div style="font-size:11px; color:var(--text-muted); font-weight:600;">📅 ${fIniTxt}</div>
+                                            </div>
+                                        `;
+                                    }
+                                })()}
+
+                                <!-- Menú 3 Puntos -->
+                                ${botonesRow}
                             </div>
                         </div>
                     `;
                 }).join('');
 
-                const headerTitulo = esEval ? `🎧 Mis Alumnos en Seguimiento` : `🎯 Responsable: ${evalNom}`;
+                let headerTitulo = '';
+                let iconBanner = '🎯';
+                if (esPendientes) {
+                    iconBanner = '👨‍🏫';
+                    headerTitulo = `Docente: ${grupoClave}`;
+                } else {
+                    iconBanner = '🎯';
+                    headerTitulo = esEval ? `Mis Alumnos en Seguimiento` : `Responsable: ${grupoClave}`;
+                }
 
                 segHtml += `
-                    <div class="group-box-card" style="width:100%; margin-bottom:16px;">
-                        <div class="group-box-header" style="background:#f8fafc; border-bottom:1px solid var(--border-color); padding:12px 16px; display:flex; justify-content:space-between; align-items:center;">
-                            <div class="group-box-title" style="font-size:14px; font-weight:700; color:var(--text-main); display:flex; align-items:center; gap:8px;">
-                                <span>${headerTitulo}</span>
-                                <span class="badge-tag" style="background:#ccfbf1; color:#0f766e; font-weight:700; font-size:11px; padding:2px 8px; border-radius:12px;">${alumnosSeg.length} alumno(s)</span>
+                    <div class="group-card-l1" style="border:1px solid var(--border-color); border-radius:12px; margin-bottom:14px; width:100%; overflow:hidden; background:#fff;">
+                        <div class="group-banner-l1" style="background:#f8fafc; border-left:6px solid var(--accent-teal); color:var(--text-main); cursor:pointer; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;" onclick="window.toggleGroupCollapsible('${groupId}-content', '${groupId}-icon')" title="Clic para desplegar u ocultar">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span id="${groupId}-icon" style="font-size:12px; transition:transform 0.2s;">▼</span>
+                                <span style="font-size:16px;">${iconBanner}</span>
+                                <span style="font-size:14px; font-weight:800; letter-spacing:-0.01em;">${headerTitulo.toUpperCase()}</span>
+                                <span style="background:var(--accent-teal); color:#ffffff; font-size:11px; font-weight:700; padding:2px 8px; border-radius:12px;">${alumnosSeg.length} alumno(s)</span>
                             </div>
                         </div>
-                        <div class="group-box-members">
+                        <div id="${groupId}-content" style="padding:10px 12px; display:flex; flex-direction:column; gap:4px;">
                             ${filasHtml}
                         </div>
                     </div>
@@ -3505,271 +3519,264 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
             }
 
             container.innerHTML = segHtml;
-
-            container.querySelectorAll('.btn-iniciar-seg-indiv').forEach(btn => {
-                btn.onclick = () => {
-                    const id = btn.dataset.id;
-                    if (id && typeof window.abrirModalSeguimientoMasivo === 'function') {
-                        window.abrirModalSeguimientoMasivo([id]);
-                    }
-                };
-            });
-
             return;
         }
 
-        const esGrupoFn = (al) => {
-            const grp = (al.grupo_asignado || '').replace(/\s*\([⌛⏳].*?pend\)/gi, '').trim();
-            return grp && grp !== 'Clase Individual' && grp !== 'Individual' && !grp.startsWith('Grupo Sin');
-        };
-
-        const gruposMap = {};
-        const individuales = [];
+        // =====================================================================
+        // 2. VISTAS DE ALTAS (Pendientes, En Curso, Confirmadas, Finalizadas)
+        // Agrupación Nivel 1: Por DOCENTE (Collapsible ▼)
+        // =====================================================================
+        const docentesMap = {};
 
         dataFiltrada.forEach(al => {
-            if (esGrupoFn(al)) {
-                const grpNom = al.grupo_asignado.replace(/\s*\([⌛⏳].*?pend\)/gi, '').trim();
-                if (!gruposMap[grpNom]) gruposMap[grpNom] = [];
-                gruposMap[grpNom].push(al);
-            } else {
-                individuales.push(al);
-            }
+            const profeNom = al.profesor_asignado || al.profesor_nombre || al.reserva_profe_nombre || 'Docente sin asignar';
+            if (!docentesMap[profeNom]) docentesMap[profeNom] = [];
+            docentesMap[profeNom].push(al);
         });
 
         let html = '';
+        let docCounter = 0;
 
-        // Renderizar Tarjetas de Grupos
-        for (const [nombreGrupo, integrantesEnVista] of Object.entries(gruposMap)) {
-            // Contexto global del grupo en la base de datos (para métricas informativas)
-            const todosMiembrosGrupo = todosAlumnos.filter(a => {
-                const aGrp = (a.grupo_asignado || '').replace(/\s*\([⌛⏳].*?pend\)/gi, '').trim();
-                return aGrp === nombreGrupo &&
-                    !['Alta Suspendida', 'Agenda suspendida', 'Inactivo'].includes(a.estado_agenda);
-            });
+        for (const [profeNom, alumnosDocente] of Object.entries(docentesMap)) {
+            docCounter++;
+            const docGroupId = `doc-l1-${docCounter}-${Math.random().toString(36).substr(2, 6)}`;
 
-            // En esta tarjeta de la vista activa se renderizan ÚNICA Y EXCLUSIVAMENTE los alumnos que pertenecen a esta vista
-            const miembrosRenderizar = integrantesEnVista;
-            const primer = miembrosRenderizar[0] || {};
-            const horario = primer.horario_match || primer.reserva_fecha_texto || 'Horario a coordinar';
-            const profeNom = primer.profesor_asignado || primer.profesor_nombre || primer.reserva_profe_nombre || 'Docente';
-            const modalidad = primer.modalidad_ensamble || primer.tipo_ensamble || primer.tipo_suscripcion || 'Ensamble';
-
-            const totalGrupo = todosMiembrosGrupo.length;
-            const confirmadosTotal = todosMiembrosGrupo.filter(m => {
-                const st = (m.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-                return ['alta confirmada', 'alta efectiva', 'alta finalizada'].includes(st);
-            }).length;
-            const pendientesTotal = Math.max(0, totalGrupo - confirmadosTotal);
-
-            let statusChipsHtml = '';
-            let headerActionsHtml = '';
-
-            if (vista === 'Altas - Pendientes') {
-                statusChipsHtml = `<span class="group-member-status-chip status-val-ok">📋 ${miembrosRenderizar.length} Integrante(s) Validado(s)</span>`;
-                const idsParam = miembrosRenderizar.map(m => m.id).join(',');
-                headerActionsHtml = `
-                    <button type="button" class="btn-action-highlight btn-avisar-admisor-grupo" data-grupo="${nombreGrupo}" data-ids="${idsParam}" style="padding:8px 14px; font-size:13px; color:var(--accent-teal); border:1.5px solid var(--accent-teal); background:#f0fdfa; border-radius:8px; font-weight:700; cursor:pointer;" title="Copiar aviso para el Admisor con los datos de este grupo">
-                        📢 Avisar al Admisor
-                    </button>
-                    <button type="button" class="btn-primary btn-iniciar-prealta-grupo-card" data-grupo="${nombreGrupo}" data-ids="${idsParam}" style="padding:8px 16px; font-size:13px; cursor:pointer;" title="Iniciar Pre-Alta de todo el grupo y agendar en Google Calendar">
-                        ⚙️ Iniciar Pre-Alta Grupal
-                    </button>
-                    <button type="button" class="filter-chip btn-devolver-grupo-espera" data-grupo="${nombreGrupo}" data-ids="${idsParam}" style="padding:8px 12px; font-size:13px; color:var(--accent-red); border-color:rgba(194,86,59,0.3); cursor:pointer;" title="Devolver todo el grupo a Lista de Espera">
-                        🛋️ Devolver Grupo a Espera
-                    </button>
-                `;
-            } else if (vista === 'Altas - En Curso') {
-                statusChipsHtml = `<span class="group-member-status-chip status-val-pending">⏳ ${miembrosRenderizar.length} Pendiente(s) de Pago</span>`;
-                if (confirmadosTotal > 0) {
-                    statusChipsHtml += ` <span style="display:inline-flex; align-items:center; gap:4px; font-size:11.5px; color:#166534; background:#dcfce7; border:1px solid #bbf7d0; padding:2px 8px; border-radius:12px; font-weight:700;">🟢 ${confirmadosTotal} ya confirmaron</span>`;
-                }
-                const idsPendientes = miembrosRenderizar.map(p => p.id).join(',');
-                headerActionsHtml = `
-                    <button type="button" class="btn-action-highlight btn-avisar-coordinador-grupo" data-grupo="${nombreGrupo}" data-ids="${idsPendientes}" style="padding:8px 14px; font-size:13px; color:var(--accent-teal); border:1.5px solid var(--accent-teal); background:#f0fdfa; border-radius:8px; font-weight:700; cursor:pointer;" title="Copiar aviso para el Coordinador con los datos de este grupo">
-                        📢 Avisar al Coordinador
-                    </button>
-                    <button type="button" class="btn-primary btn-aprobar-todo-grupo" data-grupo="${nombreGrupo}" style="background:#16a34a; border-color:#16a34a; padding:8px 14px; font-size:13px; cursor:pointer;" title="Aprobar pago y alta de los ${miembrosRenderizar.length} integrantes pendientes">
-                        ✅ Aprobar Todo el Grupo (${miembrosRenderizar.length})
-                    </button>
-                    <button type="button" class="filter-chip btn-devolver-grupo-pendientes" data-grupo="${nombreGrupo}" data-ids="${idsPendientes}" style="padding:8px 12px; font-size:13px; color:var(--accent-teal); border-color:rgba(0,123,143,0.3); background:#f0fdfa; font-weight:600; cursor:pointer;" title="Devolver integrantes pendientes a Altas - Pendientes para re-coordinar">
-                        ↩️ Devolver a Pendientes
-                    </button>
-                    <button type="button" class="filter-chip btn-devolver-grupo-espera" data-grupo="${nombreGrupo}" data-ids="${idsPendientes}" style="padding:8px 12px; font-size:13px; color:var(--accent-red); border-color:rgba(194,86,59,0.3); cursor:pointer;" title="Devolver integrantes pendientes a Lista de Espera general">
-                        🛋️ Devolver a Espera
-                    </button>
-                `;
-            } else if (vista === 'Altas - Confirmadas') {
-                statusChipsHtml = `<span class="group-member-status-chip status-val-ok">🟢 ${miembrosRenderizar.length} Confirmado(s)</span>`;
-                if (pendientesTotal > 0) {
-                    statusChipsHtml += ` <span style="display:inline-flex; align-items:center; gap:4px; font-size:11.5px; color:#92400e; background:#fef3c7; border:1px solid #fde68a; padding:2px 8px; border-radius:12px; font-weight:700;">⏳ ${pendientesTotal} aún en curso</span>`;
-                }
-                const idsConfirmados = miembrosRenderizar.map(p => p.id).join(',');
-                headerActionsHtml = `
-                    <button type="button" class="btn-primary btn-finalizar-todo-grupo" data-grupo="${nombreGrupo}" data-ids="${idsConfirmados}" style="padding:8px 14px; font-size:13px; cursor:pointer;" title="Finalizar alta y cerrar ciclo para los ${miembrosRenderizar.length} integrantes confirmados">
-                        🏁 Finalizar Todo el Grupo (${miembrosRenderizar.length})
-                    </button>
-                `;
-            } else if (vista === 'Altas - Finalizadas') {
-                statusChipsHtml = `<span class="group-member-status-chip status-val-ok">🏆 ${miembrosRenderizar.length} Finalizado(s)</span>`;
-                headerActionsHtml = '';
-            } else {
-                statusChipsHtml = `<span class="group-member-status-chip status-val-ok">✅ ${miembrosRenderizar.length} Alumnos</span>`;
-            }
-
-            const renderFilaMiembro = (al) => {
-                const st = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-                const isConfirmed = ['alta confirmada', 'alta efectiva', 'alta finalizada'].includes(st);
-                const instAsignado = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento[0] : (al.instrumento || 'Sin inst.'));
-                const emojiInst = getEmojiInstrumento(instAsignado, callbacks.configApp || defaultCfg);
-
-                let badgeEstado = '';
-                if (vista === 'Altas - Pendientes') {
-                    badgeEstado = `<span class="group-member-status-chip status-val-ok">✅ Validado</span>`;
-                } else if (vista === 'Altas - En Curso') {
-                    badgeEstado = isConfirmed
-                        ? `<span class="group-member-status-chip status-val-ok">✅ Alta Confirmada</span>`
-                        : `<span class="group-member-status-chip status-val-pending">⏳ Pendiente de Pago</span>`;
-                } else if (vista === 'Altas - Finalizadas') {
-                    badgeEstado = `<span class="group-member-status-chip status-val-ok">🏆 Alta Finalizada</span> ${getSeguimientoBadgeStatus(al)}`;
-                } else {
-                    badgeEstado = `<span class="group-member-status-chip status-val-ok">✅ Alta Confirmada</span>`;
-                }
-
-                const botonesRow = construirAccionesFilaAlta(al, al.id, vista, isConfirmed, nombreGrupo, callbacks);
-                const checklistRowHtml = (vista !== 'Altas - Pendientes' && vista !== 'Altas - Finalizadas' && !vista.startsWith('Seguimientos') && vista !== 'Altas - Seguimientos' && !esAlumnoAltaFinalizada(al)) ? generarChecklistAltaHtml(al.id, al) : '';
-
-                const fIniIndiv = al.fecha_inicio_clases || al.fecha_sugerida_inicio || '';
-                let fIniHtml = '';
-                if (fIniIndiv) {
-                    const dObj = new Date(fIniIndiv);
-                    if (!isNaN(dObj.getTime())) {
-                        const dd = String(dObj.getDate()).padStart(2, '0');
-                        const mm = String(dObj.getMonth() + 1).padStart(2, '0');
-                        const yy = dObj.getFullYear();
-                        fIniHtml = ` • <span style="color:#0f766e; font-weight:700; background:#f0fdfa; border:1px solid #ccfbf1; padding:1px 6px; border-radius:4px;" title="Fecha de inicio individual de clases para este alumno">📅 Inicio: ${dd}/${mm}/${yy}</span>`;
-                    }
-                }
-
-                return `
-                    <div class="group-member-row" style="padding:12px 14px; align-items:center; justify-content:space-between; gap:12px;">
-                        <div style="display:flex; align-items:center; flex:1; gap:6px;">
-                            <div class="group-member-info" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:3px; cursor:pointer; flex:1;" onclick="window.editarAlumnoModalDirecto('${al.id}')" title="Ver ficha de ${al.nombre}">
-                                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; text-align:left;">
-                                    <span class="group-member-name" style="font-size:14px; font-weight:700; color:var(--text-main);">👤 ${al.nombre}</span>
-                                    ${badgeEstado}
-                                </div>
-                                <div class="group-member-details" style="font-size:12px; color:var(--text-muted); display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                                    ${al.edad ? `<span>${al.edad} años</span> • ` : ''}
-                                    ${al.nivel ? `<span class="match-student-tag nivel" style="font-size:10px; padding:2px 7px;">${al.nivel}</span> • ` : ''}
-                                    <strong style="color:var(--accent-teal); font-weight:600;">${emojiInst} ${instAsignado}</strong> • 
-                                    <strong style="color:var(--accent-purple); font-weight:600; font-size:12px;">🧩 ${al.tipo_suscripcion || 'Ensamble'}</strong>
-                                    ${fIniHtml}
-                                    ${al.celular ? ` • <span>📱 ${al.celular}</span>` : ''}
-                                </div>
-                                ${checklistRowHtml}
-                            </div>
-                        </div>
-                        <div class="group-member-actions" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; flex-shrink:0;">
-                            ${botonesRow}
-                        </div>
-                    </div>
-                `;
+            // Sub-agrupar alumnos del docente por Grupo
+            const esGrupoValido = (al) => {
+                const grp = (al.grupo_asignado || '').replace(/\s*\([⌛⏳].*?pend\)/gi, '').trim();
+                return grp && grp !== 'Clase Individual' && grp !== 'Individual' && !grp.startsWith('Grupo Sin');
             };
 
-            const miembrosHtml = miembrosRenderizar.map(renderFilaMiembro).join('');
+            const gruposDelDocente = {};
+            const individualesDelDocente = [];
 
-            html += `
-                <div class="group-box-card" style="width:100%; margin-bottom:16px;">
-                    <div class="group-box-header">
-                        <div>
-                            <div class="group-box-title">
-                                <span>🧩 ${nombreGrupo}</span>
-                                ${statusChipsHtml}
-                            </div>
-                            <div class="group-box-subtitle">
-                                <span>📅 <strong>${horario}</strong></span>
-                                <span>•</span>
-                                <span>👨‍🏫 Docente: <strong>${profeNom}</strong></span>
-                                <span>•</span>
-                                <span style="color:var(--accent-teal); font-weight:700;">🎸 ${modalidad}</span>
-                            </div>
-                        </div>
-                        <div class="group-box-actions">
-                            ${headerActionsHtml}
-                        </div>
-                    </div>
-                    <div class="group-box-members">
-                        ${miembrosHtml}
-                    </div>
-                </div>
-            `;
-        }
-
-        // Renderizar Clases Individuales (si existen)
-        if (individuales.length > 0) {
-            html += `
-                <div style="font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); margin:24px 0 12px 0; display:flex; align-items:center; gap:8px;">
-                    Clases Individuales <span style="flex:1; height:1px; background:var(--border-color);"></span>
-                </div>
-            `;
-
-            individuales.forEach(al => {
-                const st = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-                const isConfirmed = ['alta confirmada', 'alta efectiva', 'alta finalizada'].includes(st);
-                const instAsignado = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento[0] : (al.instrumento || 'Piano'));
-                const emojiInst = getEmojiInstrumento(instAsignado, callbacks.configApp || defaultCfg);
-                const horario = al.horario_match || al.reserva_fecha_texto || 'Horario a convenir';
-                const profeNom = al.profesor_asignado || al.reserva_profe_nombre || 'Docente';
-
-                let badgeEstadoInd = '';
-                if (vista === 'Altas - Pendientes') {
-                    badgeEstadoInd = `<span class="group-member-status-chip status-val-ok">✅ Validada</span>`;
-                } else if (vista === 'Altas - En Curso') {
-                    badgeEstadoInd = isConfirmed
-                        ? `<span class="group-member-status-chip status-val-ok">✅ Alta Confirmada</span>`
-                        : `<span class="group-member-status-chip status-val-pending">⏳ Pendiente de Pago</span>`;
-                } else if (vista === 'Altas - Finalizadas') {
-                    badgeEstadoInd = `<span class="group-member-status-chip status-val-ok">🏆 Alta Finalizada</span> ${getSeguimientoBadgeStatus(al)}`;
+            alumnosDocente.forEach(al => {
+                if (esGrupoValido(al)) {
+                    const grpNom = al.grupo_asignado.replace(/\s*\([⌛⏳].*?pend\)/gi, '').trim();
+                    if (!gruposDelDocente[grpNom]) gruposDelDocente[grpNom] = [];
+                    gruposDelDocente[grpNom].push(al);
                 } else {
-                    badgeEstadoInd = `<span class="group-member-status-chip status-val-ok">✅ Alta Confirmada</span>`;
+                    individualesDelDocente.push(al);
+                }
+            });
+
+            let docContentHtml = '';
+
+            // Renderizar Grupos del Docente
+            for (const [nombreGrupo, integrantesGrupo] of Object.entries(gruposDelDocente)) {
+                // REGLA DE GRUPO INTELIGENTE EN ALTAS EN CURSO:
+                // Si en Altas en Curso hay solo 1 integrante en curso de ese grupo, se muestra suelto directamente bajo el docente.
+                if (vista === 'Altas - En Curso' && integrantesGrupo.length < 2) {
+                    individualesDelDocente.push(...integrantesGrupo);
+                    continue;
                 }
 
-                const botonesIndiv = construirAccionesFilaAlta(al, al.id, vista, isConfirmed, 'Clase Individual', callbacks);
-                const checklistIndivHtml = (vista !== 'Altas - Pendientes' && vista !== 'Altas - Finalizadas' && !vista.startsWith('Seguimientos') && vista !== 'Altas - Seguimientos' && !esAlumnoAltaFinalizada(al)) ? generarChecklistAltaHtml(al.id, al) : '';
+                const subGroupId = `grp-l2-${docCounter}-${Math.random().toString(36).substr(2, 6)}`;
+                const primer = integrantesGrupo[0] || {};
+                const horario = primer.horario_match || primer.reserva_fecha_texto || 'Horario a coordinar';
+                const modalidad = primer.modalidad_ensamble || primer.tipo_ensamble || primer.tipo_suscripcion || 'Ensamble';
+                const idsParam = integrantesGrupo.map(m => m.id).join(',');
 
-                html += `
-                    <div class="group-box-card" style="width:100%; margin-bottom:12px; border-left:4px solid var(--accent-teal);">
-                        <div class="group-member-row" style="padding:12px 14px; align-items:center; justify-content:space-between; gap:12px;">
-                            <div style="display:flex; align-items:center; flex:1; gap:6px;">
-                                <div class="group-member-info" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:3px; cursor:pointer; flex:1;" onclick="window.editarAlumnoModalDirecto('${al.id}')" title="Ver ficha de ${al.nombre}">
-                                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; text-align:left;">
-                                        <span class="group-member-name" style="font-size:14px; font-weight:700; color:var(--text-main);">👤 ${al.nombre}</span>
-                                        ${badgeEstadoInd}
-                                        <span class="match-student-tag" style="font-size:10px; padding:2px 7px;">🎹 ${al.tipo_suscripcion || 'Clase Individual'}</span>
+                let statusChipsHtml = '';
+                let headerActionsHtml = '';
+
+                if (vista === 'Altas - Pendientes') {
+                    statusChipsHtml = `<span class="group-member-status-chip status-val-ok" style="font-size:11px;">📋 ${integrantesGrupo.length} Integrante(s) Validado(s)</span>`;
+                    headerActionsHtml = `
+                        <button type="button" class="btn-action-highlight btn-avisar-admisor-grupo" data-grupo="${nombreGrupo}" data-ids="${idsParam}" style="padding:4px 10px; font-size:11.5px; color:var(--accent-teal); border:1.5px solid var(--accent-teal); background:#f0fdfa; border-radius:6px; font-weight:700; cursor:pointer;" title="Copiar aviso para el Admisor con los datos de este grupo">
+                            📢 Avisar al Admisor
+                        </button>
+                        <button type="button" class="btn-primary btn-iniciar-prealta-grupo-card" data-grupo="${nombreGrupo}" data-ids="${idsParam}" style="padding:4px 12px; font-size:11.5px; cursor:pointer;" title="Iniciar Pre-Alta de todo el grupo y agendar en Google Calendar">
+                            ⚙️ Iniciar Pre-Alta Grupal
+                        </button>
+                        <button type="button" class="filter-chip btn-devolver-grupo-espera" data-grupo="${nombreGrupo}" data-ids="${idsParam}" style="padding:4px 9px; font-size:11px; color:var(--accent-red); border-color:rgba(194,86,59,0.3); cursor:pointer;" title="Devolver todo el grupo a Lista de Espera">
+                            🛋️ Devolver a Espera
+                        </button>
+                    `;
+                } else if (vista === 'Altas - En Curso') {
+                    statusChipsHtml = `<span class="group-member-status-chip status-val-pending" style="font-size:11px;">⏳ ${integrantesGrupo.length} Pendiente(s) de Pago</span>`;
+                    headerActionsHtml = `
+                        <button type="button" class="btn-action-highlight btn-avisar-coordinador-grupo" data-grupo="${nombreGrupo}" data-ids="${idsParam}" style="padding:4px 10px; font-size:11.5px; color:var(--accent-teal); border:1.5px solid var(--accent-teal); background:#f0fdfa; border-radius:6px; font-weight:700; cursor:pointer;" title="Copiar aviso para el Coordinador con los datos de este grupo">
+                            📢 Avisar al Coordinador
+                        </button>
+                        <button type="button" class="btn-primary btn-aprobar-todo-grupo" data-grupo="${nombreGrupo}" style="background:#16a34a; border-color:#16a34a; padding:4px 12px; font-size:11.5px; cursor:pointer;" title="Aprobar pago y alta de los integrantes pendientes">
+                            ✅ Suscripción Abonada (${integrantesGrupo.length})
+                        </button>
+                        <button type="button" class="filter-chip btn-devolver-grupo-pendientes" data-grupo="${nombreGrupo}" data-ids="${idsParam}" style="padding:4px 9px; font-size:11px; color:var(--accent-teal); border-color:rgba(0,123,143,0.3); background:#f0fdfa; font-weight:600; cursor:pointer;" title="Devolver integrantes a Altas - Pendientes">
+                            ↩️ Devolver a Pendientes
+                        </button>
+                        <button type="button" class="filter-chip btn-devolver-grupo-espera" data-grupo="${nombreGrupo}" data-ids="${idsParam}" style="padding:4px 9px; font-size:11px; color:var(--accent-red); border-color:rgba(194,86,59,0.3); cursor:pointer;" title="Devolver integrantes a Lista de Espera general">
+                            🛋️ Devolver a Espera
+                        </button>
+                    `;
+                } else if (vista === 'Altas - Confirmadas') {
+                    statusChipsHtml = `<span class="group-member-status-chip status-val-ok" style="font-size:11px;">🟢 ${integrantesGrupo.length} Confirmado(s)</span>`;
+                    headerActionsHtml = `
+                        <button type="button" class="btn-primary btn-finalizar-todo-grupo" data-grupo="${nombreGrupo}" data-ids="${idsParam}" style="padding:4px 12px; font-size:11.5px; cursor:pointer;" title="Finalizar alta y cerrar ciclo para los integrantes confirmados">
+                            🏁 Finalizar Todo el Grupo (${integrantesGrupo.length})
+                        </button>
+                    `;
+                } else if (vista === 'Altas - Finalizadas') {
+                    statusChipsHtml = '';
+                    headerActionsHtml = '';
+                }
+
+                const filasGrupoHtml = integrantesGrupo.map(al => {
+                    const instAsignado = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento[0] : (al.instrumento || 'Sin inst.'));
+                    const emojiInst = getEmojiInstrumento(instAsignado, callbacks.configApp || defaultCfg);
+                    const fIniTxt = getFechaInicioVisual(al);
+
+                    let badgeEstado = '';
+                    if (vista === 'Altas - Pendientes') {
+                        badgeEstado = `<span class="group-member-status-chip status-val-ok" style="font-size:10.5px;">📋 Validado</span>`;
+                    } else if (vista === 'Altas - En Curso') {
+                        badgeEstado = `<span class="group-member-status-chip status-val-pending" style="font-size:10.5px;">⏳ Pendiente de Pago</span>`;
+                    } else if (vista === 'Altas - Confirmadas') {
+                        badgeEstado = `<span class="group-member-status-chip status-val-ok" style="font-size:10.5px;">✅ Alta Confirmada</span>`;
+                    } else if (vista === 'Altas - Finalizadas') {
+                        badgeEstado = (al.seguimiento?.activo === true || (al.seguimiento_responsable_id && al.seguimiento?.activo !== false && !al.seguimiento?.fecha_finalizacion))
+                            ? `<span class="badge-tag" style="background:#e0f2fe; color:#0369a1; font-weight:700; font-size:11px; padding:2px 8px; border-radius:12px;">🎧 Seguimiento en curso</span>`
+                            : '';
+                    }
+
+                    // Checklist de Alta: Únicamente en Altas - Confirmadas
+                    const checklistRowHtml = (vista === 'Altas - Confirmadas') ? generarChecklistAltaHtml(al.id, al) : '';
+                    const botonesRow = construirAccionesFilaAlta(al, al.id, vista, true, nombreGrupo, callbacks);
+                    const chkBulk = `<input type="checkbox" class="bulk-chk" data-id="${al.id}" onclick="event.stopPropagation(); window.toggleBulkSelection('${al.id}', this.checked)" style="margin-right:8px; cursor:pointer; width:16px; height:16px; accent-color:var(--accent-teal); flex-shrink:0;">`;
+
+                    return `
+                        <div class="row-item btn-editar-alumno" data-id="${al.id}" style="padding:7px 12px; margin-bottom:4px; border-radius:10px; border:1px solid var(--border-color); background:#fff; cursor:pointer;">
+                            <div class="row-content-wrapper" style="display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%;">
+                                <!-- Columna 1: Alumno y Datos (Línea 1: Nombre • Edad • Nivel + Badge | Línea 2: Instrumento) -->
+                                <div class="row-header" style="display:flex; align-items:center; flex:1; gap:6px; min-width:0;">
+                                    ${chkBulk}
+                                    <div class="row-main-info" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:1px; flex:1; min-width:0;">
+                                        <div class="row-name" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; text-align:left;">
+                                            <span style="font-weight:700; color:var(--text-main); font-size:14px;">${al.nombre}</span>
+                                            ${al.edad ? `<span style="font-size:12px; color:var(--text-muted); font-weight:600;">• ${al.edad} años</span>` : ''}
+                                            ${al.nivel ? `<span style="display:inline-flex; align-items:center;">• <span class="match-student-tag nivel" style="font-size:10px; padding:1px 6px;">${al.nivel}</span></span>` : ''}
+                                            ${badgeEstado}
+                                        </div>
+                                        <div class="row-sub-line" style="display:flex; align-items:center; gap:6px; font-size:12px; margin-top:1px;">
+                                            <strong style="color:var(--accent-teal); font-weight:600;">${emojiInst} ${instAsignado}</strong>
+                                        </div>
+                                        ${checklistRowHtml}
                                     </div>
-                                    <div class="group-member-details" style="font-size:12px; color:var(--text-muted); display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                                        ${al.edad ? `<span>${al.edad} años</span> • ` : ''}
-                                        ${al.nivel ? `<span class="match-student-tag nivel" style="font-size:10px; padding:2px 7px;">${al.nivel}</span> • ` : ''}
-                                        <strong style="color:var(--accent-teal); font-weight:600;">${emojiInst} ${instAsignado}</strong> • 
-                                        <span>📅 ${horario} con <strong>${profeNom}</strong></span>
-                                        ${al.celular ? ` • <span>📱 ${al.celular}</span>` : ''}
-                                    </div>
-                                    ${checklistIndivHtml}
                                 </div>
+
+                                <!-- Columna Derecha: Sector Universal de Fechas -->
+                                <div class="row-meta" style="display:flex; flex-direction:column; align-items:flex-end; text-align:right; min-width:110px; flex-shrink:0;">
+                                    <div style="font-size:10px; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:1px;">INICIO DE CLASES:</div>
+                                    <div style="font-size:11px; color:var(--text-muted); font-weight:600;">📅 ${fIniTxt}</div>
+                                </div>
+
+                                <!-- Menú 3 Puntos -->
+                                ${botonesRow}
                             </div>
-                            <div class="group-member-actions" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; flex-shrink:0;">
+                        </div>
+                    `;
+                }).join('');
+
+                docContentHtml += `
+                    <div class="group-card-l2" style="border:1px solid #e2e8f0; border-radius:10px; margin-bottom:10px; background:#f8fafc; overflow:hidden;">
+                        <div class="group-banner-l2" style="padding:8px 12px; background:#f1f5f9; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; cursor:pointer;" onclick="window.toggleGroupCollapsible('${subGroupId}-content', '${subGroupId}-icon')">
+                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                <span id="${subGroupId}-icon" style="font-size:10px; color:#64748b; transition:transform 0.2s;">▼</span>
+                                <span style="font-size:13.5px; font-weight:800; color:var(--text-main);">🧩 ${nombreGrupo}</span>
+                                ${statusChipsHtml}
+                                <span style="font-size:11.5px; color:var(--text-muted);">• 📅 ${horario} • 🎸 ${modalidad}</span>
+                            </div>
+                            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;" onclick="event.stopPropagation();">
+                                ${headerActionsHtml}
+                            </div>
+                        </div>
+                        <div id="${subGroupId}-content" style="padding:8px 10px; display:flex; flex-direction:column; gap:4px;">
+                            ${filasGrupoHtml}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Renderizar Clases Individuales o Alumnos Sueltos bajo el Docente
+            if (individualesDelDocente.length > 0) {
+                const filasIndivHtml = individualesDelDocente.map(al => {
+                    const instAsignado = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento[0] : (al.instrumento || 'Piano'));
+                    const emojiInst = getEmojiInstrumento(instAsignado, callbacks.configApp || defaultCfg);
+                    const fIniTxt = getFechaInicioVisual(al);
+
+                    let badgeEstadoInd = '';
+                    if (vista === 'Altas - Pendientes') {
+                        badgeEstadoInd = `<span class="group-member-status-chip status-val-ok" style="font-size:10.5px;">📋 Validado</span>`;
+                    } else if (vista === 'Altas - En Curso') {
+                        badgeEstadoInd = `<span class="group-member-status-chip status-val-pending" style="font-size:10.5px;">⏳ Pendiente de Pago</span>`;
+                    } else if (vista === 'Altas - Confirmadas') {
+                        badgeEstadoInd = `<span class="group-member-status-chip status-val-ok" style="font-size:10.5px;">✅ Alta Confirmada</span>`;
+                    } else if (vista === 'Altas - Finalizadas') {
+                        badgeEstadoInd = (al.seguimiento?.activo === true || (al.seguimiento_responsable_id && al.seguimiento?.activo !== false && !al.seguimiento?.fecha_finalizacion))
+                            ? `<span class="badge-tag" style="background:#e0f2fe; color:#0369a1; font-weight:700; font-size:11px; padding:2px 8px; border-radius:12px;">🎧 Seguimiento en curso</span>`
+                            : '';
+                    }
+
+                    const checklistIndivHtml = (vista === 'Altas - Confirmadas') ? generarChecklistAltaHtml(al.id, al) : '';
+                    const botonesIndiv = construirAccionesFilaAlta(al, al.id, vista, true, 'Clase Individual', callbacks);
+                    const chkBulkInd = `<input type="checkbox" class="bulk-chk" data-id="${al.id}" onclick="event.stopPropagation(); window.toggleBulkSelection('${al.id}', this.checked)" style="margin-right:8px; cursor:pointer; width:16px; height:16px; accent-color:var(--accent-teal); flex-shrink:0;">`;
+
+                    return `
+                        <div class="row-item btn-editar-alumno" data-id="${al.id}" style="padding:7px 12px; margin-bottom:4px; border-radius:10px; border:1px solid var(--border-color); background:#fff; cursor:pointer;">
+                            <div class="row-content-wrapper" style="display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%;">
+                                <!-- Columna 1: Alumno y Datos (Línea 1: Nombre • Edad • Nivel + Badge | Línea 2: Instrumento) -->
+                                <div class="row-header" style="display:flex; align-items:center; flex:1; gap:6px; min-width:0;">
+                                    ${chkBulkInd}
+                                    <div class="row-main-info" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:1px; flex:1; min-width:0;">
+                                        <div class="row-name" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; text-align:left;">
+                                            <span style="font-weight:700; color:var(--text-main); font-size:14px;">${al.nombre}</span>
+                                            ${al.edad ? `<span style="font-size:12px; color:var(--text-muted); font-weight:600;">• ${al.edad} años</span>` : ''}
+                                            ${al.nivel ? `<span style="display:inline-flex; align-items:center;">• <span class="match-student-tag nivel" style="font-size:10px; padding:1px 6px;">${al.nivel}</span></span>` : ''}
+                                            ${badgeEstadoInd}
+                                        </div>
+                                        <div class="row-sub-line" style="display:flex; align-items:center; gap:6px; font-size:12px; margin-top:1px;">
+                                            <strong style="color:var(--accent-teal); font-weight:600;">${emojiInst} ${instAsignado}</strong>
+                                        </div>
+                                        ${checklistIndivHtml}
+                                    </div>
+                                </div>
+
+                                <!-- Columna Derecha: Sector Universal de Fechas -->
+                                <div class="row-meta" style="display:flex; flex-direction:column; align-items:flex-end; text-align:right; min-width:110px; flex-shrink:0;">
+                                    <div style="font-size:10px; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:1px;">INICIO DE CLASES:</div>
+                                    <div style="font-size:11px; color:var(--text-muted); font-weight:600;">📅 ${fIniTxt}</div>
+                                </div>
+
+                                <!-- Menú 3 Puntos -->
                                 ${botonesIndiv}
                             </div>
                         </div>
+                    `;
+                }).join('');
+
+                docContentHtml += filasIndivHtml;
+            }
+
+            html += `
+                <div class="group-card-l1" style="border:1px solid var(--border-color); border-radius:12px; margin-bottom:14px; width:100%; overflow:hidden; background:#fff;">
+                    <div class="group-banner-l1" style="background:#f8fafc; border-left:6px solid var(--accent-teal); color:var(--text-main); cursor:pointer; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;" onclick="window.toggleGroupCollapsible('${docGroupId}-content', '${docGroupId}-icon')" title="Clic para desplegar u ocultar">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span id="${docGroupId}-icon" style="font-size:12px; transition:transform 0.2s;">▼</span>
+                            <span style="font-size:16px;">👨‍🏫</span>
+                            <span style="font-size:14px; font-weight:800; letter-spacing:-0.01em;">DOCENTE: ${profeNom.toUpperCase()}</span>
+                            <span style="background:var(--accent-teal); color:#ffffff; font-size:11px; font-weight:700; padding:2px 8px; border-radius:12px;">${alumnosDocente.length} alumno(s)</span>
+                        </div>
                     </div>
-                `;
-            });
+                    <div id="${docGroupId}-content" style="padding:10px 12px; display:flex; flex-direction:column; gap:4px;">
+                        ${docContentHtml}
+                    </div>
+                </div>
+            `;
         }
 
         container.innerHTML = html;
 
-
-
+        // Listeners de botones de acción
         container.querySelectorAll('.btn-iniciar-seg-indiv').forEach(btn => {
             btn.onclick = () => {
                 const id = btn.dataset.id;
@@ -3795,7 +3802,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                 const confirmarFn = window.confirmar || ((t, d, b, i) => Promise.resolve(confirm(`${t}\n\n${d}`)));
                 const okDevolver = await confirmarFn(
                     'Devolver Grupo a Altas - Pendientes',
-                    `¿Deseas devolver los integrantes pendientes del grupo "${grupo}" a Altas - Pendientes?\n\n• Quedarán en la lista de Altas Pendientes para re-coordinar o re-agendar su inicio.\n• Se desvincularán de este grupo y se actualizará Google Calendar.`,
+                    `¿Deseas devolver los integrantes del grupo "${grupo}" a Altas - Pendientes?\n\n• Quedarán en Altas Pendientes para re-coordinar o re-agendar su inicio.\n• Se liberará el evento en Google Calendar.`,
                     '↩️ Devolver a Pendientes',
                     '⏳'
                 );
@@ -3851,7 +3858,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                 const confirmarFn = window.confirmar || ((t, d, b, i) => Promise.resolve(confirm(`${t}\n\n${d}`)));
                 const okDevolver = await confirmarFn(
                     'Devolver Grupo a Lista de Espera',
-                    `¿Deseas devolver los integrantes del grupo "${grupo}" a Lista de Espera? Se desvincularán del grupo y se actualizará Calendar.`,
+                    `¿Deseas devolver los integrantes del grupo "${grupo}" a Lista de Espera? Se desvincularán del grupo y se actualizará Google Calendar.`,
                     '🛋️ Devolver a Espera',
                     '⚠️'
                 );
@@ -3941,15 +3948,12 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                                 historial: hist
                             };
 
-                            const respId = al.seguimiento_responsable_id || al.seguimiento?.responsable_id || '';
-                            const respNom = al.seguimiento_responsable_nombre || al.seguimiento?.responsable_nombre || '';
+                            const respId = al.seguimiento_responsable_id || al.seguimiento?.responsable_id || al.profesor_id || al.reserva_profe_id || al.evaluador_id || '';
+                            const respNom = al.seguimiento_responsable_nombre || al.seguimiento?.responsable_nombre || al.profesor_asignado || al.reserva_profe_nombre || al.evaluador_nombre || '';
                             const respEmail = al.seguimiento_responsable_email || al.seguimiento?.responsable_email || '';
 
                             if (respId) {
-                                const fnCalc = typeof window.obtenerFechaSugeridaSeguimientoAlumno === 'function'
-                                    ? window.obtenerFechaSugeridaSeguimientoAlumno
-                                    : ((x, d) => (typeof window.calcularFechaSeguimientoHabil === 'function' ? window.calcularFechaSeguimientoHabil(x?.fecha_inicio_clases || null, d) : new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]));
-                                const fProxStr = fnCalc(al, 7);
+                                const fProxStr = calcularFechaSeguimiento72hs(al.fecha_inicio_clases || null);
                                 updateData.seguimiento = {
                                     activo: true,
                                     responsable_id: respId,
@@ -3999,77 +4003,22 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
             };
         });
 
-        container.querySelectorAll('.btn-prealta-individual-row').forEach(btn => {
-            btn.onclick = () => {
-                const id = btn.dataset.id;
-                if (id) window.abrirModalPrealta(id);
+        container.querySelectorAll('.btn-avisar-coordinador-grupo').forEach(btn => {
+            btn.onclick = async () => {
+                const grupo = btn.dataset.grupo || '';
+                const ids = (btn.dataset.ids || '').split(',').filter(Boolean);
+                if (typeof window.copiarAvisoCoordinadorGrupo === 'function') {
+                    await window.copiarAvisoCoordinadorGrupo(grupo, ids);
+                }
             };
         });
 
-        container.querySelectorAll('.btn-confirmar-alumno-row').forEach(btn => {
+        container.querySelectorAll('.btn-avisar-admisor-grupo').forEach(btn => {
             btn.onclick = async () => {
-                const id = btn.dataset.id;
-                const nom = btn.dataset.nombre || 'Alumno';
-                const grp = btn.dataset.grupo || '';
-                await confirmarAlumnoAltaAction(id, nom, grp, vista, callbacks);
-            };
-        });
-
-        container.querySelectorAll('.btn-devolver-alumno-espera-row').forEach(btn => {
-            btn.onclick = async () => {
-                const id = btn.dataset.id;
-                const nom = btn.dataset.nombre || 'Alumno';
-                const grp = btn.dataset.grupo || '';
-                const confirmarFn = window.confirmar || ((t, d, b, i) => Promise.resolve(confirm(`${t}\n\n${d}`)));
-                const okDevolverAl = await confirmarFn(
-                    'Devolver Alumno a Lista de Espera',
-                    `¿Deseas devolver a "${nom}" a Lista de Espera? Se desvinculará del grupo y se actualizará Google Calendar.`,
-                    '↩️ Devolver a Espera',
-                    '⚠️'
-                );
-                if (!okDevolverAl) return;
-
-                if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(`Moviendo a ${nom} a espera...`);
-                try {
-                    const dSnap = await getDoc(doc(db, "alumnos", id));
-                    if (dSnap.exists()) {
-                        const al = dSnap.data();
-                        const hist = al.historial || [];
-                        const fnHist = window.crearEntradaHistorial || ((txt, t) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: t || 'sistema' }));
-                        hist.push(fnHist(`Devuelto a Lista de Espera desde ${vista}${grp ? ` (Desvinculado de ${grp})` : ''}.`, 'alta'));
-                        const evalOriginal = (al.informe_entrevista && al.informe_entrevista.evaluador_nombre) || al.evaluador_nombre || '';
-                        const payloadDev = {
-                            estado_agenda: "Lista de espera",
-                            grupo_asignado: "",
-                            profesor_asignado: "",
-                            profesor_id: "",
-                            horario_match: "",
-                            dia_match: "",
-                            horario_inicio_match: "",
-                            horario_fin_match: "",
-                            id_evento_alta: null,
-                            historial: hist
-                        };
-                        if (evalOriginal) payloadDev.reserva_profe_nombre = evalOriginal;
-                        await updateDoc(doc(db, "alumnos", id), payloadDev);
-                        await eliminarEventoAltaSeguro({ id, ...al }, callbacks.configApp || defaultCfg);
-                    }
-                    if (typeof callbacks.cargarVista === 'function') await callbacks.cargarVista(vista);
-                    if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
-                    if (typeof window.mostrarToast === 'function') {
-                        window.mostrarToast(`↩️ ${nom} devuelto a Lista de Espera.`, 'info');
-                    } else {
-                        alert(`↩️ ${nom} devuelto a Lista de Espera.`);
-                    }
-                } catch(e) {
-                    if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
-                    if (typeof window.mostrarToast === 'function') {
-                        window.mostrarToast("Error al devolver a espera: " + e.message, 'error');
-                    } else {
-                        alert("Error al devolver a espera: " + e.message);
-                    }
-                } finally {
-                    if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
+                const grupo = btn.dataset.grupo || '';
+                const ids = (btn.dataset.ids || '').split(',').filter(Boolean);
+                if (typeof window.copiarAvisoAdmisorGrupo === 'function') {
+                    await window.copiarAvisoAdmisorGrupo(grupo, ids);
                 }
             };
         });

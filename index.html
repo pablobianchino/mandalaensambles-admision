@@ -10,7 +10,7 @@
     <meta http-equiv="Expires" content="0">
     
     <link rel="icon" href="logo.png" type="image/png">
-    <link rel="manifest" href="manifest.json?v=6.10.22">
+    <link rel="manifest" href="manifest.json?v=7.0">
     <meta name="theme-color" content="#fbfaf8">
     <meta name="apple-mobile-web-app-title" content="Mandala Admisión">
     <meta name="application-name" content="Mandala Admisión">
@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=6.10.22">
+    <link rel="stylesheet" href="styles.css?v=7.0">
 
     <style>
         /* Estilos Críticos de Widget de Perfil y Popover Google-Style */
@@ -427,6 +427,11 @@
                     <span class="nav-badge" id="badge-suspendidos" style="display:none; background:var(--accent-red); color:#fff;">0</span>
                 </li>
 
+                <li class="nav-item" data-vista="Bajas - Todas" data-modulo="Bajas" id="nav-item-bajas">
+                    <span class="nav-icon">🛑</span> <span>Bajas</span>
+                    <span class="nav-badge" id="badge-bajas" style="display:none; background:#991b1b; color:#fff;">0</span>
+                </li>
+
                 <li class="nav-divider"></li>
                 <li class="nav-item" data-vista="Estadísticas" data-modulo="Estadísticas"><span class="nav-icon">📊</span> <span>Métricas</span></li>
             </ul>
@@ -465,6 +470,12 @@
                             <button id="btn-sync-espera-csv" onclick="window.abrirModalSyncEsperaCSV()" style="display:none !important; background:rgba(0,123,143,0.08); color:var(--accent-teal); border:1px solid rgba(0,123,143,0.3); border-radius:8px; padding:0 14px; cursor:pointer; font-weight:700; font-size:12.5px; font-family:inherit; white-space:nowrap; transition:0.2s;" title="Sincronizar días de espera y último contacto desde CSV">📥 Sincronizar CSV</button>
                             <input type="file" id="input-csv" accept=".csv" style="display:none;">
                         </div>
+                    </div>
+
+                    <!-- INTERRUPTOR MODO DE VISTA: SIMPLE / COMPLETA -->
+                    <div id="wrapper-switch-modo-vista" class="switch-modo-vista-pill" title="Cambiar nivel de detalle de las fichas">
+                        <button type="button" id="btn-modo-simple" class="btn-switch-modo active" onclick="window.setModoVistaApp(true)">⚡ Simple</button>
+                        <button type="button" id="btn-modo-completo" class="btn-switch-modo" onclick="window.setModoVistaApp(false)">📋 Completa</button>
                     </div>
 
                     <!-- WIDGET DE USUARIO GOOGLE-STYLE -->
@@ -579,6 +590,19 @@
                 </div>
             </div>
 
+            <!-- CONTENEDOR DE RESULTADOS DE BÚSQUEDA GLOBAL (ARRIBA DEL DASHBOARD) -->
+            <div id="seccion-busqueda-global" style="display:none; flex-direction:column; gap:12px; margin-bottom:20px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; background:var(--hover-bg); border:1px solid var(--border-color); border-radius:10px; padding:10px 16px; flex-wrap:wrap; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:16px;">🔍</span>
+                        <span id="busqueda-global-titulo" style="font-weight:700; font-size:14px; color:var(--text-main);">Resultados de búsqueda</span>
+                        <span id="busqueda-global-contador" class="badge" style="background:var(--accent-teal); color:#fff; font-size:11px; font-weight:700; padding:2px 8px; border-radius:12px;">0 encontrados</span>
+                    </div>
+                    <button type="button" id="btn-cerrar-busqueda-global" class="btn-app btn-sm btn-secondary" style="font-size:12px; height:28px; padding:0 10px;">✕ Limpiar Búsqueda</button>
+                </div>
+                <div id="lista-busqueda-global" class="lista-filas" style="display:flex; flex-direction:column; gap:8px;"></div>
+            </div>
+
             <!-- VISTA RESUMEN (Parte 1: Prioridades) -->
             <div id="vista-resumen" style="display:none; flex-direction:column; gap:14px; margin-bottom:15px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; border-bottom:2px solid #e2e8f0; padding-bottom:10px;">
@@ -603,35 +627,25 @@
                             </div>
                         </div>
 
-                        <!-- Chips Temporales fijos por fuera -->
-                        <button type="button" class="btn-prio-filtro prio-todos active" data-prio="todos" style="display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:24px; font-size:12.5px; font-weight:700; cursor:pointer; font-family:inherit; background:#1e293b; color:#ffffff; border:1px solid #1e293b; box-shadow:0 1px 3px rgba(0,0,0,0.08); transition:all 0.18s ease; margin:2px;">
-                            Todos (<span id="cnt-prio-todos">0</span>)
+                        <!-- Chips de Criticidad / Prioridad (Solo Iconos de Color con Tooltip y Contador) -->
+                        <button type="button" class="btn-prio-filtro prio-todos active" data-prio="todos" title="Todos los registros" style="display:inline-flex; align-items:center; gap:5px; padding:6px 12px; border-radius:20px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; background:#1e293b; color:#ffffff; border:1px solid #1e293b; box-shadow:0 1px 3px rgba(0,0,0,0.08); transition:all 0.18s ease; margin:2px;">
+                            <span>🔘</span> <span id="cnt-prio-todos">0</span>
                         </button>
-                        <button type="button" class="btn-prio-filtro prio-vencidos" data-prio="vencidos" style="display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:24px; font-size:12.5px; font-weight:600; cursor:pointer; font-family:inherit; background:#ffffff; color:#b91c1c; border:1px solid #fecaca; box-shadow:0 1px 2px rgba(0,0,0,0.03); transition:all 0.18s ease; margin:2px;">
-                            🔴 Vencidos (<span id="cnt-prio-vencidos">0</span>)
+                        <button type="button" class="btn-prio-filtro prio-vencidos" data-prio="vencidos" title="Crítico / Vencidos (+48hs)" style="display:inline-flex; align-items:center; gap:5px; padding:6px 12px; border-radius:20px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; background:#ffffff; color:#b91c1c; border:1px solid #fecaca; box-shadow:0 1px 2px rgba(0,0,0,0.03); transition:all 0.18s ease; margin:2px;">
+                            <span>🔴</span> <span id="cnt-prio-vencidos">0</span>
                         </button>
-                        <button type="button" class="btn-prio-filtro prio-urgentes" data-prio="urgentes" style="display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:24px; font-size:12.5px; font-weight:600; cursor:pointer; font-family:inherit; background:#ffffff; color:#c2410c; border:1px solid #fed7aa; box-shadow:0 1px 2px rgba(0,0,0,0.03); transition:all 0.18s ease; margin:2px;">
-                            🟠 &lt; 24 hs (<span id="cnt-prio-urgentes">0</span>)
+                        <button type="button" class="btn-prio-filtro prio-urgentes" data-prio="urgentes" title="Retraso leve / Urgentes (+24hs / &lt;24hs)" style="display:inline-flex; align-items:center; gap:5px; padding:6px 12px; border-radius:20px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; background:#ffffff; color:#c2410c; border:1px solid #fed7aa; box-shadow:0 1px 2px rgba(0,0,0,0.03); transition:all 0.18s ease; margin:2px;">
+                            <span>🟠</span> <span id="cnt-prio-urgentes">0</span>
                         </button>
-                        <button type="button" class="btn-prio-filtro prio-proximos" data-prio="proximos" style="display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:24px; font-size:12.5px; font-weight:600; cursor:pointer; font-family:inherit; background:#ffffff; color:#854d0e; border:1px solid #fef08a; box-shadow:0 1px 2px rgba(0,0,0,0.03); transition:all 0.18s ease; margin:2px;">
-                            🟡 24 a 48 hs (<span id="cnt-prio-proximos">0</span>)
+                        <button type="button" class="btn-prio-filtro prio-proximos" data-prio="proximos" title="Ver hoy / Por vencer (Hoy / 24-48hs)" style="display:inline-flex; align-items:center; gap:5px; padding:6px 12px; border-radius:20px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; background:#ffffff; color:#854d0e; border:1px solid #fef08a; box-shadow:0 1px 2px rgba(0,0,0,0.03); transition:all 0.18s ease; margin:2px;">
+                            <span>🟡</span> <span id="cnt-prio-proximos">0</span>
+                        </button>
+                        <button type="button" class="btn-prio-filtro prio-entermino" data-prio="entermino" title="En término / Programados (-24hs / &gt;48hs)" style="display:inline-flex; align-items:center; gap:5px; padding:6px 12px; border-radius:20px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; background:#ffffff; color:#15803d; border:1px solid #86efac; box-shadow:0 1px 2px rgba(0,0,0,0.03); transition:all 0.18s ease; margin:2px;">
+                            <span>🟢</span> <span id="cnt-prio-entermino">0</span>
                         </button>
                     </div>
                 </div>
                 <div id="resumen-urgencias" class="lista-filas"></div>
-            </div>
-
-            <!-- CONTENEDOR DE RESULTADOS DE BÚSQUEDA GLOBAL -->
-            <div id="seccion-busqueda-global" style="display:none; flex-direction:column; gap:12px; margin-bottom:20px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; background:var(--hover-bg); border:1px solid var(--border-color); border-radius:10px; padding:10px 16px; flex-wrap:wrap; gap:8px;">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <span style="font-size:16px;">🔍</span>
-                        <span id="busqueda-global-titulo" style="font-weight:700; font-size:14px; color:var(--text-main);">Resultados de búsqueda</span>
-                        <span id="busqueda-global-contador" class="badge" style="background:var(--accent-teal); color:#fff; font-size:11px; font-weight:700; padding:2px 8px; border-radius:12px;">0 encontrados</span>
-                    </div>
-                    <button type="button" id="btn-cerrar-busqueda-global" class="btn-app btn-sm btn-secondary" style="font-size:12px; height:28px; padding:0 10px;">✕ Limpiar Búsqueda</button>
-                </div>
-                <div id="lista-busqueda-global" class="lista-filas" style="display:flex; flex-direction:column; gap:8px;"></div>
             </div>
 
             <!-- CONTENEDOR PRINCIPAL DE FILAS (Listas Dinámicas / Kanban) -->
@@ -849,6 +863,9 @@
             <span id="bulk-count">0 seleccionados</span>
             <button id="btn-bulk-propuesta-grupo" class="btn-primary" style="padding:6px 14px; font-size:12.5px; display:none;">✨ Nueva Propuesta de Grupo</button>
             <button id="btn-bulk-iniciar-seguimiento" class="btn-primary" style="padding:6px 14px; font-size:12.5px; display:none; background:var(--accent-teal);" title="Asignar responsable de seguimiento y fecha para alumnos de altas finalizadas">🎧 Iniciar Seguimiento</button>
+            <button id="btn-bulk-avisar-coordinador" class="btn-action-highlight" style="padding:6px 14px; font-size:12.5px; color:var(--accent-teal); border:1.5px solid var(--accent-teal); background:#f0fdfa; border-radius:8px; font-weight:700; cursor:pointer; display:none;">📢 Avisar al Coordinador</button>
+            <button id="btn-bulk-suscripcion-abonada" class="btn-primary" style="background:#16a34a; border-color:#16a34a; padding:6px 14px; font-size:12.5px; cursor:pointer; display:none;">✅ Suscripción Abonada</button>
+            <button id="btn-bulk-devolver-pendientes" style="padding:6px 12px; font-size:12px; font-weight:700; border-radius:6px; background:#f0fdfa; border:1px solid rgba(0,123,143,0.3); color:var(--accent-teal); cursor:pointer; display:none;">↩️ Devolver a Pendientes</button>
             <button id="btn-bulk-devolver-espera" style="padding:6px 12px; font-size:12px; font-weight:700; border-radius:6px; background:#fff; border:1px solid var(--border-color); color:#0369a1; cursor:pointer; display:none;">🛋️ Devolver a Espera</button>
             <button id="btn-bulk-auditar-cal" style="padding:6px 12px; font-size:12px; font-weight:700; border-radius:6px; background:#fff; border:1px solid var(--border-color); color:var(--text-main); cursor:pointer; display:none;">🔍 Auditar Calendar</button>
             <button id="btn-bulk-copiar-bd" style="padding:6px 12px; font-size:12px; font-weight:700; border-radius:6px; background:#fff; border:1px solid var(--border-color); color:var(--text-main); cursor:pointer; display:none;">📋 Generar registro BD</button>
@@ -1190,8 +1207,8 @@
                         <button type="button" id="btn-modal-reg-seguimiento" class="btn-app btn-primary" style="display:none; height:42px; padding:0 16px; font-size:13px; font-weight:700; border-radius:8px; box-sizing:border-box; align-items:center; gap:6px; cursor:pointer;" onclick="window.abrirModalRegistrarSeguimientoDesdeFicha()">
                             <span>💬</span> Nuevo Feedback
                         </button>
-                        <button type="button" id="btn-modal-contactar-alumno" class="btn-app btn-secondary btn-contactar-modal" style="display:none; height:42px; padding:0 18px; font-size:13px; font-weight:700; border-radius:8px; border-color:#22c55e; color:#15803d; background:#f0fdf4; box-sizing:border-box; align-items:center; gap:6px; cursor:pointer;" title="Registrar feedback del alumno">
-                            <span>💬</span> Nuevo Feedback
+                        <button type="button" id="btn-modal-contactar-alumno" class="btn-app btn-secondary btn-contactar-modal" style="display:none; height:42px; padding:0 18px; font-size:13px; font-weight:700; border-radius:8px; border-color:#0284c7; color:#0369a1; background:#f0f9ff; box-sizing:border-box; align-items:center; gap:6px; cursor:pointer;" title="Registrar recall del alumno">
+                            <span>☎️</span> Recall
                         </button>
                         <button type="submit" id="btn-submit-alumno" class="btn-primary" style="flex:2; min-width:140px; height:42px; box-sizing:border-box;">Guardar Alumno</button>
                         <button type="button" id="btn-modal-eliminar-alumno" class="btn-secondary btn-modal-eliminar" style="display:none; height:42px; padding:0 18px; box-sizing:border-box;" title="Eliminar ficha permanentemente (Solo Administrador)">🗑️ Eliminar</button>
@@ -2063,6 +2080,82 @@
         </div>
     </dialog>
 
+    <!-- MODAL DAR DE BAJA ALUMNO (ALUMNOS REGULARES / CURSANTES) -->
+    <dialog id="modal-dar-baja" class="modern-modal auto-height-modal" style="max-width:460px; width:90%;">
+        <div style="padding:24px;">
+            <div class="modal-drag-pill"></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid var(--border-color); padding-bottom:10px;">
+                <h3 id="baja-titulo-modal" style="margin:0; font-size:1.15em; font-weight:800; color:#991b1b; display:flex; align-items:center; gap:8px;">
+                    <span>🛑</span> Dar de Baja Alumno
+                </h3>
+                <button type="button" class="btn-cerrar-modal" data-modal="modal-dar-baja" style="background:none; border:none; font-size:1.4em; cursor:pointer; color:var(--text-muted);">&times;</button>
+            </div>
+            
+            <input type="hidden" id="baja-alumno-id" value="">
+            <input type="hidden" id="baja-modo-edicion" value="false">
+            <input type="hidden" id="baja-nota-id" value="">
+
+            <div style="background:var(--hover-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:13px;">
+                Alumno: <strong id="baja-alumno-nombre" style="color:var(--text-main);"></strong>
+            </div>
+
+            <label style="display:block; margin-bottom:15px; font-weight:700; font-size:12.5px; color:var(--text-main);">
+                Observación / Motivo de la Baja: *
+                <textarea id="baja-observacion" class="modern-input" rows="3" placeholder="Ingresá la observación obligatoria del motivo de baja..." required style="margin-top:6px; width:100%; box-sizing:border-box; resize:vertical; font-family:inherit; font-size:13px;"></textarea>
+            </label>
+
+            <p style="font-size:11.5px; color:#991b1b; margin:0 0 16px 0; line-height:1.4;">
+                ⚠️ El alumno se moverá a la sección <strong>Bajas</strong> y se desactivará su seguimiento activo.
+            </p>
+
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button type="button" class="btn-cerrar-modal btn-app btn-secondary" data-modal="modal-dar-baja" style="padding:8px 16px; border-radius:8px; font-weight:600;">Cancelar</button>
+                <button type="button" id="btn-confirmar-baja-alumno" class="btn-app btn-primary" style="background:#991b1b; color:#fff; font-weight:700; padding:8px 18px; border-radius:8px;">Confirmar Baja</button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- MODAL REINGRESAR ALUMNO (BAJAS / SUSPENDIDOS) -->
+    <dialog id="modal-reingresar-alumno" class="modern-modal auto-height-modal" style="max-width:480px; width:92%;">
+        <div style="padding:24px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid var(--border-color); padding-bottom:10px;">
+                <h3 style="margin:0; font-size:1.15em; font-weight:800; color:var(--text-main); display:flex; align-items:center; gap:8px;">
+                    <span>🔄</span> Reingresar Alumno
+                </h3>
+                <button type="button" class="btn-cerrar-modal" data-modal="modal-reingresar-alumno" style="background:none; border:none; font-size:1.4em; cursor:pointer; color:var(--text-muted);">&times;</button>
+            </div>
+            
+            <p style="font-size:13.5px; color:var(--text-main); margin-bottom:14px; line-height:1.4;">
+                ¿A dónde deseás reincorporar a <strong id="reingreso-alumno-nombre" style="color:var(--accent-teal);">este alumno</strong>?
+            </p>
+
+            <input type="hidden" id="reingreso-alumno-id" value="">
+
+            <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
+                <label style="display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border:2px solid var(--border-color); border-radius:10px; cursor:pointer; background:var(--hover-bg); transition:all 0.2s;" id="label-reingreso-inbox">
+                    <input type="radio" name="reingreso-destino" value="inbox" checked style="accent-color:var(--accent-teal); margin-top:3px; cursor:pointer;">
+                    <div>
+                        <div style="font-weight:700; font-size:13px; color:var(--text-main);">📥 Inbox › Sin Agendar</div>
+                        <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">Se posiciona como un prospecto nuevo en la bandeja de entrada para coordinar entrevista o contacto inicial.</div>
+                    </div>
+                </label>
+
+                <label style="display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border:2px solid var(--border-color); border-radius:10px; cursor:pointer; background:var(--hover-bg); transition:all 0.2s;" id="label-reingreso-espera">
+                    <input type="radio" name="reingreso-destino" value="espera" style="accent-color:var(--accent-teal); margin-top:3px; cursor:pointer;">
+                    <div>
+                        <div style="font-weight:700; font-size:13px; color:var(--text-main);">⏳ Lista de Espera</div>
+                        <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">Se reincorpora a la lista de espera conservando su instrumento, nivel y disponibilidad horaria.</div>
+                    </div>
+                </label>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px;">
+                <button type="button" class="btn-app btn-secondary btn-cerrar-modal" data-modal="modal-reingresar-alumno" style="padding:10px 16px; border-radius:8px; font-weight:600;">Cancelar</button>
+                <button type="button" id="btn-confirmar-reingreso" class="btn-app btn-primary" style="background:var(--accent-teal); padding:10px 18px; border-radius:8px; font-weight:700;">🔄 Confirmar Reingreso</button>
+            </div>
+        </div>
+    </dialog>
+
     <dialog id="modal-cancelar-agenda" class="modern-modal auto-height-modal" style="max-width:440px; width:90%;">
         <div style="padding:24px;">
             <div class="modal-drag-pill"></div>
@@ -2178,6 +2271,27 @@
                 </div>
             </div>
 
+            <!-- Selector de Tipo de Feedback (Actual vs Retroactivo) -->
+            <div style="margin-bottom:14px;">
+                <label style="font-size:11.5px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px; display:block;">
+                    Tipo de Registro:
+                </label>
+                <div style="display:flex; gap:8px;">
+                    <button type="button" id="btn-modo-seg-actual" class="btn-modo-seg active" style="flex:1; padding:7px 12px; border-radius:20px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; background:var(--accent-teal); color:#fff; border:1px solid var(--accent-teal); transition:all 0.2s;">🟢 Feedback Actual (Hoy)</button>
+                    <button type="button" id="btn-modo-seg-retroactivo" class="btn-modo-seg" style="flex:1; padding:7px 12px; border-radius:20px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; background:#fff; color:#475569; border:1px solid #cbd5e1; transition:all 0.2s;">🕒 Carga Retroactiva (Pasado)</button>
+                </div>
+            </div>
+
+            <div style="margin-bottom:14px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <label for="seg-ctto-fecha-real" style="font-size:11.5px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.04em; margin:0;">
+                        📅 Fecha del Feedback:
+                    </label>
+                    <span id="seg-ctto-fecha-real-hint" style="font-size:10.5px; color:#64748b;">(Hoy)</span>
+                </div>
+                <input type="date" id="seg-ctto-fecha-real" class="modern-input" style="height:36px; padding:0 10px; font-size:12.5px; font-weight:600; width:100%; box-sizing:border-box;">
+            </div>
+
             <div style="margin-bottom:14px;">
                 <label style="font-size:11.5px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px; display:block;">
                     Lo conversado con el alumno *
@@ -2185,7 +2299,8 @@
                 <textarea id="seg-ctto-conversado" class="modern-input" rows="4" style="height:90px; padding:10px; resize:vertical; font-family:inherit; font-size:13px; box-sizing:border-box;" placeholder="¿Cómo le está yendo en las clases? ¿Cómo se siente con el docente, el instrumento y el grupo?"></textarea>
             </div>
 
-            <div style="background:#f0fdf4; border:1px solid #bbf7d0; padding:12px 14px; border-radius:8px; margin-bottom:16px;">
+            <!-- Bloque para Feedback Actual: Continuidad y Selección Manual de Próxima Fecha -->
+            <div id="wrap-seg-actual-box" style="background:#f0fdf4; border:1px solid #bbf7d0; padding:12px 14px; border-radius:8px; margin-bottom:16px;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <label style="font-weight:700; font-size:12.5px; color:#166534; cursor:pointer; margin:0; display:flex; align-items:center; gap:8px;">
                         <span>¿Desea continuar haciendo seguimiento?</span>
@@ -2194,23 +2309,20 @@
                 </div>
 
                 <div id="wrap-seg-proxima-fecha" style="margin-top:12px; border-top:1px dashed #bbf7d0; padding-top:10px;">
-                    <label style="font-size:11px; font-weight:700; color:#166534; text-transform:uppercase; display:block; margin-bottom:6px;">
-                        Próximo seguimiento sugerido (días hábiles)
+                    <label for="input-seg-fecha-manual" style="font-size:11.5px; font-weight:700; color:#166534; text-transform:uppercase; display:block; margin-bottom:6px;">
+                        Fecha del Próximo Seguimiento (sin horario):
                     </label>
-                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
-                        <button type="button" class="btn-sug-fecha-seg selected" data-dias="7" style="background:var(--accent-teal); color:#fff; border:1px solid var(--accent-teal); padding:5px 12px; border-radius:20px; font-size:11.5px; font-weight:600; cursor:pointer;">+1 Sem</button>
-                        <button type="button" class="btn-sug-fecha-seg" data-dias="14" style="background:#fff; color:#334155; border:1px solid #cbd5e1; padding:5px 12px; border-radius:20px; font-size:11.5px; font-weight:600; cursor:pointer;">+2 Sem</button>
-                        <button type="button" class="btn-sug-fecha-seg" data-dias="21" style="background:#fff; color:#334155; border:1px solid #cbd5e1; padding:5px 12px; border-radius:20px; font-size:11.5px; font-weight:600; cursor:pointer;">+3 Sem</button>
-                    </div>
-                    <div>
-                        <label style="font-size:11px; color:#475569; display:block; margin-bottom:4px;">O seleccionar fecha manual (sin horario):</label>
-                        <input type="date" id="input-seg-fecha-manual" class="modern-input" style="height:36px; padding:0 10px; font-size:13px; font-weight:600;">
-                    </div>
+                    <input type="date" id="input-seg-fecha-manual" class="modern-input" style="height:36px; padding:0 10px; font-size:13px; font-weight:600; width:100%; box-sizing:border-box;">
                 </div>
 
                 <div id="wrap-seg-aviso-cierre" style="display:none; margin-top:10px; color:#991b1b; font-size:12px; line-height:1.4;">
                     ⚠️ Al desmarcar la continuidad, al guardar se finalizará el seguimiento y el alumno <strong>volverá a la pestaña Altas Finalizadas</strong>.
                 </div>
+            </div>
+
+            <!-- Bloque para Carga Retroactiva: Información sin pedir fecha futura -->
+            <div id="wrap-seg-retroactivo-info" style="display:none; background:#f8fafc; border:1px solid #e2e8f0; border-left:4px solid #64748b; padding:10px 14px; border-radius:6px; font-size:12px; color:#475569; margin-bottom:16px; line-height:1.45;">
+                🕒 <strong>Registro histórico:</strong> Este feedback se registrará en el historial de acompañamiento del alumno sin alterar la fecha de próximo seguimiento que ya tiene programada.
             </div>
 
             <div style="display:flex; justify-content:flex-end; gap:10px; border-top:1px solid var(--border-color); padding-top:15px;">
@@ -2275,14 +2387,7 @@
                         </select>
                     </div>
                     <div>
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                            <label style="font-size:11px; font-weight:700; color:#334155;">Fecha de Primer Contacto</label>
-                            <div style="display:flex; gap:3px;">
-                                <button type="button" class="btn-fast-date-masivo" data-dias="7" style="font-size:9.5px; padding:1px 5px; border-radius:4px; border:1px solid #cbd5e1; background:#fff; cursor:pointer;">+1 Sem</button>
-                                <button type="button" class="btn-fast-date-masivo" data-dias="14" style="font-size:9.5px; padding:1px 5px; border-radius:4px; border:1px solid #cbd5e1; background:#fff; cursor:pointer;">+2 Sem</button>
-                                <button type="button" class="btn-fast-date-masivo" data-dias="21" style="font-size:9.5px; padding:1px 5px; border-radius:4px; border:1px solid #cbd5e1; background:#fff; cursor:pointer;">+3 Sem</button>
-                            </div>
-                        </div>
+                        <label style="font-size:11px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Fecha de Primer Contacto</label>
                         <input type="date" id="seg-masivo-fecha-primer" class="modern-input" style="height:36px; padding:0 8px; font-size:12px; font-weight:600;">
                     </div>
                     <div>
@@ -3235,7 +3340,7 @@
             <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;">
                 <div>
                     <h3 style="margin:0; font-size:17px; font-weight:800; color:var(--text-main); display:flex; align-items:center; gap:8px;">
-                        <span>💬</span> Nuevo Feedback
+                        <span id="modal-contacto-icon">☎️</span> <span id="modal-contacto-titulo-texto">Registrar Recall / Contacto</span>
                     </h3>
                     <div id="modal-contacto-subtitulo" style="font-size:12.5px; color:var(--text-muted); margin-top:3px; font-weight:500;">
                         Alumno: <strong id="modal-contacto-alumno-nombre" style="color:var(--text-main);"></strong>
@@ -3256,6 +3361,17 @@
 
             <input type="hidden" id="modal-contacto-alumno-id">
             <input type="hidden" id="modal-contacto-es-bicicleta" value="false">
+
+            <!-- Fecha del Contacto / Feedback (Soporte Retroactivo) -->
+            <div id="modal-contacto-fecha-box" style="margin-bottom:14px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <label for="modal-contacto-fecha-input" style="font-size:11.5px; font-weight:700; color:var(--text-main); margin:0;">
+                        📅 Fecha del contacto / feedback:
+                    </label>
+                    <span id="modal-contacto-fecha-hint" style="font-size:10.5px; color:#64748b;">(Hoy por defecto)</span>
+                </div>
+                <input type="date" id="modal-contacto-fecha-input" class="modern-input" style="width:100%; height:36px; padding:0 10px; font-size:12.5px; font-weight:600; border-radius:8px; border:1px solid var(--border-color); background:#fff;">
+            </div>
 
             <!-- Textbox directo de lo conversado -->
             <div style="margin-bottom:16px;">
@@ -3568,16 +3684,43 @@
             </form>
         </div>
     </dialog>
+    <!-- MODAL DE OBSERVACIONES POR DÍA EN DISPONIBILIDAD -->
+    <dialog id="modal-obs-disponibilidad" class="modern-modal" style="width: 90%; max-width: 460px; border-radius: 16px; padding: 0; border: 1px solid var(--border-color); box-shadow: 0 10px 30px rgba(0,0,0,0.18);">
+        <div style="padding: 20px 24px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid var(--border-color); padding-bottom:10px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:1.3em;">💬</span>
+                    <h3 style="margin:0; font-size:16px; font-weight:800; color:var(--text-main);">Observación: <span id="obs-disp-dia-nombre" style="color:var(--accent-teal);"></span></h3>
+                </div>
+                <button type="button" class="btn-cerrar-modal" data-modal="modal-obs-disponibilidad" style="background:none; border:none; font-size:18px; cursor:pointer; color:var(--text-muted);">&times;</button>
+            </div>
+
+            <div style="margin-bottom:14px;">
+                <label for="obs-disp-texto" style="display:block; font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:6px; text-transform:none;">
+                    Aclaraciones sobre horarios y días (solo visible en editores de disponibilidad):
+                </label>
+                <textarea id="obs-disp-texto" class="modern-input" rows="4" placeholder="Ej: Disponible a partir de las 18:30 si sale puntual del trabajo..." style="width:100%; box-sizing:border-box; resize:vertical; font-size:13px; font-family:inherit; padding:10px;"></textarea>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                <button type="button" id="btn-eliminar-obs-disp" class="btn-app btn-secondary" style="padding:8px 14px; border-radius:8px; font-weight:600; color:#ef4444; border-color:#fca5a5; background:#fff1f2; font-size:12.5px;">🗑️ Quitar</button>
+                <div style="display:flex; gap:8px;">
+                    <button type="button" class="btn-cerrar-modal btn-app btn-secondary" data-modal="modal-obs-disponibilidad" style="padding:8px 14px; border-radius:8px; font-weight:600; font-size:12.5px;">Cancelar</button>
+                    <button type="button" id="btn-guardar-obs-disp" class="btn-app btn-primary" style="padding:8px 16px; border-radius:8px; font-weight:700; font-size:12.5px;">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </dialog>
 
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=6.11.6"></script>
+    <script type="module" src="app.js?v=7.0"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=6.10.36').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=7.0').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {
