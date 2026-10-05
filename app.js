@@ -6536,7 +6536,7 @@ function renderTiemposGrupo(items, vista, tabActual) {
     if (venc.length > 0) {
         html += `
             <div style="display:flex; align-items:center; gap:8px; margin:4px 0 6px 0; font-size:11.5px; font-weight:800; color:#991b1b; text-transform:uppercase; letter-spacing:0.04em;">
-                <span>🔴 Crítico (${venc.length})</span>
+                <span>🔴 Vencido (${venc.length})</span>
                 <div style="flex:1; height:1px; background:#fecaca;"></div>
             </div>
         `;
@@ -6554,7 +6554,7 @@ function renderTiemposGrupo(items, vista, tabActual) {
     if (prox.length > 0) {
         html += `
             <div style="display:flex; align-items:center; gap:8px; margin:${(venc.length > 0 || urg.length > 0) ? '10px' : '4px'} 0 6px 0; font-size:11.5px; font-weight:800; color:#854d0e; text-transform:uppercase; letter-spacing:0.04em;">
-                <span>🟡 Ver hoy (${prox.length})</span>
+                <span>🟡 Vence hoy (${prox.length})</span>
                 <div style="flex:1; height:1px; background:#fef08a;"></div>
             </div>
         `;
@@ -6634,6 +6634,10 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
 
         if (esSegActivo) {
             const info = getEstadoYBadgeLocal(al);
+            // REGLA: Si faltan más de 24hs para la fecha de feedback, no se visualiza en Dashboard (se visualiza en Seguimientos En Curso)
+            if (info.nivelUrgencia === 'futuro-lejano') {
+                return;
+            }
             const diffHs = dateToEval ? (dateToEval - new Date()) / (1000 * 60 * 60) : 0;
             const item = { al, info, diffHs, dateToEval: dateToEval || new Date() };
             seguimientosActivos.push(item);

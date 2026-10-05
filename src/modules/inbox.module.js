@@ -94,8 +94,8 @@ export function getEstadoYBadge(al, getFechaReferenciaAlumno) {
                     nivelUrgencia = 'vencido';
                     colorIndicador = 'ind-red';
                     claseTexto = 'text-red font-bold';
-                    txtTiempo = `🔴 Crítico (+${diffDias}d)`;
-                    badgePillHtml = `<span class="pill-urgencia pill-rojo-critico" title="Crítico: ${diffDias} días de retraso (Pactado: ${pTxt})">🔴 Crítico</span>`;
+                    txtTiempo = `🔴 Vencido (+${diffDias}d)`;
+                    badgePillHtml = `<span class="pill-urgencia pill-rojo-critico" title="Vencido: ${diffDias} días de retraso (Pactado: ${pTxt})">🔴 Vencido</span>`;
                     diffHorasReal = -48;
                 } else if (diffDias === 1) {
                     nivelUrgencia = 'urgente-24';
@@ -108,11 +108,19 @@ export function getEstadoYBadge(al, getFechaReferenciaAlumno) {
                     nivelUrgencia = 'urgente-48';
                     colorIndicador = 'ind-yellow';
                     claseTexto = 'text-yellow font-bold';
-                    txtTiempo = `🟡 Ver hoy`;
-                    badgePillHtml = `<span class="pill-urgencia pill-amarillo-hoy" title="Ver hoy: Fecha pactada de contacto (${pTxt})">🟡 Ver hoy</span>`;
+                    txtTiempo = `🟡 Vence hoy`;
+                    badgePillHtml = `<span class="pill-urgencia pill-amarillo-hoy" title="Vence hoy: Llegó la fecha para hacer feedback (${pTxt})">🟡 Vence hoy</span>`;
                     diffHorasReal = 0;
-                } else {
+                } else if (diffDias === -1) {
                     nivelUrgencia = 'programado';
+                    colorIndicador = 'ind-teal';
+                    claseTexto = 'text-teal';
+                    txtTiempo = `🟢 En término`;
+                    badgePillHtml = `<span class="pill-urgencia pill-verde-plazo" title="En término: Mañana es el día de feedback (${pTxt})">🟢 En término</span>`;
+                    diffHorasReal = 24;
+                } else {
+                    // Faltan más de 24hs para la fecha de feedback
+                    nivelUrgencia = 'futuro-lejano';
                     colorIndicador = 'ind-teal';
                     claseTexto = 'text-teal';
                     txtTiempo = `🟢 En término`;

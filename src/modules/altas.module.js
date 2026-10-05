@@ -3397,11 +3397,13 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                                 const pTxt = `${String(dia).padStart(2,'0')}/${String(mes+1).padStart(2,'0')}/${anio}`;
 
                                 if (diffDias >= 2) {
-                                    badgeUrg = `<span class="pill-urgencia pill-rojo-critico" title="Crítico: ${diffDias} días de retraso (Pactado: ${pTxt})">🔴 Crítico</span>`;
+                                    badgeUrg = `<span class="pill-urgencia pill-rojo-critico" title="Vencido: ${diffDias} días de retraso (Pactado: ${pTxt})">🔴 Vencido</span>`;
                                 } else if (diffDias === 1) {
                                     badgeUrg = `<span class="pill-urgencia pill-naranja-retraso" title="Retraso leve: 1 día (+24hs) (Pactado: ${pTxt})">🟠 Retraso leve</span>`;
                                 } else if (diffDias === 0) {
-                                    badgeUrg = `<span class="pill-urgencia pill-amarillo-hoy" title="Ver hoy: Fecha pactada de contacto (${pTxt})">🟡 Ver hoy</span>`;
+                                    badgeUrg = `<span class="pill-urgencia pill-amarillo-hoy" title="Vence hoy: Llegó la fecha para hacer feedback (${pTxt})">🟡 Vence hoy</span>`;
+                                } else if (diffDias === -1) {
+                                    badgeUrg = `<span class="pill-urgencia pill-verde-plazo" title="En término: Mañana es el día de feedback (${pTxt})">🟢 En término</span>`;
                                 } else {
                                     badgeUrg = `<span class="pill-urgencia pill-verde-plazo" title="En término: Próximo contacto el ${pTxt}">🟢 En término</span>`;
                                 }

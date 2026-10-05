@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mandala House — Flujo Completo del Proceso de Seguimientos v7.0</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Mermaid.js -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <!-- html2canvas -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --primary: #007b8f;
+            --primary-dark: #005a69;
+            --primary-light: #e0f2f1;
+            --slate-900: #0f172a;
+            --slate-800: #1e293b;
+            --slate-700: #334155;
+            --slate-600: #475569;
+            --slate-100: #f1f5f9;
+            --slate-50: #f8fafc;
+            --card-bg: #ffffff;
+            --border: #e2e8f0;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --info: #0284c7;
+            --success: #10b981;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--slate-50);
+            color: var(--slate-800);
+            line-height: 1.6;
+            padding: 30px 20px;
+        }
+
+        .container {
+            max-width: 1240px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--slate-900) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 32px 36px;
+            border-radius: 18px;
+            margin-bottom: 28px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .header-title h1 {
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            margin-bottom: 6px;
+        }
+
+        .header-title p {
+            font-size: 14.5px;
+            color: #cbd5e1;
+            max-width: 700px;
+        }
+
+        .header-badge {
+            background: rgba(255, 255, 255, 0.18);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 12.5px;
+            font-weight: 700;
+            display: inline-block;
+            margin-top: 10px;
+        }
+
+        .action-bar {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 11px 22px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .btn-download {
+            background: #ffffff;
+            color: var(--slate-900);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+        }
+
+        .btn-download:hover {
+            background: #f8fafc;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+        }
+
+        .btn-print {
+            background: rgba(255, 255, 255, 0.16);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-print:hover {
+            background: rgba(255, 255, 255, 0.28);
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.05);
+            padding: 30px;
+            margin-bottom: 25px;
+        }
+
+        .card-title {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--slate-900);
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 2px solid var(--slate-100);
+            padding-bottom: 12px;
+        }
+
+        #diagram-export-area {
+            background: #ffffff;
+            padding: 30px 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            overflow-x: auto;
+            text-align: center;
+        }
+
+        .mermaid {
+            display: flex;
+            justify-content: center;
+        }
+
+        /* Bloques explicativos */
+        .step-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+            margin-top: 15px;
+        }
+
+        .step-box {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            background: var(--slate-50);
+            position: relative;
+        }
+
+        .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            background: var(--primary);
+            color: white;
+            border-radius: 50%;
+            font-size: 13px;
+            font-weight: 800;
+            margin-bottom: 10px;
+        }
+
+        .step-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--slate-900);
+            margin-bottom: 8px;
+        }
+
+        .step-content {
+            font-size: 13.5px;
+            color: var(--slate-600);
+        }
+
+        .step-content ul {
+            margin-left: 18px;
+            margin-top: 6px;
+        }
+
+        .step-content li {
+            margin-bottom: 4px;
+        }
+
+        .highlight-badge {
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        @media print {
+            body { background: white; padding: 0; }
+            .action-bar { display: none; }
+            .card { box-shadow: none; border: 1px solid #ddd; break-inside: avoid; }
+            header { background: #1e293b !important; color: white !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div class="header-title">
+            <h1>Mandala House — Flujo del Proceso de Seguimientos</h1>
+            <p>Diagrama de Ciclo de Vida: Desde el Alta Finalizada hasta la Retención y Cierre</p>
+            <span class="header-badge">📌 Versión 7.0 — Documento de Procesos</span>
+        </div>
+        <div class="action-bar">
+            <button class="btn btn-download" onclick="descargarPNG()">
+                📥 Descargar Diagrama en PNG
+            </button>
+            <button class="btn btn-print" onclick="window.print()">
+                🖨️ Imprimir / Guardar en PDF
+            </button>
+        </div>
+    </header>
+
+    <!-- ÁREA EXPORTABLE DEL DIAGRAMA -->
+    <div class="card">
+        <h2 class="card-title">🗺️ Diagrama de Flujo del Proceso</h2>
+        <div id="diagram-export-area">
+            <div class="mermaid">
+flowchart TD
+    %% DEFINICIÓN DE ESTILOS
+    classDef startNode fill:#007b8f,stroke:#004b57,stroke-width:2px,color:#fff,font-weight:bold;
+    classDef actionNode fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#0f172a;
+    classDef decisionNode fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#78350f,font-weight:bold;
+    classDef autoNode fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0369a1,font-weight:bold;
+    classDef finishNode fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d,font-weight:bold;
+    classDef dangerNode fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#991b1b,font-weight:bold;
+
+    %% NODO INICIAL
+    A["🏁 ALTA FINALIZADA<br/>(Checklist 4 pasos completado)"]:::startNode --> B["⚙️ CÁLCULO AUTOMÁTICO 72H HÁBILES<br/>(3 Días Hábiles post 1ra Clase, salta Sáb/Dom)"]:::autoNode
+
+    %% REGISTRO INICIAL
+    B --> C["📌 Guarda en Alumno:<br/>• Estado: 'Pendiente'<br/>• fecha_proximo_seguimiento = Fecha 72hs"]:::actionNode
+
+    %% INGRESO A BANDEJAS
+    C --> D["📊 INGRESO AL DASHBOARD Y BANDEJA<br/>• Visible en 'Seguimientos: Pendientes'<br/>• Semáforo según fecha pactada"]:::actionNode
+
+    %% LLEGADA DE FECHA Y CONTACTO
+    D --> E{"📞 LLEGA LA FECHA DE CONTACTO<br/>¿El admisor contacta a la familia?"}:::decisionNode
+
+    E -- "⏳ No contactado aún" --> F["🚦 Semáforo en Dashboard:<br/>🟢 En término (Mañana) ➔ 🟡 Vence hoy ➔ 🟠 Retraso leve (+24h) ➔ 🔴 Vencido (+48h)"]:::dangerNode
+    F --> E
+
+    E -- "✅ Contacto Realizado" --> G["📝 ABRIR MODAL: REGISTRAR FEEDBACK"]:::actionNode
+
+    %% EVALUACIÓN DE PRIMERA CLASE
+    G --> H{"¿El alumno tuvo su 1ra clase?"}:::decisionNode
+
+    H -- "❌ NO ASISTIÓ / SE REPROGRAMÓ" --> I["⚠️ OPCIÓN: FEEDBACK RETROACTIVO<br/>• Registra motivo de no asistencia<br/>• No distorsiona encuesta pedagógica"]:::actionNode
+
+    H -- "✅ SÍ ASISTIÓ NORMALMENTE" --> J["📋 ENCUESTA POST-PRIMERA CLASE<br/>• Experiencia del alumno y docente<br/>• Integración con el grupo / aula<br/>• Expectativas de la familia"]:::actionNode
+
+    %% DECISIÓN FINAL DEL SEGUIMIENTO
+    I --> K{"¿QUÉ ACCIÓN SE DEFINE?"}:::decisionNode
+    J --> K
+
+    K -- "🔁 REQUIERE NUEVO CONTACTO" --> L["📅 DEFINIR NUEVA FECHA MANUAL<br/>• Estado pasa a: 'En Curso'<br/>• Vuelve al Dashboard para nueva fecha"]:::autoNode
+
+    K -- "✅ ALUMNO CONFORME Y AFIANZADO" --> M["🎉 CERRAR SEGUIMIENTO<br/>• Estado pasa a: 'Finalizado'<br/>• Se archiva en Historial Permanente"]:::finishNode
+
+    K -- "⛔ ALUMNO NO CONTINÚA" --> N["🛑 DERIVAR A PROCESO DE BAJA<br/>• Motivo de baja registrado<br/>• Libera vacante en Google Calendar"]:::dangerNode
+
+    L --> D
+    M --> O["🏁 PROCESO CULMINADO CON ÉXITO"]:::finishNode
+    N --> P["📁 ARCHIVADO EN HISTORIAL BAJAS"]:::dangerNode
+            </div>
+        </div>
+    </div>
+
+    <!-- EXPLICACIÓN PASO A PASO -->
+    <div class="card">
+        <h2 class="card-title">📖 Detalle de las Etapas del Proceso</h2>
+
+        <div class="step-grid">
+            <div class="step-box">
+                <div class="step-number">1</div>
+                <div class="step-title">Alta y Asignación Automática</div>
+                <div class="step-content">
+                    Al completarse el paso 4 del checklist de alta, el sistema toma la <span class="highlight-badge">fecha_inicio_clases</span> y calcula automáticamente <strong>3 días hábiles reales</strong> (salteando sábados y domingos).
+                    <ul>
+                        <li>Si la clase es un <strong>Lunes</strong> ➔ Seguimiento el <strong>Jueves</strong>.</li>
+                        <li>Si la clase es un <strong>Jueves</strong> ➔ Seguimiento el <strong>Martes</strong> siguiente.</li>
+                        <li>Si la clase es un <strong>Viernes</strong> ➔ Seguimiento el <strong>Miércoles</strong> siguiente.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="step-box">
+                <div class="step-number">2</div>
+                <div class="step-title">Monitoreo y Alertas en Dashboard</div>
+                <div class="step-content">
+                    El Dashboard muestra únicamente los seguimientos con fecha inminente (≤ 24hs) o vencidos:
+                    <ul>
+                        <li><strong>🟢 En término:</strong> Mañana es el día de feedback (alerta 24hs antes).</li>
+                        <li><strong>🟡 Vence hoy:</strong> Llegó el día pactado para tomar el feedback.</li>
+                        <li><strong>🟠 Retraso leve:</strong> Pasaron 24hs de la fecha sin gestión registrada.</li>
+                        <li><strong>🔴 Vencido:</strong> Pasaron 48hs de la fecha sin registrar feedback.</li>
+                    </ul>
+                    <em>* Si faltan más de 24hs, el alumno se gestiona desde la vista "Seguimientos en Curso" sin sobrecargar el Dashboard.</em>
+                </div>
+            </div>
+
+            <div class="step-box">
+                <div class="step-number">3</div>
+                <div class="step-title">Modal de Feedback y Encuesta</div>
+                <div class="step-content">
+                    Al hacer clic en <strong>"Registrar Seguimiento"</strong>, el admisor cuenta con dos modalidades:
+                    <ul>
+                        <li><strong>Feedback Post-Clase:</strong> Registra la experiencia musical, afinidad con el docente y vínculo con sus compañeros.</li>
+                        <li><strong>Feedback Retroactivo:</strong> Para registrar contacto cuando el alumno se ausentó, reprogramó o tuvo un imprevisto.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="step-box">
+                <div class="step-number">4</div>
+                <div class="step-title">Resolución y Cierre</div>
+                <div class="step-content">
+                    El admisor define el próximo paso del alumno:
+                    <ul>
+                        <li><strong>Reprogramar fecha manual:</strong> Pasa a estado <em>"En Curso"</em> para volver a contactar en una fecha pactada.</li>
+                        <li><strong>Finalizar seguimiento:</strong> Alumno integrado satisfactoriamente; pasa a <em>"Finalizado"</em> y sale de las alertas activas.</li>
+                        <li><strong>Proceso de Baja:</strong> Si no continúa, se deriva al flujo formal de baja institucional.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    mermaid.initialize({
+        startOnLoad: true,
+        theme: 'default',
+        flowchart: {
+            useMaxWidth: true,
+            htmlLabels: true,
+            curve: 'basis'
+        }
+    });
+
+    function descargarPNG() {
+        const target = document.getElementById('diagram-export-area');
+        const btn = document.querySelector('.btn-download');
+        btn.innerHTML = '⏳ Generando imagen...';
+        btn.disabled = true;
+
+        html2canvas(target, {
+            scale: 2.5, // Alta resolución Retina
+            backgroundColor: '#ffffff',
+            useCORS: true
+        }).then(canvas => {
+            const link = document.createElement('a');
+            link.download = 'Mandala_Flujo_Proceso_Seguimientos_v7.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+
+            btn.innerHTML = '📥 Descargar Diagrama en PNG';
+            btn.disabled = false;
+        }).catch(err => {
+            console.error('Error al exportar PNG:', err);
+            alert('No se pudo generar la imagen. Intenta imprimir como PDF.');
+            btn.innerHTML = '📥 Descargar Diagrama en PNG';
+            btn.disabled = false;
+        });
+    }
+</script>
+
+</body>
+</html>

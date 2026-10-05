@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mandala Admisión v7.0 — Flujo de Seguimientos y Sistema de Alertas</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Mermaid.js -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <!-- html2canvas -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --primary: #007b8f;
+            --primary-dark: #005a69;
+            --primary-light: #e0f2f1;
+            --slate-900: #0f172a;
+            --slate-800: #1e293b;
+            --slate-700: #334155;
+            --slate-600: #475569;
+            --slate-100: #f1f5f9;
+            --slate-50: #f8fafc;
+            --card-bg: #ffffff;
+            --border: #e2e8f0;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --info: #3b82f6;
+            --success: #10b981;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--slate-50);
+            color: var(--slate-800);
+            line-height: 1.6;
+            padding: 30px 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--slate-900) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 30px 35px;
+            border-radius: 16px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .header-title h1 {
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            margin-bottom: 6px;
+        }
+
+        .header-title p {
+            font-size: 14px;
+            color: #cbd5e1;
+        }
+
+        .header-badge {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-block;
+            margin-top: 8px;
+        }
+
+        .action-bar {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .btn-download {
+            background: #ffffff;
+            color: var(--slate-900);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-download:hover {
+            background: #f8fafc;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-print {
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-print:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            padding: 28px;
+            margin-bottom: 25px;
+        }
+
+        .card-title {
+            font-size: 19px;
+            font-weight: 700;
+            color: var(--slate-900);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 2px solid var(--slate-100);
+            padding-bottom: 12px;
+        }
+
+        /* Diagram Canvas Area */
+        #diagram-export-area {
+            background: #ffffff;
+            padding: 25px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            overflow-x: auto;
+            text-align: center;
+        }
+
+        .mermaid {
+            display: flex;
+            justify-content: center;
+        }
+
+        /* Semáforos y Alertas */
+        .alerts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+            margin-top: 15px;
+        }
+
+        .alert-card {
+            border-radius: 12px;
+            padding: 18px;
+            border-left: 5px solid;
+            background: var(--slate-50);
+        }
+
+        .alert-card.vencido {
+            border-color: var(--danger);
+            background: #fef2f2;
+        }
+        .alert-card.urgente {
+            border-color: #f97316;
+            background: #fff7ed;
+        }
+        .alert-card.proximo {
+            border-color: var(--warning);
+            background: #fefce8;
+        }
+        .alert-card.termino {
+            border-color: var(--success);
+            background: #f0fdf4;
+        }
+
+        .alert-title {
+            font-weight: 700;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .alert-desc {
+            font-size: 13px;
+            color: var(--slate-600);
+        }
+
+        .table-custom {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        .table-custom th, .table-custom td {
+            padding: 12px 14px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .table-custom th {
+            background: var(--slate-100);
+            color: var(--slate-700);
+            font-weight: 700;
+        }
+
+        .pill {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .pill-danger { background: #fee2e2; color: #b91c1c; }
+        .pill-warning { background: #fef3c7; color: #92400e; }
+        .pill-info { background: #e0f2fe; color: #0369a1; }
+        .pill-success { background: #dcfce7; color: #15803d; }
+
+        @media print {
+            body { background: white; padding: 0; }
+            .action-bar { display: none; }
+            .card { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; }
+            header { background: #1e293b !important; color: white !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div class="header-title">
+            <h1>Mandala Admisión — Flujo de Seguimientos y Alertas</h1>
+            <p>Guía de Lógica de Negocio y Ciclo de Vida Post-Alta para Socios y Coordinación</p>
+            <span class="header-badge">🚀 Versión Oficial v7.0</span>
+        </div>
+        <div class="action-bar">
+            <button class="btn btn-download" onclick="descargarPNG()">
+                📥 Descargar Diagrama en PNG
+            </button>
+            <button class="btn btn-print" onclick="window.print()">
+                🖨️ Imprimir / Guardar en PDF
+            </button>
+        </div>
+    </header>
+
+    <!-- DIAGRAMA MERMAID -->
+    <div class="card">
+        <h2 class="card-title">📊 1. Mapa de Flujo: Desde el Alta hasta el Cierre de Seguimiento</h2>
+        <div id="diagram-export-area">
+            <div class="mermaid">
+flowchart TD
+    %% ESTILOS GLOBALES
+    classDef inicio fill:#007b8f,stroke:#004b57,stroke-width:2px,color:#fff,font-weight:bold;
+    classDef proceso fill:#f1f5f9,stroke:#64748b,stroke-width:2px,color:#0f172a;
+    classDef decision fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#78350f,font-weight:bold;
+    classDef automatico fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0369a1,font-weight:bold;
+    classDef semaforo fill:#fef2f2,stroke:#ef4444,stroke-width:2px,color:#991b1b;
+    classDef exito fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d,font-weight:bold;
+
+    A["🎯 Checklist de Alta Finalizada<br/>(Paso 4 Completado)"]:::inicio --> B["⚙️ Motor de Cálculo Automático<br/>(3 Días Hábiles Post 1ra Clase)"]:::automatico
+    
+    B --> C["📅 Define: fecha_proximo_seguimiento<br/>Estado inicial: 'Pendiente'"]:::proceso
+
+    C --> D["🖥️ Dashboard & Bandeja Seguimiento<br/>Semáforo y Alerta Activa"]:::semaforo
+
+    D --> E{"¿Llegó la fecha pactada?<br/>(Admisor / Coord toma contacto)"}:::decision
+
+    E -- "No (Fecha Futura)" --> F["🟢 En término / Próximo<br/>Visible en Dashboard futuro"]:::proceso
+    E -- "Sí (Hoy o Vencido)" --> G["🔴/🟠 Alerta Roja/Naranja<br/>Acción Requerida Inmediata"]:::semaforo
+
+    G --> H["📝 Registrar Feedback en Ficha"]:::proceso
+    F --> H
+
+    H --> I{"¿El alumno ya tuvo<br/>su primera clase?"}:::decision
+
+    I -- "❌ No (Feedback Retroactivo)" --> J["⚠️ Selecciona: 'Feedback Retroactivo'<br/>Registra motivo/reprogramación"]:::proceso
+    I -- "✅ Sí (Feedback Post-Clase)" --> K["📋 Evalúa Experiencia, Docente,<br/>Grupo y Pertenencia"]:::proceso
+
+    J --> L{"¿Qué se define<br/>para continuar?"}:::decision
+    K --> L
+
+    L -- "🔁 Reprogramar Nuevo Contacto" --> M["📅 Fecha Manual / Postergar<br/>Estado: 'En Curso'<br/>(Nueva fecha pactada)"]:::automatico
+    L -- "✅ Alumno Afianzado / Conforme" --> N["🎉 Cerrar y Finalizar Seguimiento<br/>Estado: 'Finalizado'"]:::exito
+    L -- "⛔ Alumno Solicita Baja" --> O["🛑 Derivar a Proceso de Baja<br/>(Libera cupo docente)"]:::semaforo
+
+    M --> D
+    N --> P["🏁 Historial Permanente Guardado<br/>Sale del semáforo activo"]:::exito
+            </div>
+        </div>
+    </div>
+
+    <!-- MOTOR DE ALERTAS EN DASHBOARD -->
+    <div class="card">
+        <h2 class="card-title">🚦 2. Sistema de Alertas y Semáforos en el Dashboard</h2>
+        <p style="font-size: 14px; color: var(--slate-600); margin-bottom: 15px;">
+            El Dashboard centraliza y clasifica automáticamente a los alumnos según el tiempo transcurrido respecto a la fecha pactada de seguimiento.
+        </p>
+
+        <div class="alerts-grid">
+            <div class="alert-card vencido">
+                <div class="alert-title">🔴 Vencido (+48hs sin feedback)</div>
+                <div class="alert-desc">
+                    Pasaron 48hs de la fecha límite y todavía no se registró el feedback en la ficha.
+                </div>
+            </div>
+
+            <div class="alert-card urgente">
+                <div class="alert-title">🟠 Retraso leve (+24hs sin feedback)</div>
+                <div class="alert-desc">
+                    Pasaron 24hs de la fecha pactada (ayer fue el día) y el contacto aún no se registró.
+                </div>
+            </div>
+
+            <div class="alert-card proximo">
+                <div class="alert-title">🟡 Vence hoy (Día del Feedback)</div>
+                <div class="alert-desc">
+                    Llegó el día de la fecha para realizar el llamado y tomar el feedback del alumno.
+                </div>
+            </div>
+
+            <div class="alert-card termino">
+                <div class="alert-title">🟢 En término (Mañana / 24hs antes)</div>
+                <div class="alert-desc">
+                    Mañana es el día de feedback (alerta anticipada de 24hs en el Dashboard). Si faltan más de 24hs, solo es visible en Seguimientos en Curso.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LÓGICA DE NEGOCIO DETALLADA -->
+    <div class="card">
+        <h2 class="card-title">⚙️ 3. Reglas de Negocio Implementadas</h2>
+        <table class="table-custom">
+            <thead>
+                <tr>
+                    <th>Mecanismo</th>
+                    <th>¿Cómo opera en la App?</th>
+                    <th>Impacto para la Gestión</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Cálculo 72hs Hábiles Reales</strong></td>
+                    <td>
+                        Calcula <strong>3 días hábiles exactos</strong> a partir de la fecha de inicio de clases, salteando automáticamente sábados y domingos.
+                    </td>
+                    <td>Evita alertar al admisor durante fines de semana; asegura que el alumno ya haya tenido tiempo de procesar su primera clase.</td>
+                </tr>
+                <tr>
+                    <td><strong>Feedback Retroactivo</strong></td>
+                    <td>
+                        Permite registrar el contacto aun cuando el alumno no pudo asistir o la clase se postergó, sin desfasar el historial del alumno.
+                    </td>
+                    <td>Mantiene la trazabilidad real de los llamados sin falsear la encuesta pedagógica.</td>
+                </tr>
+                <tr>
+                    <td><strong>Segregación Estricta</strong></td>
+                    <td>
+                        Solo los alumnos con <strong>Alta Finalizada</strong> (y no dados de baja ni suspendidos) ingresan al motor de seguimientos.
+                    </td>
+                    <td>Cero basura de datos ni falsas alarmas de alumnos que no llegaron a ingresar a la institución.</td>
+                </tr>
+                <tr>
+                    <td><strong>Historial Auditado</strong></td>
+                    <td>
+                        Cada nota, cambio de fecha o cierre de seguimiento guarda fecha ISO, usuario responsable y motivo exacto.
+                    </td>
+                    <td>Permite a los socios auditar quién habló con la familia y qué respuesta brindó el alumno.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    mermaid.initialize({
+        startOnLoad: true,
+        theme: 'default',
+        flowchart: {
+            useMaxWidth: true,
+            htmlLabels: true,
+            curve: 'basis'
+        }
+    });
+
+    function descargarPNG() {
+        const target = document.getElementById('diagram-export-area');
+        const btn = document.querySelector('.btn-download');
+        btn.innerHTML = '⏳ Generando imagen...';
+        btn.disabled = true;
+
+        html2canvas(target, {
+            scale: 2.5, // Alta resolución Retina
+            backgroundColor: '#ffffff',
+            useCORS: true
+        }).then(canvas => {
+            const link = document.createElement('a');
+            link.download = 'Mandala_Flujo_Seguimientos_v7.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+
+            btn.innerHTML = '📥 Descargar Diagrama en PNG';
+            btn.disabled = false;
+        }).catch(err => {
+            console.error('Error al exportar PNG:', err);
+            alert('No se pudo generar la imagen. Intenta imprimir como PDF.');
+            btn.innerHTML = '📥 Descargar Diagrama en PNG';
+            btn.disabled = false;
+        });
+    }
+</script>
+
+</body>
+</html>
