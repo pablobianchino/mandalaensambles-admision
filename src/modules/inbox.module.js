@@ -131,7 +131,11 @@ export function getEstadoYBadge(al, getFechaReferenciaAlumno) {
         }
 
         if (!badgePillHtml) {
-            let diffHs = (fechaCalculo - new Date()) / (1000 * 60 * 60);
+            const hoy = new Date();
+            const hoyInicio = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
+            const fechaEventoInicio = new Date(fechaCalculo.getFullYear(), fechaCalculo.getMonth(), fechaCalculo.getDate()).getTime();
+            const diffDiasCalendario = Math.round((fechaEventoInicio - hoyInicio) / (24 * 60 * 60 * 1000));
+            const diffHs = (fechaCalculo - new Date()) / (1000 * 60 * 60);
             diffHorasReal = diffHs;
 
             if (diffHs < 0) { 
@@ -141,29 +145,27 @@ export function getEstadoYBadge(al, getFechaReferenciaAlumno) {
                 let horas = Math.abs(Math.round(diffHs));
                 let dias = Math.floor(horas / 24);
                 let txtVencido = dias >= 1 ? (dias === 1 ? `hace 1 día` : `hace ${dias} días`) : `hace ${horas} hs`;
-                txtTiempo = `🔴 Crítico (${txtVencido})`;
-                badgePillHtml = `<span class="pill-urgencia pill-rojo-critico" title="Vencida (${txtVencido})">🔴 Crítico</span>`;
-            } else if (diffHs <= 24) { 
-                nivelUrgencia = 'urgente-24';
-                colorIndicador = 'ind-red';
-                claseTexto = 'text-red font-bold'; 
-                let hsRestantes = Math.round(diffHs);
-                txtTiempo = `🟠 Retraso leve (${hsRestantes} hs)`;
-                badgePillHtml = `<span class="pill-urgencia pill-naranja-retraso" title="Urgente hoy (Faltan ${hsRestantes} hs)">🟠 Retraso leve</span>`;
-            } else if (diffHs <= 48) { 
-                nivelUrgencia = 'urgente-48';
+                txtTiempo = `🔴 Vencido (${txtVencido})`;
+                badgePillHtml = `<span class="pill-urgencia pill-rojo-critico" title="Vencida (${txtVencido})">🔴 Vencido</span>`;
+            } else if (diffDiasCalendario === 0) { 
+                nivelUrgencia = 'urgente-48'; // 'Vence hoy'
                 colorIndicador = 'ind-yellow';
                 claseTexto = 'text-yellow font-bold'; 
                 let hsRestantes = Math.round(diffHs);
-                txtTiempo = `🟡 Ver hoy`;
-                badgePillHtml = `<span class="pill-urgencia pill-amarillo-hoy" title="Próxima en 24-48 hs (Faltan ${hsRestantes} hs)">🟡 Ver hoy</span>`;
-            } else { 
-                nivelUrgencia = 'programado';
+                txtTiempo = `🟡 Hoy (${hsRestantes} hs)`;
+                badgePillHtml = `<span class="pill-urgencia pill-amarillo-hoy" title="Es hoy (${hsRestantes} hs restantes)">🟡 Hoy</span>`;
+            } else if (diffDiasCalendario === 1) { 
+                nivelUrgencia = 'programado'; // 'En término / Mañana'
                 colorIndicador = 'ind-teal';
                 claseTexto = 'text-teal'; 
-                let dias = Math.round(diffHs / 24);
+                txtTiempo = `🟢 Mañana`;
+                badgePillHtml = `<span class="pill-urgencia pill-verde-plazo" title="Programada para mañana">🟢 En término</span>`;
+            } else { 
+                nivelUrgencia = 'futuro-lejano';
+                colorIndicador = 'ind-teal';
+                claseTexto = 'text-teal'; 
                 txtTiempo = `🟢 En término`;
-                badgePillHtml = `<span class="pill-urgencia pill-verde-plazo" title="En término: Programada en ${dias} días">🟢 En término</span>`;
+                badgePillHtml = `<span class="pill-urgencia pill-verde-plazo" title="En término: En ${diffDiasCalendario} días">🟢 En término</span>`;
             }
         }
     }

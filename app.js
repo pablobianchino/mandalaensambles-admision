@@ -3398,17 +3398,35 @@ function getFechaReferenciaAlumno(al) {
     const rawEst = al.estado_agenda || '';
     const est = rawEst.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     
-    // Estados sin fecha límite activa: no deben calcular urgencias ni aparecer en prioridades
-    if (est === 'lista de espera' || est === 'pendiente procesar' || est === 'pre-alta pendiente' || est.includes('suspendida') || est === 'alta finalizada') {
+    // Estados que NO tienen fecha límite de entrevista / validación:
+    if (
+        est === 'lista de espera' || 
+        est === 'pendiente procesar' || 
+        est === 'sin agendar' ||
+        est === 'validando grupo' ||
+        est === 'pre-alta pendiente' || 
+        est === 'pre-alta iniciada' || 
+        est === 'alta efectiva' || 
+        est === 'alta ilegal' || 
+        est === 'alta finalizada' || 
+        est === 'alta confirmada' || 
+        est === 'altas incompletas' || 
+        est.includes('suspendida') || 
+        est === 'baja' ||
+        al.es_baja || 
+        al.suspendido
+    ) {
         return null;
     }
 
-    if (est === 'pre-alta iniciada' && al.fecha_inicio_clases) {
-        const d = new Date(al.fecha_inicio_clases);
-        return isNaN(d.getTime()) ? null : d;
-    }
-
-    if (est === 'pendiente validacion por profe' || est === 'pendiente validacion por evaluador' || est === 'pendiente validacion por alumno' || est === 'agenda confirmada') {
+    if (
+        est === 'pendiente validacion por profe' || 
+        est === 'pendiente validacion por evaluador' || 
+        est === 'pendiente validacion por alumno' || 
+        est === 'agenda confirmada' || 
+        est === 'entrevista confirmada' || 
+        est.startsWith('entrevista')
+    ) {
         if (al.reserva_inicio) {
             const d = new Date(al.reserva_inicio);
             return isNaN(d.getTime()) ? null : d;
@@ -4278,7 +4296,6 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
             ${al.nivel ? `<div style="font-size:11px; margin-top:2px;"><span class="match-student-tag nivel" style="font-size:10px; padding:2px 7px;">${al.nivel}</span></div>` : ''}
             ${tagsHtml}
             ${opcionesKanbanHtml}
-            ${info.badgePillHtml ? `<div style="margin-top:6px;">${info.badgePillHtml}</div>` : (info.txtTiempo ? `<div class="priority-text ${info.claseTexto}">${info.txtTiempo}</div>` : '')}
             ${botonesVisibles ? `<div class="row-actions-group" style="margin-top:6px; justify-content:stretch;"><div class="row-quick-btns-col" style="width:100%;">${botonesVisibles}</div></div>` : ''}
             <div class="dropdown-menu-wrapper" id="menu-kanban-${id}" style="display:none; position:absolute; top:30px; right:10px;">
                 <div class="dropdown-menu">${botonesSecundarios}</div>
@@ -4656,7 +4673,6 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                         })()}
                         ${(!esSeg && !esSuspendidoRow && !esBajaRow && al.grupo_asignado) ? `<div>Grupo: <strong style="color:var(--accent-teal);">${al.grupo_asignado}</strong></div>` : ''}
                         ${(!esSuspendidoRow && !esBajaRow) ? fechaMetaHtml : ''}
-                        ${(!esSeg && !esSuspendidoRow && !esBajaRow) ? (info.badgePillHtml ? info.badgePillHtml : (info.txtTiempo ? `<div class="priority-text ${info.claseTexto}" style="margin-top:2px;">${info.txtTiempo}</div>` : '')) : ''}
                     </div>
 
                     <!-- Columna 5: Botones de Acción -->
@@ -6589,14 +6605,14 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
         ? ultimosAlumnosCargados
         : (poolAlumnos || []);
 
-    // 1. Alumnos Sin Agendar y Altas Pendientes (Solo Admisor y Admin, nunca Coordinador ni Evaluador)
+    // 1. Alumnos Sin Agendar y Altas Pendientes/En Curso
     let sinAgendar = [];
     let altasPendientes = [];
 
     if (esAdmisor && !esCoordinador) {
         sinAgendar = datasetCompleto.filter(d => {
             const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-            return st === 'pendiente procesar' || st === 'sin agendar';
+            return (st === 'pendiente procesar' || st === 'sin agendar') && !d.es_baja && !d.suspendido && st !== 'baja';
         });
         sinAgendar.sort((a, b) => {
             const getRefDate = (al) => {
@@ -6608,10 +6624,12 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
             };
             return getRefDate(a) - getRefDate(b);
         });
+    }
 
+    if ((esAdmisor || esCoordinador || esAdmin) && !esEval) {
         altasPendientes = datasetCompleto.filter(d => {
             const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-            return st === 'pre-alta pendiente';
+            return (st === 'pre-alta pendiente' || st === 'pre-alta iniciada' || esAlumnoAltaConfirmadaIncompleta(d)) && !d.es_baja && !d.suspendido && st !== 'baja';
         });
         altasPendientes.sort((a, b) => {
             const getRefDate = (al) => typeof obtenerFechaIngresoAlumno === 'function' ? (obtenerFechaIngresoAlumno(al)?.getTime() || Infinity) : Infinity;
@@ -6654,8 +6672,6 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
                     entrevistasAgendadas.push(item);
                 } else if (est === 'pendiente validacion por profe' || est === 'pendiente validacion por evaluador' || est === 'pendiente validacion por alumno') {
                     validacionesEnCurso.push(item);
-                } else {
-                    entrevistasAgendadas.push(item);
                 }
             }
         }
@@ -6694,10 +6710,10 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
         campoResp: (al) => (al.reserva_profe_nombre || al.profesor_asignado || 'Docente Evaluador').split('(')[0].trim()
     } : null;
 
-    const objAltasPendientes = (altasPendientes.length > 0 && esAdmisor && !esCoordinador) ? {
+    const objAltasPendientes = (altasPendientes.length > 0 && (esAdmisor || esCoordinador || esAdmin) && !esEval) ? {
         key: 'altas_pendientes',
         icono: '🚀',
-        label: 'Altas Pendientes (Listas para Iniciar)',
+        label: 'Altas Pendientes / En Curso',
         rawAlumnos: altasPendientes,
         items: altasPendientes.map(al => ({ al, info: getEstadoYBadgeLocal(al), diffHs: 0, dateToEval: new Date() })),
         esAsignable: false
