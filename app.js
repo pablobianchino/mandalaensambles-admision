@@ -3352,8 +3352,10 @@ function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, todosLosProfes, pr
                                 if (chequearProfeDisponible(pr, hIniB, finMs, lDia)) {
                                     let pegado = false; const profeEvents = eventosAPI.filter(e => e.profeId === pr.id);
                                     profeEvents.forEach(ev => { 
-                                        if(!ev.start || !ev.start.dateTime) return; 
-                                        const evS = new Date(ev.start.dateTime).getTime(), evE = new Date(ev.end.dateTime).getTime(); 
+                                        const startRaw = ev.start?.dateTime || ev.start?.date;
+                                        const endRaw = ev.end?.dateTime || ev.end?.date;
+                                        if(!startRaw || !endRaw) return; 
+                                        const evS = new Date(startRaw).getTime(), evE = new Date(endRaw).getTime(); 
                                         if (Math.abs(evE - inMs) <= 5*60*1000 || Math.abs(evS - finMs) <= 5*60*1000) pegado = true; 
                                     });
                                     opciones.push({ fechaTextoAmi: formatearFechaAmi(hIniB.toISOString()), profeId: pr.id, profeNombre: pr.nombre, calId: pr.calId, inicioData: formatoLocalISO(hIniB), finData: formatoLocalISO(new Date(finMs)), pegado: pegado });
@@ -11476,15 +11478,40 @@ document.addEventListener('click', async (e) => {
                     const contentKey = `${evS}_${evE}_${normSummary}`;
 
                     // Determinar si este evento pertenece a un profesor específico
-                    const profesConEsteCal = todosLosProfes.filter(pr => pr.calId === cId);
+                    const cIdLow = (cId || '').toLowerCase().trim();
+                    const calDefectoLow = (calDefecto || '').toLowerCase().trim();
+                    const profesConEsteCal = todosLosProfes.filter(pr => (pr.calId || '').toLowerCase().trim() === cIdLow);
                     let asignadoProfeId = null;
 
-                    if (profesConEsteCal.length === 1 && cId !== calDefecto) {
-                        // Es un calendario personal exclusivo del profesor
+                    if (cIdLow !== calDefectoLow && profesConEsteCal.length >= 1) {
+                        // 1. Calendario personal/específico del docente (ej. calendario amarillo): TODO evento le pertenece al docente
                         asignadoProfeId = profesConEsteCal[0].id;
-                    } else if (profesConEsteCal.length > 1 || cId === calDefecto) {
-                        // Calendario institucional/compartido: solo asignar si el título menciona explícitamente su nombre
-                        const profeMencionado = profesConEsteCal.find(pr => pr.nombre && normSummary.includes(pr.nombre.toLowerCase().trim()));
+                    } else if (cIdLow === calDefectoLow || profesConEsteCal.length === 0) {
+                        // 2. Calendario general/compartido: identificar docente por nombre, apodo o formato de clase
+                        const profeMencionado = todosLosProfes.find(pr => {
+                            if (!pr.nombre) return false;
+                            const nomLow = pr.nombre.toLowerCase().trim();
+                            if (!nomLow) return false;
+                            const apodos = [nomLow];
+                            if (nomLow === 'nacho' || nomLow.includes('ignacio')) apodos.push('nacho', 'ignacio');
+                            if (nomLow === 'belu' || nomLow.includes('belen') || nomLow.includes('belén')) apodos.push('belu', 'belen', 'belén', 'torrents');
+                            if (nomLow === 'guido') apodos.push('guido');
+                            if (nomLow === 'feli' || nomLow.includes('feliciano')) apodos.push('feli', 'feliciano');
+                            if (nomLow === 'ariel') apodos.push('ariel');
+                            if (nomLow === 'manu' || nomLow.includes('manuel')) apodos.push('manu', 'manuel');
+                            if (nomLow === 'franco' || nomLow.includes('fran')) apodos.push('franco', 'fran');
+                            if (nomLow === 'mati' || nomLow.includes('matias') || nomLow.includes('matías')) apodos.push('mati', 'matias', 'matías');
+                            if (nomLow === 'santi' || nomLow.includes('santiago')) apodos.push('santi', 'santiago');
+                            if (nomLow === 'agus' || nomLow.includes('agustin') || nomLow.includes('agustín') || nomLow.includes('agustina')) apodos.push('agus', 'agustin', 'agustina');
+
+                            return apodos.some(ap => {
+                                return normSummary.includes(`(${ap})`) ||
+                                       normSummary.includes(`[${ap}]`) ||
+                                       new RegExp(`\\b(profe|prof|docente)\\s*[:\\-]?\\s*${ap}\\b`, 'i').test(normSummary) ||
+                                       new RegExp(`\\bcon\\s+${ap}\\b`, 'i').test(normSummary) ||
+                                       new RegExp(`\\b${ap}\\b`, 'i').test(normSummary);
+                            });
+                        });
                         if (profeMencionado) {
                             asignadoProfeId = profeMencionado.id;
                         }
@@ -11494,6 +11521,7 @@ document.addEventListener('click', async (e) => {
                         ...ev,
                         uniqueContentKey: contentKey,
                         profeId: asignadoProfeId,
+                        calIdSource: cId,
                         ocupaAula: !esDiaCompleto
                     });
                 });
