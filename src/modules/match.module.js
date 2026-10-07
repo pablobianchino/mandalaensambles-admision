@@ -2039,10 +2039,8 @@ export async function ejecutarConfirmarMatch(setBotonCargandoFn, cargarVistaFn) 
                 fecha: fechaStr
             });
 
-            const instAsignado = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento[0] : (al.instrumento || ''));
-
-            await updateDoc(alRef, {
-                estado_agenda: "Validando Grupo",
+            const updatesMatch = {
+                estado_agenda: "Validando grupo",
                 estado_validacion_alumno: "pendiente",
                 instrumento_asignado: instAsignado,
                 grupo_asignado: isInd ? '' : nombreGrupo,
@@ -2057,7 +2055,11 @@ export async function ejecutarConfirmarMatch(setBotonCargandoFn, cargarVistaFn) 
                 fecha_sugerida_inicio: fechaSugerida,
                 fecha_inicio_clases: fechaSugerida ? new Date(fechaSugerida).toISOString() : null,
                 historial: hist
-            });
+            };
+            if (typeof window.actualizarAlumnoEnMemoriaLocal === 'function') {
+                window.actualizarAlumnoEnMemoriaLocal(al.id, updatesMatch);
+            }
+            await updateDoc(alRef, updatesMatch);
         }
 
         document.getElementById('modal-confirmar-match')?.close();
@@ -2863,8 +2865,8 @@ window.abrirModalAprobacionMatchSeguimiento = async function(alumnosList, nombre
                     const fnHist = window.crearEntradaHistorial || ((txt, tipo) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema' }));
                     hist.push(fnHist(`Validación aprobada para ${nombreGrupo || al.grupo_asignado || 'clase'}. Pasa a Altas Pendientes con Responsable de Seguimiento: ${segNombre}.`, 'match'));
 
-                    await updateDoc(doc(db, "alumnos", al.id), {
-                        estado_agenda: "Pre-alta Pendiente",
+                    const updatesAvanzar = {
+                        estado_agenda: "Pre-alta pendiente",
                         estado_validacion_alumno: "confirmado",
                         seguimiento_responsable_id: segId,
                         seguimiento_responsable_nombre: segNombre,
@@ -2877,7 +2879,11 @@ window.abrirModalAprobacionMatchSeguimiento = async function(alumnosList, nombre
                             historial: al.seguimiento?.historial || []
                         },
                         historial: hist
-                    });
+                    };
+                    if (typeof window.actualizarAlumnoEnMemoriaLocal === 'function') {
+                        window.actualizarAlumnoEnMemoriaLocal(al.id, updatesAvanzar);
+                    }
+                    await updateDoc(doc(db, "alumnos", al.id), updatesAvanzar);
                 }
 
                 // Copiar aviso automático al admisor
@@ -2978,12 +2984,16 @@ window.rechazarAlumnoGrupoYVolverEspera = async function(alumnoId) {
             const entrada = fnHist(`Propuesta de grupo "${al.grupo_asignado || ''}" rechazada/no disponible. Vuelve a Lista de Espera.`, 'match');
             if (entrada) hist.push(entrada);
 
-            await updateDoc(doc(db, "alumnos", alumnoId), {
+            const updatesRech = {
                 estado_agenda: "Lista de espera",
                 grupo_asignado: "",
                 estado_validacion_alumno: null,
                 historial: hist
-            });
+            };
+            if (typeof window.actualizarAlumnoEnMemoriaLocal === 'function') {
+                window.actualizarAlumnoEnMemoriaLocal(alumnoId, updatesRech);
+            }
+            await updateDoc(doc(db, "alumnos", alumnoId), updatesRech);
 
             if (typeof window.removerFilaOptimista === 'function') window.removerFilaOptimista(alumnoId);
             const cont = document.getElementById('lista-generica');
@@ -3013,12 +3023,16 @@ window.desarmarGrupoValidacion = async function(nombreGrupo) {
                 const fnHist = window.crearEntradaHistorial || ((txt, tipo) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema' }));
                 const entrada = fnHist(`Propuesta de grupo "${nombreGrupo}" desarmada. Alumno vuelve a Lista de Espera.`, 'match');
                 if (entrada) hist.push(entrada);
-                await updateDoc(doc(db, "alumnos", d.id), {
+                const updatesDesarmar = {
                     estado_agenda: "Lista de espera",
                     grupo_asignado: "",
                     estado_validacion_alumno: null,
                     historial: hist
-                });
+                };
+                if (typeof window.actualizarAlumnoEnMemoriaLocal === 'function') {
+                    window.actualizarAlumnoEnMemoriaLocal(d.id, updatesDesarmar);
+                }
+                await updateDoc(doc(db, "alumnos", d.id), updatesDesarmar);
             }
         }
         const cont = document.getElementById('lista-generica');

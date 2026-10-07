@@ -2191,6 +2191,9 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
         updates.historial = hist;
 
         Object.assign(al, updates);
+        if (typeof window.actualizarAlumnoEnMemoriaLocal === 'function') {
+            window.actualizarAlumnoEnMemoriaLocal(id, updates);
+        }
         await updateDoc(doc(db, "alumnos", id), updates);
     }
 
@@ -2943,12 +2946,16 @@ export async function aprobarTodoGrupoAction(grupoNombre, vista, callbacks = {})
                 ? m.checklist_alta
                 : [false, false, false, false];
 
-            await updateDoc(doc(db, "alumnos", m.id), {
+            const updatesGrupoM = {
                 estado_agenda: "Alta Efectiva",
                 fecha_alta_confirmada: ahoraIso,
                 checklist_alta: checksExistentes,
                 historial: hist
-            });
+            };
+            if (typeof window.actualizarAlumnoEnMemoriaLocal === 'function') {
+                window.actualizarAlumnoEnMemoriaLocal(m.id, updatesGrupoM);
+            }
+            await updateDoc(doc(db, "alumnos", m.id), updatesGrupoM);
         }
 
         // 2. Obtener lista fresca de todos los miembros actualizados desde Firestore
@@ -3129,12 +3136,16 @@ export async function confirmarAlumnoAltaAction(alumnoId, alumnoNombre, grupoNom
             ? al.checklist_alta 
             : [false, false, false, false];
 
-        await updateDoc(doc(db, "alumnos", alumnoId), {
+        const updatesAltaConf = {
             estado_agenda: "Alta Efectiva",
             fecha_alta_confirmada: new Date().toISOString(),
             checklist_alta: checksExistentes,
             historial: hist
-        });
+        };
+        if (typeof window.actualizarAlumnoEnMemoriaLocal === 'function') {
+            window.actualizarAlumnoEnMemoriaLocal(alumnoId, updatesAltaConf);
+        }
+        await updateDoc(doc(db, "alumnos", alumnoId), updatesAltaConf);
 
         // Obtener lista completa y FRESCA de todos los miembros del grupo desde Firestore
         let todosMiembrosGrupo = [];
@@ -3819,7 +3830,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                             const hist = al.historial || [];
                             const fnHist = window.crearEntradaHistorial || ((txt, t) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: t || 'sistema' }));
                             hist.push(fnHist(`Devuelto a Altas - Pendientes desde ${vista}. Grupo "${grupo}" conservado para re-coordinación.`, 'alta'));
-                            await updateDoc(doc(db, "alumnos", id), {
+                            const updatesDevPend = {
                                 estado_agenda: "Pre-alta pendiente",
                                 grupo_asignado: al.grupo_asignado || grupo || "",
                                 fecha_inicio_clases: null,
@@ -3828,7 +3839,11 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                                 calendario_evento_alta: null,
                                 checklist_alta: null,
                                 historial: hist
-                            });
+                            };
+                            if (typeof window.actualizarAlumnoEnMemoriaLocal === 'function') {
+                                window.actualizarAlumnoEnMemoriaLocal(id, updatesDevPend);
+                            }
+                            await updateDoc(doc(db, "alumnos", id), updatesDevPend);
                             await eliminarEventoAltaSeguro({ id, ...al }, callbacks.configApp || defaultCfg);
                         }
                     }
@@ -3889,6 +3904,9 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                                 historial: hist
                             };
                             if (evalOriginal) payloadDev.reserva_profe_nombre = evalOriginal;
+                            if (typeof window.actualizarAlumnoEnMemoriaLocal === 'function') {
+                                window.actualizarAlumnoEnMemoriaLocal(id, payloadDev);
+                            }
                             await updateDoc(doc(db, "alumnos", id), payloadDev);
                             await eliminarEventoAltaSeguro({ id, ...al }, callbacks.configApp || defaultCfg);
                         }
@@ -3975,6 +3993,9 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                                 updateData.seguimiento_responsable_nombre = respNom;
                             }
 
+                            if (typeof window.actualizarAlumnoEnMemoriaLocal === 'function') {
+                                window.actualizarAlumnoEnMemoriaLocal(id, updateData);
+                            }
                             await updateDoc(doc(db, "alumnos", id), updateData);
                         }
                     }

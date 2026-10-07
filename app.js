@@ -4998,10 +4998,12 @@ document.getElementById('btn-bulk-devolver-pendientes')?.addEventListener('click
                 const al = alSnap.data();
                 const hist = al.historial || [];
                 hist.push(crearEntradaHistorial(`Alumno devuelto masivamente a Pre-alta pendiente.`, 'devolucion_pendientes'));
-                await updateDoc(doc(db, "alumnos", id), {
-                    estado_agenda: "Pre-alta pendiente",
-                    historial: hist
-                });
+                    const updatesBulkPend = {
+                        estado_agenda: "Pre-alta pendiente",
+                        historial: hist
+                    };
+                    actualizarAlumnoEnMemoriaLocal(id, updatesBulkPend);
+                    await updateDoc(doc(db, "alumnos", id), updatesBulkPend);
             }
         } catch(e) {
             console.error("Error al devolver a pendientes bulk:", id, e);
@@ -5009,7 +5011,7 @@ document.getElementById('btn-bulk-devolver-pendientes')?.addEventListener('click
     }
     selectedBulkIds.splice(0);
     actualizarBulkBar();
-    await cargarVista(estadoActualVista);
+    await cargarVista(estadoActualVista, false);
     ocultarIndicadorCarga();
     mostrarToast("↩️ Alumnos devueltos a Altas - Pendientes.", "info");
 });
@@ -5031,7 +5033,7 @@ if (btnBulkDevolver) {
                     if (al.id_evento_alta) await eliminarEventoAltaSeguro(al, configApp);
                     const hist = al.historial || [];
                     hist.push(crearEntradaHistorial(`Alumno devuelto a Lista de Espera masivamente. Motivo: ${motivo.trim()}.`, 'devolucion_espera'));
-                    await updateDoc(doc(db, "alumnos", id), {
+                    const updatesBulkEsp = {
                         estado_agenda: "Lista de espera",
                         fecha_inicio_clases: null,
                         grupo_asignado: null,
@@ -5044,7 +5046,9 @@ if (btnBulkDevolver) {
                         id_evento_reserva: null,
                         calendario_evento_reserva: null,
                         historial: hist
-                    });
+                    };
+                    actualizarAlumnoEnMemoriaLocal(id, updatesBulkEsp);
+                    await updateDoc(doc(db, "alumnos", id), updatesBulkEsp);
                 }
             } catch(e) {
                 console.error("Error al devolver alumno a espera:", id, e);
@@ -5052,7 +5056,7 @@ if (btnBulkDevolver) {
         }
         selectedBulkIds.splice(0);
         actualizarBulkBar();
-        await cargarVista(estadoActualVista);
+        await cargarVista(estadoActualVista, false);
         ocultarIndicadorCarga();
         alert("✅ Alumnos devueltos a Lista de Espera correctamente.");
     });
@@ -10641,6 +10645,7 @@ document.addEventListener('click', async (e) => {
                 updatePayload.disponibilidad = nuevaDisp;
             }
 
+            actualizarAlumnoEnMemoriaLocal(id, updatePayload);
             await updateDoc(doc(db, "alumnos", id), updatePayload);
             window._modalEditandoModificado = false;
             window._fichaAlumnoModificada = false;
@@ -10648,8 +10653,9 @@ document.addEventListener('click', async (e) => {
             const retornoId = modalInf?.dataset?.retornoAlumnoId || id;
             if (modalInf) modalInf.dataset.retornoAlumnoId = '';
             modalInf?.close();
+            removerFilaOptimista(id);
             alert("✅ ¡Informe guardado con éxito!\nEl registro quedó actualizado y el alumno en Lista de Espera.");
-            await cargarVista(estadoActualVista);
+            await cargarVista(estadoActualVista, false);
             if (retornoId && !retornoId.startsWith('test-')) {
                 await window.editarAlumnoModalDirecto(retornoId, 'tab-informe');
             }
@@ -10844,18 +10850,20 @@ document.addEventListener('click', async (e) => {
 
         const hist = al.historial || [];
         hist.push(crearEntradaHistorial(`Alta confirmada y efectiva (${est}) en el grupo/clase "${al.grupo_asignado || '-'}".`, 'alta'));
-        const updatesAlta = { estado_agenda: est, historial: hist };
+        const updatesAlta = { estado_agenda: est, fecha_alta_confirmada: new Date().toISOString(), historial: hist };
         if (evSync && evSync.id) {
             updatesAlta.id_evento_alta = evSync.id;
             updatesAlta.calendario_evento_alta = evSync.calendar;
         }
+        actualizarAlumnoEnMemoriaLocal(id, updatesAlta);
         await updateDoc(doc(db, "alumnos", id), updatesAlta);
         const dataText = await generarTextoConHistorial(id, 'texto_alta_confirmada');
         await navigator.clipboard.writeText(dataText.txt);
         document.getElementById('modal-confirmar-alta').close();
+        removerFilaOptimista(id);
         alert("Alta Confirmada.\nTexto copiado y evento en Calendar actualizado a Alta Confirmada.");
         setBotonCargando(target, false);
-        cargarVista(estadoActualVista);
+        await cargarVista(estadoActualVista, false);
         return;
     }
     // Acción directa: Finalizar Alta
@@ -10919,12 +10927,14 @@ document.addEventListener('click', async (e) => {
                     updatesFin.id_evento_alta = evFin.id;
                     updatesFin.calendario_evento_alta = evFin.calendar;
                 }
+                actualizarAlumnoEnMemoriaLocal(id, updatesFin);
                 await updateDoc(doc(db, "alumnos", id), updatesFin);
             } catch(calErr) {
                 console.warn("No se pudo actualizar evento al finalizar alta:", calErr);
             }
+            removerFilaOptimista(id);
             alert("🏁 Alta Finalizada con éxito. Si tiene evaluador asignado, pasó a Altas - Seguimientos; de lo contrario a Altas Finalizadas.");
-            cargarVista(estadoActualVista);
+            await cargarVista(estadoActualVista, false);
         }
         return;
     }
@@ -10970,7 +10980,7 @@ document.addEventListener('click', async (e) => {
             : (tieneEvento && decisionCal.decision === 'eliminar' ? ' Evento en Google Calendar ELIMINADO.' : '');
         hist.push(crearEntradaHistorial(`Devuelto a Altas - Pendientes desde ${al.estado_agenda || 'Altas - En Curso'}${grpActual ? ` (Grupo ${grpActual} conservado)` : ''}.${detalleCal}`, 'alta'));
         
-        await updateDoc(doc(db, "alumnos", id), {
+        const updatesDevPend = {
             estado_agenda: "Pre-alta pendiente",
             grupo_asignado: grpActual || al.grupo_asignado || "",
             fecha_inicio_clases: null,
@@ -10979,15 +10989,18 @@ document.addEventListener('click', async (e) => {
             calendario_evento_alta: null,
             checklist_alta: null,
             historial: hist
-        });
+        };
+        actualizarAlumnoEnMemoriaLocal(id, updatesDevPend);
+        await updateDoc(doc(db, "alumnos", id), updatesDevPend);
 
         ocultarIndicadorCarga();
+        removerFilaOptimista(id);
         if (typeof window.mostrarToast === 'function') {
             window.mostrarToast(`↩️ "${al.nombre || 'Alumno'}" devuelto a Altas - Pendientes.`, 'info');
         } else {
             alert(`↩️ "${al.nombre || 'Alumno'}" devuelto a Altas - Pendientes.`);
         }
-        await cargarVista(estadoActualVista);
+        await cargarVista(estadoActualVista, false);
         return;
     }
     if (target.classList.contains('btn-devolver-espera') || target.closest('.btn-devolver-espera')) {
@@ -11027,7 +11040,7 @@ document.addEventListener('click', async (e) => {
                 : (tieneEvento && decisionCal.decision === 'eliminar' ? ' Evento en Google Calendar ELIMINADO.' : '');
             hist.push(crearEntradaHistorial(`Devuelto a Lista de Espera desde ${al.estado_agenda || 'Altas'}. Motivo: ${motivo.trim()}.${detalleCal}`, 'alta'));
             
-            await updateDoc(doc(db, "alumnos", id), {
+            const updatesDevEsp = {
                 estado_agenda: "Lista de espera",
                 grupo_asignado: null,
                 reserva_profe_id: null,
@@ -11045,14 +11058,17 @@ document.addEventListener('click', async (e) => {
                 calendario_evento_reserva: null,
                 checklist_alta: null,
                 historial: hist
-            });
+            };
+            actualizarAlumnoEnMemoriaLocal(id, updatesDevEsp);
+            await updateDoc(doc(db, "alumnos", id), updatesDevEsp);
 
             if (tieneEvento) ocultarIndicadorCarga();
+            removerFilaOptimista(id);
             const mensajeFinal = (tieneEvento && decisionCal.decision === 'mantener')
                 ? "✅ Alumno devuelto a Lista de Espera.\nSe mantuvo el evento intacto en Google Calendar."
                 : (tieneEvento ? "✅ Alumno devuelto a Lista de Espera.\nSe eliminó la agenda asociada en Google Calendar." : "✅ Alumno devuelto a Lista de Espera.");
             alert(mensajeFinal);
-            await cargarVista(estadoActualVista);
+            await cargarVista(estadoActualVista, false);
         }
         return;
     }
@@ -11651,6 +11667,7 @@ document.addEventListener('click', async (e) => {
                 historial: hist
             };
 
+            actualizarAlumnoEnMemoriaLocal(alumnoIdActual, updateData);
             await updateDoc(doc(db, "alumnos", alumnoIdActual), updateData);
 
             const plantillaKey = esConfirmada ? 'texto_conf_alumno' : 'texto_alumno';
@@ -11661,7 +11678,7 @@ document.addEventListener('click', async (e) => {
 
             document.getElementById('modal-agenda').close();
             removerFilaOptimista(alumnoIdActual);
-            await cargarVista(estadoActualVista);
+            await cargarVista(estadoActualVista, false);
             mostrarToast(`✅ ¡Entrevista agendada en Calendar para el ${fTxt} con ${pNom}! Mensaje copiado al portapapeles.`, "success");
         } catch(e) {
             console.error("Error al agendar en Calendar:", e);
@@ -11715,11 +11732,12 @@ document.addEventListener('click', async (e) => {
                 updateData.id_evento_reserva = null; 
                 updateData.calendario_evento_reserva = null; 
             } 
+            actualizarAlumnoEnMemoriaLocal(alumnoIdActual, updateData);
             await updateDoc(doc(db, "alumnos", alumnoIdActual), updateData); 
             await navigator.clipboard.writeText(finalTxt); 
             document.getElementById('modal-agenda').close(); 
             removerFilaOptimista(alumnoIdActual);
-            await cargarVista(estadoActualVista); 
+            await cargarVista(estadoActualVista, false); 
             mostrarToast("💬 Texto copiado al portapapeles para avisar al evaluador", "success"); 
         } catch(e) { 
             alert("❌ Error:\n\n" + e.message); 
@@ -11912,7 +11930,7 @@ document.addEventListener('click', async (e) => {
             const hist = al.historial || [];
             hist.push(crearEntradaHistorial(`Horario validado por evaluador/a ${finalProfeNombre}. Propuesta enviada al alumno (${finalFechaTexto}).`, 'agenda'));
             
-            await updateDoc(doc(db, "alumnos", id), {
+            const updatesValProfe = {
                 estado_agenda: "Pendiente validación por alumno",
                 id_evento_reserva: evRes ? (evRes.id || null) : null,
                 calendario_evento_reserva: evRes ? (evRes.calendar || null) : null,
@@ -11924,14 +11942,16 @@ document.addEventListener('click', async (e) => {
                 reserva_fin: finalFin,
                 opciones_propuestas: null,
                 historial: hist
-            });
+            };
+            actualizarAlumnoEnMemoriaLocal(id, updatesValProfe);
+            await updateDoc(doc(db, "alumnos", id), updatesValProfe);
             const dataText = await generarTextoConHistorial(id, 'texto_alumno');
             if (dataText && dataText.txt) {
                 await navigator.clipboard.writeText(dataText.txt);
             }
             document.getElementById('modal-validar-profe').close();
             removerFilaOptimista(id);
-            await cargarVista(estadoActualVista);
+            await cargarVista(estadoActualVista, false);
         } catch(e) {
             alert("❌ Error:\n\n" + e.message);
         } finally {
@@ -11971,9 +11991,11 @@ document.addEventListener('click', async (e) => {
             }
             const hist = al.historial || [];
             hist.push(crearEntradaHistorial(`Entrevista confirmada con el alumno para el ${al.reserva_fecha_texto || ''} con ${al.reserva_profe_nombre || 'Evaluador'}.`, 'agenda'));
-            await updateDoc(doc(db, "alumnos", id), { estado_agenda: "Agenda confirmada", historial: hist });
+            const updatesConfEntrevista = { estado_agenda: "Agenda confirmada", historial: hist };
+            actualizarAlumnoEnMemoriaLocal(id, updatesConfEntrevista);
+            await updateDoc(doc(db, "alumnos", id), updatesConfEntrevista);
             removerFilaOptimista(id);
-            await cargarVista(estadoActualVista);
+            await cargarVista(estadoActualVista, false);
 
             // Generar y copiar automáticamente registro de facturación de admisión (13 columnas)
             const txtFact = generarFilaExcelFacturacionAdmision(al, configApp);
@@ -12170,7 +12192,7 @@ document.addEventListener('click', async (e) => {
                 await navigator.clipboard.writeText(data.txt);
             }
 
-            await updateDoc(doc(db, "alumnos", id), {
+            const updatesCancelaAgenda = {
                 estado_agenda: "Pendiente procesar",
                 fecha_reingreso: new Date().toISOString(),
                 reserva_profe_id: null,
@@ -12188,11 +12210,13 @@ document.addEventListener('click', async (e) => {
                 detalle_suspension: obs || null,
                 motivo_suspension: motivoCompleto,
                 historial: hist
-            });
+            };
+            actualizarAlumnoEnMemoriaLocal(id, updatesCancelaAgenda);
+            await updateDoc(doc(db, "alumnos", id), updatesCancelaAgenda);
 
             document.getElementById('modal-cancelar-agenda')?.close();
             removerFilaOptimista(id);
-            await cargarVista(estadoActualVista);
+            await cargarVista(estadoActualVista, false);
             mostrarToast("💬 Entrevista cancelada, alumno derivado a Sin Agendar y texto copiado al portapapeles", "info");
         } catch(e) {
             console.error("Error al cancelar entrevista:", e);
@@ -12221,13 +12245,15 @@ document.addEventListener('click', async (e) => {
                 setBotonCargando(btn, true, 'Pasando a Lista de Espera...');
                 const hist = alData.historial || [];
                 hist.push(crearEntradaHistorial('Derivado directamente a Lista de Espera sin entrevista previa.', 'sistema'));
-                await updateDoc(doc(db, "alumnos", id), {
+                const updatesPaseEspera = {
                     estado_agenda: 'Lista de espera',
                     fecha_ingreso_espera: new Date().toISOString(),
                     historial: hist
-                });
+                };
+                actualizarAlumnoEnMemoriaLocal(id, updatesPaseEspera);
+                await updateDoc(doc(db, "alumnos", id), updatesPaseEspera);
                 removerFilaOptimista(id);
-                await cargarVista(estadoActualVista);
+                await cargarVista(estadoActualVista, false);
                 alert(`✅ ${alData.nombre} pasó a Lista de Espera.`);
             }
         } catch(e) {
@@ -16241,6 +16267,7 @@ window.guardarContactoSeguimiento = async function() {
         hist.sort((a, b) => new Date(a.fecha_iso || a.fecha || 0).getTime() - new Date(b.fecha_iso || b.fecha || 0).getTime());
         updatePayload['historial'] = hist;
 
+        actualizarAlumnoEnMemoriaLocal(id, updatePayload);
         await updateDoc(doc(db, "alumnos", id), updatePayload);
 
         document.getElementById('modal-seguimiento-contacto')?.close();
@@ -16256,7 +16283,7 @@ window.guardarContactoSeguimiento = async function() {
             if (document.getElementById('tab-seguimiento')) document.getElementById('tab-seguimiento').style.display = 'block';
         }
 
-        await cargarVista(estadoActualVista);
+        await cargarVista(estadoActualVista, false);
     } catch(err) {
         console.error("Error al guardar contacto de seguimiento:", err);
         alert("Error al guardar el contacto: " + err.message);
@@ -16324,13 +16351,15 @@ window.confirmarFinSeguimiento = async function() {
         const hist = al.historial || [];
         hist.push(crearEntradaHistorial(`Seguimiento Finalizado por ${u.nombre || 'Responsable de Seguimiento'}. Conclusión: ${motivo}`, 'seguimiento'));
 
-        await updateDoc(doc(db, "alumnos", id), {
+        const updateFinSeg = {
             'seguimiento.activo': false,
             'seguimiento.fecha_finalizacion': ahoraIso,
             'seguimiento.motivo_finalizacion': motivo,
             'seguimiento.historial': histSeg,
             'historial': hist
-        });
+        };
+        actualizarAlumnoEnMemoriaLocal(id, updateFinSeg);
+        await updateDoc(doc(db, "alumnos", id), updateFinSeg);
 
         document.getElementById('modal-seguimiento-finalizar')?.close();
         mostrarToast("🏁 Seguimiento de alumno finalizado correctamente", "success");
@@ -16340,7 +16369,7 @@ window.confirmarFinSeguimiento = async function() {
             await llenarFormularioAlumno(id, false);
         }
 
-        await cargarVista(estadoActualVista);
+        await cargarVista(estadoActualVista, false);
     } catch(err) {
         console.error("Error al finalizar seguimiento:", err);
         alert("Error al finalizar el seguimiento: " + err.message);
