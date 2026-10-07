@@ -3429,7 +3429,10 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                     const cantCtto = Array.isArray(al.seguimiento?.historial) ? al.seguimiento.historial.length : 0;
                     const tagFeedbacks = cantCtto > 0 ? `<span class="badge-tag" style="background:#f1f5f9; color:#475569; font-size:10px; padding:1px 6px; border-radius:6px;" title="${cantCtto} feedback(s) registrado(s)">${cantCtto} fb</span>` : '';
                     const botonesRow = construirAccionesFilaAlta(al, al.id, vista, true, '', callbacks);
-                    const chkBulkSeg = `<input type="checkbox" class="bulk-chk" data-id="${al.id}" onclick="event.stopPropagation(); window.toggleBulkSelection('${al.id}', this.checked)" style="margin-right:8px; cursor:pointer; width:16px; height:16px; accent-color:var(--accent-teal); flex-shrink:0;">`;
+                    const habilitarBulkSeg = (vista === 'Seguimientos - Pendientes');
+                    const chkBulkSeg = habilitarBulkSeg
+                        ? `<input type="checkbox" class="bulk-chk" data-id="${al.id}" onclick="event.stopPropagation(); window.toggleBulkSelection('${al.id}', this.checked)" style="margin-right:8px; cursor:pointer; width:16px; height:16px; accent-color:var(--accent-teal); flex-shrink:0;">`
+                        : '';
 
                     return `
                         <div class="row-item btn-editar-alumno" data-id="${al.id}" style="padding:7px 12px; margin-bottom:4px; border-radius:10px; border:1px solid var(--border-color); background:#fff; cursor:pointer;">
@@ -3655,7 +3658,10 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                     // Checklist de Alta: Únicamente en Altas - Confirmadas
                     const checklistRowHtml = (vista === 'Altas - Confirmadas') ? generarChecklistAltaHtml(al.id, al) : '';
                     const botonesRow = construirAccionesFilaAlta(al, al.id, vista, true, nombreGrupo, callbacks);
-                    const chkBulk = `<input type="checkbox" class="bulk-chk" data-id="${al.id}" onclick="event.stopPropagation(); window.toggleBulkSelection('${al.id}', this.checked)" style="margin-right:8px; cursor:pointer; width:16px; height:16px; accent-color:var(--accent-teal); flex-shrink:0;">`;
+                    const habilitarBulkGrupo = (vista !== 'Altas - Finalizadas');
+                    const chkBulk = habilitarBulkGrupo
+                        ? `<input type="checkbox" class="bulk-chk" data-id="${al.id}" onclick="event.stopPropagation(); window.toggleBulkSelection('${al.id}', this.checked)" style="margin-right:8px; cursor:pointer; width:16px; height:16px; accent-color:var(--accent-teal); flex-shrink:0;">`
+                        : '';
 
                     return `
                         <div class="row-item btn-editar-alumno" data-id="${al.id}" style="padding:7px 12px; margin-bottom:4px; border-radius:10px; border:1px solid var(--border-color); background:#fff; cursor:pointer;">
@@ -3732,7 +3738,10 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
 
                     const checklistIndivHtml = (vista === 'Altas - Confirmadas') ? generarChecklistAltaHtml(al.id, al) : '';
                     const botonesIndiv = construirAccionesFilaAlta(al, al.id, vista, true, 'Clase Individual', callbacks);
-                    const chkBulkInd = `<input type="checkbox" class="bulk-chk" data-id="${al.id}" onclick="event.stopPropagation(); window.toggleBulkSelection('${al.id}', this.checked)" style="margin-right:8px; cursor:pointer; width:16px; height:16px; accent-color:var(--accent-teal); flex-shrink:0;">`;
+                    const habilitarBulkInd = (vista !== 'Altas - Finalizadas');
+                    const chkBulkInd = habilitarBulkInd
+                        ? `<input type="checkbox" class="bulk-chk" data-id="${al.id}" onclick="event.stopPropagation(); window.toggleBulkSelection('${al.id}', this.checked)" style="margin-right:8px; cursor:pointer; width:16px; height:16px; accent-color:var(--accent-teal); flex-shrink:0;">`
+                        : '';
 
                     return `
                         <div class="row-item btn-editar-alumno" data-id="${al.id}" style="padding:7px 12px; margin-bottom:4px; border-radius:10px; border:1px solid var(--border-color); background:#fff; cursor:pointer;">

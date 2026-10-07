@@ -4516,6 +4516,12 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
         rowBorderExtra = 'border-left: 4px solid #eab308 !important;';
     }
 
+    const vistaActiva = vista || (typeof estadoActualVista !== 'undefined' ? estadoActualVista : '');
+    const habilitarBulkCheck = ['Lista de Espera', 'Match - En Validacion'].includes(vistaActiva);
+    const bulkCheckHtml = habilitarBulkCheck
+        ? `<input type="checkbox" class="bulk-chk" data-id="${id}" onclick="event.stopPropagation(); window.toggleBulkSelection('${id}', this.checked)">`
+        : '';
+
     return `
         <div class="swipe-wrapper" data-id="${id}">
             <div class="swipe-bg-actions">
@@ -4526,7 +4532,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                 <div class="row-content-wrapper">
                     <!-- Columna 1: Alumno y Datos (Línea 1: Nombre • Edad • Nivel + Badges | Línea 2: Instrumento) -->
                     <div class="row-header">
-                        <input type="checkbox" class="bulk-chk" data-id="${id}" onclick="event.stopPropagation(); window.toggleBulkSelection('${id}', this.checked)">
+                        ${bulkCheckHtml}
                         <div class="row-indicator ${info.colorIndicador}"></div>
                         <div class="row-main-info" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:2px;">
                             <div class="row-name" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; text-align:left;">
