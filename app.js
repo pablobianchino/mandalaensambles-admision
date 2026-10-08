@@ -11809,9 +11809,17 @@ document.addEventListener('click', async (e) => {
             fHora = '\n' + opcionesStr; 
         } 
 
-        let fechaClaseRef = al.reserva_inicio || overrideFecha || al.reserva_fecha_texto || null;
-        if (!fechaClaseRef && opc && opc.length > 0) {
-            fechaClaseRef = opc[0].inicio || opc[0].fechaTexto || null;
+        let fechaClaseRef = null;
+        if (esEtapaAlta) {
+            fechaClaseRef = al.fecha_inicio_clases || fAmiInicio || al.horario_match || al.reserva_fecha_texto || null;
+        } else {
+            fechaClaseRef = al.reserva_inicio || overrideFecha || al.reserva_fecha_texto || null;
+            if (!fechaClaseRef && opc && opc.length > 0) {
+                fechaClaseRef = opc[0].inicio || opc[0].fechaTexto || null;
+            }
+            if (!fechaClaseRef && al.fecha_inicio_clases) {
+                fechaClaseRef = al.fecha_inicio_clases;
+            }
         }
         const fechaHoraLimite = calcularFechaLimitePago(fechaClaseRef, new Date());
 

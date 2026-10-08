@@ -62,57 +62,79 @@ export function calcularFechaMinimaAgenda(fechaBase = new Date()) {
     return fMin;
 }
 
-export function calcularFechaLimitePago(fechaClaseRef = null, fechaOfrecimiento = new Date()) {
-    let fMax = new Date(fechaOfrecimiento);
-    if (fMax.getDay() === 6) {
-        fMax.setDate(fMax.getDate() + 2);
-    } else if (fMax.getDay() === 0) {
-        fMax.setDate(fMax.getDate() + 1);
-    }
-    let habilesSumados = 0;
-    while (habilesSumados < 2) {
-        fMax.setDate(fMax.getDate() + 1);
-        const day = fMax.getDay();
-        if (day !== 0 && day !== 6) {
-            habilesSumados++;
+export function parsearFechaClase(fechaClaseRef, fechaOfrecimiento = new Date()) {
+    if (!fechaClaseRef) return null;
+    if (fechaClaseRef instanceof Date) return isNaN(fechaClaseRef.getTime()) ? null : fechaClaseRef;
+    if (typeof fechaClaseRef === 'string') {
+        const str = fechaClaseRef.trim();
+        const parsedIso = new Date(str);
+        if (!isNaN(parsedIso.getTime()) && str.includes('-')) {
+            return parsedIso;
+        }
+        const match = str.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
+        if (match) {
+            const dia = parseInt(match[1], 10);
+            const mes = parseInt(match[2], 10) - 1;
+            const anio = match[3] ? parseInt(match[3].length === 2 ? '20' + match[3] : match[3], 10) : fechaOfrecimiento.getFullYear();
+            const dParsed = new Date(anio, mes, dia, 12, 0, 0);
+            if (!isNaN(dParsed.getTime())) return dParsed;
         }
     }
-    fMax.setHours(17, 0, 0, 0);
+    return null;
+}
 
-    let fClase = null;
-    if (fechaClaseRef) {
-        if (fechaClaseRef instanceof Date) {
-            fClase = new Date(fechaClaseRef);
-        } else if (typeof fechaClaseRef === 'string') {
-            const parseada = new Date(fechaClaseRef);
-            if (!isNaN(parseada.getTime())) {
-                fClase = parseada;
-            } else {
-                const match = fechaClaseRef.match(/(\d{1,2})\/(\d{1,2})/);
-                if (match) {
-                    const dia = parseInt(match[1], 10);
-                    const mes = parseInt(match[2], 10) - 1;
-                    const ahora = new Date(fechaOfrecimiento);
-                    const dParsed = new Date(ahora.getFullYear(), mes, dia, 12, 0, 0);
-                    if (!isNaN(dParsed.getTime())) {
-                        fClase = dParsed;
-                    }
-                }
+export function calcularFechaLimitePago(fechaClaseRef = null, fechaOfrecimiento = new Date()) {
+    const fOfrec = fechaOfrecimiento instanceof Date ? fechaOfrecimiento : new Date(fechaOfrecimiento);
+    const fClase = parsearFechaClase(fechaClaseRef, fOfrec);
+
+    let fLimiteFinal = null;
+
+    if (!fClase) {
+        // Fallback si no hay fecha de clase de referencia: 2 días hábiles desde hoy a las 17hs
+        let fFallback = new Date(fOfrec);
+        let habilesSumados = 0;
+        while (habilesSumados < 2) {
+            fFallback.setDate(fFallback.getDate() + 1);
+            const day = fFallback.getDay();
+            if (day !== 0 && day !== 6) {
+                habilesSumados++;
             }
         }
-    }
+        fFallback.setHours(17, 0, 0, 0);
+        fLimiteFinal = fFallback;
+    } else {
+        // 1. Calcular 48hs hábiles hacia atrás respecto a la fecha de la clase (2 días hábiles antes a las 17hs)
+        let f48 = new Date(fClase);
+        let habilesRestados = 0;
+        while (habilesRestados < 2) {
+            f48.setDate(f48.getDate() - 1);
+            const day = f48.getDay();
+            if (day !== 0 && day !== 6) {
+                habilesRestados++;
+            }
+        }
+        f48.setHours(17, 0, 0, 0);
 
-    let fLimiteFinal = fMax;
+        // 2. Calcular piso mínimo de 1 día hábil antes a las 17hs (para propuestas inminentes)
+        let f1Dia = new Date(fClase);
+        let hRestado1 = 0;
+        while (hRestado1 < 1) {
+            f1Dia.setDate(f1Dia.getDate() - 1);
+            const day = f1Dia.getDay();
+            if (day !== 0 && day !== 6) {
+                hRestado1++;
+            }
+        }
+        f1Dia.setHours(17, 0, 0, 0);
 
-    if (fClase) {
-        let fPrevClase = new Date(fClase);
-        do {
-            fPrevClase.setDate(fPrevClase.getDate() - 1);
-        } while (fPrevClase.getDay() === 0 || fPrevClase.getDay() === 6);
-        fPrevClase.setHours(17, 0, 0, 0);
+        const fHoyInicio = new Date(fOfrec);
+        fHoyInicio.setHours(0, 0, 0, 0);
 
-        if (fPrevClase < fMax) {
-            fLimiteFinal = fPrevClase;
+        // Si 48hs hábiles antes da una fecha anterior a hoy (por ej: clase mañana), fijar en 1 día hábil antes
+        if (f48.getTime() < fHoyInicio.getTime()) {
+            fLimiteFinal = f1Dia;
+        } else {
+            fLimiteFinal = f48;
         }
     }
 

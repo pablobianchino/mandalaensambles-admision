@@ -19,6 +19,7 @@ import {
     formatoLocalISO,
     formatearFechaAmi,
     reemplazarVariables,
+    calcularFechaLimitePago,
     sincronizarEventoPrealtaCalendar, 
     sincronizarEventoAltaConfirmadaCalendar, 
     eliminarEventoAltaSeguro,
@@ -2737,7 +2738,7 @@ export async function abrirModalAvisoPrealtaAlumno(id, cfg = defaultCfg) {
     chkComunidad.checked = false;
 
     const renderizarTextoPreview = (monto, mod, esComunidad) => {
-        let template = cfg.texto_prealta_alumno || "Hola {nombre}! Cómo estás? 👋\n\nTe cuento que ya tenemos todo listo para que te sumes a Mandala Ensambles! 🤟\n\n🧩 Suscripción: {suscripcion}\n\n👥 Grupo: {grupo}\n\n🧩 Día y horario de cursada: {horario_cursada}\n\n🧩 Fecha de inicio de clases: {fecha_inicio_clases}\n\n🧩 Profe: {profe}\n\n🧩 Arancel: {valor_arancel}\n\n🧩 Alias a transferir: {alias_profe}";
+        let template = cfg.texto_prealta_alumno || "Hola {nombre}! Cómo estás? 👋\n\nTe cuento que ya tenemos todo listo para que te sumes a Mandala Ensambles! 🤟\n\n*⚠️ IMPORTANTE:* Tenés tiempo de abonar hasta el *{fecha_hora_limite}*. Pasado ese plazo, la primer clase se reprogramaría para la próxima semana.\n\n🧩 Suscripción: {suscripcion}\n\n👥 Grupo: {grupo}\n\n🧩 Día y horario de cursada: {horario_cursada}\n\n🧩 Fecha de inicio de clases: {fecha_inicio_clases}\n\n🧩 Profe: {profe}\n\n🧩 Arancel: {valor_arancel}\n\n🧩 Alias a transferir: {alias_profe}";
 
         const tieneInstrumentoEnTemplate = /\{instrumento\}/i.test(template);
         const emojiInst = getEmojiInstrumento(instNom, cfg);
@@ -2752,6 +2753,8 @@ export async function abrirModalAvisoPrealtaAlumno(id, cfg = defaultCfg) {
         } else {
             suscripcionParaMsg = tieneInstrumentoEnTemplate ? 'Ensamble Mandalorian' : `Ensamble Mandalorian (${instNom || 'Instrumento'})`;
         }
+
+        const fechaHoraLimite = calcularFechaLimitePago(al.fecha_inicio_clases || fechaInicioEfectiva, new Date());
 
         const variables = {
             nombre: nombreAlumno,
@@ -2770,7 +2773,12 @@ export async function abrirModalAvisoPrealtaAlumno(id, cfg = defaultCfg) {
             arancel: monto,
             valor: monto,
             alias_profe: aliasProfe || '',
-            alias: aliasProfe || ''
+            alias: aliasProfe || '',
+            fecha_hora_limite: fechaHoraLimite,
+            fecha_limite: fechaHoraLimite,
+            'fecha hora limite': fechaHoraLimite,
+            'fecha_hora_límite': fechaHoraLimite,
+            'fecha_límite': fechaHoraLimite
         };
 
         let resText = template;

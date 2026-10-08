@@ -286,6 +286,7 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
                     </label>
                     <label style="margin-bottom:14px; display:block; font-size:12px; font-weight:600; color:var(--text-muted);">Texto de aviso de pre-alta para Alumno:
                         <textarea id="cfg-txt-prealta-alumno" class="modern-input" style="height:170px; font-family:monospace; font-size:12px;">${currentCfg.texto_prealta_alumno || ''}</textarea>
+                        <span style="font-size:11px; font-weight:400; color:var(--text-muted); display:block; margin-top:4px;">Variables: <code>{nombre}</code>, <code>{suscripcion}</code>, <code>{grupo}</code>, <code>{horario_cursada}</code>, <code>{fecha_inicio_clases}</code>, <code>{fecha_hora_limite}</code>, <code>{profe}</code>, <code>{valor_arancel}</code>, <code>{alias_profe}</code></span>
                     </label>
                     <label style="margin-bottom:14px; display:block; font-size:12px; font-weight:600; color:var(--text-muted);">Texto de aviso de alta confirmada y bienvenida para Alumno:
                         <textarea id="cfg-txt-alta-alumno" class="modern-input" style="height:150px; font-family:monospace; font-size:12px;">${currentCfg.texto_alta_alumno || defaultCfg.texto_alta_alumno || ''}</textarea>
