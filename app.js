@@ -4477,11 +4477,11 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
         let labelFecha = 'Fecha:';
         const stAg = (al.estado_agenda || '').toLowerCase();
         if (stAg.includes('espera') || (typeof estadoActualVista !== 'undefined' && estadoActualVista === 'Lista de Espera')) {
-            labelFecha = 'INICIO DE CLASES:';
+            labelFecha = 'ENTREVISTA:';
         } else if (stAg.includes('alta') || (typeof estadoActualVista !== 'undefined' && estadoActualVista.startsWith('Altas'))) {
             labelFecha = 'INICIO DE CLASES:';
         } else if (stAg.includes('pendiente') || stAg.includes('agenda confirmada') || (typeof estadoActualVista !== 'undefined' && estadoActualVista.startsWith('Inbox'))) {
-            labelFecha = 'Entrevista:';
+            labelFecha = 'ENTREVISTA:';
         }
 
         fechaMetaHtml = `
