@@ -359,6 +359,142 @@ body {
     transform: scale(1.2);
 }
 
+/* =======================================================================
+   BOTÓN CIRCULAR DE CONTACTO (SEGUIMIENTOS)
+   ======================================================================= */
+.col-contacto-circulo {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    text-align: center;
+    width: 72px;
+    min-width: 72px;
+    max-width: 72px;
+    gap: 2px;
+    user-select: none;
+    flex-shrink: 0;
+}
+
+.circle-contact-btn-wrap {
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+.col-status-wrapper:has(.col-contacto-circulo),
+.row-content-wrapper > .col-status-wrapper:has(.col-contacto-circulo) {
+    flex: 0 0 auto !important;
+    width: 72px !important;
+    min-width: 72px !important;
+    max-width: 72px !important;
+    margin-left: auto !important;
+}
+
+.circle-contact-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    box-sizing: border-box;
+    line-height: 1;
+}
+
+/* Estado Sin contactar: amarillo claro para advertir */
+.circle-contact-btn.uncontacted {
+    width: 22px;
+    height: 22px;
+    background-color: #fef3c7;
+    border: 1.5px solid #fde68a;
+    color: #92400e;
+    font-size: 11.5px;
+    box-shadow: 0 1px 2px rgba(217, 119, 6, 0.12);
+}
+
+.circle-contact-btn.uncontacted:hover {
+    background-color: #fde68a;
+    border-color: #fcd34d;
+    transform: scale(1.1);
+}
+
+/* Estado Contactado: más pequeño, verde, alineado con Prox. Contacto */
+.circle-contact-btn.contacted {
+    width: 16px;
+    height: 16px;
+    background-color: #10b981;
+    border: 1px solid #059669;
+    color: #ffffff;
+    font-size: 9.5px;
+    font-weight: 800;
+    box-shadow: 0 1px 3px rgba(16, 185, 129, 0.25);
+}
+
+.circle-contact-btn.contacted:hover {
+    background-color: #059669;
+    transform: scale(1.15);
+}
+
+.circle-date-sub {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #047857;
+    cursor: pointer;
+    line-height: 1.2;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    text-align: center;
+    display: block;
+    width: 100%;
+}
+
+.circle-date-sub:hover {
+    text-decoration: underline;
+    color: #065f46;
+}
+
+.circle-date-empty {
+    height: 14px;
+    width: 100%;
+}
+
+/* Compatibilidad chip contactado */
+.btn-chip-contactado {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2.5px 10px;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    color: #64748b;
+    font-family: inherit;
+    user-select: none;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    outline: none;
+}
+.btn-chip-contactado:hover {
+    filter: brightness(0.97);
+    transform: translateY(-0.5px);
+}
+.btn-chip-contactado.active {
+    border-color: #6ee7b7 !important;
+    background: #ecfdf5 !important;
+    color: #047857 !important;
+}
+.btn-chip-contactado.active:hover {
+    background: #d1fae5 !important;
+    border-color: #34d399 !important;
+}
+
 .group-header { font-size: 15px; font-weight: 800; color: var(--text-main); margin: 24px 0 10px 0; display: flex; align-items: center; gap: 8px; letter-spacing: -0.01em; }
 .group-count { background: #e9e5de; color: var(--text-muted); font-size: 11px; padding: 2px 6px; border-radius: 10px; font-family: 'Geist Mono', monospace; font-weight:500; }
 
@@ -537,6 +673,19 @@ body {
         justify-content: flex-end;
         align-items: center;
         margin-left: auto;
+    }
+    .row-content-wrapper:has(.col-contacto-circulo) .row-meta {
+        flex: 0 0 auto !important;
+        width: auto !important;
+        min-width: unset !important;
+        max-width: unset !important;
+        margin-left: 0 !important;
+    }
+    .row-content-wrapper:has(.col-contacto-circulo) .row-actions-group,
+    .row-actions-group:not(:has(.row-quick-btn)) {
+        min-width: auto !important;
+        width: auto !important;
+        margin-left: 0 !important;
     }
 }
 

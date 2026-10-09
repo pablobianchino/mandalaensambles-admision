@@ -2,7 +2,7 @@
 // src/config/constants.js — Constantes globales del sistema
 // =======================================================================
 
-export const APP_VERSION = "v7.0.5";
+export const APP_VERSION = "v7.1.0";
 
 export const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx033Es_BuZJk5x0MmyV-u8foA58ENNl1K3Cv-BE6ZeguXCG62UIQl5H4v94EB7MT0/exec";
 export const SCRIPT_API_KEY = "mandala-seg-2026";
@@ -316,6 +316,31 @@ export function normalizarAlumnoSeguimiento(al) {
     }
 
     return al;
+}
+
+export function calcularDiasHabilesTranscurridos(fechaIso) {
+    if (!fechaIso) return 0;
+    const fInicio = new Date(fechaIso);
+    if (isNaN(fInicio.getTime())) return 0;
+    
+    const hoy = new Date();
+    const fActual = new Date(fInicio);
+    fActual.setHours(0, 0, 0, 0);
+    
+    const fHoy = new Date(hoy);
+    fHoy.setHours(0, 0, 0, 0);
+    
+    if (fActual.getTime() >= fHoy.getTime()) return 0;
+    
+    let diasHabiles = 0;
+    while (fActual.getTime() < fHoy.getTime()) {
+        fActual.setDate(fActual.getDate() + 1);
+        const diaSem = fActual.getDay();
+        if (diaSem !== 0 && diaSem !== 6) {
+            diasHabiles++;
+        }
+    }
+    return diasHabiles;
 }
 
 

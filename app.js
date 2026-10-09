@@ -4214,7 +4214,9 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
         }
     }
     if (esSeg) {
-        const cantCtto = Array.isArray(al.seguimiento?.historial) ? al.seguimiento.historial.length : 0;
+        const cantCtto = Array.isArray(al.seguimiento?.historial) 
+            ? al.seguimiento.historial.filter(c => c && c.tipo !== 'contacto_whatsapp' && c.tipo !== 'contacto_desmarcado').length 
+            : 0;
         if (cantCtto > 0) {
             tagFeedbacks = `<span class="badge-tag" style="background:#f1f5f9; color:#475569; font-size:10px; padding:1px 6px; border-radius:6px;" title="${cantCtto} feedback(s) registrado(s)">${cantCtto} fb</span>`;
         }
@@ -4444,7 +4446,8 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
             }
         }
         fechaMetaHtml = `
-            <div style="font-size:11px; color:var(--text-muted); font-weight:600; display:flex; align-items:center; gap:4px; flex-wrap:wrap;"><span>📅 ${fSegTxt || '-'}</span></div>
+            <div style="font-size:10px; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:1px;">PROX. CONTACTO</div>
+            <div style="font-size:11.5px; color:var(--text-muted); font-weight:600; display:flex; align-items:center; gap:4px; flex-wrap:wrap;"><span>📅 ${fSegTxt || '-'}</span></div>
         `;
     } else if (al.opciones_propuestas && al.opciones_propuestas.length > 1) {
         const opcHtml = renderizarItemsConMax2(al.opciones_propuestas, (o) => `<span style="display:inline-block; margin-right:4px;"><strong>${o.letra || '-'}:</strong> ${o.fechaTexto}</span>`, 'Opciones propuestas', id);
@@ -4610,7 +4613,29 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                                     </div>
                                 `;
                             }
-                            if (esSeg || vista === 'Dashboard' || (typeof estadoActualVista !== 'undefined' && estadoActualVista === 'Dashboard')) {
+                            if (esSeg) {
+                                const esSegEnCurso = Boolean(al.seguimiento?.activo === true && !al.seguimiento?.fecha_finalizacion);
+                                if (!esSegEnCurso) return '';
+                                const estaCtto = Boolean(al.seguimiento?.contactado);
+                                const fCttoVisual = al.seguimiento?.fecha_contacto ? (() => {
+                                    const parts = String(al.seguimiento.fecha_contacto).split('T')[0].split('-');
+                                    return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : al.seguimiento.fecha_contacto;
+                                })() : '';
+
+                                return `
+                                    <div class="col-contacto-circulo" onclick="event.stopPropagation();">
+                                        <div class="circle-contact-btn-wrap">
+                                            <div class="circle-contact-btn ${estaCtto ? 'contacted' : 'uncontacted'}" data-id="${id}" id="pill-seg-${id}" onclick="window.handleSwitchContactadoClick('${id}', '${(al.nombre || 'Alumno').replace(/'/g, "\\'")}', event)" title="${estaCtto ? 'Contactado (clic para desmarcar)' : 'Marcar como contactado por WhatsApp'}">
+                                                ${estaCtto ? '✓' : '💬'}
+                                            </div>
+                                        </div>
+                                        <div id="holder-fecha-seg-${id}" data-id="${id}">
+                                            ${estaCtto && fCttoVisual ? `<span class="circle-date-sub" onclick="window.abrirModalEditarFechaContacto('${id}', '${(al.nombre || 'Alumno').replace(/'/g, "\\'")}', '${al.seguimiento?.fecha_contacto || ''}', event)" title="Clic para corregir fecha">${fCttoVisual}</span>` : '<div class="circle-date-empty"></div>'}
+                                        </div>
+                                    </div>
+                                `;
+                            }
+                            if (vista === 'Dashboard' || (typeof estadoActualVista !== 'undefined' && estadoActualVista === 'Dashboard')) {
                                 return '';
                             }
                             if (al.estado_agenda === 'Lista de espera') {
@@ -6543,20 +6568,22 @@ window.toggleFiltrosDashboardPopover = function(e) {
 function renderTiemposGrupo(items, vista, tabActual) {
     const venc = items.filter(p => p.info?.nivelUrgencia === 'vencido');
     const urg = items.filter(p => p.info?.nivelUrgencia === 'urgente-24');
+    const reintento = items.filter(p => p.info?.nivelUrgencia === 'reintento-24');
     const prox = items.filter(p => p.info?.nivelUrgencia === 'urgente-48');
-    const term = items.filter(p => p.info?.nivelUrgencia === 'programado' || (!['vencido','urgente-24','urgente-48'].includes(p.info?.nivelUrgencia)));
+    const esperando = items.filter(p => p.info?.nivelUrgencia === 'esperando-respuesta');
+    const term = items.filter(p => p.info?.nivelUrgencia === 'programado' || (!['vencido','urgente-24','reintento-24','urgente-48','esperando-respuesta'].includes(p.info?.nivelUrgencia)));
 
     if (tabActual === 'vencidos') {
         return venc.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
     }
     if (tabActual === 'urgentes') {
-        return urg.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
+        return [...urg, ...reintento].map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
     }
     if (tabActual === 'proximos') {
         return prox.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
     }
     if (tabActual === 'entermino') {
-        return term.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
+        return [...term, ...esperando].map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
     }
 
     // tabActual === 'todos'
@@ -6579,18 +6606,36 @@ function renderTiemposGrupo(items, vista, tabActual) {
         `;
         html += urg.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
     }
+    if (reintento.length > 0) {
+        html += `
+            <div style="display:flex; align-items:center; gap:8px; margin:${(venc.length > 0 || urg.length > 0) ? '10px' : '4px'} 0 6px 0; font-size:11.5px; font-weight:800; color:#9a3412; text-transform:uppercase; letter-spacing:0.04em;">
+                <span>🔁 Reintentar (+2d sin respuesta) (${reintento.length})</span>
+                <div style="flex:1; height:1px; background:#fed7aa;"></div>
+            </div>
+        `;
+        html += reintento.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
+    }
     if (prox.length > 0) {
         html += `
-            <div style="display:flex; align-items:center; gap:8px; margin:${(venc.length > 0 || urg.length > 0) ? '10px' : '4px'} 0 6px 0; font-size:11.5px; font-weight:800; color:#854d0e; text-transform:uppercase; letter-spacing:0.04em;">
+            <div style="display:flex; align-items:center; gap:8px; margin:${(venc.length > 0 || urg.length > 0 || reintento.length > 0) ? '10px' : '4px'} 0 6px 0; font-size:11.5px; font-weight:800; color:#854d0e; text-transform:uppercase; letter-spacing:0.04em;">
                 <span>🟡 Vence hoy (${prox.length})</span>
                 <div style="flex:1; height:1px; background:#fef08a;"></div>
             </div>
         `;
         html += prox.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
     }
+    if (esperando.length > 0) {
+        html += `
+            <div style="display:flex; align-items:center; gap:8px; margin:${(venc.length > 0 || urg.length > 0 || reintento.length > 0 || prox.length > 0) ? '10px' : '4px'} 0 6px 0; font-size:11.5px; font-weight:800; color:#0f766e; text-transform:uppercase; letter-spacing:0.04em;">
+                <span>⏳ Esperando respuesta (${esperando.length})</span>
+                <div style="flex:1; height:1px; background:#99f6e4;"></div>
+            </div>
+        `;
+        html += esperando.map(p => generarFilaAlumno(p.al, p.al.id, vista)).join('');
+    }
     if (term.length > 0) {
         html += `
-            <div style="display:flex; align-items:center; gap:8px; margin:${(venc.length > 0 || urg.length > 0 || prox.length > 0) ? '10px' : '4px'} 0 6px 0; font-size:11.5px; font-weight:800; color:#15803d; text-transform:uppercase; letter-spacing:0.04em;">
+            <div style="display:flex; align-items:center; gap:8px; margin:${(venc.length > 0 || urg.length > 0 || reintento.length > 0 || prox.length > 0 || esperando.length > 0) ? '10px' : '4px'} 0 6px 0; font-size:11.5px; font-weight:800; color:#15803d; text-transform:uppercase; letter-spacing:0.04em;">
                 <span>🟢 En término (${term.length})</span>
                 <div style="flex:1; height:1px; background:#bbf7d0;"></div>
             </div>
@@ -6769,9 +6814,9 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
 
     const totalGeneral = todosItemsCombinados.length;
     const totalVencidos = todosItemsCombinados.filter(p => p.info?.nivelUrgencia === 'vencido').length;
-    const totalUrgentes = todosItemsCombinados.filter(p => p.info?.nivelUrgencia === 'urgente-24').length;
+    const totalUrgentes = todosItemsCombinados.filter(p => p.info?.nivelUrgencia === 'urgente-24' || p.info?.nivelUrgencia === 'reintento-24').length;
     const totalProximos = todosItemsCombinados.filter(p => p.info?.nivelUrgencia === 'urgente-48').length;
-    const totalEnTermino = todosItemsCombinados.filter(p => p.info?.nivelUrgencia === 'programado' || (!['vencido','urgente-24','urgente-48'].includes(p.info?.nivelUrgencia))).length;
+    const totalEnTermino = todosItemsCombinados.filter(p => p.info?.nivelUrgencia === 'programado' || p.info?.nivelUrgencia === 'esperando-respuesta' || (!['vencido','urgente-24','reintento-24','urgente-48','esperando-respuesta'].includes(p.info?.nivelUrgencia))).length;
 
     // Actualizar contadores superiores
     const elCntTodos = document.getElementById('cnt-prio-todos');
@@ -15922,6 +15967,46 @@ function poblarTabSeguimientoFicha(al, id) {
         }
     }
 
+    const contCtto = document.getElementById('container-ficha-seg-contactado');
+    const pillFicha = document.getElementById('pill-ficha-seg');
+    const holderFechaFicha = document.getElementById('holder-fecha-ficha-seg');
+    const estaContactado = Boolean(seg.contactado);
+    const fCttoVisual = seg.fecha_contacto ? (() => {
+        const parts = String(seg.fecha_contacto).split('-');
+        return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : seg.fecha_contacto;
+    })() : '';
+
+    if (contCtto) {
+        contCtto.style.display = esActivo ? 'flex' : 'none';
+    }
+    if (pillFicha) {
+        if (estaContactado) {
+            pillFicha.className = 'circle-contact-btn contacted';
+            pillFicha.textContent = '✓';
+            pillFicha.title = 'Contactado (clic para desmarcar)';
+        } else {
+            pillFicha.className = 'circle-contact-btn uncontacted';
+            pillFicha.textContent = '💬';
+            pillFicha.title = 'Marcar como contactado por WhatsApp';
+        }
+    }
+    if (holderFechaFicha) {
+        if (estaContactado && fCttoVisual) {
+            holderFechaFicha.innerHTML = `<span class="circle-date-sub" onclick="window.abrirModalEditarFechaContacto('${id}', '${(al?.nombre || 'Alumno').replace(/'/g, "\\'")}', '${seg.fecha_contacto || ''}', event)" title="Clic para corregir fecha">${fCttoVisual}</span>`;
+        } else {
+            holderFechaFicha.innerHTML = `<div class="circle-date-empty"></div>`;
+        }
+    }
+
+    const btnTabNuevoFb = document.getElementById('btn-seg-tab-nuevo-feedback');
+    const btnTabFinSeg = document.getElementById('btn-seg-tab-finalizar-seg');
+    if (btnTabNuevoFb) {
+        btnTabNuevoFb.style.display = 'inline-flex';
+    }
+    if (btnTabFinSeg) {
+        btnTabFinSeg.style.display = esActivo ? 'inline-flex' : 'none';
+    }
+
     if (btnNuevoCtto) {
         btnNuevoCtto.setAttribute('data-id', id);
         btnNuevoCtto.style.display = 'inline-block';
@@ -15933,7 +16018,7 @@ function poblarTabSeguimientoFicha(al, id) {
             elTimeline.innerHTML = `
                 <div style="text-align:center; padding:24px 12px; color:var(--text-muted); font-size:13px; background:#fff; border:1px dashed #cbd5e1; border-radius:8px;">
                     🎧 No hay feedbacks de seguimiento registrados aún.<br>
-                    <span style="font-size:11.5px; opacity:0.8;">Utilizá el botón "💬 Nuevo Feedback" para registrar una llamada o consulta.</span>
+                    <span style="font-size:11.5px; opacity:0.8;">Utilizá el botón "💬 Nuevo Feedback" arriba para registrar una llamada o consulta.</span>
                 </div>
             `;
         } else {
@@ -15948,10 +16033,12 @@ function poblarTabSeguimientoFicha(al, id) {
                 const fDate = parsearFechaCualquierOrigen(ctto.fecha) || new Date(ctto.fecha || Date.now());
                 const fTxt = fDate && !isNaN(fDate.getTime()) ? fDate.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : (ctto.fecha || '-');
                 const esFin = ctto.tipo === 'finalizacion' || ctto.continua_seguimiento === false;
-                const icono = esFin ? '🏁' : '💬';
-                const tituloTipo = esFin ? 'Cierre de Seguimiento' : 'Feedback de Seguimiento';
-                const tagColor = esFin ? '#e11d48' : '#0d9488';
-                const tagBg = esFin ? '#ffe4e6' : '#ccfbf1';
+                const esCttoWs = ctto.tipo === 'contacto_whatsapp';
+                const esDesmarcado = ctto.tipo === 'contacto_desmarcado';
+                const icono = esFin ? '🏁' : (esCttoWs ? '💬' : (esDesmarcado ? '↩️' : '🎧'));
+                const tituloTipo = esFin ? 'Cierre de Seguimiento' : (esCttoWs ? 'Mensaje WhatsApp Enviado' : (esDesmarcado ? 'Contacto Desmarcado' : 'Feedback de Seguimiento'));
+                const tagColor = esFin ? '#e11d48' : (esCttoWs ? '#059669' : (esDesmarcado ? '#64748b' : '#0d9488'));
+                const tagBg = esFin ? '#ffe4e6' : (esCttoWs ? '#d1fae5' : (esDesmarcado ? '#f1f5f9' : '#ccfbf1'));
                 
                 let proximaHtml = '';
                 if (!esFin && ctto.proxima_fecha_pautada) {
@@ -15960,7 +16047,7 @@ function poblarTabSeguimientoFicha(al, id) {
                     proximaHtml = `<div style="font-size:11.5px; margin-top:5px; color:#0f766e; font-weight:600;">📅 Próximo seguimiento pautado: ${pTxt}</div>`;
                 }
 
-                const tienePermiso = puedeEditarContactoSeguimiento(al, ctto);
+                const tienePermiso = puedeEditarContactoSeguimiento(al, ctto) && !esCttoWs && !esDesmarcado;
                 const cttoId = ctto.id || ctto.fecha;
                 const btnsAccion = tienePermiso ? `
                     <div style="display:inline-flex; align-items:center; gap:4px; margin-left:auto;">
@@ -16263,10 +16350,14 @@ window.guardarContactoSeguimiento = async function() {
             updatePayload['seguimiento.activo'] = true;
             updatePayload['seguimiento.fecha_proximo_seguimiento'] = fechaProx;
             updatePayload['fecha_proximo_seguimiento'] = fechaProx;
+            updatePayload['seguimiento.contactado'] = false;
+            updatePayload['seguimiento.fecha_contacto'] = null;
         } else {
             updatePayload['seguimiento.activo'] = false;
             updatePayload['seguimiento.fecha_finalizacion'] = fechaContactoIso;
             updatePayload['seguimiento.motivo_finalizacion'] = conversado;
+            updatePayload['seguimiento.contactado'] = false;
+            updatePayload['seguimiento.fecha_contacto'] = null;
         }
 
         const hist = Array.isArray(al.historial) ? [...al.historial] : [];
@@ -16303,6 +16394,241 @@ window.guardarContactoSeguimiento = async function() {
         alert("Error al guardar el contacto: " + err.message);
     } finally {
         if (btn) setBotonCargando(btn, false);
+    }
+};
+
+let _alumnoSegContactadoEditId = null;
+let _alumnoSegContactadoPrevState = false;
+
+function _getHoyDateStrSeg() {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
+
+function _formatearFechaSegVisual(isoStr) {
+    if (!isoStr) return '';
+    const parts = String(isoStr).split('-');
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    return isoStr;
+}
+
+function animarSwitchSegVisual(id, activar) {
+    if (!id) return;
+    const safeId = String(id).replace(/"/g, '\\"');
+    const pills = document.querySelectorAll(`.circle-contact-btn[data-id="${safeId}"], .toggle-pill[data-id="${safeId}"], [id="pill-seg-${safeId}"]`);
+    const pillFicha = (window._fichaAlumnoActualId === id) ? document.getElementById('pill-ficha-seg') : null;
+
+    const allPills = Array.from(pills);
+    if (pillFicha && !allPills.includes(pillFicha)) allPills.push(pillFicha);
+
+    allPills.forEach(p => {
+        if (!p) return;
+        if (activar) {
+            p.classList.remove('uncontacted');
+            p.classList.add('contacted');
+            p.textContent = '✓';
+            p.title = 'Contactado (clic para desmarcar)';
+            const lbl = p.querySelector('.toggle-label');
+            if (lbl) lbl.textContent = 'Contactado';
+        } else {
+            p.classList.remove('contacted');
+            p.classList.add('uncontacted');
+            p.textContent = '💬';
+            p.title = 'Marcar como contactado por WhatsApp';
+            const lbl = p.querySelector('.toggle-label');
+            if (lbl) lbl.textContent = 'Sin contactar';
+        }
+    });
+}
+
+window.handleSwitchContactadoClick = function(id, nombre, event) {
+    if (event) {
+        event.stopPropagation();
+    }
+    if (!id) return;
+
+    // Animar inmediatamente el botón circular clickeado si existe en el event target
+    if (event && event.currentTarget) {
+        const clickedBtn = event.currentTarget.classList.contains('circle-contact-btn')
+            ? event.currentTarget
+            : event.currentTarget.querySelector('.circle-contact-btn');
+        if (clickedBtn) {
+            const isCurrentlyCtto = clickedBtn.classList.contains('contacted');
+            if (!isCurrentlyCtto) {
+                clickedBtn.classList.remove('uncontacted');
+                clickedBtn.classList.add('contacted');
+                clickedBtn.textContent = '✓';
+                clickedBtn.title = 'Contactado (clic para desmarcar)';
+            } else {
+                clickedBtn.classList.remove('contacted');
+                clickedBtn.classList.add('uncontacted');
+                clickedBtn.textContent = '💬';
+                clickedBtn.title = 'Marcar como contactado por WhatsApp';
+            }
+        }
+    }
+
+    const alMem = (Array.isArray(cachedAlumnosData) ? cachedAlumnosData : (allData || [])).find(a => a.id === id);
+    const nomAl = nombre || alMem?.nombre || 'Alumno';
+    const estaContactado = Boolean(alMem?.seguimiento?.contactado);
+
+    if (!estaContactado) {
+        // 1. Activar visualmente todos los botones de contacto asociados
+        animarSwitchSegVisual(id, true);
+
+        // 2. Preparar modal y abrir
+        _alumnoSegContactadoEditId = id;
+        _alumnoSegContactadoPrevState = false;
+        const modal = document.getElementById('modal-fecha-contacto-seg');
+        const tit = document.getElementById('modal-fecha-contacto-seg-titulo');
+        const nomEl = document.getElementById('modal-fecha-contacto-seg-alumno-nom');
+        const inp = document.getElementById('input-fecha-contacto-seg-val');
+
+        if (tit) tit.textContent = 'Registrar Fecha de Contacto';
+        if (nomEl) nomEl.textContent = nomAl;
+        if (inp) inp.value = _getHoyDateStrSeg();
+
+        if (modal) {
+            setTimeout(() => {
+                if (!modal.open) {
+                    try { modal.showModal(); } catch(e) { modal.setAttribute('open', ''); }
+                }
+            }, 120);
+        }
+    } else {
+        // Revertir a uncontacted -> Desmarcar de inmediato y blanquear fecha
+        animarSwitchSegVisual(id, false);
+        window.toggleSeguimientoContactado(id, false, null);
+    }
+};
+
+window.abrirModalEditarFechaContacto = function(id, nombre, fechaActual, event) {
+    if (event) event.stopPropagation();
+    if (!id) return;
+
+    const alMem = (Array.isArray(cachedAlumnosData) ? cachedAlumnosData : (allData || [])).find(a => a.id === id);
+    const nomAl = nombre || alMem?.nombre || 'Alumno';
+
+    _alumnoSegContactadoEditId = id;
+    _alumnoSegContactadoPrevState = true;
+    const modal = document.getElementById('modal-fecha-contacto-seg');
+    const tit = document.getElementById('modal-fecha-contacto-seg-titulo');
+    const nomEl = document.getElementById('modal-fecha-contacto-seg-alumno-nom');
+    const inp = document.getElementById('input-fecha-contacto-seg-val');
+
+    if (tit) tit.textContent = 'Editar Fecha de Contacto';
+    if (nomEl) nomEl.textContent = nomAl;
+    if (inp) inp.value = fechaActual || alMem?.seguimiento?.fecha_contacto || _getHoyDateStrSeg();
+
+    if (modal && !modal.open) {
+        try { modal.showModal(); } catch(e) { modal.setAttribute('open', ''); }
+    }
+};
+
+window.cancelarModalFechaContacto = function() {
+    const modal = document.getElementById('modal-fecha-contacto-seg');
+    if (modal) {
+        try { modal.close(); } catch(e) { modal.removeAttribute('open'); }
+    }
+
+    // Si antes de abrir NO estaba contactado, revertir el switch hacia la izquierda suavemente
+    if (_alumnoSegContactadoEditId && !_alumnoSegContactadoPrevState) {
+        animarSwitchSegVisual(_alumnoSegContactadoEditId, false);
+    }
+
+    _alumnoSegContactadoEditId = null;
+};
+
+window.confirmarGuardadoFechaContacto = async function() {
+    const inp = document.getElementById('input-fecha-contacto-seg-val');
+    const fechaVal = inp ? inp.value : '';
+    if (!fechaVal) {
+        alert("Por favor seleccioná una fecha válida.");
+        return;
+    }
+
+    const targetId = _alumnoSegContactadoEditId;
+    const modal = document.getElementById('modal-fecha-contacto-seg');
+    if (modal) {
+        try { modal.close(); } catch(e) { modal.removeAttribute('open'); }
+    }
+    _alumnoSegContactadoEditId = null;
+
+    if (targetId) {
+        await window.toggleSeguimientoContactado(targetId, true, fechaVal);
+    }
+};
+
+window.toggleSeguimientoContactado = async function(id, isChecked, fechaContactoElegida) {
+    if (!id) return;
+    try {
+        const u = window.usuarioActual || {};
+        const ahoraIso = new Date().toISOString();
+        const fechaCttoVal = isChecked ? (fechaContactoElegida || _getHoyDateStrSeg()) : null;
+        const fVisual = fechaCttoVal ? _formatearFechaSegVisual(fechaCttoVal) : '';
+
+        const alMem = (Array.isArray(cachedAlumnosData) ? cachedAlumnosData : (allData || [])).find(a => a.id === id);
+        const nomAl = alMem?.nombre || 'Alumno';
+
+        const updatePayload = {
+            'seguimiento.contactado': Boolean(isChecked),
+            'seguimiento.fecha_contacto': fechaCttoVal
+        };
+
+        // Registrar entrada en seguimiento.historial
+        const segHist = Array.isArray(alMem?.seguimiento?.historial) ? [...alMem.seguimiento.historial] : [];
+        if (isChecked) {
+            const hitoCttoWs = {
+                id: `ctto_ws_${Date.now()}`,
+                tipo: 'contacto_whatsapp',
+                fecha: fechaCttoVal || ahoraIso,
+                fecha_registro: ahoraIso,
+                evaluador_id: u.id || '',
+                evaluador_nombre: u.nombre || 'Evaluador',
+                titulo: 'Mensaje de WhatsApp Enviado',
+                conversado: `Se contactó al alumno por WhatsApp (Fecha de contacto: ${fVisual}). Queda en estado esperando respuesta.`,
+                continua_seguimiento: true
+            };
+            segHist.push(hitoCttoWs);
+        } else {
+            const hitoDesmarcado = {
+                id: `ctto_desmarcado_${Date.now()}`,
+                tipo: 'contacto_desmarcado',
+                fecha: ahoraIso,
+                fecha_registro: ahoraIso,
+                evaluador_id: u.id || '',
+                evaluador_nombre: u.nombre || 'Evaluador',
+                titulo: 'Contacto Desmarcado',
+                conversado: `Se desmarcó el estado de contacto. Vuelve a estado por contactar.`,
+                continua_seguimiento: true
+            };
+            segHist.push(hitoDesmarcado);
+        }
+        updatePayload['seguimiento.historial'] = segHist;
+
+        // Actualizar en memoria local primero para reactividad instantánea
+        actualizarAlumnoEnMemoriaLocal(id, updatePayload);
+
+        // Guardar en Firestore
+        await updateDoc(doc(db, "alumnos", id), updatePayload);
+
+        mostrarToast(isChecked ? `✅ ${nomAl}: marcado como Contactado (${fVisual})` : `ℹ️ ${nomAl}: desmarcado como Contactado`, isChecked ? 'success' : 'info');
+
+        // Sincronizar ficha si está abierta
+        if (window._fichaAlumnoActualId === id) {
+            window.poblarTabSeguimientoFicha(id);
+        }
+
+        // Recargar vista actual si estamos en Seguimientos o Dashboard
+        if (estadoActualVista && (estadoActualVista.startsWith('Seguimientos') || estadoActualVista === 'Dashboard' || estadoActualVista.startsWith('Altas -'))) {
+            await cargarVista(estadoActualVista, false);
+        }
+    } catch (err) {
+        console.error("Error al togglear estado contactado de seguimiento:", err);
+        mostrarToast("❌ Error al actualizar estado de contacto", "error");
     }
 };
 
@@ -16381,6 +16707,10 @@ window.confirmarFinSeguimiento = async function() {
         const modalFicha = document.getElementById('modal-alta-alumno');
         if (modalFicha && modalFicha.open && document.getElementById('alumno-id')?.value === id) {
             await llenarFormularioAlumno(id, false);
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+            document.getElementById('btn-tab-seguimiento')?.classList.add('active');
+            if (document.getElementById('tab-seguimiento')) document.getElementById('tab-seguimiento').style.display = 'block';
         }
 
         await cargarVista(estadoActualVista, false);

@@ -3,7 +3,7 @@
 // =======================================================================
 
 import { getEmojiInstrumento } from "./altas.module.js";
-import { esAlumnoAltaFinalizada } from "../config/constants.js?v=6.10.0";
+import { esAlumnoAltaFinalizada, calcularDiasHabilesTranscurridos } from "../config/constants.js?v=6.10.0";
 import { db, doc, updateDoc } from "../config/firebase.js";
 
 export function getEstadoYBadge(al, getFechaReferenciaAlumno) {
@@ -79,53 +79,74 @@ export function getEstadoYBadge(al, getFechaReferenciaAlumno) {
         const esSegActivo = al.seguimiento && al.seguimiento.activo === true;
         
         if (esSegActivo && al.seguimiento.fecha_proximo_seguimiento) {
-            const parts = String(al.seguimiento.fecha_proximo_seguimiento).split('-');
-            if (parts.length === 3) {
-                const anio = parseInt(parts[0], 10);
-                const mes = parseInt(parts[1], 10) - 1;
-                const dia = parseInt(parts[2], 10);
-                const hoy = new Date();
-                const hoyInicio = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
-                const fechaPautada = new Date(anio, mes, dia).getTime();
-                const diffDias = Math.round((hoyInicio - fechaPautada) / (24 * 60 * 60 * 1000));
-                const pTxt = `${String(dia).padStart(2,'0')}/${String(mes+1).padStart(2,'0')}/${anio}`;
+            const estaContactado = Boolean(al.seguimiento.contactado);
 
-                if (diffDias >= 2) {
-                    nivelUrgencia = 'vencido';
-                    colorIndicador = 'ind-red';
-                    claseTexto = 'text-red font-bold';
-                    txtTiempo = `🔴 Vencido (+${diffDias}d)`;
-                    badgePillHtml = `<span class="pill-urgencia pill-rojo-critico" title="Vencido: ${diffDias} días de retraso (Pactado: ${pTxt})">🔴 Vencido</span>`;
-                    diffHorasReal = -48;
-                } else if (diffDias === 1) {
-                    nivelUrgencia = 'urgente-24';
-                    colorIndicador = 'ind-red';
-                    claseTexto = 'text-red font-bold';
-                    txtTiempo = `🟠 Retraso leve (+24h)`;
-                    badgePillHtml = `<span class="pill-urgencia pill-naranja-retraso" title="Retraso leve: 1 día (+24hs) (Pactado: ${pTxt})">🟠 Retraso leve</span>`;
+            if (estaContactado) {
+                const fCtto = al.seguimiento.fecha_contacto || al.seguimiento.fecha_mensaje_enviado || fechaCalculo;
+                const diasHabilesSinRespuesta = calcularDiasHabilesTranscurridos(fCtto);
+                if (diasHabilesSinRespuesta >= 2) {
+                    nivelUrgencia = 'reintento-24';
+                    colorIndicador = 'ind-orange';
+                    claseTexto = 'text-orange font-bold';
+                    txtTiempo = `🔁 Reintentar (+${diasHabilesSinRespuesta}d)`;
+                    badgePillHtml = `<span class="pill-urgencia" style="background:#ffedd5; color:#9a3412; border:1px solid #fed7aa;" title="Reintentar contacto: Pasaron ${diasHabilesSinRespuesta} días hábiles desde el mensaje sin respuesta del alumno">🔁 Reintentar (+${diasHabilesSinRespuesta}d sin respuesta)</span>`;
                     diffHorasReal = -24;
-                } else if (diffDias === 0) {
-                    nivelUrgencia = 'urgente-48';
-                    colorIndicador = 'ind-yellow';
-                    claseTexto = 'text-yellow font-bold';
-                    txtTiempo = `🟡 Vence hoy`;
-                    badgePillHtml = `<span class="pill-urgencia pill-amarillo-hoy" title="Vence hoy: Llegó la fecha para hacer feedback (${pTxt})">🟡 Vence hoy</span>`;
-                    diffHorasReal = 0;
-                } else if (diffDias === -1) {
-                    nivelUrgencia = 'programado';
-                    colorIndicador = 'ind-teal';
-                    claseTexto = 'text-teal';
-                    txtTiempo = `🟢 En término`;
-                    badgePillHtml = `<span class="pill-urgencia pill-verde-plazo" title="En término: Mañana es el día de feedback (${pTxt})">🟢 En término</span>`;
-                    diffHorasReal = 24;
                 } else {
-                    // Faltan más de 24hs para la fecha de feedback
-                    nivelUrgencia = 'futuro-lejano';
+                    nivelUrgencia = 'esperando-respuesta';
                     colorIndicador = 'ind-teal';
-                    claseTexto = 'text-teal';
-                    txtTiempo = `🟢 En término`;
-                    badgePillHtml = `<span class="pill-urgencia pill-verde-plazo" title="En término: Próximo contacto el ${pTxt}">🟢 En término</span>`;
-                    diffHorasReal = 48;
+                    claseTexto = 'text-teal font-bold';
+                    txtTiempo = `⏳ Esperando respuesta`;
+                    badgePillHtml = '';
+                    diffHorasReal = 24;
+                }
+            } else {
+                const parts = String(al.seguimiento.fecha_proximo_seguimiento).split('-');
+                if (parts.length === 3) {
+                    const anio = parseInt(parts[0], 10);
+                    const mes = parseInt(parts[1], 10) - 1;
+                    const dia = parseInt(parts[2], 10);
+                    const hoy = new Date();
+                    const hoyInicio = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
+                    const fechaPautada = new Date(anio, mes, dia).getTime();
+                    const diffDias = Math.round((hoyInicio - fechaPautada) / (24 * 60 * 60 * 1000));
+                    const pTxt = `${String(dia).padStart(2,'0')}/${String(mes+1).padStart(2,'0')}/${anio}`;
+
+                    if (diffDias >= 2) {
+                        nivelUrgencia = 'vencido';
+                        colorIndicador = 'ind-red';
+                        claseTexto = 'text-red font-bold';
+                        txtTiempo = `🔴 Vencido (+${diffDias}d)`;
+                        badgePillHtml = `<span class="pill-urgencia pill-rojo-critico" title="Vencido: ${diffDias} días de retraso (Pactado: ${pTxt})">🔴 Vencido</span>`;
+                        diffHorasReal = -48;
+                    } else if (diffDias === 1) {
+                        nivelUrgencia = 'urgente-24';
+                        colorIndicador = 'ind-red';
+                        claseTexto = 'text-red font-bold';
+                        txtTiempo = `🟠 Retraso leve (+24h)`;
+                        badgePillHtml = `<span class="pill-urgencia pill-naranja-retraso" title="Retraso leve: 1 día (+24hs) (Pactado: ${pTxt})">🟠 Retraso leve</span>`;
+                        diffHorasReal = -24;
+                    } else if (diffDias === 0) {
+                        nivelUrgencia = 'urgente-48';
+                        colorIndicador = 'ind-yellow';
+                        claseTexto = 'text-yellow font-bold';
+                        txtTiempo = `🟡 Vence hoy`;
+                        badgePillHtml = `<span class="pill-urgencia pill-amarillo-hoy" title="Vence hoy: Llegó la fecha para hacer feedback (${pTxt})">🟡 Vence hoy</span>`;
+                        diffHorasReal = 0;
+                    } else if (diffDias === -1) {
+                        nivelUrgencia = 'programado';
+                        colorIndicador = 'ind-teal';
+                        claseTexto = 'text-teal';
+                        txtTiempo = `🟢 En término`;
+                        badgePillHtml = `<span class="pill-urgencia pill-verde-plazo" title="En término: Mañana es el día de feedback (${pTxt})">🟢 En término</span>`;
+                        diffHorasReal = 24;
+                    } else {
+                        nivelUrgencia = 'futuro-lejano';
+                        colorIndicador = 'ind-teal';
+                        claseTexto = 'text-teal';
+                        txtTiempo = `🟢 En término`;
+                        badgePillHtml = `<span class="pill-urgencia pill-verde-plazo" title="En término: Próximo contacto el ${pTxt}">🟢 En término</span>`;
+                        diffHorasReal = 48;
+                    }
                 }
             }
         }
@@ -399,6 +420,13 @@ export function generarBotonesAccion(al, id, esModal = false, vista = '') {
             html += `<button type="button" class="${btnClass()} btn-nota-rapida" data-id="${id}">📝 Agregar Nota</button>`;
             html += `<button type="button" class="${btnClass()} btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;
         } else {
+            const segActivo = al.seguimiento?.activo === true || (!al.seguimiento?.fecha_finalizacion && Boolean(al.seguimiento?.fecha_proximo_seguimiento || al.fecha_proximo_seguimiento));
+            if (segActivo) {
+                html += `<button type="button" class="${btnClass(true)} btn-seg-contactar" data-id="${id}">💬 Nuevo Feedback</button>`;
+                html += `<button type="button" class="${btnClass()} btn-seg-finalizar" data-id="${id}">🏁 Finalizar Seguimiento</button>`;
+            } else {
+                html += `<button type="button" class="${btnClass(true)} btn-seg-reiniciar" data-id="${id}">🎧 Iniciar Seguimiento</button>`;
+            }
             html += `<button type="button" class="${btnClass()} btn-seg-ver-informe" data-id="${id}">👁️ Ver Informe</button>`;
             html += `<button type="button" class="${btnClass()} btn-seg-ver-seguimiento" data-id="${id}">👁️ Ver Seguimiento</button>`;
             html += `<button type="button" class="${btnClass()} btn-copiar-fila-excel-bd" data-id="${id}">📋 Copiar Registro BD</button>`;

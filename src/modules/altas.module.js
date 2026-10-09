@@ -2,7 +2,7 @@
 // src/modules/altas.module.js -- Modulo de Altas, Pre-altas, Calendar & Export
 // =======================================================================
 
-import { defaultCfg, esAlumnoAltaFinalizada, esAlumnoAltaConfirmadaIncompleta, normalizarAlumnoSeguimiento, calcularFechaSeguimiento72hs } from "../config/constants.js";
+import { defaultCfg, esAlumnoAltaFinalizada, esAlumnoAltaConfirmadaIncompleta, normalizarAlumnoSeguimiento, calcularFechaSeguimiento72hs, calcularDiasHabilesTranscurridos } from "../config/constants.js";
 import { 
     db, 
     collection, 
@@ -3244,6 +3244,14 @@ export function getSeguimientoBadgeStatus(al) {
     normalizarAlumnoSeguimiento(al);
     const seg = al.seguimiento || {};
     if (seg.activo === true) {
+        if (seg.contactado) {
+            const fCtto = seg.fecha_contacto || seg.fecha_proximo_seguimiento;
+            const diasSinResp = calcularDiasHabilesTranscurridos(fCtto);
+            if (diasSinResp >= 2) {
+                return `<span class="pill-urgencia" style="background:#ffedd5; color:#9a3412; border:1px solid #fed7aa; font-size:11px; padding:2px 8px; border-radius:12px; font-weight:700;" title="Reintentar contacto: Pasaron ${diasSinResp} días hábiles desde el mensaje sin respuesta del alumno">🔁 Reintentar (+${diasSinResp}d sin respuesta)</span>`;
+            }
+            return `<span class="group-member-status-chip status-val-ok" style="background:#ccfbf1; color:#0f766e; font-weight:700; font-size:11px; padding:2px 8px; border-radius:12px;">⏳ Esperando respuesta</span>`;
+        }
         const prox = seg.fecha_proximo_seguimiento;
         if (prox) {
             const parts = prox.split('-');
@@ -3287,7 +3295,7 @@ function construirAccionesFilaAlta(al, id, vista, isConfirmed, nombreGrupo, call
     const tieneSecundarios = Boolean(botonesSecundarios && botonesSecundarios.trim().length > 0);
 
     return `
-        <div class="row-actions-group" style="display:flex; align-items:center; gap:6px; flex-wrap:nowrap; margin-left:auto;">
+        <div class="row-actions-group" style="display:flex; align-items:center; gap:6px; flex-wrap:nowrap; margin-left:0; min-width:auto;">
             ${tieneSecundarios ? `
                 <div class="alumno-actions row-actions-container" style="position:relative;">
                     <button type="button" class="btn-row-action" title="Más opciones">⋮</button>
@@ -3361,31 +3369,38 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                 groupCounter++;
                 const groupId = `seg-grp-${groupCounter}-${Math.random().toString(36).substr(2, 6)}`;
 
-                alumnosSeg.sort((a, b) => {
-                    if (esPendientes) {
-                        const getFechaIni = (x) => {
+                const sortPorFecha = (a, b) => {
+                    const getFechaMs = (x) => {
+                        if (esPendientes) {
                             const f = x.fecha_inicio_clases || x.fecha_sugerida_inicio || '';
                             if (f) {
                                 const d = (typeof f?.toDate === 'function') ? f.toDate() : new Date(f);
                                 if (!isNaN(d.getTime())) return d.getTime();
                             }
                             return Infinity;
-                        };
-                        return getFechaIni(a) - getFechaIni(b);
-                    }
-                    const getFechaLim = (x) => {
+                        }
                         if (x.seguimiento?.fecha_proximo_seguimiento) {
-                            return new Date(x.seguimiento.fecha_proximo_seguimiento).getTime();
+                            const parts = String(x.seguimiento.fecha_proximo_seguimiento).split('-');
+                            if (parts.length === 3) {
+                                return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10)).getTime();
+                            }
+                            const d = new Date(x.seguimiento.fecha_proximo_seguimiento);
+                            if (!isNaN(d.getTime())) return d.getTime();
+                        }
+                        if (x.seguimiento?.ultimo_contacto) {
+                            const d = new Date(x.seguimiento.ultimo_contacto);
+                            if (!isNaN(d.getTime())) return d.getTime();
                         }
                         return Infinity;
                     };
-                    return getFechaLim(a) - getFechaLim(b);
-                });
+                    return getFechaMs(a) - getFechaMs(b);
+                };
 
-                const filasHtml = alumnosSeg.map(al => {
+                const renderFilaSeg = (al) => {
                     const instAsignado = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento[0] : (al.instrumento || 'Piano'));
                     const emojiInst = getEmojiInstrumento(instAsignado, callbacks.configApp || defaultCfg);
                     const fIniTxt = getFechaInicioVisual(al);
+                    const estaContactado = Boolean(al.seguimiento?.contactado);
 
                     // Urgencia / Estado del badge según la sub-vista de seguimiento
                     let badgeUrg = '';
@@ -3402,39 +3417,52 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                         badgeUrg = `<span class="badge-tag" style="background:#dbeafe; color:#1e40af; font-weight:700; font-size:10.5px; padding:2px 7px; border-radius:10px;">🔵 Finalizado${fFinTxt}</span>`;
                     } else {
                         // En Curso (o por defecto)
-                        const proxSegStr = al.seguimiento?.fecha_proximo_seguimiento;
-                        if (proxSegStr) {
-                            const parts = String(proxSegStr).split('-');
-                            if (parts.length === 3) {
-                                const anio = parseInt(parts[0], 10);
-                                const mes = parseInt(parts[1], 10) - 1;
-                                const dia = parseInt(parts[2], 10);
-                                const hoy = new Date();
-                                const hoyInicio = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
-                                const fechaPautada = new Date(anio, mes, dia).getTime();
-                                const diffDias = Math.round((hoyInicio - fechaPautada) / (24 * 60 * 60 * 1000));
-                                const pTxt = `${String(dia).padStart(2,'0')}/${String(mes+1).padStart(2,'0')}/${anio}`;
+                        if (estaContactado) {
+                            const fCtto = al.seguimiento?.fecha_contacto || al.seguimiento?.fecha_proximo_seguimiento;
+                            const diasSinResp = calcularDiasHabilesTranscurridos(fCtto);
+                            if (diasSinResp >= 2) {
+                                badgeUrg = `<span class="pill-urgencia" style="background:#ffedd5; color:#9a3412; border:1px solid #fed7aa;" title="Reintentar contacto: Pasaron ${diasSinResp} días hábiles desde el mensaje sin respuesta del alumno">🔁 Reintentar (+${diasSinResp}d sin respuesta)</span>`;
+                            } else {
+                                // Con la subdivisión 'Esperando Respuesta', no se requiere badge adicional
+                                badgeUrg = '';
+                            }
+                        } else {
+                            const proxSegStr = al.seguimiento?.fecha_proximo_seguimiento;
+                            if (proxSegStr) {
+                                const parts = String(proxSegStr).split('-');
+                                if (parts.length === 3) {
+                                    const anio = parseInt(parts[0], 10);
+                                    const mes = parseInt(parts[1], 10) - 1;
+                                    const dia = parseInt(parts[2], 10);
+                                    const hoy = new Date();
+                                    const hoyInicio = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
+                                    const fechaPautada = new Date(anio, mes, dia).getTime();
+                                    const diffDias = Math.round((hoyInicio - fechaPautada) / (24 * 60 * 60 * 1000));
+                                    const pTxt = `${String(dia).padStart(2,'0')}/${String(mes+1).padStart(2,'0')}/${anio}`;
 
-                                if (diffDias >= 2) {
-                                    badgeUrg = `<span class="pill-urgencia pill-rojo-critico" title="Vencido: ${diffDias} días de retraso (Pactado: ${pTxt})">🔴 Vencido</span>`;
-                                } else if (diffDias === 1) {
-                                    badgeUrg = `<span class="pill-urgencia pill-naranja-retraso" title="Retraso leve: 1 día (+24hs) (Pactado: ${pTxt})">🟠 Retraso leve</span>`;
-                                } else if (diffDias === 0) {
-                                    badgeUrg = `<span class="pill-urgencia pill-amarillo-hoy" title="Vence hoy: Llegó la fecha para hacer feedback (${pTxt})">🟡 Vence hoy</span>`;
-                                } else if (diffDias === -1) {
-                                    badgeUrg = `<span class="pill-urgencia pill-verde-plazo" title="En término: Mañana es el día de feedback (${pTxt})">🟢 En término</span>`;
+                                    if (diffDias >= 2) {
+                                        badgeUrg = `<span class="pill-urgencia pill-rojo-critico" title="Vencido: ${diffDias} días de retraso (Pactado: ${pTxt})">🔴 Vencido</span>`;
+                                    } else if (diffDias === 1) {
+                                        badgeUrg = `<span class="pill-urgencia pill-naranja-retraso" title="Retraso leve: 1 día (+24hs) (Pactado: ${pTxt})">🟠 Retraso leve</span>`;
+                                    } else if (diffDias === 0) {
+                                        badgeUrg = `<span class="pill-urgencia pill-amarillo-hoy" title="Vence hoy: Llegó la fecha para hacer feedback (${pTxt})">🟡 Vence hoy</span>`;
+                                    } else if (diffDias === -1) {
+                                        badgeUrg = `<span class="pill-urgencia pill-verde-plazo" title="En término: Mañana es el día de feedback (${pTxt})">🟢 En término</span>`;
+                                    } else {
+                                        badgeUrg = `<span class="pill-urgencia pill-verde-plazo" title="En término: Próximo contacto el ${pTxt}">🟢 En término</span>`;
+                                    }
                                 } else {
-                                    badgeUrg = `<span class="pill-urgencia pill-verde-plazo" title="En término: Próximo contacto el ${pTxt}">🟢 En término</span>`;
+                                    badgeUrg = `<span class="pill-urgencia pill-verde-plazo" title="Seguimiento en curso">🟢 En término</span>`;
                                 }
                             } else {
                                 badgeUrg = `<span class="pill-urgencia pill-verde-plazo" title="Seguimiento en curso">🟢 En término</span>`;
                             }
-                        } else {
-                            badgeUrg = `<span class="pill-urgencia pill-verde-plazo" title="Seguimiento en curso">🟢 En término</span>`;
                         }
                     }
 
-                    const cantCtto = Array.isArray(al.seguimiento?.historial) ? al.seguimiento.historial.length : 0;
+                    const cantCtto = Array.isArray(al.seguimiento?.historial) 
+                        ? al.seguimiento.historial.filter(c => c && c.tipo !== 'contacto_whatsapp' && c.tipo !== 'contacto_desmarcado').length 
+                        : 0;
                     const tagFeedbacks = cantCtto > 0 ? `<span class="badge-tag" style="background:#f1f5f9; color:#475569; font-size:10px; padding:1px 6px; border-radius:6px;" title="${cantCtto} feedback(s) registrado(s)">${cantCtto} fb</span>` : '';
                     const botonesRow = construirAccionesFilaAlta(al, al.id, vista, true, '', callbacks);
                     const habilitarBulkSeg = (vista === 'Seguimientos - Pendientes');
@@ -3442,11 +3470,76 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                         ? `<input type="checkbox" class="bulk-chk" data-id="${al.id}" onclick="event.stopPropagation(); window.toggleBulkSelection('${al.id}', this.checked)" style="margin-right:8px; cursor:pointer; width:16px; height:16px; accent-color:var(--accent-teal); flex-shrink:0;">`
                         : '';
 
+                    const esSegEnCursoFila = (vista === 'Seguimientos - En Curso' || (vista.startsWith('Seguimientos') && al.seguimiento?.activo === true && !al.seguimiento?.fecha_finalizacion));
+                    
+                    const fCttoVisual = al.seguimiento?.fecha_contacto ? (() => {
+                        const parts = String(al.seguimiento.fecha_contacto).split('-');
+                        return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : al.seguimiento.fecha_contacto;
+                    })() : '';
+
+                    const circuloContactoHtml = esSegEnCursoFila ? `
+                        <div class="col-contacto-circulo" onclick="event.stopPropagation();">
+                            <div class="circle-contact-btn-wrap">
+                                <div class="circle-contact-btn ${estaContactado ? 'contacted' : 'uncontacted'}" data-id="${al.id}" id="pill-seg-${al.id}" onclick="window.handleSwitchContactadoClick('${al.id}', '${(al.nombre || 'Alumno').replace(/'/g, "\\'")}', event)" title="${estaContactado ? 'Contactado (clic para desmarcar)' : 'Marcar como contactado por WhatsApp'}">
+                                    ${estaContactado ? '✓' : '💬'}
+                                </div>
+                            </div>
+                            <div id="holder-fecha-seg-${al.id}" data-id="${al.id}">
+                                ${estaContactado && fCttoVisual ? `<span class="circle-date-sub" onclick="window.abrirModalEditarFechaContacto('${al.id}', '${(al.nombre || 'Alumno').replace(/'/g, "\\'")}', '${al.seguimiento?.fecha_contacto || ''}', event)" title="Clic para corregir fecha">${fCttoVisual}</span>` : '<div class="circle-date-empty"></div>'}
+                            </div>
+                        </div>
+                    ` : '';
+
+                    let fechaMetaHtml = '';
+                    if (esSegEnCursoFila) {
+                        let fechaSegTxt = '-';
+                        if (al.seguimiento?.fecha_proximo_seguimiento) {
+                            const parts = String(al.seguimiento.fecha_proximo_seguimiento).split('-');
+                            if (parts.length === 3) {
+                                fechaSegTxt = `${String(parts[2]).padStart(2, '0')}/${String(parts[1]).padStart(2, '0')}/${parts[0]}`;
+                            } else {
+                                fechaSegTxt = al.seguimiento.fecha_proximo_seguimiento;
+                            }
+                        } else if (al.seguimiento?.ultimo_contacto) {
+                            const fUlt = new Date(al.seguimiento.ultimo_contacto);
+                            if (!isNaN(fUlt.getTime())) {
+                                fechaSegTxt = `${String(fUlt.getDate()).padStart(2, '0')}/${String(fUlt.getMonth() + 1).padStart(2, '0')}/${fUlt.getFullYear()}`;
+                            }
+                        }
+                        fechaMetaHtml = `
+                            <div class="row-meta" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; min-width:unset; flex-shrink:0; gap:1px;">
+                                <div style="font-size:10px; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:1px;">PROX. CONTACTO</div>
+                                <div style="font-size:11.5px; color:var(--text-muted); font-weight:600; display:flex; align-items:center; gap:4px; flex-wrap:wrap;"><span>📅 ${fechaSegTxt}</span></div>
+                            </div>
+                        `;
+                    } else if (vista === 'Seguimientos - Finalizados') {
+                        let fFinTxt = '-';
+                        if (al.seguimiento?.fecha_finalizacion) {
+                            const fObj = new Date(al.seguimiento.fecha_finalizacion);
+                            if (!isNaN(fObj.getTime())) {
+                                fFinTxt = `${String(fObj.getDate()).padStart(2, '0')}/${String(fObj.getMonth() + 1).padStart(2, '0')}/${fObj.getFullYear()}`;
+                            }
+                        }
+                        fechaMetaHtml = `
+                            <div class="row-meta" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; min-width:unset; flex-shrink:0; gap:1px;">
+                                <div style="font-size:10px; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:1px;">FINALIZADO</div>
+                                <div style="font-size:11px; color:var(--text-muted); font-weight:600; display:flex; align-items:center; gap:4px;"><span>📅 ${fFinTxt}</span></div>
+                            </div>
+                        `;
+                    } else {
+                        fechaMetaHtml = `
+                            <div class="row-meta" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; min-width:unset; flex-shrink:0; gap:1px;">
+                                <div style="font-size:10px; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:1px;">INICIO DE CLASES</div>
+                                <div style="font-size:11px; color:var(--text-muted); font-weight:600; display:flex; align-items:center; gap:4px;"><span>📅 ${fIniTxt}</span></div>
+                            </div>
+                        `;
+                    }
+
                     return `
                         <div class="row-item btn-editar-alumno" data-id="${al.id}" style="padding:7px 12px; margin-bottom:4px; border-radius:10px; border:1px solid var(--border-color); background:#fff; cursor:pointer;">
-                            <div class="row-content-wrapper" style="display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%;">
+                            <div class="row-content-wrapper" style="display:flex; align-items:center; justify-content:space-between; gap:14px; width:100%;">
                                 <!-- Columna 1: Alumno y Datos (Línea 1: Nombre • Edad • Nivel + Badge | Línea 2: Instrumento) -->
-                                <div class="row-header" style="display:flex; align-items:center; flex:1; gap:6px; min-width:0;">
+                                <div class="row-header" style="display:flex; align-items:center; flex:1 1 auto; gap:6px; min-width:0;">
                                     ${chkBulkSeg}
                                     <div class="row-main-info" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:1px; flex:1; min-width:0;">
                                         <div class="row-name" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; text-align:left;">
@@ -3462,58 +3555,51 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                                     </div>
                                 </div>
 
-                                <!-- Columna Derecha: Sector de Fechas -->
-                                ${(() => {
-                                    if (vista === 'Seguimientos - En Curso' || (vista.startsWith('Seguimientos') && al.seguimiento?.activo === true)) {
-                                        let fechaSegTxt = '-';
-                                        if (al.seguimiento?.fecha_proximo_seguimiento) {
-                                            const parts = String(al.seguimiento.fecha_proximo_seguimiento).split('-');
-                                            if (parts.length === 3) {
-                                                fechaSegTxt = `${String(parts[2]).padStart(2, '0')}/${String(parts[1]).padStart(2, '0')}/${parts[0]}`;
-                                            } else {
-                                                fechaSegTxt = al.seguimiento.fecha_proximo_seguimiento;
-                                            }
-                                        } else if (al.seguimiento?.ultimo_contacto) {
-                                            const fUlt = new Date(al.seguimiento.ultimo_contacto);
-                                            if (!isNaN(fUlt.getTime())) {
-                                                fechaSegTxt = `${String(fUlt.getDate()).padStart(2, '0')}/${String(fUlt.getMonth() + 1).padStart(2, '0')}/${fUlt.getFullYear()}`;
-                                            }
-                                        }
-                                        return `
-                                            <div class="row-meta" style="display:flex; flex-direction:column; align-items:flex-end; text-align:right; min-width:95px; flex-shrink:0;">
-                                                <div style="font-size:11px; color:var(--text-muted); font-weight:600;">📅 ${fechaSegTxt}</div>
-                                            </div>
-                                        `;
-                                    } else if (vista === 'Seguimientos - Finalizados') {
-                                        let fFinTxt = '-';
-                                        if (al.seguimiento?.fecha_finalizacion) {
-                                            const fObj = new Date(al.seguimiento.fecha_finalizacion);
-                                            if (!isNaN(fObj.getTime())) {
-                                                fFinTxt = `${String(fObj.getDate()).padStart(2, '0')}/${String(fObj.getMonth() + 1).padStart(2, '0')}/${fObj.getFullYear()}`;
-                                            }
-                                        }
-                                        return `
-                                            <div class="row-meta" style="display:flex; flex-direction:column; align-items:flex-end; text-align:right; min-width:105px; flex-shrink:0;">
-                                                <div style="font-size:10px; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:1px;">FINALIZADO:</div>
-                                                <div style="font-size:11px; color:var(--text-muted); font-weight:600;">📅 ${fFinTxt}</div>
-                                            </div>
-                                        `;
-                                    } else {
-                                        return `
-                                            <div class="row-meta" style="display:flex; flex-direction:column; align-items:flex-end; text-align:right; min-width:110px; flex-shrink:0;">
-                                                <div style="font-size:10px; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:1px;">INICIO DE CLASES:</div>
-                                                <div style="font-size:11px; color:var(--text-muted); font-weight:600;">📅 ${fIniTxt}</div>
-                                            </div>
-                                        `;
-                                    }
-                                })()}
-
-                                <!-- Menú 3 Puntos -->
-                                ${botonesRow}
+                                <!-- Columna Derecha: Círculo Contacto + Fechas + Menú Acciones -->
+                                <div style="display:flex; align-items:center; gap:14px; margin-left:auto; flex-shrink:0;">
+                                    ${circuloContactoHtml}
+                                    ${fechaMetaHtml}
+                                    ${botonesRow}
+                                </div>
                             </div>
                         </div>
                     `;
-                }).join('');
+                };
+
+                let filasHtml = '';
+                const esVistaEnCurso = (vista === 'Seguimientos - En Curso' || (vista.startsWith('Seguimientos') && !esPendientes && !esFinalizados));
+
+                if (esVistaEnCurso) {
+                    const porContactar = alumnosSeg.filter(al => !al.seguimiento?.contactado);
+                    const esperando = alumnosSeg.filter(al => Boolean(al.seguimiento?.contactado));
+
+                    porContactar.sort(sortPorFecha);
+                    esperando.sort(sortPorFecha);
+
+                    let contenidoSubHtml = '';
+                    if (porContactar.length > 0) {
+                        contenidoSubHtml += `
+                            <div style="display:flex; align-items:center; gap:8px; margin:4px 0 6px 0; font-size:11.5px; font-weight:800; color:#334155; text-transform:uppercase; letter-spacing:0.04em;">
+                                <span>📩 Por Contactar (${porContactar.length})</span>
+                                <div style="flex:1; height:1px; background:#e2e8f0;"></div>
+                            </div>
+                            ${porContactar.map(al => renderFilaSeg(al)).join('')}
+                        `;
+                    }
+                    if (esperando.length > 0) {
+                        contenidoSubHtml += `
+                            <div style="display:flex; align-items:center; gap:8px; margin:${porContactar.length > 0 ? '12px' : '4px'} 0 6px 0; font-size:11.5px; font-weight:800; color:#0f766e; text-transform:uppercase; letter-spacing:0.04em;">
+                                <span>⏳ Esperando Respuesta (${esperando.length})</span>
+                                <div style="flex:1; height:1px; background:#99f6e4;"></div>
+                            </div>
+                            ${esperando.map(al => renderFilaSeg(al)).join('')}
+                        `;
+                    }
+                    filasHtml = contenidoSubHtml;
+                } else {
+                    alumnosSeg.sort(sortPorFecha);
+                    filasHtml = alumnosSeg.map(al => renderFilaSeg(al)).join('');
+                }
 
                 let headerTitulo = '';
                 let iconBanner = '🎯';
