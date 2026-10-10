@@ -9454,10 +9454,10 @@ document.addEventListener('change', async (e) => {
                     const feedEl = document.createElement('div');
                     feedEl.id = `chk-loading-feedback-${id}`;
                     feedEl.style.cssText = 'margin-top:8px; padding:6px 10px; background:#f0fdf4; border:1px solid #86efac; border-radius:6px; font-size:11px; color:#166534; font-weight:600; display:flex; align-items:center; gap:6px;';
-                    feedEl.innerHTML = `<span class="spinner-border spinner-border-sm" style="display:inline-block; width:12px; height:12px; border:2px solid #166534; border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite;"></span> ⏳ Finalizando Alta de ${al.nombre || 'Alumno'}... Guardando y sincronizando Google Calendar...`;
+                    feedEl.innerHTML = `<span class="spinner-border spinner-border-sm" style="display:inline-block; width:12px; height:12px; border:2px solid #166534; border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite;"></span> ⏳ Finalizando Alta de ${al.nombre || 'Alumno'}... Guardando cambios...`;
                     chkWrapper.appendChild(feedEl);
                 }
-                mostrarToast(`⏳ Finalizando Alta de ${al.nombre || 'Alumno'}... Sincronizando Calendar y guardando cambios.`, "info");
+                mostrarToast(`⏳ Finalizando Alta de ${al.nombre || 'Alumno'}... Guardando cambios.`, "info");
 
                 const now = new Date(), fechaStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
                 const hist = al.historial || [];
@@ -9466,20 +9466,6 @@ document.addEventListener('change', async (e) => {
                     texto: "Alta Finalizada: Todos los pasos del checklist completados. Ciclo de admisión cerrado.",
                     fecha: fechaStr
                 });
-
-                // Actualizar evento en Google Calendar al formato de alta confirmada (sin ❓)
-                try {
-                    const tipoSusc = (al.tipo_suscripcion || '').toLowerCase();
-                    const esInd = tipoSusc.includes('individual') || al.grupo_asignado === 'Clase Individual';
-                    let alumnosDelGrupo = [];
-                    if (!esInd && al.grupo_asignado) {
-                        const gSnap = await getDocs(query(collection(db, "alumnos"), where("grupo_asignado", "==", al.grupo_asignado)));
-                        gSnap.forEach(d => alumnosDelGrupo.push({ id: d.id, ...d.data() }));
-                    }
-                    await sincronizarEventoAltaConfirmadaCalendar({ id, ...al }, esInd, alumnosDelGrupo, configApp);
-                } catch(calErr) {
-                    console.warn("No se pudo actualizar evento al completar checklist:", calErr);
-                }
 
                 const ahoraIso = new Date().toISOString();
                 const respId = al.seguimiento_responsable_id || al.seguimiento?.responsable_id || '';
@@ -13138,7 +13124,19 @@ window.toggleInstrumentoSecundario = function(inst) {
 
 async function cargarSelectsAlumnos() { 
     const sS = document.getElementById('tipo_suscripcion'); 
-    if (sS) sS.innerHTML = '<option value="">Seleccione...</option>'; 
+    const baseOpciones = [
+        'Clase Individual',
+        'Clase Individual Quincenal',
+        'Clase Individual Full Pack',
+        'Clase Individual Suelta',
+        'Ensamble',
+        'Clase Grupal'
+    ];
+    
+    if (sS) {
+        sS.innerHTML = '<option value="">Seleccione...</option>' + 
+            baseOpciones.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+    }
     
     try {
         const iS = await getDocs(collection(db, "instrumentos"));
@@ -13155,7 +13153,10 @@ async function cargarSelectsAlumnos() {
     try {
         const sSp = await getDocs(collection(db, "tipos_suscripcion"));
         sSp.forEach(d => {
-            if (sS) sS.innerHTML += `<option value="${d.data().nombre}">${d.data().nombre}</option>`;
+            const nom = d.data().nombre;
+            if (sS && nom && !baseOpciones.includes(nom)) {
+                sS.innerHTML += `<option value="${nom}">${nom}</option>`;
+            }
         }); 
     } catch(e) {}
 
@@ -13480,7 +13481,24 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
 
     window.renderChipsInstrumentosAlumno();
 
-    document.getElementById('tipo_suscripcion').value = d.tipo_suscripcion || ''; 
+    const selSusc = document.getElementById('tipo_suscripcion');
+    if (selSusc) {
+        let valSusc = d.tipo_suscripcion || '';
+        if (!valSusc && d.modalidad_individual) {
+            if (d.modalidad_individual === 'quincenal') valSusc = 'Clase Individual Quincenal';
+            else if (d.modalidad_individual === 'fullpack') valSusc = 'Clase Individual Full Pack';
+            else if (d.modalidad_individual === 'suelta') valSusc = 'Clase Individual Suelta';
+        }
+        if (valSusc) {
+            const existeOpt = Array.from(selSusc.options).some(o => o.value === valSusc);
+            if (!existeOpt) {
+                selSusc.innerHTML += `<option value="${valSusc}">${valSusc}</option>`;
+            }
+            selSusc.value = valSusc;
+        } else {
+            selSusc.value = '';
+        }
+    } 
     quill.root.innerHTML = d.descripcion||''; 
     historialActual = d.historial || []; 
     renderHistorial(); 
@@ -14082,6 +14100,8 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
     const elAltaBox = document.getElementById('modal-seccion-alta-box');
     const elAltaProfe = document.getElementById('modal-alta-profe-val');
     const elAltaGrupo = document.getElementById('modal-alta-grupo-val');
+    const elAltaFrec = document.getElementById('modal-alta-frecuencia-val');
+    const elAltaArancel = document.getElementById('modal-alta-arancel-val');
     const inpHora = document.getElementById('modal-alta-horario-input');
     const inpIni = document.getElementById('modal-alta-inicio-input');
     
@@ -14091,6 +14111,32 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
         elAltaBox.style.display = 'block';
         if (elAltaProfe) elAltaProfe.textContent = d.profesor_asignado || d.reserva_profe_nombre || '-';
         if (elAltaGrupo) elAltaGrupo.textContent = d.grupo_asignado || '-';
+
+        // Modalidad / Frecuencia
+        if (elAltaFrec) {
+            const modInd = d.modalidad_individual || (
+                (d.tipo_suscripcion || '').toLowerCase().includes('quincenal') ? 'quincenal' :
+                (d.tipo_suscripcion || '').toLowerCase().includes('suelta') ? 'suelta' :
+                (d.tipo_suscripcion || '').toLowerCase().includes('full') ? 'fullpack' : ''
+            );
+            if (modInd === 'quincenal') {
+                elAltaFrec.innerHTML = `<span class="badge" style="background:#fef3c7; color:#92400e; font-size:11.5px; font-weight:700; padding:3px 8px; border-radius:6px; border:1px solid #fde68a;">🟡 Quincenal (2 clases/mes)</span>`;
+            } else if (modInd === 'fullpack') {
+                elAltaFrec.innerHTML = `<span class="badge" style="background:#dcfce7; color:#166534; font-size:11.5px; font-weight:700; padding:3px 8px; border-radius:6px; border:1px solid #86efac;">🟢 Full Pack (4 clases/mes)</span>`;
+            } else if (modInd === 'suelta') {
+                elAltaFrec.innerHTML = `<span class="badge" style="background:#e0f2fe; color:#0369a1; font-size:11.5px; font-weight:700; padding:3px 8px; border-radius:6px; border:1px solid #bae6fd;">🔵 Suelta (1 clase)</span>`;
+            } else if ((d.tipo_suscripcion || '').toLowerCase().includes('ensamble') || (d.grupo_asignado && d.grupo_asignado !== 'Clase Individual')) {
+                elAltaFrec.innerHTML = `<span class="badge" style="background:#f1f5f9; color:#475569; font-size:11.5px; font-weight:700; padding:3px 8px; border-radius:6px; border:1px solid #cbd5e1;">🧩 Ensamble Grupal</span>`;
+            } else {
+                elAltaFrec.textContent = d.tipo_suscripcion || '-';
+            }
+        }
+
+        // Arancel
+        if (elAltaArancel) {
+            elAltaArancel.textContent = d.valor_arancel || d.arancel || '-';
+        }
+
         if (inpHora) inpHora.value = d.horario_match || d.reserva_fecha_texto || '';
         if (inpIni) {
             if (d.fecha_inicio_clases) {
@@ -14342,6 +14388,13 @@ document.getElementById('form-alumno').addEventListener('submit', async (e) => {
     const inpHora = document.getElementById('modal-alta-horario-input');
     const inpIni = document.getElementById('modal-alta-inicio-input');
 
+    const idAlSubmit = document.getElementById('alumno-id').value;
+    let valTipoSuscFinal = document.getElementById('tipo_suscripcion').value;
+    if (!valTipoSuscFinal && idAlSubmit && window._alumnosCache) {
+        const alCache = window._alumnosCache.find(a => a.id === idAlSubmit);
+        if (alCache && alCache.tipo_suscripcion) valTipoSuscFinal = alCache.tipo_suscripcion;
+    }
+
     const data = { 
         nombre: document.getElementById('nombre').value, 
         celular: document.getElementById('celular').value, 
@@ -14350,7 +14403,7 @@ document.getElementById('form-alumno').addEventListener('submit', async (e) => {
         instrumento_principal: instPrincipal,
         instrumentos_secundarios: instSecundarios,
         instrumento: todosInst, 
-        tipo_suscripcion: document.getElementById('tipo_suscripcion').value, 
+        tipo_suscripcion: valTipoSuscFinal || document.getElementById('tipo_suscripcion').value || '', 
         descripcion: quill.root.innerHTML, 
         informe_admision: quillInforme.root.innerHTML, 
         perfil_psicologico: tagsPerfil,

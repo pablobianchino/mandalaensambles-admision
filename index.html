@@ -10,7 +10,7 @@
     <meta http-equiv="Expires" content="0">
     
     <link rel="icon" href="logo.png" type="image/png">
-    <link rel="manifest" href="manifest.json?v=7.1.0">
+    <link rel="manifest" href="manifest.json?v=7.1.1">
     <meta name="theme-color" content="#fbfaf8">
     <meta name="apple-mobile-web-app-title" content="Mandala Admisión">
     <meta name="application-name" content="Mandala Admisión">
@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=7.1.0">
+    <link rel="stylesheet" href="styles.css?v=7.1.1">
 
     <style>
         /* Estilos Críticos de Widget de Perfil y Popover Google-Style */
@@ -959,7 +959,17 @@
                         <label>Nombre Completo * <input type="text" id="nombre" class="modern-input" required></label>
                         <label>Celular * <input type="text" id="celular" class="modern-input" required></label>
                         <label>Edad <input type="number" id="edad" class="modern-input"></label>
-                        <label>Suscripción * <select id="tipo_suscripcion" class="modern-input" required></select></label>
+                        <label>Suscripción * 
+                            <select id="tipo_suscripcion" class="modern-input" required>
+                                <option value="">Seleccione...</option>
+                                <option value="Clase Individual">Clase Individual</option>
+                                <option value="Clase Individual Quincenal">Clase Individual Quincenal</option>
+                                <option value="Clase Individual Full Pack">Clase Individual Full Pack</option>
+                                <option value="Clase Individual Suelta">Clase Individual Suelta</option>
+                                <option value="Ensamble">Ensamble</option>
+                                <option value="Clase Grupal">Clase Grupal</option>
+                            </select>
+                        </label>
                         <label>Nivel * 
                             <select id="nivel" class="modern-input" required>
                                 <option value="">Seleccione...</option>
@@ -1017,6 +1027,14 @@
                             <div>
                                 <span style="font-size:11px; color:var(--text-muted); font-weight:600;">👥 Grupo Asignado:</span>
                                 <div id="modal-alta-grupo-val" style="font-weight:700; color:var(--accent-teal); margin-top:2px;">-</div>
+                            </div>
+                            <div>
+                                <span style="font-size:11px; color:var(--text-muted); font-weight:600;">🔄 Modalidad / Plan:</span>
+                                <div id="modal-alta-frecuencia-val" style="margin-top:2px; font-weight:700;">-</div>
+                            </div>
+                            <div>
+                                <span style="font-size:11px; color:var(--text-muted); font-weight:600;">💰 Arancel Abonado:</span>
+                                <div id="modal-alta-arancel-val" style="font-weight:700; color:var(--text-main); margin-top:2px;">-</div>
                             </div>
                             <div>
                                 <label style="font-size:11px; color:var(--text-muted); font-weight:600; display:block; margin-bottom:4px;">📅 Horario / Cursada:</label>
@@ -3755,12 +3773,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=7.1.0"></script>
+    <script type="module" src="app.js?v=7.1.1"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=7.1.0').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=7.1.1').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {

@@ -253,7 +253,7 @@ export async function getEventosCalendario(calendarId, timeMin, timeMax) {
     return await fetchCalendarAPI('getEvents', { calendarId, timeMin, timeMax }); 
 }
 
-export async function crearEventoCalendario(calendarId, titulo, inicioStr, finStr, descripcion = "", esRecurrente = false) { 
+export async function crearEventoCalendario(calendarId, titulo, inicioStr, finStr, descripcion = "") { 
     const payload = { 
         calendarId, 
         summary: titulo, 
@@ -261,10 +261,6 @@ export async function crearEventoCalendario(calendarId, titulo, inicioStr, finSt
         start: { dateTime: inicioStr }, 
         end: { dateTime: finStr } 
     };
-    if (esRecurrente) {
-        payload.recurrente = true;
-        payload.recurrence = ["RRULE:FREQ=WEEKLY"];
-    }
     return await fetchCalendarAPI('createEvent', payload); 
 }
 
@@ -538,96 +534,60 @@ export async function buscarEventoGrupoEnCalendar(calId, nombreGrupo, fIsoStart)
     return null;
 }
 
-export async function sincronizarEventoPrealtaCalendar(al, esIndividual, fIsoStart, fIsoEnd, otrosAlumnosDelGrupo = [], cfg = defaultCfg) {
+export async function buscarEventoAlumnoIndividualEnCalendar(calId, nombreAlumno, fechaInicioIso) {
+    if (!calId || !nombreAlumno || !fechaInicioIso) return null;
     try {
-        const listaCompletaAlumnos = [...otrosAlumnosDelGrupo];
-        if (!listaCompletaAlumnos.some(a => a.id === al.id || (a.nombre && a.nombre.toLowerCase().trim() === (al.nombre || '').toLowerCase().trim()))) {
-            listaCompletaAlumnos.push(al);
-        }
-        const confirmadosCount = listaCompletaAlumnos.filter(a => {
-            const est = (a.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-            return ['alta confirmada', 'alta efectiva', 'alta finalizada'].includes(est);
-        }).length;
-        const cantPendientes = Math.max(0, listaCompletaAlumnos.length - confirmadosCount);
-        const titulos = construirTitulosPrealtaYAlta(al, 'prealta', cfg, cantPendientes);
-        const desc = construirDescripcionEventoAlta(al, !esIndividual, listaCompletaAlumnos);
-        let primaryCalId = await getCalendarIdParaAlumno(al, cfg);
-        let fallbackCalId = cfg.calendario_por_defecto || 'productora.mandalahouse@gmail.com';
+        const dObj = new Date(fechaInicioIso);
+        if (isNaN(dObj.getTime())) return null;
 
-        let existingEventId = al.id_evento_alta;
-        let existingCalId = al.calendario_evento_alta || primaryCalId || fallbackCalId;
+        const dayStart = new Date(dObj);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(dObj);
+        dayEnd.setHours(23, 59, 59, 999);
 
-        // 1. Buscar en Firestore si un compañero de grupo ya tiene evento
-        if (!esIndividual && !existingEventId && listaCompletaAlumnos.length > 0) {
-            const compConEv = listaCompletaAlumnos.find(c => c.id_evento_alta);
-            if (compConEv) {
-                existingEventId = compConEv.id_evento_alta;
-                existingCalId = compConEv.calendario_evento_alta || primaryCalId || fallbackCalId;
+        const evs = await getEventosCalendario(calId, dayStart.toISOString(), dayEnd.toISOString());
+        const items = Array.isArray(evs) ? evs : (evs && Array.isArray(evs.items) ? evs.items : []);
+        if (items.length === 0) return null;
+
+        const nomNorm = nombreAlumno.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+        const nomParts = nomNorm.split(' ').filter(p => p.length >= 2);
+
+        // 1. Coincidencia por nombre completo o partes de nombre en summary o description
+        for (const ev of items) {
+            const sum = (ev.summary || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const desc = (ev.description || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            
+            if (sum.includes(nomNorm) || desc.includes(nomNorm)) {
+                return ev;
+            }
+            if (nomParts.length > 1 && nomParts.every(p => sum.includes(p) || desc.includes(p))) {
+                return ev;
             }
         }
 
-        // 2. Si aún no tenemos ID y es grupal, buscar evento en vivo en el Google Calendar del docente
-        if (!existingEventId && !esIndividual && existingCalId && al.grupo_asignado && fIsoStart) {
-            const evExistente = await buscarEventoGrupoEnCalendar(existingCalId, al.grupo_asignado, fIsoStart);
-            if (evExistente && evExistente.id) {
-                existingEventId = evExistente.id;
-            }
-        }
-
-        // 3. Si existe: ACTUALIZAR (NO duplicar)
-        if (existingEventId && existingCalId) {
-            try {
-                let tituloFinal = titulos.tituloProfe;
-                await actualizarEventoCalendario(existingCalId, existingEventId, tituloFinal, desc);
-                if (al.id) {
-                    await updateDoc(doc(db, "alumnos", al.id), {
-                        id_evento_alta: existingEventId,
-                        calendario_evento_alta: existingCalId
-                    }).catch(() => {});
+        // 2. Coincidencia por hora exacta (+- 5 min)
+        const targetStartMs = dObj.getTime();
+        for (const ev of items) {
+            const evStartMs = new Date(ev.start?.dateTime || ev.start?.date).getTime();
+            if (!isNaN(evStartMs) && Math.abs(evStartMs - targetStartMs) <= 300000) {
+                const sum = (ev.summary || '').toLowerCase();
+                if (nomParts.some(p => sum.includes(p))) {
+                    return ev;
                 }
-                return { id: existingEventId, calendar: existingCalId, existiaPreviamente: true };
-            } catch(e) {
-                console.warn("Fallo actualización de evento prealta:", e);
-            }
-        }
-
-        // 4. Si no existe: recién ahora CREAR nuevo evento
-        if (primaryCalId) {
-            try {
-                const evRes = await crearEventoCalendario(primaryCalId, titulos.tituloProfe, fIsoStart, fIsoEnd, desc);
-                if (evRes && evRes.id && al.id) {
-                    await updateDoc(doc(db, "alumnos", al.id), {
-                        id_evento_alta: evRes.id,
-                        calendario_evento_alta: primaryCalId
-                    }).catch(() => {});
-                }
-                return { id: evRes.id, calendar: primaryCalId };
-            } catch(e) {
-                console.warn(`Fallo crear evento en ${primaryCalId}:`, e);
-            }
-        }
-
-        if (fallbackCalId && fallbackCalId !== primaryCalId) {
-            try {
-                const evRes = await crearEventoCalendario(fallbackCalId, titulos.tituloDefecto, fIsoStart, fIsoEnd, desc);
-                if (evRes && evRes.id && al.id) {
-                    await updateDoc(doc(db, "alumnos", al.id), {
-                        id_evento_alta: evRes.id,
-                        calendario_evento_alta: fallbackCalId
-                    }).catch(() => {});
-                }
-                return { id: evRes.id, calendar: fallbackCalId };
-            } catch(e) {
-                console.warn(`Fallo fallback en ${fallbackCalId}:`, e);
             }
         }
     } catch(err) {
-        console.warn("No se pudo sincronizar evento de Pre-Alta en Google Calendar:", err);
+        console.warn("Error al buscar evento individual en calendar:", err);
     }
     return null;
 }
 
-export async function sincronizarEventoAltaConfirmadaCalendar(al, esIndividual, otrosAlumnosDelGrupo = [], cfg = defaultCfg, opcionesAlta = {}) {
+export async function sincronizarEventoPrealtaCalendar(al, esIndividual, fIsoStart, fIsoEnd, otrosAlumnosDelGrupo = [], cfg = defaultCfg) {
+    // Pre-Alta NO crea eventos en Google Calendar. El evento solo se genera al confirmar el pago/alta efectiva.
+    return null;
+}
+
+export async function sincronizarEventoAltaConfirmadaCalendar(al, esIndividual, otrosAlumnosDelGrupo = [], cfg = defaultCfg) {
     try {
         // Unificar lista completa de alumnos del grupo asegurando estados frescos
         const listaCompletaAlumnos = [...otrosAlumnosDelGrupo];
@@ -667,6 +627,14 @@ export async function sincronizarEventoAltaConfirmadaCalendar(al, esIndividual, 
             }
         }
 
+        // 3. Si no hay ID grabado y es individual, buscar en vivo en Google Calendar del profesor por nombre de alumno
+        if (!targetEventId && esIndividual && targetCalId && al.nombre && al.fecha_inicio_clases) {
+            const evExistente = await buscarEventoAlumnoIndividualEnCalendar(targetCalId, al.nombre, al.fecha_inicio_clases);
+            if (evExistente && evExistente.id) {
+                targetEventId = evExistente.id;
+            }
+        }
+
         // Calendarios candidatos para actualización o creación
         const primaryCalId = await getCalendarIdParaAlumno(al, cfg);
         const fallbackCalId = cfg.calendario_por_defecto || 'productora.mandalahouse@gmail.com';
@@ -675,7 +643,7 @@ export async function sincronizarEventoAltaConfirmadaCalendar(al, esIndividual, 
         if (primaryCalId && !candidatosCal.includes(primaryCalId)) candidatosCal.push(primaryCalId);
         if (fallbackCalId && !candidatosCal.includes(fallbackCalId)) candidatosCal.push(fallbackCalId);
 
-        // 3. Si existe el evento: ACTUALIZAR IN-SITU (NUNCA DEJAR DUPLICADOS NI BORRAR)
+        // 4. Si existe el evento: ACTUALIZAR IN-SITU (NUNCA DEJAR DUPLICADOS NI BORRAR)
         if (targetEventId) {
             let actualizado = false;
             let calExito = null;
@@ -700,11 +668,11 @@ export async function sincronizarEventoAltaConfirmadaCalendar(al, esIndividual, 
                         }).catch(() => {});
                     }
                 }
-                return { id: targetEventId, calendar: calExito, existiaPreviamente: true };
+                return { id: targetEventId, calendar: calExito, existiaPreviamente: true, creado: false };
             }
         }
         
-        // 4. Si no existe previamente o falló la actualización: CREAR
+        // 5. Si no existe previamente: CREAR 1 evento puntual (primera clase)
         if (al.fecha_inicio_clases) {
             const dStart = new Date(al.fecha_inicio_clases);
             if (!isNaN(dStart.getTime())) {
@@ -712,37 +680,18 @@ export async function sincronizarEventoAltaConfirmadaCalendar(al, esIndividual, 
                 const durMin = esMandalorian ? 90 : 60;
                 const dEnd = new Date(dStart.getTime() + durMin * 60000);
 
-                let esRecurrente = true;
-                if (esIndividual) {
-                    if (typeof opcionesAlta.esRecurrente === 'boolean') {
-                        esRecurrente = opcionesAlta.esRecurrente;
-                    } else if (window.confirmar) {
-                        const soloUnaClase = await window.confirmar(
-                            'Tipo de Cursada en Google Calendar',
-                            `¿La clase individual de "${al.nombre || 'Alumno'}" será de una sola fecha puntual o es una cursada habitual recurrente semanal?`,
-                            '📅 Solo una clase puntual',
-                            '❓',
-                            '🔄 Recurrente todas las semanas'
-                        );
-                        esRecurrente = !soloUnaClase;
-                    }
-                } else {
-                    esRecurrente = typeof opcionesAlta.esRecurrente === 'boolean' ? opcionesAlta.esRecurrente : true;
-                }
-
                 const calCrear = candidatosCal[0] || fallbackCalId;
-                const evRes = await crearEventoCalendario(calCrear, titulos.tituloProfe, dStart.toISOString(), dEnd.toISOString(), desc, esRecurrente);
+                const evRes = await crearEventoCalendario(calCrear, titulos.tituloProfe, dStart.toISOString(), dEnd.toISOString(), desc);
                 if (evRes && evRes.id) {
                     for (const alumno of listaCompletaAlumnos) {
                         if (alumno.id) {
                             await updateDoc(doc(db, "alumnos", alumno.id), {
                                 id_evento_alta: evRes.id,
-                                calendario_evento_alta: calCrear,
-                                es_evento_recurrente: esRecurrente
+                                calendario_evento_alta: calCrear
                             }).catch(() => {});
                         }
                     }
-                    return { id: evRes.id, calendar: calCrear, esRecurrente };
+                    return { id: evRes.id, calendar: calCrear, existiaPreviamente: false, creado: true };
                 }
             }
         }

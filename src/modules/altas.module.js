@@ -2050,28 +2050,6 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
         }
 
         if (!esPropuesta) {
-            let opcionesAlta = {};
-            if (esIndividual) {
-                if (modInd === 'suelta') {
-                    opcionesAlta.esRecurrente = false;
-                } else if (modInd === 'quincenal') {
-                    if (window.confirmar) {
-                        const soloUnaClase = await window.confirmar(
-                            'Modalidad de Clase Quincenal en Google Calendar',
-                            `La clase individual de "${al.nombre || 'Alumno'}" es Quincenal.\n\n¿Deseas generar el evento como RECURRENTE en Google Calendar o agendar solo la primera clase puntual para que el docente coordine las fechas siguientes?`,
-                            '📅 Solo primera clase puntual',
-                            '❓',
-                            '🔄 Recurrente en Calendar'
-                        );
-                        opcionesAlta.esRecurrente = !soloUnaClase;
-                    } else {
-                        opcionesAlta.esRecurrente = false;
-                    }
-                } else {
-                    opcionesAlta.esRecurrente = true;
-                }
-            }
-
             if (decisionCrearEvento === 'mantener') {
                 // Preservar evento preexistente en Google Calendar sin llamar a la API ni duplicar
                 evSincronizado = {
@@ -2079,14 +2057,12 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
                     calendar: profeCalId || primerAl.reserva_cal_id || '',
                     summary: eventoSummaryExistente
                 };
-            } else if (!evSincronizado || esIndividual) {
-                if (esAltaPrevia) {
-                    // Si el alta ya está confirmada, no debe llevar signo de pregunta ❓
-                    evSincronizado = await sincronizarEventoAltaConfirmadaCalendar(alParaSync, esIndividual, alumnosDelGrupo, callbacks.configApp || defaultCfg, opcionesAlta);
-                } else {
-                    // Pre-alta iniciada lleva el emoji ❓
-                    evSincronizado = await sincronizarEventoPrealtaCalendar(alParaSync, esIndividual, fIso, fIsoEnd, alumnosDelGrupo, callbacks.configApp || defaultCfg);
-                }
+            } else if (esAltaPrevia) {
+                // Si el alta ya está confirmada y se está editando la fecha/horario, sincronizar en Google Calendar
+                evSincronizado = await sincronizarEventoAltaConfirmadaCalendar(alParaSync, esIndividual, alumnosDelGrupo, callbacks.configApp || defaultCfg);
+            } else {
+                // En Pre-Alta pendiente / iniciada NO se crean eventos temporales en Google Calendar
+                evSincronizado = null;
             }
         }
 
@@ -2979,7 +2955,7 @@ export async function aprobarTodoGrupoAction(grupoNombre, vista, callbacks = {})
         // 3. Sincronizar Google Calendar con todos los confirmados (cantPendientes = 0)
         const primerAl = miembrosActualizados[0] || miembros[0];
         const cfg = callbacks.configApp || defaultCfg;
-        await sincronizarEventoAltaConfirmadaCalendar(primerAl, false, miembrosActualizados, cfg, { esRecurrente: true });
+        await sincronizarEventoAltaConfirmadaCalendar(primerAl, false, miembrosActualizados, cfg);
 
         if (typeof callbacks.cargarVista === 'function') await callbacks.cargarVista(vista);
         if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
@@ -3061,7 +3037,7 @@ export async function confirmarInicioGrupoAction(grupoNombre, vista, callbacks =
         const cfg = callbacks.configApp || defaultCfg;
 
         // Actualizar evento en Calendar
-        await sincronizarEventoAltaConfirmadaCalendar(primerAl, false, miembros, cfg, { esRecurrente: true });
+        await sincronizarEventoAltaConfirmadaCalendar(primerAl, false, miembros, cfg);
 
         if (typeof callbacks.cargarVista === 'function') await callbacks.cargarVista(vista);
         if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
@@ -3102,38 +3078,7 @@ export async function confirmarAlumnoAltaAction(alumnoId, alumnoNombre, grupoNom
         const cfg = callbacks.configApp || defaultCfg;
         const esInd = !grupoNombre || grupoNombre === 'Clase Individual';
 
-        let opcionesAlta = {};
-        if (esInd) {
-            const modInd = al.modalidad_individual || (
-                (al.tipo_suscripcion || '').toLowerCase().includes('suelta') ? 'suelta' :
-                (al.tipo_suscripcion || '').toLowerCase().includes('quincenal') ? 'quincenal' : ''
-            );
-            if (modInd === 'suelta') {
-                opcionesAlta.esRecurrente = false;
-            } else if (modInd === 'quincenal') {
-                const soloPuntual = await confirmarFn(
-                    'Modalidad Quincenal en Calendar',
-                    `La clase individual de ${alumnoNombre} es Quincenal.\n\n¿Deseas agendar en Google Calendar solo 1 clase puntual para que el docente coordine luego, o crear una serie recurrente?`,
-                    '📅 Solo 1 clase puntual',
-                    '📅',
-                    '🔄 Serie recurrente'
-                );
-                opcionesAlta.esRecurrente = !soloPuntual;
-            } else if (modInd === 'fullpack') {
-                opcionesAlta.esRecurrente = true;
-            } else {
-                const esRec = await confirmarFn(
-                    'Tipo de Cursada en Calendar',
-                    `¿La clase individual de ${alumnoNombre} será de cursada recurrente semanal en Google Calendar?`,
-                    '🔄 Recurrente semanal',
-                    '📅',
-                    '📅 Solo una clase puntual'
-                );
-                opcionesAlta.esRecurrente = esRec;
-            }
-        }
-
-        // Una vez resueltas TODAS las preguntas al usuario, recién ahora activamos el loader de procesamiento
+        // Activar indicador de carga para procesamiento
         if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(`Confirmando a ${alumnoNombre}...`);
 
         const hist = al.historial || [];
@@ -3167,21 +3112,27 @@ export async function confirmarAlumnoAltaAction(alumnoId, alumnoNombre, grupoNom
             });
         }
 
-        await sincronizarEventoAltaConfirmadaCalendar(
+        const evSync = await sincronizarEventoAltaConfirmadaCalendar(
             { id: alumnoId, ...al, estado_agenda: "Alta Efectiva", checklist_alta: checksExistentes }, 
             esInd, 
             todosMiembrosGrupo, 
-            cfg, 
-            opcionesAlta
+            cfg
         );
 
         if (typeof callbacks.cargarVista === 'function') await callbacks.cargarVista(vista);
         if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
 
+        let msgToast = `✅ Alta confirmada para ${alumnoNombre}.`;
+        if (evSync && evSync.creado) {
+            msgToast += ` Primer clase agendada en Google Calendar.`;
+        } else if (evSync && evSync.existiaPreviamente) {
+            msgToast += ` Asociado al evento existente en Google Calendar.`;
+        }
+
         if (typeof window.mostrarToast === 'function') {
-            window.mostrarToast(`✅ Alta confirmada para ${alumnoNombre}. Evento en Google Calendar actualizado.`, 'success');
+            window.mostrarToast(msgToast, 'success');
         } else {
-            alert(`✅ Alta confirmada para ${alumnoNombre}. Evento en Google Calendar actualizado.`);
+            alert(msgToast);
         }
     } catch(e) {
         if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
