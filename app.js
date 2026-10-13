@@ -8669,13 +8669,10 @@ async function renderMatchPendientes() {
 
     // Cargar suscripciones (solo si no se cargaron antes)
     const selSusc = document.getElementById('match-suscripcion');
-    if (selSusc.options.length <= 1) {
-        try {
-            const sSp = await getDocs(collection(db, "tipos_suscripcion"));
-            sSp.forEach(d => {
-                selSusc.innerHTML += `<option value="${d.data().nombre}">${d.data().nombre}</option>`;
-            });
-        } catch(e) {}
+    if (selSusc && selSusc.options.length <= 1) {
+        selSusc.innerHTML = '<option value="">Seleccionar suscripción...</option>' + 
+            ['Ensamble', 'Clase Grupal', 'Clase Individual Suelta', 'Clase Individual Quincenal', 'Clase Individual Full Pack']
+            .map(opt => `<option value="${opt}">${opt}</option>`).join('');
     }
 
     // Cargar profesores desde Firestore
@@ -10214,20 +10211,23 @@ document.addEventListener('click', async (e) => {
 
             if (selSusc) {
                 selSusc.innerHTML = '<option value="">Seleccionar suscripción...</option>';
-                const listaSusc = [];
-                try {
-                    const sSp = await getDocs(collection(db, "tipos_suscripcion"));
-                    sSp.forEach(d => {
-                        const n = d.data().nombre;
-                        if (n && !listaSusc.includes(n)) listaSusc.push(n);
-                    });
-                } catch(e) {}
-                if (listaSusc.length === 0) {
-                    listaSusc.push("Ensamble", "Clases Individuales", "Clases Grupales", "Clase Individual", "Clase Grupal");
+                const listaSusc = [
+                    "Ensamble", 
+                    "Clase Grupal", 
+                    "Clase Individual Suelta", 
+                    "Clase Individual Quincenal", 
+                    "Clase Individual Full Pack"
+                ];
+                let suscAlumno = (al.tipo_suscripcion || '').trim();
+                const suscAlumnoNorm = suscAlumno.toLowerCase();
+                if (suscAlumnoNorm === 'clases grupales') {
+                    suscAlumno = 'Clase Grupal';
+                } else if (suscAlumnoNorm === 'clase individual' || suscAlumnoNorm === 'clases individuales') {
+                    suscAlumno = 'Clase Individual Suelta';
                 }
-                const suscAlumno = (al.tipo_suscripcion || '').trim();
+
                 if (suscAlumno && !listaSusc.some(s => s.toLowerCase() === suscAlumno.toLowerCase())) {
-                    listaSusc.unshift(suscAlumno);
+                    listaSusc.push(suscAlumno);
                 }
                 listaSusc.forEach(s => {
                     const opt = document.createElement('option');
@@ -13125,12 +13125,11 @@ window.toggleInstrumentoSecundario = function(inst) {
 async function cargarSelectsAlumnos() { 
     const sS = document.getElementById('tipo_suscripcion'); 
     const baseOpciones = [
-        'Clase Individual',
-        'Clase Individual Quincenal',
-        'Clase Individual Full Pack',
-        'Clase Individual Suelta',
         'Ensamble',
-        'Clase Grupal'
+        'Clase Grupal',
+        'Clase Individual Suelta',
+        'Clase Individual Quincenal',
+        'Clase Individual Full Pack'
     ];
     
     if (sS) {
@@ -13152,9 +13151,19 @@ async function cargarSelectsAlumnos() {
 
     try {
         const sSp = await getDocs(collection(db, "tipos_suscripcion"));
+        const ignorarNombres = [
+            'clase individual', 
+            'clases individuales', 
+            'clases grupales', 
+            'clase grupal', 
+            'ensamble',
+            'clase individual suelta',
+            'clase individual quincenal',
+            'clase individual full pack'
+        ];
         sSp.forEach(d => {
             const nom = d.data().nombre;
-            if (sS && nom && !baseOpciones.includes(nom)) {
+            if (sS && nom && !ignorarNombres.includes(nom.toLowerCase().trim())) {
                 sS.innerHTML += `<option value="${nom}">${nom}</option>`;
             }
         }); 
@@ -13489,6 +13498,15 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
             else if (d.modalidad_individual === 'fullpack') valSusc = 'Clase Individual Full Pack';
             else if (d.modalidad_individual === 'suelta') valSusc = 'Clase Individual Suelta';
         }
+        
+        // Mapeo retrocompatible para unificar nombres históricos
+        const valSuscNorm = (valSusc || '').trim().toLowerCase();
+        if (valSuscNorm === 'clases grupales') {
+            valSusc = 'Clase Grupal';
+        } else if (valSuscNorm === 'clase individual' || valSuscNorm === 'clases individuales') {
+            valSusc = 'Clase Individual Suelta';
+        }
+
         if (valSusc) {
             const existeOpt = Array.from(selSusc.options).some(o => o.value === valSusc);
             if (!existeOpt) {
@@ -14491,8 +14509,14 @@ window.abrirModalNuevaSuscripcion = async function(id) {
         });
         
         const sSnap = await getDocs(collection(db, "tipos_suscripcion"));
-        sSnap.forEach(d => {
-            const nom = d.data().nombre;
+        const listaNuevas = [
+            'Ensamble',
+            'Clase Grupal',
+            'Clase Individual Suelta',
+            'Clase Individual Quincenal',
+            'Clase Individual Full Pack'
+        ];
+        listaNuevas.forEach(nom => {
             if (sS) sS.innerHTML += `<option value="${nom}" ${nom === al.tipo_suscripcion ? 'selected' : ''}>${nom}</option>`;
         });
         
