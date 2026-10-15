@@ -2158,6 +2158,7 @@ export async function renderMatchEnValidacion(container) {
                 const emojiInst = obtenerEmojiInstrumento(instAsignado);
                 
                 let edadTxt = al.edad ? `• ${al.edad} años` : '';
+                let nivelHtml = al.nivel ? `<span class="match-student-tag nivel" style="font-size:10.5px; padding:1px 7px; border-radius:6px; background:#f1f5f9; color:#0369a1; border:1px solid #bae6fd; font-weight:700;">${al.nivel}</span>` : '';
                 let rawSusc = al.tipo_suscripcion || '';
                 if (rawSusc.toLowerCase() === 'clases grupales' || rawSusc.toLowerCase() === 'grupal') rawSusc = 'Clase Grupal';
                 let suscTxt = rawSusc ? `• <strong style="color:var(--accent-purple); font-weight:600;">🧩 ${rawSusc}</strong>` : '';
