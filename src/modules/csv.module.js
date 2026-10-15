@@ -125,7 +125,7 @@ export function parseDisponibilidadCelda(celda) {
 export function normalizarSuscripcion(str) {
     if (!str) return 'Ensamble';
     let s = str.toLowerCase();
-    if (s.includes('grupal')) return 'Clases Grupales';
+    if (s.includes('grupal')) return 'Clase Grupal';
     if (s.includes('ensamble')) return 'Ensamble';
     if (s.includes('indiv')) return 'Clase Individual';
     return 'Ensamble';

@@ -2148,6 +2148,7 @@ export async function renderMatchEnValidacion(container) {
             const total = integrantes.length;
             const todosConfirmados = confirmados === total;
 
+            const mostrarBadgeValidados = total > 1;
             const chipClass = todosConfirmados ? 'status-val-ok' : 'status-val-pending';
             const chipTxt = `${confirmados}/${total} Validados`;
 
@@ -2156,67 +2157,76 @@ export async function renderMatchEnValidacion(container) {
                 const instAsignado = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || 'Sin inst.'));
                 const emojiInst = obtenerEmojiInstrumento(instAsignado);
                 
-                let datosParts = [];
-                if (al.edad) datosParts.push(`${al.edad} años`);
-                if (al.nivel) datosParts.push(`<span class="match-student-tag nivel" style="font-size:10px; padding:2px 7px;">${al.nivel}</span>`);
-                if (instAsignado) datosParts.push(`<strong style="color:var(--accent-teal); font-weight:600;">${emojiInst} ${instAsignado}</strong>`);
-                if (al.tipo_suscripcion) datosParts.push(`<strong style="color:var(--accent-purple); font-weight:600;">🧩 ${al.tipo_suscripcion}</strong>`);
+                let edadTxt = al.edad ? `• ${al.edad} años` : '';
+                let rawSusc = al.tipo_suscripcion || '';
+                if (rawSusc.toLowerCase() === 'clases grupales' || rawSusc.toLowerCase() === 'grupal') rawSusc = 'Clase Grupal';
+                let suscTxt = rawSusc ? `• <strong style="color:var(--accent-purple); font-weight:600;">🧩 ${rawSusc}</strong>` : '';
 
-                const filaDatos = datosParts.length > 0
-                    ? `<div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:12px; color:var(--text-muted); text-align:left;">${datosParts.join(' • ')}</div>`
-                    : '';
+                const nombreSafe = (al.nombre || '').replace(/'/g, "\\'");
 
-                const tagsPsicoHtml = (Array.isArray(al.perfil_psicologico) && al.perfil_psicologico.length > 0)
-                    ? `<div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:2px; text-align:left;">${al.perfil_psicologico.map(t => `<span class="profile-tag-badge" style="font-size:9.5px; padding:1px 6px;">🧠 ${t}</span>`).join('')}</div>`
-                    : '';
-                
                 return `
-                    <div class="group-member-row" style="padding:12px 14px; align-items:center; justify-content:space-between; gap:12px;">
-                        <div class="group-member-info" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:3px; cursor:pointer; flex:1;" onclick="window.editarAlumnoModalDirecto('${al.id}')" title="Ver ficha y registro completo de ${al.nombre}">
+                    <div class="group-member-row" style="display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:#ffffff; border:1px solid #e2e8f0; border-radius:9px; margin-bottom:6px; transition:all 0.15s ease;">
+                        <div class="group-member-info" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:2px; cursor:pointer; flex:1;" onclick="window.editarAlumnoModalDirecto('${al.id}')" title="Ver ficha y registro completo de ${al.nombre}">
                             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; text-align:left;">
-                                <span class="group-member-name" style="font-size:14px; font-weight:700; color:var(--text-main);">👤 ${al.nombre}</span>
-                                <span class="group-member-status-chip ${isConfirmed ? 'status-val-ok' : 'status-val-pending'}">
-                                    ${isConfirmed ? '✅ Confirmó' : '⏳ Pendiente'}
-                                </span>
+                                <span style="font-size:13.5px; font-weight:700; color:#0f172a;">${al.nombre}</span>
+                                ${edadTxt ? `<span style="font-size:12px; font-weight:500; color:#64748b;">${edadTxt}</span>` : ''}
+                                ${nivelHtml}
                             </div>
-                            ${filaDatos}
-                            ${tagsPsicoHtml}
+                            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:12px; color:var(--text-muted); text-align:left;">
+                                <strong style="color:var(--accent-teal); font-weight:600;">${emojiInst} ${instAsignado}</strong>
+                                ${suscTxt}
+                            </div>
                         </div>
-                        <div class="group-member-actions" onclick="event.stopPropagation();" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; flex-shrink:0;">
-                            <button type="button" class="row-quick-btn ${isConfirmed ? 'primary' : 'secondary'}" onclick="window.abrirModalNotaValidacionAlumno('${al.id}', ${!isConfirmed})" title="${isConfirmed ? 'Desmarcar confirmación (ingresar motivo obligatorio)' : 'Confirmar disponibilidad con notas del coordinador'}">
-                                ${isConfirmed ? '✔️ Desmarcar' : '✔️ Confirmó'}
-                            </button>
-                            <button type="button" class="row-quick-btn primary" onclick="window.aprobarAlumnoIndividualPrealta('${al.id}')" title="${isConfirmed ? 'Aprobar individualmente a Altas' : 'El alumno debe confirmar su disponibilidad antes de ser aprobado a Altas'}" style="${isConfirmed ? '' : 'opacity:0.45;'}">🚀 Aprobar</button>
-                            <button type="button" class="row-quick-btn danger" onclick="window.rechazarAlumnoGrupoYVolverEspera('${al.id}')" title="Rechazar y regresar a Lista de Espera">❌</button>
+                        <div class="alumno-actions row-actions-container" style="display:flex; align-items:center; flex-shrink:0;">
+                            <button type="button" class="btn-row-action" title="Acciones del alumno" style="background:#fff; border:1px solid #cbd5e1; color:#475569; width:30px; height:30px; border-radius:7px; font-size:14px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center;">⋮</button>
+                            <div class="dropdown-menu-wrapper">
+                                <div class="dropdown-menu">
+                                    <button type="button" class="dropdown-item" style="color:var(--accent-teal); font-weight:700;" onclick="window.aprobarAlumnoIndividualPrealta('${al.id}')">🚀 Aprobar a Altas</button>
+                                    <button type="button" class="dropdown-item" onclick="window.enviarWhatsAppValidacionGrupo('${al.id}')">💬 Avisar por WhatsApp</button>
+                                    <div class="dropdown-divider" style="height:1px; background:#e2e8f0; margin:4px 0;"></div>
+                                    <button type="button" class="dropdown-item" style="color:var(--accent-red);" onclick="window.rechazarAlumnoGrupoYVolverEspera('${al.id}')">↩️ Devolver a Lista de Espera</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 `;
             }).join('');
 
-            html += `
-                <div class="group-box-card" style="width:100%;">
-                    <div class="group-box-header">
-                        <div>
-                            <div class="group-box-title">
-                                <span>🧩 ${nombreGrupo}</span>
-                                <span class="group-member-status-chip ${chipClass}">${chipTxt}</span>
+            // Cabecera: Acciones de grupo (3 puntos) solo si total > 1
+            let accionesGrupoHtml = '';
+            if (total > 1) {
+                const nombreGrupoSafe = nombreGrupo.replace(/'/g, "\\'");
+                accionesGrupoHtml = `
+                    <div class="alumno-actions row-actions-container" style="display:flex; align-items:center;">
+                        <button type="button" class="btn-row-action" title="Acciones del grupo" style="background:#f8fafc; border:1px solid #94a3b8; color:#0f766e; width:32px; height:32px; border-radius:8px; font-size:15px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center;">⋮</button>
+                        <div class="dropdown-menu-wrapper">
+                            <div class="dropdown-menu" style="min-width:210px;">
+                                <button type="button" class="dropdown-item" style="color:var(--accent-teal); font-weight:700;" onclick="window.aprobarGrupoCompletoPrealta('${nombreGrupoSafe}')">✅ Aprobar Grupo a Altas</button>
+                                <div class="dropdown-divider" style="height:1px; background:#e2e8f0; margin:4px 0;"></div>
+                                <button type="button" class="dropdown-item" style="color:var(--accent-red);" onclick="window.desarmarGrupoValidacion('${nombreGrupoSafe}')">❌ Desarmar Grupo</button>
                             </div>
-                            <div class="group-box-subtitle">
+                        </div>
+                    </div>
+                `;
+            }
+
+            html += `
+                <div class="group-box-card" style="width:100%; border:1.5px solid #cbd5e1; border-radius:14px; padding:14px 18px; margin-bottom:16px; background:#ffffff; box-shadow:0 2px 6px rgba(0,0,0,0.02);">
+                    <div class="group-box-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; padding-bottom:10px; border-bottom:1px dashed #e2e8f0; margin-bottom:10px;">
+                        <div>
+                            <div class="group-box-title" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                                <span style="font-size:15px; font-weight:800; color:#0f172a;">🧩 ${nombreGrupo}</span>
+                                ${mostrarBadgeValidados ? `<span class="group-member-status-chip ${chipClass}">${chipTxt}</span>` : ''}
+                            </div>
+                            <div class="group-box-subtitle" style="font-size:12.5px; color:var(--text-muted); display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:4px;">
                                 <span>📅 <strong>${horario}</strong></span>
                                 <span>•</span>
                                 <span>👨‍🏫 Profe: <strong>${profeNom}</strong></span>
                             </div>
                         </div>
-                        <div class="group-box-actions">
-                            <button type="button" class="btn-primary" onclick="window.aprobarGrupoCompletoPrealta('${nombreGrupo}')" style="padding:8px 16px; font-size:13px; ${todosConfirmados ? '' : 'opacity:0.65;'}" title="${todosConfirmados ? 'Aprobar grupo a Altas Pendientes' : 'Todos los integrantes deben confirmar disponibilidad para habilitar la aprobación'}">
-                                ✅ Aprobar Grupo a Altas
-                            </button>
-                            <button type="button" class="filter-chip" onclick="window.desarmarGrupoValidacion('${nombreGrupo}')" style="padding:8px 12px; font-size:13px; color:var(--accent-red); border-color:rgba(194,86,59,0.3);">
-                                ❌ Desarmar Grupo
-                            </button>
-                        </div>
+                        ${accionesGrupoHtml}
                     </div>
-                    <div class="group-box-members">
+                    <div class="group-box-members" style="display:flex; flex-direction:column; gap:4px;">
                         ${integrantesHtml}
                     </div>
                 </div>
@@ -2240,7 +2250,7 @@ export async function generarAlumnosPruebaMatch(setBotonCargandoFn) {
         suscDocs.forEach(d => listaSusc.push(d.data().nombre));
 
         const suscEnsamble = listaSusc.find(s => s.toLowerCase().includes('ensamble')) || 'Ensamble';
-        const suscGrupal = listaSusc.find(s => s.toLowerCase().includes('grupal')) || 'Clases Grupales';
+        const suscGrupal = listaSusc.find(s => s.toLowerCase().includes('grupal')) || 'Clase Grupal';
         const suscIndividual = listaSusc.find(s => s.toLowerCase().includes('individual')) || 'Clases Individuales';
 
         const now = new Date();
@@ -2696,6 +2706,9 @@ window.abrirModalAprobacionMatchSeguimiento = async function(alumnosList, nombre
         alertaEl.textContent = '';
     }
 
+    const obsInput = document.getElementById('match-seg-observaciones');
+    if (obsInput) obsInput.value = '';
+
     const esGrupo = alumnosList.length > 1;
     if (tituloEl) {
         tituloEl.textContent = esGrupo 
@@ -2859,11 +2872,19 @@ window.abrirModalAprobacionMatchSeguimiento = async function(alumnosList, nombre
             }
 
             try {
+                const obsTexto = (document.getElementById('match-seg-observaciones')?.value || '').trim();
+
                 for (const item of asignaciones) {
                     const { al, segId, segNombre, segEmail } = item;
                     const hist = Array.isArray(al.historial) ? al.historial : [];
-                    const fnHist = window.crearEntradaHistorial || ((txt, tipo) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema' }));
-                    hist.push(fnHist(`Validación aprobada para ${nombreGrupo || al.grupo_asignado || 'clase'}. Pasa a Altas Pendientes con Responsable de Seguimiento: ${segNombre}.`, 'match'));
+                    const fnHist = window.crearEntradaHistorial || ((txt, tipo, creador) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema', creador: creador || 'Coordinador' }));
+                    
+                    const nombreOperador = window.usuarioActual?.nombre || 'Coordinador';
+                    let descAprob = `Validación aprobada para ${nombreGrupo || al.grupo_asignado || 'clase'}. Pasa a Altas Pendientes con Responsable de Seguimiento: ${segNombre}.`;
+                    if (obsTexto) {
+                        descAprob += ` Obs: ${obsTexto}`;
+                    }
+                    hist.push(fnHist(descAprob, 'match', nombreOperador));
 
                     const updatesAvanzar = {
                         estado_agenda: "Pre-alta pendiente",
@@ -2942,12 +2963,6 @@ window.aprobarGrupoCompletoPrealta = async function(nombreGrupo) {
             return alert(`No se encontraron alumnos en validación para el grupo "${nombreGrupo}".`);
         }
 
-        const sinConfirmar = miembrosGrupo.filter(m => m.estado_validacion_alumno !== 'confirmado');
-        if (sinConfirmar.length > 0) {
-            const nombres = sinConfirmar.map(s => s.nombre).join('\n• ');
-            return alert(`⚠️ No se puede aprobar el grupo "${nombreGrupo}" a Altas porque tiene ${sinConfirmar.length} alumno(s) sin confirmar disponibilidad:\n\n• ${nombres}\n\nTodos los alumnos deben estar confirmados antes de pasar a Altas.`);
-        }
-
         await window.abrirModalAprobacionMatchSeguimiento(miembrosGrupo, nombreGrupo);
     } catch(err) {
         alert('Error al procesar aprobación de grupo: ' + err.message);
@@ -2959,10 +2974,6 @@ window.aprobarAlumnoIndividualPrealta = async function(alumnoId) {
         const alDoc = await getDoc(doc(db, "alumnos", alumnoId));
         if (!alDoc.exists()) return;
         const al = alDoc.data();
-
-        if (al.estado_validacion_alumno !== 'confirmado') {
-            return alert(`⚠️ No se puede aprobar a ${al.nombre} a Altas porque aún no ha confirmado su disponibilidad.\n\nPrimero debe confirmarse con el botón '✔️ Confirmó'.`);
-        }
 
         await window.abrirModalAprobacionMatchSeguimiento([{ id: alumnoId, ...al }], al.grupo_asignado || '');
     } catch(err) {

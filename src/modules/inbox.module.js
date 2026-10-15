@@ -232,11 +232,8 @@ export function generarBotonesPrincipalesVisibles(al, id) {
             html += `<button type="button" class="row-quick-btn primary btn-abrir-propuesta-espera" data-id="${id}">🧩 Armar Propuesta</button>`;
         }
     } else if (est === 'validando grupo') {
-        const isConfirmed = al.estado_validacion_alumno === 'confirmado';
-        html += `<button type="button" class="row-quick-btn secondary" onclick="window.enviarWhatsAppValidacionGrupo('${id}')">💬 Avisar a Alumno</button>`;
-        html += `<button type="button" class="row-quick-btn ${isConfirmed ? 'primary' : 'secondary'}" onclick="window.toggleValidacionAlumnoGrupo('${id}', ${!isConfirmed})">${isConfirmed ? '✔️ Desmarcar' : '✔️ Confirmó'}</button>`;
-        html += `<button type="button" class="row-quick-btn primary" onclick="window.aprobarAlumnoIndividualPrealta('${id}')">🚀 Aprobar</button>`;
-        html += `<button type="button" class="row-quick-btn danger" onclick="window.rechazarAlumnoGrupoYVolverEspera('${id}')">❌</button>`;
+        // En Validación todas las acciones van dentro de los 3 puntos (⋮) para una vista limpia y minimalista
+        return '';
     } else if (est === 'pre-alta pendiente') {
         html += `<button type="button" class="row-quick-btn primary btn-abrir-prealta" data-id="${id}">⚙️ Iniciar Pre-Alta</button>`;
         html += `<button type="button" class="row-quick-btn secondary btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
@@ -350,7 +347,8 @@ export function generarBotonesAccion(al, id, esModal = false, vista = '') {
     } 
     // 6. Match > En Validación
     else if (est === 'validando grupo' || est === 'en validacion' || vistaActiva.startsWith('Match')) {
-        html += `<button type="button" class="${btnClass()} btn-editar-match" onclick="window.editarAlumnoModalDirecto('${id}')">✏️ Editar Ficha</button>`;
+        html += `<button type="button" class="${btnClass(true)}" style="color:var(--accent-teal); font-weight:700;" onclick="window.aprobarAlumnoIndividualPrealta('${id}')">🚀 Aprobar a Altas</button>`;
+        html += `<button type="button" class="${btnClass()}" onclick="window.enviarWhatsAppValidacionGrupo('${id}')">💬 Avisar por WhatsApp</button>`;
         html += `<button type="button" class="${btnClass()} btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
         html += `<button type="button" class="${btnClass()} btn-nota-rapida" data-id="${id}">📝 Agregar Nota</button>`;
         html += `<button type="button" class="${btnClass()} btn-suspender-espera" data-id="${id}">⏸️ Suspender</button>`;

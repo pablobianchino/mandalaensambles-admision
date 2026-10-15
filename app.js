@@ -312,7 +312,7 @@ function renderFiltrosChips() {
 
     const suscripciones = [
         { id: 'Ensamble', label: '🧩 Ensamble' },
-        { id: 'Clases Grupales', label: '👥 Grupal' },
+        { id: 'Clase Grupal', label: '👥 Grupal' },
         { id: 'Clase Individual', label: '👤 Individual' }
     ];
 
@@ -4185,7 +4185,12 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
         return `<strong style="color:var(--accent-teal); font-weight:600; white-space:nowrap;">${emo} ${inst}</strong>`;
     }, 'Instrumentos', id);
 
-    let suscArray = Array.isArray(al.tipo_suscripcion) ? al.tipo_suscripcion : (al.tipo_suscripcion ? String(al.tipo_suscripcion).split(',').map(s => s.trim()).filter(Boolean) : []);
+    let suscArray = (Array.isArray(al.tipo_suscripcion) ? al.tipo_suscripcion : (al.tipo_suscripcion ? String(al.tipo_suscripcion).split(',').map(s => s.trim()).filter(Boolean) : [])).map(s => {
+        const sNorm = s.toLowerCase();
+        if (sNorm === 'clases grupales' || sNorm === 'grupal') return 'Clase Grupal';
+        if (sNorm === 'clases individuales' || sNorm === 'clase individual') return 'Clase Individual';
+        return s;
+    });
     let suscHtml = renderizarItemsConMax2(suscArray, (susc) => {
         return `<strong style="color:var(--accent-purple); font-weight:600; white-space:nowrap;">🧩 ${susc}</strong>`;
     }, 'Suscripciones', id);
@@ -5943,7 +5948,17 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
             if (criterio === 'grupo') clave = al.grupo_asignado || 'Sin Grupo Asignado';
             else if (criterio === 'instrumento') clave = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || clave);
             else if (criterio === 'nivel') clave = al.nivel || clave;
-            else if (criterio === 'suscripcion') clave = al.tipo_suscripcion || clave;
+            else if (criterio === 'suscripcion') {
+                let rawS = (al.tipo_suscripcion || clave).trim();
+                const sNorm = rawS.toLowerCase();
+                if (sNorm === 'clases grupales' || sNorm === 'grupal' || sNorm === 'clase grupal') {
+                    clave = 'Clase Grupal';
+                } else if (sNorm === 'clases individuales' || sNorm === 'clase individual' || sNorm === 'clase individual suelta') {
+                    clave = 'Clase Individual';
+                } else {
+                    clave = rawS;
+                }
+            }
             else if (criterio === 'profe') {
                 const esEtapaAdmision = (estadoActualVista && (estadoActualVista.startsWith('Inbox') || estadoActualVista === 'Lista de Espera' || estadoActualVista === 'Dashboard')) || (['Pendiente procesar', 'Pendiente validación por profe', 'Pendiente validación por alumno', 'Agenda confirmada', 'Agenda suspendida', 'Lista de espera'].includes(al.estado_agenda));
                 const profeNombre = al.profesor_asignado || al.profesor_nombre || al.profesor || al.reserva_profe_nombre || al.reserva_profe_nombre_previo || '';

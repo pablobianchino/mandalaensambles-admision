@@ -643,33 +643,38 @@ export async function sincronizarEventoAltaConfirmadaCalendar(al, esIndividual, 
         if (primaryCalId && !candidatosCal.includes(primaryCalId)) candidatosCal.push(primaryCalId);
         if (fallbackCalId && !candidatosCal.includes(fallbackCalId)) candidatosCal.push(fallbackCalId);
 
-        // 4. Si existe el evento: ACTUALIZAR IN-SITU (NUNCA DEJAR DUPLICADOS NI BORRAR)
+        // 4. Si existe el evento:
+        // Si el evento es preexistente (creado previamente por el docente o el usuario eligió mantenerlo),
+        // NUNCA pisar el título (summary) original del docente con titulos.tituloProfe ni sobreescribirlo en Calendar.
+        const esPreexistente = Boolean(al.evento_es_preexistente || al.evento_summary_original || listaCompletaAlumnos.some(a => a.evento_es_preexistente || a.evento_summary_original));
         if (targetEventId) {
-            let actualizado = false;
-            let calExito = null;
-            for (const cCal of candidatosCal) {
-                try {
-                    await actualizarEventoCalendario(cCal, targetEventId, titulos.tituloProfe, desc);
-                    actualizado = true;
-                    calExito = cCal;
-                    break;
-                } catch(errAct) {
-                    console.warn(`No se pudo actualizar evento ${targetEventId} en ${cCal}:`, errAct.message);
+            let calExito = targetCalId || candidatosCal[0];
+
+            if (!esPreexistente) {
+                // Solo si el evento fue creado por la app o no es preexistente del docente, actualizar in-situ
+                let actualizado = false;
+                for (const cCal of candidatosCal) {
+                    try {
+                        await actualizarEventoCalendario(cCal, targetEventId, titulos.tituloProfe, desc);
+                        actualizado = true;
+                        calExito = cCal;
+                        break;
+                    } catch(errAct) {
+                        console.warn(`No se pudo actualizar evento ${targetEventId} en ${cCal}:`, errAct.message);
+                    }
                 }
             }
 
-            if (actualizado && calExito) {
-                // Sincronizar ID de evento y calendario en todos los alumnos del grupo en Firestore
-                for (const alumno of listaCompletaAlumnos) {
-                    if (alumno.id) {
-                        await updateDoc(doc(db, "alumnos", alumno.id), {
-                            id_evento_alta: targetEventId,
-                            calendario_evento_alta: calExito
-                        }).catch(() => {});
-                    }
+            // Sincronizar ID de evento y calendario en todos los alumnos del grupo en Firestore
+            for (const alumno of listaCompletaAlumnos) {
+                if (alumno.id) {
+                    await updateDoc(doc(db, "alumnos", alumno.id), {
+                        id_evento_alta: targetEventId,
+                        calendario_evento_alta: calExito
+                    }).catch(() => {});
                 }
-                return { id: targetEventId, calendar: calExito, existiaPreviamente: true, creado: false };
             }
+            return { id: targetEventId, calendar: calExito, existiaPreviamente: true, creado: false };
         }
         
         // 5. Si no existe previamente: CREAR 1 evento puntual (primera clase)

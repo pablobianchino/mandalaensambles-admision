@@ -1850,6 +1850,7 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
     let eventoIdExistente = optProfeSel ? (optProfeSel.dataset.eventoId || null) : null;
     let eventoSummaryExistente = optProfeSel ? (optProfeSel.dataset.eventoSummary || '') : '';
     let decisionCrearEvento = 'crear'; // por defecto
+    let decisionTomadaEnModalEvento = false;
 
     const fInicioTexto = `${mapaDiasCodigos[diaCodigo] || diaCodigo} ${dateObj.getDate()}/${dateObj.getMonth()+1} ${horaInicioStr} hs`;
     const docNom = profeNombre || primerAl.profesor_asignado || primerAl.reserva_profe_nombre || 'Docente';
@@ -1879,6 +1880,7 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
                         return;
                     }
 
+                    decisionTomadaEnModalEvento = true;
                     if (respDecision === 'mantener') {
                         decisionCrearEvento = 'mantener';
                         esSumaGrupoExistente = true;
@@ -1928,10 +1930,9 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
         ? `Sumar a grupo/evento existente: "${eventoSummaryExistente}" (se mantendrá el evento actual en Calendar sin duplicar)`
         : (esIndividual ? 'Clase Individual' : (grp || 'Ensamble'));
 
-    // Restaurar estado del botón antes de mostrar confirmación para que no diga "Guardando..." en el fondo
-    if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
-
-    if (!esPropuesta) {
+    // Si el usuario ya decidió en el modal de detección de evento ("mantener" o "crear"), NO volver a preguntar
+    // para evitar preguntas redundantes en el flujo de alta.
+    if (!esPropuesta && !decisionTomadaEnModalEvento) {
         const confAgenda = await window.confirmar(
             `📅 Guardar y Sincronizar Pre-Alta`,
             `Resumen de la asignación:\n\n• Alumnos: ${ids.length > 1 ? ids.length + ' alumnos' : (primerAl.nombre || 'Alumno')}\n• Modalidad: ${textoModalidad}\n• Inicio: ${fInicioTexto}\n• Docente: ${docNom}\n\n¿Confirmás guardar la pre-alta?`,
