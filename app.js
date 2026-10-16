@@ -6670,8 +6670,11 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
         ? window.usuarioActual.roles 
         : [window.usuarioActual?.rol || 'admisiones'];
     const esAdmin = rolesActual.includes('admin') || rolesActual.includes('superadmin');
+    const modoActivo = (window.modoRolActivo || '').toLowerCase().trim();
+    const esModoAdmisor = modoActivo === 'admisor' || modoActivo === 'admisiones';
     const esAdmisor = !esEval && (esAdmin || rolesActual.includes('admisiones') || rolesActual.includes('admisor'));
     const esCoordinador = !esEval && !esAdmin && !rolesActual.includes('admisiones') && !rolesActual.includes('admisor') && (rolesActual.includes('coordinador') || rolesActual.includes('coordinador_grupos'));
+    const rolActivoEsAdmisor = esModoAdmisor || (!esEval && !esCoordinador && !esAdmin && (rolesActual.includes('admisiones') || rolesActual.includes('admisor')));
 
     const datasetCompleto = (Array.isArray(ultimosAlumnosCargados) && ultimosAlumnosCargados.length > 0)
         ? ultimosAlumnosCargados
@@ -6811,8 +6814,15 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
         if (objEntrevistas) tiposDisponibles.push(objEntrevistas);
         if (objAltasPendientes) tiposDisponibles.push(objAltasPendientes);
         if (objSeguimientos) tiposDisponibles.push(objSeguimientos);
+    } else if (rolActivoEsAdmisor) {
+        // Modo Admisor: Foco exclusivo en Entrevistas y Altas (Sin Seguimientos)
+        // 1° Sin Agendar -> 2° Validaciones -> 3° Entrevistas Agendadas -> 4° Altas Pendientes
+        if (objSinAgendar) tiposDisponibles.push(objSinAgendar);
+        if (objValidaciones) tiposDisponibles.push(objValidaciones);
+        if (objEntrevistas) tiposDisponibles.push(objEntrevistas);
+        if (objAltasPendientes) tiposDisponibles.push(objAltasPendientes);
     } else {
-        // Modo Admisor / Admin / General
+        // Modo Admin / Multi / General
         // 1° Sin Agendar -> 2° Validaciones -> 3° Entrevistas Agendadas -> 4° Altas Pendientes -> 5° Seguimientos
         if (objSinAgendar) tiposDisponibles.push(objSinAgendar);
         if (objValidaciones) tiposDisponibles.push(objValidaciones);
@@ -6939,7 +6949,9 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
             ? '✨ ¡Al día! No tienes seguimientos ni entrevistas registradas.'
             : (esCoordinador
                 ? '✨ ¡Al día! No hay seguimientos ni entrevistas registradas.'
-                : '✨ ¡Al día! No hay alumnos sin agendar, altas pendientes ni seguimientos/entrevistas pendientes.');
+                : (rolActivoEsAdmisor
+                    ? '✨ ¡Al día! No hay entrevistas pendientes de procesar, validar o realizar, ni altas pendientes en curso.'
+                    : '✨ ¡Al día! No hay alumnos sin agendar, altas pendientes ni seguimientos/entrevistas pendientes.'));
         cont.innerHTML = `<div style="color:var(--text-muted); padding:16px; text-align:center; font-weight:600; background:#f8fafc; border-radius:10px; border:1px dashed #cbd5e1;">${msg}</div>`;
         return;
     }
@@ -7445,7 +7457,7 @@ export function obtenerModulosPermitidosModoActivo() {
         } else if (modo === 'coordinador_grupos' || modo === 'coordinador') {
             return ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'bajas', 'configuracion'];
         } else if (modo === 'admisor' || modo === 'admisiones') {
-            return ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'bajas', 'metricas'];
+            return ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'bajas', 'metricas'];
         } else {
             return ['dashboard', 'portal_profesor', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'bajas', 'metricas', 'configuracion'];
         }
@@ -7472,7 +7484,8 @@ export function obtenerModulosPermitidosModoActivo() {
     }
 
     const esSoloDocente = rolesArr.length === 1 && (rolesArr[0] === 'profesor' || rolesArr[0] === 'docente');
-    if (!esSoloDocente && !listaPermitidaUser.includes('seguimientos')) {
+    const esSoloAdmisor = rolesArr.every(r => r === 'admisor' || r === 'admisiones');
+    if (!esSoloDocente && !esSoloAdmisor && !listaPermitidaUser.includes('seguimientos')) {
         listaPermitidaUser.push('seguimientos');
     }
 
@@ -7486,8 +7499,8 @@ export function obtenerModulosPermitidosModoActivo() {
         const base = ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'bajas', 'configuracion'];
         return base.filter(m => listaPermitidaUser.includes(m) || m === 'seguimientos' || m === 'bajas');
     } else if (modo === 'admisor' || modo === 'admisiones') {
-        const base = ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'bajas', 'metricas'];
-        return base.filter(m => listaPermitidaUser.includes(m) || m === 'seguimientos' || m === 'bajas');
+        const base = ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'bajas', 'metricas'];
+        return base.filter(m => (listaPermitidaUser.includes(m) || m === 'bajas') && m !== 'seguimientos');
     } else if (modo === 'admin') {
         const base = ['dashboard', 'portal_profesor', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'bajas', 'metricas', 'configuracion'];
         return base.filter(m => listaPermitidaUser.includes(m) || m === 'seguimientos' || m === 'bajas');
@@ -8963,8 +8976,8 @@ async function cambiarPasswordUsuarioLogueado(passActual, passNueva, passConfirm
 
 const ROLES_MODULOS_DEFAULT = {
     admin: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'bajas', 'metricas', 'portal_profesor', 'configuracion', 'permisos'],
-    admisor: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'bajas', 'metricas'],
-    admisiones: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'bajas', 'metricas'],
+    admisor: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'bajas', 'metricas'],
+    admisiones: ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'bajas', 'metricas'],
     coordinador_grupos: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'bajas', 'configuracion'],
     coordinador: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'bajas', 'configuracion'],
     evaluador: ['dashboard', 'inbox', 'seguimientos'],
