@@ -2299,6 +2299,14 @@ export function formatearFechaAltaParaExcelBD(al) {
 }
 
 export function formatearFechaInicioParaExcelBD(al) {
+    const tipo = (al.tipo_suscripcion || '').toLowerCase();
+    const esSuelta = tipo.includes('suelta') || tipo.includes('puntual') || al.modalidad_individual === 'suelta';
+    if (esSuelta && Array.isArray(al.fechas_clases_sueltas) && al.fechas_clases_sueltas.length > 0) {
+        return al.fechas_clases_sueltas.map(f => {
+            const d = (typeof f.toDate === 'function') ? f.toDate() : new Date(f);
+            return !isNaN(d.getTime()) ? `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}` : f;
+        }).join(', ');
+    }
     if (al.fecha_inicio_clases) {
         const d = (typeof al.fecha_inicio_clases.toDate === 'function') ? al.fecha_inicio_clases.toDate() : new Date(al.fecha_inicio_clases);
         if (!isNaN(d.getTime())) {
@@ -2347,6 +2355,21 @@ export function formatearFechaAltaParaExcel(al) {
 }
 
 export function formatearFechaInicioParaExcel(al) {
+    const tipo = (al.tipo_suscripcion || '').toLowerCase();
+    const esSuelta = tipo.includes('suelta') || tipo.includes('puntual') || al.modalidad_individual === 'suelta';
+    if (esSuelta && Array.isArray(al.fechas_clases_sueltas) && al.fechas_clases_sueltas.length > 0) {
+        return al.fechas_clases_sueltas.map(f => {
+            const d = (typeof f.toDate === 'function') ? f.toDate() : new Date(f);
+            if (!isNaN(d.getTime())) {
+                const dia = d.getDate().toString().padStart(2, '0');
+                const mes = (d.getMonth() + 1).toString().padStart(2, '0');
+                const hora = d.getHours().toString().padStart(2, '0');
+                const min = d.getMinutes().toString().padStart(2, '0');
+                return `${dia}/${mes} ${hora}:${min}`;
+            }
+            return f;
+        }).join(', ');
+    }
     if (al.fecha_inicio_clases) {
         const d = new Date(al.fecha_inicio_clases);
         if (!isNaN(d.getTime())) {
@@ -2364,6 +2387,20 @@ export function formatearFechaInicioParaExcel(al) {
 }
 
 export function formatearDetalleAltaInicio(al) {
+    const tipo = (al.tipo_suscripcion || '').toLowerCase();
+    const esSuelta = tipo.includes('suelta') || tipo.includes('puntual') || al.modalidad_individual === 'suelta';
+    if (esSuelta && Array.isArray(al.fechas_clases_sueltas) && al.fechas_clases_sueltas.length > 0) {
+        const fStrList = al.fechas_clases_sueltas.map(f => {
+            const d = (typeof f.toDate === 'function') ? f.toDate() : new Date(f);
+            if (!isNaN(d.getTime())) {
+                const dia = d.getDate().toString().padStart(2, '0');
+                const mes = (d.getMonth() + 1).toString().padStart(2, '0');
+                return `${dia}/${mes}`;
+            }
+            return f;
+        });
+        return `ALTA: Inicio ${fStrList.join(', ')}`;
+    }
     if (al.fecha_inicio_clases) {
         let d;
         // Soporte para Firestore Timestamp y strings ISO
@@ -2385,19 +2422,27 @@ export function formatearDetalleAltaInicio(al) {
 }
 
 function resolverPrecioSuscripcion(al) {
+    const tipo = (al.tipo_suscripcion || '').toLowerCase();
+    const esSuelta = tipo.includes('suelta') || tipo.includes('puntual') || al.modalidad_individual === 'suelta';
+    const cantSuelta = esSuelta ? Math.max(1, parseInt(al.cantidad_clases_sueltas || 1, 10)) : 1;
+
     // 1. Precio guardado directamente en el alumno
     const precioGuardado = al.precio_suscripcion || al.valor_arancel || al.arancel || '';
     if (precioGuardado && String(precioGuardado).replace(/[^\d]/g, '').length > 0) {
+        if (esSuelta && cantSuelta > 1) {
+            const unitario = parseInt(String(precioGuardado).replace(/[^\d]/g, ''), 10) || 0;
+            return formatearPrecioMoneda(unitario * cantSuelta);
+        }
         return formatearPrecioMoneda(precioGuardado);
     }
     // 2. Resolver desde window.configApp según tipo_suscripcion
     const cfg = window.configApp || {};
-    const tipo = (al.tipo_suscripcion || '').toLowerCase();
     const esComunidad = !!(al.es_comunidad || al.comunidad);
     let valor = '';
     if (tipo.includes('individual') || tipo.includes('clase')) {
-        if (tipo.includes('suelta') || tipo.includes('puntual')) {
-            valor = cfg.arancel_individual_suelta;
+        if (esSuelta) {
+            const unitario = parseInt(String(cfg.arancel_individual_suelta || 44000).replace(/[^\d]/g, ''), 10) || 44000;
+            return formatearPrecioMoneda(unitario * cantSuelta);
         } else if (tipo.includes('quincenal')) {
             valor = cfg.arancel_individual_quincenal;
         } else {
@@ -4539,6 +4584,258 @@ export async function copiarAvisoCoordinadorAlumno(alumnoIdOAlumno) {
     }
 }
 
+// -----------------------------------------------------------------------
+// GESTIÓN DE CLASES SUELTAS ACUMULATIVAS (Modo Individual Suelta)
+// -----------------------------------------------------------------------
+export async function abrirModalSumarClaseSuelta(alumnoId) {
+    if (!alumnoId) return;
+    try {
+        let al = null;
+        if (Array.isArray(window.cachedAlumnosData)) {
+            al = window.cachedAlumnosData.find(a => a.id === alumnoId);
+        }
+        if (!al) {
+            const snap = await getDoc(doc(db, "alumnos", alumnoId));
+            if (!snap.exists()) return alert("Alumno no encontrado.");
+            al = { id: snap.id, ...snap.data() };
+        }
+
+        const modal = document.getElementById('modal-sumar-clase-suelta');
+        if (!modal) return;
+
+        const inId = document.getElementById('suelta-alumno-id');
+        const tit = document.getElementById('modal-suelta-titulo');
+        const subtit = document.getElementById('modal-suelta-subtitulo');
+        const inFecha = document.getElementById('suelta-fecha-input');
+        const selProfe = document.getElementById('suelta-profe-select');
+        const inNota = document.getElementById('suelta-nota-input');
+        const txtArancel = document.getElementById('suelta-arancel-info');
+
+        const cantActual = Math.max(1, parseInt(al.cantidad_clases_sueltas || 1, 10));
+        const nuevaCant = cantActual + 1;
+
+        if (inId) inId.value = alumnoId;
+        if (tit) tit.textContent = `Registrar Clase Suelta N° ${nuevaCant}`;
+        if (subtit) subtit.textContent = `${al.nombre || 'Alumno'} • Clase Suelta N° ${nuevaCant}`;
+        if (inNota) inNota.value = '';
+
+        // Fecha por defecto: hoy a las 18:00
+        const now = new Date();
+        now.setMinutes(0);
+        now.setSeconds(0);
+        if (inFecha) inFecha.value = formatoLocalISO(now).substring(0, 16);
+
+        // Llenar select de profesores
+        if (selProfe) {
+            selProfe.innerHTML = '<option value="">Cargando docentes...</option>';
+            try {
+                const pSnap = await getDocs(collection(db, "profesores"));
+                const pMap = new Map();
+                pSnap.forEach(d => {
+                    const data = d.data();
+                    const nom = (data.nombre || data.nombre_completo || '').trim();
+                    if (nom && !pMap.has(nom.toLowerCase())) {
+                        pMap.set(nom.toLowerCase(), { id: d.id, nombre: nom });
+                    }
+                });
+                const listaProfes = Array.from(pMap.values()).sort((a,b) => a.nombre.localeCompare(b.nombre));
+                const profeActualNom = (al.profesor_asignado || al.reserva_profe_nombre || '').toLowerCase().trim();
+
+                selProfe.innerHTML = '<option value="">Seleccionar profesor...</option>';
+                listaProfes.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.nombre;
+                    opt.textContent = `👨‍🏫 ${p.nombre}`;
+                    opt.dataset.nombre = p.nombre;
+                    if (profeActualNom && (p.nombre.toLowerCase() === profeActualNom || profeActualNom.includes(p.nombre.toLowerCase()))) {
+                        opt.selected = true;
+                    }
+                    selProfe.appendChild(opt);
+                });
+            } catch(e) {
+                console.error("Error al cargar profesores para clase suelta:", e);
+                selProfe.innerHTML = `<option value="${al.profesor_asignado || ''}" selected>${al.profesor_asignado || 'Docente Asignado'}</option>`;
+            }
+        }
+
+        // Información de arancel
+        const cfg = window.configApp || defaultCfg || {};
+        const precioUnitario = parseInt(String(cfg.arancel_individual_suelta || al.precio_suscripcion || al.valor_arancel || 44000).replace(/[^\d]/g, ''), 10) || 44000;
+        const totalNuevo = precioUnitario * nuevaCant;
+        if (txtArancel) {
+            txtArancel.innerHTML = `Arancel unitario: <strong>${formatearPrecioMoneda(precioUnitario)}</strong> • Total acumulado tras registrar (${nuevaCant} clases): <strong style="color:#0f766e;">${formatearPrecioMoneda(totalNuevo)}</strong>`;
+        }
+
+        if (typeof modal.showModal === 'function') {
+            modal.showModal();
+        } else {
+            modal.style.display = 'block';
+        }
+    } catch(err) {
+        console.error("Error al abrir modal sumar clase suelta:", err);
+        alert("Error al abrir modal: " + err.message);
+    }
+}
+
+export async function guardarNuevaClaseSuelta(e) {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    const inId = document.getElementById('suelta-alumno-id');
+    const inFecha = document.getElementById('suelta-fecha-input');
+    const selProfe = document.getElementById('suelta-profe-select');
+    const inNota = document.getElementById('suelta-nota-input');
+    const btnSubmit = document.getElementById('btn-guardar-clase-suelta');
+
+    const alumnoId = inId?.value;
+    const fechaVal = inFecha?.value;
+    const profeNombre = selProfe?.value || '';
+    const notaTexto = inNota?.value?.trim() || '';
+
+    if (!alumnoId || !fechaVal) {
+        alert("Por favor completa la fecha y hora de la clase suelta.");
+        return;
+    }
+
+    try {
+        if (btnSubmit) {
+            btnSubmit.disabled = true;
+            btnSubmit.textContent = 'Guardando...';
+        }
+
+        const alSnap = await getDoc(doc(db, "alumnos", alumnoId));
+        if (!alSnap.exists()) throw new Error("El alumno no existe.");
+        const al = alSnap.data();
+
+        const cantPrevia = Math.max(1, parseInt(al.cantidad_clases_sueltas || 1, 10));
+        const nuevaCant = cantPrevia + 1;
+
+        let fechas = Array.isArray(al.fechas_clases_sueltas) ? [...al.fechas_clases_sueltas] : [];
+        if (fechas.length === 0 && al.fecha_inicio_clases) {
+            fechas.push(al.fecha_inicio_clases);
+        }
+        fechas.push(fechaVal);
+
+        const fD = new Date(fechaVal);
+        const fStr = !isNaN(fD.getTime())
+            ? `${fD.getDate().toString().padStart(2, '0')}/${(fD.getMonth() + 1).toString().padStart(2, '0')}/${fD.getFullYear()} ${fD.getHours().toString().padStart(2, '0')}:${fD.getMinutes().toString().padStart(2, '0')} hs`
+            : fechaVal;
+
+        const histNota = `Se registró la Clase Suelta N° ${nuevaCant} para el ${fStr} con ${profeNombre || 'docente'}.${notaTexto ? ` (Nota: ${notaTexto})` : ''}`;
+        
+        const nowISO = new Date().toISOString();
+        const histEntry = {
+            id: 'suelta_' + Date.now(),
+            fecha: nowISO,
+            tipo: 'Clase Suelta',
+            titulo: `Clase Suelta N° ${nuevaCant}`,
+            texto: histNota,
+            autor: window.usuarioActual?.nombre || window.usuarioActual?.email || 'Administración'
+        };
+
+        const updatePayload = {
+            cantidad_clases_sueltas: nuevaCant,
+            fechas_clases_sueltas: fechas,
+            modalidad_individual: 'suelta',
+            historial: Array.isArray(al.historial) ? [...al.historial, histEntry] : [histEntry]
+        };
+
+        if (profeNombre) {
+            updatePayload.profesor_asignado = profeNombre;
+        }
+
+        await updateDoc(doc(db, "alumnos", alumnoId), updatePayload);
+
+        // Actualizar memoria local
+        if (typeof window.actualizarAlumnoEnMemoriaLocal === 'function') {
+            window.actualizarAlumnoEnMemoriaLocal(alumnoId, updatePayload);
+        }
+
+        const modal = document.getElementById('modal-sumar-clase-suelta');
+        if (modal) {
+            if (typeof modal.close === 'function') modal.close();
+            else modal.style.display = 'none';
+        }
+
+        if (typeof window.mostrarToast === 'function') {
+            window.mostrarToast(`✅ Clase Suelta N° ${nuevaCant} registrada para ${al.nombre || 'el alumno'}`, 'success');
+        } else {
+            alert(`✅ Clase Suelta N° ${nuevaCant} registrada con éxito.`);
+        }
+
+        // Si el modal de la ficha del alumno está abierto, refrescar sus campos
+        const modalAlta = document.getElementById('modal-alta-alumno');
+        if (modalAlta && (modalAlta.open || modalAlta.style.display === 'block')) {
+            const numVal = document.getElementById('modal-alta-suelta-num-val');
+            const cantLbl = document.getElementById('modal-alta-suelta-cant-label');
+            const listaFechas = document.getElementById('modal-alta-suelta-fechas-list');
+            if (numVal) numVal.textContent = nuevaCant;
+            if (cantLbl) cantLbl.textContent = `${nuevaCant} clases registradas`;
+            if (listaFechas) {
+                listaFechas.innerHTML = fechas.map((f, i) => {
+                    const fd = new Date(f);
+                    const txt = !isNaN(fd.getTime()) ? `${fd.getDate()}/${fd.getMonth() + 1}` : f;
+                    return `<span class="badge" style="background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:4px; font-weight:700;">Clase ${i+1}: ${txt}</span>`;
+                }).join('');
+            }
+        }
+
+        // Refrescar vista activa
+        if (typeof window.cargarVista === 'function' && window.estadoActualVista) {
+            window.cargarVista(window.estadoActualVista);
+        }
+    } catch(err) {
+        console.error("Error al guardar clase suelta:", err);
+        alert("Error al guardar clase suelta: " + err.message);
+    } finally {
+        if (btnSubmit) {
+            btnSubmit.disabled = false;
+            btnSubmit.textContent = '💾 Registrar Clase';
+        }
+    }
+}
+
+export async function cambiarContadorClasesSueltas(alumnoId, delta) {
+    if (!alumnoId) return;
+    try {
+        const alSnap = await getDoc(doc(db, "alumnos", alumnoId));
+        if (!alSnap.exists()) return;
+        const al = alSnap.data();
+
+        const cantPrevia = Math.max(1, parseInt(al.cantidad_clases_sueltas || 1, 10));
+        const nuevaCant = Math.max(1, cantPrevia + delta);
+        if (nuevaCant === cantPrevia) return;
+
+        await updateDoc(doc(db, "alumnos", alumnoId), {
+            cantidad_clases_sueltas: nuevaCant,
+            modalidad_individual: 'suelta'
+        });
+
+        if (typeof window.actualizarAlumnoEnMemoriaLocal === 'function') {
+            window.actualizarAlumnoEnMemoriaLocal(alumnoId, {
+                cantidad_clases_sueltas: nuevaCant,
+                modalidad_individual: 'suelta'
+            });
+        }
+
+        const numVal = document.getElementById('modal-alta-suelta-num-val');
+        const cantLbl = document.getElementById('modal-alta-suelta-cant-label');
+        if (numVal) numVal.textContent = nuevaCant;
+        if (cantLbl) cantLbl.textContent = `${nuevaCant} ${nuevaCant === 1 ? 'clase registrada' : 'clases registradas'}`;
+
+        if (typeof window.mostrarToast === 'function') {
+            window.mostrarToast(`Contador actualizado a ${nuevaCant} clases sueltas`, 'info');
+        }
+
+        if (typeof window.cargarVista === 'function' && window.estadoActualVista) {
+            window.cargarVista(window.estadoActualVista);
+        }
+    } catch(err) {
+        console.error("Error al cambiar contador clases sueltas:", err);
+    }
+}
+
 // Window Global Bindings
 window.generarFilaExcelBD = generarFilaExcelBD;
 window.generarFilaExcelFacturacion = generarFilaExcelFacturacion;
@@ -4558,3 +4855,6 @@ window.generarTextoAvisoCoordinadorPrealta = generarTextoAvisoCoordinadorPrealta
 window.copiarAvisoCoordinadorGrupo = copiarAvisoCoordinadorGrupo;
 window.copiarAvisoCoordinadorAlumno = copiarAvisoCoordinadorAlumno;
 window.getSeguimientoBadgeStatus = getSeguimientoBadgeStatus;
+window.abrirModalSumarClaseSuelta = abrirModalSumarClaseSuelta;
+window.guardarNuevaClaseSuelta = guardarNuevaClaseSuelta;
+window.cambiarContadorClasesSueltas = cambiarContadorClasesSueltas;

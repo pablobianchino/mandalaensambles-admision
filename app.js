@@ -4189,6 +4189,10 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
         const sNorm = s.toLowerCase();
         if (sNorm === 'clases grupales' || sNorm === 'grupal') return 'Clase Grupal';
         if (sNorm === 'clases individuales' || sNorm === 'clase individual') return 'Clase Individual';
+        if (sNorm.includes('suelta') || al.modalidad_individual === 'suelta') {
+            const cantS = Math.max(1, parseInt(al.cantidad_clases_sueltas || 1, 10));
+            return `Clase Individual Suelta (${cantS} ${cantS === 1 ? 'clase' : 'clases'})`;
+        }
         return s;
     });
     let suscHtml = renderizarItemsConMax2(suscArray, (susc) => {
@@ -9238,6 +9242,15 @@ onAuthStateChanged(auth, async (user) => {
             };
         }
 
+        const formSumarClaseSuelta = document.getElementById('form-sumar-clase-suelta');
+        if (formSumarClaseSuelta) {
+            formSumarClaseSuelta.onsubmit = async (e) => {
+                if (typeof window.guardarNuevaClaseSuelta === 'function') {
+                    await window.guardarNuevaClaseSuelta(e);
+                }
+            };
+        }
+
         document.querySelectorAll('.btn-toggle-pass').forEach(btn => {
             btn.onclick = () => {
                 const targetId = btn.getAttribute('data-target');
@@ -10929,6 +10942,15 @@ document.addEventListener('click', async (e) => {
         alert("Alta Confirmada.\nTexto copiado y evento en Calendar actualizado a Alta Confirmada.");
         setBotonCargando(target, false);
         await cargarVista(estadoActualVista, false);
+        return;
+    }
+    // Acción directa: Sumar Clase Suelta
+    if (target.classList.contains('btn-sumar-clase-suelta') || target.closest('.btn-sumar-clase-suelta')) {
+        const btn = target.closest('.btn-sumar-clase-suelta') || target;
+        const id = btn.getAttribute('data-id');
+        if (id && typeof window.abrirModalSumarClaseSuelta === 'function') {
+            window.abrirModalSumarClaseSuelta(id);
+        }
         return;
     }
     // Acción directa: Finalizar Alta
@@ -14170,11 +14192,48 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
             } else if (modInd === 'fullpack') {
                 elAltaFrec.innerHTML = `<span class="badge" style="background:#dcfce7; color:#166534; font-size:11.5px; font-weight:700; padding:3px 8px; border-radius:6px; border:1px solid #86efac;">🟢 Full Pack (4 clases/mes)</span>`;
             } else if (modInd === 'suelta') {
-                elAltaFrec.innerHTML = `<span class="badge" style="background:#e0f2fe; color:#0369a1; font-size:11.5px; font-weight:700; padding:3px 8px; border-radius:6px; border:1px solid #bae6fd;">🔵 Suelta (1 clase)</span>`;
+                const cantSuelta = Math.max(1, parseInt(d.cantidad_clases_sueltas || 1, 10));
+                elAltaFrec.innerHTML = `<span class="badge" style="background:#e0f2fe; color:#0369a1; font-size:11.5px; font-weight:700; padding:3px 8px; border-radius:6px; border:1px solid #bae6fd;">🔵 Suelta (${cantSuelta} ${cantSuelta === 1 ? 'clase' : 'clases'})</span>`;
             } else if ((d.tipo_suscripcion || '').toLowerCase().includes('ensamble') || (d.grupo_asignado && d.grupo_asignado !== 'Clase Individual')) {
                 elAltaFrec.innerHTML = `<span class="badge" style="background:#f1f5f9; color:#475569; font-size:11.5px; font-weight:700; padding:3px 8px; border-radius:6px; border:1px solid #cbd5e1;">🧩 Ensamble Grupal</span>`;
             } else {
                 elAltaFrec.textContent = d.tipo_suscripcion || '-';
+            }
+
+            // Panel de Control de Clases Sueltas
+            const boxSuelta = document.getElementById('modal-alta-box-suelta');
+            if (boxSuelta) {
+                if (modInd === 'suelta') {
+                    boxSuelta.style.display = 'block';
+                    const cantSuelta = Math.max(1, parseInt(d.cantidad_clases_sueltas || 1, 10));
+                    const numVal = document.getElementById('modal-alta-suelta-num-val');
+                    const cantLbl = document.getElementById('modal-alta-suelta-cant-label');
+                    const listaFechas = document.getElementById('modal-alta-suelta-fechas-list');
+                    const btnSumar = document.getElementById('btn-modal-alta-agregar-suelta');
+                    const btnRestarCont = document.getElementById('btn-suelta-restar');
+                    const btnSumarCont = document.getElementById('btn-suelta-sumar');
+
+                    if (numVal) numVal.textContent = cantSuelta;
+                    if (cantLbl) cantLbl.textContent = `${cantSuelta} ${cantSuelta === 1 ? 'clase registrada' : 'clases registradas'}`;
+                    
+                    const fechas = Array.isArray(d.fechas_clases_sueltas) && d.fechas_clases_sueltas.length > 0 
+                        ? d.fechas_clases_sueltas 
+                        : (d.fecha_inicio_clases ? [d.fecha_inicio_clases] : []);
+                    
+                    if (listaFechas) {
+                        listaFechas.innerHTML = fechas.map((f, i) => {
+                            const fd = new Date(f);
+                            const txt = !isNaN(fd.getTime()) ? `${fd.getDate()}/${fd.getMonth() + 1}` : f;
+                            return `<span class="badge" style="background:#dbeafe; color:#1e40af; padding:2px 7px; border-radius:4px; font-weight:700;">Clase ${i+1}: ${txt}</span>`;
+                        }).join('');
+                    }
+
+                    if (btnSumar) btnSumar.onclick = () => window.abrirModalSumarClaseSuelta(d.id);
+                    if (btnRestarCont) btnRestarCont.onclick = () => window.cambiarContadorClasesSueltas(d.id, -1);
+                    if (btnSumarCont) btnSumarCont.onclick = () => window.cambiarContadorClasesSueltas(d.id, 1);
+                } else {
+                    boxSuelta.style.display = 'none';
+                }
             }
         }
 
@@ -14196,6 +14255,8 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
         }
     } else if (elAltaBox) {
         elAltaBox.style.display = 'none';
+        const boxSuelta = document.getElementById('modal-alta-box-suelta');
+        if (boxSuelta) boxSuelta.style.display = 'none';
         if (inpHora) inpHora.value = '';
         if (inpIni) inpIni.value = '';
     }

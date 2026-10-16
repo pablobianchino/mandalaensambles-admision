@@ -10,7 +10,7 @@
     <meta http-equiv="Expires" content="0">
     
     <link rel="icon" href="logo.png" type="image/png">
-    <link rel="manifest" href="manifest.json?v=7.1.6">
+    <link rel="manifest" href="manifest.json?v=7.1.7">
     <meta name="theme-color" content="#fbfaf8">
     <meta name="apple-mobile-web-app-title" content="Mandala Admisión">
     <meta name="application-name" content="Mandala Admisión">
@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=7.1.6">
+    <link rel="stylesheet" href="styles.css?v=7.1.7">
 
     <style>
         /* Estilos Críticos de Widget de Perfil y Popover Google-Style */
@@ -1043,6 +1043,28 @@
                                 <label style="font-size:11px; color:var(--text-muted); font-weight:600; display:block; margin-bottom:4px;">🚀 Inicio de Clases:</label>
                                 <input type="datetime-local" id="modal-alta-inicio-input" class="modern-input" style="font-size:12px; padding:6px 10px; width:100%;">
                             </div>
+                        </div>
+
+                        <!-- Panel específico para Alumnos de Clase Suelta -->
+                        <div id="modal-alta-box-suelta" style="display:none; margin-top:12px; padding:10px 14px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <span style="font-size:16px;">🔵</span>
+                                    <div>
+                                        <span style="font-size:12px; font-weight:800; color:#1e3a8a;">Control de Clases Sueltas:</span>
+                                        <span id="modal-alta-suelta-cant-label" style="font-size:12px; font-weight:700; color:#2563eb; margin-left:4px;">1 clase registrada</span>
+                                    </div>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <div style="display:inline-flex; align-items:center; border:1px solid #cbd5e1; border-radius:6px; background:#fff; overflow:hidden;">
+                                        <button type="button" id="btn-suelta-restar" style="border:none; background:#f8fafc; padding:3px 8px; cursor:pointer; font-weight:800; font-size:13px; color:#475569;" title="Restar 1 clase">-</button>
+                                        <span id="modal-alta-suelta-num-val" style="padding:2px 8px; font-size:12px; font-weight:800; color:#0f172a; min-width:18px; text-align:center;">1</span>
+                                        <button type="button" id="btn-suelta-sumar" style="border:none; background:#f8fafc; padding:3px 8px; cursor:pointer; font-weight:800; font-size:13px; color:#475569;" title="Sumar 1 clase">+</button>
+                                    </div>
+                                    <button type="button" id="btn-modal-alta-agregar-suelta" class="btn-app btn-primary" style="padding:4px 10px; font-size:11.5px; font-weight:700; border-radius:6px; background:#0f766e; border-color:#0f766e;">➕ Sumar Clase</button>
+                                </div>
+                            </div>
+                            <div id="modal-alta-suelta-fechas-list" style="margin-top:6px; font-size:11px; color:#475569; display:flex; flex-wrap:wrap; gap:6px;"></div>
                         </div>
                     </div>
 
@@ -3777,15 +3799,60 @@
         </div>
     </dialog>
 
+    <!-- MODAL: REGISTRAR NUEVA CLASE SUELTA -->
+    <dialog id="modal-sumar-clase-suelta" class="modern-modal" style="max-width:440px; border-radius:14px; border:none; box-shadow:0 12px 36px rgba(0,0,0,0.22); padding:0; overflow:hidden;">
+        <div style="background:#ffffff; border-radius:14px; display:flex; flex-direction:column; max-height:90vh;">
+            <div style="background:linear-gradient(135deg, #0f766e 0%, #007b8f 100%); color:#ffffff; padding:16px 20px; display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:22px;">➕</span>
+                    <div>
+                        <h3 style="margin:0; font-size:16px; font-weight:800; color:#fff;" id="modal-suelta-titulo">Registrar Clase Suelta</h3>
+                        <div style="font-size:12px; opacity:0.9; margin-top:2px;" id="modal-suelta-subtitulo">Alumno: -</div>
+                    </div>
+                </div>
+                <button type="button" class="btn-cerrar-modal" data-modal="modal-sumar-clase-suelta" style="background:rgba(255,255,255,0.15); border:none; color:#fff; font-size:18px; width:30px; height:30px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center;">✕</button>
+            </div>
+            
+            <form id="form-sumar-clase-suelta" onsubmit="window.guardarNuevaClaseSuelta(event); return false;" style="padding:20px; display:flex; flex-direction:column; gap:14px; margin:0;">
+                <input type="hidden" id="suelta-alumno-id">
+                
+                <div>
+                    <label style="display:block; font-size:12px; font-weight:700; color:var(--text-main); margin-bottom:5px;">📅 Fecha y Hora de la Clase:</label>
+                    <input type="datetime-local" id="suelta-fecha-input" class="modern-input" required style="width:100%; box-sizing:border-box; padding:8px 10px; font-size:13px; font-family:inherit;">
+                </div>
+
+                <div>
+                    <label style="display:block; font-size:12px; font-weight:700; color:var(--text-main); margin-bottom:5px;">👨‍🏫 Profesor Asignado:</label>
+                    <select id="suelta-profe-select" class="modern-input" required style="width:100%; box-sizing:border-box; padding:8px 10px; font-size:13px; font-family:inherit;"></select>
+                </div>
+
+                <div>
+                    <label style="display:block; font-size:12px; font-weight:700; color:var(--text-main); margin-bottom:5px;">📝 Detalle / Nota de pago (opcional):</label>
+                    <input type="text" id="suelta-nota-input" class="modern-input" placeholder="Ej: Abonada por transferencia / Clase acordada" style="width:100%; box-sizing:border-box; padding:8px 10px; font-size:13px; font-family:inherit;">
+                </div>
+
+                <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:10px 12px; font-size:12px; color:#166534; display:flex; gap:8px; align-items:center;">
+                    <span>ℹ️</span>
+                    <span id="suelta-arancel-info">Arancel acumulado: se sumará al total facturado.</span>
+                </div>
+
+                <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:8px;">
+                    <button type="button" class="btn-app btn-secondary btn-cerrar-modal" data-modal="modal-sumar-clase-suelta" style="padding:8px 16px; border-radius:8px; font-weight:600; font-size:13px;">Cancelar</button>
+                    <button type="submit" id="btn-guardar-clase-suelta" class="btn-app btn-primary" style="padding:8px 18px; border-radius:8px; font-weight:700; font-size:13px; background:var(--accent-teal);">💾 Registrar Clase</button>
+                </div>
+            </form>
+        </div>
+    </dialog>
+
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=7.1.6"></script>
+    <script type="module" src="app.js?v=7.1.7"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=7.1.6').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=7.1.7').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {

@@ -204,6 +204,10 @@ export function generarBotonesPrincipalesVisibles(al, id) {
     const est = rawEst.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
     if (al.seguimiento?.activo === true) {
+        const esSuelta = String(al.modalidad_individual || '').toLowerCase() === 'suelta' || String(al.tipo_suscripcion || '').toLowerCase().includes('suelta') || String(al.tipo_suscripcion || '').toLowerCase().includes('puntual');
+        if (esSuelta) {
+            html += `<button type="button" class="row-quick-btn primary btn-sumar-clase-suelta" data-id="${id}" style="background:#0f766e; border-color:#0f766e; color:#fff;" onclick="window.abrirModalSumarClaseSuelta && window.abrirModalSumarClaseSuelta('${id}')">➕ Sumar Clase</button>`;
+        }
         html += `<button type="button" class="row-quick-btn primary btn-seg-contactar" data-id="${id}" title="Registrar feedback de seguimiento">💬 Nuevo Feedback</button>`;
         html += `<button type="button" class="row-quick-btn secondary btn-seg-finalizar" data-id="${id}" title="Finalizar seguimiento">🏁 Finalizar</button>`;
         html += `<button type="button" class="row-quick-btn secondary btn-seg-ver-informe" data-id="${id}" title="Ver informe de admisión">👁️ Ver Informe</button>`;
@@ -244,6 +248,10 @@ export function generarBotonesPrincipalesVisibles(al, id) {
         const esFinalizada = esAlumnoAltaFinalizada(al);
         if (!esFinalizada) {
             html += `<button type="button" class="row-quick-btn primary btn-finalizar-alta-directa" data-id="${id}">🏁 Finalizar Alta</button>`;
+        }
+        const esSuelta = String(al.modalidad_individual || '').toLowerCase() === 'suelta' || String(al.tipo_suscripcion || '').toLowerCase().includes('suelta') || String(al.tipo_suscripcion || '').toLowerCase().includes('puntual');
+        if (esSuelta) {
+            html += `<button type="button" class="row-quick-btn primary btn-sumar-clase-suelta" data-id="${id}" style="background:#0f766e; border-color:#0f766e; color:#fff;" onclick="window.abrirModalSumarClaseSuelta && window.abrirModalSumarClaseSuelta('${id}')">➕ Sumar Clase</button>`;
         }
         html += `<button type="button" class="row-quick-btn secondary btn-aviso-alta-alumno" data-id="${id}">💬 Avisar a Alumno</button>`;
         if (esFinalizada) {
@@ -376,6 +384,11 @@ export function generarBotonesAccion(al, id, esModal = false, vista = '') {
     else if (esVistaSeguimiento || al.seguimiento?.activo === true || al.seguimiento?.finalizado === true) {
         const segActivo = al.seguimiento?.activo === true;
         const segFinalizado = al.seguimiento?.finalizado === true || vistaActiva.includes('Finalizados');
+        const esSuelta = String(al.modalidad_individual || '').toLowerCase() === 'suelta' || String(al.tipo_suscripcion || '').toLowerCase().includes('suelta') || String(al.tipo_suscripcion || '').toLowerCase().includes('puntual');
+
+        if (esSuelta) {
+            html += `<button type="button" class="${btnClass(true)} btn-sumar-clase-suelta" data-id="${id}" style="color:var(--accent-teal); font-weight:700;" onclick="window.abrirModalSumarClaseSuelta && window.abrirModalSumarClaseSuelta('${id}')">➕ Sumar Clase Suelta</button>`;
+        }
 
         if (segActivo) {
             // 11. Seguimientos > En Curso
@@ -407,6 +420,11 @@ export function generarBotonesAccion(al, id, esModal = false, vista = '') {
     }
     // 9. Altas > Finalizadas / Confirmadas (Solo si NO es seguimiento activo)
     else if (est === 'alta efectiva' || est === 'alta ilegal' || est === 'alta finalizada' || est === 'alta confirmada' || est.startsWith('alta') || vistaActiva === 'Altas - Confirmadas' || vistaActiva === 'Altas - Finalizadas') {
+        const esSuelta = String(al.modalidad_individual || '').toLowerCase() === 'suelta' || String(al.tipo_suscripcion || '').toLowerCase().includes('suelta') || String(al.tipo_suscripcion || '').toLowerCase().includes('puntual');
+        if (esSuelta) {
+            html += `<button type="button" class="${btnClass(true)} btn-sumar-clase-suelta" data-id="${id}" style="color:var(--accent-teal); font-weight:700;" onclick="window.abrirModalSumarClaseSuelta && window.abrirModalSumarClaseSuelta('${id}')">➕ Sumar Clase Suelta</button>`;
+        }
+
         if (!esFinalizada) {
             html += `<button type="button" class="${btnClass(true)} btn-finalizar-alta-directa" data-id="${id}">🏁 Finalizar Alta</button>`;
             html += `<button type="button" class="${btnClass()} btn-copiar-fila-excel-bd" data-id="${id}">📋 Copiar Registro BD</button>`;
