@@ -4588,14 +4588,18 @@ export async function copiarAvisoCoordinadorAlumno(alumnoIdOAlumno) {
 // GESTIÓN DE CLASES SUELTAS ACUMULATIVAS (Modo Individual Suelta)
 // -----------------------------------------------------------------------
 export async function abrirModalSumarClaseSuelta(alumnoId) {
-    if (!alumnoId) return;
+    const id = alumnoId || document.getElementById('alumno-id')?.value || document.getElementById('suelta-alumno-id')?.value;
+    if (!id) {
+        console.warn("abrirModalSumarClaseSuelta: no se encontró id de alumno");
+        return;
+    }
     try {
         let al = null;
         if (Array.isArray(window.cachedAlumnosData)) {
-            al = window.cachedAlumnosData.find(a => a.id === alumnoId);
+            al = window.cachedAlumnosData.find(a => a.id === id);
         }
         if (!al) {
-            const snap = await getDoc(doc(db, "alumnos", alumnoId));
+            const snap = await getDoc(doc(db, "alumnos", id));
             if (!snap.exists()) return alert("Alumno no encontrado.");
             al = { id: snap.id, ...snap.data() };
         }
@@ -4667,7 +4671,9 @@ export async function abrirModalSumarClaseSuelta(alumnoId) {
         }
 
         if (typeof modal.showModal === 'function') {
-            modal.showModal();
+            if (!modal.open) {
+                modal.showModal();
+            }
         } else {
             modal.style.display = 'block';
         }
@@ -4797,9 +4803,10 @@ export async function guardarNuevaClaseSuelta(e) {
 }
 
 export async function cambiarContadorClasesSueltas(alumnoId, delta) {
-    if (!alumnoId) return;
+    const id = alumnoId || document.getElementById('alumno-id')?.value || document.getElementById('suelta-alumno-id')?.value;
+    if (!id) return;
     try {
-        const alSnap = await getDoc(doc(db, "alumnos", alumnoId));
+        const alSnap = await getDoc(doc(db, "alumnos", id));
         if (!alSnap.exists()) return;
         const al = alSnap.data();
 
@@ -4807,13 +4814,13 @@ export async function cambiarContadorClasesSueltas(alumnoId, delta) {
         const nuevaCant = Math.max(1, cantPrevia + delta);
         if (nuevaCant === cantPrevia) return;
 
-        await updateDoc(doc(db, "alumnos", alumnoId), {
+        await updateDoc(doc(db, "alumnos", id), {
             cantidad_clases_sueltas: nuevaCant,
             modalidad_individual: 'suelta'
         });
 
         if (typeof window.actualizarAlumnoEnMemoriaLocal === 'function') {
-            window.actualizarAlumnoEnMemoriaLocal(alumnoId, {
+            window.actualizarAlumnoEnMemoriaLocal(id, {
                 cantidad_clases_sueltas: nuevaCant,
                 modalidad_individual: 'suelta'
             });

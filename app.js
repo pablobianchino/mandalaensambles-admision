@@ -14228,9 +14228,10 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
                         }).join('');
                     }
 
-                    if (btnSumar) btnSumar.onclick = () => window.abrirModalSumarClaseSuelta(d.id);
-                    if (btnRestarCont) btnRestarCont.onclick = () => window.cambiarContadorClasesSueltas(d.id, -1);
-                    if (btnSumarCont) btnSumarCont.onclick = () => window.cambiarContadorClasesSueltas(d.id, 1);
+                    const alumnoIdActual = id || d?.id || document.getElementById('alumno-id')?.value;
+                    if (btnSumar) btnSumar.onclick = () => window.abrirModalSumarClaseSuelta(alumnoIdActual);
+                    if (btnRestarCont) btnRestarCont.onclick = () => window.cambiarContadorClasesSueltas(alumnoIdActual, -1);
+                    if (btnSumarCont) btnSumarCont.onclick = () => window.cambiarContadorClasesSueltas(alumnoIdActual, 1);
                 } else {
                     boxSuelta.style.display = 'none';
                 }
