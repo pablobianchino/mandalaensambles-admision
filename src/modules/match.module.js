@@ -2165,6 +2165,35 @@ export async function renderMatchEnValidacion(container) {
 
                 const nombreSafe = (al.nombre || '').replace(/'/g, "\\'");
 
+                // Badge individual de confirmación solo si total > 1
+                let badgeConfirmacionAlumno = '';
+                if (total > 1) {
+                    if (isConfirmed) {
+                        badgeConfirmacionAlumno = `<span style="font-size:11px; font-weight:700; color:#15803d; background:#dcfce7; border:1px solid #bbf7d0; border-radius:6px; padding:2px 8px; display:inline-flex; align-items:center; gap:4px;">✅ Confirmado</span>`;
+                    } else {
+                        badgeConfirmacionAlumno = `<span style="font-size:11px; font-weight:600; color:#b45309; background:#fef3c7; border:1px solid #fde68a; border-radius:6px; padding:2px 8px; display:inline-flex; align-items:center; gap:4px;">⏳ Pendiente</span>`;
+                    }
+                }
+
+                // Opciones del menú desplegable (3 puntos)
+                let itemsDropdown = '';
+                if (total > 1) {
+                    if (!isConfirmed) {
+                        itemsDropdown += `<button type="button" class="dropdown-item" style="color:var(--accent-teal); font-weight:700;" onclick="window.abrirModalNotaValidacionAlumno('${al.id}', true)">✅ Confirmar Alumno</button>`;
+                    } else {
+                        itemsDropdown += `<button type="button" class="dropdown-item" style="color:#d97706; font-weight:600;" onclick="window.abrirModalNotaValidacionAlumno('${al.id}', false)">↩️ Desmarcar Confirmación</button>`;
+                    }
+                } else {
+                    // Total === 1 o clase individual
+                    itemsDropdown += `<button type="button" class="dropdown-item" style="color:var(--accent-teal); font-weight:700;" onclick="window.aprobarAlumnoIndividualPrealta('${al.id}')">🚀 Aprobar y Pasar a Altas</button>`;
+                }
+
+                itemsDropdown += `
+                    <button type="button" class="dropdown-item" onclick="window.enviarWhatsAppValidacionGrupo('${al.id}')">💬 Avisar por WhatsApp</button>
+                    <div class="dropdown-divider" style="height:1px; background:#e2e8f0; margin:4px 0;"></div>
+                    <button type="button" class="dropdown-item" style="color:var(--accent-red);" onclick="window.rechazarAlumnoGrupoYVolverEspera('${al.id}')">↩️ Devolver a Lista de Espera</button>
+                `;
+
                 return `
                     <div class="group-member-row" style="display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:#ffffff; border:1px solid #e2e8f0; border-radius:9px; margin-bottom:6px; transition:all 0.15s ease;">
                         <div class="group-member-info" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:2px; cursor:pointer; flex:1;" onclick="window.editarAlumnoModalDirecto('${al.id}')" title="Ver ficha y registro completo de ${al.nombre}">
@@ -2172,6 +2201,7 @@ export async function renderMatchEnValidacion(container) {
                                 <span style="font-size:13.5px; font-weight:700; color:#0f172a;">${al.nombre}</span>
                                 ${edadTxt ? `<span style="font-size:12px; font-weight:500; color:#64748b;">${edadTxt}</span>` : ''}
                                 ${nivelHtml}
+                                ${badgeConfirmacionAlumno}
                             </div>
                             <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:12px; color:var(--text-muted); text-align:left;">
                                 <strong style="color:var(--accent-teal); font-weight:600;">${emojiInst} ${instAsignado}</strong>
@@ -2182,10 +2212,7 @@ export async function renderMatchEnValidacion(container) {
                             <button type="button" class="btn-row-action" title="Acciones del alumno" style="background:#fff; border:1px solid #cbd5e1; color:#475569; width:30px; height:30px; border-radius:7px; font-size:14px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center;">⋮</button>
                             <div class="dropdown-menu-wrapper">
                                 <div class="dropdown-menu">
-                                    <button type="button" class="dropdown-item" style="color:var(--accent-teal); font-weight:700;" onclick="window.aprobarAlumnoIndividualPrealta('${al.id}')">🚀 Aprobar a Altas</button>
-                                    <button type="button" class="dropdown-item" onclick="window.enviarWhatsAppValidacionGrupo('${al.id}')">💬 Avisar por WhatsApp</button>
-                                    <div class="dropdown-divider" style="height:1px; background:#e2e8f0; margin:4px 0;"></div>
-                                    <button type="button" class="dropdown-item" style="color:var(--accent-red);" onclick="window.rechazarAlumnoGrupoYVolverEspera('${al.id}')">↩️ Devolver a Lista de Espera</button>
+                                    ${itemsDropdown}
                                 </div>
                             </div>
                         </div>
@@ -2197,12 +2224,20 @@ export async function renderMatchEnValidacion(container) {
             let accionesGrupoHtml = '';
             if (total > 1) {
                 const nombreGrupoSafe = nombreGrupo.replace(/'/g, "\\'");
+                const faltantes = total - confirmados;
+                let btnAprobarGrupoHtml = '';
+                if (todosConfirmados) {
+                    btnAprobarGrupoHtml = `<button type="button" class="dropdown-item" style="color:var(--accent-teal); font-weight:700;" onclick="window.aprobarGrupoCompletoPrealta('${nombreGrupoSafe}')">🚀 Aprobar Grupo a Altas</button>`;
+                } else {
+                    btnAprobarGrupoHtml = `<div class="dropdown-item" style="color:#94a3b8; font-size:12px; font-weight:600; cursor:not-allowed; background:#f8fafc;" title="Faltan ${faltantes} alumno(s) por confirmar disponibilidad">⏳ Faltan confirmar ${faltantes} ${faltantes === 1 ? 'alumno' : 'alumnos'}</div>`;
+                }
+
                 accionesGrupoHtml = `
                     <div class="alumno-actions row-actions-container" style="display:flex; align-items:center;">
                         <button type="button" class="btn-row-action" title="Acciones del grupo" style="background:#f8fafc; border:1px solid #94a3b8; color:#0f766e; width:32px; height:32px; border-radius:8px; font-size:15px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center;">⋮</button>
                         <div class="dropdown-menu-wrapper">
                             <div class="dropdown-menu" style="min-width:210px;">
-                                <button type="button" class="dropdown-item" style="color:var(--accent-teal); font-weight:700;" onclick="window.aprobarGrupoCompletoPrealta('${nombreGrupoSafe}')">✅ Aprobar Grupo a Altas</button>
+                                ${btnAprobarGrupoHtml}
                                 <div class="dropdown-divider" style="height:1px; background:#e2e8f0; margin:4px 0;"></div>
                                 <button type="button" class="dropdown-item" style="color:var(--accent-red);" onclick="window.desarmarGrupoValidacion('${nombreGrupoSafe}')">❌ Desarmar Grupo</button>
                             </div>
@@ -2707,10 +2742,18 @@ window.abrirModalAprobacionMatchSeguimiento = async function(alumnosList, nombre
         alertaEl.textContent = '';
     }
 
-    const obsInput = document.getElementById('match-seg-observaciones');
-    if (obsInput) obsInput.value = '';
-
     const esGrupo = alumnosList.length > 1;
+
+    const obsContainer = document.getElementById('match-seg-obs-container');
+    if (obsContainer) {
+        obsContainer.style.display = esGrupo ? 'none' : 'block';
+    }
+
+    const obsInput = document.getElementById('match-seg-observaciones');
+    if (obsInput) {
+        obsInput.value = '';
+        obsInput.placeholder = esGrupo ? '' : 'Ej: Hablé por teléfono con el alumno, confirma disponibilidad. Trae su propio instrumento...';
+    }
     if (tituloEl) {
         tituloEl.textContent = esGrupo 
             ? `Aprobar Grupo (${alumnosList.length} alumnos) y Asignar Seguimiento` 
