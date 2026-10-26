@@ -2,7 +2,7 @@
 // src/config/constants.js — Constantes globales del sistema
 // =======================================================================
 
-export const APP_VERSION = "v7.1.8";
+export const APP_VERSION = "v7.1.9";
 
 export const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx033Es_BuZJk5x0MmyV-u8foA58ENNl1K3Cv-BE6ZeguXCG62UIQl5H4v94EB7MT0/exec";
 export const SCRIPT_API_KEY = "mandala-seg-2026";
@@ -54,7 +54,7 @@ export const defaultCfg = {
     texto_prealta: "*⚠ PRE ALTA INICIADA*\n\n*👥 DATOS DE LA SUSCRIPCIÓN:*\n🔹 Suscripción: {suscripcion} {emojiinstrumento} {instrumento}\n🔹 Inicio de clases: {fecha inicio clases}\n🔹 Nombre: {nombre}\n🔹 Grupo: {grupo}\n🔹 Profesor: {profe}", 
     texto_prealta_alumno: "Hola {nombre}! Cómo estás? 👋\n\nTe cuento que ya tenemos todo listo para que te sumes a Mandala Ensambles! 🤟\n\n*⚠️ IMPORTANTE:* Tenés tiempo de abonar hasta el *{fecha_hora_limite}*. Pasado ese plazo, la primer clase se reprogramaría para la próxima semana.\n\n🧩 Suscripción: {suscripcion}\n\n👥 Grupo: {grupo}\n\n🧩 Día y horario de cursada: {horario_cursada}\n\n🧩 Fecha de inicio de clases: {fecha_inicio_clases}\n\n🧩 Profe: {profe}\n\n🧩 Arancel: {valor_arancel}\n\n🧩 Alias a transferir: {alias_profe}",
     texto_alta_confirmada: "*✅ NUEVA ALTA CONFIRMADA*\n\n*👥 DATOS DE LA SUSCRIPCIÓN:*\n🔹 Suscripción: {suscripcion}\n🔹 Nombre de alumno: {nombre}\n🔹 Instrumento: {instrumento}\n🔹 Grupo: {grupo}\n🔹 Profesor: {profe}\n🔹 Inicio de clases: {fecha inicio clases}",
-    texto_alta_alumno: "Hola {nombre}! Cómo estás? 👋\n\n¡Te confirmamos que ya está todo listo para tu inicio de clases en Mandala! 🤟🎉\n\n🧩 Suscripción: {suscripcion} {emojiinstrumento} {instrumento}\n👥 Grupo: {grupo}\n📅 Cursada: {horario_cursada}\n🚀 Inicio de clases: {fecha inicio clases}\n👨‍🏫 Profe: {profe}\n📍 Dirección: Av. Cabildo 2970, Piso 1, Depto C.\n\n¡Bienvenido/a a la comunidad Mandala! Cualquier duda nos escribís por acá.",
+    texto_alta_alumno: "Hola {nombre}! Muchas gracias!\n*Te confirmamos que ya está todo listo para tu inicio de clases!* Te esperamos! 🤟🎉\n\n🧩 *Suscripción*: {suscripcion} {emojiinstrumento} {instrumento}\n📅 *Cursada*: {horario_cursada}\n🚀 *Inicio de clases*: {fecha inicio clases}\n👨🏫 *Profe*: {profe}\n📍 *Dirección*: Av. Cabildo 2970, Piso 1, Depto C.\n\nA continuación te dejo algunas consideraciones a tener en cuenta. Cualquier duda me avisas. Éxitos ⚡",
     arancel_individual_suelta: '',
     arancel_individual_quincenal: '',
     arancel_individual_fullpack: '',

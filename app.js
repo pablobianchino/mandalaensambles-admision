@@ -1,4 +1,4 @@
-// =======================================================================
+﻿// =======================================================================
 // app.js — Mandala Admisión (Modular Architecture v4.9.0)
 // =======================================================================
 
@@ -7408,7 +7408,17 @@ function renderSegmentedTabs(vista) {
 export function verificarPermisoModulo(moduloDestino) {
     if (!window.usuarioActual) return true;
     const mods = obtenerModulosPermitidosModoActivo();
-    return mods.includes(moduloDestino);
+    if (mods.includes(moduloDestino)) return true;
+
+    // Permitir acceso a ConfiguraciÃ³n si el usuario tiene rol de Coordinador
+    if (moduloDestino === 'configuracion') {
+        const u = window.usuarioActual || {};
+        const rolesArr = Array.isArray(u.roles) && u.roles.length > 0 ? u.roles : [u.rol || ''];
+        const esCoord = rolesArr.includes('coordinador') || rolesArr.includes('coordinador_grupos') || rolesArr.some(r => (r || '').toLowerCase().includes('coord')) || u.rol === 'coordinador' || u.rol === 'coordinador_grupos';
+        if (esCoord) return true;
+    }
+
+    return false;
 }
 
 export function obtenerIniciales(nombre) {
@@ -7493,6 +7503,11 @@ export function obtenerModulosPermitidosModoActivo() {
         listaPermitidaUser.push('seguimientos');
     }
 
+    const esCoord = rolesArr.includes('coordinador') || rolesArr.includes('coordinador_grupos') || rolesArr.some(r => (r || '').toLowerCase().includes('coord')) || usuario.rol === 'coordinador' || usuario.rol === 'coordinador_grupos';
+    if (esCoord && !listaPermitidaUser.includes('configuracion')) {
+        listaPermitidaUser.push('configuracion');
+    }
+
     if (modo === 'evaluador') {
         const base = ['dashboard', 'inbox', 'espera', 'seguimientos'];
         return base.filter(m => listaPermitidaUser.includes(m) || m === 'seguimientos');
@@ -7501,7 +7516,7 @@ export function obtenerModulosPermitidosModoActivo() {
         return base.filter(m => listaPermitidaUser.includes(m));
     } else if (modo === 'coordinador_grupos' || modo === 'coordinador') {
         const base = ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'bajas', 'configuracion'];
-        return base.filter(m => listaPermitidaUser.includes(m) || m === 'seguimientos' || m === 'bajas');
+        return base.filter(m => listaPermitidaUser.includes(m) || m === 'seguimientos' || m === 'bajas' || m === 'configuracion');
     } else if (modo === 'admisor' || modo === 'admisiones') {
         const base = ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'bajas', 'metricas'];
         return base.filter(m => (listaPermitidaUser.includes(m) || m === 'bajas') && m !== 'seguimientos');
@@ -8913,6 +8928,16 @@ async function autoAprovisionarUsuariosSistemaDefault() {
                     auth_cuenta_creada: true
                 }).catch(() => {});
             }
+
+            // Auto-heal de permisos para coordinadores: asegurar 'configuracion' en Firestore
+            const rolesUser = Array.isArray(dt.roles) && dt.roles.length > 0 ? dt.roles : [dt.rol || ''];
+            const esCoordDoc = rolesUser.includes('coordinador') || rolesUser.includes('coordinador_grupos') || rolesUser.some(r => (r || '').toLowerCase().includes('coord')) || dt.rol === 'coordinador' || dt.rol === 'coordinador_grupos';
+            if (esCoordDoc && Array.isArray(dt.modulos_habilitados) && !dt.modulos_habilitados.includes('configuracion')) {
+                const nuevosMods = [...dt.modulos_habilitados, 'configuracion'];
+                await updateDoc(doc(db, "usuarios_sistema", d.id), {
+                    modulos_habilitados: nuevosMods
+                }).catch(() => {});
+            }
         }
     } catch (e) {
         console.warn("[AUTH] Inicialización de usuarios del sistema:", e);
@@ -9083,6 +9108,10 @@ onAuthStateChanged(auth, async (user) => {
                 });
                 modulos = Array.from(modulosUnion);
             }
+            const esCoordUser = rolesArr.includes('coordinador') || rolesArr.includes('coordinador_grupos') || rolesArr.some(r => (r || '').toLowerCase().includes('coord')) || usuarioEncontrado.rol === 'coordinador' || usuarioEncontrado.rol === 'coordinador_grupos';
+            if (esCoordUser && !modulos.includes('configuracion')) {
+                modulos.push('configuracion');
+            }
 
             let nombreDocente = usuarioEncontrado.nombre;
             let profesorId = usuarioEncontrado.profesor_id || '';
@@ -9218,7 +9247,7 @@ onAuthStateChanged(auth, async (user) => {
             popoverConfig.onclick = (e) => {
                 e.stopPropagation();
                 if (profilePopover) profilePopover.classList.remove('show');
-                cargarVista('Configuración');
+                if (typeof verificarEsSoloCoordinador === 'function' && verificarEsSoloCoordinador()) { cargarVista('ABM-Usuarios'); } else { cargarVista('ConfiguraciÃ³n'); }
             };
         }
 
