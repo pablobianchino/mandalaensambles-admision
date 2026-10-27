@@ -1,4 +1,4 @@
-﻿// =======================================================================
+// =======================================================================
 // app.js — Mandala Admisión (Modular Architecture v4.9.0)
 // =======================================================================
 
@@ -8078,6 +8078,7 @@ export function ejecutarBusquedaGlobal(queryStr, allData = null) {
 window.ejecutarBusquedaGlobal = ejecutarBusquedaGlobal;
 
 export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = false) {
+    if (typeof vista === 'string' && vista.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().startsWith('configuracion')) { vista = 'Configuración'; }
     window.cargarVistaGlobal = cargarVista;
     if (typeof window.actualizarUIModoVistaSwitch === 'function') {
         window.actualizarUIModoVistaSwitch();
@@ -9247,7 +9248,7 @@ onAuthStateChanged(auth, async (user) => {
             popoverConfig.onclick = (e) => {
                 e.stopPropagation();
                 if (profilePopover) profilePopover.classList.remove('show');
-                if (typeof verificarEsSoloCoordinador === 'function' && verificarEsSoloCoordinador()) { cargarVista('ABM-Usuarios'); } else { cargarVista('ConfiguraciÃ³n'); }
+                if (typeof verificarEsSoloCoordinador === 'function' && verificarEsSoloCoordinador()) { cargarVista('ABM-Usuarios'); } else { cargarVista('Configuración'); }
             };
         }
 
