@@ -2181,6 +2181,7 @@ export async function renderMatchEnValidacion(container) {
                     if (!isConfirmed) {
                         itemsDropdown += `<button type="button" class="dropdown-item" style="color:var(--accent-teal); font-weight:700;" onclick="window.abrirModalNotaValidacionAlumno('${al.id}', true)">✅ Confirmar Alumno</button>`;
                     } else {
+                        itemsDropdown += `<button type="button" class="dropdown-item" style="color:var(--accent-teal); font-weight:700;" onclick="window.aprobarAlumnoIndividualPrealta('${al.id}')">🚀 Aprobar a Altas</button>`;
                         itemsDropdown += `<button type="button" class="dropdown-item" style="color:#d97706; font-weight:600;" onclick="window.abrirModalNotaValidacionAlumno('${al.id}', false)">↩️ Desmarcar Confirmación</button>`;
                     }
                 } else {
@@ -2743,16 +2744,18 @@ window.abrirModalAprobacionMatchSeguimiento = async function(alumnosList, nombre
     }
 
     const esGrupo = alumnosList.length > 1;
+    const todosYaConfirmados = alumnosList.every(al => al.estado_validacion_alumno === 'confirmado');
+    const mostrarObs = !esGrupo && !todosYaConfirmados;
 
     const obsContainer = document.getElementById('match-seg-obs-container');
     if (obsContainer) {
-        obsContainer.style.display = esGrupo ? 'none' : 'block';
+        obsContainer.style.display = mostrarObs ? 'block' : 'none';
     }
 
     const obsInput = document.getElementById('match-seg-observaciones');
     if (obsInput) {
         obsInput.value = '';
-        obsInput.placeholder = esGrupo ? '' : 'Ej: Hablé por teléfono con el alumno, confirma disponibilidad. Trae su propio instrumento...';
+        obsInput.placeholder = mostrarObs ? 'Ej: Hablé por teléfono con el alumno, confirma disponibilidad. Trae su propio instrumento...' : '';
     }
     if (tituloEl) {
         tituloEl.textContent = esGrupo 
