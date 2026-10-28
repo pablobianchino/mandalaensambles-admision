@@ -359,6 +359,12 @@ export function generarBotonesAccion(al, id, esModal = false, vista = '') {
         if (!esBici) {
             html += `<button type="button" class="${btnClass(true)} btn-abrir-propuesta-espera" data-id="${id}">🧩 Armar Propuesta</button>`;
         }
+        const esEspecial = Boolean(al.es_especial || (Array.isArray(al.perfil_psicologico) && al.perfil_psicologico.some(p => typeof p === 'string' && p.includes('Especial'))));
+        if (!esEspecial) {
+            html += `<button type="button" class="${btnClass()}" onclick="window.toggleEspecialAlumno('${id}', true, '${nombreSafe}')">\uD83C\uDF00 Especial</button>`;
+        } else {
+            html += `<button type="button" class="${btnClass()}" onclick="window.toggleEspecialAlumno('${id}', false, '${nombreSafe}')">\uD83C\uDF00 Quitar Especial</button>`;
+        }
         html += `<button type="button" class="${btnClass()} btn-recall-espera" onclick="window.abrirModalRegistrarContacto('${id}', '${nombreSafe}', '${celSafe}', ${esBici})">☎️ Recall</button>`;
         if (!esBici) {
             html += `<button type="button" class="${btnClass()}" onclick="window.toggleBicicletaAlumno('${id}', true, '${nombreSafe}')">🚲 Enviar a Bicicleta</button>`;

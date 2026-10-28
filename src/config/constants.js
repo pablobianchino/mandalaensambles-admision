@@ -2,7 +2,7 @@
 // src/config/constants.js — Constantes globales del sistema
 // =======================================================================
 
-export const APP_VERSION = "v7.3.0";
+export const APP_VERSION = "v7.4.0";
 
 export const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx033Es_BuZJk5x0MmyV-u8foA58ENNl1K3Cv-BE6ZeguXCG62UIQl5H4v94EB7MT0/exec";
 export const SCRIPT_API_KEY = "mandala-seg-2026";
@@ -83,7 +83,7 @@ export const defaultCfg = {
         { desde: 70, rango_min: -5, rango_max: 5 }
     ],
     reglas_edad_ninos: { hasta: 13, libre: true },
-    perfil_psicologico_opciones: ['😊 Buena onda', '🙈 Tímido', '🎉 Extrovertido', '🦄 Raro', '🗣️ Muy hablador', '🌱 Humilde']
+    perfil_psicologico_opciones: ['\uD83C\uDF00 Especial', '😊 Buena onda', '🙈 Tímido', '🎉 Extrovertido', '🦄 Raro', '🗣️ Muy hablador', '🌱 Humilde']
 };
 
 export function esAlumnoAltaFinalizada(d) {

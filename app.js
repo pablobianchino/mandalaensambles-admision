@@ -224,7 +224,8 @@ let filtrosSeleccionados = {
     edadMin: null,
     edadMax: null,
     gruposEtarios: new Set(),
-    diasSinContactoMin: null
+    diasSinContactoMin: null,
+    soloEspeciales: false
 };
 let filtroAlarmaActual = 'Todos'; 
 let vistaModo = 'lista'; 
@@ -278,6 +279,11 @@ if(btnToggleView) {
 }
 
 let filtrosPopoverAbierto = false;
+window.toggleFiltroSoloEspeciales = function() {
+    filtrosSeleccionados.soloEspeciales = !filtrosSeleccionados.soloEspeciales;
+    renderFiltrosChips();
+    cargarVista(estadoActualVista, false);
+};
 
 function renderFiltrosChips() {
     const cont = document.getElementById('filtros-chips');
@@ -519,6 +525,29 @@ function renderFiltrosChips() {
                 </div>
             </div>
 
+            <!-- BotÃ³n Filtro RÃ¡pido Especiales (Solo en Lista de Espera) -->
+            ${(() => {
+                if (estadoActualVista !== 'Lista de Espera') return '';
+                const cantEsp = Array.isArray(ultimosAlumnosCargados)
+                    ? ultimosAlumnosCargados.filter(a => {
+                        const st = (a.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                        return st === 'lista de espera' && Boolean(a.es_especial || (Array.isArray(a.perfil_psicologico) && a.perfil_psicologico.some(p => typeof p === 'string' && p.includes('Especial'))));
+                    }).length
+                    : 0;
+                const isAct = Boolean(filtrosSeleccionados.soloEspeciales);
+                const bg = isAct ? 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)' : '#ffffff';
+                const bdr = isAct ? '#6d28d9' : '#cbd5e1';
+                const clr = isAct ? '#ffffff' : '#334155';
+                const bCountBg = isAct ? 'rgba(255,255,255,0.25)' : '#f1f5f9';
+                const bCountClr = isAct ? '#ffffff' : '#475569';
+                return `
+                    <button type="button" id="btn-toggle-filtro-especial" onclick="window.toggleFiltroSoloEspeciales()" class="btn-filtros-trigger ${isAct ? 'active' : ''}" style="background:${bg}; border-color:${bdr}; color:${clr}; font-weight:700;" title="Filtrar alumnos especiales en Lista de Espera">
+                        <span style="font-size:14px;">\uD83C\uDF00</span>
+                        <span>Especiales</span>
+                        <span class="badge-count-especiales" style="background:${bCountBg}; color:${bCountClr}; font-size:10px; font-weight:800; padding:1px 6px; border-radius:10px; margin-left:3px;">${cantEsp}</span>
+                    </button>
+                `;
+            })()}
             <!-- Botón Ir a Bicicletas (Solo en Lista de Espera si hay bicicletas) -->
             ${(() => {
                 if (estadoActualVista !== 'Lista de Espera') return '';
@@ -660,8 +689,9 @@ function renderFiltrosChips() {
                 filtrosSeleccionados.edadMax = null;
             } else if (type === 'diasContacto') {
                 filtrosSeleccionados.diasSinContactoMin = null;
+            } else if (type === 'soloEspeciales') {
+                filtrosSeleccionados.soloEspeciales = false;
             }
-
             renderFiltrosChips();
             cargarVista(estadoActualVista);
         });
@@ -678,6 +708,7 @@ function renderFiltrosChips() {
         filtrosSeleccionados.edadMin = null;
         filtrosSeleccionados.edadMax = null;
         filtrosSeleccionados.diasSinContactoMin = null;
+        filtrosSeleccionados.soloEspeciales = false;
         renderFiltrosChips();
         cargarVista(estadoActualVista);
     };
@@ -2710,19 +2741,33 @@ async function renderChipsPerfilPsicologico(containerId, seleccionados = []) {
         }
     } catch(e) {}
 
-    const opciones = (configApp && Array.isArray(configApp.perfil_psicologico_opciones) && configApp.perfil_psicologico_opciones.length > 0)
-        ? configApp.perfil_psicologico_opciones
-        : (defaultCfg.perfil_psicologico_opciones || []);
+    let opciones = (configApp && Array.isArray(configApp.perfil_psicologico_opciones) && configApp.perfil_psicologico_opciones.length > 0)
+        ? [...configApp.perfil_psicologico_opciones]
+        : [...(defaultCfg.perfil_psicologico_opciones || [])];
+    
+    if (!opciones.some(o => typeof o === 'string' && o.includes('Especial'))) {
+        opciones.unshift('\uD83C\uDF00 Especial');
+    }
     
     const selSet = new Set(Array.isArray(seleccionados) ? seleccionados : []);
 
     cont.innerHTML = opciones.map(op => {
         const isAct = selSet.has(op);
-        const bg = isAct ? '#007b8f' : '#f8fafc';
-        const bdr = isAct ? '#007b8f' : '#cbd5e1';
-        const clr = isAct ? '#ffffff' : '#334155';
-        const shd = isAct ? '0 2px 6px rgba(0,123,143,0.3)' : '0 1px 2px rgba(0,0,0,0.03)';
-        const fw = isAct ? '700' : '600';
+        const isEsp = typeof op === 'string' && op.includes('Especial');
+        let bg, bdr, clr, shd, fw;
+        if (isEsp) {
+            bg = isAct ? 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)' : '#faf5ff';
+            bdr = isAct ? '#6d28d9' : '#c4b5fd';
+            clr = isAct ? '#ffffff' : '#6d28d9';
+            shd = isAct ? '0 2px 8px rgba(109,40,217,0.35)' : '0 1px 2px rgba(0,0,0,0.03)';
+            fw = '700';
+        } else {
+            bg = isAct ? '#007b8f' : '#f8fafc';
+            bdr = isAct ? '#007b8f' : '#cbd5e1';
+            clr = isAct ? '#ffffff' : '#334155';
+            shd = isAct ? '0 2px 6px rgba(0,123,143,0.3)' : '0 1px 2px rgba(0,0,0,0.03)';
+            fw = isAct ? '700' : '600';
+        }
         return `<button type="button" class="profile-tag-chip ${isAct ? 'active' : ''}" data-val="${op}" style="display:inline-flex; align-items:center; gap:6px; padding:7px 15px; border-radius:24px; font-size:13px; font-weight:${fw}; cursor:pointer; user-select:none; transition:all 0.15s ease; outline:none; border:1.5px solid ${bdr}; background:${bg}; color:${clr}; box-shadow:${shd}; font-family:inherit; margin:3px 2px;">${op}</button>`;
     }).join('');
 }
@@ -2739,12 +2784,24 @@ document.addEventListener('click', (e) => {
     if (chip) {
         e.preventDefault();
         chip.classList.toggle('active');
-        const isNowActive = chip.classList.contains('active');
-        chip.style.backgroundColor = isNowActive ? '#007b8f' : '#f8fafc';
-        chip.style.borderColor = isNowActive ? '#007b8f' : '#cbd5e1';
-        chip.style.color = isNowActive ? '#ffffff' : '#334155';
-        chip.style.boxShadow = isNowActive ? '0 2px 6px rgba(0,123,143,0.3)' : '0 1px 2px rgba(0,0,0,0.03)';
-        chip.style.fontWeight = isNowActive ? '700' : '600';
+        const isEsp = (chip.getAttribute('data-val') || '').includes('Especial');
+        if (isEsp) {
+            chip.style.background = isNowActive ? 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)' : '#faf5ff';
+            chip.style.borderColor = isNowActive ? '#6d28d9' : '#c4b5fd';
+            chip.style.color = isNowActive ? '#ffffff' : '#6d28d9';
+            chip.style.boxShadow = isNowActive ? '0 2px 8px rgba(109,40,217,0.35)' : '0 1px 2px rgba(0,0,0,0.03)';
+            chip.style.fontWeight = '700';
+            const modalBadge = document.getElementById('modal-badge-especial');
+            if (modalBadge) {
+                modalBadge.style.display = isNowActive ? 'inline-flex' : 'none';
+            }
+        } else {
+            chip.style.backgroundColor = isNowActive ? '#007b8f' : '#f8fafc';
+            chip.style.borderColor = isNowActive ? '#007b8f' : '#cbd5e1';
+            chip.style.color = isNowActive ? '#ffffff' : '#334155';
+            chip.style.boxShadow = isNowActive ? '0 2px 6px rgba(0,123,143,0.3)' : '0 1px 2px rgba(0,0,0,0.03)';
+            chip.style.fontWeight = isNowActive ? '700' : '600';
+        }
         return;
     }
 
@@ -4167,6 +4224,7 @@ window.toggleExpandMotivoFila = function(boxEl) {
 
 function generarFilaAlumno(al, id, vista, isKanban = false) {
     const info = getEstadoYBadgeLocal(al);
+    const esEspecial = Boolean(al.es_especial || (Array.isArray(al.perfil_psicologico) && al.perfil_psicologico.some(p => typeof p === 'string' && p.includes('Especial'))));
     const esSimple = window.modoVistaSimple !== false;
     const esAdmin = typeof window.esUsuarioAdministrador === 'function' ? window.esUsuarioAdministrador() : false;
     const rawStAgenda = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
@@ -4302,7 +4360,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
         return `
         <div class="kanban-card btn-editar-alumno" draggable="true" ondragstart="window.dragKanban(event, '${id}')" data-id="${id}">
             <div class="kanban-card-title">
-                <span style="display:flex; align-items:center; gap:6px;"><div class="row-indicator ${info.colorIndicador}"></div>${al.nombre}</span>
+                <span style="display:flex; align-items:center; gap:6px;"><div class="row-indicator ${info.colorIndicador}"></div>${al.nombre}${esEspecial ? ` <span title="Alumno Especial / Particular" style="font-size:14px;">\uD83C\uDF00</span>` : ""}</span>
                 <span style="font-size:16px;" class="btn-row-action" onclick="event.stopPropagation(); window.abrirOpcionesKanban('${id}', this)">⋮</span>
             </div>
             <div class="kanban-card-sub">${edad || '-'} • <strong style="color:var(--accent-teal);">${instHtml || 'Sin inst.'}</strong></div>
@@ -4548,7 +4606,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                         <div class="row-indicator ${info.colorIndicador}"></div>
                         <div class="row-main-info" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:2px;">
                             <div class="row-name" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; text-align:left;">
-                                <span style="font-weight:700; color:var(--text-main); font-size:14.5px;">${al.nombre}</span>
+                                <span style="font-weight:700; color:var(--text-main); font-size:14.5px;">${al.nombre}</span>${esEspecial ? ` <span title="Alumno Especial / Particular" style="font-size:15px; line-height:1; display:inline-flex; align-items:center; cursor:help;">\uD83C\uDF00</span>` : ""}
                                 ${edad ? `<span style="font-size:12.5px; color:var(--text-muted); font-weight:600;">• ${edad}</span>` : ''}
                                 ${nivelHtml ? `<span style="display:inline-flex; align-items:center;">• ${nivelHtml}</span>` : ''}
                                 ${tagSegUrgencia}
@@ -5883,6 +5941,13 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
         filtrados = filtrados.filter(al => {
             const met = calcularMetricasEspera(al);
             return met.diasContacto >= minDias;
+        });
+    }
+
+    // Filtro rÃ¡pido por Alumnos Especiales
+    if (filtrosSeleccionados.soloEspeciales) {
+        filtrados = filtrados.filter(al => {
+            return Boolean(al.es_especial || (Array.isArray(al.perfil_psicologico) && al.perfil_psicologico.some(p => typeof p === 'string' && p.includes('Especial'))));
         });
     }
 
@@ -8251,6 +8316,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
             filtrosSeleccionados.edadMin = null;
             filtrosSeleccionados.edadMax = null;
             filtrosSeleccionados.diasSinContactoMin = null;
+            filtrosSeleccionados.soloEspeciales = false;
         }
     }
 
@@ -10768,6 +10834,7 @@ document.addEventListener('click', async (e) => {
                 informes_entrevista: arrInformes,
                 informe_admision: informeAdmisionTexto,
                 perfil_psicologico: tags,
+                es_especial: tags.some(t => typeof t === 'string' && t.includes('Especial')),
                 instrumento: instrumentosOrdenados,
                 instrumento_principal: principalFinal,
                 instrumentos_secundarios: secundariosFinal,
@@ -12882,7 +12949,7 @@ document.addEventListener('click', async (e) => {
         const wrap = document.getElementById('form-alumno-wrapper'); 
         document.getElementById('modal-alta-alumno').appendChild(wrap); 
         wrap.style.display = 'block'; 
-        document.getElementById('form-titulo').textContent = 'Nuevo Alumno'; 
+        document.getElementById('form-titulo').innerHTML = 'Nuevo Alumno <span id="modal-badge-especial" style="display:none; font-size:1.1em; margin-left:4px;">\uD83C\uDF00</span>';
         document.getElementById('alumno-id').value = ''; 
         document.getElementById('form-alumno').reset(); 
         const btnElimModal = document.getElementById('btn-modal-eliminar-alumno');
@@ -13609,6 +13676,12 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
     document.getElementById('alumno-id').value = id; 
     const d = (await getDoc(doc(db, "alumnos", id))).data(); 
     document.getElementById('nombre').value = d.nombre; 
+    const esEspFicha = Boolean(d.es_especial || (Array.isArray(d.perfil_psicologico) && d.perfil_psicologico.some(p => typeof p === 'string' && p.includes('Especial'))));
+    const tituloEl = document.getElementById('form-titulo');
+    if (tituloEl) {
+        const prefijo = modoLectura ? 'Ficha del Alumno (Modo Lectura)' : 'Editar Alumno';
+        tituloEl.innerHTML = `${prefijo}: ${d.nombre || ''} <span id="modal-badge-especial" title="Alumno Especial / Particular" style="display:${esEspFicha ? 'inline-flex' : 'none'}; font-size:1.1em; cursor:help; margin-left:4px;">\uD83C\uDF00</span>`;
+    }
     document.getElementById('celular').value = d.celular; 
     document.getElementById('edad').value = d.edad||''; 
     document.getElementById('nivel').value = d.nivel||''; 
@@ -14605,6 +14678,7 @@ document.getElementById('form-alumno').addEventListener('submit', async (e) => {
         descripcion: quill.root.innerHTML, 
         informe_admision: quillInforme.root.innerHTML, 
         perfil_psicologico: tagsPerfil,
+        es_especial: tagsPerfil.some(t => typeof t === 'string' && t.includes('Especial')),
         disponibilidad: disp, 
         historial: historialActual 
     }; 
@@ -15799,6 +15873,69 @@ export async function toggleBicicletaAlumno(id, pasarABicicleta, nombre) {
     }
 }
 window.toggleBicicletaAlumno = toggleBicicletaAlumno;
+
+// =======================================================================
+// TOGGLE ALUMNO ESPECIAL / PARTICULAR
+// =======================================================================
+export async function toggleEspecialAlumno(id, pasarAEspecial, nombre) {
+    if (!id) return;
+    try {
+        const alDoc = await getDoc(doc(db, "alumnos", id));
+        const alData = alDoc.exists() ? alDoc.data() : {};
+        const hist = Array.isArray(alData.historial) ? [...alData.historial] : [];
+        let perfil = Array.isArray(alData.perfil_psicologico) ? [...alData.perfil_psicologico] : [];
+
+        const autor = window.usuarioActual?.nombre || 'CoordinaciÃ³n';
+        let updates = {};
+        if (pasarAEspecial) {
+            hist.push(crearEntradaHistorial(`\uD83C\uDF00 Alumno marcado como Especial / Particular.`, 'sistema', autor));
+            if (!perfil.some(t => typeof t === 'string' && t.includes('Especial'))) {
+                perfil.unshift('\uD83C\uDF00 Especial');
+            }
+            updates = {
+                es_especial: true,
+                perfil_psicologico: perfil,
+                historial: hist
+            };
+            mostrarToast(`\uD83C\uDF00 ${nombre || 'Alumno'} marcado como Especial.`, "success");
+        } else {
+            hist.push(crearEntradaHistorial(`\u21A9\uFE0F Marca de Alumno Especial / Particular removida.`, 'sistema', autor));
+            perfil = perfil.filter(t => typeof t !== 'string' || !t.includes('Especial'));
+            updates = {
+                es_especial: false,
+                perfil_psicologico: perfil,
+                historial: hist
+            };
+            mostrarToast(`\u21A9\uFE0F Marca Especial removida de ${nombre || 'Alumno'}.`, "info");
+        }
+
+        // 1. Sincronizar reactivamente en memoria local de inmediato
+        actualizarAlumnoEnMemoriaLocal(id, updates);
+
+        // 2. Persistir en Firestore en segundo plano
+        await updateDoc(doc(db, "alumnos", id), updates);
+
+        // 3. Sincronizar en el modal si estÃ¡ abierto
+        const modalBadge = document.getElementById('modal-badge-especial');
+        if (modalBadge) {
+            modalBadge.style.display = pasarAEspecial ? 'inline-flex' : 'none';
+        }
+        const chipEspecial = document.querySelector('#ficha-perfil-psicologico-chips .profile-tag-chip[data-val*="Especial"]');
+        if (chipEspecial) {
+            chipEspecial.classList.toggle('active', pasarAEspecial);
+            chipEspecial.style.background = pasarAEspecial ? 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)' : '#faf5ff';
+            chipEspecial.style.borderColor = pasarAEspecial ? '#6d28d9' : '#c4b5fd';
+            chipEspecial.style.color = pasarAEspecial ? '#ffffff' : '#6d28d9';
+        }
+
+        // 4. Actualizar barra de filtros (contador del botÃ³n rÃ¡pido) y recargar vista activa de inmediato sin overlay
+        renderFiltrosChips();
+        await cargarVista(estadoActualVista, false);
+    } catch(err) {
+        mostrarToast("Error al actualizar estado especial: " + err.message, "error");
+    }
+}
+window.toggleEspecialAlumno = toggleEspecialAlumno;
 
 // =======================================================================
 // CORRECCIÓN MANUAL DE DÍAS SIN CONTACTO (Admin / Coordinador)
