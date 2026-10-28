@@ -6220,7 +6220,7 @@ window.debeFiltrarPorEvaluador = debeFiltrarPorEvaluador;
 export function esModoEvaluadorActivo() {
     const modo = window.modoRolActivo;
     if (modo === 'evaluador') return true;
-    if (modo === 'admisor' || modo === 'admisiones' || modo === 'admin' || modo === 'multi' || modo === 'coordinador_grupos' || modo === 'profesor') {
+    if (modo === 'admisor' || modo === 'admisiones' || modo === 'admin' || modo === 'multi' || modo === 'coordinador_grupos' || modo === 'profesor' || modo === 'atencion_cliente') {
         return false;
     }
     return debeFiltrarPorEvaluador();
@@ -6231,12 +6231,24 @@ export function esModoAdmisorActivo() {
     if (typeof esModoEvaluadorActivo === 'function' && esModoEvaluadorActivo()) return false;
     const modo = (window.modoRolActivo || '').toLowerCase().trim();
     if (modo === 'admisor' || modo === 'admisiones') return true;
-    if (modo === 'evaluador' || modo === 'profesor' || modo === 'coordinador_grupos') return false;
+    if (modo === 'evaluador' || modo === 'profesor' || modo === 'coordinador_grupos' || modo === 'atencion_cliente') return false;
     const u = window.usuarioActual || {};
     const roles = Array.isArray(u.roles) && u.roles.length > 0 ? u.roles : [u.rol || 'admisor'];
     return roles.includes('admisor') || roles.includes('admisiones') || roles.includes('admin') || u.rol === 'admisor' || u.rol === 'admisiones' || u.rol === 'admin';
 }
 window.esModoAdmisorActivo = esModoAdmisorActivo;
+
+export function esModoAtencionClienteActivo() {
+    const modo = (window.modoRolActivo || '').toLowerCase().trim();
+    if (modo === 'atencion_cliente') return true;
+    if (modo === 'admin' || modo === 'multi' || modo === 'admisor' || modo === 'admisiones' || modo === 'coordinador_grupos' || modo === 'coordinador' || modo === 'evaluador' || modo === 'profesor') {
+        return false;
+    }
+    const u = window.usuarioActual || {};
+    const roles = Array.isArray(u.roles) && u.roles.length > 0 ? u.roles : [u.rol || ''];
+    return roles.includes('atencion_cliente') && roles.length === 1;
+}
+window.esModoAtencionClienteActivo = esModoAtencionClienteActivo;
 
 export function filtrarAlumnosEvaluador(alumnos) {
     const u = window.usuarioActual;
@@ -7150,8 +7162,21 @@ function getModuloSubtabs() {
     const esEval = esModoEvaluadorActivo();
     const rol = u.rol || 'admisiones';
 
+    const esAtencion = typeof esModoAtencionClienteActivo === 'function' && esModoAtencionClienteActivo();
     let inboxTabs = [];
-    if (esEval) {
+    if (esAtencion) {
+        inboxTabs = [
+            { 
+                vista: 'Inbox - Pendientes', 
+                label: 'Sin Agendar', 
+                icon: '⏳',
+                countFn: (alumnos) => alumnos.filter(d => {
+                    const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                    return st === 'pendiente procesar' || st === 'sin agendar';
+                }).length 
+            }
+        ];
+    } else if (esEval) {
         inboxTabs = [
             { 
                 vista: 'Inbox - Confirmadas', 
@@ -7169,7 +7194,7 @@ function getModuloSubtabs() {
             { 
                 vista: 'Inbox - Pendientes', 
                 label: 'Sin Agendar', 
-                icon: '⏳', 
+                icon: '⏳',
                 countFn: (alumnos) => alumnos.filter(d => {
                     const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
                     return st === 'pendiente procesar' || st === 'sin agendar';
@@ -7371,7 +7396,7 @@ function renderSegmentedTabs(vista) {
     }
 
     const tabs = subtabsDict[modulo];
-    if (!tabs || tabs.length === 0) {
+    if (!tabs || tabs.length === 0 || (typeof esModoAtencionClienteActivo === 'function' && esModoAtencionClienteActivo())) {
         container.style.display = 'none';
         bar.innerHTML = '';
         return;
@@ -7435,7 +7460,7 @@ export function obtenerRolesDisponibles(usuario) {
     
     // Si es administrador o admin, puede ver todo o simular cualquier rol
     if (rolesArr.includes('admin') || usuario.rol === 'admin' || usuario.email?.toLowerCase() === 'productora.mandalahouse@gmail.com') {
-        return ['multi', 'admin', 'admisor', 'coordinador_grupos', 'evaluador', 'profesor'];
+        return ['multi', 'admin', 'admisor', 'coordinador_grupos', 'evaluador', 'profesor', 'atencion_cliente'];
     }
 
     rolesArr.forEach(r => {
@@ -7464,7 +7489,9 @@ export function obtenerModulosPermitidosModoActivo() {
 
     // Para administradores: acceso irrestricto y soporte completo para cambiar de vista de rol
     if (esAdmin) {
-        if (modo === 'evaluador') {
+        if (modo === 'atencion_cliente') {
+            return ['inbox'];
+        } else if (modo === 'evaluador') {
             return ['dashboard', 'inbox', 'seguimientos'];
         } else if (modo === 'profesor' || modo === 'docente') {
             return ['portal_profesor'];
@@ -7498,7 +7525,7 @@ export function obtenerModulosPermitidosModoActivo() {
     }
 
     const esSoloDocente = rolesArr.length === 1 && (rolesArr[0] === 'profesor' || rolesArr[0] === 'docente');
-    const esSoloAdmisor = rolesArr.every(r => r === 'admisor' || r === 'admisiones');
+    const esSoloAdmisor = rolesArr.every(r => r === 'admisor' || r === 'admisiones' || r === 'atencion_cliente');
     if (!esSoloDocente && !esSoloAdmisor && !listaPermitidaUser.includes('seguimientos')) {
         listaPermitidaUser.push('seguimientos');
     }
@@ -7508,7 +7535,9 @@ export function obtenerModulosPermitidosModoActivo() {
         listaPermitidaUser.push('configuracion');
     }
 
-    if (modo === 'evaluador') {
+    if (modo === 'atencion_cliente') {
+        return ['inbox'];
+    } else if (modo === 'evaluador') {
         const base = ['dashboard', 'inbox', 'espera', 'seguimientos'];
         return base.filter(m => listaPermitidaUser.includes(m) || m === 'seguimientos');
     } else if (modo === 'profesor' || modo === 'docente') {
@@ -7542,7 +7571,9 @@ export function cambiarModoRol(nuevoModo) {
     const vistaActual = estadoActualVista;
     const modsPermitidos = obtenerModulosPermitidosModoActivo();
 
-    if (nuevoModo === 'profesor') {
+    if (nuevoModo === 'atencion_cliente') {
+        cargarVista('Inbox - Pendientes');
+    } else if (nuevoModo === 'profesor') {
         cargarVista('Mis Alumnos y Ensambles');
     } else if (nuevoModo === 'evaluador' && (vistaActual.startsWith('Match') || vistaActual.startsWith('Altas') || vistaActual === 'Configuración' || vistaActual === 'Mis Alumnos y Ensambles' || vistaActual === 'Estadísticas' || (vistaActual === 'Lista de Espera' && !modsPermitidos.includes('espera')))) {
         cargarVista('Dashboard');
@@ -7586,7 +7617,8 @@ export function configurarHeaderUsuarioYRoles() {
         coordinador_grupos: '👥 Coordinador de Grupos',
         coordinador: '👥 Coordinador de Grupos',
         evaluador: '📝 Evaluador',
-        profesor: '🎸 Docente / Profesor'
+        profesor: '\uD83C\uDFB8 Docente / Profesor',
+        atencion_cliente: '\u260E\uFE0F Atenci\u00F3n al Cliente'
     };
 
     const labelsRolBadge = {
@@ -7597,7 +7629,8 @@ export function configurarHeaderUsuarioYRoles() {
         coordinador_grupos: '👥 Coordinador ▾',
         coordinador: '👥 Coordinador ▾',
         evaluador: '📝 Evaluador ▾',
-        profesor: '🎸 Docente ▾'
+        profesor: '\uD83C\uDFB8 Docente \u25BE',
+        atencion_cliente: '\u260E\uFE0F Atenci\u00F3n al Cliente \u25BE'
     };
 
     const isSingleRole = rolesDisponibles.length <= 1;
@@ -7864,7 +7897,7 @@ export function configurarSidebarPorPermisos() {
             : [(usuario.rol || '')];
         const modoLower = (modo || '').toLowerCase();
         const esCoordinador = modoLower === 'coordinador' || modoLower === 'coordinador_grupos' || rolesUser.includes('coordinador') || rolesUser.includes('coordinador_grupos') || rolesUser.some(r => (r || '').toLowerCase().includes('coord'));
-        const puedeCrear = esAdminActivo || mods.includes('admisiones') || modoLower === 'admisor' || modoLower === 'admisiones' || esCoordinador || rolesUser.includes('admisor') || rolesUser.includes('admisiones');
+        const puedeCrear = esAdminActivo || mods.includes('admisiones') || modoLower === 'admisor' || modoLower === 'admisiones' || modoLower === 'atencion_cliente' || esCoordinador || rolesUser.includes('admisor') || rolesUser.includes('admisiones') || rolesUser.includes('atencion_cliente');
         btnNuevoAlumno.style.display = (modoLower === 'evaluador' || modoLower === 'profesor' || modoLower === 'docente') ? 'none' : (puedeCrear ? 'block' : 'none');
     }
 
@@ -8082,6 +8115,11 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
     window.cargarVistaGlobal = cargarVista;
     if (typeof window.actualizarUIModoVistaSwitch === 'function') {
         window.actualizarUIModoVistaSwitch();
+    }
+
+    const esAtencionActivo = typeof esModoAtencionClienteActivo === 'function' && esModoAtencionClienteActivo();
+    if (esAtencionActivo && vista !== 'Inbox - Pendientes') {
+        vista = 'Inbox - Pendientes';
     }
 
     const esEvalActivo = esModoEvaluadorActivo();
@@ -9011,6 +9049,7 @@ const ROLES_MODULOS_DEFAULT = {
     coordinador_grupos: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'bajas', 'configuracion'],
     coordinador: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'bajas', 'configuracion'],
     evaluador: ['dashboard', 'inbox', 'seguimientos'],
+    atencion_cliente: ['inbox'],
     profesor: ['portal_profesor'],
     personalizado: []
 };
@@ -10819,7 +10858,27 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
+    // BotÃ³n Copiar Aviso para Admisor desde Inbox (Rol AtenciÃ³n al Cliente)
+    if (target.classList.contains('btn-avisar-admisor-inbox') || target.closest('.btn-avisar-admisor-inbox')) {
+        const btn = target.classList.contains('btn-avisar-admisor-inbox') ? target : target.closest('.btn-avisar-admisor-inbox');
+        const id = btn.getAttribute('data-id');
+        if (typeof window.copiarAvisoAdmisorInbox === 'function') {
+            await window.copiarAvisoAdmisorInbox(id);
+        }
+        return;
+    }
+
     // Botón Copiar Aviso para Admisor (Individual desde 3 puntos o modal)
+    // BotÃ³n Copiar Aviso para Admisor desde Inbox (Rol AtenciÃ³n al Cliente)
+    if (target.classList.contains('btn-avisar-admisor-inbox') || target.closest('.btn-avisar-admisor-inbox')) {
+        const btn = target.classList.contains('btn-avisar-admisor-inbox') ? target : target.closest('.btn-avisar-admisor-inbox');
+        const id = btn.getAttribute('data-id');
+        if (typeof window.copiarAvisoAdmisorInbox === 'function') {
+            await window.copiarAvisoAdmisorInbox(id);
+        }
+        return;
+    }
+
     if (target.classList.contains('btn-avisar-admisor-alumno') || target.closest('.btn-avisar-admisor-alumno')) {
         const btn = target.classList.contains('btn-avisar-admisor-alumno') ? target : target.closest('.btn-avisar-admisor-alumno');
         const id = btn.getAttribute('data-id');
@@ -12814,7 +12873,7 @@ document.addEventListener('click', async (e) => {
             : [window.usuarioActual?.rol || 'admisiones'];
         const modoActivo = (window.modoRolActivo || '').toLowerCase();
         const esCoordinador = modoActivo === 'coordinador' || modoActivo === 'coordinador_grupos' || roles.includes('coordinador') || roles.includes('coordinador_grupos') || roles.some(r => (r || '').toLowerCase().includes('coord'));
-        const puedeCrear = roles.includes('admin') || roles.includes('admisiones') || roles.includes('admisor') || esCoordinador || modoActivo === 'admin' || modoActivo === 'admisor' || modoActivo === 'multi';
+        const puedeCrear = roles.includes('admin') || roles.includes('admisiones') || roles.includes('admisor') || roles.includes('atencion_cliente') || esCoordinador || modoActivo === 'admin' || modoActivo === 'admisor' || modoActivo === 'atencion_cliente' || modoActivo === 'multi';
         if (!puedeCrear) {
             alert('⛔ No tienes permisos para crear nuevos alumnos.');
             return;
@@ -14314,13 +14373,14 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
         if (el) el.disabled = modoLectura;
     });
 
+    const esAtencionFicha = typeof esModoAtencionClienteActivo === 'function' && esModoAtencionClienteActivo();
     const tabInformeBtn = document.querySelector('.tab-btn[data-target="tab-informe"]');
-    if (tabInformeBtn) tabInformeBtn.style.display = modoLectura ? 'none' : 'block';
+    if (tabInformeBtn) tabInformeBtn.style.display = (modoLectura || esAtencionFicha) ? 'none' : 'block';
 
     const btnSubmit = document.getElementById('btn-submit-alumno');
     if (btnSubmit) btnSubmit.style.display = modoLectura ? 'none' : 'block';
     const contIngreso = document.getElementById('container-ingreso-directo');
-    if (contIngreso) contIngreso.style.display = modoLectura ? 'none' : 'flex';
+    if (contIngreso) contIngreso.style.display = (modoLectura || esAtencionFicha) ? 'none' : 'flex';
 
     const estadosBloqueados = ['Pendiente procesar', 'Pendiente validación por profe', 'Pendiente validación por alumno'];
     if (modoLectura || estadosBloqueados.includes(d.estado_agenda)) {

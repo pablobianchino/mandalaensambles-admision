@@ -3,7 +3,7 @@
 // =======================================================================
 
 import { defaultCfg, firebaseConfig } from "../config/constants.js";
-import { formatearPrecioMoneda } from "./altas.module.js";
+import { formatearPrecioMoneda, TEXTO_AVISO_ADMISOR_INBOX_DEFAULT } from "./altas.module.js";
 import { 
     db, 
     collection, 
@@ -244,6 +244,10 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
                         </div>
                     </div>
 
+                    <label style="margin-bottom:14px; display:block; font-size:12px; font-weight:600; color:var(--text-muted);">Texto de aviso para Admisor desde Inbox (alumno nuevo cargado por Atención al Cliente):
+                        <textarea id="cfg-txt-aviso-admisor-inbox" class="modern-input" style="height:170px; font-family:monospace; font-size:12px;">${currentCfg.texto_aviso_admisor_inbox || TEXTO_AVISO_ADMISOR_INBOX_DEFAULT}</textarea>
+                        <span style="font-size:11px; font-weight:400; color:var(--text-muted); display:block; margin-top:4px;">Variables: <code>{nombre}</code>, <code>{edad}</code>, <code>{emojiinstrumento}</code>, <code>{instrumento}</code>, <code>{nivel}</code>, <code>{suscripcion}</code>, <code>{operador}</code>. Las líneas con datos vacíos se omiten automáticamente.</span>
+                    </label>
                     <label style="margin-bottom:14px; display:block; font-size:12px; font-weight:600; color:var(--text-muted);">Texto predefinido para Docente (múltiples fechas):
                         <textarea id="cfg-txt-opt-mul" class="modern-input" style="height:150px; font-family:monospace; font-size:12px;">${currentCfg.texto_opciones_multiples || ''}</textarea>
                     </label>
@@ -555,6 +559,7 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
             texto_conf_profe: document.getElementById('cfg-txt-conf-p')?.value || '', 
             texto_cancela_alumno: document.getElementById('cfg-txt-cancela')?.value || '', 
             texto_aviso_admisor_prealta: document.getElementById('cfg-txt-aviso-admisor-prealta')?.value || '',
+            texto_aviso_admisor_inbox: document.getElementById('cfg-txt-aviso-admisor-inbox')?.value || '',
             texto_prealta: document.getElementById('cfg-txt-prealta')?.value || '', 
             texto_prealta_alumno: document.getElementById('cfg-txt-prealta-alumno')?.value || '', 
             texto_alta_confirmada: document.getElementById('cfg-txt-alta-conf')?.value || '', 
@@ -754,6 +759,7 @@ const ROLES_MODULOS = {
     coordinador_grupos: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'configuracion'],
     coordinador: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'configuracion'],
     evaluador: ['dashboard', 'inbox', 'seguimientos'],
+    atencion_cliente: ['inbox'],
     profesor: ['portal_profesor'],
     personalizado: []
 };
@@ -884,6 +890,7 @@ export async function cargarABM(coleccion, titulo, cont) {
                         if (r === 'admisor' || r === 'admisiones') return '<span class="profile-tag-badge" style="background:#e8f4fd; color:#2980b9; border-color:#beddf3;">📥 Admisor</span>';
                         if (r === 'coordinador_grupos' || r === 'coordinador') return '<span class="profile-tag-badge" style="background:#faf5ff; color:#6d28d9; border-color:#c4b5fd;">🧩 Coordinador</span>';
                         if (r === 'evaluador') return '<span class="profile-tag-badge" style="background:#f0fdfa; color:#0f766e; border-color:#99f6e4;">🎧 Evaluador</span>';
+                        if (r === 'atencion_cliente') return '<span class="profile-tag-badge" style="background:#fff7ed; color:#c2410c; border-color:#fed7aa;">☎️ Atención al Cliente</span>';
                         if (r === 'profesor') return '<span class="profile-tag-badge" style="background:#eafaf1; color:#27ae60; border-color:#a9dfbf;">👨‍🏫 Profesor</span>';
                         if (r === 'personalizado') return '<span class="profile-tag-badge" style="background:#f4ecf7; color:#8e44ad; border-color:#d2b4de;">🛠️ Personalizado</span>';
                         return '<span class="profile-tag-badge" style="background:#e8f4fd; color:#2980b9; border-color:#beddf3;">📥 Admisor</span>';

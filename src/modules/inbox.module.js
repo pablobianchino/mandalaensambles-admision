@@ -195,6 +195,11 @@ export function getEstadoYBadge(al, getFechaReferenciaAlumno) {
 }
 
 export function generarBotonesPrincipalesVisibles(al, id) {
+    // Rol Atención al Cliente: todas las acciones van dentro de los 3 puntos (⋮)
+    if (typeof window.esModoAtencionClienteActivo === 'function' && window.esModoAtencionClienteActivo()) {
+        return '';
+    }
+
     if (window.modoVistaSimple) {
         return '';
     }
@@ -279,6 +284,16 @@ export function generarBotonesAccion(al, id, esModal = false, vista = '') {
 
     // Helper para asignar la clase correcta según sea Modal o Dropdown 3 puntos (⋮)
     const btnClass = (isPrimary = false) => esModal ? (isPrimary ? 'btn-action-primary' : 'btn-action-neutral') : 'dropdown-item';
+
+    // Rol Atención al Cliente: solo Avisar al Admisor, Copiar Formato Contacto y Editar Datos
+    if (typeof window.esModoAtencionClienteActivo === 'function' && window.esModoAtencionClienteActivo()) {
+        html += `<button type="button" class="${btnClass(true)} btn-avisar-admisor-inbox" data-id="${id}">📣 Avisar al Admisor</button>`;
+        html += `<button type="button" class="${btnClass()} btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Contacto</button>`;
+        if (!esModal) {
+            html += `<button type="button" class="${btnClass()}" onclick="window.editarAlumnoModalDirecto && window.editarAlumnoModalDirecto('${id}')">✏️ Editar Datos</button>`;
+        }
+        return html;
+    }
 
     // 13 & 14. Bajas / Suspendidos (Acciones Unificadas)
     if (est === 'alta suspendida' || est === 'baja' || est === 'agenda suspendida' || est.includes('suspendid') || vistaActiva.toLowerCase().includes('suspendid') || vistaActiva.toLowerCase().includes('baja')) {

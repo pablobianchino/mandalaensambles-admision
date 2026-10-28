@@ -4409,6 +4409,101 @@ export async function copiarAvisoAdmisorAlumno(alumnoIdOAlumno) {
     }
 }
 
+// -----------------------------------------------------------------------
+// Aviso al Admisor desde Inbox > Sin agendar (rol Atención al Cliente)
+// -----------------------------------------------------------------------
+export const TEXTO_AVISO_ADMISOR_INBOX_DEFAULT =
+`*📥 NUEVO ALUMNO EN INBOX - PENDIENTE DE AGENDAR*
+
+*👤 DATOS DEL ALUMNO:*
+🔹 Nombre: {nombre}
+🔹 Edad: {edad}
+🔹 Instrumento: {emojiinstrumento} {instrumento}
+🔹 Nivel: {nivel}
+🔹 Suscripción: {suscripcion}
+🔹 Cargado por: {operador}
+
+📌 Quedó pendiente en *Inbox > Sin agendar* para coordinar la entrevista.`;
+
+export function generarTextoAvisoAdmisorInbox(params = {}) {
+    const al = params.alumno || {};
+    const config = params.cfg || window.configApp || defaultCfg;
+    const template = (config && config.texto_aviso_admisor_inbox) || TEXTO_AVISO_ADMISOR_INBOX_DEFAULT;
+
+    const instVal = al.instrumento_asignado || al.instrumento_principal || (Array.isArray(al.instrumento) ? al.instrumento[0] : (al.instrumento || ''));
+    const emojiVal = instVal ? getEmojiInstrumento(instVal, config) : '';
+    const edadVal = al.edad ? `${al.edad} años` : '';
+    const operador = params.operador || window.usuarioActual?.nombre || 'Atención al Cliente';
+
+    const texto = reemplazarVariables(template, {
+        'nombre': al.nombre || 'Alumno',
+        'edad': edadVal,
+        'emojiinstrumento': emojiVal,
+        'instrumento': instVal,
+        'nivel': al.nivel || '',
+        'suscripcion': al.tipo_suscripcion || '',
+        'operador': operador
+    });
+
+    // Se omiten las líneas cuyo dato quedó vacío (ej: "🔹 Nivel: ")
+    return texto
+        .split('\n')
+        .map(l => l.replace(/[ \t]+$/g, ''))
+        .filter(l => !/:\s*$/.test(l))
+        .join('\n');
+}
+
+export async function copiarAvisoAdmisorInbox(alumnoIdOAlumno) {
+    try {
+        let al = null;
+        let id = null;
+        if (typeof alumnoIdOAlumno === 'object' && alumnoIdOAlumno !== null) {
+            al = alumnoIdOAlumno;
+            id = al.id;
+        } else {
+            id = alumnoIdOAlumno;
+            const snap = await getDoc(doc(db, "alumnos", id));
+            if (snap.exists()) al = { id: snap.id, ...snap.data() };
+        }
+
+        if (!al) {
+            alert("No se encontró el registro del alumno.");
+            return;
+        }
+
+        const operador = window.usuarioActual?.nombre || 'Atención al Cliente';
+        const texto = generarTextoAvisoAdmisorInbox({ alumno: al, cfg: window.configApp || defaultCfg, operador });
+
+        await navigator.clipboard.writeText(texto);
+
+        // Registro en el historial del alumno (no bloquea la copia si falla)
+        try {
+            if (id) {
+                const hist = Array.isArray(al.historial) ? [...al.historial] : [];
+                const fnHist = window.crearEntradaHistorial || ((txt, tipo, creador) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema', creador: creador || operador }));
+                hist.push(fnHist(`Atención al Cliente (${operador}) avisó al admisor sobre el ingreso del alumno.`, 'sistema', operador));
+                const updates = { historial: hist };
+                if (typeof window.actualizarAlumnoEnMemoriaLocal === 'function') {
+                    window.actualizarAlumnoEnMemoriaLocal(id, updates);
+                }
+                await updateDoc(doc(db, "alumnos", id), updates);
+            }
+        } catch (errHist) {
+            console.warn("No se pudo registrar el aviso al admisor en el historial:", errHist);
+        }
+
+        if (typeof window.mostrarToast === 'function') {
+            window.mostrarToast(`📋 ¡Aviso para el Admisor (${al.nombre || 'Alumno'}) copiado al portapapeles!`, 'info');
+        } else {
+            alert(`📋 ¡Aviso para el Admisor (${al.nombre || 'Alumno'}) copiado al portapapeles!`);
+        }
+        return texto;
+    } catch (err) {
+        console.error("Error al copiar aviso al admisor desde Inbox:", err);
+        alert("No se pudo copiar al portapapeles: " + err.message);
+    }
+}
+
 export function generarTextoAvisoCoordinadorPrealta(params = {}) {
     let alumnos = [];
     let alumno = null;
@@ -4858,6 +4953,8 @@ window.generarChecklistAltaHtml = generarChecklistAltaHtml;
 window.generarTextoAvisoAdmisorPrealta = generarTextoAvisoAdmisorPrealta;
 window.copiarAvisoAdmisorGrupo = copiarAvisoAdmisorGrupo;
 window.copiarAvisoAdmisorAlumno = copiarAvisoAdmisorAlumno;
+window.generarTextoAvisoAdmisorInbox = generarTextoAvisoAdmisorInbox;
+window.copiarAvisoAdmisorInbox = copiarAvisoAdmisorInbox;
 window.generarTextoAvisoCoordinadorPrealta = generarTextoAvisoCoordinadorPrealta;
 window.copiarAvisoCoordinadorGrupo = copiarAvisoCoordinadorGrupo;
 window.copiarAvisoCoordinadorAlumno = copiarAvisoCoordinadorAlumno;
