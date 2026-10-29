@@ -1,4 +1,4 @@
-// =======================================================================
+﻿// =======================================================================
 // app.js — Mandala Admisión (Modular Architecture v4.9.0)
 // =======================================================================
 
@@ -1448,49 +1448,32 @@ export function solicitarConfirmacionSalidaModal(modalActivo, onDescartar, onGua
     const btnDescartar = document.getElementById('btn-descarte-descartar');
     const btnCancelar = document.getElementById('btn-descarte-cancelar');
 
+    // REGLA: "Guardar Cambios y Salir" SOLO se permite en la Ficha del Alumno (modal-alta-alumno).
+    // En propuestas de grupo, pre-altas y demÃ¡s acciones no hay funciÃ³n "borrador",
+    // por lo que solo se ofrecen las opciones "Descartar y Salir" y "Continuar Editando".
+    const permiteGuardarYSalir = (modalId === 'modal-alta-alumno');
     if (btnGuardar) {
-        btnGuardar.onclick = () => {
-            modalDescarte.close();
-            if (modalActivo) modalActivo.dataset.modificado = 'false';
-            window._modalEditandoModificado = false;
-            window._fichaAlumnoModificada = false;
-            if (typeof onGuardar === 'function') {
-                onGuardar();
-            } else if (modalId === 'modal-informe-admision') {
-                const btnSaveInf = document.getElementById('btn-guardar-informe-final');
-                if (btnSaveInf) btnSaveInf.click();
-            } else if (modalId === 'modal-alta-alumno') {
-                const form = document.getElementById('form-alumno');
-                if (form) {
-                    const btnSub = form.querySelector('button[type="submit"]');
-                    if (btnSub) btnSub.click();
-                    else form.requestSubmit();
+        btnGuardar.style.display = permiteGuardarYSalir ? 'flex' : 'none';
+        if (permiteGuardarYSalir) {
+            btnGuardar.onclick = () => {
+                modalDescarte.close();
+                if (modalActivo) modalActivo.dataset.modificado = 'false';
+                window._modalEditandoModificado = false;
+                window._fichaAlumnoModificada = false;
+                if (typeof onGuardar === 'function') {
+                    onGuardar();
+                } else {
+                    const form = document.getElementById('form-alumno');
+                    if (form) {
+                        const btnSub = form.querySelector('button[type="submit"]');
+                        if (btnSub) btnSub.click();
+                        else form.requestSubmit();
+                    }
                 }
-            } else if (modalId === 'modal-solicitar-vacante') {
-                document.getElementById('btn-guardar-solicitar-vacante')?.click();
-            } else if (modalId === 'modal-iniciar-prealta') {
-                document.getElementById('btn-guardar-prealta')?.click();
-            } else if (modalId === 'modal-suspender') {
-                document.getElementById('btn-guardar-suspension')?.click();
-            } else if (modalId === 'modal-cancelar-agenda') {
-                document.getElementById('btn-confirmar-cancelar-agenda')?.click();
-            } else if (modalId === 'modal-mi-perfil') {
-                document.getElementById('btn-guardar-mi-perfil')?.click();
-            } else if (modalId === 'modal-nueva-suscripcion') {
-                document.getElementById('form-nueva-suscripcion')?.querySelector('button[type="submit"]')?.click();
-            } else if (modalId === 'modal-abm-edit') {
-                document.getElementById('form-abm-edit')?.querySelector('button[type="submit"]')?.click();
-            } else if (modalId === 'modal-nota-rapida') {
-                document.getElementById('btn-guardar-nota-rapida')?.click();
-            } else if (modalId === 'modal-nueva-propuesta-grupo') {
-                document.getElementById('btn-guardar-propuesta-grupo')?.click();
-            } else if (modalId === 'modal-registrar-contacto') {
-                document.getElementById('btn-guardar-contacto')?.click();
-            } else {
-                const btnSub = modalActivo?.querySelector('button[type="submit"], button.btn-primary:not(#btn-descarte-guardar), button[id*="guardar"], button[id*="submit"]');
-                if (btnSub) btnSub.click();
-            }
-        };
+            };
+        } else {
+            btnGuardar.onclick = null;
+        }
     }
 
     if (btnDescartar) {
@@ -4588,8 +4571,9 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
 
     const vistaActiva = vista || (typeof estadoActualVista !== 'undefined' ? estadoActualVista : '');
     const habilitarBulkCheck = ['Lista de Espera', 'Match - En Validacion'].includes(vistaActiva);
+    const estaCheckeado = (Array.isArray(selectedBulkIds) && selectedBulkIds.includes(id)) ? 'checked' : '';
     const bulkCheckHtml = habilitarBulkCheck
-        ? `<input type="checkbox" class="bulk-chk" data-id="${id}" onclick="event.stopPropagation(); window.toggleBulkSelection('${id}', this.checked)">`
+        ? `<input type="checkbox" class="bulk-chk" data-id="${id}" ${estaCheckeado} onclick="event.stopPropagation(); window.toggleBulkSelection('${id}', this.checked)">`
         : '';
 
     return `
@@ -4944,8 +4928,23 @@ window.toggleBulkSelection = function(id, isChecked) {
         const idx = selectedBulkIds.indexOf(id);
         if (idx !== -1) selectedBulkIds.splice(idx, 1);
     }
+
+    // SincronizaciÃ³n estricta con todos los checkboxes marcados fÃ­sicamente en el DOM
+    document.querySelectorAll('.bulk-chk:checked').forEach(c => {
+        const cId = c.getAttribute('data-id');
+        if (cId && !selectedBulkIds.includes(cId)) {
+            selectedBulkIds.push(cId);
+        }
+    });
+    document.querySelectorAll('.bulk-chk:not(:checked)').forEach(c => {
+        const cId = c.getAttribute('data-id');
+        const idx = selectedBulkIds.indexOf(cId);
+        if (idx !== -1) selectedBulkIds.splice(idx, 1);
+    });
+
+    window.selectedBulkIds = selectedBulkIds;
     actualizarBulkBar();
-}
+};
 
 function actualizarBulkBar() {
     const bar = document.getElementById('bulk-actions-bar');
@@ -5555,12 +5554,7 @@ if (btnBulkProp) {
         }
 
         const idsToProp = [...selectedBulkIds];
-        // Limpiar selección de la vista para evitar acumulaciones en memoria
-        selectedBulkIds = [];
-        window.selectedBulkIds = [];
-        const barBulk = document.getElementById('bulk-actions-bar');
-        if (barBulk) barBulk.style.display = 'none';
-        document.querySelectorAll('.chk-alumno-fila').forEach(c => c.checked = false);
+        // NOTA: Preservar selectedBulkIds al abrir modal para mantener la selección si el usuario descarta o agrega alumnos
 
         if (idsToProp.length > 1) {
             if (window.abrirModalPrealtaGrupal) {
@@ -6285,12 +6279,46 @@ window.debeFiltrarPorEvaluador = debeFiltrarPorEvaluador;
 export function esModoEvaluadorActivo() {
     const modo = window.modoRolActivo;
     if (modo === 'evaluador') return true;
-    if (modo === 'admisor' || modo === 'admisiones' || modo === 'admin' || modo === 'multi' || modo === 'coordinador_grupos' || modo === 'profesor' || modo === 'atencion_cliente') {
+    if (modo === 'admisor' || modo === 'admisiones' || modo === 'admin' || modo === 'multi' || modo === 'coordinador' || modo === 'coordinador_grupos' || modo === 'profesor' || modo === 'atencion_cliente') {
         return false;
     }
     return debeFiltrarPorEvaluador();
 }
 window.esModoEvaluadorActivo = esModoEvaluadorActivo;
+
+export function esModoCoordinadorActivo() {
+    const modo = (window.modoRolActivo || '').toLowerCase().trim();
+    if (modo === 'coordinador' || modo === 'coordinador_grupos') return true;
+    const u = window.usuarioActual || {};
+    const roles = Array.isArray(u.roles) ? u.roles : [u.rol || ''];
+    if (modo === 'multi' || !modo) {
+        return (roles.includes('coordinador') || roles.includes('coordinador_grupos')) && !roles.includes('admin') && !roles.includes('admisor') && !roles.includes('admisiones');
+    }
+    return false;
+}
+window.esModoCoordinadorActivo = esModoCoordinadorActivo;
+
+export function tieneAlumnosEnInboxUsuarioActual(dataset = null) {
+    const u = window.usuarioActual;
+    if (!u) return false;
+    const pool = (Array.isArray(dataset) && dataset.length > 0)
+        ? dataset
+        : ((Array.isArray(ultimosAlumnosCargados) && ultimosAlumnosCargados.length > 0)
+            ? ultimosAlumnosCargados
+            : (window.allData || cachedAlumnosData || []));
+    if (!Array.isArray(pool) || pool.length === 0) return false;
+
+    if (typeof filtrarAlumnosEvaluador !== 'function') return false;
+    const misAlumnos = filtrarAlumnosEvaluador(pool);
+    return misAlumnos.some(d => {
+        const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        return st === 'agenda confirmada' || st === 'entrevista confirmada' || 
+               st.startsWith('entrevista') || 
+               st === 'pendiente validacion por profe' || st === 'pendiente validacion por evaluador' || st === 'pendiente validacion por alumno' ||
+               st === 'pendiente procesar' || st === 'sin agendar';
+    });
+}
+window.tieneAlumnosEnInboxUsuarioActual = tieneAlumnosEnInboxUsuarioActual;
 
 export function esModoAdmisorActivo() {
     if (typeof esModoEvaluadorActivo === 'function' && esModoEvaluadorActivo()) return false;
@@ -6807,6 +6835,11 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
         let dateToEval = getFechaReferenciaAlumno(al);
 
         if (esSegActivo) {
+            // REGLA: El Dashboard es el panel personal de pendientes del usuario logueado -> solo sus propios seguimientos
+            const esMioSeg = typeof esEvaluadorDeSeguimientoDelAlumno === 'function' ? esEvaluadorDeSeguimientoDelAlumno(window.usuarioActual, al) : false;
+            if (!esMioSeg) {
+                return;
+            }
             const info = getEstadoYBadgeLocal(al);
             // REGLA: Si faltan más de 24hs para la fecha de feedback, no se visualiza en Dashboard (se visualiza en Seguimientos En Curso)
             if (info.nivelUrgencia === 'futuro-lejano') {
@@ -6889,7 +6922,7 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
     if (esEval) {
         if (objEntrevistas) tiposDisponibles.push(objEntrevistas);
         if (objValidaciones) tiposDisponibles.push(objValidaciones);
-        if (objSeguimientos) tiposDisponibles.push(objSeguimientos);
+        // Evaluador en Dashboard: SOLO entrevistas y validaciones, NUNCA seguimientos
     } else if (esCoordinador) {
         if (objValidaciones) tiposDisponibles.push(objValidaciones);
         if (objEntrevistas) tiposDisponibles.push(objEntrevistas);
@@ -7241,7 +7274,7 @@ function getModuloSubtabs() {
                 }).length 
             }
         ];
-    } else if (esEval) {
+    } else if (esEval || (typeof esModoCoordinadorActivo === 'function' && esModoCoordinadorActivo() && !(Array.isArray(window.usuarioActual?.roles) && (window.usuarioActual.roles.includes('admin') || window.usuarioActual.roles.includes('admisor'))))) {
         inboxTabs = [
             { 
                 vista: 'Inbox - Confirmadas', 
@@ -7370,10 +7403,11 @@ function actualizarBadgesYNavegacion(allData) {
 
     // 1. Conteo Inbox: alumnos sin agendar, validar evaluador y validar alumno
     let countInbox = 0;
-    if (esEval) {
+    const esCoordInbox = typeof esModoCoordinadorActivo === 'function' && esModoCoordinadorActivo() && !(Array.isArray(window.usuarioActual?.roles) && (window.usuarioActual.roles.includes('admin') || window.usuarioActual.roles.includes('admisor')));
+    if (esEval || esCoordInbox) {
         countInbox = filtrarAlumnosEvaluador(datos).filter(d => {
             const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-            return st === 'pendiente validacion por profe' || st === 'pendiente validacion por evaluador' || st === 'pendiente validacion por alumno';
+            return st === 'pendiente validacion por profe' || st === 'pendiente validacion por evaluador' || st === 'pendiente validacion por alumno' || st === 'agenda confirmada' || st === 'entrevista confirmada';
         }).length;
     } else {
         countInbox = datos.filter(d => {
@@ -7438,6 +7472,14 @@ function actualizarBadgesYNavegacion(allData) {
     if (bBajas) {
         bBajas.textContent = '0';
         bBajas.style.display = 'none';
+    }
+
+    // Reevaluar visibilidad de Inbox en sidebar si el usuario estÃ¡ en modo coordinador
+    const modoActSidebar = (window.modoRolActivo || '').toLowerCase().trim();
+    if (modoActSidebar === 'coordinador' || modoActSidebar === 'coordinador_grupos') {
+        if (typeof configurarSidebarPorPermisos === 'function') {
+            configurarSidebarPorPermisos();
+        }
     }
 }
 
@@ -7557,11 +7599,15 @@ export function obtenerModulosPermitidosModoActivo() {
         if (modo === 'atencion_cliente') {
             return ['inbox'];
         } else if (modo === 'evaluador') {
-            return ['dashboard', 'inbox', 'seguimientos'];
+            return ['dashboard', 'inbox'];
         } else if (modo === 'profesor' || modo === 'docente') {
             return ['portal_profesor'];
         } else if (modo === 'coordinador_grupos' || modo === 'coordinador') {
-            return ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'bajas', 'configuracion'];
+            const baseCoord = ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'bajas', 'configuracion'];
+            if (typeof tieneAlumnosEnInboxUsuarioActual === 'function' && tieneAlumnosEnInboxUsuarioActual()) {
+                baseCoord.splice(1, 0, 'inbox');
+            }
+            return baseCoord;
         } else if (modo === 'admisor' || modo === 'admisiones') {
             return ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'bajas', 'metricas'];
         } else {
@@ -7603,14 +7649,17 @@ export function obtenerModulosPermitidosModoActivo() {
     if (modo === 'atencion_cliente') {
         return ['inbox'];
     } else if (modo === 'evaluador') {
-        const base = ['dashboard', 'inbox', 'espera', 'seguimientos'];
-        return base.filter(m => listaPermitidaUser.includes(m) || m === 'seguimientos');
+        return ['dashboard', 'inbox'];
     } else if (modo === 'profesor' || modo === 'docente') {
         const base = ['portal_profesor'];
         return base.filter(m => listaPermitidaUser.includes(m));
     } else if (modo === 'coordinador_grupos' || modo === 'coordinador') {
         const base = ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'bajas', 'configuracion'];
-        return base.filter(m => listaPermitidaUser.includes(m) || m === 'seguimientos' || m === 'bajas' || m === 'configuracion');
+        const tieneInbox = typeof tieneAlumnosEnInboxUsuarioActual === 'function' && tieneAlumnosEnInboxUsuarioActual();
+        if (tieneInbox) {
+            base.splice(1, 0, 'inbox');
+        }
+        return base.filter(m => listaPermitidaUser.includes(m) || m === 'seguimientos' || m === 'bajas' || m === 'configuracion' || (m === 'inbox' && tieneInbox));
     } else if (modo === 'admisor' || modo === 'admisiones') {
         const base = ['dashboard', 'inbox', 'espera', 'match', 'match_etapa4', 'altas', 'suspendidos', 'bajas', 'metricas'];
         return base.filter(m => (listaPermitidaUser.includes(m) || m === 'bajas') && m !== 'seguimientos');
@@ -7640,7 +7689,7 @@ export function cambiarModoRol(nuevoModo) {
         cargarVista('Inbox - Pendientes');
     } else if (nuevoModo === 'profesor') {
         cargarVista('Mis Alumnos y Ensambles');
-    } else if (nuevoModo === 'evaluador' && (vistaActual.startsWith('Match') || vistaActual.startsWith('Altas') || vistaActual === 'Configuración' || vistaActual === 'Mis Alumnos y Ensambles' || vistaActual === 'Estadísticas' || (vistaActual === 'Lista de Espera' && !modsPermitidos.includes('espera')))) {
+    } else if (nuevoModo === 'evaluador' && (!vistaActual.startsWith('Inbox') && vistaActual !== 'Dashboard')) {
         cargarVista('Dashboard');
     } else if ((nuevoModo === 'coordinador_grupos' || nuevoModo === 'coordinador') && vistaActual === 'Mis Alumnos y Ensambles') {
         cargarVista('Dashboard');
@@ -8189,14 +8238,34 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
 
     const esEvalActivo = esModoEvaluadorActivo();
     
+    const esCoordActivo = typeof esModoCoordinadorActivo === 'function' ? esModoCoordinadorActivo() : false;
+
     // Si el modo activo es Evaluador y se intenta acceder a Inbox, redirigir siempre a Entrevistas Confirmadas
     if (esEvalActivo && (vista.startsWith('Inbox') && vista !== 'Inbox - Confirmadas')) {
         vista = 'Inbox - Confirmadas';
     }
 
-    // Si el modo activo es Evaluador y se intenta acceder a Altas, redirigir siempre a Seguimientos
-    if (esEvalActivo && (vista.startsWith('Altas') && vista !== 'Altas - Seguimientos')) {
-        vista = 'Seguimientos - Pendientes';
+    // Si el modo activo es Coordinador y accede a Inbox (por defecto 'Inbox - Pendientes'),
+    // redirigir a 'Inbox - Confirmadas' si no tiene pendientes de agendar pero sÃ­ tiene entrevistas confirmadas asignadas
+    if (esCoordActivo && vista === 'Inbox - Pendientes') {
+        const poolCheck = (Array.isArray(ultimosAlumnosCargados) && ultimosAlumnosCargados.length > 0) ? ultimosAlumnosCargados : (window.allData || cachedAlumnosData || []);
+        const misAsignados = typeof filtrarAlumnosEvaluador === 'function' ? filtrarAlumnosEvaluador(poolCheck) : [];
+        const tieneConfirmadas = misAsignados.some(d => {
+            const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+            return st === 'agenda confirmada' || st === 'entrevista confirmada' || st.startsWith('entrevista');
+        });
+        const tienePendientes = misAsignados.some(d => {
+            const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+            return st === 'pendiente procesar' || st === 'sin agendar';
+        });
+        if (!tienePendientes && tieneConfirmadas) {
+            vista = 'Inbox - Confirmadas';
+        }
+    }
+
+    // Si el modo activo es Evaluador y se intenta acceder a cualquier vista fuera de Inbox y Dashboard, redirigir a Dashboard
+    if (esEvalActivo && !vista.startsWith('Inbox') && vista !== 'Dashboard') {
+        vista = 'Dashboard';
     }
 
     // Redirección por defecto para Seguimientos
@@ -8536,7 +8605,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
                 : [window.usuarioActual?.rol || 'admisor'];
             const modo = window.modoRolActivo || 'multi';
             const esSoloEval = esModoEvaluadorActivo();
-            const esSoloCoordinador = (modo === 'coordinador_grupos' || (!roles.includes('admin') && !roles.includes('admisor') && !roles.includes('admisiones') && roles.includes('coordinador_grupos'))) && modo !== 'multi' && modo !== 'admin' && modo !== 'admisor' && modo !== 'evaluador';
+            const esSoloCoordinador = (modo === 'coordinador' || modo === 'coordinador_grupos' || (!roles.includes('admin') && !roles.includes('admisor') && !roles.includes('admisiones') && (roles.includes('coordinador') || roles.includes('coordinador_grupos')))) && modo !== 'multi' && modo !== 'admin' && modo !== 'admisor' && modo !== 'evaluador';
 
             let poolUrgencias = allData;
             if (esSoloEval) {
@@ -8544,10 +8613,18 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
                     const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
                     return st === 'agenda confirmada' || st === 'entrevista confirmada';
                 });
-                const seguimientosEval = filtrarAlumnosSeguimientoEvaluador(allData);
-                poolUrgencias = [...entrevistasEval, ...seguimientosEval];
+                // REGLA: El evaluador en el dashboard SOLO ve sus entrevistas, NO seguimientos
+                poolUrgencias = entrevistasEval;
             } else if (esSoloCoordinador) {
+                const misAsignados = typeof filtrarAlumnosEvaluador === 'function' ? filtrarAlumnosEvaluador(allData) : [];
+                const misIdsAsignados = new Set(misAsignados.map(a => a.id));
+
                 poolUrgencias = allData.filter(d => {
+                    if (misIdsAsignados.has(d.id)) return true;
+                    // Seguimientos en Dashboard: solo propios del usuario logueado
+                    if (d.seguimiento && d.seguimiento.activo === true) {
+                        return typeof esEvaluadorDeSeguimientoDelAlumno === 'function' ? esEvaluadorDeSeguimientoDelAlumno(window.usuarioActual, d) : false;
+                    }
                     const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
                     return ['lista de espera', 'validando grupo', 'pre-alta pendiente', 'pre-alta iniciada', 'alta efectiva', 'alta ilegal', 'alta finalizada'].includes(st);
                 });
@@ -8650,7 +8727,9 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
                     return st === 'pendiente validacion por alumno';
                 });
             } else if (vista === 'Inbox - Finalizar Admision' || vista === 'Inbox - Confirmadas') {
-                const fuente = esSoloEval ? filtrarAlumnosEvaluador(allData) : allData;
+                const esCoordPropio = typeof esModoCoordinadorActivo === 'function' && esModoCoordinadorActivo() && !(Array.isArray(window.usuarioActual?.roles) && (window.usuarioActual.roles.includes('admin') || window.usuarioActual.roles.includes('admisor')));
+                const debeFiltrarPropias = esSoloEval || esCoordPropio;
+                const fuente = debeFiltrarPropias ? filtrarAlumnosEvaluador(allData) : allData;
                 dataFiltrada = fuente.filter(d => {
                     const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
                     return st === 'agenda confirmada' || st === 'entrevista confirmada' || ['entrevista agendada', 'entrevista realizada', 'entrevista reprogramada'].includes(st);
