@@ -1,5 +1,5 @@
 // =======================================================================
-// app.js - Mandala Admisión (Modular Architecture v7.7.0)
+// app.js - Mandala Admisión (Modular Architecture v7.7.1)
 // =======================================================================
 
 import { 
