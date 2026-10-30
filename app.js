@@ -1,5 +1,5 @@
 // =======================================================================
-// app.js - Mandala Admisión (Modular Architecture v7.6.0)
+// app.js - Mandala Admisión (Modular Architecture v7.7.0)
 // =======================================================================
 
 import { 
@@ -4928,6 +4928,7 @@ window.eliminarFichaAlumnoSeguro = async function(id, nombreHint = '') {
         }
 
         await deleteDoc(doc(db, "alumnos", id));
+        removerAlumnoDeMemoriaLocal(id);
 
         removerFilaOptimista(id);
 
@@ -5234,6 +5235,7 @@ document.getElementById('btn-bulk-eliminar')?.addEventListener('click', async ()
                 }
             }
             await deleteDoc(doc(db, "alumnos", id));
+        removerAlumnoDeMemoriaLocal(id);
             borrados++;
         } catch(err) {
             console.error(`Error al eliminar alumno ${id}:`, err);
@@ -8168,6 +8170,27 @@ export function actualizarAlumnoEnMemoriaLocal(id, updates) {
     window._timestampUltimaCargaAlumnos = 0;
 }
 window.actualizarAlumnoEnMemoriaLocal = actualizarAlumnoEnMemoriaLocal;
+
+export function removerAlumnoDeMemoriaLocal(id) {
+    if (!id) return;
+    if (Array.isArray(ultimosAlumnosCargados)) {
+        const idx = ultimosAlumnosCargados.findIndex(a => a.id === id);
+        if (idx !== -1) ultimosAlumnosCargados.splice(idx, 1);
+    }
+    if (Array.isArray(window.allData)) {
+        const idx = window.allData.findIndex(a => a.id === id);
+        if (idx !== -1) window.allData.splice(idx, 1);
+    }
+    if (Array.isArray(cachedAlumnosData)) {
+        const idx = cachedAlumnosData.findIndex(a => a.id === id);
+        if (idx !== -1) cachedAlumnosData.splice(idx, 1);
+    }
+    if (typeof actualizarBadgesYNavegacion === 'function') {
+        actualizarBadgesYNavegacion(ultimosAlumnosCargados || window.allData || cachedAlumnosData || []);
+    }
+    window._timestampUltimaCargaAlumnos = 0;
+}
+window.removerAlumnoDeMemoriaLocal = removerAlumnoDeMemoriaLocal;
 
 export function ejecutarBusquedaGlobal(queryStr, allData = null) {
     const data = allData || ultimosAlumnosCargados || [];
@@ -14766,6 +14789,38 @@ document.getElementById('form-alumno').addEventListener('submit', async (e) => {
     const hApe = configApp.hora_apertura || '09:00', hCie = configApp.hora_cierre || '22:00'; 
     const disp = extraerDisponibilidadMultiRango('contenedor-disponibilidad', hApe, hCie); 
     
+    const nombreVal = document.getElementById('nombre')?.value?.trim();
+    if (!nombreVal) {
+        alert("⚠️ Por favor, ingresa el Nombre Completo del alumno.");
+        document.getElementById('nombre')?.focus();
+        setBotonCargando(btnSubmit, false);
+        return;
+    }
+
+    const celularVal = document.getElementById('celular')?.value?.trim();
+    if (!celularVal) {
+        alert("⚠️ Por favor, ingresa el Celular del alumno.");
+        document.getElementById('celular')?.focus();
+        setBotonCargando(btnSubmit, false);
+        return;
+    }
+
+    const suscripcionVal = document.getElementById('tipo_suscripcion')?.value;
+    if (!suscripcionVal) {
+        alert("⚠️ Por favor, selecciona el Tipo de Suscripción.");
+        document.getElementById('tipo_suscripcion')?.focus();
+        setBotonCargando(btnSubmit, false);
+        return;
+    }
+
+    const nivelVal = document.getElementById('nivel')?.value;
+    if (!nivelVal) {
+        alert("⚠️ Por favor, selecciona el Nivel del alumno.");
+        document.getElementById('nivel')?.focus();
+        setBotonCargando(btnSubmit, false);
+        return;
+    }
+
     if (!window._instrumentoPrincipalSeleccionado) {
         alert("⚠️ Por favor, selecciona un Instrumento Principal.");
         setBotonCargando(btnSubmit, false);
@@ -15405,6 +15460,7 @@ export async function limpiarCasosPrueba() {
 
                 if (esPropio) {
                     await deleteDoc(doc(db, "alumnos", d.id));
+                    removerAlumnoDeMemoriaLocal(d.id);
                     borrados++;
                 }
             }
