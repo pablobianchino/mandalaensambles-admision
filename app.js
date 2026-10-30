@@ -1,5 +1,5 @@
-﻿// =======================================================================
-// app.js — Mandala Admisión (Modular Architecture v4.9.0)
+// =======================================================================
+// app.js - Mandala Admisión (Modular Architecture v7.6.0)
 // =======================================================================
 
 import { 
@@ -3942,6 +3942,29 @@ export async function obtenerDocentesYEvaluadoresUnificados() {
     return Object.values(mapaDocentes);
 }
 window.obtenerDocentesYEvaluadoresUnificados = obtenerDocentesYEvaluadoresUnificados;
+
+export async function poblarDocentesAlumnoRegular() {
+    const sel = document.getElementById('regular-docente');
+    if (!sel) return;
+    const valActual = sel.value;
+    sel.innerHTML = '<option value="">-- Seleccionar Docente --</option>';
+    try {
+        const todos = await obtenerDocentesYEvaluadoresUnificados();
+        const activos = (todos || []).filter(p => p.activo !== false && p.nombre);
+        activos.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
+        activos.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.nombre;
+            opt.dataset.nombre = p.nombre;
+            sel.appendChild(opt);
+        });
+        if (valActual) sel.value = valActual;
+    } catch(e) {
+        console.error("Error al poblar docentes alumno regular:", e);
+    }
+}
+window.poblarDocentesAlumnoRegular = poblarDocentesAlumnoRegular;
 
 // Helper para renderizar listas compactas con máximo 2 items y popover "+N más"
 export function renderizarItemsConMax2(items, renderPillFn, tipoLabel, studentId) {
@@ -13071,7 +13094,27 @@ document.addEventListener('click', async (e) => {
         // Resetear disponibilidad horaria de manera limpia y modular (todo destildado para nuevo alumno)
         poblarDisponibilidadMultiRango({}, 'contenedor-disponibilidad', '09:00', '22:00', false, true);
 
-        document.getElementById('chk-ingreso-directo').checked = false; 
+        document.getElementById('chk-ingreso-directo').checked = false;
+        const contDirecto = document.getElementById('container-ingreso-directo');
+        if (contDirecto) contDirecto.style.display = 'flex';
+
+        const chkRegular = document.getElementById('chk-alumno-regular');
+        if (chkRegular) chkRegular.checked = false;
+        const contRegular = document.getElementById('container-alumno-regular');
+        if (contRegular) contRegular.style.display = 'flex';
+        const secCursada = document.getElementById('seccion-cursada-regular');
+        if (secCursada) secCursada.style.display = 'none';
+        const docSel = document.getElementById('regular-docente');
+        if (docSel) docSel.value = '';
+        const grpInp = document.getElementById('regular-grupo');
+        if (grpInp) grpInp.value = '';
+        const horInp = document.getElementById('regular-horario');
+        if (horInp) horInp.value = '';
+        const btnSub = document.getElementById('btn-submit-alumno');
+        if (btnSub) btnSub.textContent = 'Guardar Alumno';
+        if (typeof window.poblarDocentesAlumnoRegular === 'function') {
+            window.poblarDocentesAlumnoRegular();
+        }
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); 
         const tabBtns = document.querySelectorAll('.tab-btn'); 
         if(tabBtns.length > 0) { tabBtns[0].classList.add('active'); } 
@@ -14532,6 +14575,10 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
     const btnSubmit = document.getElementById('btn-submit-alumno');
     if (btnSubmit) btnSubmit.style.display = modoLectura ? 'none' : 'block';
     const contIngreso = document.getElementById('container-ingreso-directo');
+    const contRegular = document.getElementById('container-alumno-regular');
+    if (contRegular) contRegular.style.display = 'none';
+    const secCursada = document.getElementById('seccion-cursada-regular');
+    if (secCursada) secCursada.style.display = 'none';
     if (contIngreso) contIngreso.style.display = (modoLectura || esAtencionFicha) ? 'none' : 'flex';
 
     const estadosBloqueados = ['Pendiente procesar', 'Pendiente validación por profe', 'Pendiente validación por alumno'];
@@ -14790,7 +14837,49 @@ document.getElementById('form-alumno').addEventListener('submit', async (e) => {
             actualizarAlumnoEnMemoriaLocal(id, data);
             await updateDoc(doc(db, "alumnos", id), data);
         } else {
-            const esDirecto = document.getElementById('chk-ingreso-directo').checked;
+            const esRegular = document.getElementById('chk-alumno-regular')?.checked;
+            const esDirecto = document.getElementById('chk-ingreso-directo')?.checked;
+
+            if (esRegular) {
+                const selDoc = document.getElementById('regular-docente');
+                const docenteId = selDoc?.value;
+                const docenteNombre = selDoc?.options[selDoc.selectedIndex]?.dataset.nombre || selDoc?.options[selDoc.selectedIndex]?.text || '';
+
+                if (!docenteId) {
+                    alert("⚠️ Por favor selecciona el docente a cargo de la cursada del alumno regular.");
+                    setBotonCargando(btnSubmit, false);
+                    return;
+                }
+
+                const grupoAsignado = document.getElementById('regular-grupo')?.value.trim() || '';
+                if (!grupoAsignado) {
+                    alert("⚠️ Por favor ingresa el Grupo o Ensamble del alumno regular.");
+                    document.getElementById('regular-grupo')?.focus();
+                    setBotonCargando(btnSubmit, false);
+                    return;
+                }
+
+                const horarioAsignado = document.getElementById('regular-horario')?.value.trim() || '';
+                if (!horarioAsignado) {
+                    alert("⚠️ Por favor ingresa el Día y Horario habitual de cursada.");
+                    document.getElementById('regular-horario')?.focus();
+                    setBotonCargando(btnSubmit, false);
+                    return;
+                }
+
+                data.estado_agenda = "Alta finalizada";
+                data.checklist_alta = [true, true, true, true, true];
+                data.es_regular = true;
+                data.origen_ingreso = "alumno_regular_preexistente";
+                data.profesor_asignado = docenteNombre;
+                data.profesor_id = docenteId;
+                if (grupoAsignado) data.grupo_asignado = grupoAsignado;
+                if (horarioAsignado) data.horario_match = horarioAsignado;
+                data.seguimiento = { activo: false };
+
+                const detalleCursada = docenteNombre + (grupoAsignado ? ` (${grupoAsignado})` : '') + (horarioAsignado ? ` - ${horarioAsignado}` : '');
+                data.historial.push(crearEntradaHistorial(`Alta directa como Alumno Regular preexistente de la escuela (cursada con ${detalleCursada}).`, 'sistema'));
+            } else
             if (esDirecto) {
                 data.estado_agenda = "Lista de espera";
                 data.historial.push(crearEntradaHistorial("Ingreso directo a Lista de Espera sin entrevista previa.", 'sistema'));
@@ -14819,6 +14908,31 @@ document.getElementById('form-alumno').addEventListener('submit', async (e) => {
 // =======================================================================
 // NUEVA SUSCRIPCIÓN / RE-INSCRIPCIÓN DE ALUMNO EXISTENTE
 // =======================================================================
+// Listener para el switch de Alumno Regular
+const elChkAlumnoRegular = document.getElementById('chk-alumno-regular');
+if (elChkAlumnoRegular) {
+    elChkAlumnoRegular.addEventListener('change', (e) => {
+        const secCursada = document.getElementById('seccion-cursada-regular');
+        const contIngreso = document.getElementById('container-ingreso-directo');
+        const chkDirecto = document.getElementById('chk-ingreso-directo');
+        const btnSubmit = document.getElementById('btn-submit-alumno');
+        
+        if (e.target.checked) {
+            if (secCursada) secCursada.style.display = 'block';
+            if (contIngreso) contIngreso.style.display = 'none';
+            if (chkDirecto) chkDirecto.checked = false;
+            if (btnSubmit) btnSubmit.textContent = 'Guardar como Alumno Regular';
+            if (typeof window.poblarDocentesAlumnoRegular === 'function') {
+                window.poblarDocentesAlumnoRegular();
+            }
+        } else {
+            if (secCursada) secCursada.style.display = 'none';
+            if (contIngreso) contIngreso.style.display = 'flex';
+            if (btnSubmit) btnSubmit.textContent = 'Guardar Alumno';
+        }
+    });
+}
+
 window.abrirModalNuevaSuscripcion = async function(id) {
     try {
         const alDoc = await getDoc(doc(db, "alumnos", id));
