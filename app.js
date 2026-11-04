@@ -16,8 +16,9 @@ import {
     esAlumnoAltaFinalizada,
     esAlumnoAltaConfirmadaIncompleta,
     normalizarAlumnoSeguimiento,
-    calcularFechaSeguimiento72hs
-} from "./src/config/constants.js?v=7.7.9";
+    calcularFechaSeguimiento72hs,
+    CLAVE_INICIAL_DEFECTO
+} from "./src/config/constants.js?v=7.8.6";
 
 import { 
     app, 
@@ -9477,17 +9478,17 @@ async function conectarEmailPassword(email, password) {
 } catch (err) {
         console.warn("Intento de login con Email/Password:", err.code, err.message);
 
-        // Si intenta ingresar con clave mandala333 y no existe usuario con password, intentar crearlo
-        if (password === 'mandala333' && (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential')) {
+        // Si intenta ingresar con la clave inicial y no existe usuario con password, intentar crearlo
+        if (password === CLAVE_INICIAL_DEFECTO && (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential')) {
             try {
-                await createUserWithEmailAndPassword(auth, emailNorm, 'mandala333');
-                console.log(`[Auth] Usuario ${emailNorm} auto-creado en Firebase Auth con clave mandala333`);
+                await createUserWithEmailAndPassword(auth, emailNorm, CLAVE_INICIAL_DEFECTO);
+                console.log(`[Auth] Usuario ${emailNorm} auto-creado en Firebase Auth con la clave inicial`);
                 return; // onAuthStateChanged completará el inicio de sesión
 } catch (autoErr) {
                 console.warn("[Auth] No se pudo auto-crear usuario en Firebase Auth:", autoErr.code, autoErr.message);
                 if (autoErr.code === 'auth/email-already-in-use') {
                     if (errorBox) {
-                        errorBox.innerHTML = 'Tu cuenta fue registrada originalmente con Google.<br><strong>Iniciá sesión una vez con el botón de Google</strong> para activar tu clave <code>mandala333</code> automáticamente.';
+                        errorBox.innerHTML = 'Tu cuenta fue registrada originalmente con Google.<br><strong>Iniciá sesión con el botón de Google</strong>, o pedile al administrador que te restablezca el acceso.';
                         errorBox.style.display = 'block';
 }
                     return;
@@ -9505,7 +9506,7 @@ async function conectarEmailPassword(email, password) {
         if (err.code === 'auth/operation-not-allowed') {
             msg = '⚠️ El método de acceso con Correo/Contraseña no está habilitado en Firebase. Debe activarse en Firebase Console: Authentication > Sign-in method > Correo electrónico/contraseña.';
 } else if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-            msg = 'Contraseña o correo incorrectos. Si tu cuenta fue creada con Google, ingresá una vez con Google para activar la clave mandala333.';
+            msg = 'Contraseña o correo incorrectos. Si tu cuenta fue creada con Google, ingresá con el botón de Google. Si olvidaste tu contraseña, pedile al administrador que te restablezca el acceso.';
 } else if (err.code === 'auth/user-not-found') {
             msg = 'No se encontró un usuario registrado con este correo.';
 } else if (err.code === 'auth/too-many-requests') {
@@ -9562,7 +9563,7 @@ async function autoAprovisionarUsuariosSistemaDefault() {
                 try {
                     const secApp = initializeApp(firebaseConfig, `AutoProv_${d.id}_${Date.now()}`);
                     const secAuth = getAuth(secApp);
-                    await createUserWithEmailAndPassword(secAuth, userEmail, "mandala333");
+                    await createUserWithEmailAndPassword(secAuth, userEmail, CLAVE_INICIAL_DEFECTO);
                     await signOut(secAuth);
                     console.log(`[AUTH-PROVISION] Cuenta Firebase Auth creada para: ${userEmail}`);
 } catch (provErr) {
@@ -9598,10 +9599,81 @@ async function autoAprovisionarUsuariosSistemaDefault() {
 }
 }
 
+// =======================================================================
+// CAMBIO DE CLAVE INICIAL OBLIGATORIO
+// Si la persona ingresó con email y contraseña y su clave sigue siendo la inicial (password_modificada === false),
+// se muestra el cambio de contraseña como diálogo obligatorio (sin cerrar con X, Cancelar, Escape ni clic afuera).
+// =======================================================================
+async function exigirCambioClaveInicial(user) {
+    try {
+        if (!user || window.usuarioActual?.password_modificada !== false) return;
+        const tok = await user.getIdTokenResult();
+        if (tok?.signInProvider !== 'password') return; // Con Google no hay clave inicial que cambiar
+
+        const modal = document.getElementById('modal-cambiar-password');
+        if (!modal || modal.dataset.forzado === '1') return;
+        modal.dataset.forzado = '1';
+
+        // Se retira la clase de cierre (los atajos genéricos de la app cierran por clase) y se ocultan los botones
+        modal.querySelectorAll('.btn-cerrar-modal').forEach(b => {
+            b.classList.remove('btn-cerrar-modal'); b.dataset.eraCerrar = '1';
+            if ((b.textContent || '').trim() === 'Cancelar') {
+                // "Cancelar" pasa a ser "Cancelar y cerrar sesión": sale de la sesión sin cambiar la contraseña
+                b.dataset.textoOriginal = b.textContent;
+                b.textContent = 'Cancelar y cerrar sesión';
+                b.onclick = async (ev) => { ev.preventDefault(); ev.stopPropagation(); try { await signOut(auth); } finally { window.location.reload(); } };
+            } else {
+                b.style.display = 'none'; // la X
+            }
+        });
+
+        let aviso = document.getElementById('chg-pass-aviso-forzado');
+        if (!aviso) {
+            aviso = document.createElement('div');
+            aviso.id = 'chg-pass-aviso-forzado';
+            aviso.style.cssText = 'padding:10px 12px; background:#fef3c7; border:1px solid #fde68a; border-radius:8px; color:#92400e; font-size:12.5px; font-weight:600; margin-bottom:12px; line-height:1.4;';
+            aviso.innerHTML = 'Por seguridad, tenés que cambiar tu contraseña inicial antes de continuar. <a href="#" id="chg-pass-forzado-salir" style="color:#92400e; text-decoration:underline; margin-left:6px;">Cerrar sesión</a>';
+            document.getElementById('form-cambiar-password')?.before(aviso);
+            document.getElementById('chg-pass-forzado-salir')?.addEventListener('click', async (ev) => {
+                ev.preventDefault();
+                await signOut(auth);
+                window.location.reload();
+            });
+        }
+        modal.addEventListener('cancel', (ev) => { if (modal.dataset.forzado === '1') ev.preventDefault(); });
+
+        const errBox = document.getElementById('chg-pass-error-msg');
+        if (errBox) errBox.style.display = 'none';
+        document.getElementById('form-cambiar-password')?.reset();
+        if (!modal.open) modal.showModal();
+    } catch (e) {
+        console.warn('[Auth] No se pudo evaluar el cambio de clave inicial obligatorio:', e);
+    }
+}
+
+window.exigirCambioClaveInicial = exigirCambioClaveInicial;
+window.liberarCambioClaveForzado = liberarCambioClaveForzado;
+
+function liberarCambioClaveForzado() {
+    const modal = document.getElementById('modal-cambiar-password');
+    if (!modal || modal.dataset.forzado !== '1') return;
+    modal.dataset.forzado = '';
+    modal.querySelectorAll('[data-era-cerrar="1"]').forEach(b => {
+        b.classList.add('btn-cerrar-modal'); delete b.dataset.eraCerrar; b.style.display = '';
+        if (b.dataset.textoOriginal) { b.textContent = b.dataset.textoOriginal; delete b.dataset.textoOriginal; b.onclick = null; }
+    });
+    document.getElementById('chg-pass-aviso-forzado')?.remove();
+}
+
 async function cambiarPasswordUsuarioLogueado(passActual, passNueva, passConfirmar) {
     const errBox = document.getElementById('chg-pass-error-msg');
     const submitBtn = document.getElementById('btn-submit-cambiar-pass');
     if (errBox) errBox.style.display = 'none';
+
+    if (passNueva === CLAVE_INICIAL_DEFECTO) {
+        if (errBox) { errBox.textContent = 'La nueva contraseña no puede ser la contraseña inicial. Elegí una distinta.'; errBox.style.display = 'block'; }
+        return;
+    }
 
     if (!passActual || !passNueva || !passConfirmar) {
         if (errBox) { errBox.textContent = 'Todos los campos son obligatorios.'; errBox.style.display = 'block'; }
@@ -9634,6 +9706,8 @@ async function cambiarPasswordUsuarioLogueado(passActual, passNueva, passConfirm
 });
 }
 
+        if (window.usuarioActual) window.usuarioActual.password_modificada = true;
+        liberarCambioClaveForzado();
         const modal = document.getElementById('modal-cambiar-password');
         if (modal) modal.close();
 
@@ -9643,7 +9717,7 @@ async function cambiarPasswordUsuarioLogueado(passActual, passNueva, passConfirm
         console.error("Error al cambiar contraseña:", err);
         let msg = "Error al actualizar la contraseña: " + (err.message || '');
         if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-            msg = "La contraseña actual ingresada es incorrecta (si nunca la cambiaste, recordá que es mandala333).";
+            msg = "La contraseña actual ingresada es incorrecta. Si no la recordás, pedile al administrador que te restablezca el acceso.";
 }
         if (errBox) {
             errBox.textContent = msg;
@@ -9732,21 +9806,8 @@ onAuthStateChanged(auth, async (user) => {
                 return;
 }
 
-            // Auto-vincular proveedor email/password (mandala333) si el usuario ingresó con Google y aún no tiene password
-            if (user.email && user.providerData) {
-                const tienePassword = user.providerData.some(p => p.providerId === 'password');
-                if (!tienePassword) {
-                    try {
-                        const cred = EmailAuthProvider.credential(user.email.toLowerCase().trim(), 'mandala333');
-                        await linkWithCredential(user, cred);
-                        console.log(`[Auth] Proveedor email/password (mandala333) auto-vinculado exitosamente para ${user.email}`);
-} catch (linkErr) {
-                        if (linkErr.code !== 'auth/provider-already-linked') {
-                            console.warn("[Auth] Aviso al auto-vincular contraseña a usuario Google:", linkErr.code, linkErr.message);
-}
-}
-}
-}
+            // (Seguridad) Ya no se vincula automáticamente la clave inicial por defecto a quien ingresa con Google:
+            // dejaba una contraseña conocida (y pública en el código) en cuentas que nunca la usan.
 
             const rolesOriginales = Array.isArray(usuarioEncontrado.roles) && usuarioEncontrado.roles.length > 0
                 ? usuarioEncontrado.roles
@@ -10015,6 +10076,7 @@ onAuthStateChanged(auth, async (user) => {
         // Iniciar detector de actualizaciones automáticas en tiempo real
         iniciarVerificadorVersion();
         inicializarMotorRecordatorios();
+        exigirCambioClaveInicial(user);
 
         // Iniciar manejador jerárquico de navegación móvil (Doble atrás para salir y guardia de modales)
         initManejadorNavegacionMobile();
@@ -10549,8 +10611,8 @@ document.addEventListener('click', async (e) => {
         const rect = target.getBoundingClientRect();
         const inDialog = (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom);
         if (!inDialog) {
-            if (target.id === 'modal-recordatorios-bloqueante' || target.id === 'modal-reprogramar-inicio' || target.id === 'modal-confirmar-descarte' || target.id === 'global-action-loader') {
-                return; // No auto-cerrar el diálogo de confirmación de descarte ni el loader
+            if (target.id === 'modal-recordatorios-bloqueante' || target.id === 'modal-reprogramar-inicio' || target.id === 'modal-confirmar-descarte' || target.id === 'global-action-loader' || target.dataset.forzado === '1') {
+                return; // No auto-cerrar el diálogo de confirmación de descarte, el loader ni el cambio de clave obligatorio
 }
             // Si cualquier modal fue editado, preguntar si desea seguir editando, guardar o cancelar
             if (modalRealmenteModificado(target)) {

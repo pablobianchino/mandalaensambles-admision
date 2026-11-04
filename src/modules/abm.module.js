@@ -2,7 +2,7 @@
 // src/modules/abm.module.js -- ABM Profesores, Instrumentos, Suscripciones, Usuarios y Config
 // =======================================================================
 
-import { defaultCfg, firebaseConfig } from "../config/constants.js";
+import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO } from "../config/constants.js?v=7.8.6";
 import { formatearPrecioMoneda, TEXTO_AVISO_ADMISOR_INBOX_DEFAULT } from "./altas.module.js";
 import { 
     db, 
@@ -24,6 +24,33 @@ import {
     extraerDisponibilidadMultiRango,
     normalizarHora
 } from "../ui/horarios.ui.js";
+
+// =======================================================================
+// LISTA DE ACCESO (acceso/lista)
+// Documento con los emails autorizados y los administradores, reconstruido desde usuarios_sistema.
+// Las reglas de Firestore propuestas (firestore.rules.borrador) lo usan para permitir el acceso solo a
+// usuarios dados de alta y activos. Con las reglas actuales (cualquier usuario autenticado) es inofensivo.
+// =======================================================================
+export async function sincronizarListaAcceso() {
+    const snap = await getDocs(collection(db, "usuarios_sistema"));
+    const emails = new Set();
+    const admins = new Set();
+    snap.forEach(d => {
+        const u = d.data();
+        const e = (u.email || '').toLowerCase().trim();
+        if (!e || u.activo === false) return;
+        emails.add(e);
+        const roles = Array.isArray(u.roles) && u.roles.length > 0 ? u.roles : [u.rol || ''];
+        if (roles.includes('admin') || u.rol === 'admin') admins.add(e);
+    });
+    await setDoc(doc(db, "acceso", "lista"), {
+        emails: [...emails].sort(),
+        admins: [...admins].sort(),
+        actualizado: new Date().toISOString()
+    });
+    return { emails: emails.size, admins: admins.size };
+}
+window.sincronizarListaAcceso = sincronizarListaAcceso;
 
 function verificarEsSoloCoordinador() {
     if (typeof window.verificarEsSoloCoordinador === 'function') {
@@ -1739,9 +1766,9 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
                 try {
                     const secApp = initializeApp(firebaseConfig, `ABM_Provision_${Date.now()}`);
                     const secAuth = getAuth(secApp);
-                    await createUserWithEmailAndPassword(secAuth, email, "mandala333");
+                    await createUserWithEmailAndPassword(secAuth, email, CLAVE_INICIAL_DEFECTO);
                     await signOut(secAuth);
-                    console.log(`[ABM] Usuario ${email} aprovisionado en Firebase Auth con clave mandala333`);
+                    console.log(`[ABM] Usuario ${email} aprovisionado en Firebase Auth con la clave inicial`);
                 } catch (secErr) {
                     if (secErr.code !== 'auth/email-already-in-use') {
                         console.warn("[ABM] Aviso al crear credenciales en Firebase Auth:", secErr.code, secErr.message);
@@ -1763,7 +1790,13 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
                 if (typeof window.configurarSidebarPorPermisos === 'function') window.configurarSidebarPorPermisos();
             }
 
-            alert(`✅ Usuario "${nombre || email}" guardado correctamente con contraseña inicial "mandala333".`);
+            // Mantener al día la lista de acceso (no bloquea el guardado si falla)
+            try { await sincronizarListaAcceso(); } catch (e) { console.warn('[ABM] No se pudo actualizar la lista de acceso:', e); }
+
+            // Aviso solo para quien administra: informa la contraseña inicial de las cuentas nuevas
+            alert(id
+                ? `✅ Usuario "${nombre || email}" guardado correctamente.`
+                : `✅ Usuario "${nombre || email}" creado correctamente.\n\nContraseña inicial: ${CLAVE_INICIAL_DEFECTO}\nLa persona deberá cambiarla en su primer ingreso con correo y contraseña.`);
 
         } else if (col === 'profesores') {
             const selSkills = document.getElementById('abm-edit-skills');
@@ -1890,12 +1923,12 @@ window.restablecerPasswordUsuarioSistema = async function() {
     }
     const ok = typeof window.confirmar === 'function' 
         ? await window.confirmar(
-            "¿Restablecer contraseña a mandala333?",
-            `Se reasignará la contraseña por defecto "mandala333" para el acceso de ${emailInput || 'este usuario'}.`,
+            "¿Restablecer contraseña?",
+            `Se marcará el acceso de ${emailInput || 'este usuario'} para que cambie su contraseña en el próximo ingreso.`,
             "🔄 Restablecer",
             "question"
         )
-        : confirm(`¿Restablecer la contraseña a "mandala333" para ${emailInput || 'este usuario'}?`);
+        : confirm(`¿Restablecer la contraseña de ${emailInput || 'este usuario'}?`);
     if (!ok) return;
 
     try {
@@ -1906,7 +1939,8 @@ window.restablecerPasswordUsuarioSistema = async function() {
             fecha_reset_password: new Date().toISOString()
         });
         if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
-        alert(`✅ Contraseña restablecida a "mandala333" para ${emailInput}. El usuario ya puede ingresar con su clave por defecto.`);
+        // Aviso solo para quien administra. Ojo: desde el navegador no se puede cambiar la clave real de otra persona en Firebase.
+        alert(`✅ Restablecimiento registrado para ${emailInput}.\n\nSe le pedirá cambiar su contraseña en el próximo ingreso con correo y contraseña.\n\nImportante: este botón NO modifica la contraseña real en Firebase. Si la persona nunca la cambió, su clave sigue siendo la inicial: ${CLAVE_INICIAL_DEFECTO}. Si ya la cambió y la olvidó, esa clave nueva no se recupera con este botón.`);
     } catch (e) {
         if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
         alert("❌ Error al restablecer contraseña: " + e.message);

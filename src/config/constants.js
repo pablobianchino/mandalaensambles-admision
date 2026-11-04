@@ -4,7 +4,11 @@
 
 export const APP_VERSION = "v7.8.6";
 
-export const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx033Es_BuZJk5x0MmyV-u8foA58ENNl1K3Cv-BE6ZeguXCG62UIQl5H4v94EB7MT0/exec";
+// Contraseña inicial que se asigna al crear cuentas de acceso. Se muestra únicamente en los avisos al administrador
+// (crear/restablecer usuario); no debe aparecer en pantallas ni mensajes visibles para el resto de los usuarios.
+export const CLAVE_INICIAL_DEFECTO = "mandala333";
+
+export const SCRIPT_URL ="https://script.google.com/macros/s/AKfycbx033Es_BuZJk5x0MmyV-u8foA58ENNl1K3Cv-BE6ZeguXCG62UIQl5H4v94EB7MT0/exec";
 export const SCRIPT_API_KEY = "mandala-seg-2026";
 
 // Google Drive: Carpeta Raíz de Entrevistas (Mi Unidad > Gestión y Administración Participativa > GEstión > Entrevistas)

@@ -1,0 +1,81 @@
+// =======================================================================
+// BORRADOR de reglas de Firestore — NO PUBLICADO. No tiene efecto hasta que se pegue en
+// Firebase Console > Firestore Database > Reglas y se publique (hacerlo solo tras probar en el Simulador de reglas).
+//
+// Qué cambia respecto de las reglas actuales:
+//  - Hoy: cualquier usuario autenticado lee/escribe TODO (y 2 colecciones son públicas sin login).
+//  - Borrador: solo entran los emails que están en acceso/lista (usuarios activos de usuarios_sistema).
+//  - usuarios_sistema: solo los admins crean/modifican libremente; cada usuario puede editar únicamente
+//    sus campos personales (no sus roles ni módulos).
+//  - Las colecciones públicas del Portal Central quedan IGUAL (a pedido).
+//  - Cuenta de emergencia: productora.mandalahouse@gmail.com siempre tiene acceso de admin (no queda nadie afuera).
+//
+// Requisito previo: que exista el documento acceso/lista. Se crea ejecutando una vez, logueado como admin,
+// en la consola del navegador de la app:   await window.sincronizarListaAcceso()
+// (y se mantiene solo al guardar usuarios desde Configuración > Usuarios).
+// =======================================================================
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Portal Central (otra app): SIN CAMBIOS ---
+    match /config_app_central/{document=**} {
+      allow read, write: if true;
+    }
+    match /configuraciones/{document=**} {
+      allow read, write: if true;
+    }
+
+    // --- Funciones auxiliares ---
+    function conSesion() {
+      return request.auth != null && request.auth.token.email != null;
+    }
+    function emailActual() {
+      return request.auth.token.email.lower();
+    }
+    function esEmergencia() {
+      return conSesion() && emailActual() == 'productora.mandalahouse@gmail.com';
+    }
+    function lista() {
+      return get(/databases/$(database)/documents/acceso/lista).data;
+    }
+    function esAutorizado() {
+      return esEmergencia() || (conSesion() && emailActual() in lista().emails);
+    }
+    function esAdmin() {
+      return esEmergencia() || (conSesion() && emailActual() in lista().admins);
+    }
+
+    // --- Lista de acceso: la leen los autorizados, solo la escriben admins ---
+    match /acceso/{doc} {
+      allow read: if esAutorizado();
+      allow write: if esAdmin();
+    }
+
+    // --- Usuarios del sistema ---
+    match /usuarios_sistema/{uid} {
+      allow read: if esAutorizado();
+      allow create, delete: if esAdmin();
+      allow update: if esAdmin() || (
+        esAutorizado()
+        && resource.data.email.lower() == emailActual()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'nombre', 'celular', 'alias_transferencia', 'fecha_actualizacion',
+          'password_modificada', 'fecha_modificacion_password', 'profesor_id',
+          'popup_silenciado_hasta', 'popup_silenciado_por_rol', 'popup_snooze_por_rol',
+          'recordatorios_pospuestos'
+        ])
+      );
+    }
+
+    // --- Resto de la app (alumnos, profesores, grupos, configuracion, etc.) ---
+    // Solo usuarios autorizados. (Excluye las colecciones que ya tienen su propia regla.)
+    match /{coleccion}/{document=**} {
+      allow read, write: if esAutorizado()
+        && coleccion != 'usuarios_sistema'
+        && coleccion != 'acceso'
+        && coleccion != 'config_app_central'
+        && coleccion != 'configuraciones';
+    }
+  }
+}
