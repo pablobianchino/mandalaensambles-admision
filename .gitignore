@@ -8,3 +8,9 @@ service-account*.json
 .env
 .env.local
 *.log
+
+# Backups locales
+backups/
+
+# Otro proyecto (no pertenece a este repo)
+Integración BD/

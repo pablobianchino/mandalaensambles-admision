@@ -385,6 +385,7 @@ export function generarBotonesAccion(al, id, esModal = false, vista = '') {
     // 7. Altas > Pendientes
     else if (est === 'pre-alta pendiente' || vistaActiva === 'Altas - Pendientes') {
         html += `<button type="button" class="${btnClass(true)} btn-abrir-prealta" data-id="${id}">⚙️ Iniciar Pre-Alta</button>`;
+        html += `<button type="button" class="${btnClass()}" onclick="window.abrirModalReprogramarFecha && window.abrirModalReprogramarFecha('${id}')">📅 Reprogramar Inicio</button>`;
         html += `<button type="button" class="${btnClass()} btn-avisar-admisor-alumno" data-id="${id}">📢 Avisar al Admisor</button>`;
         html += `<button type="button" class="${btnClass()} btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
         html += `<button type="button" class="${btnClass()} btn-nota-rapida" data-id="${id}">📝 Agregar Nota</button>`;
@@ -394,6 +395,7 @@ export function generarBotonesAccion(al, id, esModal = false, vista = '') {
     else if (est === 'pre-alta iniciada' || vistaActiva === 'Altas - En Curso') {
         html += `<button type="button" class="${btnClass(true)} btn-abrir-confirmar-alta" data-id="${id}">💳 Suscripción Abonada</button>`;
         html += `<button type="button" class="${btnClass()} btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${al.grupo_asignado||''}">✏️ Editar Pre-Alta</button>`;
+        html += `<button type="button" class="${btnClass()}" onclick="window.abrirModalReprogramarFecha && window.abrirModalReprogramarFecha('${id}')">📅 Reprogramar Inicio</button>`;
         html += `<button type="button" class="${btnClass()} btn-aviso-prealta-alumno" data-id="${id}">💬 Avisar Alumno</button>`;
         html += `<button type="button" class="${btnClass()} btn-reenviar-prealta" data-id="${id}">📢 Avisar Coordinador</button>`;
         html += `<button type="button" class="${btnClass()} btn-devolver-pendientes" data-id="${id}">↩️ Devolver a Pendientes</button>`;
@@ -451,6 +453,7 @@ export function generarBotonesAccion(al, id, esModal = false, vista = '') {
             html += `<button type="button" class="${btnClass()} btn-copiar-fila-excel-bd" data-id="${id}">📋 Copiar Registro BD</button>`;
             html += `<button type="button" class="${btnClass()} btn-copiar-fila-excel-fact" data-id="${id}">💰 Copiar Facturación</button>`;
             html += `<button type="button" class="${btnClass()} btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${al.grupo_asignado||''}">✏️ Editar Alta</button>`;
+            html += `<button type="button" class="${btnClass()}" onclick="window.abrirModalReprogramarFecha && window.abrirModalReprogramarFecha('${id}')">📅 Reprogramar Inicio</button>`;
             html += `<button type="button" class="${btnClass()} btn-aviso-alta-alumno" data-id="${id}">💬 Avisar Alta a Alumno</button>`;
             html += `<button type="button" class="${btnClass()} btn-reenviar-alta" data-id="${id}">📢 Avisar Alta a Docente</button>`;
             html += `<button type="button" class="${btnClass()} btn-devolver-espera" data-id="${id}">↩️ Devolver a Espera</button>`;
@@ -469,6 +472,7 @@ export function generarBotonesAccion(al, id, esModal = false, vista = '') {
             html += `<button type="button" class="${btnClass()} btn-copiar-fila-excel-bd" data-id="${id}">📋 Copiar Registro BD</button>`;
             html += `<button type="button" class="${btnClass()} btn-copiar-fila-excel-fact" data-id="${id}">💰 Copiar Facturación</button>`;
             html += `<button type="button" class="${btnClass()} btn-editar-prealta" data-id="${id}" data-inicio="${al.fecha_inicio_clases||''}" data-grupo="${al.grupo_asignado||''}">✏️ Editar Alta</button>`;
+            html += `<button type="button" class="${btnClass()}" onclick="window.abrirModalReprogramarFecha && window.abrirModalReprogramarFecha('${id}')">📅 Reprogramar Inicio</button>`;
             html += `<button type="button" class="${btnClass()} btn-aviso-alta-alumno" data-id="${id}">💬 Avisar Alta a Alumno</button>`;
             html += `<button type="button" class="${btnClass()} btn-reenviar-alta" data-id="${id}">📢 Avisar Alta a Docente</button>`;
             html += `<button type="button" class="${btnClass()} btn-devolver-espera" data-id="${id}">🛋️ Devolver a Espera</button>`;

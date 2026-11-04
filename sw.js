@@ -1,4 +1,4 @@
-const CACHE_NAME = "mandala-app-v7.7.1";
+const CACHE_NAME = "mandala-app-v7.8.6";
 
 self.addEventListener('install', (event) => {
     self.skipWaiting();
@@ -41,26 +41,38 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Network-First para version.json
-    if (url.pathname.endsWith('version.json')) {
+    // Network-First para navegación, HTML, version.json y desarrollo en localhost
+    const esLocalhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+    const esHtmlONavigate = event.request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname === '/' || url.pathname.endsWith('version.json');
+
+    if (esLocalhost || esHtmlONavigate) {
         event.respondWith(
             fetch(event.request)
+                .then((networkResponse) => {
+                    if (networkResponse && networkResponse.status === 200) {
+                        const responseClone = networkResponse.clone();
+                        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+                    }
+                    return networkResponse;
+                })
                 .catch(async () => {
                     const matched = await caches.match(event.request);
                     if (matched) return matched;
-                    return new Response(JSON.stringify({ version: "7.0.0" }), {
-                        headers: { "Content-Type": "application/json" }
-                    });
+                    if (url.pathname.endsWith('version.json')) {
+                        return new Response(JSON.stringify({ version: "7.7.6" }), {
+                            headers: { "Content-Type": "application/json" }
+                        });
+                    }
+                    return new Response("Recurso offline no disponible", { status: 503, statusText: "Offline" });
                 })
         );
         return;
     }
 
-    // Cache-First con Network Fallback seguro garantizando siempre un Response válido
+    // Cache-First con Network Fallback seguro para otros recursos estáticos (imágenes, fuentes)
     event.respondWith(
         caches.match(event.request).then((cachedResponse) => {
             if (cachedResponse) {
-                // Actualizar caché en segundo plano de forma silenciosa
                 fetch(event.request).then((networkResponse) => {
                     if (networkResponse && networkResponse.status === 200) {
                         const responseClone = networkResponse.clone();
