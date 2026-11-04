@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.9.0";
+} from "./src/config/constants.js?v=7.9.1";
 
 import { 
     app, 
@@ -172,13 +172,13 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.9.0";
+} from "./src/modules/abm.module.js?v=7.9.1";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.9.0";
+} from "./src/modules/inbox.module.js?v=7.9.1";
 
 import {
     parseCSV,
@@ -205,7 +205,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.9.0";
+} from "./src/modules/recordatorios.module.js?v=7.9.1";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -9739,10 +9739,13 @@ const ROLES_MODULOS_DEFAULT = {
     coordinador: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'bajas', 'configuracion'],
     evaluador: ['dashboard', 'inbox', 'seguimientos'],
     atencion_cliente: ['inbox'],
+    gestor_festivales: [], // rol de la app Mandala Festivales: no da módulos en Admisión
     docente: ['portal_profesor'],
     profesor: ['portal_profesor'],
     personalizado: []
 };
+
+const URL_APP_FESTIVALES = 'https://mandalaensambles-festival.vercel.app';
 
 onAuthStateChanged(auth, async (user) => { 
     if (user) { 
@@ -9813,6 +9816,8 @@ onAuthStateChanged(auth, async (user) => {
                 ? usuarioEncontrado.roles
                 : (usuarioEncontrado.rol ? [usuarioEncontrado.rol] : ['admisor']);
             const teniaRolEvaluadorLegacy = rolesOriginales.includes('evaluador');
+            // "gestor_festivales" es un rol de la app Mandala Festivales: Admisión lo ignora para todo lo demás
+            const esGestorFestivales = rolesOriginales.some(r => String(r || '').toLowerCase().trim() === 'gestor_festivales');
 
             // Normalizar roles: profesor y evaluador -> docente
             const rolesArr = [...new Set(rolesOriginales.map(r => {
@@ -9821,7 +9826,7 @@ onAuthStateChanged(auth, async (user) => {
                 if (clean === 'coordinador') return 'coordinador_grupos';
                 if (clean === 'admisiones') return 'admisor';
                 return clean;
-            }))].filter(Boolean);
+            }))].filter(r => Boolean(r) && r !== 'gestor_festivales');
 
             const rol = rolesArr[0] || 'admisor';
 
@@ -9873,6 +9878,16 @@ onAuthStateChanged(auth, async (user) => {
 
             if (profesorId && !rolesArr.includes('docente')) {
                 rolesArr.push('docente');
+            }
+
+            // Quien solo es Gestor de Festivales no tiene nada para hacer en Admisión: se lo deriva a su app
+            if (esGestorFestivales && rolesArr.length === 0) {
+                ocultarIndicadorCarga();
+                alert(`🎪 Tu perfil es Gestor de Festivales.\n\nNo tenés acceso a Mandala Admisión. Ingresá a Mandala Festivales:\n${URL_APP_FESTIVALES}`);
+                await signOut(auth);
+                document.getElementById('login-container').style.display = 'flex';
+                document.getElementById('app-container').style.display = 'none';
+                return;
             }
 
             const aptoEvalFinal = Boolean(pDocData?.entrevista || usuarioEncontrado.entrevista || usuarioEncontrado.apto_evaluaciones || teniaRolEvaluadorLegacy);

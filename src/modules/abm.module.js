@@ -2,7 +2,7 @@
 // src/modules/abm.module.js -- ABM Profesores, Instrumentos, Suscripciones, Usuarios y Config
 // =======================================================================
 
-import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO } from "../config/constants.js?v=7.9.0";
+import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO } from "../config/constants.js?v=7.9.1";
 import { formatearPrecioMoneda, TEXTO_AVISO_ADMISOR_INBOX_DEFAULT } from "./altas.module.js";
 import { 
     db, 
@@ -35,20 +35,24 @@ export async function sincronizarListaAcceso() {
     const snap = await getDocs(collection(db, "usuarios_sistema"));
     const emails = new Set();
     const admins = new Set();
+    const festivales = new Set(); // quienes pueden usar Mandala Festivales: admins y Gestores de Festivales
     snap.forEach(d => {
         const u = d.data();
         const e = (u.email || '').toLowerCase().trim();
         if (!e || u.activo === false) return;
         emails.add(e);
         const roles = Array.isArray(u.roles) && u.roles.length > 0 ? u.roles : [u.rol || ''];
-        if (roles.includes('admin') || u.rol === 'admin') admins.add(e);
+        const esAdminU = roles.includes('admin') || u.rol === 'admin';
+        if (esAdminU) admins.add(e);
+        if (esAdminU || roles.includes('gestor_festivales')) festivales.add(e);
     });
     await setDoc(doc(db, "acceso", "lista"), {
         emails: [...emails].sort(),
         admins: [...admins].sort(),
+        festivales: [...festivales].sort(),
         actualizado: new Date().toISOString()
     });
-    return { emails: emails.size, admins: admins.size };
+    return { emails: emails.size, admins: admins.size, festivales: festivales.size };
 }
 window.sincronizarListaAcceso = sincronizarListaAcceso;
 
@@ -787,6 +791,7 @@ const ROLES_MODULOS = {
     coordinador: ['dashboard', 'espera', 'match', 'match_etapa4', 'altas', 'seguimientos', 'suspendidos', 'configuracion'],
     evaluador: ['dashboard', 'inbox', 'seguimientos'],
     atencion_cliente: ['inbox'],
+    gestor_festivales: [], // rol de la app Mandala Festivales: no da módulos en Admisión
     docente: ['portal_profesor'],
     profesor: ['portal_profesor'],
     personalizado: []
@@ -920,6 +925,7 @@ export async function cargarABM(coleccion, titulo, cont) {
                         if (r === 'coordinador_grupos' || r === 'coordinador') return '<span class="profile-tag-badge" style="background:#faf5ff; color:#6d28d9; border-color:#c4b5fd;">🧩 Coordinador</span>';
                         if (r === 'atencion_cliente') return '<span class="profile-tag-badge" style="background:#fff7ed; color:#c2410c; border-color:#fed7aa;">☎️ Atención al Cliente</span>';
                         if (r === 'docente' || r === 'profesor' || r === 'evaluador') return '<span class="profile-tag-badge" style="background:#eafaf1; color:#27ae60; border-color:#a9dfbf;">👨‍🏫 Docente</span>';
+                        if (r === 'gestor_festivales') return '<span class="profile-tag-badge" style="background:#fdf2f8; color:#be185d; border-color:#fbcfe8;">🎪 Gestor de Festivales</span>';
                         if (r === 'personalizado') return '<span class="profile-tag-badge" style="background:#f4ecf7; color:#8e44ad; border-color:#d2b4de;">🛠️ Personalizado</span>';
                         return '<span class="profile-tag-badge" style="background:#e8f4fd; color:#2980b9; border-color:#beddf3;">📥 Admisor</span>';
                     }).join(' ');
@@ -1641,7 +1647,8 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
             const rolesChecked = [];
             document.querySelectorAll('.chk-user-rol:checked').forEach(c => rolesChecked.push(c.value));
             if (rolesChecked.length === 0) rolesChecked.push('personalizado');
-            const rolPrincipal = rolesChecked[0] || 'admisor';
+            // El rol "gestor_festivales" es de otra app: nunca debe quedar como rol principal si hay otro
+            const rolPrincipal = rolesChecked.find(r => r !== 'gestor_festivales') || rolesChecked[0] || 'admisor';
 
             const activo = document.getElementById('abm-user-activo')?.checked !== false;
             
