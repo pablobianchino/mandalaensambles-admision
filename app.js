@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.9.4";
+} from "./src/config/constants.js?v=7.9.5";
 
 import { 
     app, 
@@ -172,13 +172,13 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.9.4";
+} from "./src/modules/abm.module.js?v=7.9.5";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.9.4";
+} from "./src/modules/inbox.module.js?v=7.9.5";
 
 import {
     parseCSV,
@@ -205,7 +205,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.9.4";
+} from "./src/modules/recordatorios.module.js?v=7.9.5";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -12391,14 +12391,29 @@ document.addEventListener('click', async (e) => {
                 calDefecto
             ].filter(Boolean))];
             const eventosPorCalId = {};
+            const calFallidos = [];
             for(const cId of calendariosUnicos) {
                 try {
                     const data = await getEventosCalendario(cId, dS.toISOString(), dE.toISOString());
                     eventosPorCalId[cId] = data.items || [];
 } catch(e) {
+                    console.warn('[Agenda] No se pudo leer el calendario', cId, e);
                     eventosPorCalId[cId] = [];
+                    calFallidos.push(cId);
 }
 }
+            // Si Google Calendar no respondió, NO se puede asumir que el calendario está libre.
+            if (calendariosUnicos.length > 0 && calFallidos.length === calendariosUnicos.length) {
+                setBotonCargando(target, false);
+                return resDiv.innerHTML = '<p style="color:#b91c1c; font-weight:700;">⚠️ No se pudo leer Google Calendar, por eso no se muestran horarios (podrían estar ocupados). Verificá la conexión y volvé a intentar.</p>';
+            }
+            const nombresCalFallidos = calFallidos.map(cId => {
+                const cLow = (cId || '').toLowerCase().trim();
+                const prs = todosLosProfes.filter(pr => (pr.calId || '').toLowerCase().trim() === cLow).map(pr => pr.nombre);
+                return prs.length ? prs.join(', ') : 'calendario general de la escuela';
+            });
+            const avisoCalFallidos = calFallidos.length === 0 ? '' :
+                `<div style="background:#fef2f2; border:1px solid #fca5a5; color:#991b1b; border-radius:8px; padding:9px 12px; margin-bottom:10px; font-size:12.5px; font-weight:600; line-height:1.4;">⚠️ No se pudo leer el calendario de: ${nombresCalFallidos.join('; ')}. Esos horarios pueden figurar libres sin estarlo: <strong>verificá a mano antes de confirmar</strong>.</div>`;
 
             // Construir lista deduplicada de eventos físicos para no inflar el conteo de aulas
             // y asociar profeId únicamente cuando el evento pertenezca legítimamente a ese docente
@@ -12469,7 +12484,7 @@ document.addEventListener('click', async (e) => {
 
             const opts = generarOpcionesAgenda(al.disponibilidad, allEv, esBat, todosLosProfes, profesFiltradosIDs, dS, dE, configApp); 
             if(opts.length===0) { 
-                resDiv.innerHTML='<p>No hay huecos libres en el rango seleccionado.</p>'; 
+                resDiv.innerHTML = avisoCalFallidos + '<p>No hay huecos libres en el rango seleccionado.</p>';
                 document.getElementById('btn-procesar-seleccion-agenda').style.display = 'none';
                 const bAg = document.getElementById('btn-agendar-directo-calendar');
                 if (bAg) bAg.style.display = 'none';
@@ -12490,12 +12505,12 @@ document.addEventListener('click', async (e) => {
                     const tagRecom = op.pegado ? ' <span style="background:var(--accent-teal); color:#fff; font-size:10px; padding:2px 7px; border-radius:10px; font-weight:700; margin-left:6px;">Recomendado</span>' : '';
                     html += `
                         <label style="display:flex; align-items:center; gap:10px; margin-bottom:8px; cursor:pointer; padding:8px 10px; border-radius:8px; border:1px solid ${op.pegado ? 'var(--accent-teal)' : 'var(--border-color)'}; background:${op.pegado ? 'rgba(0, 123, 143, 0.08)' : 'var(--bg-main)'};">
-                            <input type="checkbox" class="chk-agenda-opt" data-calid="${op.calId}" data-profe="${op.profeNombre}" data-profeid="${op.profeId}" data-start="${op.inicioData}" data-end="${op.finData}" data-fechatxt="${op.fechaTextoAmi}"> 
+                            <input type="checkbox" class="chk-agenda-opt" data-calid="${op.calId}" data-profe="${String(op.profeNombre || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')}" data-profeid="${op.profeId}" data-start="${op.inicioData}" data-end="${op.finData}" data-fechatxt="${op.fechaTextoAmi}"> 
                             <span style="font-size:13px; color:var(--text-main); font-weight:${op.pegado ? '600' : 'normal'};">${icon} <strong>${op.fechaTextoAmi}</strong> (${op.profeNombre})${tagRecom}</span>
                         </label>
                     `; 
 }); 
-                resDiv.innerHTML = html; 
+                resDiv.innerHTML = avisoCalFallidos + html;
 
                 const sincronizarBotonesModalAgenda = () => {
                     const chks = resDiv.querySelectorAll('.chk-agenda-opt:checked');
@@ -12507,14 +12522,17 @@ document.addEventListener('click', async (e) => {
                         if (btnAgendar) btnAgendar.style.display = 'none';
 } else if (chks.length === 1) {
                         btnProponer.style.display = 'block';
-                        btnProponer.textContent = '💬 Enviar a Evaluador';
+                        btnProponer.textContent = '💬 Proponer a Evaluador (validar primero)';
+                        btnProponer.title = 'Guarda la propuesta y copia el texto para que el evaluador la valide. Todavía no crea el evento en Google Calendar.';
                         if (btnAgendar) {
                             btnAgendar.style.display = 'block';
-                            btnAgendar.textContent = '📅 Enviar a Alumno';
+                            btnAgendar.textContent = '📅 Agendar directo y avisar a Alumno';
+                            btnAgendar.title = 'Crea el evento en Google Calendar ahora, sin validación previa del evaluador, y copia el mensaje para el alumno.';
 }
 } else {
                         btnProponer.style.display = 'block';
-                        btnProponer.textContent = '💬 Enviar Opciones a Evaluador';
+                        btnProponer.textContent = '💬 Proponer opciones a Evaluador (validar primero)';
+                        btnProponer.title = 'Guarda las opciones y copia el texto para que el evaluador elija. Todavía no crea eventos en Google Calendar.';
                         if (btnAgendar) btnAgendar.style.display = 'none';
 }
 };
@@ -12525,7 +12543,8 @@ document.addEventListener('click', async (e) => {
                 sincronizarBotonesModalAgenda();
 } 
 } catch(e) { 
-            resDiv.innerHTML='<p>Error en la búsqueda.</p>'; 
+            console.error('[Agenda] Error en la búsqueda de agenda:', e);
+            resDiv.innerHTML = `<p style="color:#b91c1c;">❌ Error en la búsqueda de agenda: ${String((e && e.message) || e || 'causa desconocida').replace(/</g, '&lt;')}. Probá de nuevo; si persiste, avisá a soporte con este mensaje.</p>`;
 } 
         setBotonCargando(target, false); 
         return; 
