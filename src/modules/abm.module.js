@@ -2,7 +2,7 @@
 // src/modules/abm.module.js -- ABM Profesores, Instrumentos, Suscripciones, Usuarios y Config
 // =======================================================================
 
-import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO } from "../config/constants.js?v=7.9.6";
+import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO } from "../config/constants.js?v=7.9.7";
 import { formatearPrecioMoneda, TEXTO_AVISO_ADMISOR_INBOX_DEFAULT } from "./altas.module.js";
 import { 
     db, 
@@ -113,6 +113,52 @@ export async function desvincularEntrevistasRealizadas({ aplicar = false } = {})
     return afectados;
 }
 window.desvincularEntrevistasRealizadas = desvincularEntrevistasRealizadas;
+
+// =======================================================================
+// CORRECCIÓN DE TEXTOS DE MENSAJES YA GUARDADOS EN CONFIGURACIÓN (configuracion/general)
+// Aplica solo reemplazos puntuales (conserva cualquier otra personalización) y es idempotente.
+// Uso (admin logueado, consola):  await window.corregirTextosMensajes()              -> simulacro
+//                                  await window.corregirTextosMensajes({aplicar:true}) -> aplica
+// =======================================================================
+const CORRECCIONES_TEXTOS = {
+    texto_cancela_alumno: [[/\*\s+MOTIVO:\s*\*/gi, '*MOTIVO:*']],
+    texto_alumno: [
+        [/para la primer clase de acuerdo/g, 'para la clase de admisión de acuerdo'],
+        [/\bprimer clase\b/g, 'primera clase'],
+        [/Inversión:/g, 'Valor:']
+    ],
+    texto_prealta_alumno: [[/\bprimer clase\b/g, 'primera clase']],
+    texto_alta_alumno: [[/A continuación te dejo algunas consideraciones a tener en cuenta\./g, 'En el próximo mensaje te dejo algunas consideraciones a tener en cuenta.']]
+};
+
+export async function corregirTextosMensajes({ aplicar = false } = {}) {
+    const ref = doc(db, "configuracion", "general");
+    const snap = await getDoc(ref);
+    if (!snap.exists()) { console.log('No hay configuración guardada: rigen los textos del código (ya corregidos).'); return []; }
+    const cfg = snap.data();
+    const cambios = [];
+    const updates = {};
+    for (const [clave, reglas] of Object.entries(CORRECCIONES_TEXTOS)) {
+        const antes = cfg[clave];
+        if (typeof antes !== 'string' || !antes) continue;
+        let despues = antes;
+        for (const [re, rep] of reglas) despues = despues.replace(re, rep);
+        if (despues !== antes) {
+            cambios.push({ texto: clave, antes_fragmentos: (antes.match(/\*\s+MOTIVO:\s*\*|primer clase|Inversión:|A continuación te dejo algunas consideraciones/g) || []).join(' | '), cambia: 'sí' });
+            updates[clave] = despues;
+        }
+    }
+    console.table(cambios);
+    if (aplicar && Object.keys(updates).length) {
+        await updateDoc(ref, updates);
+        if (typeof configApp === 'object') Object.assign(configApp, updates);
+        console.log(`✅ ${Object.keys(updates).length} texto(s) corregido(s) en Configuración.`);
+    } else {
+        console.log(aplicar ? 'Nada para corregir.' : `🔎 SIMULACRO: ${Object.keys(updates).length} texto(s) se corregirían. Para aplicar: corregirTextosMensajes({aplicar:true})`);
+    }
+    return cambios;
+}
+window.corregirTextosMensajes = corregirTextosMensajes;
 
 function verificarEsSoloCoordinador() {
     if (typeof window.verificarEsSoloCoordinador === 'function') {

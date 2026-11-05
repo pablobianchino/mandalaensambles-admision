@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.9.6";
+} from "./src/config/constants.js?v=7.9.7";
 
 import { 
     app, 
@@ -156,7 +156,7 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=6.10.22";
+} from "./src/modules/altas.module.js?v=7.9.7";
 
 import {
     renderTimelineUnificado,
@@ -172,13 +172,13 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.9.6";
+} from "./src/modules/abm.module.js?v=7.9.7";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.9.6";
+} from "./src/modules/inbox.module.js?v=7.9.7";
 
 import {
     parseCSV,
@@ -205,7 +205,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.9.6";
+} from "./src/modules/recordatorios.module.js?v=7.9.7";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -12725,7 +12725,7 @@ document.addEventListener('click', async (e) => {
         let histText = formatearTextoHistorial(al.historial); 
         let template = configApp[plantillaKey] || defaultCfg[plantillaKey] || ''; 
         if (!template && plantillaKey === 'texto_cancela_alumno') {
-            template = "*❗ PRE CHECK - ENTREVISTA*\n*❌ RESERVA CANCELADA*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Suscripción: {suscripcion}\n\n* MOTIVO:* {motivo_detalles}";
+            template = "*❗ PRE CHECK - ENTREVISTA*\n*❌ RESERVA CANCELADA*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Suscripción: {suscripcion}\n\n*MOTIVO:* {motivo_detalles}";
 }
         if (!template && plantillaKey === 'texto_conf_profe') {
             template = "*✅ ENTREVISTA CONFIRMADA Y ABONADA POR ALUMNO*\n*El alumno ya pagó y completó el formulario*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Contacto: {número_contacto_alumno}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Clase: {suscripcion}\n\n*📰 La información del alumno se encuentra adjunta en la descripción del evento del calendario*";
