@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.9.2";
+} from "./src/config/constants.js?v=7.9.3";
 
 import { 
     app, 
@@ -172,13 +172,13 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.9.2";
+} from "./src/modules/abm.module.js?v=7.9.3";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.9.2";
+} from "./src/modules/inbox.module.js?v=7.9.3";
 
 import {
     parseCSV,
@@ -205,7 +205,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.9.2";
+} from "./src/modules/recordatorios.module.js?v=7.9.3";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -12318,7 +12318,7 @@ document.addEventListener('click', async (e) => {
                     const todosUnificados = await obtenerDocentesYEvaluadoresUnificados();
                     todosUnificados.forEach(p => {
                         if (!p.activo) return;
-                        const esEvaluador = p.roles ? p.roles.includes('evaluador') : Boolean(p.entrevista);
+                        const esEvaluador = Boolean(p.entrevista || p.apto_evaluaciones || (Array.isArray(p.roles) && p.roles.includes('evaluador')));
                         if (esEvaluador) {
                             const skills = p.skills || [];
                             const ensena = !instrumentoSeleccionado || skills.length === 0 || skills.some(s => s.toLowerCase().trim() === instrumentoSeleccionado.toLowerCase().trim());
@@ -12373,7 +12373,7 @@ document.addEventListener('click', async (e) => {
                     todosLosProfes.push({ id: p.id, nombre: p.nombre, calId: p.calId, disponibilidad: p.disponibilidad }); 
                     const skills = p.skills || [];
                     const ensena = arrI.length === 0 || arrI.some(inst => !inst || skills.length === 0 || skills.some(s => s.toLowerCase().trim() === inst.toLowerCase().trim()));
-                    const esEvaluador = p.roles ? p.roles.includes('evaluador') : Boolean(p.entrevista);
+                    const esEvaluador = Boolean(p.entrevista || p.apto_evaluaciones || (Array.isArray(p.roles) && p.roles.includes('evaluador')));
                     if (esEvaluador && ensena && (searchAll || fProfs.includes(p.id))) { 
                         profesFiltradosIDs.push(p.id); 
 } 
