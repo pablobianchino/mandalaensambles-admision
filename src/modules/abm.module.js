@@ -2,7 +2,7 @@
 // src/modules/abm.module.js -- ABM Profesores, Instrumentos, Suscripciones, Usuarios y Config
 // =======================================================================
 
-import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO } from "../config/constants.js?v=7.9.1";
+import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO } from "../config/constants.js?v=7.9.2";
 import { formatearPrecioMoneda, TEXTO_AVISO_ADMISOR_INBOX_DEFAULT } from "./altas.module.js";
 import { 
     db, 
@@ -55,6 +55,55 @@ export async function sincronizarListaAcceso() {
     return { emails: emails.size, admins: admins.size, festivales: festivales.size };
 }
 window.sincronizarListaAcceso = sincronizarListaAcceso;
+
+// =======================================================================
+// MIGRACIÓN: desvincular el evento de entrevista de alumnos que ya la realizaron
+// (Lista de Espera en adelante). NO borra nada del calendario: solo limpia el vínculo en la ficha
+// y guarda un resumen en `entrevista_realizada`. Por defecto es SIMULACRO (no escribe).
+// Uso (admin logueado, consola):  await window.desvincularEntrevistasRealizadas()            -> simulacro
+//                                  await window.desvincularEntrevistasRealizadas({aplicar:true}) -> aplica
+// =======================================================================
+export async function desvincularEntrevistasRealizadas({ aplicar = false } = {}) {
+    const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+    const etapaEntrevista = e => e === 'pendiente procesar' || e.startsWith('pendiente validacion') || e === 'agenda confirmada' || e.startsWith('entrevista');
+    const snap = await getDocs(collection(db, "alumnos"));
+    const afectados = [];
+    for (const d of snap.docs) {
+        const al = d.data();
+        const evId = al.id_evento_reserva || al.reserva_id_evento || null;
+        if (!evId) continue;
+        const est = norm(al.estado_agenda);
+        if (etapaEntrevista(est)) continue;                                  // entrevista todavía pendiente: no tocar
+        if (est.includes('suspendid') || est === 'baja') continue;            // suspendidos: ya limpian sus vínculos al reingresar
+        const tieneInforme = Boolean(al.informe_entrevista) || (Array.isArray(al.informes_entrevista) && al.informes_entrevista.length > 0);
+        if (!tieneInforme && est !== 'lista de espera') continue;             // sin evidencia de entrevista realizada
+        afectados.push({ id: d.id, nombre: al.nombre || '', estado: al.estado_agenda || '', evento: evId });
+        if (aplicar) {
+            const hist = Array.isArray(al.historial) ? al.historial : [];
+            const entrada = window.crearEntradaHistorial
+                ? window.crearEntradaHistorial('Se desvinculó el evento de la entrevista de admisión (ya realizada). El evento permanece en el calendario del evaluador.', 'sistema', 'Sistema')
+                : null;
+            if (entrada) hist.push(entrada);
+            await updateDoc(doc(db, "alumnos", d.id), {
+                id_evento_reserva: null,
+                calendario_evento_reserva: null,
+                reserva_id_evento: null,
+                entrevista_realizada: al.entrevista_realizada || {
+                    id_evento: evId,
+                    evaluador_id: al.reserva_profe_id || null,
+                    evaluador_nombre: al.reserva_profe_nombre || null,
+                    fecha_texto: al.reserva_fecha_texto || null,
+                    inicio: al.reserva_inicio || null
+                },
+                historial: hist
+            });
+        }
+    }
+    console.table(afectados);
+    console.log(aplicar ? `✅ ${afectados.length} fichas actualizadas.` : `🔎 SIMULACRO: ${afectados.length} fichas se actualizarían. Para aplicar: desvincularEntrevistasRealizadas({aplicar:true})`);
+    return afectados;
+}
+window.desvincularEntrevistasRealizadas = desvincularEntrevistasRealizadas;
 
 function verificarEsSoloCoordinador() {
     if (typeof window.verificarEsSoloCoordinador === 'function') {

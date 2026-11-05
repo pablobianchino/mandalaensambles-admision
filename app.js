@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.9.1";
+} from "./src/config/constants.js?v=7.9.2";
 
 import { 
     app, 
@@ -172,13 +172,13 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.9.1";
+} from "./src/modules/abm.module.js?v=7.9.2";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.9.1";
+} from "./src/modules/inbox.module.js?v=7.9.2";
 
 import {
     parseCSV,
@@ -205,7 +205,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.9.1";
+} from "./src/modules/recordatorios.module.js?v=7.9.2";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -11501,6 +11501,19 @@ document.addEventListener('click', async (e) => {
                 informe_entrevista: arrInformes[0],
                 informes_entrevista: arrInformes,
                 informe_admision: informeAdmisionTexto,
+                // La entrevista ya se realizó: se desvincula el evento de Google Calendar (queda en la
+                // agenda del evaluador como registro). Se conservan reserva_profe_*/fecha como dato histórico.
+                id_evento_reserva: null,
+                calendario_evento_reserva: null,
+                ...((al.id_evento_reserva || al.reserva_id_evento) ? {
+                    entrevista_realizada: {
+                        id_evento: al.id_evento_reserva || al.reserva_id_evento || null,
+                        evaluador_id: al.reserva_profe_id || null,
+                        evaluador_nombre: al.reserva_profe_nombre || null,
+                        fecha_texto: al.reserva_fecha_texto || null,
+                        inicio: al.reserva_inicio || null
+                    }
+                } : {}),
                 perfil_psicologico: tags,
                 es_especial: tags.some(t => typeof t === 'string' && t.includes('Especial')),
                 instrumento: instrumentosOrdenados,
@@ -13232,7 +13245,7 @@ document.addEventListener('click', async (e) => {
                     if (nota) {
                         const matchPrefijo = (nota.texto || '').match(/^(\[\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}(?:\s+\d{1,2}:\d{2})?\]\s*)/s);
                         const prefijo = matchPrefijo ? matchPrefijo[1] : '';
-                        nota.texto = `${prefijo}Alumno suspendido. Motivo: ${motivoCompleto}. Eventos y cupos liberados.`;
+                        nota.texto = `${prefijo}Alumno suspendido. Motivo: ${motivoCompleto}.`;
                         renderHistorial();
 }
 }
@@ -13285,11 +13298,14 @@ document.addEventListener('click', async (e) => {
 
                             const esDeAltaOEspera = origen === 'altas' || origen === 'espera';
                             
-                            if (al.id_evento_reserva) await eliminarEventoSeguro(al, configApp);
-                            if (al.id_evento_alta) await eliminarEventoAltaSeguro(al, configApp);
+                            // Mismo criterio que la suspensión individual: solo se libera el evento
+                            // si la entrevista seguía pendiente (Inbox). En Espera/Altas se conserva.
+                            const liberaEventos = origen === 'inbox';
+                            if (liberaEventos && al.id_evento_reserva) await eliminarEventoSeguro(al, configApp);
+                            if (liberaEventos && al.id_evento_alta) await eliminarEventoAltaSeguro(al, configApp);
 
                             const hist = al.historial || [];
-                            hist.push(crearEntradaHistorial(`Alumno suspendido masivamente. Motivo: ${motivoCompleto}. Eventos y cupos liberados.`, 'suspension'));
+                            hist.push(crearEntradaHistorial(`Alumno suspendido masivamente. Motivo: ${motivoCompleto}.${liberaEventos ? ' Eventos y cupos liberados.' : ' El evento en Google Calendar se conservó.'}`, 'suspension'));
 
                             const nuevoEstado = esDeAltaOEspera ? "Alta suspendida" : "Agenda suspendida";
                             await updateDoc(doc(db, "alumnos", sId), {
@@ -13312,6 +13328,8 @@ document.addEventListener('click', async (e) => {
                                 reserva_fin: null,
                                 id_evento_reserva: null,
                                 calendario_evento_reserva: null,
+                                id_evento_alta: null,
+                                calendario_evento_alta: null,
                                 historial: hist
 });
                             suspendidos++;
@@ -13347,7 +13365,9 @@ document.addEventListener('click', async (e) => {
             const fechaPrevTexto = al.reserva_fecha_texto || (al.fecha_inicio_clases ? formatearFechaAmi(al.fecha_inicio_clases) : null);
 
             let decisionCal = { decision: 'mantener', tieneEvento: false };
-            if (teniaReserva && (al.id_evento_alta || al.id_evento_reserva)) {
+            // Solo se consulta por el calendario si la ENTREVISTA sigue pendiente (origen Inbox).
+            // Desde Lista de Espera / Altas el evento queda siempre en el calendario del docente.
+            if (origen === 'inbox' && teniaReserva && (al.id_evento_alta || al.id_evento_reserva)) {
                 document.getElementById('modal-suspender')?.close();
                 decisionCal = await window.preguntarAccionCalendar({ al, accionTipo: 'suspender' });
                 if (decisionCal.decision === 'cancelar') {
@@ -13365,9 +13385,9 @@ document.addEventListener('click', async (e) => {
             const hist = al.historial || []; 
             const motivoCompleto = det ? `${mtv} (Detalle: ${det})` : mtv;
             const detalleCal = (teniaReserva && decisionCal.decision === 'mantener')
-                ? ' Evento en Google Calendar MANTENIDO.'
+                ? ' El evento en Google Calendar se conservó (el docente actualiza su agenda si corresponde).'
                 : (decisionCal.decision === 'eliminar' ? ' Eventos y cupos liberados en Google Calendar.' : ' Cupos liberados.');
-            hist.push(crearEntradaHistorial(`Alumno suspendido. Motivo: ${motivoCompleto}.${detalleCal}`, 'suspension')); 
+            hist.push(crearEntradaHistorial(`Alumno suspendido. Motivo: ${motivoCompleto}.${detalleCal}`, 'suspension'));
             
             const nuevoEstado = esDeAltaOEspera ? "Alta suspendida" : "Agenda suspendida";
             const updateDataSusp = { 
@@ -13400,7 +13420,7 @@ document.addEventListener('click', async (e) => {
             removerFilaOptimista(id);
             await cargarVista(estadoActualVista, false); 
 
-            if (teniaReserva) {
+            if (teniaReserva && origen === 'inbox') {
                 try {
                     const dataText = await generarTextoConHistorial(id, 'texto_cancela_alumno', fechaPrevTexto, profPrevioId, profPrevioNom, null, motivoCompleto);
                     if (dataText && dataText.txt) {
