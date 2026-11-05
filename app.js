@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.9.5";
+} from "./src/config/constants.js?v=7.9.6";
 
 import { 
     app, 
@@ -172,13 +172,13 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.9.5";
+} from "./src/modules/abm.module.js?v=7.9.6";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.9.5";
+} from "./src/modules/inbox.module.js?v=7.9.6";
 
 import {
     parseCSV,
@@ -205,7 +205,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.9.5";
+} from "./src/modules/recordatorios.module.js?v=7.9.6";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -12544,7 +12544,11 @@ document.addEventListener('click', async (e) => {
 } 
 } catch(e) { 
             console.error('[Agenda] Error en la búsqueda de agenda:', e);
-            resDiv.innerHTML = `<p style="color:#b91c1c;">❌ Error en la búsqueda de agenda: ${String((e && e.message) || e || 'causa desconocida').replace(/</g, '&lt;')}. Probá de nuevo; si persiste, avisá a soporte con este mensaje.</p>`;
+            const msgErr = String((e && e.message) || e || 'causa desconocida');
+            const sinConexion = /offline|network|failed to fetch|unavailable|ERR_INTERNET|ERR_NAME/i.test(msgErr) || navigator.onLine === false;
+            resDiv.innerHTML = sinConexion
+                ? '<p style="color:#b91c1c; font-weight:700;">📡 Sin conexión a Internet. No se pudo buscar la agenda. Verificá tu conexión y volvé a tocar "Buscar Agenda".</p>'
+                : `<p style="color:#b91c1c;">❌ Error en la búsqueda de agenda: ${msgErr.replace(/</g, '&lt;')}. Probá de nuevo; si persiste, avisá a soporte con este mensaje.</p>`;
 } 
         setBotonCargando(target, false); 
         return; 
