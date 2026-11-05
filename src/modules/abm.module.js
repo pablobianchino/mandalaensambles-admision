@@ -2,7 +2,7 @@
 // src/modules/abm.module.js -- ABM Profesores, Instrumentos, Suscripciones, Usuarios y Config
 // =======================================================================
 
-import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO } from "../config/constants.js?v=7.9.3";
+import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO } from "../config/constants.js?v=7.9.4";
 import { formatearPrecioMoneda, TEXTO_AVISO_ADMISOR_INBOX_DEFAULT } from "./altas.module.js";
 import { 
     db, 
@@ -68,6 +68,7 @@ export async function desvincularEntrevistasRealizadas({ aplicar = false } = {})
     const etapaEntrevista = e => e === 'pendiente procesar' || e.startsWith('pendiente validacion') || e === 'agenda confirmada' || e.startsWith('entrevista');
     const snap = await getDocs(collection(db, "alumnos"));
     const afectados = [];
+    const omitidos = [];
     for (const d of snap.docs) {
         const al = d.data();
         const evId = al.id_evento_reserva || al.reserva_id_evento || null;
@@ -75,6 +76,13 @@ export async function desvincularEntrevistasRealizadas({ aplicar = false } = {})
         const est = norm(al.estado_agenda);
         if (etapaEntrevista(est)) continue;                                  // entrevista todavía pendiente: no tocar
         if (est.includes('suspendid') || est === 'baja') continue;            // suspendidos: ya limpian sus vínculos al reingresar
+        // Prudencia: fuera de Lista de Espera solo se limpia si el alumno ya tiene su PROPIO evento de clase
+        // distinto del de la entrevista. Si no, ese evento podría estar usándose como evento de clase (hay un
+        // respaldo en eliminarEventoAltaSeguro que cae en id_evento_reserva) y se deja para revisar a mano.
+        if (est !== 'lista de espera' && (!al.id_evento_alta || al.id_evento_alta === evId)) {
+            omitidos.push({ id: d.id, nombre: al.nombre || '', estado: al.estado_agenda || '', motivo: 'sin evento de clase propio' });
+            continue;
+        }
         const tieneInforme = Boolean(al.informe_entrevista) || (Array.isArray(al.informes_entrevista) && al.informes_entrevista.length > 0);
         if (!tieneInforme && est !== 'lista de espera') continue;             // sin evidencia de entrevista realizada
         afectados.push({ id: d.id, nombre: al.nombre || '', estado: al.estado_agenda || '', evento: evId });
@@ -100,6 +108,7 @@ export async function desvincularEntrevistasRealizadas({ aplicar = false } = {})
         }
     }
     console.table(afectados);
+    if (omitidos.length) { console.log('⏭️ Omitidos (revisar a mano):'); console.table(omitidos); }
     console.log(aplicar ? `✅ ${afectados.length} fichas actualizadas.` : `🔎 SIMULACRO: ${afectados.length} fichas se actualizarían. Para aplicar: desvincularEntrevistasRealizadas({aplicar:true})`);
     return afectados;
 }

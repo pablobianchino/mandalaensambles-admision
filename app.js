@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.9.3";
+} from "./src/config/constants.js?v=7.9.4";
 
 import { 
     app, 
@@ -172,13 +172,13 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.9.3";
+} from "./src/modules/abm.module.js?v=7.9.4";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.9.3";
+} from "./src/modules/inbox.module.js?v=7.9.4";
 
 import {
     parseCSV,
@@ -205,7 +205,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.9.3";
+} from "./src/modules/recordatorios.module.js?v=7.9.4";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
