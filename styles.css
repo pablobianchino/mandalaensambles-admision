@@ -3129,6 +3129,7 @@ button.btn-prio-filtro.prio-proximos.active,
     font-family: inherit;
     white-space: nowrap;
 }
+.btn-ocultar-fila-ojo { padding: 4px 7px; margin-right: 6px; flex-shrink: 0; }
 .btn-ocultar-fila:hover {
     background: rgba(217, 119, 6, 0.18);
     border-color: #d97706;

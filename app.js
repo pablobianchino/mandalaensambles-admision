@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.9.11";
+} from "./src/config/constants.js?v=7.9.12";
 
 import { 
     app, 
@@ -156,7 +156,7 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=7.9.11";
+} from "./src/modules/altas.module.js?v=7.9.12";
 
 import {
     renderTimelineUnificado,
@@ -172,13 +172,13 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.9.11";
+} from "./src/modules/abm.module.js?v=7.9.12";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.9.11";
+} from "./src/modules/inbox.module.js?v=7.9.12";
 
 import {
     parseCSV,
@@ -205,7 +205,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.9.11";
+} from "./src/modules/recordatorios.module.js?v=7.9.12";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -4444,6 +4444,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
     const esBiciRow = !!al.es_bicicleta;
     let menuAcciones = `
         <div class="row-actions-group">
+            ${htmlBotonOjoEspera(al, id)}
             ${botonesVisibles ? `<div class="row-quick-btns-col">${botonesVisibles}</div>` : ''}
             ${(!esBiciRow && tieneSecundarios) ? `
                 <div class="alumno-actions row-actions-container">
@@ -4669,7 +4670,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                         <div class="row-indicator ${info.colorIndicador}"></div>
                         <div class="row-main-info" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:2px;">
                             <div class="row-name" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; text-align:left;">
-                                <span style="font-weight:700; color:var(--text-main); font-size:14.5px;">${al.nombre}</span>${esEspecial ? ` <span title="Alumno Especial / Particular" style="font-size:15px; line-height:1; display:inline-flex; align-items:center; cursor:help;">\uD83C\uDF00</span>` : ""}
+                                <span style="font-weight:700; color:var(--text-main); font-size:14.5px;">${al.nombre}</span>${_ocultoEsp ? ' <span style="font-size:10.5px; font-weight:800; color:#92400e; background:#fef3c7; border:1px solid #fde68a; border-radius:10px; padding:1px 8px;">OCULTO</span>' : ''}${esEspecial ? ` <span title="Alumno Especial / Particular" style="font-size:15px; line-height:1; display:inline-flex; align-items:center; cursor:help;">\uD83C\uDF00</span>` : ""}
                                 ${edad ? `<span style="font-size:12.5px; color:var(--text-muted); font-weight:600;">• ${edad}</span>` : ''}
                                 ${nivelHtml ? `<span style="display:inline-flex; align-items:center;">• ${nivelHtml}</span>` : ''}
                                 ${tagSegUrgencia}
@@ -4696,12 +4697,6 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                                                     <span>↩️</span> Quitar Bici
                                                 </button>
                                             `}
-                                            ${!esBici ? `
-                                                <button type="button" class="btn-ocultar-fila" onclick="event.stopPropagation(); window.toggleOcultoEspera('${id}');" title="${_ocultoEsp ? 'Volver a mostrar este alumno en la lista' : 'Ocultar este alumno de la vista (se muestra solo mañana)'}">
-                                                    <span>👁️</span> ${_ocultoEsp ? 'Mostrar' : 'Ocultar'}
-                                                </button>
-                                                ${_ocultoEsp ? '<span style="font-size:10.5px; font-weight:800; color:#92400e; background:#fef3c7; border:1px solid #fde68a; border-radius:10px; padding:1px 8px;">OCULTO</span>' : ''}
-                                            ` : ''}
                                         </div>
                                     `;
 }
@@ -16927,6 +16922,12 @@ function guardarOcultosEspera(setIds) {
         if (!setIds || setIds.size === 0) localStorage.removeItem(clave);
         else localStorage.setItem(clave, JSON.stringify({ fecha: _hoyLocalStrEspera(), ids: [...setIds] }));
     } catch (e) { console.warn('No se pudo guardar la lista de ocultos:', e); }
+}
+function htmlBotonOjoEspera(al, id) {
+    if (typeof estadoActualVista === 'undefined' || estadoActualVista !== 'Lista de Espera') return '';
+    if (!al || al.es_bicicleta) return '';
+    const oculto = Boolean(window._ocultosEsperaCache && window._ocultosEsperaCache.has(id));
+    return `<button type="button" class="btn-ocultar-fila btn-ocultar-fila-ojo" onclick="event.stopPropagation(); window.toggleOcultoEspera('${id}');" title="${oculto ? 'Volver a mostrar este alumno en la lista' : 'Ocultar este alumno de la vista (se muestra solo mañana)'}" aria-label="${oculto ? 'Mostrar alumno' : 'Ocultar alumno'}"><span style="font-size:15px;">👁️</span></button>`;
 }
 async function _refrescarListaEsperaConScroll() {
     const main = document.getElementById('main-content');
