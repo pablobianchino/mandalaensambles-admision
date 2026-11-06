@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.9.10";
+} from "./src/config/constants.js?v=7.9.11";
 
 import { 
     app, 
@@ -156,7 +156,7 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=7.9.10";
+} from "./src/modules/altas.module.js?v=7.9.11";
 
 import {
     renderTimelineUnificado,
@@ -172,13 +172,13 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.9.10";
+} from "./src/modules/abm.module.js?v=7.9.11";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.9.10";
+} from "./src/modules/inbox.module.js?v=7.9.11";
 
 import {
     parseCSV,
@@ -205,7 +205,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.9.10";
+} from "./src/modules/recordatorios.module.js?v=7.9.11";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -4638,6 +4638,8 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
 }
 
     let rowBorderExtra = '';
+    const _ocultoEsp = (typeof estadoActualVista !== 'undefined' && estadoActualVista === 'Lista de Espera')
+        && !al.es_bicicleta && Boolean(window._ocultosEsperaCache && window._ocultosEsperaCache.has(id));
     if (info.nivelUrgencia === 'vencido') {
         rowBorderExtra = 'border-left: 4.5px solid #ef4444 !important; background: #fffbfb;';
 } else if (info.nivelUrgencia === 'urgente-24') {
@@ -4659,7 +4661,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                 <button class="swipe-btn left btn-nota-rapida" data-id="${id}">📝 Nota</button>
                 <button class="swipe-btn right btn-row-actions-swipe" data-id="${id}">⋮ Acciones</button>
             </div>
-            <div class="row-item swipe-content btn-editar-alumno" data-id="${id}" style="${rowBorderExtra}">
+            <div class="row-item swipe-content btn-editar-alumno" data-id="${id}" style="${rowBorderExtra}${_ocultoEsp ? ' opacity:0.55;' : ''}">
                 <div class="row-content-wrapper">
                     <!-- Columna 1: Alumno y Datos (Línea 1: Nombre • Edad • Nivel + Badges | Línea 2: Instrumento) -->
                     <div class="row-header">
@@ -4694,6 +4696,12 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                                                     <span>↩️</span> Quitar Bici
                                                 </button>
                                             `}
+                                            ${!esBici ? `
+                                                <button type="button" class="btn-ocultar-fila" onclick="event.stopPropagation(); window.toggleOcultoEspera('${id}');" title="${_ocultoEsp ? 'Volver a mostrar este alumno en la lista' : 'Ocultar este alumno de la vista (se muestra solo mañana)'}">
+                                                    <span>👁️</span> ${_ocultoEsp ? 'Mostrar' : 'Ocultar'}
+                                                </button>
+                                                ${_ocultoEsp ? '<span style="font-size:10.5px; font-weight:800; color:#92400e; background:#fef3c7; border:1px solid #fde68a; border-radius:10px; padding:1px 8px;">OCULTO</span>' : ''}
+                                            ` : ''}
                                         </div>
                                     `;
 }
@@ -5033,6 +5041,8 @@ function actualizarBulkBar() {
     const btnAuditCal = document.getElementById('btn-bulk-auditar-cal');
     const btnEliminar = document.getElementById('btn-bulk-eliminar');
     const btnBulkSeg = document.getElementById('btn-bulk-iniciar-seguimiento');
+    const btnBulkOcultar = document.getElementById('btn-bulk-ocultar-espera');
+    if (btnBulkOcultar) btnBulkOcultar.style.display = (estadoActualVista === 'Lista de Espera' && selectedBulkIds.length > 0) ? 'inline-block' : 'none';
     if (selectedBulkIds.length > 0) {
         document.getElementById('bulk-count').textContent = `${selectedBulkIds.length} seleccionados`;
         bar.style.display = 'flex';
@@ -5110,6 +5120,7 @@ function actualizarBulkBar() {
         bar.style.display = 'none';
 }
 }
+document.getElementById('btn-bulk-ocultar-espera')?.addEventListener('click', () => { window.ocultarSeleccionadosEspera(); });
 document.getElementById('btn-bulk-cancelar')?.addEventListener('click', () => {
     selectedBulkIds.splice(0);
     document.querySelectorAll('.bulk-chk').forEach(c => c.checked = false);
@@ -6023,6 +6034,36 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
 });
 }
 
+    // Ocultar alumnos en Lista de Espera (preferencia visual del operador; vence al final del día)
+    let bannerOcultosHtml = '';
+    if (estadoActualVista === 'Lista de Espera') {
+        const setOc = leerOcultosEspera();
+        const idsEnEspera = new Set((Array.isArray(datos) ? datos : []).map(a => a.id));
+        if (setOc.size > 0 && idsEnEspera.size > 0) {
+            let cambioSet = false;
+            setOc.forEach(idOc => { if (!idsEnEspera.has(idOc)) { setOc.delete(idOc); cambioSet = true; } });
+            if (cambioSet) guardarOcultosEspera(setOc);
+        }
+        window._ocultosEsperaCache = setOc;
+        const ocultosEnLista = (Array.isArray(datos) ? datos : []).filter(a => setOc.has(a.id) && !a.es_bicicleta);
+        if (ocultosEnLista.length === 0) window._verOcultosEspera = false;
+        if (ocultosEnLista.length > 0) {
+            if (!queryStr && !window._verOcultosEspera) {
+                filtrados = filtrados.filter(a => !(setOc.has(a.id) && !a.es_bicicleta));
+            }
+            const n = ocultosEnLista.length;
+            const btnStyle = 'font-size:12px; font-weight:700; padding:4px 10px; border-radius:6px; border:1px solid #fcd34d; background:#fff; color:#92400e; cursor:pointer; font-family:inherit;';
+            bannerOcultosHtml = `
+                <div id="aviso-ocultos-espera" style="position:sticky; top:0; z-index:30; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; background:#fffbeb; border:1px solid #fde68a; color:#92400e; border-radius:10px; padding:8px 14px; margin-bottom:4px; font-size:13px; font-weight:600;">
+                    <span>👁️ ${n} ${n === 1 ? 'alumno oculto' : 'alumnos ocultos'} en esta vista. Siguen en la lista de espera. Se muestran solos mañana.</span>
+                    <span style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button type="button" style="${btnStyle}" onclick="window.alternarVerOcultosEspera()">${window._verOcultosEspera ? 'Volver a la vista limpia' : 'Ver ocultos'}</button>
+                        <button type="button" style="${btnStyle}" onclick="window.mostrarTodosOcultosEspera()">Mostrar todos</button>
+                    </span>
+                </div>`;
+        }
+    }
+
     if (filtroAlarmaActual !== 'Todos') {
         filtrados = filtrados.filter(al => {
             const info = getEstadoYBadgeLocal(al);
@@ -6064,7 +6105,7 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
     if(filtrados.length === 0) { 
         cont.style.display = 'flex';
         if (contKanban) contKanban.style.display = 'none';
-        cont.innerHTML = `
+        cont.innerHTML = bannerOcultosHtml + `
             <div style="text-align:center; padding:50px 20px; background:white; border-radius:14px; border:1px solid var(--border-color); color:var(--text-muted); width:100%; box-sizing:border-box; margin:15px 0;">
                 <div style="font-size:2.5em; margin-bottom:10px;">📋</div>
                 <div style="font-size:16px; font-weight:700; color:var(--text-main); margin-bottom:6px;">No hay registros</div>
@@ -6317,8 +6358,8 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
                 html = renderNivelAgrupado(filtrados, 0);
 }
 }
-        cont.innerHTML = html;
-        
+        cont.innerHTML = bannerOcultosHtml + html;
+
         selectedBulkIds.forEach(id => {
             const chk = document.querySelector(`.bulk-chk[data-id="${id}"]`);
             if (chk) chk.checked = true;
@@ -16853,6 +16894,83 @@ export async function toggleEspecialAlumno(id, pasarAEspecial, nombre) {
 }
 }
 window.toggleEspecialAlumno = toggleEspecialAlumno;
+
+// =======================================================================
+// OCULTAR ALUMNOS EN LISTA DE ESPERA
+// Preferencia visual de cada operador, guardada en su navegador. Vence sola al terminar el día.
+// No modifica la ficha del alumno ni afecta a otros usuarios, a Match ni a "Armar Propuesta".
+// =======================================================================
+function _hoyLocalStrEspera() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function _claveOcultosEspera() {
+    const u = window.usuarioActual || {};
+    return 'mandala_espera_ocultos_' + (u.id || u.email || 'anon');
+}
+function leerOcultosEspera() {
+    try {
+        const clave = _claveOcultosEspera();
+        const raw = localStorage.getItem(clave);
+        if (!raw) return new Set();
+        const o = JSON.parse(raw);
+        if (!o || o.fecha !== _hoyLocalStrEspera() || !Array.isArray(o.ids)) {
+            localStorage.removeItem(clave);
+            return new Set();
+        }
+        return new Set(o.ids);
+    } catch (e) { return new Set(); }
+}
+function guardarOcultosEspera(setIds) {
+    try {
+        const clave = _claveOcultosEspera();
+        if (!setIds || setIds.size === 0) localStorage.removeItem(clave);
+        else localStorage.setItem(clave, JSON.stringify({ fecha: _hoyLocalStrEspera(), ids: [...setIds] }));
+    } catch (e) { console.warn('No se pudo guardar la lista de ocultos:', e); }
+}
+async function _refrescarListaEsperaConScroll() {
+    const main = document.getElementById('main-content');
+    const top = main ? main.scrollTop : 0;
+    await cargarVista(estadoActualVista, false);
+    if (main) main.scrollTop = top;
+}
+window.toggleOcultoEspera = async function(id) {
+    if (!id) return;
+    const s = leerOcultosEspera();
+    if (s.has(id)) s.delete(id);
+    else {
+        s.add(id);
+        const ix = selectedBulkIds.indexOf(id);
+        if (ix !== -1) { selectedBulkIds.splice(ix, 1); actualizarBulkBar(); }
+    }
+    guardarOcultosEspera(s);
+    await _refrescarListaEsperaConScroll();
+};
+window.ocultarSeleccionadosEspera = async function() {
+    if (!selectedBulkIds.length) return;
+    const s = leerOcultosEspera();
+    const pool = Array.isArray(cachedAlumnosData) ? cachedAlumnosData : (window.allData || []);
+    let n = 0;
+    [...selectedBulkIds].forEach(id => {
+        const al = pool.find(a => a.id === id);
+        if (al && al.es_bicicleta) return;
+        s.add(id); n++;
+    });
+    guardarOcultosEspera(s);
+    selectedBulkIds.splice(0);
+    actualizarBulkBar();
+    if (typeof window.mostrarToast === 'function') window.mostrarToast(`👁️ ${n} ${n === 1 ? 'alumno oculto' : 'alumnos ocultos'} de la vista. Se muestran solos mañana.`, 'info');
+    await _refrescarListaEsperaConScroll();
+};
+window.alternarVerOcultosEspera = async function() {
+    window._verOcultosEspera = !window._verOcultosEspera;
+    await _refrescarListaEsperaConScroll();
+};
+window.mostrarTodosOcultosEspera = async function() {
+    guardarOcultosEspera(new Set());
+    window._verOcultosEspera = false;
+    await _refrescarListaEsperaConScroll();
+};
 
 // =======================================================================
 // CORRECCIÓN MANUAL DE DÍAS SIN CONTACTO (Admin / Coordinador)

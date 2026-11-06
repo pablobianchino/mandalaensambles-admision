@@ -10,7 +10,7 @@
     <meta http-equiv="Expires" content="0">
     
     <link rel="icon" href="logo.png" type="image/png">
-    <link rel="manifest" href="manifest.json?v=7.9.10">
+    <link rel="manifest" href="manifest.json?v=7.9.11">
     <meta name="theme-color" content="#fbfaf8">
     <meta name="apple-mobile-web-app-title" content="MDL Admisi&oacute;n">
     <meta name="application-name" content="MDL Admisi&oacute;n">
@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=7.9.10">
+    <link rel="stylesheet" href="styles.css?v=7.9.11">
 
     <style>
         /* Estilos Críticos de Widget de Perfil y Popover Google-Style */
@@ -921,6 +921,7 @@
         <!-- BARRA FLOTANTE DE ACCIONES MASIVAS -->
         <div id="bulk-actions-bar" style="display:none;">
             <span id="bulk-count">0 seleccionados</span>
+            <button id="btn-bulk-ocultar-espera" style="display:none; padding:6px 12px; font-size:12px; font-weight:700; border-radius:6px; background:#fffbeb; border:1px solid #fcd34d; color:#92400e; cursor:pointer;" title="Ocultar de la vista a los alumnos seleccionados (se muestran solos mañana)">👁️ Ocultar</button>
             <button id="btn-bulk-propuesta-grupo" class="btn-primary" style="padding:6px 14px; font-size:12.5px; display:none;">✨ Nueva Propuesta de Grupo</button>
             <button id="btn-bulk-iniciar-seguimiento" class="btn-primary" style="padding:6px 14px; font-size:12.5px; display:none; background:var(--accent-teal);" title="Asignar responsable de seguimiento y fecha para alumnos de altas finalizadas">🎧 Iniciar Seguimiento</button>
             <button id="btn-bulk-avisar-coordinador" class="btn-action-highlight" style="padding:6px 14px; font-size:12.5px; color:var(--accent-teal); border:1.5px solid var(--accent-teal); background:#f0fdfa; border-radius:8px; font-weight:700; cursor:pointer; display:none;">📢 Avisar al Coordinador</button>
@@ -4009,12 +4010,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=7.9.10"></script>
+    <script type="module" src="app.js?v=7.9.11"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=7.9.10').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=7.9.11').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {

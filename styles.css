@@ -3113,6 +3113,27 @@ button.btn-prio-filtro.prio-proximos.active,
     border-color: #9333ea;
 }
 
+.btn-ocultar-fila {
+    background: rgba(217, 119, 6, 0.08);
+    color: #92400e;
+    border: 1px solid rgba(217, 119, 6, 0.3);
+    font-weight: 700;
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-size: 11px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+    white-space: nowrap;
+}
+.btn-ocultar-fila:hover {
+    background: rgba(217, 119, 6, 0.18);
+    border-color: #d97706;
+}
+
 .btn-quitar-bicicleta-fila {
     background: rgba(100, 116, 139, 0.09);
     color: #475569;
