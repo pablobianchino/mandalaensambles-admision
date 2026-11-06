@@ -3113,26 +3113,25 @@ button.btn-prio-filtro.prio-proximos.active,
     border-color: #9333ea;
 }
 
-.btn-ocultar-fila {
-    background: rgba(217, 119, 6, 0.08);
-    color: #92400e;
-    border: 1px solid rgba(217, 119, 6, 0.3);
-    font-weight: 700;
-    border-radius: 6px;
-    padding: 5px 8px;
-    font-size: 11px;
+.btn-ojo-espera {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    margin-right: 4px;
+    flex-shrink: 0;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    color: #64748b;
     cursor: pointer;
-    transition: all 0.2s;
-    font-family: inherit;
-    white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
 }
-.btn-ocultar-fila-ojo { padding: 4px 7px; margin-right: 6px; flex-shrink: 0; }
-.btn-ocultar-fila:hover {
-    background: rgba(217, 119, 6, 0.18);
-    border-color: #d97706;
+.btn-ojo-espera:hover {
+    background: rgba(100, 116, 139, 0.12);
+    color: #0f172a;
 }
 
 .btn-quitar-bicicleta-fila {

@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.9.13";
+} from "./src/config/constants.js?v=7.9.14";
 
 import { 
     app, 
@@ -156,7 +156,7 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=7.9.13";
+} from "./src/modules/altas.module.js?v=7.9.14";
 
 import {
     renderTimelineUnificado,
@@ -172,13 +172,13 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.9.13";
+} from "./src/modules/abm.module.js?v=7.9.14";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.9.13";
+} from "./src/modules/inbox.module.js?v=7.9.14";
 
 import {
     parseCSV,
@@ -205,7 +205,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.9.13";
+} from "./src/modules/recordatorios.module.js?v=7.9.14";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -16927,7 +16927,9 @@ function htmlBotonOjoEspera(al, id) {
     if (typeof estadoActualVista === 'undefined' || estadoActualVista !== 'Lista de Espera') return '';
     if (!al || al.es_bicicleta) return '';
     const oculto = Boolean(window._ocultosEsperaCache && window._ocultosEsperaCache.has(id));
-    return `<button type="button" class="btn-ocultar-fila btn-ocultar-fila-ojo" onclick="event.stopPropagation(); window.toggleOcultoEspera('${id}');" title="${oculto ? 'Volver a mostrar este alumno en la lista' : 'Ocultar este alumno de la vista (se muestra solo mañana)'}" aria-label="${oculto ? 'Mostrar alumno' : 'Ocultar alumno'}"><span style="font-size:15px;">👁️</span></button>`;
+    const svgOjo = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+    const svgOjoTachado = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 6.2A10.6 10.6 0 0 1 12 6c6.4 0 10 6 10 6a17 17 0 0 1-3 3.6M6.6 6.7C3.9 8.4 2 12 2 12s3.6 7 10 7c1.6 0 3-.4 4.3-1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+    return `<button type="button" class="btn-ojo-espera" onclick="event.stopPropagation(); window.toggleOcultoEspera('${id}');" title="${oculto ? 'Volver a mostrar este alumno en la lista' : 'Ocultar este alumno de la vista (se muestra solo mañana)'}" aria-label="${oculto ? 'Mostrar alumno' : 'Ocultar alumno'}">${oculto ? svgOjoTachado : svgOjo}</button>`;
 }
 async function _refrescarListaEsperaConScroll() {
     const main = document.getElementById('main-content');
