@@ -2915,7 +2915,7 @@ window.abrirModalAprobacionMatchSeguimiento = async function(alumnosList, nombre
 
             btnConfirmar.disabled = true;
             if (typeof window.mostrarIndicadorCarga === 'function') {
-                window.mostrarIndicadorCarga(`Aprobando validación y pasando ${alumnosList.length} alumno(s) a Altas Pendientes...`);
+                window.mostrarIndicadorCarga(window.textoCarga('aprobandoValidacion', alumnosList.length));
             }
 
             try {
@@ -3035,7 +3035,7 @@ window.rechazarAlumnoGrupoYVolverEspera = async function(alumnoId) {
         const al = alDoc.data();
         if (!(await window.confirmar('Confirmar rechazo', 'El alumno volverá a Lista de Espera.', 'Confirmar rechazo'))) return;
 
-        if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(`Moviendo a ${al.nombre} a Espera...`);
+        if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(window.textoCarga('moviendoAEspera', al.nombre));
         try {
             const hist = typeof window.normalizarHistorial === 'function' ? window.normalizarHistorial(al.historial) : (al.historial || []).filter(Boolean);
             const fnHist = window.crearEntradaHistorial || ((txt, tipo) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema' }));
@@ -3069,7 +3069,7 @@ window.rechazarAlumnoGrupoYVolverEspera = async function(alumnoId) {
 
 window.desarmarGrupoValidacion = async function(nombreGrupo) {
     if (!(await window.confirmar('Desarmar grupo', 'Todos los integrantes volverán a Lista de Espera.', 'Desarmar'))) return;
-    if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(`Desarmando grupo "${nombreGrupo}"...`);
+    if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(window.textoCarga('desarmandoGrupo', nombreGrupo));
     try {
         const qSnap = await getDocs(collection(db, "alumnos"));
 

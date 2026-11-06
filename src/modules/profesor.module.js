@@ -1644,7 +1644,7 @@ export async function renderPortalProfesor(cont, usuarioActual = {}, callbacks =
 
         // 11. Botones de Casos de Prueba (para productora.mandalahouse@gmail.com)
         document.getElementById('btn-crear-casos-prueba-docente')?.addEventListener('click', async () => {
-            if (window.mostrarIndicadorCarga) window.mostrarIndicadorCarga('Creando alumnos de prueba...');
+            if (window.mostrarIndicadorCarga) window.mostrarIndicadorCarga(window.textoCarga('creandoPrueba'));
             try {
                 const pId = profesorId || 'pablo_docente_test';
                 const pNom = profesorNombre || 'Pablo Bianchino';
@@ -1754,7 +1754,7 @@ export async function renderPortalProfesor(cont, usuarioActual = {}, callbacks =
             );
             if (!ok) return;
 
-            if (window.mostrarIndicadorCarga) window.mostrarIndicadorCarga('Eliminando datos de prueba...');
+            if (window.mostrarIndicadorCarga) window.mostrarIndicadorCarga(window.textoCarga('eliminandoPrueba'));
             try {
                 const snap = await getDocs(collection(db, "alumnos"));
                 let count = 0;
@@ -1861,7 +1861,7 @@ document.getElementById('btn-confirmar-reprogramar-docente')?.addEventListener('
     );
     if (!ok) return;
 
-    if (window.mostrarIndicadorCarga) window.mostrarIndicadorCarga('Sincronizando evento en Google Calendar...');
+    if (window.mostrarIndicadorCarga) window.mostrarIndicadorCarga(window.textoCarga('actualizandoEventoCalendar'));
     try {
         let alumnosAfectados = [];
         if (esGrupo && nombreGrupo) {
@@ -1964,7 +1964,7 @@ document.getElementById('btn-confirmar-cancelar-docente')?.addEventListener('cli
     );
     if (!ok) return;
 
-    if (window.mostrarIndicadorCarga) window.mostrarIndicadorCarga('Eliminando clase en Google Calendar...');
+    if (window.mostrarIndicadorCarga) window.mostrarIndicadorCarga(window.textoCarga('eliminandoClaseCalendar'));
     try {
         let alumnosAfectados = [];
         if (esGrupo && nombreGrupo) {

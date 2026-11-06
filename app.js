@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.9.20";
+} from "./src/config/constants.js?v=7.9.21";
 
 import { 
     app, 
@@ -124,11 +124,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=7.9.20";
+} from "./src/modules/match.module.js?v=7.9.21";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=7.9.20";
+} from "./src/modules/profesor.module.js?v=7.9.21";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -157,14 +157,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=7.9.20";
+} from "./src/modules/altas.module.js?v=7.9.21";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=7.9.20";
+} from "./src/modules/dashboard.module.js?v=7.9.21";
 
 import {
     renderConfigHub,
@@ -173,20 +173,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.9.20";
+} from "./src/modules/abm.module.js?v=7.9.21";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.9.20";
+} from "./src/modules/inbox.module.js?v=7.9.21";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=7.9.20";
+} from "./src/modules/csv.module.js?v=7.9.21";
 
 import {
     inicializarMotorRecordatorios,
@@ -206,7 +206,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.9.20";
+} from "./src/modules/recordatorios.module.js?v=7.9.21";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -771,37 +771,92 @@ document.addEventListener('click', (e) => {
 
 let actionLoadingTimeout = null;
 
-export function mostrarIndicadorCarga(mensaje = 'Procesando acción en el sistema...') {
+// ================================================================
+// TEXTOS DE CARGA ESTÁNDAR (un solo criterio para toda la app)
+// Regla: verbo en gerundio + objeto, corto, sin tecnicismos, termina en "..."
+// ================================================================
+const _pl = (n, s, p) => `${n} ${Number(n) === 1 ? s : p}`;
+const TEXTOS_CARGA = {
+    generico: 'Procesando...',
+    arranque: 'Cargando...',
+    actualizandoVersion: (v) => `Actualizando a la versión ${v}...`,
+    guardando: 'Guardando cambios...',
+    eliminandoEventoYGuardando: 'Eliminando evento y guardando cambios...',
+    eliminandoFicha: (nombre) => `Eliminando ficha de ${nombre}...`,
+    eliminandoRegistros: (n) => `Eliminando ${_pl(n, 'registro', 'registros')}...`,
+    confirmandoAltas: (n) => `Confirmando ${_pl(n, 'alta', 'altas')}...`,
+    devolviendoAPendientes: (n) => `Devolviendo ${_pl(n, 'alumno', 'alumnos')} a Pendientes...`,
+    devolviendoAEspera: (n) => `Devolviendo ${_pl(n, 'alumno', 'alumnos')} a Lista de Espera...`,
+    recreandoEventoCalendar: 'Recreando evento en Google Calendar...',
+    actualizandoSistemaDesdeCalendar: 'Actualizando el sistema desde Google Calendar...',
+    actualizandoCalendarDesdeSistema: 'Actualizando Google Calendar desde el sistema...',
+    auditoriaInicio: (n) => `Revisando ${_pl(n, 'alumno', 'alumnos')}...`,
+    auditoriaAvance: (i, n) => `Revisando alumno ${i} de ${n}...`,
+    leyendoCsv: 'Leyendo archivo CSV...',
+    iniciandoSeguimientos: (n) => `Iniciando seguimiento de ${_pl(n, 'alumno', 'alumnos')}...`,
+    eliminandoFeedback: 'Eliminando feedback...',
+    restableciendoClave: 'Restableciendo contraseña...',
+    aprobandoGrupo: (g) => `Aprobando grupo "${g}"...`,
+    confirmandoInicioGrupo: (g) => `Confirmando inicio de "${g}"...`,
+    confirmandoAlumno: (a) => `Confirmando a ${a}...`,
+    devolviendoGrupoAPendientes: (g) => `Devolviendo grupo "${g}" a Pendientes...`,
+    devolviendoGrupoAEspera: (g) => `Devolviendo grupo "${g}" a Lista de Espera...`,
+    finalizandoGrupo: (g) => `Finalizando grupo "${g}"...`,
+    aprobandoValidacion: (n) => `Aprobando ${_pl(n, 'alumno', 'alumnos')}...`,
+    moviendoAEspera: (nombre) => `Moviendo a ${nombre} a Lista de Espera...`,
+    desarmandoGrupo: (g) => `Desarmando grupo "${g}"...`,
+    actualizandoEventoCalendar: 'Actualizando evento en Google Calendar...',
+    eliminandoClaseCalendar: 'Eliminando clase en Google Calendar...',
+    creandoPrueba: 'Creando alumnos de prueba...',
+    eliminandoPrueba: 'Eliminando datos de prueba...',
+    moviendoABicicletas: 'Moviendo a Bicicletas...',
+    devolviendoAListaActiva: 'Devolviendo a Lista Activa...'
+};
+window.TEXTOS_CARGA = TEXTOS_CARGA;
+window.textoCarga = function(clave, ...args) {
+    const t = TEXTOS_CARGA[clave];
+    return typeof t === 'function' ? t(...args) : (t || TEXTOS_CARGA.generico);
+};
+
+export function mostrarIndicadorCarga(mensaje = 'Procesando...') {
     const loader = document.getElementById('global-action-loader');
     const txt = document.getElementById('global-action-text');
+    const btnCerrar = document.getElementById('global-action-cerrar');
     if (txt) txt.textContent = mensaje;
+    if (btnCerrar) btnCerrar.style.display = 'none';
     if (loader) {
         loader.style.display = 'flex';
         try {
             if (typeof loader.showModal === 'function' && !loader.open) {
                 loader.showModal();
-}
-} catch(e) {}
-}
+            }
+        } catch(e) {}
+    }
     document.body.classList.add('body-action-busy');
     if (actionLoadingTimeout) clearTimeout(actionLoadingTimeout);
+    // A los 25 s NO se cierra sola: avisa que tarda y deja cerrarla a mano (a los 90 s se cierra por seguridad).
     actionLoadingTimeout = setTimeout(() => {
-        ocultarIndicadorCarga();
-}, 25000);
+        const baseTxt = String(mensaje).replace(/(\.{3}|…)\s*$/, '');
+        if (txt) txt.textContent = `${baseTxt}: está tardando más de lo normal...`;
+        if (btnCerrar) btnCerrar.style.display = 'inline-block';
+        actionLoadingTimeout = setTimeout(() => { ocultarIndicadorCarga(); }, 90000);
+    }, 25000);
 }
 window.mostrarIndicadorCarga = mostrarIndicadorCarga;
 
 export function ocultarIndicadorCarga() {
     if (actionLoadingTimeout) clearTimeout(actionLoadingTimeout);
     const loader = document.getElementById('global-action-loader');
+    const btnCerrar = document.getElementById('global-action-cerrar');
+    if (btnCerrar) btnCerrar.style.display = 'none';
     if (loader) {
         try {
             if (typeof loader.close === 'function' && loader.open) {
                 loader.close();
-}
-} catch(e) {}
+            }
+        } catch(e) {}
         loader.style.display = 'none';
-}
+    }
     document.body.classList.remove('body-action-busy');
 }
 window.ocultarIndicadorCarga = ocultarIndicadorCarga;
@@ -5074,7 +5129,7 @@ window.eliminarFichaAlumnoSeguro = async function(id, nombreHint = '') {
 
         if (!ok) return;
 
-        mostrarIndicadorCarga(`Eliminando ficha de ${nombre}...`);
+        mostrarIndicadorCarga(window.textoCarga('eliminandoFicha', nombre));
 
         try {
             if (al.id_evento_reserva && decisionCal.decision === 'eliminar') await eliminarEventoSeguro(al, configApp);
@@ -5241,7 +5296,7 @@ document.getElementById('btn-bulk-suscripcion-abonada')?.addEventListener('click
         'info'
     );
     if (!ok) return;
-    mostrarIndicadorCarga(`Confirmando alta para ${selectedBulkIds.length} alumno(s)...`);
+    mostrarIndicadorCarga(window.textoCarga('confirmandoAltas', selectedBulkIds.length));
     const idsToProcess = [...selectedBulkIds];
     for (let id of idsToProcess) {
         try {
@@ -5269,7 +5324,7 @@ document.getElementById('btn-bulk-devolver-pendientes')?.addEventListener('click
         'warning'
     );
     if (!ok) return;
-    mostrarIndicadorCarga(`Devolviendo ${selectedBulkIds.length} alumno(s) a Pendientes...`);
+    mostrarIndicadorCarga(window.textoCarga('devolviendoAPendientes', selectedBulkIds.length));
     const idsToProcess = [...selectedBulkIds];
     for (let id of idsToProcess) {
         try {
@@ -5301,7 +5356,7 @@ if (btnBulkDevolver) {
     btnBulkDevolver.addEventListener('click', async () => {
         const motivo = await window.pedirTexto('Devolver a Lista de Espera', `¿Cuál es el motivo para devolver a Lista de Espera a los ${selectedBulkIds.length} alumnos seleccionados?`, { placeholder: 'Escribí el motivo', textoBoton: 'Devolver' });
         if (!motivo) return;
-        mostrarIndicadorCarga(`Devolviendo ${selectedBulkIds.length} alumnos a Lista de Espera...`);
+        mostrarIndicadorCarga(window.textoCarga('devolviendoAEspera', selectedBulkIds.length));
         const idsToProcess = [...selectedBulkIds];
         for (let id of idsToProcess) {
             try {
@@ -5377,7 +5432,7 @@ document.getElementById('btn-bulk-eliminar')?.addEventListener('click', async ()
     );
     if (!ok) return;
 
-    mostrarIndicadorCarga(`Eliminando ${cant} registro${cant > 1 ? 's' : ''}...`);
+    mostrarIndicadorCarga(window.textoCarga('eliminandoRegistros', cant));
     const idsToDelete = [...selectedBulkIds];
     let borrados = 0;
     for (let id of idsToDelete) {
@@ -5531,7 +5586,7 @@ document.getElementById('btn-modal-disc-cancelar')?.addEventListener('click', ()
 
 document.getElementById('btn-modal-disc-recrear')?.addEventListener('click', async () => {
     if (!alumnoAuditoriaActual) return;
-    mostrarIndicadorCarga("Recreando evento en Google Calendar...");
+    mostrarIndicadorCarga(window.textoCarga('recreandoEventoCalendar'));
     try {
         await recrearEventoFaltanteCalendar(alumnoAuditoriaActual, configApp);
         document.getElementById('modal-discrepancia-calendar')?.close();
@@ -5553,7 +5608,7 @@ document.getElementById('btn-modal-disc-traer-cal')?.addEventListener('click', a
     const evId = document.getElementById('modal-disc-cal-evento-id').value;
     if (!fCalIso) return alert("Fecha de Calendar no disponible.");
 
-    mostrarIndicadorCarga("Alineando Sistema desde Google Calendar...");
+    mostrarIndicadorCarga(window.textoCarga('actualizandoSistemaDesdeCalendar'));
     try {
         await alinearSistemaDesdeCalendar(alumnoAuditoriaActual, fCalIso, evId, configApp);
         document.getElementById('modal-discrepancia-calendar')?.close();
@@ -5571,7 +5626,7 @@ document.getElementById('btn-modal-disc-traer-cal')?.addEventListener('click', a
 
 document.getElementById('btn-modal-disc-forzar-cal')?.addEventListener('click', async () => {
     if (!alumnoAuditoriaActual) return;
-    mostrarIndicadorCarga("Alineando Google Calendar con el Sistema...");
+    mostrarIndicadorCarga(window.textoCarga('actualizandoCalendarDesdeSistema'));
     try {
         await alinearEventoHaciaCalendar(alumnoAuditoriaActual, configApp);
         document.getElementById('modal-discrepancia-calendar')?.close();
@@ -5654,12 +5709,12 @@ if (btnBulkAuditarCal) {
             return alert("⛔ Esta acción solo puede ser ejecutada por un Admisor o Administrador.");
 }
 
-        mostrarIndicadorCarga(`Iniciando auditoría de ${ids.length} alumno(s)...`);
+        mostrarIndicadorCarga(window.textoCarga('auditoriaInicio', ids.length));
         let okCount = 0, noExisteCount = 0, desfasajeCount = 0, sinCalCount = 0;
 
         for (let i = 0; i < ids.length; i++) {
             const id = ids[i];
-            mostrarIndicadorCarga(`Auditando alumno ${i + 1} de ${ids.length}...`);
+            mostrarIndicadorCarga(window.textoCarga('auditoriaAvance', i + 1, ids.length));
             try {
                 const alDoc = await getDoc(doc(db, "alumnos", id));
                 if (alDoc.exists()) {
@@ -8262,7 +8317,7 @@ export async function chequearActualizacionVersionPreventivo() {
             versionActualizando = true;
             console.log(`[Auto-Update Preventivo] Nueva versión detectada antes de iniciar sesión: ${versionRemota} (Actual: ${APP_VERSION})`);
 
-            mostrarIndicadorCarga(`✨ Actualizando a la última versión (${versionRemota})...`);
+            mostrarIndicadorCarga(window.textoCarga('actualizandoVersion', versionRemota));
 
             if ('caches' in window) {
                 try {
@@ -9888,12 +9943,12 @@ const URL_APP_FESTIVALES = 'https://mandalaensambles-festival.vercel.app';
 
 onAuthStateChanged(auth, async (user) => { 
     if (user) { 
-        mostrarIndicadorCarga("Verificando versión y credenciales...");
+        mostrarIndicadorCarga(window.textoCarga('arranque'));
         const actualizo = await chequearActualizacionVersionPreventivo();
         if (actualizo) {
             return;
 }
-        mostrarIndicadorCarga("Iniciando sesión y accesos...");
+        mostrarIndicadorCarga(window.textoCarga('arranque'));
         try {
             const qSnap = await getDocs(collection(db, "usuarios_sistema")); 
             let usuarioEncontrado = null;
@@ -12026,14 +12081,14 @@ document.addEventListener('click', async (e) => {
         if (!ok) return;
 
         if (tieneEvento && decisionCal.decision === 'eliminar') {
-            mostrarIndicadorCarga('Eliminando evento en Google Calendar y actualizando a Altas Pendientes...');
+            mostrarIndicadorCarga(window.textoCarga('eliminandoEventoYGuardando'));
             try {
                 if (al.id_evento_alta) await eliminarEventoAltaSeguro(al, configApp, { forzarEliminacionCalendar: true });
 } catch(calErr) {
                 console.warn("Aviso calendar al devolver a pendientes:", calErr);
 }
 } else {
-            mostrarIndicadorCarga('Actualizando estado a Altas - Pendientes...');
+            mostrarIndicadorCarga(window.textoCarga('guardando'));
 }
 
         const hist = al.historial || [];
@@ -12086,7 +12141,7 @@ document.addEventListener('click', async (e) => {
             if (motivo.trim() === "") return alert("Debes ingresar un motivo.");
             
             if (tieneEvento && decisionCal.decision === 'eliminar') {
-                mostrarIndicadorCarga('Eliminando evento en Google Calendar y actualizando estado...');
+                mostrarIndicadorCarga(window.textoCarga('eliminandoEventoYGuardando'));
                 try {
                     if (al.id_evento_alta) await eliminarEventoAltaSeguro(al, configApp, { forzarEliminacionCalendar: true });
                     if (al.id_evento_reserva || al.reserva_id_evento) await eliminarEventoSeguro(al, configApp);
@@ -12094,7 +12149,7 @@ document.addEventListener('click', async (e) => {
                     console.warn("Aviso calendar al devolver a espera:", calErr);
 }
 } else if (tieneEvento) {
-                mostrarIndicadorCarga('Actualizando estado y desvinculando alumno (evento preservado en Calendar)...');
+                mostrarIndicadorCarga(window.textoCarga('guardando'));
 }
 
             const hist = al.historial || [];
@@ -12153,13 +12208,13 @@ document.addEventListener('click', async (e) => {
         if (motivo !== null) { 
             if (motivo.trim() === "") return alert("Debes ingresar un motivo."); 
             if (tieneEvento && decisionCal.decision === 'eliminar') {
-                mostrarIndicadorCarga('Eliminando evento en Google Calendar y suspendiendo...');
+                mostrarIndicadorCarga(window.textoCarga('eliminandoEventoYGuardando'));
                 try {
                     if (al.id_evento_alta) await eliminarEventoAltaSeguro(al, configApp, { forzarEliminacionCalendar: true });
                     if (al.id_evento_reserva || al.reserva_id_evento) await eliminarEventoSeguro(al, configApp);
 } catch(e) {}
 } else if (tieneEvento) {
-                mostrarIndicadorCarga('Actualizando estado y desvinculando alumno (evento preservado en Calendar)...');
+                mostrarIndicadorCarga(window.textoCarga('guardando'));
 }
 
             const hist = al.historial || []; 
@@ -16953,7 +17008,7 @@ export async function toggleBicicletaAlumno(id, pasarABicicleta, nombre) {
     );
     if (!conf) return;
 
-    mostrarIndicadorCarga(pasarABicicleta ? "Moviendo a Bicicletas..." : "Devolviendo a Lista Activa...");
+    mostrarIndicadorCarga(window.textoCarga(pasarABicicleta ? 'moviendoABicicletas' : 'devolviendoAListaActiva'));
     try {
         const alDoc = await getDoc(doc(db, "alumnos", id));
         const alData = alDoc.exists() ? alDoc.data() : {};
@@ -17283,7 +17338,7 @@ document.getElementById('input-sync-espera-file')?.addEventListener('change', as
     const file = e.target.files[0];
     if (!file) return;
 
-    mostrarIndicadorCarga("Leyendo y analizando archivo CSV...");
+    mostrarIndicadorCarga(window.textoCarga('leyendoCsv'));
     try {
         const texto = await file.text();
         const filas = parseCSV(texto);
@@ -18564,7 +18619,7 @@ window.confirmarSeguimientoMasivo = async function() {
     if (btn) setBotonCargando(btn, true);
 
     const ahoraIso = new Date().toISOString();
-    mostrarIndicadorCarga(`Iniciando seguimiento para ${asignaciones.length} alumno(s)...`);
+    mostrarIndicadorCarga(window.textoCarga('iniciandoSeguimientos', asignaciones.length));
 
     try {
         for (const item of asignaciones) {
@@ -19089,7 +19144,7 @@ window.eliminarContactoSeguimiento = async function(alumnoId, contactoId) {
 
     if (!ok) return;
 
-    mostrarIndicadorCarga("Eliminando feedback de seguimiento...");
+    mostrarIndicadorCarga(window.textoCarga('eliminandoFeedback'));
     try {
         const alRef = doc(db, "alumnos", alumnoId);
         const aSnap = await getDoc(alRef);

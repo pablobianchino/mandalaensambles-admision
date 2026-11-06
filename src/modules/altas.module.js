@@ -2962,7 +2962,7 @@ export async function aprobarTodoGrupoAction(grupoNombre, vista, callbacks = {})
         if (!ok) return;
 
         if (typeof window.mostrarIndicadorCarga === 'function') {
-            window.mostrarIndicadorCarga(`Aprobando grupo "${grupoNombre}"...`);
+            window.mostrarIndicadorCarga(window.textoCarga('aprobandoGrupo', grupoNombre));
         }
 
         const ahoraIso = new Date().toISOString();
@@ -3077,7 +3077,7 @@ export async function confirmarInicioGrupoAction(grupoNombre, vista, callbacks =
         );
         if (!okInicio) return;
 
-        if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(`Confirmando inicio de "${grupoNombre}"...`);
+        if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(window.textoCarga('confirmandoInicioGrupo', grupoNombre));
 
         const primerAl = confirmados[0] || miembros[0];
         const cfg = callbacks.configApp || defaultCfg;
@@ -3125,7 +3125,7 @@ export async function confirmarAlumnoAltaAction(alumnoId, alumnoNombre, grupoNom
         const esInd = !grupoNombre || grupoNombre === 'Clase Individual';
 
         // Activar indicador de carga para procesamiento
-        if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(`Confirmando a ${alumnoNombre}...`);
+        if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(window.textoCarga('confirmandoAlumno', alumnoNombre));
 
         const hist = al.historial || [];
         const fnHist = window.crearEntradaHistorial || ((txt, t) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: t || 'sistema' }));
@@ -3921,7 +3921,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                 );
                 if (!okDevolver) return;
 
-                if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(`Devolviendo grupo "${grupo}" a Altas - Pendientes...`);
+                if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(window.textoCarga('devolviendoGrupoAPendientes', grupo));
                 try {
                     for (const id of ids) {
                         const dSnap = await getDoc(doc(db, "alumnos", id));
@@ -3981,7 +3981,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                 );
                 if (!okDevolver) return;
 
-                if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(`Devolviendo grupo "${grupo}" a espera...`);
+                if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(window.textoCarga('devolviendoGrupoAEspera', grupo));
                 try {
                     for (const id of ids) {
                         const dSnap = await getDoc(doc(db, "alumnos", id));
@@ -4052,7 +4052,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                 );
                 if (!ok) return;
 
-                if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(`Finalizando grupo "${grupo}"...`);
+                if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(window.textoCarga('finalizandoGrupo', grupo));
                 try {
                     const ahoraIso = new Date().toISOString();
                     const fnHist = window.crearEntradaHistorial || ((txt, t) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: t || 'sistema' }));

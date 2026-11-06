@@ -10,7 +10,7 @@
     <meta http-equiv="Expires" content="0">
     
     <link rel="icon" href="logo.png" type="image/png">
-    <link rel="manifest" href="manifest.json?v=7.9.20">
+    <link rel="manifest" href="manifest.json?v=7.9.21">
     <meta name="theme-color" content="#fbfaf8">
     <meta name="apple-mobile-web-app-title" content="MDL Admisi&oacute;n">
     <meta name="application-name" content="MDL Admisi&oacute;n">
@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=7.9.20">
+    <link rel="stylesheet" href="styles.css?v=7.9.21">
 
     <style>
         /* Estilos Críticos de Widget de Perfil y Popover Google-Style */
@@ -3842,7 +3842,8 @@
     <dialog id="global-action-loader" class="global-action-dialog" style="position:fixed; inset:0; top:0; left:0; width:100vw; height:100vh; max-width:100vw; max-height:100vh; margin:0; padding:28px 20px 0 20px; border:none; background:rgba(15,23,42,0.45); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); outline:none; z-index:2147483647; display:none; align-items:flex-start; justify-content:center; pointer-events:all; box-sizing:border-box;">
         <div class="global-action-card" style="background:rgba(15,23,42,0.95); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); color:#ffffff; padding:12px 24px; border-radius:24px; font-size:14px; font-weight:700; display:flex; align-items:center; gap:12px; box-shadow:0 20px 45px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.18); border:1px solid rgba(255,255,255,0.25); pointer-events:auto;">
             <div class="spinner-inline" style="width:20px; height:20px; border:2.5px solid rgba(255,255,255,0.25); border-top-color:#38bdf8; border-radius:50%; animation:spinLoader 0.6s linear infinite; flex-shrink:0;"></div>
-            <span id="global-action-text" style="color:#ffffff; font-size:14px; font-weight:700;">Procesando acción...</span>
+            <span id="global-action-text" style="color:#ffffff; font-size:14px; font-weight:700;">Procesando...</span>
+            <button type="button" id="global-action-cerrar" onclick="window.ocultarIndicadorCarga()" style="display:none; margin-left:6px; background:rgba(255,255,255,0.12); color:#ffffff; border:1px solid rgba(255,255,255,0.3); border-radius:14px; padding:3px 12px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit;">Cerrar</button>
         </div>
     </dialog>
 
@@ -4026,12 +4027,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=7.9.20"></script>
+    <script type="module" src="app.js?v=7.9.21"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=7.9.20').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=7.9.21').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {
