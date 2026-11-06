@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.9.16";
+} from "./src/config/constants.js?v=7.9.17";
 
 import { 
     app, 
@@ -156,7 +156,7 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=7.9.16";
+} from "./src/modules/altas.module.js?v=7.9.17";
 
 import {
     renderTimelineUnificado,
@@ -172,13 +172,13 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.9.16";
+} from "./src/modules/abm.module.js?v=7.9.17";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.9.16";
+} from "./src/modules/inbox.module.js?v=7.9.17";
 
 import {
     parseCSV,
@@ -205,7 +205,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.9.16";
+} from "./src/modules/recordatorios.module.js?v=7.9.17";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -12619,13 +12619,8 @@ document.addEventListener('click', async (e) => {
 
         setBotonCargando(target, true, 'Agendando en Google Calendar...');
         try {
-            if (al.id_evento_reserva) {
-                try {
-                    await eliminarEventoSeguro(al, configApp);
-} catch(calDelErr) {
-                    console.warn("Aviso al eliminar evento previo en Calendar:", calDelErr);
-}
-}
+            // El evento anterior se conserva hasta confirmar que el nuevo se creó y que la ficha quedó guardada.
+            const alEventoAnterior = al.id_evento_reserva ? { ...al } : null;
 
             const rawEst = al.estado_agenda || '';
             const est = rawEst.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -12658,6 +12653,17 @@ document.addEventListener('click', async (e) => {
             actualizarAlumnoEnMemoriaLocal(alumnoIdActual, updateData);
             await updateDoc(doc(db, "alumnos", alumnoIdActual), updateData);
 
+            // Recién ahora se borra el evento anterior. Si falla, el alumno ya tiene su evento nuevo y solo queda el viejo para borrar a mano.
+            let avisoEventoAnterior = '';
+            if (alEventoAnterior && alEventoAnterior.id_evento_reserva !== (evRes && evRes.id)) {
+                try {
+                    await eliminarEventoSeguro(alEventoAnterior, configApp);
+                } catch (calDelErr) {
+                    console.warn("Aviso al eliminar evento previo en Calendar:", calDelErr);
+                    avisoEventoAnterior = ' ⚠️ No se pudo borrar el evento anterior del calendario: borralo a mano.';
+                }
+            }
+
             const plantillaKey = esConfirmada ? 'texto_conf_alumno' : 'texto_alumno';
             const dataText = await generarTextoConHistorial(alumnoIdActual, plantillaKey, fTxt, pId, pNom);
             if (dataText && dataText.txt) {
@@ -12667,7 +12673,7 @@ document.addEventListener('click', async (e) => {
             document.getElementById('modal-agenda').close();
             removerFilaOptimista(alumnoIdActual);
             await cargarVista(estadoActualVista, false);
-            mostrarToast(`✅ ¡Entrevista agendada en Calendar para el ${fTxt} con ${pNom}! Mensaje copiado al portapapeles.`, "success");
+            mostrarToast(`✅ ¡Entrevista agendada en Calendar para el ${fTxt} con ${pNom}! Mensaje copiado al portapapeles.${avisoEventoAnterior}`, avisoEventoAnterior ? "info" : "success");
 } catch(e) {
             console.error("Error al agendar en Calendar:", e);
             alert("❌ Error al agendar en Google Calendar:\n\n" + e.message);
