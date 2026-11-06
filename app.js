@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.9.19";
+} from "./src/config/constants.js?v=7.9.20";
 
 import { 
     app, 
@@ -124,11 +124,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=7.9.19";
+} from "./src/modules/match.module.js?v=7.9.20";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=7.9.19";
+} from "./src/modules/profesor.module.js?v=7.9.20";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -157,14 +157,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=7.9.19";
+} from "./src/modules/altas.module.js?v=7.9.20";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=7.9.19";
+} from "./src/modules/dashboard.module.js?v=7.9.20";
 
 import {
     renderConfigHub,
@@ -173,20 +173,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.9.19";
+} from "./src/modules/abm.module.js?v=7.9.20";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.9.19";
+} from "./src/modules/inbox.module.js?v=7.9.20";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=7.9.19";
+} from "./src/modules/csv.module.js?v=7.9.20";
 
 import {
     inicializarMotorRecordatorios,
@@ -206,7 +206,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.9.19";
+} from "./src/modules/recordatorios.module.js?v=7.9.20";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -1179,6 +1179,10 @@ window.preguntarAccionCalendar = function({ al, accionTipo = 'desvincular' }) {
 
         if (elAlumno) elAlumno.textContent = nombreAlumno;
         if (elProfe) elProfe.textContent = docente;
+        const estCalNorm = String(al.estado_agenda || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        const esEtapaAdmisionCal = /^(pendiente (procesar|validacion)|agenda |entrevista)/.test(estCalNorm);
+        const elProfeLabel = document.getElementById('modal-decision-cal-docente-label');
+        if (elProfeLabel) elProfeLabel.textContent = esEtapaAdmisionCal ? 'Evaluador' : 'Docente';
         if (elEvento) elEvento.textContent = eventoNom;
         if (elHorario) elHorario.textContent = horario;
 
@@ -1186,6 +1190,7 @@ window.preguntarAccionCalendar = function({ al, accionTipo = 'desvincular' }) {
             if (accionTipo === 'espera') elSubtitulo.textContent = 'Al devolver a Lista de Espera';
             else if (accionTipo === 'suspender') elSubtitulo.textContent = 'Al suspender la cursada / ficha';
             else if (accionTipo === 'eliminar') elSubtitulo.textContent = 'Al eliminar o descartar la ficha';
+            else if (accionTipo === 'baja') elSubtitulo.textContent = 'Al dar de baja al alumno';
             else elSubtitulo.textContent = 'Decisión sobre la clase vinculada al alumno';
 }
 
@@ -1194,7 +1199,9 @@ window.preguntarAccionCalendar = function({ al, accionTipo = 'desvincular' }) {
             if (esPreexistenteOGrupo) {
                 elAlertaTexto.innerHTML = `<strong>Atención:</strong> Este evento corresponde a un grupo o a la grilla habitual del docente <strong>${docente}</strong>. Te recomendamos conservarlo para no afectar a otros alumnos ni alterar el calendario del profesor.`;
 } else {
-                elAlertaTexto.innerHTML = `El alumno cuenta con una clase agendada con <strong>${docente}</strong>. Puedes conservar el bloque horario o eliminarlo del calendario.`;
+                elAlertaTexto.innerHTML = esEtapaAdmisionCal
+                    ? `El alumno tiene una clase de admisión agendada con <strong>${docente}</strong>. Podés conservar el horario en el calendario o eliminarlo.`
+                    : `El alumno cuenta con una clase agendada con <strong>${docente}</strong>. Podés conservar el bloque horario o eliminarlo del calendario.`;
 }
 }
 
@@ -1258,35 +1265,48 @@ function mostrarSkeleton(containerId = 'lista-generica', cantidad = 5) {
 // FEEDBACK UNIVERSAL DE SINCRONIZACIÓN Y RED (Firestore Status Pill)
 // ================================================================
 let _syncTimerFade = null;
-export function notificarSincronizacion(tipo = 'loading', texto = 'Consultando base de datos...') {
+export function notificarSincronizacion(tipo = 'loading', texto = 'Cargando datos...', opciones = {}) {
     const badge = document.getElementById('global-sync-badge');
     if (!badge) return;
 
     if (_syncTimerFade) {
         clearTimeout(_syncTimerFade);
         _syncTimerFade = null;
-}
+    }
 
     badge.className = 'sync-badge-pill visible';
-    if (tipo === 'loading') {
+    badge.removeAttribute('title');
+    if (tipo === 'silencioso') {
+        // Refresco en segundo plano: solo un círculo pequeño girando, sin texto
+        badge.classList.add('sync-loading', 'sync-mini');
+        badge.title = 'Actualizando datos...';
+        badge.innerHTML = '<span class="sync-spinner-icon"></span>';
+    } else if (tipo === 'loading') {
         badge.classList.add('sync-loading');
         badge.innerHTML = `<span class="sync-spinner-icon"></span> <span>${texto}</span>`;
-} else if (tipo === 'ok') {
+    } else if (tipo === 'ok') {
         badge.classList.add('sync-ok');
         badge.innerHTML = `<span>✅</span> <span>${texto}</span>`;
         _syncTimerFade = setTimeout(() => {
             badge.classList.remove('visible');
-}, 1800);
-} else if (tipo === 'warn' || tipo === 'error') {
+        }, 2500);
+    } else if (tipo === 'warn' || tipo === 'error') {
         badge.classList.add('sync-warn');
-        badge.innerHTML = `<span>⚠️</span> <span>${texto}</span>`;
-        _syncTimerFade = setTimeout(() => {
-            badge.classList.remove('visible');
-}, 3500);
-} else if (tipo === 'hide') {
+        const btnReintentar = opciones.reintentar ? ' <button type="button" class="sync-retry-btn" onclick="window.reintentarSincronizacion()">Reintentar</button>' : '';
+        badge.innerHTML = `<span>⚠️</span> <span>${texto}</span>${btnReintentar}`;
+        if (!opciones.persistente) {
+            _syncTimerFade = setTimeout(() => {
+                badge.classList.remove('visible');
+            }, 8000);
+        }
+    } else if (tipo === 'hide') {
         badge.classList.remove('visible');
+    }
 }
-}
+window.reintentarSincronizacion = function() {
+    window._timestampUltimaCargaAlumnos = 0;
+    if (typeof cargarVista === 'function') cargarVista(estadoActualVista, false);
+};
 window.notificarSincronizacion = notificarSincronizacion;
 
 let alumnoIdActual = null;
@@ -9089,7 +9109,8 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
     // Función de refresco en segundo plano sin congelar ni vaciar la pantalla
     const refrescarFirestoreEnBackground = async () => {
         try {
-            notificarSincronizacion('loading', 'Sincronizando...');
+            const inicioRefresco = Date.now();
+            notificarSincronizacion('silencioso');
             const qSnap = await getDocs(collection(db, "alumnos"));
             const nuevaData = [];
             qSnap.forEach(d => nuevaData.push(normalizarAlumnoSeguimiento({id: d.id, ...d.data()})));
@@ -9099,16 +9120,16 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
             window.allData = nuevaData;
             window._timestampUltimaCargaAlumnos = Date.now();
             actualizarBadgesYNavegacion(nuevaData);
-            notificarSincronizacion('ok', 'Actualizado');
+            if (Date.now() - inicioRefresco > 3000) notificarSincronizacion('ok', 'Datos actualizados'); else notificarSincronizacion('hide');
 } catch(e) {
             console.warn("Aviso en sincronización en segundo plano:", e);
-            notificarSincronizacion('warn', 'Reconectando con la base...');
+            notificarSincronizacion('warn', 'No se pudo actualizar. Se muestran los últimos datos.', { persistente: true, reintentar: true });
 }
 };
 
     if (!hayDatosEnMemoria) {
         // Primera carga absoluta: consultar a Firestore
-        notificarSincronizacion('loading', 'Consultando base de datos...');
+        notificarSincronizacion('loading', 'Cargando datos...');
         try {
             const qSnap = await getDocs(collection(db, "alumnos"));
             qSnap.forEach(d => allData.push(normalizarAlumnoSeguimiento({id: d.id, ...d.data()})));
@@ -9118,11 +9139,11 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
             window.allData = allData;
             window._timestampUltimaCargaAlumnos = Date.now();
             actualizarBadgesYNavegacion(allData);
-            notificarSincronizacion('ok', 'Actualizado');
+            notificarSincronizacion('hide');
 } catch(e) {
             console.error("Error al cargar alumnos inicial:", e);
             allData = [];
-            notificarSincronizacion('warn', 'Reconectando con la base...');
+            notificarSincronizacion('warn', 'No se pudieron cargar los datos.', { persistente: true, reintentar: true });
 }
 } else {
         // Hay datos en memoria: renderizado instantáneo y sincronización si hace más de 12s o cambio de vista
@@ -9131,7 +9152,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
         if (!usarCache && (ahora - ultimaCarga > 12000)) {
             refrescarFirestoreEnBackground();
 } else {
-            notificarSincronizacion('ok', 'Actualizado');
+            // Con los datos ya en memoria no se muestra ningún mensaje al cambiar de sección.
 }
 }
 
