@@ -480,7 +480,7 @@ export async function ejecutarImportacionMasiva(onProgress, onComplete) {
     if (duplicadosSeleccionados.length > 0) {
         const listaNombres = duplicadosSeleccionados.map(a => `• ${a.nombre}`).join('\n');
         const confirmMsg = `⚠️ Se detectaron ${duplicadosSeleccionados.length} alumno(s) que YA EXISTEN en la base de datos:\n\n${listaNombres}\n\n¿Deseas cargarlos IGUALMENTE como repetidos?\n\n- "Aceptar": Carga a todos los seleccionados (incluyendo duplicados).\n- "Cancelar": Descarta los duplicados (se desmarcarán de la lista) para que importes solo los nuevos.`;
-        const deseaCargarRepetidos = confirm(confirmMsg);
+        const deseaCargarRepetidos = await window.confirmar('Alumnos repetidos', confirmMsg, 'Cargar igual', '⚠️', 'No cargar repetidos');
         
         if (!deseaCargarRepetidos) {
             // Deseleccionar duplicados en la UI

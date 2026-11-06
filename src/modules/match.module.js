@@ -2011,7 +2011,7 @@ export async function ejecutarConfirmarMatch(setBotonCargandoFn, cargarVistaFn) 
             });
 
             if (!valCal.valido) {
-                const forzarConflicto = confirm(`⚠️ Conflicto detectado en Google Calendar:\n\n• ${valCal.motivo}\n\n¿Deseas confirmar la propuesta de todas formas?`);
+                const forzarConflicto = await window.confirmar('Conflicto en Google Calendar', `${valCal.motivo}\n\n¿Deseas confirmar la propuesta de todas formas?`, 'Confirmar igual', '⚠️');
                 if (!forzarConflicto) {
                     if (typeof setBotonCargandoFn === 'function') setBotonCargandoFn(btnConfirm, false);
                     return;
@@ -3660,7 +3660,7 @@ export async function renderMatchSolicitudesProfes(cont, configApp, callbacks = 
                 e.stopPropagation();
                 const solId = btn.getAttribute('data-id');
                 const grp = btn.getAttribute('data-grupo');
-                if (!confirm(`¿Deseas reactivar la solicitud para "${grp}" y moverla a la pestaña Pendientes?`)) return;
+                if (!(await window.confirmar('Reactivar solicitud', `¿Deseas reactivar la solicitud para "${grp}" y moverla a la pestaña Pendientes?`, 'Reactivar', '🔄'))) return;
                 try {
                     await updateDoc(doc(db, "solicitudes_vacantes", solId), {
                         estado: "Pendiente",

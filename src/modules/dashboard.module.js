@@ -107,7 +107,7 @@ export function renderTimelineUnificado(containerId, configNodos, datos, callbac
                             if(al.opciones_propuestas && al.opciones_propuestas.length > 1) {
                                 details.push(`<strong style="color:var(--accent-teal); font-weight:700;">📅 Opciones: ${al.opciones_propuestas.map(o => `${o.letra || '-'}: ${o.fechaTexto}`).join(' / ')}</strong>`);
                             } else if(al.reserva_fecha_texto) {
-                                details.push(`<strong style="color:var(--accent-teal); font-weight:700;">📅 Entrevista: ${al.reserva_fecha_texto}</strong>`);
+                                details.push(`<strong style="color:var(--accent-teal); font-weight:700;">📅 Clase de admisión: ${al.reserva_fecha_texto}</strong>`);
                             }
                         }
 
@@ -325,7 +325,7 @@ export async function renderCharts(callbacks = {}) {
                     },
                     onHover: hoverCursor,
                     plugins: {
-                        title: { display: true, text: 'Entrevistas', font: { size: 13, weight: 'bold' }, padding: { bottom: 6 } },
+                        title: { display: true, text: 'Clases de admisión', font: { size: 13, weight: 'bold' }, padding: { bottom: 6 } },
                         legend: { position: 'right', labels: { boxWidth: 10, font: { size: 11 } } }
                     }
                 }

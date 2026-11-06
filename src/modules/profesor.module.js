@@ -997,7 +997,7 @@ window.abrirModalFinalizarSolicitud = abrirModalFinalizarSolicitud;
 export async function eliminarSolicitudVacanteDirecto(solId, nombreGrupo = '', onDeleted = null) {
     if (!solId) return false;
     const txt = nombreGrupo ? `para "${nombreGrupo}"` : '';
-    if (!confirm(`¿Estás seguro de eliminar la solicitud de vacante ${txt}? Esta acción no se puede deshacer.`)) {
+    if (!(await window.confirmar('Eliminar solicitud de vacante', `¿Estás seguro de eliminar la solicitud de vacante ${txt}? Esta acción no se puede deshacer.`, 'Eliminar', '🗑️'))) {
         return false;
     }
     try {

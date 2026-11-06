@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.9.18";
+} from "./src/config/constants.js?v=7.9.19";
 
 import { 
     app, 
@@ -124,11 +124,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=6.10.22";
+} from "./src/modules/match.module.js?v=7.9.19";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=6.10.22";
+} from "./src/modules/profesor.module.js?v=7.9.19";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -157,14 +157,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=7.9.18";
+} from "./src/modules/altas.module.js?v=7.9.19";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=6.10.22";
+} from "./src/modules/dashboard.module.js?v=7.9.19";
 
 import {
     renderConfigHub,
@@ -173,20 +173,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.9.18";
+} from "./src/modules/abm.module.js?v=7.9.19";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.9.18";
+} from "./src/modules/inbox.module.js?v=7.9.19";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=6.10.22";
+} from "./src/modules/csv.module.js?v=7.9.19";
 
 import {
     inicializarMotorRecordatorios,
@@ -206,7 +206,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.9.18";
+} from "./src/modules/recordatorios.module.js?v=7.9.19";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -940,6 +940,13 @@ window.alert = function(msg, tipo = '') {
 
     toast.className = `toast-notification ${extraClass}`.trim();
     toast.textContent = str;
+    toast.style.whiteSpace = 'pre-line';
+    toast.style.cursor = 'pointer';
+    toast.style.pointerEvents = 'auto';
+    toast.title = 'Clic para cerrar';
+    const esAvisoImportante = extraClass === 'toast-error' || extraClass === 'toast-warning';
+    const duracionToast = Math.min(esAvisoImportante ? 20000 : 15000, (esAvisoImportante ? 7000 : 4500) + str.length * 50);
+    toast.addEventListener('click', () => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); });
     container.appendChild(toast);
     setTimeout(() => {
         toast.style.opacity = '1';
@@ -949,7 +956,7 @@ window.alert = function(msg, tipo = '') {
         toast.style.opacity = '0'; 
         toast.style.transform = 'translateY(8px)';
         setTimeout(() => toast.remove(), 300); 
-}, 4500);
+}, duracionToast);
 };
 
 // ================================================================
@@ -1086,6 +1093,60 @@ window.mostrarModalDeteccionEventoCalendar = function({ tituloEvento = '', profe
             resolver('mantener');
 }
 });
+};
+
+// ================================================================
+// PEDIR TEXTO: ventana propia de la app (reemplaza al prompt() nativo)
+// Devuelve el texto escrito, o null si se cancela.
+// ================================================================
+window.pedirTexto = function(titulo, descripcion = '', opciones = {}) {
+    const { placeholder = '', valorInicial = '', textoBoton = 'Aceptar', obligatorio = true, multilinea = true } = opciones;
+    return new Promise((resolve) => {
+        if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
+        const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const dlg = document.createElement('dialog');
+        dlg.className = 'modern-modal auto-height-modal';
+        dlg.style.cssText = 'max-width:480px; width:92%; padding:0; border-radius:16px; border:1.5px solid #cbd5e1; box-shadow:0 20px 60px rgba(0,0,0,0.18); overflow:hidden;';
+        dlg.innerHTML = `
+          <div style="padding:20px 22px;">
+            <h3 style="margin:0 0 6px 0; font-size:16px; font-weight:800; color:#0f172a;">${esc(titulo)}</h3>
+            ${descripcion ? `<p style="margin:0 0 12px 0; font-size:13px; color:#64748b; line-height:1.4;">${esc(descripcion)}</p>` : '<div style="height:8px"></div>'}
+            ${multilinea
+                ? `<textarea class="modern-input" rows="3" placeholder="${esc(placeholder)}" style="width:100%; resize:vertical; font-family:inherit; font-size:13.5px; padding:10px;">${esc(valorInicial)}</textarea>`
+                : `<input type="text" class="modern-input" placeholder="${esc(placeholder)}" value="${esc(valorInicial)}" style="width:100%; font-size:13.5px; padding:10px;">`}
+            <div class="pedir-texto-error" style="display:none; color:#b91c1c; font-size:12px; font-weight:600; margin-top:6px;">Escribí un texto para continuar.</div>
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px;">
+              <button type="button" class="btn-app btn-secondary pedir-texto-cancelar" style="padding:8px 14px; font-weight:700;">Cancelar</button>
+              <button type="button" class="btn-app btn-primary pedir-texto-ok" style="padding:8px 18px; font-weight:700;">${esc(textoBoton)}</button>
+            </div>
+          </div>`;
+        document.body.appendChild(dlg);
+        const campo = dlg.querySelector('textarea, input');
+        const errEl = dlg.querySelector('.pedir-texto-error');
+        const btnOk = dlg.querySelector('.pedir-texto-ok');
+        let resuelto = false;
+        const terminar = (valor) => {
+            if (resuelto) return;
+            resuelto = true;
+            try { dlg.close(); } catch (e) {}
+            dlg.remove();
+            resolve(valor);
+        };
+        dlg.querySelector('.pedir-texto-cancelar').addEventListener('click', () => terminar(null));
+        btnOk.addEventListener('click', () => {
+            const v = (campo.value || '').trim();
+            if (obligatorio && !v) { errEl.style.display = 'block'; campo.focus(); return; }
+            terminar(v);
+        });
+        campo.addEventListener('input', () => { errEl.style.display = 'none'; });
+        campo.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Enter' && (ev.ctrlKey || !multilinea)) { ev.preventDefault(); btnOk.click(); }
+        });
+        dlg.addEventListener('close', () => terminar(null));
+        dlg.addEventListener('cancel', () => terminar(null));
+        try { dlg.showModal(); } catch (e) { dlg.setAttribute('open', ''); }
+        setTimeout(() => { campo.focus(); if (campo.select) campo.select(); }, 50);
+    });
 };
 
 window.preguntarAccionCalendar = function({ al, accionTipo = 'desvincular' }) {
@@ -3391,6 +3452,21 @@ function chequearProfeDisponible(pr, hIniB, finMs, lDia) {
     return disponible;
 }
 
+// Devuelve el título de un evento del calendario general que menciona al docente por nombre (sin marca explícita)
+// y se superpone con el horario; vacío si no hay. Sirve para AVISAR, no para bloquear el horario.
+function _choquePosiblePorNombre(eventos, profeId, inMs, finMs) {
+    for (const ev of eventos) {
+        if (!Array.isArray(ev.profeIdsPorNombre) || !ev.profeIdsPorNombre.includes(profeId)) continue;
+        const sRaw = ev.start?.dateTime || ev.start?.date;
+        const eRaw = ev.end?.dateTime || ev.end?.date;
+        if (!sRaw || !eRaw) continue;
+        if (ev.ocupaAula === false) continue;
+        const evS = new Date(sRaw).getTime(), evE = new Date(eRaw).getTime();
+        if (evS < finMs && evE > inMs) return ev.summary || 'otro evento';
+    }
+    return '';
+}
+
 function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, todosLosProfes, profesFiltradosIDs, dStart, dEnd, cfg) {
     const opciones = [], mapaDias = { 0:"D", 1:"L", 2:"M", 3:"X", 4:"J", 5:"V", 6:"S" }, durMs = 60*60*1000, slotPasoMs = 30*60*1000, cantAulas = parseInt(cfg.cantidad_aulas)||3, cantBat = parseInt(cfg.cantidad_baterias)||2, diffDays = Math.floor(Math.abs(dEnd - dStart) / (1000*60*60*24));
     for (let i = 0; i <= diffDays; i++) {
@@ -3433,7 +3509,7 @@ function generarOpcionesAgenda(dispAl, eventosAPI, esBateria, todosLosProfes, pr
                                         const evS = new Date(startRaw).getTime(), evE = new Date(endRaw).getTime(); 
                                         if (Math.abs(evE - inMs) <= 5*60*1000 || Math.abs(evS - finMs) <= 5*60*1000) pegado = true; 
 });
-                                    opciones.push({ fechaTextoAmi: formatearFechaAmi(hIniB.toISOString()), profeId: pr.id, profeNombre: pr.nombre, calId: pr.calId, inicioData: formatoLocalISO(hIniB), finData: formatoLocalISO(new Date(finMs)), pegado: pegado });
+                                    opciones.push({ choquePosible: _choquePosiblePorNombre(eventosAPI, pr.id, inMs, finMs), fechaTextoAmi: formatearFechaAmi(hIniB.toISOString()), profeId: pr.id, profeNombre: pr.nombre, calId: pr.calId, inicioData: formatoLocalISO(hIniB), finData: formatoLocalISO(new Date(finMs)), pegado: pegado });
 }
 }
 });
@@ -5203,7 +5279,7 @@ document.getElementById('btn-bulk-devolver-pendientes')?.addEventListener('click
 const btnBulkDevolver = document.getElementById('btn-bulk-devolver-espera');
 if (btnBulkDevolver) {
     btnBulkDevolver.addEventListener('click', async () => {
-        const motivo = prompt(`¿Motivo para devolver a Lista de Espera a los ${selectedBulkIds.length} alumnos seleccionados?`);
+        const motivo = await window.pedirTexto('Devolver a Lista de Espera', `¿Cuál es el motivo para devolver a Lista de Espera a los ${selectedBulkIds.length} alumnos seleccionados?`, { placeholder: 'Escribí el motivo', textoBoton: 'Devolver' });
         if (!motivo) return;
         mostrarIndicadorCarga(`Devolviendo ${selectedBulkIds.length} alumnos a Lista de Espera...`);
         const idsToProcess = [...selectedBulkIds];
@@ -11984,7 +12060,7 @@ document.addEventListener('click', async (e) => {
             if (decisionCal.decision === 'cancelar') return;
 }
 
-        const motivo = prompt("¿Motivo para devolver a Lista de Espera?");
+        const motivo = await window.pedirTexto('Devolver a Lista de Espera', '¿Cuál es el motivo?', { placeholder: 'Escribí el motivo', textoBoton: 'Devolver' });
         if (motivo !== null) {
             if (motivo.trim() === "") return alert("Debes ingresar un motivo.");
             
@@ -12052,7 +12128,7 @@ document.addEventListener('click', async (e) => {
             if (decisionCal.decision === 'cancelar') return;
 }
 
-        const motivo = prompt("¿Motivo de Suspensión de Alta?"); 
+        const motivo = await window.pedirTexto('Suspender alta', '¿Cuál es el motivo de la suspensión?', { placeholder: 'Escribí el motivo', textoBoton: 'Suspender' }); 
         if (motivo !== null) { 
             if (motivo.trim() === "") return alert("Debes ingresar un motivo."); 
             if (tieneEvento && decisionCal.decision === 'eliminar') {
@@ -12459,6 +12535,13 @@ document.addEventListener('click', async (e) => {
 
             // Construir lista deduplicada de eventos físicos para no inflar el conteo de aulas
             // y asociar profeId únicamente cuando el evento pertenezca legítimamente a ese docente
+            // Eventos que creó la propia app: el docente se toma de la ficha del alumno (exacto, sin adivinar por el título).
+            const normEvId = x => String(x || '').replace(/@google\.com$/i, '').trim();
+            const mapaEventoProfe = {};
+            (Array.isArray(cachedAlumnosData) ? cachedAlumnosData : (allData || [])).forEach(a => {
+                if (a.id_evento_reserva && a.reserva_profe_id) mapaEventoProfe[normEvId(a.id_evento_reserva)] = a.reserva_profe_id;
+                if (a.id_evento_alta && (a.profesor_id || a.reserva_profe_id)) mapaEventoProfe[normEvId(a.id_evento_alta)] = a.profesor_id || a.reserva_profe_id;
+            });
             const allEv = [];
             calendariosUnicos.forEach(cId => {
                 const evs = eventosPorCalId[cId] || [];
@@ -12479,45 +12562,55 @@ document.addEventListener('click', async (e) => {
                     const calDefectoLow = (calDefecto || '').toLowerCase().trim();
                     const profesConEsteCal = todosLosProfes.filter(pr => (pr.calId || '').toLowerCase().trim() === cIdLow);
                     let asignadoProfeId = null;
+                    let profeIdsPorNombre = [];
 
                     if (cIdLow !== calDefectoLow && profesConEsteCal.length >= 1) {
-                        // 1. Calendario personal/específico del docente (ej. calendario amarillo): TODO evento le pertenece al docente
+                        // 1. Calendario personal del docente: TODO evento le pertenece al docente
                         asignadoProfeId = profesConEsteCal[0].id;
-} else if (cIdLow === calDefectoLow || profesConEsteCal.length === 0) {
-                        // 2. Calendario general/compartido: identificar docente por nombre, apodo o formato de clase
-                        const profeMencionado = todosLosProfes.find(pr => {
-                            if (!pr.nombre) return false;
-                            const nomLow = pr.nombre.toLowerCase().trim();
-                            if (!nomLow) return false;
-                            const apodos = [nomLow];
-                            if (nomLow === 'nacho' || nomLow.includes('ignacio')) apodos.push('nacho', 'ignacio');
-                            if (nomLow === 'belu' || nomLow.includes('belen') || nomLow.includes('belén')) apodos.push('belu', 'belen', 'belén', 'torrents');
-                            if (nomLow === 'guido') apodos.push('guido');
-                            if (nomLow === 'feli' || nomLow.includes('feliciano')) apodos.push('feli', 'feliciano');
-                            if (nomLow === 'ariel') apodos.push('ariel');
-                            if (nomLow === 'manu' || nomLow.includes('manuel')) apodos.push('manu', 'manuel');
-                            if (nomLow === 'franco' || nomLow.includes('fran')) apodos.push('franco', 'fran');
-                            if (nomLow === 'mati' || nomLow.includes('matias') || nomLow.includes('matías')) apodos.push('mati', 'matias', 'matías');
-                            if (nomLow === 'santi' || nomLow.includes('santiago')) apodos.push('santi', 'santiago');
-                            if (nomLow === 'agus' || nomLow.includes('agustin') || nomLow.includes('agustín') || nomLow.includes('agustina')) apodos.push('agus', 'agustin', 'agustina');
-
-                            return apodos.some(ap => {
-                                return normSummary.includes(`(${ap})`) ||
-                                       normSummary.includes(`[${ap}]`) ||
-                                       new RegExp(`\\b(profe|prof|docente)\\s*[:\\-]?\\s*${ap}\\b`, 'i').test(normSummary) ||
-                                       new RegExp(`\\bcon\\s+${ap}\\b`, 'i').test(normSummary) ||
-                                       new RegExp(`\\b${ap}\\b`, 'i').test(normSummary);
-});
-});
-                        if (profeMencionado) {
-                            asignadoProfeId = profeMencionado.id;
-}
-}
+                    } else {
+                        // 2. Calendario general/compartido
+                        const profeFicha = mapaEventoProfe[normEvId(ev.id)] || mapaEventoProfe[normEvId(ev.iCalUID)];
+                        if (profeFicha) {
+                            // 2a. Evento creado por la app: el docente sale de la ficha del alumno (exacto)
+                            asignadoProfeId = profeFicha;
+                        } else {
+                            // 2b. Evento manual: marcas explícitas del título bloquean; el nombre suelto solo avisa
+                            const apodosDe = (pr) => {
+                                const nomLow = (pr.nombre || '').toLowerCase().trim();
+                                if (!nomLow) return [];
+                                const apodos = [nomLow];
+                                if (nomLow === 'nacho' || nomLow.includes('ignacio')) apodos.push('nacho', 'ignacio');
+                                if (nomLow === 'belu' || nomLow.includes('belen') || nomLow.includes('belén')) apodos.push('belu', 'belen', 'belén', 'torrents');
+                                if (nomLow === 'guido') apodos.push('guido');
+                                if (nomLow === 'feli' || nomLow.includes('feliciano')) apodos.push('feli', 'feliciano');
+                                if (nomLow === 'ariel') apodos.push('ariel');
+                                if (nomLow === 'manu' || nomLow.includes('manuel')) apodos.push('manu', 'manuel');
+                                if (nomLow === 'franco' || nomLow.includes('fran')) apodos.push('franco', 'fran');
+                                if (nomLow === 'mati' || nomLow.includes('matias') || nomLow.includes('matías')) apodos.push('mati', 'matias', 'matías');
+                                if (nomLow === 'santi' || nomLow.includes('santiago')) apodos.push('santi', 'santiago');
+                                if (nomLow === 'agus' || nomLow.includes('agustin') || nomLow.includes('agustín') || nomLow.includes('agustina')) apodos.push('agus', 'agustin', 'agustina');
+                                return apodos;
+                            };
+                            const marcaExplicita = (ap) =>
+                                normSummary.includes(`(${ap})`) ||
+                                normSummary.includes(`[${ap}]`) ||
+                                new RegExp(`\\b(profe|prof|docente)\\s*[:\\-]?\\s*${ap}\\b`, 'i').test(normSummary) ||
+                                new RegExp(`\\bcon\\s+${ap}\\b`, 'i').test(normSummary);
+                            const nombreSuelto = (ap) => new RegExp(`\\b${ap}\\b`, 'i').test(normSummary);
+                            const explicito = todosLosProfes.find(pr => apodosDe(pr).some(marcaExplicita));
+                            if (explicito) {
+                                asignadoProfeId = explicito.id;
+                            } else {
+                                profeIdsPorNombre = todosLosProfes.filter(pr => apodosDe(pr).some(nombreSuelto)).map(pr => pr.id);
+                            }
+                        }
+                    }
 
                     allEv.push({
                         ...ev,
                         uniqueContentKey: contentKey,
                         profeId: asignadoProfeId,
+                        profeIdsPorNombre: profeIdsPorNombre,
                         calIdSource: cId,
                         ocupaAula: !esDiaCompleto
 });
@@ -12548,7 +12641,7 @@ document.addEventListener('click', async (e) => {
                     html += `
                         <label style="display:flex; align-items:center; gap:10px; margin-bottom:8px; cursor:pointer; padding:8px 10px; border-radius:8px; border:1px solid ${op.pegado ? 'var(--accent-teal)' : 'var(--border-color)'}; background:${op.pegado ? 'rgba(0, 123, 143, 0.08)' : 'var(--bg-main)'};">
                             <input type="checkbox" class="chk-agenda-opt" data-calid="${op.calId}" data-profe="${String(op.profeNombre || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')}" data-profeid="${op.profeId}" data-start="${op.inicioData}" data-end="${op.finData}" data-fechatxt="${op.fechaTextoAmi}"> 
-                            <span style="font-size:13px; color:var(--text-main); font-weight:${op.pegado ? '600' : 'normal'};">${icon} <strong>${op.fechaTextoAmi}</strong> (${op.profeNombre})${tagRecom}</span>
+                            <span style="font-size:13px; color:var(--text-main); font-weight:${op.pegado ? '600' : 'normal'};">${icon} <strong>${op.fechaTextoAmi}</strong> (${op.profeNombre})${tagRecom}${op.choquePosible ? ` <span title="Un evento del calendario general menciona a este docente en ese horario. Verificalo antes de confirmar." style="background:#fffbeb; color:#92400e; border:1px solid #fcd34d; font-size:10.5px; font-weight:700; padding:1px 7px; border-radius:10px; margin-left:6px;">⚠️ posible choque con «${String(op.choquePosible).replace(/&/g, '&amp;').replace(/</g, '&lt;')}»</span>` : ''}</span>
                         </label>
                     `; 
 }); 
@@ -12773,10 +12866,10 @@ document.addEventListener('click', async (e) => {
         let histText = formatearTextoHistorial(al.historial); 
         let template = configApp[plantillaKey] || defaultCfg[plantillaKey] || ''; 
         if (!template && plantillaKey === 'texto_cancela_alumno') {
-            template = "*❗ PRE CHECK - ENTREVISTA*\n*❌ RESERVA CANCELADA*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Suscripción: {suscripcion}\n\n*MOTIVO:* {motivo_detalles}";
+            template = "*❗ PRE CHECK - CLASE DE ADMISIÓN*\n*❌ RESERVA CANCELADA*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Suscripción: {suscripcion}\n\n*MOTIVO:* {motivo_detalles}";
 }
         if (!template && plantillaKey === 'texto_conf_profe') {
-            template = "*✅ ENTREVISTA CONFIRMADA Y ABONADA POR ALUMNO*\n*El alumno ya pagó y completó el formulario*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Contacto: {número_contacto_alumno}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Clase: {suscripcion}\n\n*📰 La información del alumno se encuentra adjunta en la descripción del evento del calendario*";
+            template = "*✅ CLASE DE ADMISIÓN CONFIRMADA Y ABONADA POR ALUMNO*\n*El alumno ya pagó y completó el formulario*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Contacto: {número_contacto_alumno}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Clase: {suscripcion}\n\n*📰 La información del alumno se encuentra adjunta en la descripción del evento del calendario*";
 }
         if (!template && plantillaKey === 'texto_alta_alumno') {
             template = "Hola {nombre}! Cómo estás? 👋\n\n¡Te confirmamos que ya está todo listo para tu inicio de clases en Mandala! 🤟🎉\n\n🧩 Suscripción: {suscripcion} {emojiinstrumento} {instrumento}\n👥 Grupo: {grupo}\n📅 Cursada: {horario_cursada}\n🚀 Inicio de clases: {fecha inicio clases}\n👨‍🏫 Profe: {profe}\n📍 Dirección: Av. Cabildo 2970, Piso 1, Depto C.\n\n¡Bienvenido/a a la comunidad Mandala! Cualquier duda nos escribís por acá.";

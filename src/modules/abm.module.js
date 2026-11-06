@@ -2,7 +2,7 @@
 // src/modules/abm.module.js -- ABM Profesores, Instrumentos, Suscripciones, Usuarios y Config
 // =======================================================================
 
-import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO } from "../config/constants.js?v=7.9.18";
+import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO } from "../config/constants.js?v=7.9.19";
 import { formatearPrecioMoneda, TEXTO_AVISO_ADMISOR_INBOX_DEFAULT } from "./altas.module.js";
 import { 
     db, 
@@ -121,7 +121,10 @@ window.desvincularEntrevistasRealizadas = desvincularEntrevistasRealizadas;
 //                                  await window.corregirTextosMensajes({aplicar:true}) -> aplica
 // =======================================================================
 const CORRECCIONES_TEXTOS = {
-    texto_cancela_alumno: [[/\*\s+MOTIVO:\s*\*/gi, '*MOTIVO:*']],
+    texto_cancela_alumno: [[/\*\s+MOTIVO:\s*\*/gi, '*MOTIVO:*'], [/ENTREVISTA/g, 'CLASE DE ADMISIÓN']],
+    texto_profe: [[/ENTREVISTA/g, 'CLASE DE ADMISIÓN']],
+    texto_opciones_multiples: [[/ENTREVISTA/g, 'CLASE DE ADMISIÓN']],
+    texto_conf_profe: [[/ENTREVISTA/g, 'CLASE DE ADMISIÓN']],
     texto_alumno: [
         [/para la primer clase de acuerdo/g, 'para la clase de admisión de acuerdo'],
         [/\bprimer clase\b/g, 'primera clase'],
@@ -144,7 +147,7 @@ export async function corregirTextosMensajes({ aplicar = false } = {}) {
         let despues = antes;
         for (const [re, rep] of reglas) despues = despues.replace(re, rep);
         if (despues !== antes) {
-            cambios.push({ texto: clave, antes_fragmentos: (antes.match(/\*\s+MOTIVO:\s*\*|primer clase|Inversión:|A continuación te dejo algunas consideraciones/g) || []).join(' | '), cambia: 'sí' });
+            cambios.push({ texto: clave, antes_fragmentos: (antes.match(/\*\s+MOTIVO:\s*\*|primer clase|Inversión:|A continuación te dejo algunas consideraciones|ENTREVISTA/g) || []).join(' | '), cambia: 'sí' });
             updates[clave] = despues;
         }
     }
@@ -649,7 +652,7 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
             const idx = parseInt(btnDel.dataset.idx, 10);
             if (!isNaN(idx)) {
                 const motivoEliminar = motivosList[idx];
-                if (confirm(`¿Eliminar el motivo de suspensión "${motivoEliminar}"?`)) {
+                if (await window.confirmar('Eliminar motivo', `¿Eliminar el motivo de suspensión "${motivoEliminar}"?`, 'Eliminar', '🗑️')) {
                     motivosList.splice(idx, 1);
                     renderMotivosAdmin();
                     await autoGuardarMotivos();
@@ -659,7 +662,7 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
             const idx = parseInt(btnEdit.dataset.idx, 10);
             if (!isNaN(idx)) {
                 const motivoActual = motivosList[idx];
-                const nuevoValor = prompt("Editar motivo de suspensión:", motivoActual);
+                const nuevoValor = await window.pedirTexto('Editar motivo de suspensión', '', { valorInicial: motivoActual, placeholder: 'Motivo', multilinea: false, textoBoton: 'Guardar' });
                 if (nuevoValor !== null && nuevoValor.trim() && nuevoValor.trim() !== motivoActual) {
                     motivosList[idx] = nuevoValor.trim();
                     renderMotivosAdmin();

@@ -1,6 +1,6 @@
 // =======================================================================
 // recordatorios.module.js - Motor Inteligente de Recordatorios y Alertas
-// Mandala Admision v7.9.18
+// Mandala Admision v7.9.19
 // =======================================================================
 
 import { 
@@ -595,9 +595,9 @@ export function calcularPendientesRecordatorios(fechaHoyManual = null) {
                     out.push({
                         id: al.id,
                         cat: 'conf',
-                        grp: '🗓️ Entrevistas de Admisión',
+                        grp: '🗓️ Clases de Admisión',
                         nom: al.nombre.trim(),
-                        info: `Falta confirmar ${quienFalta}${fechaEntrevista ? ` · entrevista ${formatoDiaMes(fechaEntrevista)}` : ' · entrevista sin fecha'}`,
+                        info: `Falta confirmar ${quienFalta}${fechaEntrevista ? ` · clase de admisión ${formatoDiaMes(fechaEntrevista)}` : ' · clase de admisión sin fecha'}`,
                         sev: diasFaltanEntrevista < 2 ? 2 : 1,
                         popup: true,
                         accion: 'ver',
@@ -641,9 +641,9 @@ export function calcularPendientesRecordatorios(fechaHoyManual = null) {
                     out.push({
                         id: al.id,
                         cat: 'hoy',
-                        grp: '🗓️ Entrevistas de Admisión',
+                        grp: '🗓️ Clases de Admisión',
                         nom: al.nombre.trim(),
-                        info: `Entrevista HOY ${horaStr}`.trim(),
+                        info: `Clase de admisión HOY ${horaStr}`.trim(),
                         sev: 3,
                         popup: true,
                         accion: 'ver',
@@ -653,9 +653,9 @@ export function calcularPendientesRecordatorios(fechaHoyManual = null) {
                     out.push({
                         id: al.id,
                         cat: 'man',
-                        grp: '🗓️ Entrevistas de Admisión',
+                        grp: '🗓️ Clases de Admisión',
                         nom: al.nombre.trim(),
-                        info: `Entrevista mañana ${horaStr}`.trim(),
+                        info: `Clase de admisión mañana ${horaStr}`.trim(),
                         sev: 1,
                         popup: false,
                         accion: 'ver',
@@ -667,9 +667,9 @@ export function calcularPendientesRecordatorios(fechaHoyManual = null) {
                     out.push({
                         id: al.id,
                         cat: 'inf',
-                        grp: '🗓️ Entrevistas de Admisión',
+                        grp: '🗓️ Clases de Admisión',
                         nom: al.nombre.trim(),
-                        info: `Entrevista ${formatoDiaMes(fechaEntrevista)} sin informe cargado${docenteSufijo}`,
+                        info: `Clase de admisión ${formatoDiaMes(fechaEntrevista)} sin informe cargado${docenteSufijo}`,
                         sev: 2,
                         popup: true,
                         accion: 'ver',
@@ -1598,7 +1598,7 @@ export function renderizarVistaMisPendientes(container, fechaManual = null) {
                         <h2 style="margin:0; font-size:20px; font-weight:800; color:var(--text-main);">Mis Pendientes y Recordatorios Operativos</h2>
                     </div>
                     <p style="margin:6px 0 0 0; font-size:13px; color:var(--text-muted); line-height:1.45;">
-                        Panel de control centralizado de ingresos sin agendar, altas pendientes, entrevistas clave y seguimientos críticos.
+                        Panel de control centralizado de ingresos sin agendar, altas pendientes, clases de admisión clave y seguimientos críticos.
                     </p>
                 </div>
                 <div style="display:flex; gap:10px; align-items:center;">
@@ -1640,7 +1640,7 @@ export function renderizarVistaMisPendientes(container, fechaManual = null) {
 
                 ${(verEntrevistas || verAltasYValidaciones) ? `
                 <div style="background:#ffffff; border:1px solid var(--border-color); border-radius:12px; padding:14px 18px; display:flex; flex-direction:column; gap:4px; box-shadow:0 1px 2px rgba(0,0,0,0.02);">
-                    <span style="font-size:12px; font-weight:700; color:#854d0e; text-transform:uppercase; letter-spacing:0.4px;">🗓️ Entrevistas</span>
+                    <span style="font-size:12px; font-weight:700; color:#854d0e; text-transform:uppercase; letter-spacing:0.4px;">🗓️ Clases de admisión</span>
                     <div style="display:flex; align-items:baseline; gap:8px;">
                         <span style="font-size:28px; font-weight:900; color:#d97706;">${entrevistasCount}</span>
                         <span style="font-size:12px; color:var(--text-muted); font-weight:600;">hoy / pend. informe</span>
