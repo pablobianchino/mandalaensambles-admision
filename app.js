@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.9.14";
+} from "./src/config/constants.js?v=7.9.15";
 
 import { 
     app, 
@@ -156,7 +156,7 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=7.9.14";
+} from "./src/modules/altas.module.js?v=7.9.15";
 
 import {
     renderTimelineUnificado,
@@ -172,13 +172,13 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.9.14";
+} from "./src/modules/abm.module.js?v=7.9.15";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.9.14";
+} from "./src/modules/inbox.module.js?v=7.9.15";
 
 import {
     parseCSV,
@@ -205,7 +205,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.9.14";
+} from "./src/modules/recordatorios.module.js?v=7.9.15";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -6238,7 +6238,10 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
             const levelNumber = nivelIndex + 1;
             let groupCounter = 0;
 
-            for (const [clave, alumnosSubgrupo] of Object.entries(grupos)) {
+            let entradasGrupos = Object.entries(grupos);
+            if (estadoActualVista === 'Lista de Espera') entradasGrupos = ordenarEntradasAgrupadorEspera(entradasGrupos, criterio);
+
+            for (const [clave, alumnosSubgrupo] of entradasGrupos) {
                 groupCounter++;
                 const groupId = `grp-lvl${levelNumber}-${nivelIndex}-${groupCounter}-${Math.random().toString(36).substr(2, 6)}`;
                 const idsStr = alumnosSubgrupo.map(a => a.id).join(',');
@@ -16895,6 +16898,24 @@ window.toggleEspecialAlumno = toggleEspecialAlumno;
 // Preferencia visual de cada operador, guardada en su navegador. Vence sola al terminar el día.
 // No modifica la ficha del alumno ni afecta a otros usuarios, a Match ni a "Armar Propuesta".
 // =======================================================================
+// Orden FIJO de las tarjetas de agrupación en Lista de Espera (no depende de qué alumno queda primero).
+function ordenarEntradasAgrupadorEspera(entradas, criterio) {
+    const norm = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+    const esSin = k => /^sin(\s|$)/.test(norm(k));
+    let orden = [];
+    if (criterio === 'suscripcion') orden = ['clase grupal', 'ensamble', 'clase individual'];
+    else if (criterio === 'nivel') orden = ['inicial i', 'inicial ii', 'intermedio', 'avanzado'];
+    const peso = k => {
+        if (esSin(k)) return 1000;
+        const i = orden.indexOf(norm(k));
+        return i === -1 ? 500 : i;
+    };
+    return [...entradas].sort((a, b) => {
+        const pa = peso(a[0]), pb = peso(b[0]);
+        if (pa !== pb) return pa - pb;
+        return String(a[0]).localeCompare(String(b[0]), 'es', { sensitivity: 'base' });
+    });
+}
 function _hoyLocalStrEspera() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -16934,7 +16955,7 @@ function htmlBotonOjoEspera(al, id) {
 async function _refrescarListaEsperaConScroll() {
     const main = document.getElementById('main-content');
     const top = main ? main.scrollTop : 0;
-    await cargarVista(estadoActualVista, false);
+    await cargarVista(estadoActualVista, true);
     if (main) main.scrollTop = top;
 }
 window.toggleOcultoEspera = async function(id) {
