@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.9.7";
+} from "./src/config/constants.js?v=7.9.8";
 
 import { 
     app, 
@@ -156,7 +156,7 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=7.9.7";
+} from "./src/modules/altas.module.js?v=7.9.8";
 
 import {
     renderTimelineUnificado,
@@ -172,13 +172,13 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.9.7";
+} from "./src/modules/abm.module.js?v=7.9.8";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.9.7";
+} from "./src/modules/inbox.module.js?v=7.9.8";
 
 import {
     parseCSV,
@@ -205,7 +205,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.9.7";
+} from "./src/modules/recordatorios.module.js?v=7.9.8";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
