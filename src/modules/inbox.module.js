@@ -28,7 +28,7 @@ export function getEstadoYBadge(al, getFechaReferenciaAlumno) {
         colorBadge = 'bg-blue-3';
         colorIndicador = 'ind-blue-3';
     } else if (est === 'agenda confirmada' || est === 'entrevista confirmada' || est.startsWith('entrevista')) {
-        txtEstado = 'ENTREVISTA CONFIRMADA';
+        txtEstado = 'CLASE DE ADMISIÓN CONFIRMADA';
         colorBadge = 'bg-blue-4';
         colorIndicador = 'ind-blue-4';
     } else if (est === 'lista de espera') {
@@ -227,7 +227,7 @@ export function generarBotonesPrincipalesVisibles(al, id) {
         html += `<button type="button" class="row-quick-btn primary btn-validado-profe-popup" data-id="${id}">✅ Validado por Evaluador</button>`;
         html += `<button type="button" class="row-quick-btn secondary btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
     } else if (est === 'pendiente validacion por alumno') {
-        html += `<button type="button" class="row-quick-btn primary btn-confirmar-entrevista" data-id="${id}">✅ Confirmar Agenda</button>`;
+        html += `<button type="button" class="row-quick-btn primary btn-confirmar-entrevista" data-id="${id}">✅ Confirmar Clase de Admisión</button>`;
         html += `<button type="button" class="row-quick-btn secondary btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
     } else if (est === 'agenda confirmada' || est === 'entrevista confirmada' || est.startsWith('entrevista')) {
         html += `<button type="button" class="row-quick-btn primary btn-admision-finalizada" data-id="${id}">🏁 Finalizar Admisión</button>`;
@@ -328,7 +328,7 @@ export function generarBotonesAccion(al, id, esModal = false, vista = '') {
     } 
     // 3. Inbox > Validando Alumno
     else if (est === 'pendiente validacion por alumno') {
-        html += `<button type="button" class="${btnClass(true)} btn-confirmar-entrevista" data-id="${id}">✅ Confirmar Agenda</button>`;
+        html += `<button type="button" class="${btnClass(true)} btn-confirmar-entrevista" data-id="${id}">✅ Confirmar Clase de Admisión</button>`;
         html += `<button type="button" class="${btnClass()} btn-buscar-agenda" data-id="${id}">🗓️ Re-Agendar</button>`;
         html += `<button type="button" class="${btnClass()} btn-reenviar-alumno" data-id="${id}">💬 Avisar a Alumno</button>`;
         html += `<button type="button" class="${btnClass()} btn-cancelar-alumno" data-id="${id}">❌ Alumno Cancela</button>`;

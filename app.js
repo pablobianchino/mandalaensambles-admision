@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.9.17";
+} from "./src/config/constants.js?v=7.9.18";
 
 import { 
     app, 
@@ -83,6 +83,7 @@ import {
     crearEventoSeguro,
     actualizarEventoSeguro,
     eliminarEventoSeguro,
+    buscarEventoExistenteEnHorario,
     sincronizarEventoPrealtaCalendar,
     sincronizarEventoAltaConfirmadaCalendar,
     eliminarEventoAltaSeguro,
@@ -156,7 +157,7 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=7.9.17";
+} from "./src/modules/altas.module.js?v=7.9.18";
 
 import {
     renderTimelineUnificado,
@@ -172,13 +173,13 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.9.17";
+} from "./src/modules/abm.module.js?v=7.9.18";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.9.17";
+} from "./src/modules/inbox.module.js?v=7.9.18";
 
 import {
     parseCSV,
@@ -205,7 +206,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.9.17";
+} from "./src/modules/recordatorios.module.js?v=7.9.18";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -4121,7 +4122,7 @@ export function obtenerEvaluadorAlumno(al) {
     if (Array.isArray(al.historial)) {
         for (let h of al.historial) {
             const txt = typeof h === 'string' ? h : (h.texto || '');
-            const m = txt.match(/(?:Entrevista agendada|Propuesta de horario|Informe de Entrevista).*?con\s+([A-Za-zÁÉÍÓÚáéíóúñÑ\s]+?)(?:\.|\s+enviada|\s+agendada|\s+para)/i);
+            const m = txt.match(/(?:Entrevista agendada|Clase de admisión agendada|Propuesta de horario|Informe de Entrevista).*?con\s+([A-Za-zÁÉÍÓÚáéíóúñÑ\s]+?)(?:\.|\s+enviada|\s+agendada|\s+para)/i);
             if (m && m[1]) {
                 const cand = m[1].trim();
                 if (!cand.toLowerCase().includes('google') && !cand.toLowerCase().includes('calendar') && !cand.toLowerCase().includes('admin')) {
@@ -4610,11 +4611,11 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
         let labelFecha = 'Fecha:';
         const stAg = (al.estado_agenda || '').toLowerCase();
         if (stAg.includes('espera') || (typeof estadoActualVista !== 'undefined' && estadoActualVista === 'Lista de Espera')) {
-            labelFecha = 'ENTREVISTA:';
+            labelFecha = 'CLASE DE ADMISIÓN:';
 } else if (stAg.includes('alta') || (typeof estadoActualVista !== 'undefined' && estadoActualVista.startsWith('Altas'))) {
             labelFecha = 'INICIO DE CLASES:';
 } else if (stAg.includes('pendiente') || stAg.includes('agenda confirmada') || (typeof estadoActualVista !== 'undefined' && estadoActualVista.startsWith('Inbox'))) {
-            labelFecha = 'ENTREVISTA:';
+            labelFecha = 'CLASE DE ADMISIÓN:';
 }
 
         fechaMetaHtml = `
@@ -6654,7 +6655,7 @@ export async function sanearDatosCasosPuntuales(alumnos) {
 } else if (Array.isArray(al.historial)) {
                 for (let h of al.historial) {
                     const txt = typeof h === 'string' ? h : (h.texto || '');
-                    const m = txt.match(/(?:Entrevista agendada|Propuesta de horario|Informe de Entrevista).*?con\s+([A-Za-zÁÉÍÓÚáéíóúñÑ\s]+?)(?:\.|\s+para|\s+enviada|\s+agendada)/i);
+                    const m = txt.match(/(?:Entrevista agendada|Clase de admisión agendada|Propuesta de horario|Informe de Entrevista).*?con\s+([A-Za-zÁÉÍÓÚáéíóúñÑ\s]+?)(?:\.|\s+para|\s+enviada|\s+agendada)/i);
                     if (m && m[1]) {
                         const cand = m[1].trim();
                         if (!cand.toLowerCase().includes('admin') && !cand.toLowerCase().includes('calendar') && !cand.toLowerCase().includes('google')) {
@@ -7061,7 +7062,7 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
     const objEntrevistas = (entrevistasAgendadas.length > 0) ? {
         key: 'entrevista_agendada',
         icono: '🗓️',
-        label: esEval ? 'Mis Entrevistas Agendadas' : 'Entrevistas Agendadas (Pend. Informe)',
+        label: esEval ? 'Mis Clases de Admisión Agendadas' : 'Clases de Admisión Agendadas (Pend. Informe)',
         items: entrevistasAgendadas,
         esAsignable: true,
         campoResp: (al) => (al.reserva_profe_nombre || al.profesor_asignado || 'Docente Evaluador').split('(')[0].trim()
@@ -7481,7 +7482,7 @@ function getModuloSubtabs() {
         inboxTabs = [
             { 
                 vista: 'Inbox - Confirmadas', 
-                label: 'Entrevistas Confirmadas', 
+                label: 'Clases de Admisión Confirmadas', 
                 icon: '✅', 
                 countFn: (alumnos) => filtrarAlumnosEvaluador(alumnos).filter(d => {
                     const st = (d.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
@@ -8917,7 +8918,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
     const tituloEl = document.getElementById('vista-titulo');
     if (tituloEl) {
         const tituloMap = {
-            'Inbox - Confirmadas': '<span style="color:var(--text-muted); font-weight:500;">Inbox › </span><span style="color:var(--text-main); font-weight:700;">Entrevistas Confirmadas</span>',
+            'Inbox - Confirmadas': '<span style="color:var(--text-muted); font-weight:500;">Inbox › </span><span style="color:var(--text-main); font-weight:700;">Clases de Admisión Confirmadas</span>',
             'Inbox - Validar Evaluador': '<span style="color:var(--text-muted); font-weight:500;">Inbox › </span><span style="color:var(--text-main); font-weight:700;">Pendientes Validar Fecha</span>',
             'Inbox - Finalizar Admision': '<span style="color:var(--text-muted); font-weight:500;">Inbox › </span><span style="color:var(--text-main); font-weight:700;">Pendientes Finalizar Admisión</span>',
             'Inbox - Validar Alumno': '<span style="color:var(--text-muted); font-weight:500;">Inbox › </span><span style="color:var(--text-main); font-weight:700;">Validar por Alumno</span>',
@@ -12118,7 +12119,7 @@ document.addEventListener('click', async (e) => {
             const elTituloAgenda = document.getElementById('titulo-modal-agenda');
             const esReagenda = Boolean((btnAgenda.textContent && (btnAgenda.textContent.includes('Re-Agendar') || btnAgenda.textContent.includes('Reagendar'))) || al.reserva_profe_id || al.reserva_fecha_texto || al.id_evento_reserva);
             if (elTituloAgenda) {
-                elTituloAgenda.textContent = esReagenda ? 'Re-Agendar Entrevista' : 'Buscar Disponibilidad';
+                elTituloAgenda.textContent = esReagenda ? 'Re-Agendar Clase de Admisión' : 'Buscar Disponibilidad';
 }
 
             // 1. Resumen Visual del Alumno y su Disponibilidad Semanal
@@ -12631,7 +12632,7 @@ document.addEventListener('click', async (e) => {
             const evRes = await crearEventoSeguro(al, titulos, fInicio, fFin, configApp);
 
             const hist = al.historial || [];
-            hist.push(crearEntradaHistorial(`Entrevista agendada en Google Calendar para el ${fTxt} con ${pNom}.`, 'agenda'));
+            hist.push(crearEntradaHistorial(`Clase de admisión agendada en Google Calendar para el ${fTxt} con ${pNom}.`, 'agenda'));
 
             const nuevoEstado = esConfirmada ? "Agenda confirmada" : "Pendiente validación por alumno";
             const updateData = {
@@ -12673,7 +12674,7 @@ document.addEventListener('click', async (e) => {
             document.getElementById('modal-agenda').close();
             removerFilaOptimista(alumnoIdActual);
             await cargarVista(estadoActualVista, false);
-            mostrarToast(`✅ ¡Entrevista agendada en Calendar para el ${fTxt} con ${pNom}! Mensaje copiado al portapapeles.${avisoEventoAnterior}`, avisoEventoAnterior ? "info" : "success");
+            mostrarToast(`✅ ¡Clase de admisión agendada en Calendar para el ${fTxt} con ${pNom}! Mensaje copiado al portapapeles.${avisoEventoAnterior}`, avisoEventoAnterior ? "info" : "success");
 } catch(e) {
             console.error("Error al agendar en Calendar:", e);
             alert("❌ Error al agendar en Google Calendar:\n\n" + e.message);
@@ -12895,11 +12896,11 @@ document.addEventListener('click', async (e) => {
                     profeNombre: op.profeNombre || al.reserva_profe_nombre || '',
                     calId: op.calId || al.reserva_cal_id || ''
 };
-                container.innerHTML += `<label style="display:flex; gap:8px; margin-bottom:8px; cursor:pointer;"><input type="radio" name="opt-valida-profe" value='${JSON.stringify(fullOp)}' ${index===0?'checked':''}> ${op.letra ? op.letra+'- ' : ''}${op.fechaTexto}</label>`; 
+                container.innerHTML += `<label style="display:flex; gap:8px; margin-bottom:8px; cursor:pointer;"><input type="radio" name="opt-valida-profe" value='${JSON.stringify(fullOp).replace(/&/g, '&amp;').replace(/'/g, '&#39;')}' ${index===0?'checked':''}> ${op.letra ? op.letra+'- ' : ''}${op.fechaTexto}</label>`; 
 }); 
 } else { 
             const op = { inicio: al.reserva_inicio || '', fin: al.reserva_fin || '', fechaTexto: al.reserva_fecha_texto || '', calId: al.reserva_cal_id || '', profeId: al.reserva_profe_id || '', profeNombre: al.reserva_profe_nombre || '' }; 
-            container.innerHTML = `<label style="display:flex; gap:8px; margin-bottom:8px; cursor:pointer;"><input type="radio" name="opt-valida-profe" value='${JSON.stringify(op)}' checked> ${op.fechaTexto || 'Horario a coordinar'}</label>`; 
+            container.innerHTML = `<label style="display:flex; gap:8px; margin-bottom:8px; cursor:pointer;"><input type="radio" name="opt-valida-profe" value='${JSON.stringify(op).replace(/&/g, '&amp;').replace(/'/g, '&#39;')}' checked> ${op.fechaTexto || 'Horario a coordinar'}</label>`; 
 } 
         document.getElementById('validar-profe-alumno-id').value = id; 
         document.getElementById('modal-validar-profe').showModal(); 
@@ -12927,8 +12928,27 @@ document.addEventListener('click', async (e) => {
             al.reserva_inicio = finalInicio;
             al.reserva_fin = finalFin;
 
+            // Antes de crear el evento, se vuelve a mirar el calendario por si el horario se ocupó mientras tanto.
+            if (finalCalId && finalInicio) {
+                try {
+                    const durMin = finalFin ? Math.round((new Date(finalFin) - new Date(finalInicio)) / 60000) : 30;
+                    const choque = await buscarEventoExistenteEnHorario(finalCalId, finalInicio, durMin > 0 ? durMin : 30);
+                    if (choque) {
+                        const seguir = await window.confirmar(
+                            'Ya hay un evento en ese horario',
+                            `En el calendario de ${finalProfeNombre || 'el evaluador'} ya figura «${choque.summary}» en ese horario.\n\n¿Querés agendar la clase de admisión igual?`,
+                            'Agendar igual',
+                            'question'
+                        );
+                        if (!seguir) { setBotonCargando(target, false); return; }
+                    }
+                } catch (errChoque) {
+                    console.warn('No se pudo verificar el horario antes de agendar:', errChoque);
+                }
+            }
+
             const titulos = construirTitulosEvento(al, 'reserva', configApp);
-            const evRes = await crearEventoSeguro(al, titulos, finalInicio, finalFin);
+            const evRes = await crearEventoSeguro(al, titulos, finalInicio, finalFin, configApp);
             const hist = al.historial || [];
             hist.push(crearEntradaHistorial(`Horario validado por evaluador/a ${finalProfeNombre}. Propuesta enviada al alumno (${finalFechaTexto}).`, 'agenda'));
             
@@ -12947,13 +12967,22 @@ document.addEventListener('click', async (e) => {
 };
             actualizarAlumnoEnMemoriaLocal(id, updatesValProfe);
             await updateDoc(doc(db, "alumnos", id), updatesValProfe);
-            const dataText = await generarTextoConHistorial(id, 'texto_alumno');
-            if (dataText && dataText.txt) {
-                await navigator.clipboard.writeText(dataText.txt);
-}
+            let mensajeCopiado = false;
+            try {
+                const dataText = await generarTextoConHistorial(id, 'texto_alumno');
+                if (dataText && dataText.txt) {
+                    await navigator.clipboard.writeText(dataText.txt);
+                    mensajeCopiado = true;
+                }
+            } catch (errCopia) {
+                console.warn('No se pudo copiar el mensaje al portapapeles:', errCopia);
+            }
             document.getElementById('modal-validar-profe').close();
             removerFilaOptimista(id);
             await cargarVista(estadoActualVista, false);
+            mostrarToast(mensajeCopiado
+                ? '✅ Horario validado y evento creado. Mensaje para el alumno copiado al portapapeles.'
+                : '✅ Horario validado y evento creado. No se pudo copiar el mensaje: usá "Avisar a Alumno" en la fila.', mensajeCopiado ? 'success' : 'info');
 } catch(e) {
             alert("❌ Error:\n\n" + e.message);
 } finally {
@@ -12984,15 +13013,19 @@ document.addEventListener('click', async (e) => {
             const descP = convertirHtmlATextoPlano(al.descripcion || '');
             const titulos = construirTitulosEvento(al, 'confirmado', configApp);
             const idEvRes = al.id_evento_reserva;
+            let avisoCal = '';
             if (idEvRes && typeof idEvRes === 'string' && idEvRes.trim() && idEvRes !== 'null' && idEvRes !== 'undefined') {
                 try {
                     await actualizarEventoSeguro(al, titulos, descP);
-} catch(calErr) {
+                } catch(calErr) {
                     console.warn("Aviso: No se pudo actualizar el evento en Google Calendar:", calErr.message || calErr);
-}
-}
+                    avisoCal = '\n\n⚠️ No se pudo actualizar el evento en Google Calendar: puede seguir con el título de reserva. Revisalo en el calendario.';
+                }
+            } else {
+                avisoCal = '\n\n⚠️ Este alumno no tiene evento en Google Calendar. Si hace falta, agendalo de nuevo con "Re-Agendar".';
+            }
             const hist = al.historial || [];
-            hist.push(crearEntradaHistorial(`Entrevista confirmada con el alumno para el ${al.reserva_fecha_texto || ''} con ${al.reserva_profe_nombre || 'Evaluador'}.`, 'agenda'));
+            hist.push(crearEntradaHistorial(`Clase de admisión confirmada con el alumno para el ${al.reserva_fecha_texto || ''} con ${al.reserva_profe_nombre || 'Evaluador'}.`, 'agenda'));
             const updatesConfEntrevista = { estado_agenda: "Agenda confirmada", historial: hist };
             actualizarAlumnoEnMemoriaLocal(id, updatesConfEntrevista);
             await updateDoc(doc(db, "alumnos", id), updatesConfEntrevista);
@@ -13006,7 +13039,7 @@ document.addEventListener('click', async (e) => {
                 await navigator.clipboard.writeText(txtFact);
                 avisoFact = "\n\n💰 ¡Fila de Facturación copiada automáticamente al portapapeles!";
 } catch(e) {}
-            alert("✅ ¡Agenda Confirmada exitosamente! El alumno pasó a Confirmadas." + avisoFact);
+            alert("✅ ¡Clase de admisión confirmada! El alumno pasó a Confirmadas." + avisoCal + avisoFact + "\n\n👉 Para avisarle al alumno, usá \"Avisar a Alumno\" en su fila.");
 } catch(e) {
             alert("❌ Error al confirmar agenda:\n\n" + e.message);
 } finally {
@@ -13143,7 +13176,7 @@ document.addEventListener('click', async (e) => {
             const profeInfo = alData.reserva_profe_nombre || alData.profesor_asignado || '';
             let infoTxt = '';
             if (horarioInfo || profeInfo) {
-                infoTxt = `🗓️ Entrevista agendada: <strong>${horarioInfo || 'A coordinar'}</strong>${profeInfo ? ` con <strong>${profeInfo}</strong>` : ''}`;
+                infoTxt = `🗓️ Clase de admisión agendada: <strong>${horarioInfo || 'A coordinar'}</strong>${profeInfo ? ` con <strong>${profeInfo}</strong>` : ''}`;
 } else {
                 infoTxt = 'Sin horario específico registrado.';
 }
@@ -13187,7 +13220,7 @@ document.addEventListener('click', async (e) => {
             alData.motivo_suspension = motivoCompleto;
 
             const hist = alData.historial || [];
-            hist.push(crearEntradaHistorial(`Entrevista cancelada por el alumno. Motivo: ${motivoCompleto}. Evento liberado en Google Calendar. Derivado a Sin Agendar.`, 'suspension'));
+            hist.push(crearEntradaHistorial(`Clase de admisión cancelada por el alumno. Motivo: ${motivoCompleto}. Evento liberado en Google Calendar. Derivado a Sin Agendar.`, 'suspension'));
 
             const data = await generarTextoConHistorial(id, 'texto_cancela_alumno', null, null, null, null, mtv);
             if (data && data.txt) {
@@ -13219,7 +13252,7 @@ document.addEventListener('click', async (e) => {
             document.getElementById('modal-cancelar-agenda')?.close();
             removerFilaOptimista(id);
             await cargarVista(estadoActualVista, false);
-            mostrarToast("💬 Entrevista cancelada, alumno derivado a Sin Agendar y texto copiado al portapapeles", "info");
+            mostrarToast("💬 Clase de admisión cancelada, alumno derivado a Sin Agendar y texto copiado al portapapeles", "info");
 } catch(e) {
             console.error("Error al cancelar entrevista:", e);
             alert("❌ Error al cancelar reserva:\n\n" + e.message);
