@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.9.12";
+} from "./src/config/constants.js?v=7.9.13";
 
 import { 
     app, 
@@ -156,7 +156,7 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=7.9.12";
+} from "./src/modules/altas.module.js?v=7.9.13";
 
 import {
     renderTimelineUnificado,
@@ -172,13 +172,13 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.9.12";
+} from "./src/modules/abm.module.js?v=7.9.13";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.9.12";
+} from "./src/modules/inbox.module.js?v=7.9.13";
 
 import {
     parseCSV,
@@ -205,7 +205,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.9.12";
+} from "./src/modules/recordatorios.module.js?v=7.9.13";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -6049,7 +6049,7 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
             const n = ocultosEnLista.length;
             const btnStyle = 'font-size:12px; font-weight:700; padding:4px 10px; border-radius:6px; border:1px solid #fcd34d; background:#fff; color:#92400e; cursor:pointer; font-family:inherit;';
             bannerOcultosHtml = `
-                <div id="aviso-ocultos-espera" style="position:sticky; top:0; z-index:30; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; background:#fffbeb; border:1px solid #fde68a; color:#92400e; border-radius:10px; padding:8px 14px; margin-bottom:4px; font-size:13px; font-weight:600;">
+                <div id="aviso-ocultos-espera" style="position:sticky; top:0; z-index:120; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; background:#fffbeb; border:1px solid #fde68a; color:#92400e; border-radius:10px; padding:8px 14px; margin-bottom:4px; font-size:13px; font-weight:600;">
                     <span>👁️ ${n} ${n === 1 ? 'alumno oculto' : 'alumnos ocultos'} en esta vista. Siguen en la lista de espera. Se muestran solos mañana.</span>
                     <span style="display:flex; gap:8px; flex-wrap:wrap;">
                         <button type="button" style="${btnStyle}" onclick="window.alternarVerOcultosEspera()">${window._verOcultosEspera ? 'Volver a la vista limpia' : 'Ver ocultos'}</button>
