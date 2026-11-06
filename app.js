@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.9.15";
+} from "./src/config/constants.js?v=7.9.16";
 
 import { 
     app, 
@@ -156,7 +156,7 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=7.9.15";
+} from "./src/modules/altas.module.js?v=7.9.16";
 
 import {
     renderTimelineUnificado,
@@ -172,13 +172,13 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.9.15";
+} from "./src/modules/abm.module.js?v=7.9.16";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.9.15";
+} from "./src/modules/inbox.module.js?v=7.9.16";
 
 import {
     parseCSV,
@@ -205,7 +205,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.9.15";
+} from "./src/modules/recordatorios.module.js?v=7.9.16";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -224,8 +224,10 @@ window.generarBotonesAccion = generarBotonesAccion;
 const vLabelInit = document.getElementById('sidebar-version-label');
 if (vLabelInit) vLabelInit.textContent = APP_VERSION;
 
-// MODO DE VISTA (PROPUESTA V7): Simple por defecto, configurable por usuario
-window.modoVistaSimple = localStorage.getItem('mandala_vista_modo') !== 'completo';
+// MODO DE VISTA: SIEMPRE Simple. El interruptor Simple/Completa está oculto (decisión de Pablo, 06/11/2026);
+// se ignora cualquier 'completo' que haya quedado guardado en el navegador de un operador.
+window.modoVistaSimple = true;
+try { localStorage.setItem('mandala_vista_modo', 'simple'); } catch (e) {}
 
 window.setModoVistaApp = function(simple) {
     window.modoVistaSimple = Boolean(simple);
