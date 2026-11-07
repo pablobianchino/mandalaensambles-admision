@@ -1,6 +1,6 @@
 // =======================================================================
 // recordatorios.module.js - Motor Inteligente de Recordatorios y Alertas
-// Mandala Admision v7.10.0
+// Mandala Admision v7.10
 // =======================================================================
 
 import { 

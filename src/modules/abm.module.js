@@ -2,7 +2,7 @@
 // src/modules/abm.module.js -- ABM Profesores, Instrumentos, Suscripciones, Usuarios y Config
 // =======================================================================
 
-import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO } from "../config/constants.js?v=7.10.0";
+import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO } from "../config/constants.js?v=7.10";
 import { formatearPrecioMoneda, TEXTO_AVISO_ADMISOR_INBOX_DEFAULT } from "./altas.module.js";
 import { 
     db, 
@@ -123,8 +123,20 @@ window.desvincularEntrevistasRealizadas = desvincularEntrevistasRealizadas;
 export async function crearAlumnoPruebaConfirmado({ evaluador = 'ariel bianchino' } = {}) {
     const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
     const evals = await window.obtenerListaEvaluadoresActivos();
-    const ev = evals.find(e => norm(e.nombre) === norm(evaluador)) || evals.find(e => norm(e.nombre).includes(norm(evaluador)));
-    if (!ev) { console.warn('No se encontró el evaluador. Disponibles:', evals.map(e => e.nombre)); return null; }
+    const buscar = lista => lista.find(e => norm(e.nombre) === norm(evaluador))
+        || lista.find(e => norm(e.nombre).includes(norm(evaluador)))
+        || lista.find(e => norm(e.nombre).includes(norm(evaluador).split(' ')[0]));
+    let ev = buscar(evals);
+    if (!ev) {
+        // Respaldo: cualquier docente/usuario aunque no tenga marcada la aptitud Evaluaciones
+        const todos = (await window.obtenerDocentesYEvaluadoresUnificados()).filter(p => p.nombre);
+        ev = buscar(todos);
+        if (ev) console.warn(`⚠️ ${ev.nombre} no figura como activo con Apto Evaluaciones; se usa igual para la prueba.`);
+        else {
+            console.warn('No se encontró al evaluador. Evaluadores activos:', evals.map(e => e.nombre), '| Todos los docentes/usuarios:', todos.map(e => e.nombre));
+            return null;
+        }
+    }
     const inicio = new Date(Date.now() - 60 * 60 * 1000);   // hace 1 hora: la clase "ya se hizo"
     const fin = new Date(inicio.getTime() + 30 * 60 * 1000);
     const fechaTxt = inicio.toLocaleString('es-AR', { weekday: 'long', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
