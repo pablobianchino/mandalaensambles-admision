@@ -115,6 +115,56 @@ export async function desvincularEntrevistasRealizadas({ aplicar = false } = {})
 window.desvincularEntrevistasRealizadas = desvincularEntrevistasRealizadas;
 
 // =======================================================================
+// ALUMNO DE PRUEBA en Inbox > Confirmadas (para probar el informe de clase de admisión y su borrador).
+// Crea UNA ficha marcada `es_prueba: true`, sin evento de Google Calendar. Por defecto el evaluador es Ariel Bianchino.
+// Uso (admin logueado, consola):  await window.crearAlumnoPruebaConfirmado()
+//                                  await window.eliminarAlumnosPrueba()   -> borra solo fichas con es_prueba:true
+// =======================================================================
+export async function crearAlumnoPruebaConfirmado({ evaluador = 'ariel bianchino' } = {}) {
+    const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+    const evals = await window.obtenerListaEvaluadoresActivos();
+    const ev = evals.find(e => norm(e.nombre) === norm(evaluador)) || evals.find(e => norm(e.nombre).includes(norm(evaluador)));
+    if (!ev) { console.warn('No se encontró el evaluador. Disponibles:', evals.map(e => e.nombre)); return null; }
+    const inicio = new Date(Date.now() - 60 * 60 * 1000);   // hace 1 hora: la clase "ya se hizo"
+    const fin = new Date(inicio.getTime() + 30 * 60 * 1000);
+    const fechaTxt = inicio.toLocaleString('es-AR', { weekday: 'long', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const hist = [];
+    if (window.crearEntradaHistorial) hist.push(window.crearEntradaHistorial('Alumno de PRUEBA creado para probar el informe de clase de admisión.', 'sistema', 'Sistema'));
+    const data = {
+        nombre: 'PRUEBA Borrador Informe',
+        edad: 25,
+        telefono: '0000000000',
+        email: 'prueba.borrador@example.com',
+        instrumento: ['Guitarra'],
+        instrumento_principal: 'Guitarra',
+        instrumentos_secundarios: [],
+        tipo_suscripcion: 'Clase Individual Quincenal',
+        estado_agenda: 'Agenda confirmada',
+        reserva_profe_id: ev.id,
+        reserva_profe_nombre: ev.nombre,
+        reserva_inicio: inicio.toISOString(),
+        reserva_fin: fin.toISOString(),
+        reserva_fecha_texto: fechaTxt,
+        id_evento_reserva: null,
+        es_prueba: true,
+        historial: hist
+    };
+    const ref = await addDoc(collection(db, "alumnos"), data);
+    console.log(`✅ Alumno de prueba creado (id ${ref.id}) con evaluador ${ev.nombre}. Recargá la app y buscalo en Inbox > Confirmadas.`);
+    return ref.id;
+}
+window.crearAlumnoPruebaConfirmado = crearAlumnoPruebaConfirmado;
+
+export async function eliminarAlumnosPrueba() {
+    const snap = await getDocs(collection(db, "alumnos"));
+    const pruebas = snap.docs.filter(d => d.data().es_prueba === true);
+    for (const d of pruebas) await deleteDoc(doc(db, "alumnos", d.id));
+    console.log(`🗑️ ${pruebas.length} alumno(s) de prueba eliminados.`);
+    return pruebas.length;
+}
+window.eliminarAlumnosPrueba = eliminarAlumnosPrueba;
+
+// =======================================================================
 // CORRECCIÓN DE TEXTOS DE MENSAJES YA GUARDADOS EN CONFIGURACIÓN (configuracion/general)
 // Aplica solo reemplazos puntuales (conserva cualquier otra personalización) y es idempotente.
 // Uso (admin logueado, consola):  await window.corregirTextosMensajes()              -> simulacro
