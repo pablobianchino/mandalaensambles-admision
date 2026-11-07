@@ -231,10 +231,8 @@ export function generarBotonesPrincipalesVisibles(al, id) {
         html += `<button type="button" class="row-quick-btn secondary btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
     } else if (est === 'agenda confirmada' || est === 'entrevista confirmada' || est.startsWith('entrevista')) {
         html += `<button type="button" class="row-quick-btn primary btn-admision-finalizada" data-id="${id}">${al.informe_borrador ? '📝 Continuar Informe (borrador)' : '🏁 Finalizar Admisión'}</button>`;
-        // Con borrador del informe la clase de admisión ya se hizo: no se puede re-agendar
-        if (!al.informe_borrador) {
-            html += `<button type="button" class="row-quick-btn secondary btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
-        }
+        // Re-Agendar siempre visible: si la clase no se hizo (faltó alumno o evaluador) se reprograma
+        html += `<button type="button" class="row-quick-btn secondary btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
     } else if (est === 'agenda suspendida') {
         html += `<button type="button" class="row-quick-btn primary btn-recuperar-agenda" data-id="${id}">♻️ Recuperar Agenda</button>`;
     } else if (est === 'lista de espera') {
@@ -345,10 +343,8 @@ export function generarBotonesAccion(al, id, esModal = false, vista = '') {
         html += `<button type="button" class="${btnClass()} btn-enviar-conf-alumno" data-id="${id}">💬 Avisar a Alumno</button>`;
         html += `<button type="button" class="${btnClass()} btn-enviar-conf-profe" data-id="${id}">💬 Avisar a Evaluador</button>`;
         html += `<button type="button" class="${btnClass()} btn-copiar-facturacion-admision" data-id="${id}">💰 Copiar Facturación</button>`;
-        // Con borrador del informe la clase de admisión ya se hizo: no se puede re-agendar, cancelar ni suspender
-        if (!al.informe_borrador) {
-            html += `<button type="button" class="${btnClass()} btn-buscar-agenda" data-id="${id}">🗓️ Re-Agendar</button>`;
-        }
+        // Re-Agendar siempre visible. Con borrador del informe la clase ya se hizo: no se puede cancelar ni suspender
+        html += `<button type="button" class="${btnClass()} btn-buscar-agenda" data-id="${id}">🗓️ Re-Agendar</button>`;
         if (esAdmin) {
             html += `<button type="button" class="${btnClass()} btn-auditar-cal-directo" data-id="${id}">🔍 Auditar calendario</button>`;
         }
