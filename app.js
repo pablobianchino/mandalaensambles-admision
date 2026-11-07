@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.14";
+} from "./src/config/constants.js?v=7.15";
 
 import { 
     app, 
@@ -124,11 +124,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=7.14";
+} from "./src/modules/match.module.js?v=7.15";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=7.14";
+} from "./src/modules/profesor.module.js?v=7.15";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -157,14 +157,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=7.14";
+} from "./src/modules/altas.module.js?v=7.15";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=7.14";
+} from "./src/modules/dashboard.module.js?v=7.15";
 
 import {
     renderConfigHub,
@@ -173,20 +173,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.14";
+} from "./src/modules/abm.module.js?v=7.15";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.14";
+} from "./src/modules/inbox.module.js?v=7.15";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=7.14";
+} from "./src/modules/csv.module.js?v=7.15";
 
 import {
     inicializarMotorRecordatorios,
@@ -206,7 +206,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.14";
+} from "./src/modules/recordatorios.module.js?v=7.15";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -11235,7 +11235,7 @@ document.addEventListener('click', async (e) => {
                 if (elEvalTop) elEvalTop.textContent = al.reserva_profe_nombre || al.informe_entrevista?.evaluador_nombre || '-';
 }
 
-            // Borrador (v7.14): solo en el flujo de admisión (primer informe, aún no finalizado)
+            // Borrador (v7.15): solo en el flujo de admisión (primer informe, aún no finalizado)
             const esFlujoAdmision = !esNuevoInformeAdicional && !(reportIndexAttr !== null && reportIndexAttr !== '' && !isNaN(parseInt(reportIndexAttr, 10))) && !al.informe_entrevista;
             const dr = (esFlujoAdmision && al.informe_borrador && al.informe_borrador.datos) ? al.informe_borrador.datos : null;
             if (dr) {
@@ -11524,7 +11524,7 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    // Guardar borrador del informe de clase de admisión (v7.14): sin validaciones, no cambia el estado del alumno
+    // Guardar borrador del informe de clase de admisión (v7.15): sin validaciones, no cambia el estado del alumno
     if (target.id === 'btn-guardar-borrador-informe' || target.closest('#btn-guardar-borrador-informe')) {
         const btnBor = document.getElementById('btn-guardar-borrador-informe');
         const id = document.getElementById('informe-final-alumno-id').value;
@@ -12566,10 +12566,13 @@ document.addEventListener('click', async (e) => {
 }
 }
 
-            // La disponibilidad habitual de los evaluadores queda en un desplegable cerrado (ocupa menos pantalla)
-            function envolverDisponibilidadAgenda(box, resumenTxt) {
-                const interior = box.innerHTML;
-                box.innerHTML = `<details class="agenda-disp-desplegable" style="width:100%;"><summary>${resumenTxt}</summary><div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">${interior}</div></details>`;
+            // Disponibilidad habitual de los evaluadores: una tarjeta por evaluador con su semana (igual que la del alumno).
+            // Los días en que el alumno también puede se resaltan. Va dentro de un desplegable cerrado.
+            function formatearRangoEvaluadorAgenda(txt) {
+                const t = String(txt || '').trim();
+                if (t === 'Libre') return 'Todo el día';
+                if (t === 'Flex') return 'Flexible';
+                return t.replace(/\s*-\s*/g, '–').replace(/(^|–)0(\d:)/g, (m0, a, b) => (b === '0:' && a === '–') ? m0 : a + b);
             }
 
             function actualizarPanelProfeAgenda() {
@@ -12580,114 +12583,47 @@ document.addEventListener('click', async (e) => {
 
                 const selectedIds = Array.from(selectProfe.selectedOptions).map(o => o.value).filter(v => v);
                 const profesSeleccionados = selectedIds.map(pId => window._mapaProfesoresAgenda?.[pId]).filter(p => p && p.disponibilidad);
-                
-                if (profesSeleccionados.length === 1) {
-                    const profe = profesSeleccionados[0];
-                    profesorSeleccionadoActivo = profe;
-                    box.style.display = 'flex';
-                    box.className = 'profe-schedule-agenda-box';
 
-                    const diasMatch = [];
-                    const pDisp = profe.disponibilidad || {};
-
-                    const pillsHtml = diasOrdenAgenda.map(d => {
-                        const pRangos = normalizarRangosTexto(pDisp[d.key]);
-                        if (pRangos.length === 0) return '';
-                        const alTieneDia = normalizarRangosTexto(disp[d.key]).length > 0;
-                        if (alTieneDia) diasMatch.push(d.label);
-
-                        return `
-                            <div class="profe-schedule-pill ${alTieneDia ? 'is-match' : ''}">
-                                <strong>${d.label}:</strong> ${pRangos.join(', ')}
-                            </div>
-                        `;
-}).filter(x => x).join('');
-
-                    box.innerHTML = `
-                        <div class="profe-schedule-agenda-header">
-                            <div style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:800; color:#0369a1;">
-                                <span>👤</span>
-                                <span>Disponibilidad habitual de <strong>${profe.nombre}</strong> (según Config):</span>
-                            </div>
-                            ${diasMatch.length > 0 ? `
-                                <span style="font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:12px; background:#e0f2fe; color:#0284c7; border:1px solid #7dd3fc;">⚡ Coincide en ${diasMatch.join(', ')}</span>
-                            ` : `
-                                <span style="font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:12px; background:#fef2f2; color:#ef4444; border:1px solid #fca5a5;">⚠️ Sin coincidencia directa de días</span>
-                            `}
-                        </div>
-                        <div style="display:flex; flex-wrap:wrap; gap:5px;">
-                            ${pillsHtml || '<div style="font-size:11.5px; color:#64748b;">Sin franjas horarias cargadas en Config.</div>'}
-                        </div>
-                    `;
-
-                    envolverDisponibilidadAgenda(box, `Ver disponibilidad habitual de ${profe.nombre}` + (diasMatch.length ? ` · coincide en ${diasMatch.join(', ')}` : ' · sin coincidencia directa'));
-                    renderResumenAlumnoAgenda(profe);
-                    return;
-}
-
-                if (profesSeleccionados.length > 1) {
+                if (profesSeleccionados.length === 0) {
+                    box.style.display = 'none';
                     profesorSeleccionadoActivo = null;
-                    box.style.display = 'flex';
-                    box.className = 'profe-schedule-agenda-box';
-
-                    const cardsHtml = profesSeleccionados.map(profe => {
-                        const diasMatch = [];
-                        const pDisp = profe.disponibilidad || {};
-
-                        const pillsHtml = diasOrdenAgenda.map(d => {
-                            const pRangos = normalizarRangosTexto(pDisp[d.key]);
-                            if (pRangos.length === 0) return '';
-                            const alTieneDia = normalizarRangosTexto(disp[d.key]).length > 0;
-                            if (alTieneDia) diasMatch.push(d.label);
-
-                            return `
-                                <div class="profe-schedule-pill ${alTieneDia ? 'is-match' : ''}">
-                                    <strong>${d.label}:</strong> ${pRangos.join(', ')}
-                                </div>
-                            `;
-}).filter(x => x).join('');
-
-                        return `
-                            <div class="profe-schedule-multi-card">
-                                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-                                    <div style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:800; color:#0369a1;">
-                                        <span>👤</span>
-                                        <span>Disponibilidad de <strong>${profe.nombre}</strong>:</span>
-                                    </div>
-                                    ${diasMatch.length > 0 ? `
-                                        <span style="font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:12px; background:#e0f2fe; color:#0284c7; border:1px solid #7dd3fc;">⚡ Coincide en ${diasMatch.join(', ')}</span>
-                                    ` : `
-                                        <span style="font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:12px; background:#fef2f2; color:#ef4444; border:1px solid #fca5a5;">⚠️ Sin coincidencia directa</span>
-                                    `}
-                                </div>
-                                <div style="display:flex; flex-wrap:wrap; gap:5px; margin-top:2px;">
-                                    ${pillsHtml || '<div style="font-size:11.5px; color:#64748b;">Sin franjas horarias cargadas en Config.</div>'}
-                                </div>
-                            </div>
-                        `;
-}).join('');
-
-                    box.innerHTML = `
-                        <div class="profe-schedule-agenda-header">
-                            <div style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:800; color:#0369a1;">
-                                <span>👥</span>
-                                <span>Disponibilidad habitual de los <strong>${profesSeleccionados.length} evaluadores seleccionados</strong> (según Config):</span>
-                            </div>
-                        </div>
-                        <div style="display:flex; flex-direction:column; gap:8px;">
-                            ${cardsHtml}
-                        </div>
-                    `;
-
-                    envolverDisponibilidadAgenda(box, `Ver disponibilidad habitual de los ${profesSeleccionados.length} evaluadores seleccionados`);
-                    renderResumenAlumnoAgenda(profesSeleccionados);
+                    renderResumenAlumnoAgenda(null);
                     return;
-}
+                }
 
-                box.style.display = 'none';
-                profesorSeleccionadoActivo = null;
-                renderResumenAlumnoAgenda(null);
-}
+                profesorSeleccionadoActivo = profesSeleccionados.length === 1 ? profesSeleccionados[0] : null;
+                box.style.display = 'flex';
+                box.className = 'profe-schedule-agenda-box';
+
+                const escDisp = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+                const tarjetas = profesSeleccionados.map(profe => {
+                    const pDisp = profe.disponibilidad || {};
+                    const diasMatch = [];
+                    const celdas = diasOrdenAgenda.map(d => {
+                        const pRangos = normalizarRangosTexto(pDisp[d.key]).map(formatearRangoEvaluadorAgenda);
+                        const alTieneDia = normalizarRangosTexto(disp[d.key]).length > 0;
+                        const coincide = alTieneDia && pRangos.length > 0;
+                        if (coincide) diasMatch.push(d.label);
+                        return '<div class="eval-dia' + (pRangos.length ? ' on' : '') + (coincide ? ' match' : '') + '">' +
+                            '<b>' + d.label + '</b>' +
+                            (pRangos.length ? pRangos.map(r => '<span>' + escDisp(r) + '</span>').join('') : '<span class="vacio">—</span>') +
+                            '</div>';
+                    }).join('');
+                    return '<div class="eval-tarjeta">' +
+                        '<div class="eval-tarjeta-head"><strong>' + escDisp(profe.nombre) + '</strong>' +
+                        '<span>' + (diasMatch.length ? 'Coincide con el alumno: <b>' + diasMatch.join(', ') + '</b>' : '<b style="color:#b91c1c;">Sin días en común con el alumno</b>') + '</span></div>' +
+                        '<div class="eval-semana">' + celdas + '</div></div>';
+                }).join('');
+
+                const titulo = profesSeleccionados.length === 1
+                    ? 'Disponibilidad habitual de ' + escDisp(profesSeleccionados[0].nombre)
+                    : 'Disponibilidad habitual de los ' + profesSeleccionados.length + ' evaluadores';
+                box.innerHTML = '<details class="agenda-disp-desplegable" style="width:100%;"><summary>' + titulo + '</summary>' +
+                    '<div style="margin-top:8px;">' + tarjetas +
+                    '<div class="eval-leyenda"><i></i>Día en que el alumno también puede</div></div></details>';
+
+                renderResumenAlumnoAgenda(profesSeleccionados.length === 1 ? profesSeleccionados[0] : profesSeleccionados);
+            }
 
             async function refrescarProfesoresEntrevista(instrumentoSeleccionado) {
                 const selectProfe = document.getElementById('agenda-profe-filtro');

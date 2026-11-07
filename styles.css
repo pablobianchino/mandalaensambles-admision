@@ -4792,3 +4792,17 @@ details.agenda-disp-desplegable > summary { cursor: pointer; font-weight: 700; f
 details.agenda-disp-desplegable > summary::-webkit-details-marker { display: none; }
 details.agenda-disp-desplegable > summary::before { content: '▸ '; }
 details.agenda-disp-desplegable[open] > summary::before { content: '▾ '; }
+/* Disponibilidad habitual: una tarjeta por evaluador (v7.15) */
+.eval-tarjeta { border: 1px solid var(--border-color); border-radius: 10px; padding: 10px; margin-bottom: 8px; background: #fff; }
+.eval-tarjeta-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: 13px; }
+.eval-tarjeta-head span { font-size: 11.5px; color: var(--text-muted); font-weight: 600; }
+.eval-semana { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+.eval-dia { border: 1px solid var(--border-color); border-radius: 8px; padding: 5px 2px; text-align: center; font-size: 10.5px; color: #999; min-height: 58px; }
+.eval-dia b { display: block; font-size: 11px; color: #777; margin-bottom: 3px; }
+.eval-dia span { display: block; line-height: 1.35; }
+.eval-dia.on { color: var(--text-main); }
+.eval-dia.on b { color: var(--text-main); }
+.eval-dia.match { background: #dbeafe; border-color: #2563eb; }
+.eval-leyenda { font-size: 11.5px; color: var(--text-muted); margin-top: 6px; }
+.eval-leyenda i { display: inline-block; width: 12px; height: 12px; background: #dbeafe; border: 1px solid #2563eb; border-radius: 3px; vertical-align: -2px; margin-right: 4px; }
+@media (max-width: 420px) { .eval-dia { font-size: 9.5px; } .eval-dia b { font-size: 10px; } }
