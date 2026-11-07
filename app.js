@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.9.21";
+} from "./src/config/constants.js?v=7.10.0";
 
 import { 
     app, 
@@ -124,11 +124,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=7.9.21";
+} from "./src/modules/match.module.js?v=7.10.0";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=7.9.21";
+} from "./src/modules/profesor.module.js?v=7.10.0";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -157,14 +157,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=7.9.21";
+} from "./src/modules/altas.module.js?v=7.10.0";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=7.9.21";
+} from "./src/modules/dashboard.module.js?v=7.10.0";
 
 import {
     renderConfigHub,
@@ -173,20 +173,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.9.21";
+} from "./src/modules/abm.module.js?v=7.10.0";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.9.21";
+} from "./src/modules/inbox.module.js?v=7.10.0";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=7.9.21";
+} from "./src/modules/csv.module.js?v=7.10.0";
 
 import {
     inicializarMotorRecordatorios,
@@ -206,7 +206,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.9.21";
+} from "./src/modules/recordatorios.module.js?v=7.10.0";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -4273,7 +4273,7 @@ export function obtenerEvaluadorAlumno(al) {
     if (Array.isArray(al.historial)) {
         for (let h of al.historial) {
             const txt = typeof h === 'string' ? h : (h.texto || '');
-            const m = txt.match(/(?:Entrevista agendada|Clase de admisión agendada|Propuesta de horario|Informe de Entrevista).*?con\s+([A-Za-zÁÉÍÓÚáéíóúñÑ\s]+?)(?:\.|\s+enviada|\s+agendada|\s+para)/i);
+            const m = txt.match(/(?:Entrevista agendada|Clase de admisión agendada|Propuesta de horario|Informe de Entrevista|Informe de Clase de Admisión).*?con\s+([A-Za-zÁÉÍÓÚáéíóúñÑ\s]+?)(?:\.|\s+enviada|\s+agendada|\s+para)/i);
             if (m && m[1]) {
                 const cand = m[1].trim();
                 if (!cand.toLowerCase().includes('google') && !cand.toLowerCase().includes('calendar') && !cand.toLowerCase().includes('admin')) {
@@ -6806,7 +6806,7 @@ export async function sanearDatosCasosPuntuales(alumnos) {
 } else if (Array.isArray(al.historial)) {
                 for (let h of al.historial) {
                     const txt = typeof h === 'string' ? h : (h.texto || '');
-                    const m = txt.match(/(?:Entrevista agendada|Clase de admisión agendada|Propuesta de horario|Informe de Entrevista).*?con\s+([A-Za-zÁÉÍÓÚáéíóúñÑ\s]+?)(?:\.|\s+para|\s+enviada|\s+agendada)/i);
+                    const m = txt.match(/(?:Entrevista agendada|Clase de admisión agendada|Propuesta de horario|Informe de Entrevista|Informe de Clase de Admisión).*?con\s+([A-Za-zÁÉÍÓÚáéíóúñÑ\s]+?)(?:\.|\s+para|\s+enviada|\s+agendada)/i);
                     if (m && m[1]) {
                         const cand = m[1].trim();
                         if (!cand.toLowerCase().includes('admin') && !cand.toLowerCase().includes('calendar') && !cand.toLowerCase().includes('google')) {
@@ -11217,6 +11217,27 @@ document.addEventListener('click', async (e) => {
                 if (elEvalTop) elEvalTop.textContent = al.reserva_profe_nombre || al.informe_entrevista?.evaluador_nombre || '-';
 }
 
+            // Borrador (v7.10.0): solo en el flujo de admisión (primer informe, aún no finalizado)
+            const esFlujoAdmision = !esNuevoInformeAdicional && !(reportIndexAttr !== null && reportIndexAttr !== '' && !isNaN(parseInt(reportIndexAttr, 10))) && !al.informe_entrevista;
+            const dr = (esFlujoAdmision && al.informe_borrador && al.informe_borrador.datos) ? al.informe_borrador.datos : null;
+            if (dr) {
+                inf = dr;
+                esNuevoInforme = false;
+            }
+            const btnBorradorInf = document.getElementById('btn-guardar-borrador-informe');
+            if (btnBorradorInf) btnBorradorInf.style.display = esFlujoAdmision ? '' : 'none';
+            const avisoBorradorInf = document.getElementById('inf-borrador-aviso');
+            if (avisoBorradorInf) {
+                if (dr) {
+                    const cuando = al.informe_borrador.fecha_actualizacion ? formatearFechaHoraEstandar(al.informe_borrador.fecha_actualizacion) : '';
+                    const quien = al.informe_borrador.guardado_por ? ` por ${al.informe_borrador.guardado_por}` : '';
+                    avisoBorradorInf.textContent = `📝 Borrador guardado${cuando ? ' el ' + cuando : ''}${quien}. Completá los campos obligatorios para poder finalizar la admisión.`;
+                    avisoBorradorInf.style.display = 'block';
+                } else {
+                    avisoBorradorInf.style.display = 'none';
+                }
+            }
+
             // 1. Cabecera Pre-cargada y Editable
             const inpNombre = document.getElementById('inf-nombre');
             const inpEdad = document.getElementById('inf-edad');
@@ -11225,17 +11246,17 @@ document.addEventListener('click', async (e) => {
             const selSusc = document.getElementById('inf-suscripcion');
             const selNivel = document.getElementById('inf-nivel');
 
-            if (inpNombre) inpNombre.value = al.nombre || '';
-            if (inpEdad) inpEdad.value = al.edad || '';
-            if (inpZona) inpZona.value = al.zona_vive || al.zona || al.barrio || inf.zona_vive || inf.zona || '';
-            if (inpProf) inpProf.value = al.profesion || inf.profesion || '';
+            if (inpNombre) inpNombre.value = dr ? (dr.nombre || '') : (al.nombre || '');
+            if (inpEdad) inpEdad.value = dr ? (dr.edad || '') : (al.edad || '');
+            if (inpZona) inpZona.value = dr ? (dr.zona_vive || '') : (al.zona_vive || al.zona || al.barrio || inf.zona_vive || inf.zona || '');
+            if (inpProf) inpProf.value = dr ? (dr.profesion || '') : (al.profesion || inf.profesion || '');
 
             // Cargar select multi-instrumentos
             const selInst = document.getElementById('inf-instrumento');
             if (selInst) {
                 selInst.innerHTML = '';
                 const listaInst = (configApp && configApp.instrumentos) || ["Guitarra", "Bajo", "Batería", "Teclado", "Canto", "Saxo", "Violín", "Ukelele"];
-                const alInsts = Array.isArray(al.instrumento) ? al.instrumento : (al.instrumento ? [al.instrumento] : []);
+                const alInsts = dr ? (Array.isArray(dr.instrumentos) ? dr.instrumentos : []) : (Array.isArray(al.instrumento) ? al.instrumento : (al.instrumento ? [al.instrumento] : []));
                 listaInst.forEach(inst => {
                     const opt = document.createElement('option');
                     opt.value = inst;
@@ -11256,7 +11277,7 @@ document.addEventListener('click', async (e) => {
                     "Clase Individual Quincenal", 
                     "Clase Individual Full Pack"
                 ];
-                let suscAlumno = (al.tipo_suscripcion || '').trim();
+                let suscAlumno = ((dr ? dr.suscripcion : al.tipo_suscripcion) || '').trim();
                 const suscAlumnoNorm = suscAlumno.toLowerCase();
                 if (suscAlumnoNorm === 'clases grupales') {
                     suscAlumno = 'Clase Grupal';
@@ -11282,7 +11303,7 @@ document.addEventListener('click', async (e) => {
 }
 
             if (selNivel) {
-                selNivel.value = al.nivel || inf.nivel_asignado || '';
+                selNivel.value = dr ? (dr.nivel_asignado || '') : (al.nivel || inf.nivel_asignado || '');
                 selNivel.onchange = () => actualizarCondicionalesPunto3();
 }
 
@@ -11429,7 +11450,7 @@ document.addEventListener('click', async (e) => {
 
             // 6. Bloque 5: Disponibilidad Horaria
             renderContenedorDisponibilidad('informe-disp-container', false);
-            poblarDisponibilidadMultiRango(al.disponibilidad || {}, 'informe-disp-container');
+            poblarDisponibilidadMultiRango((dr && dr.disponibilidad) || al.disponibilidad || {}, 'informe-disp-container');
 
             // Abrir todos los acordeones por defecto
             [1, 2, 3, 4, 5].forEach(n => {
@@ -11456,13 +11477,98 @@ document.addEventListener('click', async (e) => {
         return; 
 }
     
+    // Guardar borrador del informe de clase de admisión (v7.10.0): sin validaciones, no cambia el estado del alumno
+    if (target.id === 'btn-guardar-borrador-informe' || target.closest('#btn-guardar-borrador-informe')) {
+        const btnBor = document.getElementById('btn-guardar-borrador-informe');
+        const id = document.getElementById('informe-final-alumno-id').value;
+        if (!id) return;
+        if (id === 'test-mateo-eval') {
+            window._modalEditandoModificado = false;
+            window._fichaAlumnoModificada = false;
+            document.getElementById('modal-informe-admision').close();
+            alert("✅ Borrador de prueba simulado guardado.");
+            return;
+        }
+        const edadTxt = document.getElementById('inf-edad').value.trim();
+        const selInstB = document.getElementById('inf-instrumento');
+        const cardCantB = document.getElementById('inf-card-cantante');
+        const tecnicaB = (cardCantB && cardCantB.style.display !== 'none') ? {
+            genero: cantoGeneroVocalActual || 'fem',
+            pecho_desde: document.getElementById('canto-pecho-desde')?.value || '',
+            pecho_hasta: document.getElementById('canto-pecho-hasta')?.value || '',
+            cabeza_desde: document.getElementById('canto-cabeza-desde')?.value || '',
+            cabeza_hasta: document.getElementById('canto-cabeza-hasta')?.value || '',
+            mixta_desde: document.getElementById('canto-mixta-desde')?.value || '',
+            mixta_hasta: document.getElementById('canto-mixta-hasta')?.value || '',
+            mixta_pasaje: document.getElementById('canto-mixta-pasaje')?.value || '',
+            mixta_cualidad: cantoCualidadMixta || '',
+            frito_vocal: cantoFritoVocal || 'sin_evaluar',
+            observaciones: document.getElementById('canto-obs-vocales')?.value.trim() || ''
+        } : null;
+        const datosBorrador = {
+            nombre: document.getElementById('inf-nombre').value.trim(),
+            edad: edadTxt ? parseInt(edadTxt, 10) : '',
+            suscripcion: document.getElementById('inf-suscripcion').value || '',
+            instrumentos: selInstB ? Array.from(selInstB.selectedOptions).map(o => o.value) : [],
+            disponibilidad: extraerDisponibilidadMultiRango('informe-disp-container') || {},
+            nivel_asignado: document.getElementById('inf-nivel').value || '',
+            zona_vive: (document.getElementById('inf-zona')?.value || '').trim(),
+            profesion: document.getElementById('inf-profesion').value.trim(),
+            motivacion_expectativas: quillInfMotivacion ? quillInfMotivacion.root.innerHTML.trim() : '',
+            propuesta_mandala_acordada: document.getElementById('inf-chk-propuesta').checked,
+            diagnostico_tecnico: quillInfDiagnostico ? quillInfDiagnostico.root.innerHTML.trim() : '',
+            artistas_estilos: document.getElementById('inf-artistas').value.trim(),
+            perfil_psicoemocional_detalle: quillInfPsicoemocional ? quillInfPsicoemocional.root.innerHTML.trim() : '',
+            perfil_psicologico: getPerfilPsicologicoSeleccionado('informe-perfil-psicologico-chips') || [],
+            disp_compartir_cantante: document.getElementById('inf-cantante-voces').value || '',
+            cambio_tonalidades: document.getElementById('inf-cambio-tonalidades').value || '',
+            tecnica_canto: tecnicaB,
+            requisitos_aceptados: document.getElementById('inf-chk-requisitos').checked,
+            cierre_espera_notificado: document.getElementById('inf-chk-cierre').checked
+        };
+        setBotonCargando(btnBor, true);
+        try {
+            const alDocB = await getDoc(doc(db, "alumnos", id));
+            const alB = alDocB.exists() ? alDocB.data() : {};
+            if (alB.informe_entrevista || (Array.isArray(alB.informes_entrevista) && alB.informes_entrevista.length > 0)) {
+                alert("Este alumno ya tiene un informe finalizado: el borrador no aplica.");
+                setBotonCargando(btnBor, false);
+                return;
+            }
+            const histB = alB.historial || [];
+            histB.push(crearEntradaHistorial('Borrador del informe de clase de admisión guardado.', 'informe'));
+            const payloadB = {
+                informe_borrador: {
+                    datos: datosBorrador,
+                    fecha_actualizacion: new Date().toISOString(),
+                    guardado_por: window.usuarioActual?.nombre || window.usuarioActual?.email || ''
+                },
+                historial: histB
+            };
+            actualizarAlumnoEnMemoriaLocal(id, payloadB);
+            await updateDoc(doc(db, "alumnos", id), payloadB);
+            window._modalEditandoModificado = false;
+            window._fichaAlumnoModificada = false;
+            const modalB = document.getElementById('modal-informe-admision');
+            if (modalB) { modalB.dataset.retornoAlumnoId = ''; modalB.dataset.modificado = 'false'; modalB.close(); }
+            const avisoAudio = infAudioState.blob ? '\nOjo: el audio grabado o cargado todavía NO se guardó; hay que volver a cargarlo al retomar.' : '';
+            alert("💾 Borrador guardado.\nEl alumno sigue en su etapa actual; podés retomar el informe cuando quieras con «Continuar informe».\nHasta completar los campos obligatorios no se puede finalizar la admisión." + avisoAudio);
+            await cargarVista(estadoActualVista, false);
+        } catch (errB) {
+            console.error("Error al guardar borrador:", errB);
+            alert("Error al guardar el borrador: " + errB.message);
+        }
+        setBotonCargando(btnBor, false);
+        return;
+    }
+
     if (target.id === 'btn-guardar-informe-final') {
         const id = document.getElementById('informe-final-alumno-id').value;
         if (id === 'test-mateo-eval') {
             window._modalEditandoModificado = false;
             window._fichaAlumnoModificada = false;
             document.getElementById('modal-informe-admision').close();
-            alert("✅ ¡Informe de prueba simulado guardado con éxito!\n\nEn un caso real con alumno oficial, la entrevista quedaría registrada y el alumno pasaría a Lista de Espera.");
+            alert("✅ ¡Informe de prueba simulado guardado con éxito!\n\nEn un caso real con alumno oficial, el informe quedaría registrado y el alumno pasaría a Lista de Espera.");
             return;
 }
         const repIdx = document.getElementById('informe-final-report-index')?.value || '';
@@ -11584,7 +11690,7 @@ document.addEventListener('click', async (e) => {
             manualEvalNom = selManEval?.value.trim();
             manualEvalId = selManEval?.selectedOptions[0]?.dataset?.profeId || '';
             if (!manualFecha || !manualEvalNom) {
-                alert("⚠️ Debe ingresar la fecha y seleccionar el evaluador para la nueva entrevista.");
+                alert("⚠️ Debe ingresar la fecha y seleccionar el evaluador para la nueva clase de admisión.");
                 return;
 }
 }
@@ -11605,7 +11711,7 @@ document.addEventListener('click', async (e) => {
             const tagsTxt = ` [Perfil: ${tags.join(', ')}]`;
             const dispTxt = cambioDisp ? ' • Disponibilidad horaria actualizada.' : '';
             const nivelTxt = nivel !== al.nivel ? ` • Nivel asignado: ${nivel}.` : '';
-            const tipoHistTxt = repIdx === 'nuevo' ? 'Nuevo informe adicional de entrevista registrado' : 'Informe de Entrevista registrado/actualizado';
+            const tipoHistTxt = repIdx === 'nuevo' ? 'Nuevo informe adicional de clase de admisión registrado' : 'Informe de Clase de Admisión registrado/actualizado';
             hist.push(crearEntradaHistorial(`${tipoHistTxt}.${nivelTxt}${tagsTxt}${dispTxt} Alumno en Lista de Espera.`, 'informe'));
             
             let arrInformes = Array.isArray(al.informes_entrevista) ? [...al.informes_entrevista] : (al.informe_entrevista ? [al.informe_entrevista] : []);
@@ -11694,6 +11800,7 @@ document.addEventListener('click', async (e) => {
                 nivel: nivel,
                 informe_entrevista: arrInformes[0],
                 informes_entrevista: arrInformes,
+                informe_borrador: null, // el informe quedó completo: se descarta el borrador
                 informe_admision: informeAdmisionTexto,
                 // La entrevista ya se realizó: se desvincula el evento de Google Calendar (queda en la
                 // agenda del evaluador como registro). Se conservan reserva_profe_*/fecha como dato histórico.
@@ -14945,7 +15052,7 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
                             ${puedeGestionarInforme ? `
                             <div style="display:flex; justify-content:flex-end; border-top:1px solid var(--border-color); padding-top:10px; margin-top:6px;">
                                 <button type="button" class="btn-app btn-secondary" onclick="window.editarInformeEspecifico('${id}', ${idx})" style="font-size:12px; font-weight:700; color:var(--accent-teal); border-color:var(--accent-teal); display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
-                                    ✏️ Editar / Actualizar Informe de Entrevista
+                                    ✏️ Editar / Actualizar Informe de Clase de Admisión
                                 </button>
                             </div>` : ''}
                         </div>
@@ -14961,7 +15068,7 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
             contStruct.innerHTML = `
                 <div style="background:var(--hover-bg); border:1px solid var(--border-color); border-radius:10px; padding:14px; display:flex; flex-direction:column; gap:10px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:8px;">
-                        <strong style="color:var(--text-main); font-size:13px;">📋 Informe de Entrevista & Nivelación</strong>
+                        <strong style="color:var(--text-main); font-size:13px;">📋 Informe de Clase de Admisión & Nivelación</strong>
                         <span class="status-badge bg-blue" style="font-size:10px;">${inf.nivel_asignado || d.nivel || 'Nivel Asignado'}</span>
                     </div>
                     

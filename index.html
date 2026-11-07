@@ -10,7 +10,7 @@
     <meta http-equiv="Expires" content="0">
     
     <link rel="icon" href="logo.png" type="image/png">
-    <link rel="manifest" href="manifest.json?v=7.9.21">
+    <link rel="manifest" href="manifest.json?v=7.10.0">
     <meta name="theme-color" content="#fbfaf8">
     <meta name="apple-mobile-web-app-title" content="MDL Admisi&oacute;n">
     <meta name="application-name" content="MDL Admisi&oacute;n">
@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=7.9.21">
+    <link rel="stylesheet" href="styles.css?v=7.10.0">
 
     <style>
         /* Estilos Críticos de Widget de Perfil y Popover Google-Style */
@@ -1206,7 +1206,7 @@
                         <div id="modal-informe-entrevista-view" style="display:flex; flex-wrap:wrap; gap:12px 24px; align-items:center; justify-content:space-between;">
                             <div style="display:flex; flex-wrap:wrap; gap:12px 24px; align-items:center;">
                                 <div>
-                                    <span style="font-size:10.5px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">📅 Fecha y Hora de Entrevista</span>
+                                    <span style="font-size:10.5px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">📅 Fecha y Hora de Clase de Admisión</span>
                                     <div id="modal-informe-fecha-val" style="font-size:13px; font-weight:700; color:var(--text-main); margin-top:2px;">-</div>
                                 </div>
                                 <div>
@@ -1221,11 +1221,11 @@
 
                         <div id="modal-informe-entrevista-edit" style="display:none; background:#fff; border:1px solid var(--accent-teal); border-radius:8px; padding:12px; flex-direction:column; gap:10px;">
                             <div style="font-size:11.5px; font-weight:800; color:var(--accent-teal); text-transform:uppercase; display:flex; align-items:center; gap:6px;">
-                                🛠️ Corrección Manual de Entrevista
+                                🛠️ Corrección Manual de Clase de Admisión
                             </div>
                             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; align-items:flex-end;">
                                 <div>
-                                    <label style="font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:4px; display:block;">📅 Fecha y Hora de Entrevista</label>
+                                    <label style="font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:4px; display:block;">📅 Fecha y Hora de Clase de Admisión</label>
                                     <input type="text" id="modal-informe-fecha-edit-input" class="modern-input" placeholder="Ej: Lunes 24/8 16:30hs" style="height:38px; padding:6px 12px; font-size:13px; font-weight:600; width:100%; box-sizing:border-box;">
                                 </div>
                                 <div>
@@ -1254,7 +1254,7 @@
                         <span style="font-size:12.5px; font-weight:800; color:var(--text-main); display:flex; align-items:center; gap:6px;">
                             <span>📑</span> Informes de Admisión Registrados (<span id="ficha-informes-count">1</span>)
                         </span>
-                        <button type="button" id="btn-sumar-otro-informe" class="btn-app btn-secondary" style="background:#f0fdf4; color:#166534; border-color:#bbf7d0; font-size:11.5px; font-weight:700; padding:4px 10px; height:30px; display:inline-flex; align-items:center; gap:6px; cursor:pointer;" title="Sumar un nuevo informe de entrevista para este alumno">
+                        <button type="button" id="btn-sumar-otro-informe" class="btn-app btn-secondary" style="background:#f0fdf4; color:#166534; border-color:#bbf7d0; font-size:11.5px; font-weight:700; padding:4px 10px; height:30px; display:inline-flex; align-items:center; gap:6px; cursor:pointer;" title="Sumar un nuevo informe de clase de admisión para este alumno">
                             ➕ Sumar Otro Informe
                         </button>
                     </div>
@@ -1263,12 +1263,12 @@
 
                     <div id="ficha-informe-btn-edit-wrapper" style="display:none; justify-content:flex-end; margin-bottom:12px;">
                         <button type="button" id="btn-editar-informe-desde-ficha" class="btn-app btn-secondary" style="font-size:12px; font-weight:700; color:var(--accent-teal); border-color:var(--accent-teal); display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
-                            ✏️ Editar / Actualizar Informe de Entrevista
+                            ✏️ Editar / Actualizar Informe de Clase de Admisión
                         </button>
                     </div>
 
                     <div id="ficha-informe-legacy-wrapper" style="display:none;">
-                        <label>Informe Post-Entrevista / Nivelación</label>
+                        <label>Informe Post-Clase de Admisión / Nivelación</label>
                         <div id="informe-editor-container" style="height: 140px; background:white; border-radius:8px; margin-bottom:15px;"></div>
                         <label style="margin-top:5px; display:block;">🧠 Perfil Psicológico / Emocional</label>
                         <div id="ficha-perfil-psicologico-chips" class="profile-tags-wrapper"></div>
@@ -1443,10 +1443,11 @@
             <!-- CAJA FECHA Y EVALUADOR SUPERIOR -->
             <input type="hidden" id="informe-final-alumno-id">
             <input type="hidden" id="informe-final-report-index" value="">
-            
+            <div id="inf-borrador-aviso" style="display:none; background:#fffbeb; border:1px solid #fcd34d; color:#92400e; border-radius:8px; padding:8px 12px; margin-bottom:12px; font-size:12.5px; font-weight:600;"></div>
+
             <div id="inf-modal-box-fecha-eval-readonly" style="background:var(--hover-bg); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; margin-bottom:14px; display:flex; flex-wrap:wrap; gap:12px 24px; align-items:center;">
                 <div>
-                    <span style="font-size:10.5px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">📅 Fecha y Hora de Entrevista</span>
+                    <span style="font-size:10.5px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">📅 Fecha y Hora de Clase de Admisión</span>
                     <div id="inf-modal-fecha-val" style="font-size:13px; font-weight:700; color:var(--text-main); margin-top:2px;">-</div>
                 </div>
                 <div>
@@ -1458,11 +1459,11 @@
             <!-- CAJA EDITABLE MANUAL CUANDO SE SUMA OTRO INFORME -->
             <div id="inf-modal-box-fecha-eval-editable" style="display:none; background:#f0fdfa; border:1px solid var(--accent-teal); border-radius:8px; padding:12px 14px; margin-bottom:14px; flex-direction:column; gap:10px;">
                 <div style="font-size:11.5px; font-weight:800; color:var(--accent-teal); text-transform:uppercase; display:flex; align-items:center; gap:6px;">
-                    ➕ Carga Manual de Entrevista Adicional
+                    ➕ Carga Manual de Clase de Admisión Adicional
                 </div>
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; align-items:flex-end;">
                     <div>
-                        <label style="font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:4px; display:block;">📅 Fecha y Hora de Entrevista <span style="color:#ef4444;">*</span></label>
+                        <label style="font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:4px; display:block;">📅 Fecha y Hora de Clase de Admisión <span style="color:#ef4444;">*</span></label>
                         <input type="text" id="inf-modal-manual-fecha" class="modern-input" placeholder="Ej: Lunes 24/8 16:30hs" style="height:38px; padding:6px 12px; font-size:13px; font-weight:600; width:100%; box-sizing:border-box;">
                     </div>
                     <div>
@@ -1573,13 +1574,13 @@
                             <div class="audio-section-header">
                                 <div class="audio-title">
                                     <span>🎙️</span>
-                                    <span>Registro de Audio de la Entrevista Técnica</span>
+                                    <span>Registro de Audio de la Clase de Admisión</span>
                                 </div>
                                 <span class="audio-badge-scope">Transversal (Para Canto o Cualquier Instrumento)</span>
                             </div>
 
                             <p style="font-size:11.5px; color:#334155; line-height:1.4; margin:0;">
-                                Graba fragmentos en vivo donde el postulante toca o canta durante la entrevista, o sube un archivo previamente grabado (.mp3, .wav, .m4a).
+                                Graba fragmentos en vivo donde el postulante toca o canta durante la clase de admisión, o sube un archivo previamente grabado (.mp3, .wav, .m4a).
                             </p>
 
                             <div class="audio-controls-grid">
@@ -1828,6 +1829,7 @@
             <!-- BOTONES DE ACCIÓN -->
             <div style="display:flex; gap:10px; justify-content:flex-end; border-top:1px solid var(--border-color); padding-top:16px; margin-top:15px; position:sticky; bottom:0; background:#fff; z-index:10;">
                 <button type="button" class="btn-cerrar-modal" data-modal="modal-informe-admision" style="padding:10px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:600; color:var(--text-muted);">Cancelar</button>
+                <button type="button" id="btn-guardar-borrador-informe" class="btn-secondary" title="Guarda lo completado hasta ahora sin finalizar la admisión. El alumno sigue en su etapa actual." style="padding:10px 16px; border:1px solid var(--accent-teal); border-radius:8px; cursor:pointer; background:#f0fdfa; font-weight:700; color:#0f766e;">💾 Guardar borrador</button>
                 <button id="btn-guardar-informe-final" class="btn-primary" style="padding:10px 20px; font-size:13.5px; font-weight:700;">✅ Guardar y Derivar a Lista de Espera</button>
             </div>
         </div>
@@ -4027,12 +4029,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=7.9.21"></script>
+    <script type="module" src="app.js?v=7.10.0"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=7.9.21').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=7.10.0').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {

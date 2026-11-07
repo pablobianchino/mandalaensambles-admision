@@ -230,7 +230,7 @@ export function generarBotonesPrincipalesVisibles(al, id) {
         html += `<button type="button" class="row-quick-btn primary btn-confirmar-entrevista" data-id="${id}">✅ Confirmar Clase de Admisión</button>`;
         html += `<button type="button" class="row-quick-btn secondary btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
     } else if (est === 'agenda confirmada' || est === 'entrevista confirmada' || est.startsWith('entrevista')) {
-        html += `<button type="button" class="row-quick-btn primary btn-admision-finalizada" data-id="${id}">🏁 Finalizar Admisión</button>`;
+        html += `<button type="button" class="row-quick-btn primary btn-admision-finalizada" data-id="${id}">${al.informe_borrador ? '📝 Continuar Informe (borrador)' : '🏁 Finalizar Admisión'}</button>`;
         html += `<button type="button" class="row-quick-btn secondary btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
     } else if (est === 'agenda suspendida') {
         html += `<button type="button" class="row-quick-btn primary btn-recuperar-agenda" data-id="${id}">♻️ Recuperar Agenda</button>`;
@@ -338,7 +338,7 @@ export function generarBotonesAccion(al, id, esModal = false, vista = '') {
     } 
     // 4. Inbox > Entrevista Confirmada
     else if (est === 'agenda confirmada' || est === 'entrevista confirmada' || est.startsWith('entrevista') || vistaActiva === 'Inbox - Confirmadas') {
-        html += `<button type="button" class="${btnClass(true)} btn-admision-finalizada" data-id="${id}">🏁 Finalizar Admisión</button>`;
+        html += `<button type="button" class="${btnClass(true)} btn-admision-finalizada" data-id="${id}">${al.informe_borrador ? '📝 Continuar Informe (borrador)' : '🏁 Finalizar Admisión'}</button>`;
         html += `<button type="button" class="${btnClass()} btn-enviar-conf-alumno" data-id="${id}">💬 Avisar a Alumno</button>`;
         html += `<button type="button" class="${btnClass()} btn-enviar-conf-profe" data-id="${id}">💬 Avisar a Evaluador</button>`;
         html += `<button type="button" class="${btnClass()} btn-copiar-facturacion-admision" data-id="${id}">💰 Copiar Facturación</button>`;
