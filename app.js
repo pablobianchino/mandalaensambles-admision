@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.11";
+} from "./src/config/constants.js?v=7.12";
 
 import { 
     app, 
@@ -124,11 +124,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=7.11";
+} from "./src/modules/match.module.js?v=7.12";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=7.11";
+} from "./src/modules/profesor.module.js?v=7.12";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -157,14 +157,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=7.11";
+} from "./src/modules/altas.module.js?v=7.12";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=7.11";
+} from "./src/modules/dashboard.module.js?v=7.12";
 
 import {
     renderConfigHub,
@@ -173,20 +173,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.11";
+} from "./src/modules/abm.module.js?v=7.12";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.11";
+} from "./src/modules/inbox.module.js?v=7.12";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=7.11";
+} from "./src/modules/csv.module.js?v=7.12";
 
 import {
     inicializarMotorRecordatorios,
@@ -206,7 +206,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.11";
+} from "./src/modules/recordatorios.module.js?v=7.12";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -1154,6 +1154,21 @@ window.mostrarModalDeteccionEventoCalendar = function({ tituloEvento = '', profe
 // PEDIR TEXTO: ventana propia de la app (reemplaza al prompt() nativo)
 // Devuelve el texto escrito, o null si se cancela.
 // ================================================================
+// Si el alumno tiene un borrador del informe, la clase de admisión ya se hizo: no se puede cancelar, re-agendar ni suspender.
+// Devuelve true (y avisa) cuando la acción debe bloquearse. Para destrabar: "Descartar borrador del informe".
+window.claseDeAdmisionYaRealizada = async function(id, accion = 'esta acción') {
+    try {
+        const s = await getDoc(doc(db, "alumnos", id));
+        if (!s.exists()) return false;
+        const d = s.data();
+        if (d.informe_borrador && !d.informe_entrevista) {
+            alert(`⚠️ No se puede usar ${accion}: ${d.nombre || 'el alumno'} ya hizo la clase de admisión (tiene un borrador del informe).\n\nCompletá el informe con "Continuar Informe". Si el borrador fue un error, usá "Descartar borrador del informe".`);
+            return true;
+        }
+    } catch (e) { console.warn('No se pudo verificar el borrador del informe:', e); }
+    return false;
+};
+
 window.pedirTexto = function(titulo, descripcion = '', opciones = {}) {
     const { placeholder = '', valorInicial = '', textoBoton = 'Aceptar', obligatorio = true, multilinea = true } = opciones;
     return new Promise((resolve) => {
@@ -5398,8 +5413,11 @@ if (btnBulkDevolver) {
 }
 
 // Botón Suspender Masivo: Alineado con modal-suspender
-document.getElementById('btn-bulk-suspender')?.addEventListener('click', () => {
+document.getElementById('btn-bulk-suspender')?.addEventListener('click', async () => {
     if (selectedBulkIds.length === 0) return;
+    for (const idSel of selectedBulkIds) {
+        if (await window.claseDeAdmisionYaRealizada(idSel, 'Suspender')) return;
+    }
     poblarSelectMotivosSuspension();
     document.getElementById('susp-alumno-id').value = 'bulk';
     document.getElementById('susp-motivo').value = '';
@@ -11217,7 +11235,7 @@ document.addEventListener('click', async (e) => {
                 if (elEvalTop) elEvalTop.textContent = al.reserva_profe_nombre || al.informe_entrevista?.evaluador_nombre || '-';
 }
 
-            // Borrador (v7.11): solo en el flujo de admisión (primer informe, aún no finalizado)
+            // Borrador (v7.12): solo en el flujo de admisión (primer informe, aún no finalizado)
             const esFlujoAdmision = !esNuevoInformeAdicional && !(reportIndexAttr !== null && reportIndexAttr !== '' && !isNaN(parseInt(reportIndexAttr, 10))) && !al.informe_entrevista;
             const dr = (esFlujoAdmision && al.informe_borrador && al.informe_borrador.datos) ? al.informe_borrador.datos : null;
             if (dr) {
@@ -11477,7 +11495,36 @@ document.addEventListener('click', async (e) => {
         return; 
 }
     
-    // Guardar borrador del informe de clase de admisión (v7.11): sin validaciones, no cambia el estado del alumno
+    // Descartar el borrador del informe (destraba Re-Agendar, Alumno Cancela y Suspender)
+    if (target.classList.contains('btn-descartar-borrador-informe') || target.closest('.btn-descartar-borrador-informe')) {
+        const btnDesc = target.closest('.btn-descartar-borrador-informe') || target;
+        const idDesc = btnDesc.getAttribute('data-id');
+        try {
+            const sDesc = await getDoc(doc(db, "alumnos", idDesc));
+            if (!sDesc.exists()) return alert("Alumno no encontrado.");
+            const dDesc = sDesc.data();
+            const okDesc = await window.confirmar(
+                `¿Descartar el borrador del informe de ${dDesc.nombre || 'este alumno'}?`,
+                'Se pierde lo que se había completado del informe. El alumno sigue en Confirmadas y vuelven a estar disponibles Re-Agendar, Alumno Cancela y Suspender.',
+                '🗑️ Descartar borrador',
+                '🗑️'
+            );
+            if (!okDesc) return;
+            const histDesc = dDesc.historial || [];
+            histDesc.push(crearEntradaHistorial('Borrador del informe de clase de admisión descartado.', 'informe'));
+            const updDesc = { informe_borrador: null, historial: histDesc };
+            actualizarAlumnoEnMemoriaLocal(idDesc, updDesc);
+            await updateDoc(doc(db, "alumnos", idDesc), updDesc);
+            await cargarVista(estadoActualVista, false);
+            mostrarToast("🗑️ Borrador descartado.", "info");
+        } catch (errDesc) {
+            console.error("Error al descartar borrador:", errDesc);
+            alert("❌ No se pudo descartar el borrador: " + errDesc.message);
+        }
+        return;
+    }
+
+    // Guardar borrador del informe de clase de admisión (v7.12): sin validaciones, no cambia el estado del alumno
     if (target.id === 'btn-guardar-borrador-informe' || target.closest('#btn-guardar-borrador-informe')) {
         const btnBor = document.getElementById('btn-guardar-borrador-informe');
         const id = document.getElementById('informe-final-alumno-id').value;
@@ -12349,7 +12396,8 @@ document.addEventListener('click', async (e) => {
 
     if (target.classList.contains('btn-buscar-agenda') || target.closest('.btn-buscar-agenda')) { 
         const btnAgenda = target.closest('.btn-buscar-agenda') || target;
-        alumnoIdActual = btnAgenda.getAttribute('data-id'); 
+        if (await window.claseDeAdmisionYaRealizada(btnAgenda.getAttribute('data-id'), 'Re-Agendar')) return;
+        alumnoIdActual = btnAgenda.getAttribute('data-id');
         const modal = document.getElementById('modal-agenda'), resDiv = document.getElementById('resultados-agenda'); 
         resDiv.innerHTML = ''; 
         const fMin = calcularFechaMinimaAgenda(new Date());
@@ -12966,7 +13014,11 @@ document.addEventListener('click', async (e) => {
             const letras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"; 
             return { letra: letras[index], profeId: chk.getAttribute('data-profeid'), profeNombre: chk.getAttribute('data-profe'), calId: chk.getAttribute('data-calid'), inicio: chk.getAttribute('data-start'), fin: chk.getAttribute('data-end'), fechaTexto: chk.getAttribute('data-fechatxt') }; 
 }); 
-        const pId = opciones[0].profeId, pNom = opciones[0].profeNombre, cId = opciones[0].calId; 
+        const evaluadoresElegidos = [...new Set(opciones.map(o => o.profeId || o.profeNombre))];
+        if (evaluadoresElegidos.length > 1) {
+            return alert("⚠️ Elegiste horarios de evaluadores distintos.\n\nUna propuesta se envía a un solo evaluador: tildá horarios de uno solo y repetí el proceso con el otro si hace falta.");
+        }
+        const pId = opciones[0].profeId, pNom = opciones[0].profeNombre, cId = opciones[0].calId;
         setBotonCargando(target, true, 'Guardando propuesta...');
         try {
             const alSnapProp = await getDoc(doc(db, "alumnos", alumnoIdActual));
@@ -13444,7 +13496,8 @@ document.addEventListener('click', async (e) => {
 }
     if (target.classList.contains('btn-cancelar-reserva') || target.classList.contains('btn-cancelar-alumno') || target.closest('.btn-cancelar-reserva') || target.closest('.btn-cancelar-alumno')) { 
         const btn = target.closest('.btn-cancelar-reserva') || target.closest('.btn-cancelar-alumno') || target;
-        const id = btn.getAttribute('data-id'); 
+        const id = btn.getAttribute('data-id');
+        if (await window.claseDeAdmisionYaRealizada(id, 'Alumno Cancela')) return;
         try {
             const alDoc = await getDoc(doc(db, "alumnos", id)); 
             if (!alDoc.exists()) return alert("Alumno no encontrado.");
@@ -13621,6 +13674,7 @@ document.addEventListener('click', async (e) => {
         target.classList.contains('btn-suspender') || target.closest('.btn-suspender') ||
         target.classList.contains('btn-suspender-espera') || target.closest('.btn-suspender-espera')) { 
         const btn = target.closest('.btn-abrir-suspender') || target.closest('.btn-suspender') || target.closest('.btn-suspender-espera') || target;
+        if (await window.claseDeAdmisionYaRealizada(btn.getAttribute('data-id'), 'Suspender')) return;
         poblarSelectMotivosSuspension();
         document.getElementById('susp-alumno-id').value = btn.getAttribute('data-id'); 
         document.getElementById('susp-modo-edicion').value = ""; 

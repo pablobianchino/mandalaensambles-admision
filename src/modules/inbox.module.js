@@ -231,7 +231,10 @@ export function generarBotonesPrincipalesVisibles(al, id) {
         html += `<button type="button" class="row-quick-btn secondary btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
     } else if (est === 'agenda confirmada' || est === 'entrevista confirmada' || est.startsWith('entrevista')) {
         html += `<button type="button" class="row-quick-btn primary btn-admision-finalizada" data-id="${id}">${al.informe_borrador ? '📝 Continuar Informe (borrador)' : '🏁 Finalizar Admisión'}</button>`;
-        html += `<button type="button" class="row-quick-btn secondary btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
+        // Con borrador del informe la clase de admisión ya se hizo: no se puede re-agendar
+        if (!al.informe_borrador) {
+            html += `<button type="button" class="row-quick-btn secondary btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
+        }
     } else if (est === 'agenda suspendida') {
         html += `<button type="button" class="row-quick-btn primary btn-recuperar-agenda" data-id="${id}">♻️ Recuperar Agenda</button>`;
     } else if (est === 'lista de espera') {
@@ -342,13 +345,22 @@ export function generarBotonesAccion(al, id, esModal = false, vista = '') {
         html += `<button type="button" class="${btnClass()} btn-enviar-conf-alumno" data-id="${id}">💬 Avisar a Alumno</button>`;
         html += `<button type="button" class="${btnClass()} btn-enviar-conf-profe" data-id="${id}">💬 Avisar a Evaluador</button>`;
         html += `<button type="button" class="${btnClass()} btn-copiar-facturacion-admision" data-id="${id}">💰 Copiar Facturación</button>`;
-        html += `<button type="button" class="${btnClass()} btn-buscar-agenda" data-id="${id}">🗓️ Re-Agendar</button>`;
+        // Con borrador del informe la clase de admisión ya se hizo: no se puede re-agendar, cancelar ni suspender
+        if (!al.informe_borrador) {
+            html += `<button type="button" class="${btnClass()} btn-buscar-agenda" data-id="${id}">🗓️ Re-Agendar</button>`;
+        }
         if (esAdmin) {
             html += `<button type="button" class="${btnClass()} btn-auditar-cal-directo" data-id="${id}">🔍 Auditar calendario</button>`;
         }
-        html += `<button type="button" class="${btnClass()} btn-cancelar-alumno" data-id="${id}">❌ Alumno Cancela</button>`;
+        if (!al.informe_borrador) {
+            html += `<button type="button" class="${btnClass()} btn-cancelar-alumno" data-id="${id}">❌ Alumno Cancela</button>`;
+        }
         html += `<button type="button" class="${btnClass()} btn-nota-rapida" data-id="${id}">📝 Agregar Nota</button>`;
-        html += `<button type="button" class="${btnClass()} btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
+        if (al.informe_borrador) {
+            html += `<button type="button" class="${btnClass()} btn-descartar-borrador-informe" data-id="${id}">🗑️ Descartar borrador del informe</button>`;
+        } else {
+            html += `<button type="button" class="${btnClass()} btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
+        }
     } 
     // 5. Lista de Espera
     else if (est === 'lista de espera' || est === 'espera' || vistaActiva === 'Lista de Espera') {
