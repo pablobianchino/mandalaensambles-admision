@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.10";
+} from "./src/config/constants.js?v=7.11";
 
 import { 
     app, 
@@ -124,11 +124,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=7.10";
+} from "./src/modules/match.module.js?v=7.11";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=7.10";
+} from "./src/modules/profesor.module.js?v=7.11";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -157,14 +157,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=7.10";
+} from "./src/modules/altas.module.js?v=7.11";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=7.10";
+} from "./src/modules/dashboard.module.js?v=7.11";
 
 import {
     renderConfigHub,
@@ -173,20 +173,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.10";
+} from "./src/modules/abm.module.js?v=7.11";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.10";
+} from "./src/modules/inbox.module.js?v=7.11";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=7.10";
+} from "./src/modules/csv.module.js?v=7.11";
 
 import {
     inicializarMotorRecordatorios,
@@ -206,7 +206,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.10";
+} from "./src/modules/recordatorios.module.js?v=7.11";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -11217,7 +11217,7 @@ document.addEventListener('click', async (e) => {
                 if (elEvalTop) elEvalTop.textContent = al.reserva_profe_nombre || al.informe_entrevista?.evaluador_nombre || '-';
 }
 
-            // Borrador (v7.10): solo en el flujo de admisión (primer informe, aún no finalizado)
+            // Borrador (v7.11): solo en el flujo de admisión (primer informe, aún no finalizado)
             const esFlujoAdmision = !esNuevoInformeAdicional && !(reportIndexAttr !== null && reportIndexAttr !== '' && !isNaN(parseInt(reportIndexAttr, 10))) && !al.informe_entrevista;
             const dr = (esFlujoAdmision && al.informe_borrador && al.informe_borrador.datos) ? al.informe_borrador.datos : null;
             if (dr) {
@@ -11477,7 +11477,7 @@ document.addEventListener('click', async (e) => {
         return; 
 }
     
-    // Guardar borrador del informe de clase de admisión (v7.10): sin validaciones, no cambia el estado del alumno
+    // Guardar borrador del informe de clase de admisión (v7.11): sin validaciones, no cambia el estado del alumno
     if (target.id === 'btn-guardar-borrador-informe' || target.closest('#btn-guardar-borrador-informe')) {
         const btnBor = document.getElementById('btn-guardar-borrador-informe');
         const id = document.getElementById('informe-final-alumno-id').value;
@@ -12967,20 +12967,22 @@ document.addEventListener('click', async (e) => {
             return { letra: letras[index], profeId: chk.getAttribute('data-profeid'), profeNombre: chk.getAttribute('data-profe'), calId: chk.getAttribute('data-calid'), inicio: chk.getAttribute('data-start'), fin: chk.getAttribute('data-end'), fechaTexto: chk.getAttribute('data-fechatxt') }; 
 }); 
         const pId = opciones[0].profeId, pNom = opciones[0].profeNombre, cId = opciones[0].calId; 
-        const al = (await getDoc(doc(db, "alumnos", alumnoIdActual))).data(); 
-        const instElegido = document.getElementById('agenda-instrumento-select')?.value || (Array.isArray(al.instrumento) ? al.instrumento[0] : (al.instrumento || ''));
-        al.instrumento_asignado = instElegido;
+        setBotonCargando(target, true, 'Guardando propuesta...');
+        try {
+            const alSnapProp = await getDoc(doc(db, "alumnos", alumnoIdActual));
+            if (!alSnapProp.exists()) throw new Error("No se encontró al alumno. Cerrá la ventana y recargá la página.");
+            const al = alSnapProp.data();
+            const instElegido = document.getElementById('agenda-instrumento-select')?.value || (Array.isArray(al.instrumento) ? al.instrumento[0] : (al.instrumento || ''));
+            al.instrumento_asignado = instElegido;
 
-        let finalTxt = ""; 
-        if (opciones.length === 1) { 
-            let data = await generarTextoConHistorial(alumnoIdActual, 'texto_profe', opciones[0].fechaTexto, pId, pNom, opciones); 
-            finalTxt = data.txt; 
-} else { 
-            let data = await generarTextoConHistorial(alumnoIdActual, 'texto_opciones_multiples', 'Varias opciones', pId, pNom, opciones); 
-            finalTxt = data.txt; 
-} 
-        setBotonCargando(target, true, 'Guardando propuesta...'); 
-        try { 
+            let finalTxt = "";
+            if (opciones.length === 1) {
+                let data = await generarTextoConHistorial(alumnoIdActual, 'texto_profe', opciones[0].fechaTexto, pId, pNom, opciones);
+                finalTxt = data.txt;
+} else {
+                let data = await generarTextoConHistorial(alumnoIdActual, 'texto_opciones_multiples', 'Varias opciones', pId, pNom, opciones);
+                finalTxt = data.txt;
+}
             const fechaTxtFinal = opciones.length === 1 ? opciones[0].fechaTexto : 'Varias opciones';
             const hist = al.historial || [];
             hist.push(crearEntradaHistorial(`Propuesta de horario (${fechaTxtFinal}) con ${pNom} enviada a evaluador.`, 'agenda'));
@@ -13005,11 +13007,15 @@ document.addEventListener('click', async (e) => {
 } 
             actualizarAlumnoEnMemoriaLocal(alumnoIdActual, updateData);
             await updateDoc(doc(db, "alumnos", alumnoIdActual), updateData); 
-            await navigator.clipboard.writeText(finalTxt); 
-            document.getElementById('modal-agenda').close(); 
+            let propuestaCopiada = false;
+            try { await navigator.clipboard.writeText(finalTxt); propuestaCopiada = true; }
+            catch (errCopiaProp) { console.warn('No se pudo copiar la propuesta al portapapeles:', errCopiaProp); }
+            document.getElementById('modal-agenda').close();
             removerFilaOptimista(alumnoIdActual);
-            await cargarVista(estadoActualVista, false); 
-            mostrarToast("💬 Texto copiado al portapapeles para avisar al evaluador", "success"); 
+            await cargarVista(estadoActualVista, false);
+            mostrarToast(propuestaCopiada
+                ? "💬 Propuesta guardada. Texto copiado al portapapeles para avisar al evaluador"
+                : "💬 Propuesta guardada. No se pudo copiar el texto: usá \"Avisar a Evaluador\" en la fila.", propuestaCopiada ? "success" : "info");
 } catch(e) { 
             alert("❌ Error:\n\n" + e.message); 
 } finally {
@@ -13282,7 +13288,7 @@ document.addEventListener('click', async (e) => {
             if (!checksAdm[0]) pendientesAdm.push('1. Clase de admisión abonada');
             if (!checksAdm[1]) pendientesAdm.push('2. Carga de formulario completa');
             if (pendientesAdm.length > 0) {
-                return alert(`⚠️ No se puede confirmar la agenda:\n\nTiene los siguientes requisitos pendientes en el checklist:\n• ${pendientesAdm.join('\n• ')}\n\nPor favor tildá estos puntos antes de confirmar.`);
+                return alert(`⚠️ No se puede confirmar la clase de admisión:\n\nTiene los siguientes requisitos pendientes en el checklist:\n• ${pendientesAdm.join('\n• ')}\n\nPor favor tildá estos puntos antes de confirmar.`);
 }
 
             setBotonCargando(btn, true, 'Confirmando agenda en Calendar...');
@@ -13333,9 +13339,12 @@ document.addEventListener('click', async (e) => {
                 key = (al.opciones_propuestas && al.opciones_propuestas.length > 1) ? 'texto_opciones_multiples' : 'texto_profe'; 
 } 
             const data = await generarTextoConHistorial(id, key); 
-            await navigator.clipboard.writeText(data.txt); 
-            mostrarToast("💬 Mensaje para Evaluador copiado al portapapeles", "success"); 
-} catch(e) {} 
+            await navigator.clipboard.writeText(data.txt);
+            mostrarToast("💬 Mensaje para Evaluador copiado al portapapeles", "success");
+} catch(e) {
+            console.error("Error al copiar texto para el evaluador:", e);
+            alert("❌ No se pudo copiar el mensaje para el evaluador: " + (e.message || e));
+        }
         return; 
 }
     if (target.classList.contains('btn-reenviar-alumno') || target.classList.contains('btn-enviar-conf-alumno') || target.closest('.btn-reenviar-alumno') || target.closest('.btn-enviar-conf-alumno')) { 
@@ -13487,21 +13496,32 @@ document.addEventListener('click', async (e) => {
             if (!alDoc.exists()) throw new Error("Alumno no encontrado.");
             const alData = alDoc.data();
 
-            if (alData.id_evento_reserva) await eliminarEventoSeguro(alData, configApp);
-            if (alData.id_evento_alta) await eliminarEventoAltaSeguro(alData, configApp);
-
             const motivoCompleto = obs ? `${mtv} (Detalle: ${obs})` : mtv;
             alData.motivo_suspension_cat = mtv;
             alData.detalle_suspension = obs || null;
             alData.motivo_suspension = motivoCompleto;
 
+            // 1) Se guarda primero el motivo y el detalle, para que el texto del mensaje los incluya.
+            await updateDoc(doc(db, "alumnos", id), {
+                motivo_suspension_cat: mtv,
+                detalle_suspension: obs || null,
+                motivo_suspension: motivoCompleto
+            });
+
+            // 2) Se arma y copia el mensaje (si falla el portapapeles no se interrumpe la cancelación).
+            let mensajeCopiadoCancel = false;
+            try {
+                const data = await generarTextoConHistorial(id, 'texto_cancela_alumno', null, null, null, null, mtv);
+                if (data && data.txt) {
+                    await navigator.clipboard.writeText(data.txt);
+                    mensajeCopiadoCancel = true;
+                }
+            } catch (errCopiaCancel) {
+                console.warn('No se pudo copiar el mensaje de cancelación:', errCopiaCancel);
+            }
+
             const hist = alData.historial || [];
             hist.push(crearEntradaHistorial(`Clase de admisión cancelada por el alumno. Motivo: ${motivoCompleto}. Evento liberado en Google Calendar. Derivado a Sin Agendar.`, 'suspension'));
-
-            const data = await generarTextoConHistorial(id, 'texto_cancela_alumno', null, null, null, null, mtv);
-            if (data && data.txt) {
-                await navigator.clipboard.writeText(data.txt);
-}
 
             const updatesCancelaAgenda = {
                 estado_agenda: "Pendiente procesar",
@@ -13525,10 +13545,23 @@ document.addEventListener('click', async (e) => {
             actualizarAlumnoEnMemoriaLocal(id, updatesCancelaAgenda);
             await updateDoc(doc(db, "alumnos", id), updatesCancelaAgenda);
 
+            // 3) Recién con la ficha guardada se libera el evento en Google Calendar.
+            let avisoEventoCancel = '';
+            try {
+                if (alData.id_evento_reserva) await eliminarEventoSeguro(alData, configApp);
+                if (alData.id_evento_alta) await eliminarEventoAltaSeguro(alData, configApp);
+            } catch (errEvCancel) {
+                console.warn('No se pudo eliminar el evento al cancelar:', errEvCancel);
+                avisoEventoCancel = '\n⚠️ No se pudo eliminar el evento en Google Calendar: borralo a mano del calendario del evaluador.';
+            }
+
             document.getElementById('modal-cancelar-agenda')?.close();
             removerFilaOptimista(id);
             await cargarVista(estadoActualVista, false);
-            mostrarToast("💬 Clase de admisión cancelada, alumno derivado a Sin Agendar y texto copiado al portapapeles", "info");
+            mostrarToast((mensajeCopiadoCancel
+                ? "💬 Clase de admisión cancelada, alumno derivado a Sin Agendar y texto copiado al portapapeles"
+                : "💬 Clase de admisión cancelada y alumno derivado a Sin Agendar. No se pudo copiar el texto al portapapeles.") + avisoEventoCancel,
+                avisoEventoCancel ? "warning" : "info");
 } catch(e) {
             console.error("Error al cancelar entrevista:", e);
             alert("❌ Error al cancelar reserva:\n\n" + e.message);
