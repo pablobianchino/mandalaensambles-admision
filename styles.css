@@ -4763,3 +4763,32 @@ button.btn-prio-filtro.prio-proximos.active,
 
 
 
+
+/* =======================================================================
+   BUSCADOR DE AGENDA (clase de admisión) — v7.14, horarios agrupados por día
+   ======================================================================= */
+#modal-agenda > div { max-height: 90vh; overflow-y: auto; }
+.agenda-rangos-rapidos { display: flex; gap: 8px; flex-wrap: wrap; }
+.agenda-rango-chip { border: 1.5px solid var(--border-color); background: #fff; color: var(--text-main); border-radius: 20px; padding: 6px 13px; font-weight: 700; font-size: 12.5px; cursor: pointer; font-family: inherit; }
+.agenda-rango-chip.on { background: var(--accent-teal); border-color: var(--accent-teal); color: #fff; }
+.agenda-footer-fijo { position: sticky; bottom: -22px; background: #fff; border-top: 1px solid var(--border-color); padding: 10px 0 14px; margin: 0 -2px; z-index: 5; }
+.agenda-resumen-seleccion { font-size: 12.5px; color: var(--text-muted); margin-bottom: 8px; min-height: 18px; font-weight: 600; }
+.agenda-leyenda { font-size: 12px; color: var(--text-muted); margin: 4px 0 2px; }
+.agenda-dia-titulo { margin: 14px 0 6px; font-weight: 800; font-size: 13px; display: flex; justify-content: space-between; align-items: center; color: var(--text-main); }
+.agenda-dia-titulo span { font-weight: 600; color: var(--text-muted); font-size: 12px; }
+.agenda-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.agenda-slot { position: relative; display: flex; align-items: center; gap: 8px; border: 1.5px solid var(--border-color); background: #fff; border-radius: 10px; padding: 9px 10px; cursor: pointer; min-height: 48px; }
+.agenda-slot input { position: absolute; opacity: 0; pointer-events: none; }
+.agenda-slot.recomendado { border-color: rgba(0,123,143,.45); }
+.agenda-slot.sel { background: rgba(0,123,143,.1); border-color: var(--accent-teal); box-shadow: 0 0 0 2px rgba(0,123,143,.15); }
+.agenda-slot.off { opacity: .35; cursor: not-allowed; }
+.agenda-slot-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.agenda-slot-txt { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.agenda-slot-hora { font-size: 15px; font-weight: 800; color: var(--text-main); }
+.agenda-slot-eval { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+.agenda-slot-star { margin-left: auto; font-size: 13px; }
+.agenda-slot-choque { margin-top: 3px; font-size: 10.5px; font-weight: 700; background: #fffbeb; color: #92400e; border: 1px solid #fcd34d; border-radius: 8px; padding: 1px 6px; }
+details.agenda-disp-desplegable > summary { cursor: pointer; font-weight: 700; font-size: 12.5px; color: var(--accent-teal); list-style: none; }
+details.agenda-disp-desplegable > summary::-webkit-details-marker { display: none; }
+details.agenda-disp-desplegable > summary::before { content: '▸ '; }
+details.agenda-disp-desplegable[open] > summary::before { content: '▾ '; }

@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.13";
+} from "./src/config/constants.js?v=7.14";
 
 import { 
     app, 
@@ -124,11 +124,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=7.13";
+} from "./src/modules/match.module.js?v=7.14";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=7.13";
+} from "./src/modules/profesor.module.js?v=7.14";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -157,14 +157,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=7.13";
+} from "./src/modules/altas.module.js?v=7.14";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=7.13";
+} from "./src/modules/dashboard.module.js?v=7.14";
 
 import {
     renderConfigHub,
@@ -173,20 +173,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.13";
+} from "./src/modules/abm.module.js?v=7.14";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.13";
+} from "./src/modules/inbox.module.js?v=7.14";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=7.13";
+} from "./src/modules/csv.module.js?v=7.14";
 
 import {
     inicializarMotorRecordatorios,
@@ -206,7 +206,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.13";
+} from "./src/modules/recordatorios.module.js?v=7.14";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -11235,7 +11235,7 @@ document.addEventListener('click', async (e) => {
                 if (elEvalTop) elEvalTop.textContent = al.reserva_profe_nombre || al.informe_entrevista?.evaluador_nombre || '-';
 }
 
-            // Borrador (v7.13): solo en el flujo de admisión (primer informe, aún no finalizado)
+            // Borrador (v7.14): solo en el flujo de admisión (primer informe, aún no finalizado)
             const esFlujoAdmision = !esNuevoInformeAdicional && !(reportIndexAttr !== null && reportIndexAttr !== '' && !isNaN(parseInt(reportIndexAttr, 10))) && !al.informe_entrevista;
             const dr = (esFlujoAdmision && al.informe_borrador && al.informe_borrador.datos) ? al.informe_borrador.datos : null;
             if (dr) {
@@ -11524,7 +11524,7 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    // Guardar borrador del informe de clase de admisión (v7.13): sin validaciones, no cambia el estado del alumno
+    // Guardar borrador del informe de clase de admisión (v7.14): sin validaciones, no cambia el estado del alumno
     if (target.id === 'btn-guardar-borrador-informe' || target.closest('#btn-guardar-borrador-informe')) {
         const btnBor = document.getElementById('btn-guardar-borrador-informe');
         const id = document.getElementById('informe-final-alumno-id').value;
@@ -12402,9 +12402,9 @@ document.addEventListener('click', async (e) => {
             const dBorr = sBorr.exists() ? sBorr.data() : null;
             if (dBorr && dBorr.informe_borrador && !dBorr.informe_entrevista) {
                 const okReag = await window.confirmar(
-                    '¿Re-agendar la clase de admisión?',
-                    `${dBorr.nombre || 'El alumno'} tiene un borrador del informe. Si la clase no se hizo (faltó alguien) y la reprogramás, el borrador se descarta al guardar el nuevo horario. Si la clase sí se hizo, cancelá y usá "Continuar Informe".`,
-                    'Re-agendar', '🗓️');
+                    'Existe un borrador del cierre de la clase de admisión',
+                    `${dBorr.nombre || 'El alumno'} tiene el informe de cierre empezado, lo que indica que la clase ya se hizo. Si reprogramás, se perderá todo lo cargado en el borrador. Si la clase sí se hizo, cancelá y usá "Continuar Informe".`,
+                    'Reprogramar igual', '⚠️');
                 if (!okReag) return;
             }
         } catch (errBorr) { console.warn('No se pudo verificar el borrador antes de re-agendar:', errBorr); }
@@ -12426,7 +12426,20 @@ document.addEventListener('click', async (e) => {
             endInput.value = fMaxIso;
             endInput.min = fMinIso;
 } 
-        document.getElementById('btn-procesar-seleccion-agenda').style.display = 'none'; 
+        // Botones rápidos de rango (7 / 14 / 21 días desde la fecha mínima)
+        const resumenSelInit = document.getElementById('agenda-resumen-seleccion');
+        if (resumenSelInit) resumenSelInit.textContent = '';
+        document.querySelectorAll('#agenda-rangos-rapidos .agenda-rango-chip').forEach(ch => {
+            ch.classList.toggle('on', ch.getAttribute('data-dias') === '7');
+            ch.onclick = () => {
+                const dias = parseInt(ch.getAttribute('data-dias'), 10) || 7;
+                const base = new Date(startInput && startInput.value ? startInput.value + 'T12:00:00' : fMin);
+                base.setDate(base.getDate() + dias);
+                if (endInput) endInput.value = formatoLocalISO(base).split('T')[0];
+                document.querySelectorAll('#agenda-rangos-rapidos .agenda-rango-chip').forEach(x => x.classList.toggle('on', x === ch));
+            };
+        });
+        document.getElementById('btn-procesar-seleccion-agenda').style.display = 'none';
         const btnAgendarCalInit = document.getElementById('btn-agendar-directo-calendar');
         if (btnAgendarCalInit) btnAgendarCalInit.style.display = 'none';
         try { 
@@ -12553,6 +12566,12 @@ document.addEventListener('click', async (e) => {
 }
 }
 
+            // La disponibilidad habitual de los evaluadores queda en un desplegable cerrado (ocupa menos pantalla)
+            function envolverDisponibilidadAgenda(box, resumenTxt) {
+                const interior = box.innerHTML;
+                box.innerHTML = `<details class="agenda-disp-desplegable" style="width:100%;"><summary>${resumenTxt}</summary><div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">${interior}</div></details>`;
+            }
+
             function actualizarPanelProfeAgenda() {
                 const box = document.getElementById('agenda-profe-schedule-box');
                 if (!box) return;
@@ -12601,6 +12620,7 @@ document.addEventListener('click', async (e) => {
                         </div>
                     `;
 
+                    envolverDisponibilidadAgenda(box, `Ver disponibilidad habitual de ${profe.nombre}` + (diasMatch.length ? ` · coincide en ${diasMatch.join(', ')}` : ' · sin coincidencia directa'));
                     renderResumenAlumnoAgenda(profe);
                     return;
 }
@@ -12654,11 +12674,12 @@ document.addEventListener('click', async (e) => {
                                 <span>Disponibilidad habitual de los <strong>${profesSeleccionados.length} evaluadores seleccionados</strong> (según Config):</span>
                             </div>
                         </div>
-                        <div style="display:flex; flex-direction:column; gap:8px; max-height:220px; overflow-y:auto; padding-right:2px;">
+                        <div style="display:flex; flex-direction:column; gap:8px;">
                             ${cardsHtml}
                         </div>
                     `;
 
+                    envolverDisponibilidadAgenda(box, `Ver disponibilidad habitual de los ${profesSeleccionados.length} evaluadores seleccionados`);
                     renderResumenAlumnoAgenda(profesSeleccionados);
                     return;
 }
@@ -12867,56 +12888,97 @@ document.addEventListener('click', async (e) => {
                 if (bAg) bAg.style.display = 'none';
 } else { 
                 // Ordenar: primero los recomendados (pegados), y como criterio secundario por fecha y hora cronológica ascendente
+                // Opción A: horarios agrupados por día (orden cronológico). ⭐ marca los recomendados (pegados a otra clase).
                 opts.sort((a, b) => {
-                    if (b.pegado !== a.pegado) {
-                        return (b.pegado ? 1 : 0) - (a.pegado ? 1 : 0);
-}
                     const tA = new Date(a.inicioData).getTime();
                     const tB = new Date(b.inicioData).getTime();
                     if (tA !== tB) return tA - tB;
                     return (a.profeNombre || '').localeCompare(b.profeNombre || '');
-});
-                let html = ''; 
-                opts.forEach((op, index) => { 
-                    const icon = op.pegado ? '⭐' : '🕒';
-                    const tagRecom = op.pegado ? ' <span style="background:var(--accent-teal); color:#fff; font-size:10px; padding:2px 7px; border-radius:10px; font-weight:700; margin-left:6px;">Recomendado</span>' : '';
-                    html += `
-                        <label style="display:flex; align-items:center; gap:10px; margin-bottom:8px; cursor:pointer; padding:8px 10px; border-radius:8px; border:1px solid ${op.pegado ? 'var(--accent-teal)' : 'var(--border-color)'}; background:${op.pegado ? 'rgba(0, 123, 143, 0.08)' : 'var(--bg-main)'};">
-                            <input type="checkbox" class="chk-agenda-opt" data-calid="${op.calId}" data-profe="${String(op.profeNombre || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')}" data-profeid="${op.profeId}" data-start="${op.inicioData}" data-end="${op.finData}" data-fechatxt="${op.fechaTextoAmi}"> 
-                            <span style="font-size:13px; color:var(--text-main); font-weight:${op.pegado ? '600' : 'normal'};">${icon} <strong>${op.fechaTextoAmi}</strong> (${op.profeNombre})${tagRecom}${op.choquePosible ? ` <span title="Un evento del calendario general menciona a este docente en ese horario. Verificalo antes de confirmar." style="background:#fffbeb; color:#92400e; border:1px solid #fcd34d; font-size:10.5px; font-weight:700; padding:1px 7px; border-radius:10px; margin-left:6px;">⚠️ posible choque con «${String(op.choquePosible).replace(/&/g, '&amp;').replace(/</g, '&lt;')}»</span>` : ''}</span>
-                        </label>
-                    `; 
-}); 
+                });
+                const escAg = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+                const paletaAg = ['#2563eb', '#c026d3', '#ea580c', '#0f766e', '#7c3aed', '#b45309'];
+                const idsProfesAg = [...new Set(opts.map(o => o.profeId || o.profeNombre))].sort();
+                const colorProfeAg = pid => paletaAg[Math.max(0, idsProfesAg.indexOf(pid)) % paletaAg.length];
+                const pad2Ag = n => String(n).padStart(2, '0');
+                const gruposAg = new Map();
+                opts.forEach(op => {
+                    const d = new Date(op.inicioData);
+                    const k = isNaN(d) ? 'otro' : d.toDateString();
+                    if (!gruposAg.has(k)) gruposAg.set(k, { fecha: d, ops: [] });
+                    gruposAg.get(k).ops.push(op);
+                });
+                const totalRecom = opts.filter(o => o.pegado).length;
+                let html = totalRecom > 0
+                    ? '<div class="agenda-leyenda">⭐ Recomendado (queda pegado a otra clase). Tocá uno o varios horarios <strong>de un mismo evaluador</strong>.</div>'
+                    : '<div class="agenda-leyenda">Tocá uno o varios horarios <strong>de un mismo evaluador</strong>.</div>';
+                gruposAg.forEach(g => {
+                    let titulo = 'Otros horarios';
+                    if (!isNaN(g.fecha)) {
+                        titulo = g.fecha.toLocaleDateString('es-AR', { weekday: 'long', day: '2-digit', month: '2-digit' });
+                        titulo = titulo.charAt(0).toUpperCase() + titulo.slice(1);
+                    }
+                    html += '<div class="agenda-dia-titulo">' + escAg(titulo) + '<span>' + g.ops.length + (g.ops.length === 1 ? ' horario' : ' horarios') + '</span></div><div class="agenda-slots">';
+                    g.ops.forEach(op => {
+                        const d = new Date(op.inicioData);
+                        const hora = isNaN(d) ? escAg(op.fechaTextoAmi) : (pad2Ag(d.getHours()) + ':' + pad2Ag(d.getMinutes()));
+                        const pid = op.profeId || op.profeNombre;
+                        html += '<label class="agenda-slot' + (op.pegado ? ' recomendado' : '') + '" data-profeid="' + escAg(pid) + '">' +
+                            '<input type="checkbox" class="chk-agenda-opt" data-calid="' + op.calId + '" data-profe="' + escAg(op.profeNombre) + '" data-profeid="' + op.profeId + '" data-start="' + op.inicioData + '" data-end="' + op.finData + '" data-fechatxt="' + op.fechaTextoAmi + '">' +
+                            '<span class="agenda-slot-dot" style="background:' + colorProfeAg(pid) + '"></span>' +
+                            '<span class="agenda-slot-txt"><span class="agenda-slot-hora">' + hora + '</span><span class="agenda-slot-eval">' + escAg(op.profeNombre) + '</span>' +
+                            (op.choquePosible ? '<span class="agenda-slot-choque" title="Un evento del calendario general menciona a este docente en ese horario. Verificalo antes de confirmar.">⚠️ posible choque con «' + escAg(op.choquePosible) + '»</span>' : '') +
+                            '</span>' + (op.pegado ? '<span class="agenda-slot-star" title="Recomendado: queda pegado a otra clase">⭐</span>' : '') +
+                            '</label>';
+                    });
+                    html += '</div>';
+                });
                 resDiv.innerHTML = avisoCalFallidos + html;
 
                 const sincronizarBotonesModalAgenda = () => {
                     const chks = resDiv.querySelectorAll('.chk-agenda-opt:checked');
                     const btnProponer = document.getElementById('btn-procesar-seleccion-agenda');
                     const btnAgendar = document.getElementById('btn-agendar-directo-calendar');
+                    const resumen = document.getElementById('agenda-resumen-seleccion');
                     if (!btnProponer) return;
+                    // Un solo evaluador por propuesta: se atenúan los horarios de los demás
+                    const pidSel = chks.length ? chks[0].getAttribute('data-profeid') : null;
+                    resDiv.querySelectorAll('.agenda-slot').forEach(lb => {
+                        const inp = lb.querySelector('.chk-agenda-opt');
+                        lb.classList.toggle('sel', inp.checked);
+                        const otro = pidSel !== null && inp.getAttribute('data-profeid') !== pidSel && !inp.checked;
+                        lb.classList.toggle('off', otro);
+                        inp.disabled = otro;
+                        lb.title = otro ? 'Una propuesta se envía a un solo evaluador' : '';
+                    });
+                    const nomSel = chks.length ? (chks[0].getAttribute('data-profe') || 'evaluador') : '';
+                    if (resumen) {
+                        resumen.textContent = chks.length === 0
+                            ? 'Elegí uno o más horarios para continuar'
+                            : chks.length + (chks.length === 1 ? ' horario elegido con ' : ' horarios elegidos con ') + nomSel;
+                    }
                     if (chks.length === 0) {
                         btnProponer.style.display = 'none';
                         if (btnAgendar) btnAgendar.style.display = 'none';
-} else if (chks.length === 1) {
+                    } else if (chks.length === 1) {
                         btnProponer.style.display = 'block';
-                        btnProponer.textContent = '💬 Proponer a Evaluador (validar primero)';
+                        btnProponer.textContent = '💬 Proponer a ' + nomSel + ' (validar primero)';
                         btnProponer.title = 'Guarda la propuesta y copia el texto para que el evaluador la valide. Todavía no crea el evento en Google Calendar.';
                         if (btnAgendar) {
                             btnAgendar.style.display = 'block';
                             btnAgendar.textContent = '📅 Agendar directo y avisar a Alumno';
                             btnAgendar.title = 'Crea el evento en Google Calendar ahora, sin validación previa del evaluador, y copia el mensaje para el alumno.';
-}
-} else {
+                        }
+                    } else {
                         btnProponer.style.display = 'block';
-                        btnProponer.textContent = '💬 Proponer opciones a Evaluador (validar primero)';
+                        btnProponer.textContent = '💬 Proponer opciones a ' + nomSel + ' (validar primero)';
                         btnProponer.title = 'Guarda las opciones y copia el texto para que el evaluador elija. Todavía no crea eventos en Google Calendar.';
                         if (btnAgendar) btnAgendar.style.display = 'none';
-}
-};
+                    }
+                };
 
                 resDiv.querySelectorAll('.chk-agenda-opt').forEach(chk => {
                     chk.addEventListener('change', sincronizarBotonesModalAgenda);
-});
+                });
                 sincronizarBotonesModalAgenda();
 } 
 } catch(e) { 

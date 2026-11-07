@@ -10,7 +10,7 @@
     <meta http-equiv="Expires" content="0">
     
     <link rel="icon" href="logo.png" type="image/png">
-    <link rel="manifest" href="manifest.json?v=7.13">
+    <link rel="manifest" href="manifest.json?v=7.14">
     <meta name="theme-color" content="#fbfaf8">
     <meta name="apple-mobile-web-app-title" content="MDL Admisi&oacute;n">
     <meta name="application-name" content="MDL Admisi&oacute;n">
@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=7.13">
+    <link rel="stylesheet" href="styles.css?v=7.14">
 
     <style>
         /* Estilos Críticos de Widget de Perfil y Popover Google-Style */
@@ -1849,11 +1849,16 @@
             <div id="info-alumno-agenda" style="display:none;"></div>
 
             <div id="agenda-instrumento-wrapper" style="margin-bottom:12px; display:none;">
-                <label style="font-size:11.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">INSTRUMENTO PARA ESTA ENTREVISTA</label>
+                <label style="font-size:11.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;">INSTRUMENTO PARA ESTA CLASE DE ADMISIÓN</label>
                 <select id="agenda-instrumento-select" class="modern-input"></select>
             </div>
 
             <div style="margin-bottom: 14px; padding: 14px; background: var(--bg-main); border:1px solid var(--border-color); border-radius: 10px; display:flex; flex-direction:column; gap:12px;">
+                <div id="agenda-rangos-rapidos" class="agenda-rangos-rapidos">
+                    <button type="button" class="agenda-rango-chip" data-dias="7">Próx. 7 días</button>
+                    <button type="button" class="agenda-rango-chip" data-dias="14">14 días</button>
+                    <button type="button" class="agenda-rango-chip" data-dias="21">21 días</button>
+                </div>
                 <div style="display:flex; gap:10px;">
                     <div style="flex:1;"><label style="font-size:11.5px; font-weight:700; color:var(--text-muted); display:block; margin-bottom:4px;">Desde:</label><input type="date" id="agenda-start" class="modern-input" required></div>
                     <div style="flex:1;"><label style="font-size:11.5px; font-weight:700; color:var(--text-muted); display:block; margin-bottom:4px;">Hasta:</label><input type="date" id="agenda-end" class="modern-input" required></div>
@@ -1877,12 +1882,15 @@
             </div>
 
             <input type="text" id="input-buscador-popup" class="modern-input" placeholder="Filtrar resultados..." style="margin-bottom: 12px; display:none;">
-            <div id="resultados-agenda" style="margin-bottom:14px; max-height:38vh; overflow-y:auto;"></div>
+            <div id="resultados-agenda" style="margin-bottom:14px;"></div>
 
-            <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-color); padding-top:14px; gap:10px; flex-wrap:wrap;">
+            <div class="agenda-footer-fijo">
+                <div id="agenda-resumen-seleccion" class="agenda-resumen-seleccion"></div>
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
                 <button type="button" class="btn-cerrar-modal" data-modal="modal-agenda" style="padding:9px 16px; border:1px solid var(--border-color); border-radius:8px; cursor:pointer; background:#fff; font-weight:700; color:var(--text-muted); flex:1;">Cerrar</button>
                 <button id="btn-procesar-seleccion-agenda" class="btn-secondary" style="display:none; flex:1.5; padding:9px 14px; font-weight:700;">💬 Proponer a Evaluador (validar primero)</button>
                 <button id="btn-agendar-directo-calendar" class="btn-primary" style="display:none; flex:2; padding:9px 16px; font-weight:700;">📅 Agendar directo y avisar a Alumno</button>
+                </div>
             </div>
         </div>
     </dialog>
@@ -4029,12 +4037,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=7.13"></script>
+    <script type="module" src="app.js?v=7.14"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=7.13').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=7.14').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {
