@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.20";
+} from "./src/config/constants.js?v=7.21";
 
 import { 
     app, 
@@ -124,11 +124,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=7.20";
+} from "./src/modules/match.module.js?v=7.21";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=7.20";
+} from "./src/modules/profesor.module.js?v=7.21";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -157,14 +157,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=7.20";
+} from "./src/modules/altas.module.js?v=7.21";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=7.20";
+} from "./src/modules/dashboard.module.js?v=7.21";
 
 import {
     renderConfigHub,
@@ -173,20 +173,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.20";
+} from "./src/modules/abm.module.js?v=7.21";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.20";
+} from "./src/modules/inbox.module.js?v=7.21";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=7.20";
+} from "./src/modules/csv.module.js?v=7.21";
 
 import {
     inicializarMotorRecordatorios,
@@ -206,7 +206,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.20";
+} from "./src/modules/recordatorios.module.js?v=7.21";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -8794,6 +8794,13 @@ window.ejecutarBusquedaGlobal = ejecutarBusquedaGlobal;
 
 let guardRedireccionActivo = false;
 
+// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v7.21)
+function tituloVista(seccion, sub = '') {
+    const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    return `<span>${esc(seccion)}</span>${sub ? `<span class="vista-titulo-sub">${esc(sub)}</span>` : ''}`;
+}
+window.tituloVista = tituloVista;
+
 export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = false) {
     if (vista === 'Mis Grupos & Solicitud de Alumnos') { vista = 'Mis Alumnos y Ensambles'; }
     if (typeof vista === 'string' && vista.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().startsWith('configuracion')) { vista = 'Configuración'; }
@@ -9065,34 +9072,34 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
     const tituloEl = document.getElementById('vista-titulo');
     if (tituloEl) {
         const tituloMap = {
-            'Inbox - Confirmadas': '<span style="color:var(--text-muted); font-weight:500;">Inbox › </span><span style="color:var(--text-main); font-weight:700;">Clases de Admisión Confirmadas</span>',
-            'Inbox - Validar Evaluador': '<span style="color:var(--text-muted); font-weight:500;">Inbox › </span><span style="color:var(--text-main); font-weight:700;">Pendientes Validar Fecha</span>',
-            'Inbox - Finalizar Admision': '<span style="color:var(--text-muted); font-weight:500;">Inbox › </span><span style="color:var(--text-main); font-weight:700;">Pendientes Finalizar Admisión</span>',
-            'Inbox - Validar Alumno': '<span style="color:var(--text-muted); font-weight:500;">Inbox › </span><span style="color:var(--text-main); font-weight:700;">Validar por Alumno</span>',
-            'Inbox - Altas Pendientes': '<span style="color:var(--text-muted); font-weight:500;">Inbox › </span><span style="color:var(--text-main); font-weight:700;">Altas Pendientes</span>',
-            'Inbox - Pendientes': '<span style="color:var(--text-muted); font-weight:500;">Inbox › </span><span style="color:var(--text-main); font-weight:700;">Sin Agendar</span>',
-            'Suspendidos - Todos': '<span style="color:var(--text-muted); font-weight:500;">Suspendidos › </span><span style="color:var(--text-main); font-weight:700;">Todos los Suspendidos</span>',
-            'Suspendidos - De Inbox': '<span style="color:var(--text-muted); font-weight:500;">Suspendidos › </span><span style="color:var(--text-main); font-weight:700;">De Inbox (Entrevistas)</span>',
-            'Suspendidos - De Lista de Espera': '<span style="color:var(--text-muted); font-weight:500;">Suspendidos › </span><span style="color:var(--text-main); font-weight:700;">De Lista de Espera</span>',
-            'Suspendidos - De Pre-Alta': '<span style="color:var(--text-muted); font-weight:500;">Suspendidos › </span><span style="color:var(--text-main); font-weight:700;">De Pre-Alta / Alta</span>',
-            'Seguimientos': '<span style="color:var(--text-muted); font-weight:500;">Seguimientos › </span><span style="color:var(--text-main); font-weight:700;">Pendientes</span>',
-            'Seguimientos - Pendientes': '<span style="color:var(--text-muted); font-weight:500;">Seguimientos › </span><span style="color:var(--text-main); font-weight:700;">Pendientes</span>',
-            'Seguimientos - En Curso': '<span style="color:var(--text-muted); font-weight:500;">Seguimientos › </span><span style="color:var(--text-main); font-weight:700;">En Curso</span>',
-            'Seguimientos - Finalizados': '<span style="color:var(--text-muted); font-weight:500;">Seguimientos › </span><span style="color:var(--text-main); font-weight:700;">Finalizados</span>'
+            'Inbox - Confirmadas': tituloVista('Inbox', 'Clases de Admisión Confirmadas'),
+            'Inbox - Validar Evaluador': tituloVista('Inbox', 'Pendientes Validar Fecha'),
+            'Inbox - Finalizar Admision': tituloVista('Inbox', 'Pendientes Finalizar Admisión'),
+            'Inbox - Validar Alumno': tituloVista('Inbox', 'Validar por Alumno'),
+            'Inbox - Altas Pendientes': tituloVista('Inbox', 'Altas Pendientes'),
+            'Inbox - Pendientes': tituloVista('Inbox', 'Sin Agendar'),
+            'Suspendidos - Todos': tituloVista('Suspendidos', 'Todos los Suspendidos'),
+            'Suspendidos - De Inbox': tituloVista('Suspendidos', 'De Inbox (clases de admisión)'),
+            'Suspendidos - De Lista de Espera': tituloVista('Suspendidos', 'De Lista de Espera'),
+            'Suspendidos - De Pre-Alta': tituloVista('Suspendidos', 'De Pre-Alta / Alta'),
+            'Seguimientos': tituloVista('Seguimientos', 'Pendientes'),
+            'Seguimientos - Pendientes': tituloVista('Seguimientos', 'Pendientes'),
+            'Seguimientos - En Curso': tituloVista('Seguimientos', 'En Curso'),
+            'Seguimientos - Finalizados': tituloVista('Seguimientos', 'Finalizados')
 };
 
         if (tituloMap[vista]) {
             tituloEl.innerHTML = tituloMap[vista];
 } else if (vista.startsWith('Suspendidos')) {
             const sub = vista.replace('Suspendidos - ', '').trim();
-            tituloEl.innerHTML = `<span style="color:var(--text-muted); font-weight:500;">Suspendidos › </span><span style="color:var(--text-main); font-weight:700;">${sub}</span>`;
+            tituloEl.innerHTML = tituloVista('Suspendidos', sub);
 } else if (vista.includes('-')) {
             const partes = vista.split('-');
             const seccion = partes[0].trim();
             const subseccion = partes[1].trim();
-            tituloEl.innerHTML = `<span style="color:var(--text-muted); font-weight:500;">${seccion} › </span><span style="color:var(--text-main); font-weight:700;">${subseccion}</span>`;
+            tituloEl.innerHTML = tituloVista(seccion, subseccion);
 } else {
-            tituloEl.innerHTML = `<span style="color:var(--text-main); font-weight:700;">${vista}</span>`;
+            tituloEl.innerHTML = tituloVista(vista);
 }
 }
     
@@ -9549,7 +9556,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
 }
 
 async function renderMatchPendientes() {
-    document.getElementById('vista-titulo').innerHTML = '<span style="color:var(--text-muted); font-weight:500;">Match › </span><span style="color:var(--text-main); font-weight:700;">Armar Grupos y Clases</span>';
+    document.getElementById('vista-titulo').innerHTML = tituloVista('Match', 'Armar Grupos y Clases');
     document.getElementById('controles-vista').style.display = 'none';
     const sH = document.getElementById('search-container-header');
     const sV = document.getElementById('search-container-vista');
@@ -11213,7 +11220,7 @@ document.addEventListener('click', async (e) => {
                 if (elEvalTop) elEvalTop.textContent = al.reserva_profe_nombre || al.informe_entrevista?.evaluador_nombre || '-';
 }
 
-            // Borrador (v7.20): solo en el flujo de admisión (primer informe, aún no finalizado)
+            // Borrador (v7.21): solo en el flujo de admisión (primer informe, aún no finalizado)
             const esFlujoAdmision = !esNuevoInformeAdicional && !(reportIndexAttr !== null && reportIndexAttr !== '' && !isNaN(parseInt(reportIndexAttr, 10))) && !al.informe_entrevista;
             const dr = (esFlujoAdmision && al.informe_borrador && al.informe_borrador.datos) ? al.informe_borrador.datos : null;
             if (dr) {
@@ -11507,7 +11514,7 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    // Guardar borrador del informe de clase de admisión (v7.20): sin validaciones, no cambia el estado del alumno
+    // Guardar borrador del informe de clase de admisión (v7.21): sin validaciones, no cambia el estado del alumno
     if (target.id === 'btn-guardar-borrador-informe' || target.closest('#btn-guardar-borrador-informe')) {
         const btnBor = document.getElementById('btn-guardar-borrador-informe');
         const id = document.getElementById('informe-final-alumno-id').value;

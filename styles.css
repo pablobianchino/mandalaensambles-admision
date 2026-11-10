@@ -4931,3 +4931,31 @@ details.agenda-disp-desplegable[open] > summary::before { content: '▾ '; }
 .ds-empty { text-align: center; padding: 40px 16px; color: var(--ink-3); }
 .ds-empty b { display: block; color: var(--ink); font-size: 16px; margin-bottom: 4px; }
 /* DS:FIN */
+
+/* =======================================================================
+   FASE 2 DEL DISEÑO UNIFICADO (v7.21): menú lateral, título de página y barra de simulador
+   Reglas con mayor especificidad que las antiguas (que se retiran en la Fase 5).
+   ======================================================================= */
+#sidebar { padding: 16px 12px; background: var(--surface); border-right-color: var(--line); }
+#sidebar .btn-nuevo-sidebar { height: 42px; padding: 0 14px; border-radius: var(--r-sm); font: 700 14px var(--font); box-shadow: none; background: var(--teal); }
+#sidebar .btn-nuevo-sidebar:hover { background: var(--teal-700); filter: none; transform: none; }
+#sidebar .nav-item { position: relative; min-height: 38px; padding: 0 10px; gap: 10px; border-radius: var(--r-sm); margin-bottom: 2px; color: var(--ink-2); font: 600 14px var(--font); }
+#sidebar .nav-item:hover { background: var(--surface-2); }
+#sidebar .nav-item.active { background: var(--teal-50); color: var(--teal-700); font-weight: 700; }
+#sidebar .nav-item.active::before { content: ''; position: absolute; left: -12px; top: 8px; bottom: 8px; width: 3px; border-radius: 0 3px 3px 0; background: var(--teal); }
+#sidebar .nav-item .nav-icon { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; filter: none; font-size: inherit; transform: none; }
+#sidebar .nav-item.active .nav-icon { filter: none; transform: none; }
+#sidebar .nav-badge { margin-left: auto; font: 800 11px var(--font); background: #f0ece4; color: var(--ink-2); padding: 1px 8px; border-radius: var(--r-pill); }
+#sidebar .nav-item.active .nav-badge { background: var(--teal); color: #fff; }
+#sidebar .nav-divider { background: var(--line); margin: 8px 6px; }
+#sidebar-version-label { font-size: 12px; color: var(--ink-3); }
+
+/* Título de página: una sola forma en todas las secciones (sección + subsección atenuada) */
+.ds-titulo-vista { margin: 0; font-size: 24px; font-weight: 800; line-height: 1.15; letter-spacing: -0.01em; color: var(--ink); display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.ds-titulo-vista .vista-titulo-sub { font-size: 14px; font-weight: 600; color: var(--ink-3); letter-spacing: 0; }
+
+/* Barra de simulador de recordatorios (solo administrador): compacta y en tonos del sistema */
+.ds-sim-bar { background: var(--surface-2); color: var(--ink-2); padding: 6px 12px; border-radius: var(--r-sm); margin-bottom: 14px; flex-wrap: wrap; gap: 10px; align-items: center; font-size: 12px; border: 1px dashed var(--line-2); }
+.ds-sim-titulo { font-weight: 800; color: var(--ink-2); display: flex; align-items: center; gap: 5px; }
+.ds-sim-label { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.ds-sim-campo { border: 1px solid var(--line-2); border-radius: var(--r-sm); background: var(--surface); color: var(--ink); padding: 3px 8px; font: 600 12px var(--font); }

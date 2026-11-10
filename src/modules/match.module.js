@@ -2099,7 +2099,7 @@ export function obtenerEmojiInstrumento(inst) {
 
 export async function renderMatchEnValidacion(container) {
     const tit = document.getElementById('vista-titulo');
-    if (tit) tit.innerHTML = '<span style="color:var(--text-muted); font-weight:500;">Match › </span><span style="color:var(--text-main); font-weight:700;">Grupos y Alumnos en Validación</span>';
+    if (tit) tit.innerHTML = window.tituloVista('Match', 'Grupos y Alumnos en Validación');
     const cVista = document.getElementById('controles-vista');
     if (cVista) cVista.style.display = 'none';
     const sGen = document.getElementById('search-container-general');
