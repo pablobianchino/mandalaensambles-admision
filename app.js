@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.24";
+} from "./src/config/constants.js?v=7.25";
 
 import { 
     app, 
@@ -124,11 +124,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=7.24";
+} from "./src/modules/match.module.js?v=7.25";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=7.24";
+} from "./src/modules/profesor.module.js?v=7.25";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -157,14 +157,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=7.24";
+} from "./src/modules/altas.module.js?v=7.25";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=7.24";
+} from "./src/modules/dashboard.module.js?v=7.25";
 
 import {
     renderConfigHub,
@@ -173,20 +173,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.24";
+} from "./src/modules/abm.module.js?v=7.25";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.24";
+} from "./src/modules/inbox.module.js?v=7.25";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=7.24";
+} from "./src/modules/csv.module.js?v=7.25";
 
 import {
     inicializarMotorRecordatorios,
@@ -206,7 +206,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.24";
+} from "./src/modules/recordatorios.module.js?v=7.25";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -8794,7 +8794,7 @@ window.ejecutarBusquedaGlobal = ejecutarBusquedaGlobal;
 
 let guardRedireccionActivo = false;
 
-// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v7.24)
+// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v7.25)
 function tituloVista(seccion, sub = '') {
     const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
     return `<span>${esc(seccion)}</span>${sub ? `<span class="vista-titulo-sub">${esc(sub)}</span>` : ''}`;
@@ -9946,12 +9946,11 @@ const URL_APP_FESTIVALES = 'https://mandalaensambles-festival.vercel.app';
 
 onAuthStateChanged(auth, async (user) => { 
     if (user) { 
-        mostrarIndicadorCarga(window.textoCarga('arranque'));
+        // El arranque se muestra con la pantalla de carga inicial (splash); ya no se abre el aviso "Cargando..."
         const actualizo = await chequearActualizacionVersionPreventivo();
         if (actualizo) {
             return;
 }
-        mostrarIndicadorCarga(window.textoCarga('arranque'));
         try {
             const qSnap = await getDocs(collection(db, "usuarios_sistema")); 
             let usuarioEncontrado = null;
@@ -9989,7 +9988,7 @@ onAuthStateChanged(auth, async (user) => {
 }
 
             if (!usuarioEncontrado) { 
-                ocultarIndicadorCarga();
+                ocultarIndicadorCarga(); window.ocultarSplashInicial && window.ocultarSplashInicial();
                 alert(`⛔ Acceso Denegado:\nTu cuenta (${user.email}) no está autorizada para ingresar a este sistema.`); 
                 await signOut(auth); 
                 document.getElementById('login-container').style.display = 'flex'; 
@@ -9998,7 +9997,7 @@ onAuthStateChanged(auth, async (user) => {
 }
 
             if (usuarioEncontrado.activo === false) {
-                ocultarIndicadorCarga();
+                ocultarIndicadorCarga(); window.ocultarSplashInicial && window.ocultarSplashInicial();
                 alert(`⛔ Cuenta Inactiva:\nTu usuario (${user.email}) ha sido desactivado por el administrador.`);
                 await signOut(auth);
                 document.getElementById('login-container').style.display = 'flex';
@@ -10108,7 +10107,7 @@ onAuthStateChanged(auth, async (user) => {
                 modulos_habilitados: modulos
 };
 } catch(e) { 
-            ocultarIndicadorCarga();
+            ocultarIndicadorCarga(); window.ocultarSplashInicial && window.ocultarSplashInicial();
             return alert("Error al validar permisos de usuario: " + e.message); 
 }
 
@@ -10163,6 +10162,7 @@ onAuthStateChanged(auth, async (user) => {
             if (promesaVistaInicial) await promesaVistaInicial;
 } finally {
             ocultarIndicadorCarga();
+            window.ocultarSplashInicial && window.ocultarSplashInicial();
 }
 
         // Procesar cualquier apertura pendiente de notificación
@@ -10300,6 +10300,7 @@ onAuthStateChanged(auth, async (user) => {
         if (typeof window.reiniciarEstadoMotorRecordatorios === 'function') window.reiniciarEstadoMotorRecordatorios();
         document.getElementById('login-container').style.display = 'flex'; 
         document.getElementById('app-container').style.display = 'none';
+        window.ocultarSplashInicial && window.ocultarSplashInicial();
         chequearActualizacionVersionPreventivo();
 } 
 });
@@ -11220,7 +11221,7 @@ document.addEventListener('click', async (e) => {
                 if (elEvalTop) elEvalTop.textContent = al.reserva_profe_nombre || al.informe_entrevista?.evaluador_nombre || '-';
 }
 
-            // Borrador (v7.24): solo en el flujo de admisión (primer informe, aún no finalizado)
+            // Borrador (v7.25): solo en el flujo de admisión (primer informe, aún no finalizado)
             const esFlujoAdmision = !esNuevoInformeAdicional && !(reportIndexAttr !== null && reportIndexAttr !== '' && !isNaN(parseInt(reportIndexAttr, 10))) && !al.informe_entrevista;
             const dr = (esFlujoAdmision && al.informe_borrador && al.informe_borrador.datos) ? al.informe_borrador.datos : null;
             if (dr) {
@@ -11514,7 +11515,7 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    // Guardar borrador del informe de clase de admisión (v7.24): sin validaciones, no cambia el estado del alumno
+    // Guardar borrador del informe de clase de admisión (v7.25): sin validaciones, no cambia el estado del alumno
     if (target.id === 'btn-guardar-borrador-informe' || target.closest('#btn-guardar-borrador-informe')) {
         const btnBor = document.getElementById('btn-guardar-borrador-informe');
         const id = document.getElementById('informe-final-alumno-id').value;
