@@ -10,7 +10,7 @@
     <meta http-equiv="Expires" content="0">
     
     <link rel="icon" href="logo.png" type="image/png">
-    <link rel="manifest" href="manifest.json?v=7.15">
+    <link rel="manifest" href="manifest.json?v=7.16">
     <meta name="theme-color" content="#fbfaf8">
     <meta name="apple-mobile-web-app-title" content="MDL Admisi&oacute;n">
     <meta name="application-name" content="MDL Admisi&oacute;n">
@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=7.15">
+    <link rel="stylesheet" href="styles.css?v=7.16">
 
     <style>
         /* Estilos Críticos de Widget de Perfil y Popover Google-Style */
@@ -548,7 +548,7 @@
                         </div>
                     </div>
 
-                                        <!-- BOTÃ“N RECORDATORIOS / ALERTAS HEADER -->
+                                        <!-- BOTÓN RECORDATORIOS / ALERTAS HEADER -->
                     <button type="button" id="btn-recordatorios-header" class="btn-recordatorios-header" title="Ver recordatorios pendientes" style="display:none;" onclick="window.abrirModalRecordatorios(true)">
                         <span style="font-size:15px; line-height:1;">&#128276;</span>
                         <span id="badge-recordatorios-header" class="badge-recordatorios-count">0</span>
@@ -3858,7 +3858,7 @@
     </dialog>
 
     <!-- MODAL DE CAMBIO DE CONTRASEÑA DE USUARIO -->
-        <!-- MODAL DE OBSERVACIONES POR DÃA EN DISPONIBILIDAD -->
+        <!-- MODAL DE OBSERVACIONES POR DÍA EN DISPONIBILIDAD -->
     <dialog id="modal-obs-disponibilidad" class="modern-modal" style="width: 90%; max-width: 460px; border-radius: 16px; padding: 0; border: 1px solid var(--border-color); box-shadow: 0 10px 30px rgba(0,0,0,0.18);">
         <div style="padding: 20px 24px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid var(--border-color); padding-bottom:10px;">
@@ -3985,7 +3985,7 @@
     <!-- MODAL DE RECORDATORIOS Y ALERTAS BLOQUEANTES -->
     <dialog id="modal-recordatorios-bloqueante" class="modern-modal" style="width: 94%; max-width: 580px; border-radius: 18px; padding: 0; border: 1.5px solid var(--border-color, #e2ded4); box-shadow: 0 25px 70px rgba(0,0,0,0.35); overflow: hidden; z-index: 10040;">
         <div id="modal-recordatorios-contenido" style="display:flex; flex-direction:column; background:#ffffff; max-height:92vh;">
-            <!-- Renderizado dinÃ¡micamente por recordatorios.module.js -->
+            <!-- Renderizado dinámicamente por recordatorios.module.js -->
         </div>
     </dialog>
 
@@ -4037,12 +4037,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=7.15"></script>
+    <script type="module" src="app.js?v=7.16"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=7.15').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=7.16').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {

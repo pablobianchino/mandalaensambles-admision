@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.15";
+} from "./src/config/constants.js?v=7.16";
 
 import { 
     app, 
@@ -124,11 +124,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=7.15";
+} from "./src/modules/match.module.js?v=7.16";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=7.15";
+} from "./src/modules/profesor.module.js?v=7.16";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -157,14 +157,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=7.15";
+} from "./src/modules/altas.module.js?v=7.16";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=7.15";
+} from "./src/modules/dashboard.module.js?v=7.16";
 
 import {
     renderConfigHub,
@@ -173,20 +173,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.15";
+} from "./src/modules/abm.module.js?v=7.16";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.15";
+} from "./src/modules/inbox.module.js?v=7.16";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=7.15";
+} from "./src/modules/csv.module.js?v=7.16";
 
 import {
     inicializarMotorRecordatorios,
@@ -206,7 +206,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.15";
+} from "./src/modules/recordatorios.module.js?v=7.16";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -559,7 +559,7 @@ function renderFiltrosChips() {
                 </div>
             </div>
 
-            <!-- BotÃ³n Filtro RÃ¡pido Especiales (Solo en Lista de Espera) -->
+            <!-- Botón Filtro Rápido Especiales (Solo en Lista de Espera) -->
             ${(() => {
                 if (estadoActualVista !== 'Lista de Espera') return '';
                 const cantEsp = Array.isArray(ultimosAlumnosCargados)
@@ -1635,7 +1635,7 @@ export function solicitarConfirmacionSalidaModal(modalActivo, onDescartar, onGua
     const btnCancelar = document.getElementById('btn-descarte-cancelar');
 
     // REGLA: "Guardar Cambios y Salir" SOLO se permite en la Ficha del Alumno (modal-alta-alumno).
-    // En propuestas de grupo, pre-altas y demÃ¡s acciones no hay funciÃ³n "borrador",
+    // En propuestas de grupo, pre-altas y demás acciones no hay función "borrador",
     // por lo que solo se ofrecen las opciones "Descartar y Salir" y "Continuar Editando".
     const permiteGuardarYSalir = (modalId === 'modal-alta-alumno');
     if (btnGuardar) {
@@ -5179,7 +5179,7 @@ window.toggleBulkSelection = function(id, isChecked) {
         if (idx !== -1) selectedBulkIds.splice(idx, 1);
 }
 
-    // SincronizaciÃ³n estricta con todos los checkboxes marcados fÃ­sicamente en el DOM
+    // Sincronización estricta con todos los checkboxes marcados físicamente en el DOM
     document.querySelectorAll('.bulk-chk:checked').forEach(c => {
         const cId = c.getAttribute('data-id');
         if (cId && !selectedBulkIds.includes(cId)) {
@@ -6194,7 +6194,7 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
 });
 }
 
-    // Filtro rÃ¡pido por Alumnos Especiales
+    // Filtro rápido por Alumnos Especiales
     if (filtrosSeleccionados.soloEspeciales) {
         filtrados = filtrados.filter(al => {
             return Boolean(al.es_especial || (Array.isArray(al.perfil_psicologico) && al.perfil_psicologico.some(p => typeof p === 'string' && p.includes('Especial'))));
@@ -7950,7 +7950,7 @@ export function verificarPermisoModulo(moduloDestino) {
     const mods = obtenerModulosPermitidosModoActivo();
     if (mods.includes(moduloDestino)) return true;
 
-    // Permitir acceso a ConfiguraciÃ³n si el usuario tiene rol de Coordinador
+    // Permitir acceso a Configuración si el usuario tiene rol de Coordinador
     if (moduloDestino === 'configuracion') {
         const u = window.usuarioActual || {};
         const rolesArr = Array.isArray(u.roles) && u.roles.length > 0 ? u.roles : [u.rol || ''];
@@ -8869,7 +8869,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
 }
 
     // Si el modo activo es Coordinador y accede a Inbox (por defecto 'Inbox - Pendientes'),
-    // redirigir a 'Inbox - Confirmadas' si no tiene pendientes de agendar pero sÃ­ tiene entrevistas confirmadas asignadas
+    // redirigir a 'Inbox - Confirmadas' si no tiene pendientes de agendar pero sí tiene entrevistas confirmadas asignadas
     if (esCoordActivo && vista === 'Inbox - Pendientes') {
         const poolCheck = (Array.isArray(ultimosAlumnosCargados) && ultimosAlumnosCargados.length > 0) ? ultimosAlumnosCargados : (window.allData || cachedAlumnosData || []);
         const misAsignados = typeof filtrarAlumnosEvaluador === 'function' ? filtrarAlumnosEvaluador(poolCheck) : [];
@@ -11235,13 +11235,18 @@ document.addEventListener('click', async (e) => {
                 if (elEvalTop) elEvalTop.textContent = al.reserva_profe_nombre || al.informe_entrevista?.evaluador_nombre || '-';
 }
 
-            // Borrador (v7.15): solo en el flujo de admisión (primer informe, aún no finalizado)
+            // Borrador (v7.16): solo en el flujo de admisión (primer informe, aún no finalizado)
             const esFlujoAdmision = !esNuevoInformeAdicional && !(reportIndexAttr !== null && reportIndexAttr !== '' && !isNaN(parseInt(reportIndexAttr, 10))) && !al.informe_entrevista;
             const dr = (esFlujoAdmision && al.informe_borrador && al.informe_borrador.datos) ? al.informe_borrador.datos : null;
             if (dr) {
                 inf = dr;
                 esNuevoInforme = false;
             }
+            // El texto del botón principal depende de la etapa: solo en la admisión deriva a Lista de Espera
+            const estAbrirNorm = String(al.estado_agenda || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+            const enEtapaAdmAbrir = estAbrirNorm === 'pendiente procesar' || estAbrirNorm === 'sin agendar' || estAbrirNorm.startsWith('pendiente validacion') || estAbrirNorm.startsWith('agenda confirmada') || estAbrirNorm.startsWith('entrevista');
+            const btnFinalInf = document.getElementById('btn-guardar-informe-final');
+            if (btnFinalInf) btnFinalInf.textContent = enEtapaAdmAbrir ? '✅ Guardar y Derivar a Lista de Espera' : '💾 Guardar cambios del informe';
             const btnBorradorInf = document.getElementById('btn-guardar-borrador-informe');
             if (btnBorradorInf) btnBorradorInf.style.display = esFlujoAdmision ? '' : 'none';
             const avisoBorradorInf = document.getElementById('inf-borrador-aviso');
@@ -11524,7 +11529,7 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    // Guardar borrador del informe de clase de admisión (v7.15): sin validaciones, no cambia el estado del alumno
+    // Guardar borrador del informe de clase de admisión (v7.16): sin validaciones, no cambia el estado del alumno
     if (target.id === 'btn-guardar-borrador-informe' || target.closest('#btn-guardar-borrador-informe')) {
         const btnBor = document.getElementById('btn-guardar-borrador-informe');
         const id = document.getElementById('informe-final-alumno-id').value;
@@ -11759,7 +11764,12 @@ document.addEventListener('click', async (e) => {
             const dispTxt = cambioDisp ? ' • Disponibilidad horaria actualizada.' : '';
             const nivelTxt = nivel !== al.nivel ? ` • Nivel asignado: ${nivel}.` : '';
             const tipoHistTxt = repIdx === 'nuevo' ? 'Nuevo informe adicional de clase de admisión registrado' : 'Informe de Clase de Admisión registrado/actualizado';
-            hist.push(crearEntradaHistorial(`${tipoHistTxt}.${nivelTxt}${tagsTxt}${dispTxt} Alumno en Lista de Espera.`, 'informe'));
+            // Solo se pasa a Lista de Espera si el alumno sigue en la etapa de admisión. Si ya está más adelante
+            // (Lista de Espera, Altas, Seguimiento...) y se corrige el informe, se conserva su estado.
+            const estInfNorm = String(al.estado_agenda || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+            const esEtapaAdmisionInf = estInfNorm === 'pendiente procesar' || estInfNorm === 'sin agendar' || estInfNorm.startsWith('pendiente validacion') || estInfNorm.startsWith('agenda confirmada') || estInfNorm.startsWith('entrevista');
+            const ahoraInfIso = new Date().toISOString();
+            hist.push(crearEntradaHistorial(`${tipoHistTxt}.${nivelTxt}${tagsTxt}${dispTxt}${esEtapaAdmisionInf ? ' Alumno en Lista de Espera.' : ''}`, 'informe'));
             
             let arrInformes = Array.isArray(al.informes_entrevista) ? [...al.informes_entrevista] : (al.informe_entrevista ? [al.informe_entrevista] : []);
             
@@ -11842,18 +11852,22 @@ document.addEventListener('click', async (e) => {
             const secundariosFinal = instrumentosSeleccionados.filter(i => i !== principalFinal);
             const instrumentosOrdenados = principalFinal ? [principalFinal, ...secundariosFinal] : instrumentosSeleccionados;
 
-            const updatePayload = { 
-                estado_agenda: "Lista de espera",
+            const updatePayload = {
                 nivel: nivel,
                 informe_entrevista: arrInformes[0],
                 informes_entrevista: arrInformes,
                 informe_borrador: null, // el informe quedó completo: se descarta el borrador
                 informe_admision: informeAdmisionTexto,
-                // La entrevista ya se realizó: se desvincula el evento de Google Calendar (queda en la
+                // Pase a Lista de Espera (solo desde la etapa de admisión). Se guarda la fecha de ingreso de forma explícita.
+                // La clase de admisión ya se realizó: se desvincula el evento de Google Calendar (queda en la
                 // agenda del evaluador como registro). Se conservan reserva_profe_*/fecha como dato histórico.
-                id_evento_reserva: null,
-                calendario_evento_reserva: null,
-                ...((al.id_evento_reserva || al.reserva_id_evento) ? {
+                ...(esEtapaAdmisionInf ? {
+                    estado_agenda: "Lista de espera",
+                    fecha_ingreso_espera: ahoraInfIso,
+                    id_evento_reserva: null,
+                    calendario_evento_reserva: null
+                } : {}),
+                ...((esEtapaAdmisionInf && (al.id_evento_reserva || al.reserva_id_evento)) ? {
                     entrevista_realizada: {
                         id_evento: al.id_evento_reserva || al.reserva_id_evento || null,
                         evaluador_id: al.reserva_profe_id || null,
@@ -11896,8 +11910,10 @@ document.addEventListener('click', async (e) => {
             const retornoId = modalInf?.dataset?.retornoAlumnoId || id;
             if (modalInf) modalInf.dataset.retornoAlumnoId = '';
             modalInf?.close();
-            removerFilaOptimista(id);
-            alert("✅ ¡Informe guardado con éxito!\nEl registro quedó actualizado y el alumno en Lista de Espera.");
+            if (esEtapaAdmisionInf) removerFilaOptimista(id);
+            alert(esEtapaAdmisionInf
+                ? "✅ ¡Informe guardado con éxito!\nEl registro quedó actualizado y el alumno en Lista de Espera."
+                : "✅ ¡Informe actualizado con éxito!\nEl alumno conserva su estado actual.");
             await cargarVista(estadoActualVista, false);
             if (retornoId && !retornoId.startsWith('test-')) {
                 await window.editarAlumnoModalDirecto(retornoId, 'tab-informe');
@@ -11954,7 +11970,7 @@ document.addEventListener('click', async (e) => {
         return;
 }
 
-    // BotÃ³n Copiar Aviso para Admisor desde Inbox (Rol AtenciÃ³n al Cliente)
+    // Botón Copiar Aviso para Admisor desde Inbox (Rol Atención al Cliente)
     if (target.classList.contains('btn-avisar-admisor-inbox') || target.closest('.btn-avisar-admisor-inbox')) {
         const btn = target.classList.contains('btn-avisar-admisor-inbox') ? target : target.closest('.btn-avisar-admisor-inbox');
         const id = btn.getAttribute('data-id');
@@ -11965,7 +11981,7 @@ document.addEventListener('click', async (e) => {
 }
 
     // Botón Copiar Aviso para Admisor (Individual desde 3 puntos o modal)
-    // BotÃ³n Copiar Aviso para Admisor desde Inbox (Rol AtenciÃ³n al Cliente)
+    // Botón Copiar Aviso para Admisor desde Inbox (Rol Atención al Cliente)
     if (target.classList.contains('btn-avisar-admisor-inbox') || target.closest('.btn-avisar-admisor-inbox')) {
         const btn = target.classList.contains('btn-avisar-admisor-inbox') ? target : target.closest('.btn-avisar-admisor-inbox');
         const id = btn.getAttribute('data-id');
@@ -13854,12 +13870,8 @@ document.addEventListener('click', async (e) => {
 }
 }
 
-            if (al.id_evento_reserva && decisionCal.decision === 'eliminar') await eliminarEventoSeguro(al, configApp);
-            if (al.id_evento_alta && decisionCal.decision === 'eliminar') {
-                await eliminarEventoAltaSeguro(al, configApp, { forzarEliminacionCalendar: true });
-}
-            
-            const hist = al.historial || []; 
+            // El evento de Calendar se elimina DESPUÉS de guardar la ficha (si el guardado falla, no se pierde el evento).
+            const hist = al.historial || [];
             const motivoCompleto = det ? `${mtv} (Detalle: ${det})` : mtv;
             const detalleCal = (teniaReserva && decisionCal.decision === 'mantener')
                 ? ' El evento en Google Calendar se conservó (el docente actualiza su agenda si corresponde).'
@@ -13892,8 +13904,19 @@ document.addEventListener('click', async (e) => {
                 historial: hist 
 };
             actualizarAlumnoEnMemoriaLocal(id, updateDataSusp);
-            await updateDoc(doc(db, "alumnos", id), updateDataSusp); 
-            document.getElementById('modal-suspender')?.close(); 
+            await updateDoc(doc(db, "alumnos", id), updateDataSusp);
+
+            let avisoEventoSusp = '';
+            try {
+                if (al.id_evento_reserva && decisionCal.decision === 'eliminar') await eliminarEventoSeguro(al, configApp);
+                if (al.id_evento_alta && decisionCal.decision === 'eliminar') {
+                    await eliminarEventoAltaSeguro(al, configApp, { forzarEliminacionCalendar: true });
+                }
+            } catch (errEvSusp) {
+                console.warn('No se pudo eliminar el evento al suspender:', errEvSusp);
+                avisoEventoSusp = '\n\n⚠️ No se pudo eliminar el evento en Google Calendar: borralo a mano del calendario.';
+            }
+            document.getElementById('modal-suspender')?.close();
             removerFilaOptimista(id);
             await cargarVista(estadoActualVista, false); 
 
@@ -13905,14 +13928,15 @@ document.addEventListener('click', async (e) => {
                         const calAviso = (decisionCal.decision === 'mantener') 
                             ? 'Se mantuvo el evento en Google Calendar.' 
                             : 'Se canceló el evento en Google Calendar.';
-                        alert(`🛑 Ficha suspendida correctamente.\n\n📅 ${calAviso} Se copió al portapapeles el texto de aviso para informar al profesor.`);
+                        alert(`🛑 Ficha suspendida correctamente.\n\n📅 ${calAviso} Se copió al portapapeles el texto de aviso para informar al evaluador.${avisoEventoSusp}`);
                         return;
 }
 } catch(errTxt) {
                     console.warn("No se pudo generar texto de cancelación:", errTxt);
 }
 }
-            mostrarToast("🛑 Ficha suspendida correctamente.", "info");
+            if (avisoEventoSusp) alert(`🛑 Ficha suspendida correctamente.${avisoEventoSusp}`);
+            else mostrarToast("🛑 Ficha suspendida correctamente.", "info");
 } catch(err){ 
             alert("❌ Error:\n\n" + err.message); 
 } finally { 
@@ -15542,11 +15566,11 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
                 const cantSuelta = Math.max(1, parseInt(d.cantidad_clases_sueltas || 1, 10));
                 elAltaFrec.innerHTML = `<span class="badge" style="background:#e0f2fe; color:#0369a1; font-size:11.5px; font-weight:700; padding:3px 8px; border-radius:6px; border:1px solid #bae6fd;">🔵 Suelta (${cantSuelta} ${cantSuelta === 1 ? 'clase' : 'clases'})</span>`;
 } else if ((d.tipo_suscripcion || '').toLowerCase().includes('mandalorian') || (d.modalidad_ensamble || '').toLowerCase().includes('mandalorian') || (d.tipo_ensamble || '').toLowerCase().includes('mandalorian')) {
-                elAltaFrec.innerHTML = `<span class="badge" style="background:#f1f5f9; color:#475569; font-size:11.5px; font-weight:700; padding:3px 8px; border-radius:6px; border:1px solid #cbd5e1;">ðŸŽ¸ Ensamble Mandalorian (90m)</span>`;
+                elAltaFrec.innerHTML = `<span class="badge" style="background:#f1f5f9; color:#475569; font-size:11.5px; font-weight:700; padding:3px 8px; border-radius:6px; border:1px solid #cbd5e1;">🎸 Ensamble Mandalorian (90m)</span>`;
 } else if ((d.tipo_suscripcion || '').toLowerCase().includes('ensamble') || (d.modalidad_ensamble || '').toLowerCase().includes('ensamble') || (d.tipo_ensamble || '').toLowerCase().includes('ensamble')) {
-                elAltaFrec.innerHTML = `<span class="badge" style="background:#f1f5f9; color:#475569; font-size:11.5px; font-weight:700; padding:3px 8px; border-radius:6px; border:1px solid #cbd5e1;">ðŸ§© Ensamble</span>`;
+                elAltaFrec.innerHTML = `<span class="badge" style="background:#f1f5f9; color:#475569; font-size:11.5px; font-weight:700; padding:3px 8px; border-radius:6px; border:1px solid #cbd5e1;">🧩 Ensamble</span>`;
 } else if ((d.tipo_suscripcion || '').toLowerCase().includes('grupal') || (d.grupo_asignado && d.grupo_asignado !== 'Clase Individual')) {
-                elAltaFrec.innerHTML = `<span class="badge" style="background:#f1f5f9; color:#475569; font-size:11.5px; font-weight:700; padding:3px 8px; border-radius:6px; border:1px solid #cbd5e1;">ðŸ‘¥ Clase Grupal</span>`;
+                elAltaFrec.innerHTML = `<span class="badge" style="background:#f1f5f9; color:#475569; font-size:11.5px; font-weight:700; padding:3px 8px; border-radius:6px; border:1px solid #cbd5e1;">👥 Clase Grupal</span>`;
 } else {
                 elAltaFrec.textContent = d.tipo_suscripcion || '-';
 }
@@ -16564,7 +16588,7 @@ export function abrirModalTestNotificacion() {
                 if (body) body.innerHTML = "Alumno: Sofía Gómez (Canto)<br>Vence plazo: Validación de reserva pendiente.<br><span style='color:var(--text-muted); font-size:11.5px;'>Acción: [👁️ Ver Ficha]</span>";
 } else {
                 if (tag) tag.textContent = "Preview Evaluador";
-                if (title) title.textContent = "📅 Entrevista de Admisión hoy (18:00 hs)";
+                if (title) title.textContent = "📅 Clase de admisión hoy (18:00 hs)";
                 if (body) body.innerHTML = "👤 Mateo Barrios (13 años) • 🥁 Batería (Ensamble)<br><span style='color:var(--text-muted); font-size:11.5px;'>Acción: [👁️ Ver Ficha]</span>";
 }
 };
@@ -16701,7 +16725,7 @@ export async function dispararNotificacionPrueba() {
         notifBody = "Alumno: Sofía Gómez (Canto)\nVence plazo: Validación de reserva pendiente.";
         targetUrl += "?verFicha=test-sofia-admisor";
 } else {
-        notifTitle = "📅 Entrevista de Admisión hoy (18:00 hs)";
+        notifTitle = "📅 Clase de admisión hoy (18:00 hs)";
         notifBody = "👤 Mateo Barrios (13 años) • 🥁 Batería (Ensamble)\nTutora: Mamá Vanesa.";
         targetUrl += "?verFicha=test-mateo-eval";
 }
@@ -16756,7 +16780,7 @@ export async function verificarAlertasDiarias09hs(forzar = false) {
 
         // Regla: Administrador exclusivo no recibe alertas (solo por rol operativo o si asume rol admisor/evaluador/coord)
         if (esAdmin && !esAdmisor && !esEvaluador && !esCoordinador) {
-            console.log("â„¹ï¸ Usuario con rol Administrador exclusivo: no recibe alertas automÃ¡ticas.");
+            console.log("ℹ️ Usuario con rol Administrador exclusivo: no recibe alertas automáticas.");
             return;
         }
 
@@ -16767,13 +16791,13 @@ export async function verificarAlertasDiarias09hs(forzar = false) {
         const hoyStr = `${anio}-${mes}-${dia}`; // Fecha local exacta YYYY-MM-DD
         const claveStorage = `alerta_09hs_emitida_${u.email}_${rolActivo}_${hoyStr}`;
 
-        // Comprobar si ya se emitiÃ³ hoy para este rol
+        // Comprobar si ya se emitió hoy para este rol
         if (!forzar && localStorage.getItem(claveStorage)) {
             programarProximaAlerta09hs();
             return;
         }
 
-        // Si no es forzada, verificar que sean las 9:00 hs o mÃ¡s
+        // Si no es forzada, verificar que sean las 9:00 hs o más
         const horaActual = hoy.getHours();
         if (!forzar && horaActual < 9) {
             programarProximaAlerta09hs();
@@ -16798,7 +16822,7 @@ export async function verificarAlertasDiarias09hs(forzar = false) {
 
         const iconUrl = new URL('logo.png', window.location.href).href;
 
-        // 1. CASO ADMISOR: Vencimientos y altas del dÃ­a en el flujo de admisiÃ³n (exclusivo admisor)
+        // 1. CASO ADMISOR: Vencimientos y altas del día en el flujo de admisión (exclusivo admisor)
         if (esAdmisor) {
             const vencimientosHoy = [];
 
@@ -16813,7 +16837,7 @@ export async function verificarAlertasDiarias09hs(forzar = false) {
                 } else if ((est === 'pre-alta pendiente' || est === 'pre-alta iniciada') && fInicio === hoyStr) {
                     vencimientosHoy.push({ al, motivo: 'Inicia clases hoy' });
                 } else if ((est === 'pendiente validacion por alumno' || est === 'pendiente validacion por evaluador') && (fVenc === hoyStr || fAgenda === hoyStr)) {
-                    vencimientosHoy.push({ al, motivo: `ValidaciÃ³n (${est})` });
+                    vencimientosHoy.push({ al, motivo: `Validación (${est})` });
                 }
             });
 
@@ -16824,13 +16848,13 @@ export async function verificarAlertasDiarias09hs(forzar = false) {
 
                 if (vencimientosHoy.length === 1) {
                     const item = vencimientosHoy[0];
-                    notifTitle = "âš ï¸ Vencimiento de AdmisiÃ³n hoy";
+                    notifTitle = "⚠️ Vencimiento de Admisión hoy";
                     notifBody = `Alumno: ${item.al.nombre} (${item.al.instrumento || 'Ensamble'})\n${item.motivo}.`;
                     targetUrl += `?verFicha=${item.al.id}`;
                 } else {
-                    notifTitle = `ðŸ“‹ TenÃ©s ${vencimientosHoy.length} vencimientos de admisiÃ³n hoy`;
-                    const resumen = vencimientosHoy.slice(0, 3).map(v => `â€¢ ${v.al.nombre} (${v.motivo})`).join('\n');
-                    notifBody = `${resumen}${vencimientosHoy.length > 3 ? `\n...y ${vencimientosHoy.length - 3} mÃ¡s.` : ''}`;
+                    notifTitle = `📋 Tenés ${vencimientosHoy.length} vencimientos de admisión hoy`;
+                    const resumen = vencimientosHoy.slice(0, 3).map(v => `• ${v.al.nombre} (${v.motivo})`).join('\n');
+                    notifBody = `${resumen}${vencimientosHoy.length > 3 ? `\n...y ${vencimientosHoy.length - 3} más.` : ''}`;
                     targetUrl += `?verFicha=${vencimientosHoy[0].al.id}`;
                 }
 
@@ -16840,14 +16864,14 @@ export async function verificarAlertasDiarias09hs(forzar = false) {
                     badge: iconUrl,
                     tag: `admisor-vencimientos-${hoyStr}`,
                     data: { url: targetUrl, alumnoId: vencimientosHoy[0].al.id },
-                    actions: [{ action: 'ver_ficha', title: 'ðŸ‘ï¸ Ver Ficha' }]
+                    actions: [{ action: 'ver_ficha', title: '👁️ Ver Ficha' }]
                 });
 
                 localStorage.setItem(claveStorage, 'true');
             }
         }
 
-        // 2. CASO EVALUADOR: Entrevistas del dÃ­a asignadas a este evaluador
+        // 2. CASO EVALUADOR: Entrevistas del día asignadas a este evaluador
         if (esEvaluador) {
             const emailEval = (u.email || '').toLowerCase().trim();
             const nombreEval = (u.nombre || '').toLowerCase().trim();
@@ -16874,12 +16898,12 @@ export async function verificarAlertasDiarias09hs(forzar = false) {
                 if (misEntrevistasHoy.length === 1) {
                     const item = misEntrevistasHoy[0];
                     const hora = item.hora_agenda || item.reserva_hora || '18:00';
-                    notifTitle = `ðŸ“… Entrevista de AdmisiÃ³n hoy (${hora} hs)`;
-                    notifBody = `ðŸ‘¤ ${item.nombre} (${item.edad || '13'} aÃ±os) â€¢ ${item.instrumento || 'Instrumento'}\n${item.tutor ? 'Tutor/a: ' + item.tutor : ''}`;
+                    notifTitle = `📅 Clase de admisión hoy (${hora} hs)`;
+                    notifBody = `👤 ${item.nombre} (${item.edad || '13'} años) • ${item.instrumento || 'Instrumento'}\n${item.tutor ? 'Tutor/a: ' + item.tutor : ''}`;
                     targetUrl += `?verFicha=${item.id}&rol=evaluador`;
                 } else {
-                    notifTitle = `ðŸ“… TenÃ©s ${misEntrevistasHoy.length} entrevistas de admisiÃ³n hoy`;
-                    const listaHoras = misEntrevistasHoy.slice(0, 3).map(e => `â€¢ ${e.hora_agenda || '18:00'} hs: ${e.nombre} (${e.instrumento || ''})`).join('\n');
+                    notifTitle = `📅 Tenés ${misEntrevistasHoy.length} clases de admisión hoy`;
+                    const listaHoras = misEntrevistasHoy.slice(0, 3).map(e => `• ${e.hora_agenda || '18:00'} hs: ${e.nombre} (${e.instrumento || ''})`).join('\n');
                     notifBody = `${listaHoras}`;
                     targetUrl += `?verFicha=${misEntrevistasHoy[0].id}&rol=evaluador`;
                 }
@@ -16890,7 +16914,7 @@ export async function verificarAlertasDiarias09hs(forzar = false) {
                     badge: iconUrl,
                     tag: `evaluador-entrevistas-${hoyStr}`,
                     data: { url: targetUrl, alumnoId: misEntrevistasHoy[0].id },
-                    actions: [{ action: 'ver_ficha', title: 'ðŸ‘ï¸ Ver Ficha' }]
+                    actions: [{ action: 'ver_ficha', title: '👁️ Ver Ficha' }]
                 });
 
                 localStorage.setItem(claveStorage, 'true');
@@ -16930,13 +16954,13 @@ export async function verificarAlertasDiarias09hs(forzar = false) {
 
                 if (misSeguimientosHoy.length === 1) {
                     const item = misSeguimientosHoy[0];
-                    notifTitle = "ðŸ“ž Seguimiento pendiente hoy";
-                    notifBody = `Alumno: ${item.nombre} â€¢ ${item.seguimiento?.etapa || 'En seguimiento'}`;
+                    notifTitle = "📞 Seguimiento pendiente hoy";
+                    notifBody = `Alumno: ${item.nombre} • ${item.seguimiento?.etapa || 'En seguimiento'}`;
                     targetUrl += `?verFicha=${item.id}&rol=coordinador`;
                 } else {
-                    notifTitle = `ðŸ“ž TenÃ©s ${misSeguimientosHoy.length} seguimientos para contactar hoy`;
-                    const lista = misSeguimientosHoy.slice(0, 3).map(s => `â€¢ ${s.nombre}`).join('\n');
-                    notifBody = `${lista}${misSeguimientosHoy.length > 3 ? `\n...y ${misSeguimientosHoy.length - 3} mÃ¡s.` : ''}`;
+                    notifTitle = `📞 Tenés ${misSeguimientosHoy.length} seguimientos para contactar hoy`;
+                    const lista = misSeguimientosHoy.slice(0, 3).map(s => `• ${s.nombre}`).join('\n');
+                    notifBody = `${lista}${misSeguimientosHoy.length > 3 ? `\n...y ${misSeguimientosHoy.length - 3} más.` : ''}`;
                     targetUrl += `?verFicha=${misSeguimientosHoy[0].id}&rol=coordinador`;
                 }
 
@@ -16946,7 +16970,7 @@ export async function verificarAlertasDiarias09hs(forzar = false) {
                     badge: iconUrl,
                     tag: `coordinador-seguimientos-${hoyStr}`,
                     data: { url: targetUrl, alumnoId: misSeguimientosHoy[0].id },
-                    actions: [{ action: 'ver_ficha', title: 'ðŸ‘ï¸ Ver Ficha' }]
+                    actions: [{ action: 'ver_ficha', title: '👁️ Ver Ficha' }]
                 });
 
                 localStorage.setItem(claveStorage, 'true');
@@ -17256,7 +17280,7 @@ export async function toggleEspecialAlumno(id, pasarAEspecial, nombre) {
         const hist = Array.isArray(alData.historial) ? [...alData.historial] : [];
         let perfil = Array.isArray(alData.perfil_psicologico) ? [...alData.perfil_psicologico] : [];
 
-        const autor = window.usuarioActual?.nombre || 'CoordinaciÃ³n';
+        const autor = window.usuarioActual?.nombre || 'Coordinación';
         let updates = {};
         if (pasarAEspecial) {
             hist.push(crearEntradaHistorial(`\uD83C\uDF00 Alumno marcado como Especial / Particular.`, 'sistema', autor));
@@ -17286,7 +17310,7 @@ export async function toggleEspecialAlumno(id, pasarAEspecial, nombre) {
         // 2. Persistir en Firestore en segundo plano
         await updateDoc(doc(db, "alumnos", id), updates);
 
-        // 3. Sincronizar en el modal si estÃ¡ abierto
+        // 3. Sincronizar en el modal si está abierto
         const modalBadge = document.getElementById('modal-badge-especial');
         if (modalBadge) {
             modalBadge.style.display = pasarAEspecial ? 'inline-flex' : 'none';
@@ -17299,7 +17323,7 @@ export async function toggleEspecialAlumno(id, pasarAEspecial, nombre) {
             chipEspecial.style.color = pasarAEspecial ? '#ffffff' : '#6d28d9';
 }
 
-        // 4. Actualizar barra de filtros (contador del botÃ³n rÃ¡pido) y recargar vista activa de inmediato sin overlay
+        // 4. Actualizar barra de filtros (contador del botón rápido) y recargar vista activa de inmediato sin overlay
         renderFiltrosChips();
         await cargarVista(estadoActualVista, false);
 } catch(err) {
