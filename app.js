@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.18";
+} from "./src/config/constants.js?v=7.19";
 
 import { 
     app, 
@@ -124,11 +124,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=7.18";
+} from "./src/modules/match.module.js?v=7.19";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=7.18";
+} from "./src/modules/profesor.module.js?v=7.19";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -157,14 +157,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=7.18";
+} from "./src/modules/altas.module.js?v=7.19";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=7.18";
+} from "./src/modules/dashboard.module.js?v=7.19";
 
 import {
     renderConfigHub,
@@ -173,20 +173,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.18";
+} from "./src/modules/abm.module.js?v=7.19";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.18";
+} from "./src/modules/inbox.module.js?v=7.19";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=7.18";
+} from "./src/modules/csv.module.js?v=7.19";
 
 import {
     inicializarMotorRecordatorios,
@@ -206,7 +206,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.18";
+} from "./src/modules/recordatorios.module.js?v=7.19";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -11213,7 +11213,7 @@ document.addEventListener('click', async (e) => {
                 if (elEvalTop) elEvalTop.textContent = al.reserva_profe_nombre || al.informe_entrevista?.evaluador_nombre || '-';
 }
 
-            // Borrador (v7.18): solo en el flujo de admisión (primer informe, aún no finalizado)
+            // Borrador (v7.19): solo en el flujo de admisión (primer informe, aún no finalizado)
             const esFlujoAdmision = !esNuevoInformeAdicional && !(reportIndexAttr !== null && reportIndexAttr !== '' && !isNaN(parseInt(reportIndexAttr, 10))) && !al.informe_entrevista;
             const dr = (esFlujoAdmision && al.informe_borrador && al.informe_borrador.datos) ? al.informe_borrador.datos : null;
             if (dr) {
@@ -11507,7 +11507,7 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    // Guardar borrador del informe de clase de admisión (v7.18): sin validaciones, no cambia el estado del alumno
+    // Guardar borrador del informe de clase de admisión (v7.19): sin validaciones, no cambia el estado del alumno
     if (target.id === 'btn-guardar-borrador-informe' || target.closest('#btn-guardar-borrador-informe')) {
         const btnBor = document.getElementById('btn-guardar-borrador-informe');
         const id = document.getElementById('informe-final-alumno-id').value;
@@ -13757,71 +13757,113 @@ document.addEventListener('click', async (e) => {
             if (id === 'bulk') {
                 const motivoCompleto = det ? `${mtv} (Detalle: ${det})` : mtv;
                 const idsToSuspend = [...selectedBulkIds];
-                let suspendidos = 0;
-                for (let sId of idsToSuspend) {
+                const normEst = s => (s || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                const origenDe = (estadoActual) => {
+                    if (estadoActual === 'lista de espera') return 'espera';
+                    if (['pre-alta pendiente', 'pre-alta iniciada', 'alta efectiva', 'alta ilegal', 'alta finalizada', 'validando grupo'].includes(estadoActual)) return 'altas';
+                    return 'inbox';
+                };
+
+                // 1) Se leen todas las fichas y se detecta cuáles tienen evento de Google Calendar de una clase de admisión pendiente
+                const fichas = [];
+                const noEncontradas = [];
+                for (const sId of idsToSuspend) {
                     try {
-                        removerFilaOptimista(sId);
                         const alDoc = await getDoc(doc(db, "alumnos", sId));
-                        if (alDoc.exists()) {
-                            const al = alDoc.data();
-                            const estadoActual = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-                            
-                            let origen = 'inbox';
-                            if (estadoActual === 'lista de espera') {
-                                origen = 'espera';
-} else if (['pre-alta pendiente', 'pre-alta iniciada', 'alta efectiva', 'alta ilegal', 'alta finalizada', 'validando grupo'].includes(estadoActual)) {
-                                origen = 'altas';
-}
+                        if (!alDoc.exists()) { noEncontradas.push(sId); continue; }
+                        const al = alDoc.data();
+                        fichas.push({ id: sId, al, origen: origenDe(normEst(al.estado_agenda)) });
+                    } catch (eLect) {
+                        console.error("Error al leer ficha para suspender:", sId, eLect);
+                        noEncontradas.push(sId);
+                    }
+                }
+                const conEvento = fichas.filter(f => f.origen === 'inbox' && (f.al.id_evento_reserva || f.al.id_evento_alta));
 
-                            const esDeAltaOEspera = origen === 'altas' || origen === 'espera';
-                            
-                            // Mismo criterio que la suspensión individual: solo se libera el evento
-                            // si la entrevista seguía pendiente (Inbox). En Espera/Altas se conserva.
-                            const liberaEventos = origen === 'inbox';
-                            if (liberaEventos && al.id_evento_reserva) await eliminarEventoSeguro(al, configApp);
-                            if (liberaEventos && al.id_evento_alta) await eliminarEventoAltaSeguro(al, configApp);
+                // 2) Una sola pregunta para todo el lote. Cerrar la ventana equivale a CONSERVAR (lo no destructivo).
+                let eliminarEventos = false;
+                if (conEvento.length > 0) {
+                    document.getElementById('modal-suspender')?.close();
+                    const nombresEv = conEvento.slice(0, 6).map(f => '• ' + (f.al.nombre || 'Alumno')).join('\n') + (conEvento.length > 6 ? '\n• ...y ' + (conEvento.length - 6) + ' más' : '');
+                    eliminarEventos = await window.confirmar(
+                        'Eventos en Google Calendar',
+                        (conEvento.length === 1 ? 'Este alumno tiene una clase de admisión agendada:' : conEvento.length + ' alumnos tienen una clase de admisión agendada:') + '\n' + nombresEv + '\n\n¿Querés eliminar ' + (conEvento.length === 1 ? 'su evento' : 'sus eventos') + ' del calendario o conservarlos?',
+                        '🗑️ Eliminar eventos',
+                        '📅',
+                        'Conservar eventos'
+                    );
+                }
 
-                            const hist = al.historial || [];
-                            hist.push(crearEntradaHistorial(`Alumno suspendido masivamente. Motivo: ${motivoCompleto}.${liberaEventos ? ' Eventos y cupos liberados.' : ' El evento en Google Calendar se conservó.'}`, 'suspension'));
+                // 3) Cada ficha se guarda primero; el evento se borra después, y la fila sale de la pantalla solo si se guardó
+                let suspendidos = 0;
+                const fallidas = [];
+                const sinBorrarEvento = [];
+                for (const f of fichas) {
+                    const { id: sId, al, origen } = f;
+                    try {
+                        const estadoActual = normEst(al.estado_agenda);
+                        const esDeAltaOEspera = origen === 'altas' || origen === 'espera';
+                        const tieneEv = Boolean(al.id_evento_reserva || al.id_evento_alta);
+                        // Mismo criterio que la suspensión individual: solo se ofrece liberar el evento si la clase
+                        // de admisión seguía pendiente (Inbox). En Espera/Altas se conserva siempre.
+                        const liberaEventos = origen === 'inbox' && eliminarEventos;
+                        const hist = al.historial || [];
+                        const notaEvento = tieneEv ? (liberaEventos ? ' Eventos y cupos liberados.' : ' El evento en Google Calendar se conservó.') : '';
+                        hist.push(crearEntradaHistorial(`Alumno suspendido masivamente. Motivo: ${motivoCompleto}.${notaEvento}`, 'suspension'));
 
-                            const nuevoEstado = esDeAltaOEspera ? "Alta suspendida" : "Agenda suspendida";
-                            await updateDoc(doc(db, "alumnos", sId), {
-                                estado_agenda: nuevoEstado,
-                                suspendido: true,
-                                origen_suspension: origen,
-                                motivo_suspension: motivoCompleto,
-                                motivo_suspension_cat: mtv,
-                                detalle_suspension: det || null,
-                                estado_previo_suspension: al.estado_agenda || estadoActual,
-                                fecha_suspension: new Date().toISOString(),
-                                reserva_profe_id_previo: al.reserva_profe_id || al.profesor_id || null,
-                                reserva_profe_nombre_previo: al.reserva_profe_nombre || al.profesor_asignado || null,
-                                reserva_fecha_texto_previo: al.reserva_fecha_texto || (al.fecha_inicio_clases ? formatearFechaAmi(al.fecha_inicio_clases) : null),
-                                reserva_profe_id: null,
-                                reserva_profe_nombre: null,
-                                reserva_cal_id: null,
-                                reserva_fecha_texto: null,
-                                reserva_inicio: null,
-                                reserva_fin: null,
-                                id_evento_reserva: null,
-                                calendario_evento_reserva: null,
-                                id_evento_alta: null,
-                                calendario_evento_alta: null,
-                                historial: hist
-});
-                            suspendidos++;
-}
-} catch(e) {
+                        const nuevoEstado = esDeAltaOEspera ? "Alta suspendida" : "Agenda suspendida";
+                        await updateDoc(doc(db, "alumnos", sId), {
+                            estado_agenda: nuevoEstado,
+                            suspendido: true,
+                            origen_suspension: origen,
+                            motivo_suspension: motivoCompleto,
+                            motivo_suspension_cat: mtv,
+                            detalle_suspension: det || null,
+                            estado_previo_suspension: al.estado_agenda || estadoActual,
+                            fecha_suspension: new Date().toISOString(),
+                            reserva_profe_id_previo: al.reserva_profe_id || al.profesor_id || null,
+                            reserva_profe_nombre_previo: al.reserva_profe_nombre || al.profesor_asignado || null,
+                            reserva_fecha_texto_previo: al.reserva_fecha_texto || (al.fecha_inicio_clases ? formatearFechaAmi(al.fecha_inicio_clases) : null),
+                            reserva_profe_id: null,
+                            reserva_profe_nombre: null,
+                            reserva_cal_id: null,
+                            reserva_fecha_texto: null,
+                            reserva_inicio: null,
+                            reserva_fin: null,
+                            id_evento_reserva: null,
+                            calendario_evento_reserva: null,
+                            id_evento_alta: null,
+                            calendario_evento_alta: null,
+                            historial: hist
+                        });
+                        suspendidos++;
+                        removerFilaOptimista(sId);
+
+                        if (liberaEventos) {
+                            try {
+                                if (al.id_evento_reserva) await eliminarEventoSeguro(al, configApp);
+                                if (al.id_evento_alta) await eliminarEventoAltaSeguro(al, configApp);
+                            } catch (eEv) {
+                                console.warn("No se pudo eliminar el evento al suspender masivamente:", sId, eEv);
+                                sinBorrarEvento.push(al.nombre || sId);
+                            }
+                        }
+                    } catch (e) {
                         console.error("Error al suspender alumno masivo:", sId, e);
-}
-}
-                document.getElementById('modal-suspender').close();
+                        fallidas.push(al.nombre || sId);
+                    }
+                }
+                noEncontradas.forEach(n => fallidas.push(n));
+                document.getElementById('modal-suspender')?.close();
                 selectedBulkIds.splice(0);
                 actualizarBulkBar();
                 await cargarVista(estadoActualVista);
-                alert(`✅ ${suspendidos} fichas suspendidas correctamente.`);
+                let msgMasivo = `✅ ${suspendidos} ${suspendidos === 1 ? 'ficha suspendida' : 'fichas suspendidas'} correctamente.`;
+                if (fallidas.length > 0) msgMasivo += `\n\n⚠️ No se pudo suspender (${fallidas.length}):\n• ${fallidas.join('\n• ')}\nRevisá esas fichas y volvé a intentar.`;
+                if (sinBorrarEvento.length > 0) msgMasivo += `\n\n⚠️ Se suspendieron, pero no se pudo borrar el evento del calendario de:\n• ${sinBorrarEvento.join('\n• ')}\nBorralo a mano.`;
+                alert(msgMasivo, fallidas.length > 0 || sinBorrarEvento.length > 0 ? 'warning' : 'success');
                 return;
-}
+            }
 
             const alDoc = await getDoc(doc(db, "alumnos", id));
             const al = alDoc.data(); 
