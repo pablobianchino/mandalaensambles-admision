@@ -1,4 +1,4 @@
-const CACHE_NAME = "mandala-app-v7.23";
+const CACHE_NAME = "mandala-app-v7.24";
 
 self.addEventListener('install', (event) => {
     self.skipWaiting();
