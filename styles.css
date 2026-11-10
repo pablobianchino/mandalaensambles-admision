@@ -4959,3 +4959,21 @@ details.agenda-disp-desplegable[open] > summary::before { content: '▾ '; }
 .ds-sim-titulo { font-weight: 800; color: var(--ink-2); display: flex; align-items: center; gap: 5px; }
 .ds-sim-label { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
 .ds-sim-campo { border: 1px solid var(--line-2); border-radius: var(--r-sm); background: var(--surface); color: var(--ink); padding: 3px 8px; font: 600 12px var(--font); }
+
+/* =======================================================================
+   FASE 2c (v7.22): un solo estilo de pestañas (subrayado con contador)
+   Aplica a las pestañas de sección (Inbox, Altas, Seguimientos, Suspendidos, Match)
+   y a las pestañas de la ficha y de las ventanas (.tab-btn).
+   ======================================================================= */
+.segmented-tabs-wrapper { margin-bottom: var(--s-4); display: flex; align-items: flex-end; overflow-x: auto; overflow-y: hidden; padding-bottom: 0; border-bottom: 1px solid var(--line); }
+.segmented-tabs-bar { display: inline-flex; background: none; padding: 0; border: 0; border-radius: 0; gap: 4px; }
+.segmented-tab-btn { gap: 8px; padding: 10px 14px; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; border-radius: 0; background: none; color: var(--ink-3); font: 700 14px var(--font); box-shadow: none; transition: color .15s, border-color .15s; }
+.segmented-tab-btn:hover { color: var(--ink); background: none; }
+.segmented-tab-btn.active { background: none; color: var(--teal-700); box-shadow: none; border-bottom-color: var(--teal); font-weight: 700; }
+.tab-badge { background: #f0ece4; color: var(--ink-2); font: 800 11px var(--font); padding: 0 7px; border-radius: var(--r-pill); line-height: 18px; }
+.segmented-tab-btn.active .tab-badge { background: var(--teal); color: #fff; }
+
+.tabs-container { gap: 4px; border-bottom: 1px solid var(--line); }
+.tab-btn { padding: 10px 14px; margin-bottom: -1px; border-bottom: 2px solid transparent; color: var(--ink-3); font: 700 14px var(--font); }
+.tab-btn:hover { color: var(--ink); }
+.tab-btn.active { color: var(--teal-700); border-bottom-color: var(--teal); }
