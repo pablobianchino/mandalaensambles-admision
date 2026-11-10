@@ -5001,13 +5001,14 @@ details.agenda-disp-desplegable[open] > summary::before { content: '▾ '; }
    PANTALLA DE CARGA INICIAL (variante C) — v7.25
    Logo que respira + trazo circular que se dibuja y se borra. Sin el nombre de la app (ya está en el logo).
    ======================================================================= */
-#splash-inicial { position: fixed; inset: 0; z-index: 2147483600; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: radial-gradient(120% 100% at 50% 40%, #ffffff 0%, var(--canvas) 70%); transition: opacity .35s ease; }
+#splash-inicial { position: fixed; inset: 0; z-index: 2147483600; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: radial-gradient(120% 100% at 50% 40%, #ffffff 0%, var(--canvas) 70%); transition: opacity .35s ease; }
 #splash-inicial.out { opacity: 0; pointer-events: none; }
 .splash-logo { position: relative; width: 112px; height: 112px; display: grid; place-items: center; }
 .splash-logo img { width: 72px; height: 72px; object-fit: contain; position: relative; z-index: 1; animation: splash-respira 2.4s ease-in-out infinite; }
 .splash-anillo { position: absolute; inset: 0; transform: rotate(-90deg); }
 .splash-anillo circle { fill: none; stroke: var(--teal); stroke-width: 1.5; stroke-linecap: round; stroke-dasharray: 340; stroke-dashoffset: 340; animation: splash-dibuja 2.4s ease-in-out infinite; }
-.splash-texto { font: 600 13px var(--font); color: var(--ink-3); letter-spacing: .01em; text-align: center; }
+/* Texto fino, en el azul del logo y pegado a él (opción D) */
+.splash-texto { font: 300 13.5px var(--font); color: var(--info); opacity: .75; letter-spacing: .08em; text-align: center; }
 .splash-reintentar { align-items: center; height: 32px; padding: 0 14px; border-radius: var(--r-sm); border: 1px solid var(--line-2); background: var(--surface); color: var(--ink); font: 700 12px var(--font); cursor: pointer; }
 @keyframes splash-respira { 0%, 100% { opacity: .85; transform: scale(1); } 50% { opacity: 1; transform: scale(1.03); } }
 @keyframes splash-dibuja { 0% { stroke-dashoffset: 340; } 55% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -340; } }
