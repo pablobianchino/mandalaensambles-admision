@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.16";
+} from "./src/config/constants.js?v=7.17";
 
 import { 
     app, 
@@ -124,11 +124,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=7.16";
+} from "./src/modules/match.module.js?v=7.17";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=7.16";
+} from "./src/modules/profesor.module.js?v=7.17";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -157,14 +157,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=7.16";
+} from "./src/modules/altas.module.js?v=7.17";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=7.16";
+} from "./src/modules/dashboard.module.js?v=7.17";
 
 import {
     renderConfigHub,
@@ -173,20 +173,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.16";
+} from "./src/modules/abm.module.js?v=7.17";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.16";
+} from "./src/modules/inbox.module.js?v=7.17";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=7.16";
+} from "./src/modules/csv.module.js?v=7.17";
 
 import {
     inicializarMotorRecordatorios,
@@ -206,7 +206,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.16";
+} from "./src/modules/recordatorios.module.js?v=7.17";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -3386,12 +3386,13 @@ window.poblarSelectMotivosSuspension = poblarSelectMotivosSuspension;
 export function poblarSelectMotivosCancelacion() {
     const sel = document.getElementById('cancelar-agenda-motivo');
     if (!sel) return;
-    const motivos = Array.isArray(configApp.motivos_suspension) && configApp.motivos_suspension.length > 0
-        ? configApp.motivos_suspension
-        : (defaultCfg.motivos_suspension || ['Horarios incompatibles', 'Problemas económicos', 'No responde', 'Arrepentido', 'No se logra acordar agenda por falta de disponibilidad', 'Otro']);
+    // Cancelar una clase de admisión tiene sus propios motivos (feriado, evaluador, alumno...); no son los de suspensión.
+    const motivos = Array.isArray(configApp.motivos_cancelacion) && configApp.motivos_cancelacion.length > 0
+        ? configApp.motivos_cancelacion
+        : (defaultCfg.motivos_cancelacion || ['Feriado o día no laborable', 'El evaluador no puede asistir', 'El alumno no puede asistir', 'El alumno no se presentó', 'Otro']);
 
     const currentVal = sel.value;
-    sel.innerHTML = `<option value="">Seleccione motivo...</option>` + 
+    sel.innerHTML = `<option value="">Seleccione motivo...</option>` +
         motivos.map(m => `<option value="${m}">${m}</option>`).join('');
     if (currentVal && motivos.includes(currentVal)) {
         sel.value = currentVal;
@@ -3765,11 +3766,6 @@ window.calcularDiasCalendario = calcularDiasCalendario;
 export function obtenerFechaIngresoAlumno(al) {
     if (!al) return null;
 
-    // Caso específico para Faustino Alvarez solicitado por Coordinación
-    if (al.nombre && al.nombre.toLowerCase().includes('faustino') && al.nombre.toLowerCase().includes('alvarez')) {
-        return new Date('2026-09-02T12:50:00');
-}
-
     const campos = [
         al.fecha_ingreso_espera,
         al.informe_entrevista?.fecha_evaluacion,
@@ -3823,11 +3819,6 @@ window.formatearSoloFecha = formatearSoloFecha;
 export function obtenerFechaIngresoEspera(al) {
     if (!al) return null;
 
-    // Caso específico para Faustino Alvarez solicitado por Coordinación
-    if (al.nombre && al.nombre.toLowerCase().includes('faustino') && al.nombre.toLowerCase().includes('alvarez')) {
-        return new Date('2026-09-02T12:50:00');
-}
-
     // 1. Campo explícito fecha_ingreso_espera
     if (al.fecha_ingreso_espera) {
         const p = parsearFechaCualquierOrigen(al.fecha_ingreso_espera);
@@ -3873,19 +3864,6 @@ window.obtenerFechaIngresoAlumno = obtenerFechaIngresoAlumno;
 // =======================================================================
 export function calcularMetricasEspera(al) {
     const ahora = new Date();
-
-    // 0. Caso Faustino Alvarez
-    if (al.nombre && al.nombre.toLowerCase().includes('faustino') && al.nombre.toLowerCase().includes('alvarez')) {
-        if (!al.fecha_ultimo_contacto && (al.dias_contacto_manual === undefined || al.dias_contacto_manual === null)) {
-            const fAdmFaustino = new Date('2026-09-02T12:50:00');
-            const dFaustino = calcularDiasCalendario(fAdmFaustino, ahora);
-            return {
-                diasEsperando: dFaustino,
-                diasContacto: dFaustino,
-                claseSemaforo: dFaustino > 7 ? 'rojo' : (dFaustino >= 4 ? 'ambar' : 'verde')
-};
-}
-}
 
     // 1. Días esperando (acumulativo continuo, nunca se resetea)
     let fechaIngreso = null;
@@ -11235,7 +11213,7 @@ document.addEventListener('click', async (e) => {
                 if (elEvalTop) elEvalTop.textContent = al.reserva_profe_nombre || al.informe_entrevista?.evaluador_nombre || '-';
 }
 
-            // Borrador (v7.16): solo en el flujo de admisión (primer informe, aún no finalizado)
+            // Borrador (v7.17): solo en el flujo de admisión (primer informe, aún no finalizado)
             const esFlujoAdmision = !esNuevoInformeAdicional && !(reportIndexAttr !== null && reportIndexAttr !== '' && !isNaN(parseInt(reportIndexAttr, 10))) && !al.informe_entrevista;
             const dr = (esFlujoAdmision && al.informe_borrador && al.informe_borrador.datos) ? al.informe_borrador.datos : null;
             if (dr) {
@@ -11500,7 +11478,7 @@ document.addEventListener('click', async (e) => {
         return; 
 }
     
-    // Descartar el borrador del informe (destraba Re-Agendar, Alumno Cancela y Suspender)
+    // Descartar el borrador del informe (destraba Cancelar y Suspender)
     if (target.classList.contains('btn-descartar-borrador-informe') || target.closest('.btn-descartar-borrador-informe')) {
         const btnDesc = target.closest('.btn-descartar-borrador-informe') || target;
         const idDesc = btnDesc.getAttribute('data-id');
@@ -11510,7 +11488,7 @@ document.addEventListener('click', async (e) => {
             const dDesc = sDesc.data();
             const okDesc = await window.confirmar(
                 `¿Descartar el borrador del informe de ${dDesc.nombre || 'este alumno'}?`,
-                'Se pierde lo que se había completado del informe. El alumno sigue en Confirmadas y vuelven a estar disponibles Alumno Cancela y Suspender.',
+                'Se pierde lo que se había completado del informe. El alumno sigue en Confirmadas y vuelven a estar disponibles Cancelar y Suspender.',
                 '🗑️ Descartar borrador',
                 '🗑️'
             );
@@ -11529,7 +11507,7 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    // Guardar borrador del informe de clase de admisión (v7.16): sin validaciones, no cambia el estado del alumno
+    // Guardar borrador del informe de clase de admisión (v7.17): sin validaciones, no cambia el estado del alumno
     if (target.id === 'btn-guardar-borrador-informe' || target.closest('#btn-guardar-borrador-informe')) {
         const btnBor = document.getElementById('btn-guardar-borrador-informe');
         const id = document.getElementById('informe-final-alumno-id').value;
@@ -13183,7 +13161,7 @@ document.addEventListener('click', async (e) => {
 } else if (detMotivo) {
             motivoDetalles = detMotivo;
 } else {
-            motivoDetalles = 'Cancelación informada por el alumno';
+            motivoDetalles = 'Clase de admisión cancelada';
 }
 
         let telRaw = (al.celular || al.telefono || al.whatsapp || '').toString().trim();
@@ -13524,7 +13502,7 @@ document.addEventListener('click', async (e) => {
     if (target.classList.contains('btn-cancelar-reserva') || target.classList.contains('btn-cancelar-alumno') || target.closest('.btn-cancelar-reserva') || target.closest('.btn-cancelar-alumno')) { 
         const btn = target.closest('.btn-cancelar-reserva') || target.closest('.btn-cancelar-alumno') || target;
         const id = btn.getAttribute('data-id');
-        if (await window.claseDeAdmisionYaRealizada(id, 'Alumno Cancela')) return;
+        if (await window.claseDeAdmisionYaRealizada(id, 'Cancelar')) return;
         try {
             const alDoc = await getDoc(doc(db, "alumnos", id)); 
             if (!alDoc.exists()) return alert("Alumno no encontrado.");
@@ -13545,6 +13523,12 @@ document.addEventListener('click', async (e) => {
 } else {
                 infoTxt = 'Sin horario específico registrado.';
 }
+            // Si el alumno ya abonó y completó el formulario, se aclara que eso se conserva al reprogramar
+            const chkCancel = Array.isArray(alData.checklist_admision) ? alData.checklist_admision : [false, false];
+            if (chkCancel[0] || chkCancel[1]) {
+                const partes = [chkCancel[0] ? 'abonó la clase' : '', chkCancel[1] ? 'completó el formulario' : ''].filter(Boolean).join(' y ');
+                infoTxt += `<div style="margin-top:6px; color:#065f46; font-weight:700;">✅ El alumno ${partes}: se conserva al reprogramar.</div>`;
+            }
             const infoEl = document.getElementById('cancelar-agenda-info-evento');
             if (infoEl) infoEl.innerHTML = infoTxt;
 
@@ -13601,7 +13585,7 @@ document.addEventListener('click', async (e) => {
             }
 
             const hist = alData.historial || [];
-            hist.push(crearEntradaHistorial(`Clase de admisión cancelada por el alumno. Motivo: ${motivoCompleto}. Evento liberado en Google Calendar. Derivado a Sin Agendar.`, 'suspension'));
+            hist.push(crearEntradaHistorial(`Clase de admisión cancelada. Motivo: ${motivoCompleto}. Evento liberado en Google Calendar. Derivado a Sin Agendar.`, 'suspension'));
 
             const updatesCancelaAgenda = {
                 estado_agenda: "Pendiente procesar",
@@ -14031,11 +14015,17 @@ document.addEventListener('click', async (e) => {
                 motivo_suspension_cat: null,
                 origen_suspension: null,
                 detalle_suspension: null,
+                // Se limpian los datos de la agenda anterior (la reactivación empieza de cero en Sin Agendar)
+                estado_previo_suspension: null,
+                fecha_suspension: null,
+                reserva_profe_id_previo: null,
+                reserva_profe_nombre_previo: null,
+                reserva_fecha_texto_previo: null,
                 historial: hist
 };
 
             actualizarAlumnoEnMemoriaLocal(id, updateData);
-            await updateDoc(doc(db, "alumnos", id), updateData); 
+            await updateDoc(doc(db, "alumnos", id), updateData);
             removerFilaOptimista(id);
             if (typeof mostrarToast === 'function') mostrarToast(`✓ ${al.nombre} fue reactivado en Inbox.`, "success");
             await cargarVista(estadoActualVista, false); 

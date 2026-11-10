@@ -2,7 +2,7 @@
 // src/config/constants.js — Constantes globales del sistema
 // =======================================================================
 
-export const APP_VERSION = "v7.16";
+export const APP_VERSION = "v7.17";
 
 // Contraseña inicial que se asigna al crear cuentas de acceso. Se muestra únicamente en los avisos al administrador
 // (crear/restablecer usuario); no debe aparecer en pantallas ni mensajes visibles para el resto de los usuarios.
@@ -76,6 +76,15 @@ export const defaultCfg = {
         'No se logra acordar agenda por falta de disponibilidad',
         'Problemas económicos',
         'Horarios incompatibles',
+        'Otro'
+    ],
+    // Motivos para cancelar una clase de admisión (el alumno vuelve a Sin Agendar para reprogramar)
+    motivos_cancelacion: [
+        'Feriado o día no laborable',
+        'El evaluador no puede asistir',
+        'El alumno no puede asistir',
+        'El alumno no se presentó',
+        'Cambio de horario solicitado',
         'Otro'
     ],
     reglas_edad_match: [

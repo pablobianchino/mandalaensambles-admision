@@ -234,7 +234,7 @@ export function generarBotonesPrincipalesVisibles(al, id) {
         // Re-Agendar siempre visible: si la clase no se hizo (faltó alumno o evaluador) se reprograma
         html += `<button type="button" class="row-quick-btn secondary btn-buscar-agenda" data-id="${id}">🔄 Re-Agendar</button>`;
     } else if (est === 'agenda suspendida') {
-        html += `<button type="button" class="row-quick-btn primary btn-recuperar-agenda" data-id="${id}">♻️ Recuperar Agenda</button>`;
+        html += `<button type="button" class="row-quick-btn primary btn-recuperar-agenda" data-id="${id}">♻️ Reactivar en Sin Agendar</button>`;
     } else if (est === 'lista de espera') {
         const esBici = !!al.es_bicicleta;
         html += `<button type="button" class="row-quick-btn secondary btn-ver-informe-espera" data-id="${id}">👁️ Ver Informe</button>`;
@@ -322,7 +322,7 @@ export function generarBotonesAccion(al, id, esModal = false, vista = '') {
         html += `<button type="button" class="${btnClass(true)} btn-validado-profe-popup" data-id="${id}">✅ Validado por Evaluador</button>`;
         html += `<button type="button" class="${btnClass()} btn-buscar-agenda" data-id="${id}">🗓️ Re-Agendar</button>`;
         html += `<button type="button" class="${btnClass()} btn-reenviar-profe" data-id="${id}">💬 Avisar a Evaluador</button>`;
-        html += `<button type="button" class="${btnClass()} btn-cancelar-alumno" data-id="${id}">❌ Alumno Cancela</button>`;
+        html += `<button type="button" class="${btnClass()} btn-cancelar-alumno" data-id="${id}">❌ Cancelar</button>`;
         html += `<button type="button" class="${btnClass()} btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Contacto</button>`;
         html += `<button type="button" class="${btnClass()} btn-nota-rapida" data-id="${id}">📝 Agregar Nota</button>`;
         html += `<button type="button" class="${btnClass()} btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
@@ -332,7 +332,7 @@ export function generarBotonesAccion(al, id, esModal = false, vista = '') {
         html += `<button type="button" class="${btnClass(true)} btn-confirmar-entrevista" data-id="${id}">✅ Confirmar Clase de Admisión</button>`;
         html += `<button type="button" class="${btnClass()} btn-buscar-agenda" data-id="${id}">🗓️ Re-Agendar</button>`;
         html += `<button type="button" class="${btnClass()} btn-reenviar-alumno" data-id="${id}">💬 Avisar a Alumno</button>`;
-        html += `<button type="button" class="${btnClass()} btn-cancelar-alumno" data-id="${id}">❌ Alumno Cancela</button>`;
+        html += `<button type="button" class="${btnClass()} btn-cancelar-alumno" data-id="${id}">❌ Cancelar</button>`;
         html += `<button type="button" class="${btnClass()} btn-nombre-agendar" data-id="${id}">📋 Copiar Formato Contacto</button>`;
         html += `<button type="button" class="${btnClass()} btn-nota-rapida" data-id="${id}">📝 Agregar Nota</button>`;
         html += `<button type="button" class="${btnClass()} btn-suspender" data-id="${id}">⏸️ Suspender</button>`;
@@ -349,7 +349,7 @@ export function generarBotonesAccion(al, id, esModal = false, vista = '') {
             html += `<button type="button" class="${btnClass()} btn-auditar-cal-directo" data-id="${id}">🔍 Auditar calendario</button>`;
         }
         if (!al.informe_borrador) {
-            html += `<button type="button" class="${btnClass()} btn-cancelar-alumno" data-id="${id}">❌ Alumno Cancela</button>`;
+            html += `<button type="button" class="${btnClass()} btn-cancelar-alumno" data-id="${id}">❌ Cancelar</button>`;
         }
         html += `<button type="button" class="${btnClass()} btn-nota-rapida" data-id="${id}">📝 Agregar Nota</button>`;
         if (al.informe_borrador) {
