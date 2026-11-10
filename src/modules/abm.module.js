@@ -2,7 +2,7 @@
 // src/modules/abm.module.js -- ABM Profesores, Instrumentos, Suscripciones, Usuarios y Config
 // =======================================================================
 
-import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO } from "../config/constants.js?v=7.17";
+import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO } from "../config/constants.js?v=7.18";
 import { formatearPrecioMoneda, TEXTO_AVISO_ADMISOR_INBOX_DEFAULT } from "./altas.module.js";
 import { 
     db, 
@@ -318,6 +318,24 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
             'Otro'
         ];
 
+    let motivosCancList = Array.isArray(currentCfg.motivos_cancelacion) && currentCfg.motivos_cancelacion.length > 0
+        ? [...currentCfg.motivos_cancelacion]
+        : [...(defaultCfg.motivos_cancelacion || ['Feriado o día no laborable', 'El evaluador no puede asistir', 'El alumno no puede asistir', 'El alumno no se presentó', 'Otro'])];
+
+    const renderMotivosCancAdmin = () => {
+        const wrap = document.getElementById('cfg-motivos-cancelacion-list');
+        if (!wrap) return;
+        wrap.innerHTML = motivosCancList.map((mot, idx) => `
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 12px; background:var(--hover-bg); border:1px solid var(--border-color); border-radius:8px;">
+                <span style="font-size:13px; font-weight:600; color:var(--text-main); flex:1;">${mot}</span>
+                <div style="display:flex; gap:6px;">
+                    <button type="button" class="btn-edit-motivo-canc-cfg" data-idx="${idx}" style="background:#fff; border:1px solid var(--border-color); border-radius:6px; cursor:pointer; padding:3px 8px; font-size:12px; font-family:inherit;" title="Editar motivo">✏️ Editar</button>
+                    <button type="button" class="btn-del-motivo-canc-cfg" data-idx="${idx}" style="background:#fff; border:1px solid var(--border-color); color:var(--accent-red); border-radius:6px; cursor:pointer; padding:3px 8px; font-size:12px; font-family:inherit;" title="Eliminar motivo">🗑️</button>
+                </div>
+            </div>
+        `).join('');
+    };
+
     const renderTagsAdmin = () => {
         const wrap = document.getElementById('cfg-tags-admin-list');
         if (!wrap) return;
@@ -596,6 +614,27 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
                 </div>
             </div>
 
+            <!-- SECCIÓN 7: MOTIVOS DE CANCELACIÓN -->
+            <div class="cfg-accordion-card">
+                <div class="cfg-accordion-header" data-target="cfg-sec-motivos-cancelacion">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span style="font-size:1.2em;">❌</span>
+                        <span style="font-size:1.05em; font-weight:700; color:var(--text-main);">7. Motivos de Cancelación</span>
+                    </div>
+                    <span class="cfg-accordion-arrow" id="arrow-cfg-sec-motivos-cancelacion">▶</span>
+                </div>
+                <div id="cfg-sec-motivos-cancelacion" class="cfg-accordion-body" style="display:none;">
+                    <p style="color:var(--text-muted); font-size:0.9em; margin:0 0 14px 0;">Motivos para cancelar una clase de admisión (el alumno vuelve a Sin Agendar para reprogramar). Poblan el selector de la ventana "Cancelar Clase de Admisión". Son distintos de los motivos de suspensión.</p>
+
+                    <div id="cfg-motivos-cancelacion-list" style="display:flex; flex-direction:column; gap:8px; margin-bottom:14px;"></div>
+
+                    <div style="display:flex; gap:10px; max-width:520px;">
+                        <input type="text" id="cfg-new-motivo-canc-input" class="modern-input" placeholder="Nuevo motivo de cancelación...">
+                        <button type="button" id="btn-add-motivo-canc-cfg" class="btn-primary" style="white-space:nowrap; padding:0 16px;">+ Agregar</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- BOTÓN GUARDAR GLOBAL -->
             <div style="margin-top:10px;">
                 <button id="btn-guardar-cfg" class="btn-primary" style="width:100%; padding:14px; font-size:14px; font-weight:700;">💾 Guardar Ajustes Generales</button>
@@ -605,6 +644,7 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
 
     renderTagsAdmin();
     renderMotivosAdmin();
+    renderMotivosCancAdmin();
 
     // Toggle de Acordeones
     cont.querySelectorAll('.cfg-accordion-header').forEach(header => {
@@ -653,6 +693,69 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
             console.error("Error al guardar motivos:", e);
         }
     };
+
+    const autoGuardarMotivosCanc = async () => {
+        try {
+            await setDoc(doc(db, "configuracion", "general"), { motivos_cancelacion: motivosCancList }, { merge: true });
+            if (typeof configApp === 'object') {
+                configApp.motivos_cancelacion = [...motivosCancList];
+            }
+            if (typeof window.poblarSelectMotivosCancelacion === 'function') {
+                window.poblarSelectMotivosCancelacion();
+            }
+            if (typeof cargarConfig === 'function') await cargarConfig();
+        } catch(e) {
+            console.error("Error al guardar motivos de cancelación:", e);
+            alert("❌ No se pudieron guardar los motivos de cancelación: " + (e.message || e));
+        }
+    };
+
+    const handleAddMotivoCanc = async () => {
+        const inp = document.getElementById('cfg-new-motivo-canc-input');
+        const val = (inp?.value || '').trim();
+        if (val && !motivosCancList.includes(val)) {
+            motivosCancList.push(val);
+            inp.value = '';
+            renderMotivosCancAdmin();
+            await autoGuardarMotivosCanc();
+            alert(`Motivo "${val}" agregado con éxito.`);
+        }
+    };
+
+    document.getElementById('btn-add-motivo-canc-cfg')?.addEventListener('click', handleAddMotivoCanc);
+    document.getElementById('cfg-new-motivo-canc-input')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleAddMotivoCanc();
+        }
+    });
+
+    document.getElementById('cfg-motivos-cancelacion-list')?.addEventListener('click', async (e) => {
+        const btnDel = e.target.closest('.btn-del-motivo-canc-cfg');
+        const btnEdit = e.target.closest('.btn-edit-motivo-canc-cfg');
+        if (btnDel) {
+            const idx = parseInt(btnDel.dataset.idx, 10);
+            if (!isNaN(idx)) {
+                const motivoEliminar = motivosCancList[idx];
+                if (await window.confirmar('Eliminar motivo', `¿Eliminar el motivo de cancelación "${motivoEliminar}"?`, 'Eliminar', '🗑️')) {
+                    motivosCancList.splice(idx, 1);
+                    renderMotivosCancAdmin();
+                    await autoGuardarMotivosCanc();
+                }
+            }
+        } else if (btnEdit) {
+            const idx = parseInt(btnEdit.dataset.idx, 10);
+            if (!isNaN(idx)) {
+                const motivoActual = motivosCancList[idx];
+                const nuevoValor = await window.pedirTexto('Editar motivo de cancelación', '', { valorInicial: motivoActual, placeholder: 'Motivo', multilinea: false, textoBoton: 'Guardar' });
+                if (nuevoValor !== null && nuevoValor.trim() && nuevoValor.trim() !== motivoActual) {
+                    motivosCancList[idx] = nuevoValor.trim();
+                    renderMotivosCancAdmin();
+                    await autoGuardarMotivosCanc();
+                }
+            }
+        }
+    });
 
     const handleAddTag = async () => {
         const inp = document.getElementById('cfg-new-tag-input');
@@ -774,8 +877,9 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
             arancel_grupal_regular: formatearPrecioMoneda(document.getElementById('cfg-arancel-grupal-regular')?.value || ''), 
             arancel_grupal_comunidad: formatearPrecioMoneda(document.getElementById('cfg-arancel-grupal-comunidad')?.value || ''), 
             perfil_psicologico_opciones: tagsList,
-            motivos_suspension: motivosList
-        }; 
+            motivos_suspension: motivosList,
+            motivos_cancelacion: motivosCancList
+        };
         await setDoc(doc(db, "configuracion", "general"), updatedData, { merge: true }); 
         if (typeof configApp === 'object') {
             Object.assign(configApp, updatedData);
@@ -783,8 +887,11 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
         if (typeof window.poblarSelectMotivosSuspension === 'function') {
             window.poblarSelectMotivosSuspension();
         }
-        if (typeof cargarConfig === 'function') await cargarConfig(); 
-        if (typeof setBotonCargando === 'function') setBotonCargando(e.target, false); 
+        if (typeof window.poblarSelectMotivosCancelacion === 'function') {
+            window.poblarSelectMotivosCancelacion();
+        }
+        if (typeof cargarConfig === 'function') await cargarConfig();
+        if (typeof setBotonCargando === 'function') setBotonCargando(e.target, false);
         alert('✅ Configuración guardada correctamente.'); 
     }); 
 
