@@ -271,7 +271,61 @@ export function generarBotonesPrincipalesVisibles(al, id) {
     return html;
 }
 
+// ================================================================
+// Presentación del menú de acciones (⋮ y ventana de la ficha): íconos de línea en vez de emojis,
+// y las acciones que cierran o quitan al alumno agrupadas al final, separadas y en rojo suave.
+// Solo cambia el aspecto y el orden visual: cada botón conserva su clase, su data-id y su acción.
+// ================================================================
+const ICONO_MENU = {
+    '📣': 'mega', '📢': 'mega', '📋': 'clip', '✏': 'edit', '🔄': 'undo', '📝': 'edit', '📄': 'file', '🗑': 'trash',
+    '🔍': 'search', '🛋': 'clock', '⏸': 'pause', '✅': 'ok', '🗓': 'cal', '📅': 'cal', '💬': 'msg', '❌': 'err',
+    '🏁': 'flag', '💰': 'coin', '👁': 'eye', '🧩': 'puzzle', '🌀': 'star', '☎': 'phone', '🚲': 'bike', '↩': 'undo',
+    '🚀': 'rocket', '⚙': 'play', '💳': 'card', '➕': 'plus', '🎧': 'headset', '🛑': 'ban'
+};
+const CLASES_CIERRE = ['btn-cancelar-alumno', 'btn-suspender', 'btn-suspender-espera', 'btn-dar-baja-alumno', 'btn-eliminar-ficha-directo', 'btn-descartar-borrador-informe'];
+const RE_EMOJI_INICIAL = /^((?:[\u{1F000}-\u{1FAFF}\u{2190}-\u{21FF}\u{2300}-\u{23FF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]️?)+)\s*/u;
+
+function presentarBotonesAccion(html) {
+    if (typeof window.iconoLinea !== 'function') return html;
+    const botones = html.match(/<button[\s\S]*?<\/button>/g);
+    if (!botones || !botones.length) return html;
+    const normales = [];
+    const cierres = [];
+    for (const b of botones) {
+        const m = b.match(/^(<button[^>]*>)([\s\S]*)<\/button>$/);
+        if (!m) { normales.push(b); continue; }
+        let abre = m[1];
+        let texto = m[2];
+        const esCierre = CLASES_CIERRE.some(c => abre.includes(c));
+        const e = texto.match(RE_EMOJI_INICIAL);
+        if (e) {
+            const clave = e[1].replace(/️/g, '');
+            const resto = texto.slice(e[0].length);
+            let nombre = ICONO_MENU[clave] || 'info';
+            if (clave === '🛋' && /Devolver/.test(resto)) nombre = 'undo';
+            texto = window.iconoLinea(nombre, 'ico-menu') + '<span>' + resto + '</span>';
+        }
+        if (esCierre) {
+            abre = abre.replace(/\sstyle="[^"]*"/, '').replace('class="', 'class="av-menu-cierre ');
+            cierres.push(abre + texto + '</button>');
+        } else {
+            normales.push(abre + texto + '</button>');
+        }
+    }
+    if (normales.length) normales[0] = normales[0].replace('class="', 'class="av-menu-principal ');
+    return normales.join('') + (normales.length && cierres.length ? '<div class="av-menu-sep"></div>' : '') + cierres.join('');
+}
+
 export function generarBotonesAccion(al, id, esModal = false, vista = '') {
+    try {
+        return presentarBotonesAccion(generarBotonesAccionBase(al, id, esModal, vista));
+    } catch (err) {
+        console.warn('No se pudo presentar el menú de acciones con íconos:', err);
+        return generarBotonesAccionBase(al, id, esModal, vista);
+    }
+}
+
+function generarBotonesAccionBase(al, id, esModal = false, vista = '') {
     let html = '';
     const rawEst = al.estado_agenda || '';
     const est = rawEst.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();

@@ -5159,3 +5159,22 @@ dialog.av-ventana.modern-modal { max-width: 560px !important; width: 92% !import
 .global-action-card .spinner-inline { width: 18px !important; height: 18px !important; border: 2px solid var(--teal-100) !important; border-top-color: var(--teal) !important; animation-duration: .8s !important; }
 #global-action-text { color: var(--ink) !important; font-size: 13.5px !important; font-weight: 600 !important; }
 #global-action-cerrar { background: var(--surface) !important; color: var(--ink) !important; border: 1px solid var(--line-2) !important; border-radius: var(--r-pill) !important; }
+
+
+/* =======================================================================
+   FASE 4c — MENÚ DE TRES PUNTOS (⋮) y botones de acción: íconos de línea, acción principal y acciones de cierre al final
+   ======================================================================= */
+.dropdown-menu { border-radius: var(--r-md) !important; box-shadow: var(--sh-3) !important; border: 1px solid var(--line) !important; padding: 6px !important; gap: 0 !important; }
+.dropdown-item { gap: 10px !important; padding: 8px 10px !important; border-radius: var(--r-sm) !important; font-size: 13px; font-weight: 600; color: var(--ink) !important; }
+.dropdown-item:hover { background: var(--surface-2) !important; color: var(--ink) !important; }
+.dropdown-item .ico-menu, .btn-action-primary .ico-menu, .btn-action-neutral .ico-menu { width: 16px; height: 16px; color: var(--ink-3); pointer-events: none; }
+.dropdown-item span, .btn-action-primary span, .btn-action-neutral span { pointer-events: none; }
+.av-menu-principal { color: var(--teal) !important; font-weight: 700 !important; background: var(--teal-50) !important; }
+.av-menu-principal .ico-menu { color: var(--teal) !important; }
+.av-menu-principal:hover { background: var(--teal-100) !important; }
+.av-menu-sep { height: 1px; background: var(--line); margin: 5px 4px; flex-shrink: 0; }
+.av-menu-cierre, .av-menu-cierre .ico-menu { color: var(--bad) !important; }
+.av-menu-cierre { border: 0 !important; margin-top: 0 !important; font-weight: 600 !important; }
+.av-menu-cierre:hover { background: var(--bad-bg) !important; }
+.btn-action-neutral, .btn-action-primary { display: flex; align-items: center; gap: 8px; }
+.btn-row-actions-swipe .ico-linea { width: 16px; height: 16px; vertical-align: -3px; margin-right: 4px; }
