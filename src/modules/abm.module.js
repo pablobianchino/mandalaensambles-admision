@@ -2,7 +2,7 @@
 // src/modules/abm.module.js -- ABM Profesores, Instrumentos, Suscripciones, Usuarios y Config
 // =======================================================================
 
-import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO } from "../config/constants.js?v=7.31";
+import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO } from "../config/constants.js?v=7.32";
 import { formatearPrecioMoneda, TEXTO_AVISO_ADMISOR_INBOX_DEFAULT } from "./altas.module.js";
 import { 
     db, 

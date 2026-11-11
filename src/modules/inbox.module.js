@@ -298,7 +298,7 @@ function presentarBotonesAccion(html) {
         let texto = m[2];
         const esCierre = CLASES_CIERRE.some(c => abre.includes(c));
         const e = texto.match(RE_EMOJI_INICIAL);
-        if (e) {
+        if (e && e[1].replace(/️/g, '') !== '🌀') { // "Especial" conserva su ícono original (decisión de Pablo)
             const clave = e[1].replace(/️/g, '');
             const resto = texto.slice(e[0].length);
             let nombre = ICONO_MENU[clave] || 'info';

@@ -5178,3 +5178,18 @@ dialog.av-ventana.modern-modal { max-width: 560px !important; width: 92% !import
 .av-menu-cierre:hover { background: var(--bad-bg) !important; }
 .btn-action-neutral, .btn-action-primary { display: flex; align-items: center; gap: 8px; }
 .btn-row-actions-swipe .ico-linea { width: 16px; height: 16px; vertical-align: -3px; margin-right: 4px; }
+
+
+/* =======================================================================
+   FASE 4d — ETIQUETAS "ESPERANDO" Y "CONTACTADO": chips con significado, 12 px, íconos de línea
+   Esperando = neutra · Contactado = verde (≤3 días), ámbar (4-7), rojo (>7)
+   ======================================================================= */
+.micro-chip-espera-neutro, .micro-chip-contacto { font-size: 12px !important; font-weight: 700 !important; padding: 3px 9px !important; border-radius: var(--r-pill) !important; gap: 6px !important; line-height: 1.2; }
+.micro-chip-espera-neutro { background: var(--surface-2) !important; border: 1px solid var(--line-2) !important; color: var(--ink-2) !important; }
+.micro-chip-contacto.verde { background: var(--ok-bg) !important; border: 1px solid #bfe0cd !important; color: var(--ok) !important; }
+.micro-chip-contacto.ambar { background: var(--warn-bg) !important; border: 1px solid #f0d9a8 !important; color: var(--warn) !important; }
+.micro-chip-contacto.rojo { background: var(--bad-bg) !important; border: 1px solid #efc4bb !important; color: var(--bad) !important; }
+.ico-chip { width: 13px; height: 13px; stroke-width: 2.2; }
+.ico-chip-lapiz { margin-left: auto; opacity: .75; }
+.micro-chip-contacto.editable:hover { filter: none; box-shadow: var(--sh-1); }
+.micro-chip-contacto.editable:hover .ico-chip-lapiz { opacity: 1; }
