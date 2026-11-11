@@ -5037,3 +5037,17 @@ details.agenda-disp-desplegable[open] > summary::before { content: '▾ '; }
 /* Dato de fecha a la derecha de la fila */
 .ds-meta-label { font-size: 12px; color: var(--ink-3); font-weight: 700; text-transform: uppercase; letter-spacing: .03em; margin-bottom: 2px; }
 .ds-meta-val { font-size: 12.5px; color: var(--ink-2); font-weight: 600; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+
+/* =======================================================================
+   FASE 4a (v7.29): encabezados de agrupación con un solo molde en toda la app
+   (Lista de Espera, Inbox, Altas, Seguimientos, Suspendidos, Bajas, Match).
+   Punto intermedio: estructura idéntica; el color queda solo como acento (barra a la izquierda,
+   ícono y contador). Los !important se retiran en la Fase 5 al sacar los estilos en línea.
+   ======================================================================= */
+.group-card-l1 { border: 1px solid var(--line) !important; border-radius: var(--r-md) !important; background: var(--surface) !important; box-shadow: var(--sh-1); margin-top: 14px; margin-bottom: 8px !important; }
+.group-banner-l1 { background: var(--surface-2) !important; color: var(--ink) !important; border-left-width: 4px !important; padding: 12px 16px !important; border-radius: 9px 9px 0 0; border-bottom: 1px solid var(--line); }
+.group-banner-l1:hover { filter: none; background: #f5f1e9 !important; }
+.group-banner-l1 span[style*="font-weight:800"] { font-size: 14px !important; letter-spacing: 0 !important; }
+.group-banner-l1 span[style*="font-size:18px"], .group-banner-l1 span[style*="font-size:16px"] { font-size: 16px !important; }
+.group-banner-l1 span[style*="border-radius:12px"] { font-size: 12px !important; font-weight: 700 !important; padding: 0 9px !important; height: 20px; display: inline-flex; align-items: center; border-radius: var(--r-pill) !important; }
+.group-card-l2 { background: var(--surface) !important; border: 1px solid var(--line) !important; border-radius: var(--r-md) !important; }

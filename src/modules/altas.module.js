@@ -3615,7 +3615,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                                 <span id="${groupId}-icon" style="font-size:12px; transition:transform 0.2s;">▼</span>
                                 <span style="font-size:16px;">${iconBanner}</span>
                                 <span style="font-size:14px; font-weight:800; letter-spacing:-0.01em;">${headerTitulo.toUpperCase()}</span>
-                                <span style="background:var(--accent-teal); color:#ffffff; font-size:11px; font-weight:700; padding:2px 8px; border-radius:12px;">${alumnosSeg.length} alumno(s)</span>
+                                <span style="background:var(--accent-teal); color:#ffffff; font-size:11px; font-weight:700; padding:2px 8px; border-radius:12px;">${alumnosSeg.length} ${alumnosSeg.length === 1 ? 'alumno' : 'alumnos'}</span>
                             </div>
                         </div>
                         <div id="${groupId}-content" style="padding:10px 12px; display:flex; flex-direction:column; gap:4px;">
@@ -3877,7 +3877,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                             <span id="${docGroupId}-icon" style="font-size:12px; transition:transform 0.2s;">▼</span>
                             <span style="font-size:16px;">👨‍🏫</span>
                             <span style="font-size:14px; font-weight:800; letter-spacing:-0.01em;">DOCENTE: ${profeNom.toUpperCase()}</span>
-                            <span style="background:var(--accent-teal); color:#ffffff; font-size:11px; font-weight:700; padding:2px 8px; border-radius:12px;">${alumnosDocente.length} alumno(s)</span>
+                            <span style="background:var(--accent-teal); color:#ffffff; font-size:11px; font-weight:700; padding:2px 8px; border-radius:12px;">${alumnosDocente.length} ${alumnosDocente.length === 1 ? 'alumno' : 'alumnos'}</span>
                         </div>
                     </div>
                     <div id="${docGroupId}-content" style="padding:10px 12px; display:flex; flex-direction:column; gap:4px;">
