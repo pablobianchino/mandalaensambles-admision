@@ -10,7 +10,7 @@
     <meta http-equiv="Expires" content="0">
     
     <link rel="icon" href="logo.png" type="image/png">
-    <link rel="manifest" href="manifest.json?v=7.29">
+    <link rel="manifest" href="manifest.json?v=7.30">
     <meta name="theme-color" content="#fbfaf8">
     <meta name="apple-mobile-web-app-title" content="MDL Admisi&oacute;n">
     <meta name="application-name" content="MDL Admisi&oacute;n">
@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=7.29">
+    <link rel="stylesheet" href="styles.css?v=7.30">
 
     <style>
         /* Estilos Críticos de Widget de Perfil y Popover Google-Style */
@@ -425,7 +425,7 @@
 
             <button id="btn-login" class="btn-google-login" style="width:100%; justify-content:center;">
                 <span style="display:flex; align-items:center; margin-right:12px;">
-                    <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.29l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+                    <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.30l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
                 </span>
                 Continuar con Google
             </button>
@@ -474,7 +474,7 @@
                 </li>
 
                 <li class="nav-item" data-vista="Inbox - Pendientes" data-modulo="Inbox">
-                    <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.29a2 2 0 0 0-1.79 1.11z"/></svg> <span>Inbox</span>
+                    <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.30a2 2 0 0 0-1.79 1.11z"/></svg> <span>Inbox</span>
                     <span class="nav-badge" id="badge-inbox" style="display:none;">0</span>
                 </li>
 
@@ -3731,139 +3731,131 @@
     </dialog>
 
     <!-- MODAL DE CONFIRMACIÓN CUSTOM — Punto 6 -->
-    <dialog id="modal-confirmar-accion" class="modern-modal auto-height-modal" style="max-width:420px; width:90%; padding:0; border-radius:16px; border:1px solid var(--border-color); box-shadow:0 20px 60px rgba(0,0,0,0.15);">
-        <div style="padding:24px 24px 20px;">
+    <dialog id="modal-confirmar-accion" class="modern-modal auto-height-modal av-confirmar" data-tono="neutral" data-insignia="neutral">
+        <div class="av-confirmar-cuerpo">
             <div class="modal-drag-pill" style="display:none;"></div>
-            <div id="confirmar-icon" style="font-size:2em; margin-bottom:12px; text-align:center;"></div>
-            <h3 id="confirmar-titulo" style="margin:0 0 8px; font-size:17px; font-weight:700; color:var(--text-main); text-align:center;"></h3>
-            <p id="confirmar-descripcion" style="margin:0 0 20px; font-size:14px; color:var(--text-muted); text-align:center; line-height:1.5; white-space:pre-line;"></p>
-            <div style="display:flex; gap:10px; justify-content:center;">
-                <button id="confirmar-btn-cancelar" style="flex:1; padding:11px 16px; border:1px solid var(--border-color); border-radius:10px; cursor:pointer; background:var(--item-bg); font-weight:600; color:var(--text-muted); font-family:inherit; font-size:14px; transition:background 0.15s;">Cancelar</button>
-                <button id="confirmar-btn-ok" style="flex:1; padding:11px 16px; border:none; border-radius:10px; cursor:pointer; background:var(--accent-red); color:white; font-weight:700; font-family:inherit; font-size:14px; transition:opacity 0.15s;"></button>
+            <div id="confirmar-icon" class="av-insignia"></div>
+            <h3 id="confirmar-titulo" class="av-confirmar-titulo"></h3>
+            <p id="confirmar-descripcion" class="av-confirmar-desc"></p>
+            <div class="av-botones">
+                <button id="confirmar-btn-cancelar" class="av-btn av-btn-sec">Cancelar</button>
+                <button id="confirmar-btn-ok" class="av-btn av-btn-pri"></button>
             </div>
         </div>
     </dialog>
 
     <!-- MODAL DE DETECCIÓN PREVENTIVA DE EVENTO EN PRE-ALTA (Google Calendar) -->
-    <dialog id="modal-deteccion-evento-calendar" class="modern-modal auto-height-modal" style="max-width:580px; width:92%; padding:0; border-radius:16px; border:1.5px solid #fecaca; box-shadow:0 20px 60px rgba(0,0,0,0.18); overflow:hidden;">
-        <div style="background:linear-gradient(90deg, #fff1f2 0%, #ffffff 100%); padding:18px 22px; border-bottom:1px solid #fecdd3; display:flex; align-items:center; gap:12px;">
-            <div style="width:38px; height:38px; border-radius:10px; background:#fee2e2; color:#dc2626; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">
-                ⚠️
-            </div>
+    <dialog id="modal-deteccion-evento-calendar" class="modern-modal auto-height-modal av-ventana">
+        <div class="av-v-cab">
+            <div class="av-v-cab-ico av-t-warn"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg></div>
             <div>
-                <h3 style="margin:0; font-size:16px; font-weight:800; color:#991b1b;">Evento Detectado en Google Calendar</h3>
-                <p style="margin:2px 0 0 0; font-size:12.5px; color:#7f1d1d;">El docente ya cuenta con una clase o grupo agendado en este horario:</p>
+                <h3>Evento Detectado en Google Calendar</h3>
+                <p>El docente ya cuenta con una clase o grupo agendado en este horario:</p>
             </div>
         </div>
 
-        <div style="padding:22px;">
+        <div class="av-v-cuerpo">
             <!-- Tarjeta del evento existente -->
-            <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-left:5px solid #dc2626; border-radius:10px; padding:14px 16px; margin-bottom:18px;">
-                <div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;">EVENTO EN EL CALENDARIO DEL DOCENTE:</div>
-                <div id="modal-det-cal-nombre" style="font-size:16px; font-weight:800; color:#0f172a; margin-bottom:6px;">-</div>
-                <div id="modal-det-cal-meta" style="font-size:12.5px; color:#475569; font-weight:600;">-</div>
+            <div class="av-ficha av-ficha-warn">
+                <div class="av-etq">Evento en el calendario del docente</div>
+                <div id="modal-det-cal-nombre" class="av-ficha-titulo">-</div>
+                <div id="modal-det-cal-meta" class="av-ficha-meta">-</div>
             </div>
 
-            <p style="font-size:13.5px; font-weight:700; color:#0f172a; margin-bottom:16px; text-align:center;">
+            <p class="av-v-pregunta">
                 ¿Deseas crear igualmente un nuevo evento en Google Calendar o mantener el evento actual del docente sin duplicar?
             </p>
 
             <!-- Opciones de decisión -->
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:18px;">
-                <div id="btn-det-cal-mantener" class="decision-card option-recommended" role="button" tabindex="0" style="border:2px solid #059669; background:#f0fdf4; border-radius:10px; padding:14px; cursor:pointer; display:flex; flex-direction:column; gap:6px; transition:all 0.2s;">
-                    <span style="font-size:10px; font-weight:800; padding:2px 7px; border-radius:4px; text-transform:uppercase; background:#dcfce7; color:#166534; width:fit-content;">RECOMENDADO</span>
-                    <div style="font-size:13.5px; font-weight:800; color:#065f46;">🛡️ No crear evento</div>
-                    <div style="font-size:12px; color:#047857; line-height:1.4;">Mantiene el evento actual sin duplicar en Calendar. Los alumnos se asocian a este grupo en el sistema.</div>
+            <div class="av-opciones-2">
+                <div id="btn-det-cal-mantener" class="decision-card option-recommended av-op av-op-rec av-op-col" role="button" tabindex="0">
+                    <div class="av-op-fila"><span class="av-op-ico"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></span><span class="av-pildora av-pildora-ok">Recomendado</span></div>
+                    <div class="av-op-titulo">No crear evento</div>
+                    <div class="av-op-desc">Mantiene el evento actual sin duplicar en Calendar. Los alumnos se asocian a este grupo en el sistema.</div>
                 </div>
 
-                <div id="btn-det-cal-crear" class="decision-card option-create" role="button" tabindex="0" style="border:2px solid #cbd5e1; background:#ffffff; border-radius:10px; padding:14px; cursor:pointer; display:flex; flex-direction:column; gap:6px; transition:all 0.2s;">
-                    <span style="font-size:10px; font-weight:800; padding:2px 7px; border-radius:4px; text-transform:uppercase; background:#e2e8f0; color:#475569; width:fit-content;">NUEVO EVENTO</span>
-                    <div style="font-size:13.5px; font-weight:800; color:#0f172a;">➕ Sí, crear evento</div>
-                    <div style="font-size:12px; color:#64748b; line-height:1.4;">Genera un nuevo evento independiente en Google Calendar con el nombre y horario pactados.</div>
+                <div id="btn-det-cal-crear" class="decision-card option-create av-op av-op-col" role="button" tabindex="0">
+                    <div class="av-op-fila"><span class="av-op-ico av-op-ico-neutro"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><span class="av-pildora av-pildora-neutra">Nuevo evento</span></div>
+                    <div class="av-op-titulo">Sí, crear evento</div>
+                    <div class="av-op-desc">Genera un nuevo evento independiente en Google Calendar con el nombre y horario pactados.</div>
                 </div>
             </div>
         </div>
 
-        <div style="padding:12px 20px; background:#f8fafc; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end;">
-            <button type="button" id="btn-det-cal-cancelar" style="background:#ffffff; border:1px solid #cbd5e1; color:#64748b; padding:9px 16px; border-radius:8px; font-weight:700; font-size:13px; cursor:pointer; transition:all 0.15s;">✕ Volver / Cancelar</button>
+        <div class="av-v-pie">
+            <button type="button" id="btn-det-cal-cancelar" class="av-btn av-btn-sec"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>Volver / Cancelar</button>
         </div>
     </dialog>
 
     <!-- MODAL DE DECISIÓN OPERATIVA DE CALENDAR (SUSPENDER / DEVOLVER A ESPERA / DESCARTAR) -->
-    <dialog id="modal-decision-calendar" class="modern-modal auto-height-modal" style="max-width:560px; width:92%; padding:0; border-radius:16px; border:1.5px solid #cbd5e1; box-shadow:0 20px 60px rgba(0,0,0,0.18); overflow:hidden;">
-        <div style="background:linear-gradient(90deg, #f8fafc 0%, #ffffff 100%); padding:18px 22px; border-bottom:1px solid #e2e8f0; display:flex; align-items:center; gap:12px;">
-            <div style="width:38px; height:38px; border-radius:10px; background:#e0f2fe; color:#0284c7; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">
-                📅
-            </div>
+    <dialog id="modal-decision-calendar" class="modern-modal auto-height-modal av-ventana">
+        <div class="av-v-cab">
+            <div class="av-v-cab-ico av-t-info"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
             <div>
-                <h3 style="margin:0; font-size:16px; font-weight:800; color:#0f172a;">Gestión de Agenda en Google Calendar</h3>
-                <p id="modal-decision-cal-subtitulo" style="margin:2px 0 0 0; font-size:12.5px; color:#64748b;">Decisión sobre la clase vinculada al alumno</p>
+                <h3>Gestión de Agenda en Google Calendar</h3>
+                <p id="modal-decision-cal-subtitulo">Decisión sobre la clase vinculada al alumno</p>
             </div>
         </div>
 
-        <div style="padding:22px;">
+        <div class="av-v-cuerpo">
             <!-- Tarjeta de información del alumno y evento -->
-            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-left:4px solid #0284c7; border-radius:10px; padding:14px 16px; margin-bottom:16px;">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
+            <div class="av-ficha av-ficha-info">
+                <div class="av-ficha-fila">
                     <div>
-                        <div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase;">Alumno</div>
-                        <div id="modal-decision-cal-alumno-nombre" style="font-size:15px; font-weight:800; color:#0f172a;">-</div>
+                        <div class="av-etq">Alumno</div>
+                        <div id="modal-decision-cal-alumno-nombre" class="av-ficha-valor">-</div>
                     </div>
-                    <div style="text-align:right;">
-                        <div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase;" id="modal-decision-cal-docente-label">Docente</div>
-                        <div id="modal-decision-cal-docente" style="font-size:14px; font-weight:700; color:#334155;">-</div>
+                    <div class="av-der">
+                        <div class="av-etq" id="modal-decision-cal-docente-label">Docente</div>
+                        <div id="modal-decision-cal-docente" class="av-ficha-valor">-</div>
                     </div>
                 </div>
-                <div style="border-top:1px dashed #cbd5e1; padding-top:8px; margin-top:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                <div class="av-ficha-fila av-ficha-sep">
                     <div>
-                        <div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase;">Evento Vinculado</div>
-                        <div id="modal-decision-cal-evento-nombre" style="font-size:13.5px; font-weight:700; color:#0369a1;">-</div>
+                        <div class="av-etq">Evento Vinculado</div>
+                        <div id="modal-decision-cal-evento-nombre" class="av-ficha-valor">-</div>
                     </div>
-                    <div style="text-align:right;">
-                        <div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase;">Horario</div>
-                        <div id="modal-decision-cal-horario" style="font-size:12.5px; font-weight:600; color:#475569;">-</div>
+                    <div class="av-der">
+                        <div class="av-etq">Horario</div>
+                        <div id="modal-decision-cal-horario" class="av-ficha-valor">-</div>
                     </div>
                 </div>
             </div>
 
             <!-- Alerta contextual -->
-            <div id="modal-decision-cal-alerta" style="background:#fffbeb; border:1px solid #fef3c7; border-radius:8px; padding:10px 14px; margin-bottom:16px; font-size:12.5px; color:#92400e; display:flex; align-items:flex-start; gap:8px; line-height:1.4;">
-                <span style="font-size:15px;">ℹ️</span>
+            <div id="modal-decision-cal-alerta" class="av-aviso av-aviso-warn">
+                <svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
                 <span id="modal-decision-cal-alerta-texto">Este evento está asociado a una cursada o grupo del docente. Si otros alumnos o el profesor continúan utilizando este horario, te recomendamos conservarlo.</span>
             </div>
 
-            <p style="font-size:13.5px; font-weight:700; color:#0f172a; margin-bottom:14px; text-align:center;">
+            <p class="av-v-pregunta">
                 ¿Qué deseas hacer con la agenda en Google Calendar?
             </p>
 
             <!-- Opciones de decisión -->
-            <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:12px;">
-                <div id="btn-decision-cal-mantener" class="decision-card option-recommended" role="button" tabindex="0" style="border:2px solid #059669; background:#f0fdf4; border-radius:10px; padding:12px 14px; cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:12px; transition:all 0.2s;">
-                    <div>
-                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-                            <span style="font-size:14px; font-weight:800; color:#065f46;">🛡️ Mantener evento en Calendar</span>
-                            <span style="font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; text-transform:uppercase; background:#dcfce7; color:#166534;">RECOMENDADO</span>
-                        </div>
-                        <div style="font-size:12px; color:#047857; line-height:1.35;">Desvincula/suspende al alumno en el sistema pero <strong>conserva intacto el evento</strong> en el calendario del docente.</div>
+            <div class="av-opciones-1">
+                <div id="btn-decision-cal-mantener" class="decision-card option-recommended av-op av-op-rec" role="button" tabindex="0">
+                    <span class="av-op-ico"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></span>
+                    <div class="av-op-texto">
+                        <div class="av-op-titulo">Mantener evento en Calendar <span class="av-pildora av-pildora-ok">Recomendado</span></div>
+                        <div class="av-op-desc">Desvincula/suspende al alumno en el sistema pero <strong>conserva intacto el evento</strong> en el calendario del docente.</div>
                     </div>
-                    <div style="font-size:20px; color:#059669; flex-shrink:0;">➔</div>
+                    <svg class="ico-linea av-op-flecha" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
                 </div>
 
-                <div id="btn-decision-cal-eliminar" class="decision-card option-danger" role="button" tabindex="0" style="border:2px solid #fca5a5; background:#fff1f2; border-radius:10px; padding:12px 14px; cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:12px; transition:all 0.2s;">
-                    <div>
-                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-                            <span style="font-size:14px; font-weight:800; color:#991b1b;">🗑️ Eliminar evento de Google Calendar</span>
-                            <span style="font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; text-transform:uppercase; background:#fee2e2; color:#b91c1c;">BORRADO DEFINITIVO</span>
-                        </div>
-                        <div style="font-size:12px; color:#b91c1c; line-height:1.35;">Borra el evento de Google Calendar. Usar <strong>únicamente si el grupo se cerró por completo</strong> y nadie más cursa.</div>
+                <div id="btn-decision-cal-eliminar" class="decision-card option-danger av-op av-op-peligro" role="button" tabindex="0">
+                    <span class="av-op-ico"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/></svg></span>
+                    <div class="av-op-texto">
+                        <div class="av-op-titulo">Eliminar evento de Google Calendar <span class="av-pildora av-pildora-bad">Borrado definitivo</span></div>
+                        <div class="av-op-desc">Borra el evento de Google Calendar. Usar <strong>únicamente si el grupo se cerró por completo</strong> y nadie más cursa.</div>
                     </div>
-                    <div style="font-size:20px; color:#dc2626; flex-shrink:0;">➔</div>
+                    <svg class="ico-linea av-op-flecha" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
                 </div>
             </div>
         </div>
 
-        <div style="padding:12px 20px; background:#f8fafc; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end;">
-            <button type="button" id="btn-decision-cal-cancelar" style="background:#ffffff; border:1px solid #cbd5e1; color:#64748b; padding:9px 18px; border-radius:8px; font-weight:700; font-size:13px; cursor:pointer; transition:all 0.15s;">✕ Cancelar operación</button>
+        <div class="av-v-pie">
+            <button type="button" id="btn-decision-cal-cancelar" class="av-btn av-btn-sec"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>Cancelar operación</button>
         </div>
     </dialog>
 
@@ -4056,12 +4048,12 @@
     <div id="toast-container" style="position:fixed; bottom:80px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
     
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=7.29"></script>
+    <script type="module" src="app.js?v=7.30"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=7.29').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=7.30').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {

@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.29";
+} from "./src/config/constants.js?v=7.30";
 
 import { 
     app, 
@@ -124,11 +124,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=7.29";
+} from "./src/modules/match.module.js?v=7.30";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=7.29";
+} from "./src/modules/profesor.module.js?v=7.30";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -157,14 +157,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=7.29";
+} from "./src/modules/altas.module.js?v=7.30";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=7.29";
+} from "./src/modules/dashboard.module.js?v=7.30";
 
 import {
     renderConfigHub,
@@ -173,20 +173,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.29";
+} from "./src/modules/abm.module.js?v=7.30";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.29";
+} from "./src/modules/inbox.module.js?v=7.30";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=7.29";
+} from "./src/modules/csv.module.js?v=7.30";
 
 import {
     inicializarMotorRecordatorios,
@@ -206,7 +206,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.29";
+} from "./src/modules/recordatorios.module.js?v=7.30";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -966,6 +966,44 @@ export function mostrarToast(msg, tipo = '') {
 }
 window.mostrarToast = mostrarToast;
 
+// ================================================================
+// ÍCONOS DE LÍNEA (un solo color, heredan el color del texto) — reemplazan a los emojis a color en avisos y ventanas
+// ================================================================
+const ICONOS_LINEA = {
+    'ok': '<circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/>',
+    'err': '<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/>',
+    'warn': '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
+    'info': '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
+    'x': '<path d="M18 6 6 18M6 6l12 12"/>',
+    'trash': '<path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/>',
+    'cal': '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+    'shield': '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
+    'plus': '<path d="M12 5v14M5 12h14"/>',
+    'arrow': '<path d="M5 12h14M13 6l6 6-6 6"/>',
+    'rocket': '<path d="M4.5 16.5c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2.1-.1-2.9a2.2 2.2 0 0 0-2.9-.1z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.9A12.9 12.9 0 0 1 22 2c0 2.7-.8 7.5-6 11a22 22 0 0 1-4 2z"/><path d="M9 12H4s.6-3 2-4c1.6-1.1 5 0 5 0M12 15v5s3-.6 4-2c1.1-1.6 0-5 0-5"/>',
+    'puzzle': '<path d="M19.4 12.6a2.5 2.5 0 1 0 0-3.2V6a1 1 0 0 0-1-1h-3.4a2.5 2.5 0 1 0-3.2 0H8a1 1 0 0 0-1 1v3.4a2.5 2.5 0 1 1 0 3.2V17a1 1 0 0 0 1 1h3.4a2.5 2.5 0 1 1 3.2 0H18a1 1 0 0 0 1-1z"/>',
+    'eye-off': '<path d="M9.9 4.2A10 10 0 0 1 12 4c7 0 10 8 10 8a17 17 0 0 1-2.4 3.5M6.6 6.6A17 17 0 0 0 2 12s3 8 10 8a9.7 9.7 0 0 0 5.4-1.6M2 2l20 20"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
+    'copy': '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>',
+    'save': '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/>',
+    'edit': '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+    'refresh': '<path d="M21 12a9 9 0 0 0-15-6.7L3 8M3 3v5h5M3 12a9 9 0 0 0 15 6.7L21 16M16 16h5v5"/>',
+    'lock': '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'
+};
+const EMOJI_A_ICONO = { '✅': 'ok', '❌': 'err', '⚠️': 'warn', '⚠': 'warn', 'ℹ️': 'info', 'ℹ': 'info', '👁️': 'eye-off', '👁': 'eye-off', '🗑️': 'trash', '🗑': 'trash', '🚀': 'rocket', '🧩': 'puzzle', '📅': 'cal', '🛡️': 'shield', '➕': 'plus', '📋': 'copy', '💾': 'save', '📝': 'edit', '♻️': 'refresh', '🔒': 'lock' };
+window.iconoLinea = function(nombre, clase = '') {
+    return `<svg class="ico-linea ${clase}" viewBox="0 0 24 24" aria-hidden="true">${ICONOS_LINEA[nombre] || ICONOS_LINEA.info}</svg>`;
+};
+window.iconoDeEmoji = function(emoji, porDefecto = 'info') {
+    return EMOJI_A_ICONO[String(emoji || '').trim()] || porDefecto;
+};
+// Solo para mostrar: quita los emojis a color del texto (el dato guardado no cambia).
+window.quitarEmojis = function(s) {
+    return String(s == null ? '' : s)
+        .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{231A}-\u{23FF}️‍⃣]/gu, '')
+        .replace(/[ \t]{2,}/g, ' ')
+        .replace(/^\s+/, '');
+};
+
 window.alert = function(msg, tipo = '') {
     const openModal = document.querySelector('dialog[open]');
     let container;
@@ -994,7 +1032,11 @@ window.alert = function(msg, tipo = '') {
 }
 
     toast.className = `toast-notification ${extraClass}`.trim();
-    toast.textContent = str;
+    const emojiInicial = (str.match(/^\s*([\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}][️]?)/u) || [])[1] || '';
+    const tonoIcono = extraClass === 'toast-success' ? 'ok' : extraClass === 'toast-error' ? 'err' : extraClass === 'toast-warning' ? 'warn' : 'info';
+    const nombreIcono = (extraClass === '' && EMOJI_A_ICONO[emojiInicial]) ? EMOJI_A_ICONO[emojiInicial] : tonoIcono;
+    toast.innerHTML = window.iconoLinea(nombreIcono, 'toast-ico') + '<span class="toast-texto"></span>' + window.iconoLinea('x', 'toast-x');
+    toast.querySelector('.toast-texto').textContent = window.quitarEmojis(str);
     toast.style.whiteSpace = 'pre-line';
     toast.style.cursor = 'pointer';
     toast.style.pointerEvents = 'auto';
@@ -1031,24 +1073,27 @@ window.confirmar = function(titulo, descripcion = '', textoBoton = 'Confirmar', 
             if (lEl) lEl.style.display = 'none';
 }
 
-        document.getElementById('confirmar-titulo').textContent = titulo;
-        document.getElementById('confirmar-descripcion').textContent = descripcion;
-        document.getElementById('confirmar-btn-ok').textContent = textoBoton;
-        document.getElementById('confirmar-btn-cancelar').textContent = textoCancelar;
-        document.getElementById('confirmar-icon').textContent = icono;
+        document.getElementById('confirmar-titulo').textContent = window.quitarEmojis(titulo);
+        document.getElementById('confirmar-descripcion').textContent = window.quitarEmojis(descripcion);
+        document.getElementById('confirmar-btn-ok').textContent = window.quitarEmojis(textoBoton);
+        document.getElementById('confirmar-btn-cancelar').textContent = window.quitarEmojis(textoCancelar);
 
         const btnOk = document.getElementById('confirmar-btn-ok');
         const btnCancelar = document.getElementById('confirmar-btn-cancelar');
 
-        if (colorBoton) {
-            btnOk.style.background = colorBoton;
-} else if (icono === '✅' || icono === '🚀' || icono === '🧩' || (textoBoton.toLowerCase().includes('confirmar') && !titulo.toLowerCase().includes('eliminar') && !titulo.toLowerCase().includes('borrar'))) {
-            btnOk.style.background = '#16a34a';
+        // Mismas reglas de siempre para elegir el tipo; ahora solo cambia cómo se ve (ícono de línea + color de acento).
+        let tonoConfirmar = 'neutral';
+        if (icono === '✅' || icono === '🚀' || icono === '🧩' || (textoBoton.toLowerCase().includes('confirmar') && !titulo.toLowerCase().includes('eliminar') && !titulo.toLowerCase().includes('borrar'))) {
+            tonoConfirmar = 'ok';
 } else if (icono === '🗑️' || titulo.toLowerCase().includes('eliminar') || titulo.toLowerCase().includes('borrar') || textoBoton.toLowerCase().includes('eliminar')) {
-            btnOk.style.background = 'var(--accent-red, #c2563b)';
-} else {
-            btnOk.style.background = 'var(--accent-teal, #007b8f)';
+            tonoConfirmar = 'bad';
 }
+        modal.dataset.tono = tonoConfirmar;
+        const tonoInsignia = (tonoConfirmar === 'neutral' && (icono === '⚠️' || icono === '⚠')) ? 'warn' : tonoConfirmar;
+        modal.dataset.insignia = tonoInsignia;
+        const iconoPorTono = { ok: 'ok', bad: 'trash', warn: 'warn', neutral: 'info' }[tonoInsignia];
+        document.getElementById('confirmar-icon').innerHTML = window.iconoLinea(window.iconoDeEmoji(icono, iconoPorTono));
+        btnOk.style.background = colorBoton || '';
 
         const clonOk = btnOk.cloneNode(true);
         const clonCancelar = btnCancelar.cloneNode(true);
@@ -1175,19 +1220,18 @@ window.pedirTexto = function(titulo, descripcion = '', opciones = {}) {
         if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
         const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         const dlg = document.createElement('dialog');
-        dlg.className = 'modern-modal auto-height-modal';
-        dlg.style.cssText = 'max-width:480px; width:92%; padding:0; border-radius:16px; border:1.5px solid #cbd5e1; box-shadow:0 20px 60px rgba(0,0,0,0.18); overflow:hidden;';
+        dlg.className = 'modern-modal auto-height-modal av-pedir-texto';
         dlg.innerHTML = `
-          <div style="padding:20px 22px;">
-            <h3 style="margin:0 0 6px 0; font-size:16px; font-weight:800; color:#0f172a;">${esc(titulo)}</h3>
-            ${descripcion ? `<p style="margin:0 0 12px 0; font-size:13px; color:#64748b; line-height:1.4;">${esc(descripcion)}</p>` : '<div style="height:8px"></div>'}
+          <div class="av-pt-cuerpo">
+            <h3 class="av-pt-titulo">${esc(window.quitarEmojis(titulo))}</h3>
+            ${descripcion ? `<p class="av-pt-desc">${esc(window.quitarEmojis(descripcion))}</p>` : '<div style="height:8px"></div>'}
             ${multilinea
-                ? `<textarea class="modern-input" rows="3" placeholder="${esc(placeholder)}" style="width:100%; resize:vertical; font-family:inherit; font-size:13.5px; padding:10px;">${esc(valorInicial)}</textarea>`
-                : `<input type="text" class="modern-input" placeholder="${esc(placeholder)}" value="${esc(valorInicial)}" style="width:100%; font-size:13.5px; padding:10px;">`}
-            <div class="pedir-texto-error" style="display:none; color:#b91c1c; font-size:12px; font-weight:600; margin-top:6px;">Escribí un texto para continuar.</div>
-            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px;">
-              <button type="button" class="btn-app btn-secondary pedir-texto-cancelar" style="padding:8px 14px; font-weight:700;">Cancelar</button>
-              <button type="button" class="btn-app btn-primary pedir-texto-ok" style="padding:8px 18px; font-weight:700;">${esc(textoBoton)}</button>
+                ? `<textarea class="modern-input av-pt-campo" rows="3" placeholder="${esc(placeholder)}">${esc(valorInicial)}</textarea>`
+                : `<input type="text" class="modern-input av-pt-campo" placeholder="${esc(placeholder)}" value="${esc(valorInicial)}">`}
+            <div class="pedir-texto-error av-pt-error" style="display:none;">Escribí un texto para continuar.</div>
+            <div class="av-botones av-botones-der">
+              <button type="button" class="av-btn av-btn-sec pedir-texto-cancelar">Cancelar</button>
+              <button type="button" class="av-btn av-btn-pri pedir-texto-ok">${esc(window.quitarEmojis(textoBoton))}</button>
             </div>
           </div>`;
         document.body.appendChild(dlg);
@@ -8835,7 +8879,7 @@ window.ejecutarBusquedaGlobal = ejecutarBusquedaGlobal;
 
 let guardRedireccionActivo = false;
 
-// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v7.29)
+// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v7.30)
 function tituloVista(seccion, sub = '') {
     const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
     return `<span>${esc(seccion)}</span>${sub ? `<span class="vista-titulo-sub">${esc(sub)}</span>` : ''}`;
@@ -11262,7 +11306,7 @@ document.addEventListener('click', async (e) => {
                 if (elEvalTop) elEvalTop.textContent = al.reserva_profe_nombre || al.informe_entrevista?.evaluador_nombre || '-';
 }
 
-            // Borrador (v7.29): solo en el flujo de admisión (primer informe, aún no finalizado)
+            // Borrador (v7.30): solo en el flujo de admisión (primer informe, aún no finalizado)
             const esFlujoAdmision = !esNuevoInformeAdicional && !(reportIndexAttr !== null && reportIndexAttr !== '' && !isNaN(parseInt(reportIndexAttr, 10))) && !al.informe_entrevista;
             const dr = (esFlujoAdmision && al.informe_borrador && al.informe_borrador.datos) ? al.informe_borrador.datos : null;
             if (dr) {
@@ -11556,7 +11600,7 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    // Guardar borrador del informe de clase de admisión (v7.29): sin validaciones, no cambia el estado del alumno
+    // Guardar borrador del informe de clase de admisión (v7.30): sin validaciones, no cambia el estado del alumno
     if (target.id === 'btn-guardar-borrador-informe' || target.closest('#btn-guardar-borrador-informe')) {
         const btnBor = document.getElementById('btn-guardar-borrador-informe');
         const id = document.getElementById('informe-final-alumno-id').value;
