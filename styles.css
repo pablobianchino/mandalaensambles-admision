@@ -5017,3 +5017,23 @@ details.agenda-disp-desplegable[open] > summary::before { content: '▾ '; }
 /* Aviso de versión nueva con una ventana de edición abierta (v7.27): no se recarga hasta guardar o tocar Actualizar */
 .aviso-version-nueva { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 2147483000; display: flex; align-items: center; gap: 14px; max-width: 92vw; background: var(--ink); color: #fff; padding: 12px 16px; border-radius: var(--r-md); box-shadow: var(--sh-3); font: 600 13px var(--font); }
 .aviso-version-nueva button { height: 32px; padding: 0 14px; border-radius: var(--r-sm); border: 0; background: var(--teal); color: #fff; font: 700 12px var(--font); cursor: pointer; white-space: nowrap; }
+
+/* =======================================================================
+   FASE 3 (v7.28): molde común de las filas de lista (Inbox, Lista de Espera, Altas, Seguimientos,
+   Suspendidos, Bajas). Se ajusta con CSS; los !important se retiran en la Fase 5 al sacar los estilos en línea.
+   ======================================================================= */
+.lista-filas { gap: 8px; }
+.row-item { background: var(--surface); border-color: var(--line); border-radius: var(--r-md); padding: 10px 16px; box-shadow: var(--sh-1); }
+.row-item:hover { border-color: var(--line-2); box-shadow: var(--sh-2); }
+.row-item .row-name { font-size: 14px; color: var(--ink); }
+.row-item .row-name > span:first-child { font-size: 14px !important; color: var(--ink) !important; }
+.row-item .row-sub-line { font-size: 13px !important; }
+/* Etiquetas de la fila con la forma del sistema (píldora, 12 px) */
+.row-item .match-student-tag { height: 20px; display: inline-flex; align-items: center; font-size: 12px !important; font-weight: 700; padding: 0 9px !important; border-radius: var(--r-pill); background: #f0ece4; color: var(--ink-2); }
+.row-item .match-student-tag.nivel { background: var(--info-bg); color: var(--info); }
+.row-item .match-student-tag.edad { background: #f0ece4; color: var(--ink-2); border: 0; }
+.row-item .profile-tag-badge { font-size: 12px !important; padding: 0 9px !important; height: 20px; display: inline-flex; align-items: center; border-radius: var(--r-pill); }
+.row-item .badge-tag { font-size: 12px !important; padding: 0 8px !important; height: 20px; display: inline-flex; align-items: center; border-radius: var(--r-pill) !important; }
+/* Dato de fecha a la derecha de la fila */
+.ds-meta-label { font-size: 12px; color: var(--ink-3); font-weight: 700; text-transform: uppercase; letter-spacing: .03em; margin-bottom: 2px; }
+.ds-meta-val { font-size: 12.5px; color: var(--ink-2); font-weight: 600; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
