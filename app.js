@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.26";
+} from "./src/config/constants.js?v=7.27";
 
 import { 
     app, 
@@ -124,11 +124,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=7.26";
+} from "./src/modules/match.module.js?v=7.27";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=7.26";
+} from "./src/modules/profesor.module.js?v=7.27";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -157,14 +157,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=7.26";
+} from "./src/modules/altas.module.js?v=7.27";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=7.26";
+} from "./src/modules/dashboard.module.js?v=7.27";
 
 import {
     renderConfigHub,
@@ -173,20 +173,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.26";
+} from "./src/modules/abm.module.js?v=7.27";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.26";
+} from "./src/modules/inbox.module.js?v=7.27";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=7.26";
+} from "./src/modules/csv.module.js?v=7.27";
 
 import {
     inicializarMotorRecordatorios,
@@ -206,7 +206,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.26";
+} from "./src/modules/recordatorios.module.js?v=7.27";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -8342,6 +8342,59 @@ export async function chequearActualizacionVersionPreventivo() {
 }
 window.chequearActualizacionVersionPreventivo = chequearActualizacionVersionPreventivo;
 
+// ¿Hay una ventana abierta con cambios sin guardar? (ficha, informe, formularios). Si la hay, no se recarga la página.
+function hayEdicionConCambiosSinGuardar() {
+    const ignorar = ['global-action-loader', 'modal-confirmar-descarte', 'modal-confirmar-accion', 'modal-recordatorios-bloqueante'];
+    return [...document.querySelectorAll('dialog[open]')].some(d => {
+        if (ignorar.includes(d.id)) return false;
+        try { return typeof modalRealmenteModificado === 'function' ? modalRealmenteModificado(d) : false; } catch (e) { return false; }
+    });
+}
+
+let timerVersionPendiente = null;
+function mostrarAvisoVersionPendiente(versionRemota) {
+    let aviso = document.getElementById('aviso-version-nueva');
+    if (!aviso) {
+        aviso = document.createElement('div');
+        aviso.id = 'aviso-version-nueva';
+        aviso.className = 'aviso-version-nueva';
+        aviso.innerHTML = '<span>✨ Hay una versión nueva de la app. Guardá lo que estás haciendo y tocá <b>Actualizar</b>.</span><button type="button" id="btn-actualizar-version-ahora">Actualizar</button>';
+        document.body.appendChild(aviso);
+        document.getElementById('btn-actualizar-version-ahora').addEventListener('click', () => ejecutarActualizacionVersion(versionRemota));
+    }
+    // Apenas se cierre o guarde la ventana, se actualiza sola
+    if (!timerVersionPendiente) {
+        timerVersionPendiente = setInterval(() => {
+            if (!hayEdicionConCambiosSinGuardar()) {
+                clearInterval(timerVersionPendiente);
+                timerVersionPendiente = null;
+                ejecutarActualizacionVersion(versionRemota);
+            }
+        }, 4000);
+    }
+}
+
+async function ejecutarActualizacionVersion(versionRemota) {
+    if (versionActualizando) return;
+    versionActualizando = true;
+    sessionStorage.setItem('last_auto_reloaded_version', versionRemota);
+    const aviso = document.getElementById('aviso-version-nueva');
+    if (aviso) aviso.remove();
+    if (typeof mostrarToast === 'function') {
+        mostrarToast(`✨ Actualizando a la última versión...`, 'info');
+    }
+    // Limpieza de todos los Service Worker caches
+    if ('caches' in window) {
+        try {
+            const keys = await caches.keys();
+            await Promise.all(keys.map(k => caches.delete(k)));
+        } catch(e) {}
+    }
+    setTimeout(() => {
+        window.location.reload(true);
+    }, 1200);
+}
+
 export async function chequearActualizacionVersion() {
     if (versionActualizando) return;
     try {
@@ -8356,33 +8409,21 @@ export async function chequearActualizacionVersion() {
             if (recargaPrevia === versionRemota) {
                 console.warn(`[Auto-Update] Ya se realizó una recarga para ${versionRemota} en esta sesión. Se omite bucle.`);
                 return;
-}
-            sessionStorage.setItem('last_auto_reloaded_version', versionRemota);
-
-            versionActualizando = true;
+            }
             console.log(`[Auto-Update] Nueva versión detectada: ${versionRemota} (Versión local: ${APP_VERSION})`);
-            
-            if (typeof mostrarToast === 'function') {
-                mostrarToast(`✨ Actualizando a la última versión...`, 'info');
-}
 
-            // Limpieza de todos los Service Worker caches
-            if ('caches' in window) {
-                try {
-                    const keys = await caches.keys();
-                    await Promise.all(keys.map(k => caches.delete(k)));
-} catch(e) {}
-}
-
-            setTimeout(() => {
-                window.location.reload(true);
-}, 1200);
-} else if (versionRemota === APP_VERSION) {
+            // Si hay una ventana de edición con cambios sin guardar, no se recarga: se avisa y se espera
+            if (hayEdicionConCambiosSinGuardar()) {
+                mostrarAvisoVersionPendiente(versionRemota);
+                return;
+            }
+            await ejecutarActualizacionVersion(versionRemota);
+        } else if (versionRemota === APP_VERSION) {
             sessionStorage.removeItem('last_auto_reloaded_version');
-}
-} catch(e) {
+        }
+    } catch(e) {
         // Silencioso en caso de estar offline o sin red
-}
+    }
 }
 window.chequearActualizacionVersion = chequearActualizacionVersion;
 
@@ -8794,7 +8835,7 @@ window.ejecutarBusquedaGlobal = ejecutarBusquedaGlobal;
 
 let guardRedireccionActivo = false;
 
-// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v7.26)
+// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v7.27)
 function tituloVista(seccion, sub = '') {
     const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
     return `<span>${esc(seccion)}</span>${sub ? `<span class="vista-titulo-sub">${esc(sub)}</span>` : ''}`;
@@ -11221,7 +11262,7 @@ document.addEventListener('click', async (e) => {
                 if (elEvalTop) elEvalTop.textContent = al.reserva_profe_nombre || al.informe_entrevista?.evaluador_nombre || '-';
 }
 
-            // Borrador (v7.26): solo en el flujo de admisión (primer informe, aún no finalizado)
+            // Borrador (v7.27): solo en el flujo de admisión (primer informe, aún no finalizado)
             const esFlujoAdmision = !esNuevoInformeAdicional && !(reportIndexAttr !== null && reportIndexAttr !== '' && !isNaN(parseInt(reportIndexAttr, 10))) && !al.informe_entrevista;
             const dr = (esFlujoAdmision && al.informe_borrador && al.informe_borrador.datos) ? al.informe_borrador.datos : null;
             if (dr) {
@@ -11515,7 +11556,7 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    // Guardar borrador del informe de clase de admisión (v7.26): sin validaciones, no cambia el estado del alumno
+    // Guardar borrador del informe de clase de admisión (v7.27): sin validaciones, no cambia el estado del alumno
     if (target.id === 'btn-guardar-borrador-informe' || target.closest('#btn-guardar-borrador-informe')) {
         const btnBor = document.getElementById('btn-guardar-borrador-informe');
         const id = document.getElementById('informe-final-alumno-id').value;

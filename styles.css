@@ -5013,3 +5013,7 @@ details.agenda-disp-desplegable[open] > summary::before { content: '▾ '; }
 @keyframes splash-respira { 0%, 100% { opacity: .85; transform: scale(1); } 50% { opacity: 1; transform: scale(1.03); } }
 @keyframes splash-dibuja { 0% { stroke-dashoffset: 340; } 55% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -340; } }
 @media (prefers-reduced-motion: reduce) { .splash-logo img, .splash-anillo circle { animation-duration: 6s; } }
+
+/* Aviso de versión nueva con una ventana de edición abierta (v7.27): no se recarga hasta guardar o tocar Actualizar */
+.aviso-version-nueva { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 2147483000; display: flex; align-items: center; gap: 14px; max-width: 92vw; background: var(--ink); color: #fff; padding: 12px 16px; border-radius: var(--r-md); box-shadow: var(--sh-3); font: 600 13px var(--font); }
+.aviso-version-nueva button { height: 32px; padding: 0 14px; border-radius: var(--r-sm); border: 0; background: var(--teal); color: #fff; font: 700 12px var(--font); cursor: pointer; white-space: nowrap; }
