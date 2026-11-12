@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.32";
+} from "./src/config/constants.js?v=7.33";
 
 import { 
     app, 
@@ -124,11 +124,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=7.32";
+} from "./src/modules/match.module.js?v=7.33";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=7.32";
+} from "./src/modules/profesor.module.js?v=7.33";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -157,14 +157,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=7.32";
+} from "./src/modules/altas.module.js?v=7.33";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=7.32";
+} from "./src/modules/dashboard.module.js?v=7.33";
 
 import {
     renderConfigHub,
@@ -173,20 +173,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.32";
+} from "./src/modules/abm.module.js?v=7.33";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.32";
+} from "./src/modules/inbox.module.js?v=7.33";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=7.32";
+} from "./src/modules/csv.module.js?v=7.33";
 
 import {
     inicializarMotorRecordatorios,
@@ -206,7 +206,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.32";
+} from "./src/modules/recordatorios.module.js?v=7.33";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -1006,6 +1006,7 @@ const ICONOS_LINEA = {
     'bike': '<circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/><circle cx="15" cy="5" r="1"/>',
     'play': '<path d="m6 3 14 9-14 9z"/>',
     'card': '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>',
+    'dot': '<circle cx="12" cy="12" r="6" fill="currentColor"/>',
     'dots': '<circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>'
 };
 const EMOJI_A_ICONO = { '✅': 'ok', '❌': 'err', '⚠️': 'warn', '⚠': 'warn', 'ℹ️': 'info', 'ℹ': 'info', '👁️': 'eye-off', '👁': 'eye-off', '🗑️': 'trash', '🗑': 'trash', '🚀': 'rocket', '🧩': 'puzzle', '📅': 'cal', '🛡️': 'shield', '➕': 'plus', '📋': 'copy', '💾': 'save', '📝': 'edit', '♻️': 'refresh', '🔒': 'lock' };
@@ -4752,13 +4753,13 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
         const fBaja = obtenerFechaBajaAlumno(al);
         const fBajaTxt = `${String(fBaja.getDate()).padStart(2, '0')}/${String(fBaja.getMonth() + 1).padStart(2, '0')}/${fBaja.getFullYear()}`;
         fechaMetaHtml = `
-            <div class="ds-meta-val"><span>📅 ${fBajaTxt}</span></div>
+            <div class="ds-meta-val">${window.iconoLinea('cal', 'ico-chip')}<span>${fBajaTxt}</span></div>
         `;
 } else if (esSuspendidoRow) {
         const fSusp = obtenerFechaSuspensionAlumno(al);
         const fSuspTxt = `${String(fSusp.getDate()).padStart(2, '0')}/${String(fSusp.getMonth() + 1).padStart(2, '0')}/${fSusp.getFullYear()}`;
         fechaMetaHtml = `
-            <div class="ds-meta-val"><span>📅 ${fSuspTxt}</span></div>
+            <div class="ds-meta-val">${window.iconoLinea('cal', 'ico-chip')}<span>${fSuspTxt}</span></div>
         `;
 } else if (esSeg) {
         let fSegTxt = '';
@@ -4778,7 +4779,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
 }
         fechaMetaHtml = `
             <div class="ds-meta-label">PROX. CONTACTO</div>
-            <div class="ds-meta-val"><span>📅 ${fSegTxt || '-'}</span></div>
+            <div class="ds-meta-val">${window.iconoLinea('cal', 'ico-chip')}<span>${fSegTxt || '-'}</span></div>
         `;
 } else if (al.opciones_propuestas && al.opciones_propuestas.length > 1) {
         const opcHtml = renderizarItemsConMax2(al.opciones_propuestas, (o) => `<span style="display:inline-block; margin-right:4px;"><strong>${o.letra || '-'}:</strong> ${o.fechaTexto}</span>`, 'Opciones propuestas', id);
@@ -4812,7 +4813,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
 }
         const tieneEv = Boolean(al.id_evento_alta || al.id_evento_reserva || al.reserva_id_evento || al.fecha_inicio_clases || al.horario_match);
         const syncBadge = (tieneEv && esAdmin) 
-            ? `<button type="button" class="btn-auditar-cal-fila" data-id="${id}" onclick="event.stopPropagation(); window.auditarCalendarioAlumnoFila('${id}', this);" title="Verificar sincronización con Google Calendar" style="background:none; border:none; cursor:pointer; font-size:12px; padding:1px 4px; border-radius:4px; line-height:1; vertical-align:middle; transition:transform 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.06)'" onmouseout="this.style.background='none'"><span class="icon-spin-fila">🔄</span></button>` 
+            ? `<button type="button" class="btn-auditar-cal-fila" data-id="${id}" onclick="event.stopPropagation(); window.auditarCalendarioAlumnoFila('${id}', this);" title="Verificar sincronización con Google Calendar" style="background:none; border:none; cursor:pointer; font-size:12px; padding:1px 4px; border-radius:4px; line-height:1; vertical-align:middle; transition:transform 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.06)'" onmouseout="this.style.background='none'"><span class="icon-spin-fila">${window.iconoLinea('refresh', 'ico-chip')}</span></button>`
             : '';
         
         let labelFecha = 'Fecha:';
@@ -4827,7 +4828,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
 
         fechaMetaHtml = `
             <div class="ds-meta-label">${labelFecha}</div>
-            <div class="ds-meta-val"><span>📅 ${fechaTxt}</span>${syncBadge}</div>
+            <div class="ds-meta-val">${window.iconoLinea('cal', 'ico-chip')}<span>${fechaTxt}</span>${syncBadge}</div>
         `;
 } else if (esVistaSinAgendar) {
         const esReingreso = Boolean(al.fecha_reingreso);
@@ -4842,7 +4843,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
             fechaMetaHtml = `
                 <div class="ds-meta-label">${labelIngreso}</div>
                 <div class="ds-meta-val">
-                    <span>📅 ${diaStr}/${mesStr}/${anioStr} (${antiguedadTxt})</span>
+                    ${window.iconoLinea('cal', 'ico-chip')}<span>${diaStr}/${mesStr}/${anioStr} (${antiguedadTxt})</span>
                 </div>
             `;
 }
@@ -7094,7 +7095,7 @@ function renderTiemposGrupo(items, vista, tabActual) {
     if (venc.length > 0) {
         html += `
             <div style="display:flex; align-items:center; gap:8px; margin:4px 0 6px 0; font-size:11.5px; font-weight:800; color:#991b1b; text-transform:uppercase; letter-spacing:0.04em;">
-                <span>🔴 Vencido (${venc.length})</span>
+                <span style="display:inline-flex; align-items:center; gap:6px;">${window.iconoLinea('dot', 'ico-chip')}Vencido (${venc.length})</span>
                 <div style="flex:1; height:1px; background:#fecaca;"></div>
             </div>
         `;
@@ -7103,7 +7104,7 @@ function renderTiemposGrupo(items, vista, tabActual) {
     if (urg.length > 0) {
         html += `
             <div style="display:flex; align-items:center; gap:8px; margin:${venc.length > 0 ? '10px' : '4px'} 0 6px 0; font-size:11.5px; font-weight:800; color:#9a3412; text-transform:uppercase; letter-spacing:0.04em;">
-                <span>🟠 Retraso leve (${urg.length})</span>
+                <span style="display:inline-flex; align-items:center; gap:6px;">${window.iconoLinea('dot', 'ico-chip')}Retraso leve (${urg.length})</span>
                 <div style="flex:1; height:1px; background:#fed7aa;"></div>
             </div>
         `;
@@ -7112,7 +7113,7 @@ function renderTiemposGrupo(items, vista, tabActual) {
     if (reintento.length > 0) {
         html += `
             <div style="display:flex; align-items:center; gap:8px; margin:${(venc.length > 0 || urg.length > 0) ? '10px' : '4px'} 0 6px 0; font-size:11.5px; font-weight:800; color:#9a3412; text-transform:uppercase; letter-spacing:0.04em;">
-                <span>🔁 Reintentar (+2d sin respuesta) (${reintento.length})</span>
+                <span style="display:inline-flex; align-items:center; gap:6px;">${window.iconoLinea('refresh', 'ico-chip')}Reintentar (+2d sin respuesta) (${reintento.length})</span>
                 <div style="flex:1; height:1px; background:#fed7aa;"></div>
             </div>
         `;
@@ -7121,7 +7122,7 @@ function renderTiemposGrupo(items, vista, tabActual) {
     if (prox.length > 0) {
         html += `
             <div style="display:flex; align-items:center; gap:8px; margin:${(venc.length > 0 || urg.length > 0 || reintento.length > 0) ? '10px' : '4px'} 0 6px 0; font-size:11.5px; font-weight:800; color:#854d0e; text-transform:uppercase; letter-spacing:0.04em;">
-                <span>🟡 Vence hoy (${prox.length})</span>
+                <span style="display:inline-flex; align-items:center; gap:6px;">${window.iconoLinea('dot', 'ico-chip')}Vence hoy (${prox.length})</span>
                 <div style="flex:1; height:1px; background:#fef08a;"></div>
             </div>
         `;
@@ -7130,7 +7131,7 @@ function renderTiemposGrupo(items, vista, tabActual) {
     if (esperando.length > 0) {
         html += `
             <div style="display:flex; align-items:center; gap:8px; margin:${(venc.length > 0 || urg.length > 0 || reintento.length > 0 || prox.length > 0) ? '10px' : '4px'} 0 6px 0; font-size:11.5px; font-weight:800; color:#0f766e; text-transform:uppercase; letter-spacing:0.04em;">
-                <span>⏳ Esperando respuesta (${esperando.length})</span>
+                <span style="display:inline-flex; align-items:center; gap:6px;">${window.iconoLinea('clock', 'ico-chip')}Esperando respuesta (${esperando.length})</span>
                 <div style="flex:1; height:1px; background:#99f6e4;"></div>
             </div>
         `;
@@ -7139,7 +7140,7 @@ function renderTiemposGrupo(items, vista, tabActual) {
     if (term.length > 0) {
         html += `
             <div style="display:flex; align-items:center; gap:8px; margin:${(venc.length > 0 || urg.length > 0 || reintento.length > 0 || prox.length > 0 || esperando.length > 0) ? '10px' : '4px'} 0 6px 0; font-size:11.5px; font-weight:800; color:#15803d; text-transform:uppercase; letter-spacing:0.04em;">
-                <span>🟢 En término (${term.length})</span>
+                <span style="display:inline-flex; align-items:center; gap:6px;">${window.iconoLinea('dot', 'ico-chip')}En término (${term.length})</span>
                 <div style="flex:1; height:1px; background:#bbf7d0;"></div>
             </div>
         `;
@@ -8898,7 +8899,7 @@ window.ejecutarBusquedaGlobal = ejecutarBusquedaGlobal;
 
 let guardRedireccionActivo = false;
 
-// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v7.32)
+// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v7.33)
 function tituloVista(seccion, sub = '') {
     const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
     return `<span>${esc(seccion)}</span>${sub ? `<span class="vista-titulo-sub">${esc(sub)}</span>` : ''}`;
@@ -11325,7 +11326,7 @@ document.addEventListener('click', async (e) => {
                 if (elEvalTop) elEvalTop.textContent = al.reserva_profe_nombre || al.informe_entrevista?.evaluador_nombre || '-';
 }
 
-            // Borrador (v7.32): solo en el flujo de admisión (primer informe, aún no finalizado)
+            // Borrador (v7.33): solo en el flujo de admisión (primer informe, aún no finalizado)
             const esFlujoAdmision = !esNuevoInformeAdicional && !(reportIndexAttr !== null && reportIndexAttr !== '' && !isNaN(parseInt(reportIndexAttr, 10))) && !al.informe_entrevista;
             const dr = (esFlujoAdmision && al.informe_borrador && al.informe_borrador.datos) ? al.informe_borrador.datos : null;
             if (dr) {
@@ -11619,7 +11620,7 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    // Guardar borrador del informe de clase de admisión (v7.32): sin validaciones, no cambia el estado del alumno
+    // Guardar borrador del informe de clase de admisión (v7.33): sin validaciones, no cambia el estado del alumno
     if (target.id === 'btn-guardar-borrador-informe' || target.closest('#btn-guardar-borrador-informe')) {
         const btnBor = document.getElementById('btn-guardar-borrador-informe');
         const id = document.getElementById('informe-final-alumno-id').value;

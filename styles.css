@@ -5193,3 +5193,13 @@ dialog.av-ventana.modern-modal { max-width: 560px !important; width: 92% !import
 .ico-chip-lapiz { margin-left: auto; opacity: .75; }
 .micro-chip-contacto.editable:hover { filter: none; box-shadow: var(--sh-1); }
 .micro-chip-contacto.editable:hover .ico-chip-lapiz { opacity: 1; }
+
+
+/* =======================================================================
+   FASE 4e — ALTAS, SEGUIMIENTOS Y DASHBOARD: filas con el molde común, fechas con ícono de línea
+   ======================================================================= */
+.row-item.btn-editar-alumno { padding: 10px 16px !important; margin-bottom: 0 !important; border-radius: var(--r-md) !important; border-color: var(--line) !important; background: var(--surface) !important; }
+.row-item.btn-editar-alumno .row-name > span:first-child { font-size: 14px !important; }
+.ico-chip { vertical-align: -2px; }
+.ds-meta-val .ico-chip { color: var(--ink-3); }
+.group-member-status-chip { display: inline-flex; align-items: center; gap: 4px; }

@@ -105,9 +105,9 @@ export function renderTimelineUnificado(containerId, configNodos, datos, callbac
                         const esEtapaEntrevista = index < 4;
                         if(esEtapaEntrevista) {
                             if(al.opciones_propuestas && al.opciones_propuestas.length > 1) {
-                                details.push(`<strong style="color:var(--accent-teal); font-weight:700;">📅 Opciones: ${al.opciones_propuestas.map(o => `${o.letra || '-'}: ${o.fechaTexto}`).join(' / ')}</strong>`);
+                                details.push(`<strong style="color:var(--accent-teal); font-weight:700;">${window.iconoLinea('cal', 'ico-chip')} Opciones:${al.opciones_propuestas.map(o => `${o.letra || '-'}: ${o.fechaTexto}`).join(' / ')}</strong>`);
                             } else if(al.reserva_fecha_texto) {
-                                details.push(`<strong style="color:var(--accent-teal); font-weight:700;">📅 Clase de admisión: ${al.reserva_fecha_texto}</strong>`);
+                                details.push(`<strong style="color:var(--accent-teal); font-weight:700;">${window.iconoLinea('cal', 'ico-chip')} Clase de admisión:${al.reserva_fecha_texto}</strong>`);
                             }
                         }
 
@@ -116,7 +116,7 @@ export function renderTimelineUnificado(containerId, configNodos, datos, callbac
                             try {
                                 const f = new Date(al.fecha_inicio_clases);
                                 if (!isNaN(f.getTime())) {
-                                    details.push(`<strong style="color:var(--accent-teal); font-weight:700;">📅 Inicio de Alta: ${f.getDate()}/${f.getMonth()+1}</strong>`);
+                                    details.push(`<strong style="color:var(--accent-teal); font-weight:700;">${window.iconoLinea('cal', 'ico-chip')} Inicio de Alta:${f.getDate()}/${f.getMonth()+1}</strong>`);
                                 }
                             } catch(e) {}
                         }

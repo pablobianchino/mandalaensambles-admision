@@ -3247,7 +3247,7 @@ export function getSeguimientoBadgeStatus(al) {
             if (diasSinResp >= 2) {
                 return `<span class="pill-urgencia" style="background:#ffedd5; color:#9a3412; border:1px solid #fed7aa; font-size:11px; padding:2px 8px; border-radius:12px; font-weight:700;" title="Reintentar contacto: Pasaron ${diasSinResp} días hábiles desde el mensaje sin respuesta del alumno">🔁 Reintentar (+${diasSinResp}d sin respuesta)</span>`;
             }
-            return `<span class="group-member-status-chip status-val-ok" style="background:#ccfbf1; color:#0f766e; font-weight:700; font-size:11px; padding:2px 8px; border-radius:12px;">⏳ Esperando respuesta</span>`;
+            return `<span class="group-member-status-chip status-val-ok" style="background:#ccfbf1; color:#0f766e; font-weight:700; font-size:11px; padding:2px 8px; border-radius:12px;">${window.iconoLinea('clock', 'ico-chip')} Esperando respuesta</span>`;
         }
         const prox = seg.fecha_proximo_seguimiento;
         if (prox) {
@@ -3505,8 +3505,8 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                         }
                         fechaMetaHtml = `
                             <div class="row-meta" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; min-width:unset; flex-shrink:0; gap:1px;">
-                                <div style="font-size:10px; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:1px;">PROX. CONTACTO</div>
-                                <div style="font-size:11.5px; color:var(--text-muted); font-weight:600; display:flex; align-items:center; gap:4px; flex-wrap:wrap;"><span>📅 ${fechaSegTxt}</span></div>
+                                <div class="ds-meta-label">PROX. CONTACTO</div>
+                                <div class="ds-meta-val">${window.iconoLinea('cal', 'ico-chip')}<span>${fechaSegTxt}</span></div>
                             </div>
                         `;
                     } else if (vista === 'Seguimientos - Finalizados') {
@@ -3519,15 +3519,15 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                         }
                         fechaMetaHtml = `
                             <div class="row-meta" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; min-width:unset; flex-shrink:0; gap:1px;">
-                                <div style="font-size:10px; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:1px;">FINALIZADO</div>
-                                <div style="font-size:11px; color:var(--text-muted); font-weight:600; display:flex; align-items:center; gap:4px;"><span>📅 ${fFinTxt}</span></div>
+                                <div class="ds-meta-label">FINALIZADO</div>
+                                <div class="ds-meta-val">${window.iconoLinea('cal', 'ico-chip')}<span>${fFinTxt}</span></div>
                             </div>
                         `;
                     } else {
                         fechaMetaHtml = `
                             <div class="row-meta" style="display:flex; flex-direction:column; align-items:flex-start; text-align:left; min-width:unset; flex-shrink:0; gap:1px;">
-                                <div style="font-size:10px; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:1px;">INICIO DE CLASES</div>
-                                <div style="font-size:11px; color:var(--text-muted); font-weight:600; display:flex; align-items:center; gap:4px;"><span>📅 ${fIniTxt}</span></div>
+                                <div class="ds-meta-label">INICIO DE CLASES</div>
+                                <div class="ds-meta-val">${window.iconoLinea('cal', 'ico-chip')}<span>${fIniTxt}</span></div>
                             </div>
                         `;
                     }
@@ -3577,7 +3577,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                     if (porContactar.length > 0) {
                         contenidoSubHtml += `
                             <div style="display:flex; align-items:center; gap:8px; margin:4px 0 6px 0; font-size:11.5px; font-weight:800; color:#334155; text-transform:uppercase; letter-spacing:0.04em;">
-                                <span>📩 Por Contactar (${porContactar.length})</span>
+                                <span style="display:inline-flex; align-items:center; gap:6px;">${window.iconoLinea('msg', 'ico-chip')}Por Contactar (${porContactar.length})</span>
                                 <div style="flex:1; height:1px; background:#e2e8f0;"></div>
                             </div>
                             ${porContactar.map(al => renderFilaSeg(al)).join('')}
@@ -3586,7 +3586,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                     if (esperando.length > 0) {
                         contenidoSubHtml += `
                             <div style="display:flex; align-items:center; gap:8px; margin:${porContactar.length > 0 ? '12px' : '4px'} 0 6px 0; font-size:11.5px; font-weight:800; color:#0f766e; text-transform:uppercase; letter-spacing:0.04em;">
-                                <span>⏳ Esperando Respuesta (${esperando.length})</span>
+                                <span style="display:inline-flex; align-items:center; gap:6px;">${window.iconoLinea('clock', 'ico-chip')}Esperando Respuesta (${esperando.length})</span>
                                 <div style="flex:1; height:1px; background:#99f6e4;"></div>
                             </div>
                             ${esperando.map(al => renderFilaSeg(al)).join('')}
@@ -3701,7 +3701,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                         </button>
                     `;
                 } else if (vista === 'Altas - En Curso') {
-                    statusChipsHtml = `<span class="group-member-status-chip status-val-pending" style="font-size:11px;">⏳ ${integrantesGrupo.length} Pendiente(s) de Pago</span>`;
+                    statusChipsHtml = `<span class="group-member-status-chip status-val-pending" style="font-size:11px;">${window.iconoLinea('clock', 'ico-chip')} ${integrantesGrupo.length} Pendiente(s) de Pago</span>`;
                     headerActionsHtml = `
                         <button type="button" class="btn-action-highlight btn-avisar-coordinador-grupo" data-grupo="${nombreGrupo}" data-ids="${idsParam}" style="padding:4px 10px; font-size:11.5px; color:var(--accent-teal); border:1.5px solid var(--accent-teal); background:#f0fdfa; border-radius:6px; font-weight:700; cursor:pointer;" title="Copiar aviso para el Coordinador con los datos de este grupo">
                             📢 Avisar al Coordinador
@@ -3737,7 +3737,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                     if (vista === 'Altas - Pendientes') {
                         badgeEstado = `<span class="group-member-status-chip status-val-ok" style="font-size:10.5px;">📋 Validado</span>`;
                     } else if (vista === 'Altas - En Curso') {
-                        badgeEstado = `<span class="group-member-status-chip status-val-pending" style="font-size:10.5px;">⏳ Pendiente de Pago</span>`;
+                        badgeEstado = `<span class="group-member-status-chip status-val-pending" style="font-size:10.5px;">${window.iconoLinea('clock', 'ico-chip')} Pendiente de Pago</span>`;
                     } else if (vista === 'Altas - Confirmadas') {
                         badgeEstado = `<span class="group-member-status-chip status-val-ok" style="font-size:10.5px;">✅ Alta Confirmada</span>`;
                     } else if (vista === 'Altas - Finalizadas') {
@@ -3776,8 +3776,8 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
 
                                 <!-- Columna Derecha: Sector Universal de Fechas -->
                                 <div class="row-meta" style="display:flex; flex-direction:column; align-items:flex-end; text-align:right; min-width:110px; flex-shrink:0;">
-                                    <div style="font-size:10px; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:1px;">INICIO DE CLASES:</div>
-                                    <div style="font-size:11px; color:var(--text-muted); font-weight:600;">📅 ${fIniTxt}</div>
+                                    <div class="ds-meta-label">INICIO DE CLASES:</div>
+                                    <div class="ds-meta-val">${window.iconoLinea('cal', 'ico-chip')}<span>${fIniTxt}</span></div>
                                 </div>
 
                                 <!-- Menú 3 Puntos -->
@@ -3818,7 +3818,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                     if (vista === 'Altas - Pendientes') {
                         badgeEstadoInd = `<span class="group-member-status-chip status-val-ok" style="font-size:10.5px;">📋 Validado</span>`;
                     } else if (vista === 'Altas - En Curso') {
-                        badgeEstadoInd = `<span class="group-member-status-chip status-val-pending" style="font-size:10.5px;">⏳ Pendiente de Pago</span>`;
+                        badgeEstadoInd = `<span class="group-member-status-chip status-val-pending" style="font-size:10.5px;">${window.iconoLinea('clock', 'ico-chip')} Pendiente de Pago</span>`;
                     } else if (vista === 'Altas - Confirmadas') {
                         badgeEstadoInd = `<span class="group-member-status-chip status-val-ok" style="font-size:10.5px;">✅ Alta Confirmada</span>`;
                     } else if (vista === 'Altas - Finalizadas') {
@@ -3856,8 +3856,8 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
 
                                 <!-- Columna Derecha: Sector Universal de Fechas -->
                                 <div class="row-meta" style="display:flex; flex-direction:column; align-items:flex-end; text-align:right; min-width:110px; flex-shrink:0;">
-                                    <div style="font-size:10px; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:1px;">INICIO DE CLASES:</div>
-                                    <div style="font-size:11px; color:var(--text-muted); font-weight:600;">📅 ${fIniTxt}</div>
+                                    <div class="ds-meta-label">INICIO DE CLASES:</div>
+                                    <div class="ds-meta-val">${window.iconoLinea('cal', 'ico-chip')}<span>${fIniTxt}</span></div>
                                 </div>
 
                                 <!-- Menú 3 Puntos -->
