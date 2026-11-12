@@ -3402,7 +3402,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                     // Urgencia / Estado del badge según la sub-vista de seguimiento
                     let badgeUrg = '';
                     if (vista === 'Seguimientos - Pendientes') {
-                        badgeUrg = `<span class="badge-tag" style="background:#fef3c7; color:#92400e; font-weight:700; font-size:10.5px; padding:2px 7px; border-radius:10px;">🟡 Pendiente</span>`;
+                        badgeUrg = `<span class="badge-tag" style="background:#fef3c7; color:#92400e; font-weight:700;">🟡 Pendiente</span>`;
                     } else if (vista === 'Seguimientos - Finalizados') {
                         let fFinTxt = '';
                         if (al.seguimiento?.fecha_finalizacion) {
@@ -3411,7 +3411,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                                 fFinTxt = ` (${String(fObj.getDate()).padStart(2,'0')}/${String(fObj.getMonth()+1).padStart(2,'0')}/${fObj.getFullYear()})`;
                             }
                         }
-                        badgeUrg = `<span class="badge-tag" style="background:#dbeafe; color:#1e40af; font-weight:700; font-size:10.5px; padding:2px 7px; border-radius:10px;">🔵 Finalizado${fFinTxt}</span>`;
+                        badgeUrg = `<span class="badge-tag" style="background:#dbeafe; color:#1e40af; font-weight:700;">🔵 Finalizado${fFinTxt}</span>`;
                     } else {
                         // En Curso (o por defecto)
                         if (estaContactado) {
@@ -3460,7 +3460,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                     const cantCtto = Array.isArray(al.seguimiento?.historial) 
                         ? al.seguimiento.historial.filter(c => c && c.tipo !== 'contacto_whatsapp' && c.tipo !== 'contacto_desmarcado').length 
                         : 0;
-                    const tagFeedbacks = cantCtto > 0 ? `<span class="badge-tag" style="background:#f1f5f9; color:#475569; font-size:10px; padding:1px 6px; border-radius:6px;" title="${cantCtto} feedback(s) registrado(s)">${cantCtto} fb</span>` : '';
+                    const tagFeedbacks = cantCtto > 0 ? `<span class="badge-tag" style="background:#f1f5f9; color:#475569;" title="${cantCtto} feedback(s) registrado(s)">${cantCtto} fb</span>` : '';
                     const botonesRow = construirAccionesFilaAlta(al, al.id, vista, true, '', callbacks);
                     const habilitarBulkSeg = (vista === 'Seguimientos - Pendientes');
                     const chkBulkSeg = habilitarBulkSeg
@@ -3533,7 +3533,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                     }
 
                     return `
-                        <div class="row-item btn-editar-alumno" data-id="${al.id}" style="padding:7px 12px; margin-bottom:4px; border-radius:10px; border:1px solid var(--border-color); background:#fff; cursor:pointer;">
+                        <div class="row-item btn-editar-alumno" data-id="${al.id}" style="cursor:pointer;">
                             <div class="row-content-wrapper" style="display:flex; align-items:center; justify-content:space-between; gap:14px; width:100%;">
                                 <!-- Columna 1: Alumno y Datos (Línea 1: Nombre • Edad • Nivel + Badge | Línea 2: Instrumento) -->
                                 <div class="row-header" style="display:flex; align-items:center; flex:1 1 auto; gap:6px; min-width:0;">
@@ -3542,11 +3542,11 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                                         <div class="row-name" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; text-align:left;">
                                             <span style="font-weight:700; color:var(--text-main); font-size:14px;">${al.nombre}</span>
                                             ${al.edad ? `<span style="font-size:12px; color:var(--text-muted); font-weight:600;">• ${al.edad} años</span>` : ''}
-                                            ${al.nivel ? `<span style="display:inline-flex; align-items:center;">• <span class="match-student-tag nivel" style="font-size:10px; padding:1px 6px;">${al.nivel}</span></span>` : ''}
+                                            ${al.nivel ? `<span style="display:inline-flex; align-items:center;">• <span class="match-student-tag nivel">${al.nivel}</span></span>` : ''}
                                             ${badgeUrg}
                                             ${tagFeedbacks}
                                         </div>
-                                        <div class="row-sub-line" style="display:flex; align-items:center; gap:6px; font-size:12px; margin-top:1px;">
+                                        <div class="row-sub-line" style="display:flex; align-items:center; gap:6px; margin-top:1px;">
                                             <strong style="color:var(--accent-teal); font-weight:600;">${emojiInst} ${instAsignado}</strong>
                                         </div>
                                     </div>
@@ -3609,12 +3609,12 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                 }
 
                 segHtml += `
-                    <div class="group-card-l1" style="border:1px solid var(--border-color); border-radius:12px; margin-bottom:14px; width:100%; overflow:hidden; background:#fff;">
-                        <div class="group-banner-l1" style="background:#f8fafc; border-left:6px solid var(--accent-teal); color:var(--text-main); cursor:pointer; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;" onclick="window.toggleGroupCollapsible('${groupId}-content', '${groupId}-icon')" title="Clic para desplegar u ocultar">
+                    <div class="group-card-l1" style="width:100%; overflow:hidden;">
+                        <div class="group-banner-l1" onclick="window.toggleGroupCollapsible('${groupId}-content', '${groupId}-icon')" title="Clic para desplegar u ocultar">
                             <div style="display:flex; align-items:center; gap:8px;">
                                 <span id="${groupId}-icon" style="font-size:12px; transition:transform 0.2s;">▼</span>
-                                <span style="font-size:14px; font-weight:800; letter-spacing:-0.01em;">${headerTitulo.toUpperCase()}</span>
-                                <span style="background:var(--accent-teal); color:#ffffff; font-size:11px; font-weight:700; padding:2px 8px; border-radius:12px;">${alumnosSeg.length} ${alumnosSeg.length === 1 ? 'alumno' : 'alumnos'}</span>
+                                <span class="group-titulo">${headerTitulo.toUpperCase()}</span>
+                                <span class="group-contador">${alumnosSeg.length} ${alumnosSeg.length === 1 ? 'alumno' : 'alumnos'}</span>
                             </div>
                         </div>
                         <div id="${groupId}-content" style="padding:10px 12px; display:flex; flex-direction:column; gap:4px;">
@@ -3754,7 +3754,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                         : '';
 
                     return `
-                        <div class="row-item btn-editar-alumno" data-id="${al.id}" style="padding:7px 12px; margin-bottom:4px; border-radius:10px; border:1px solid var(--border-color); background:#fff; cursor:pointer;">
+                        <div class="row-item btn-editar-alumno" data-id="${al.id}" style="cursor:pointer;">
                             <div class="row-content-wrapper" style="display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%;">
                                 <!-- Columna 1: Alumno y Datos (Línea 1: Nombre • Edad • Nivel + Badge | Línea 2: Instrumento) -->
                                 <div class="row-header" style="display:flex; align-items:center; flex:1; gap:6px; min-width:0;">
@@ -3763,10 +3763,10 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                                         <div class="row-name" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; text-align:left;">
                                             <span style="font-weight:700; color:var(--text-main); font-size:14px;">${al.nombre}</span>
                                             ${al.edad ? `<span style="font-size:12px; color:var(--text-muted); font-weight:600;">• ${al.edad} años</span>` : ''}
-                                            ${al.nivel ? `<span style="display:inline-flex; align-items:center;">• <span class="match-student-tag nivel" style="font-size:10px; padding:1px 6px;">${al.nivel}</span></span>` : ''}
+                                            ${al.nivel ? `<span style="display:inline-flex; align-items:center;">• <span class="match-student-tag nivel">${al.nivel}</span></span>` : ''}
                                             ${badgeEstado}
                                         </div>
-                                        <div class="row-sub-line" style="display:flex; align-items:center; gap:6px; font-size:12px; margin-top:1px;">
+                                        <div class="row-sub-line" style="display:flex; align-items:center; gap:6px; margin-top:1px;">
                                             <strong style="color:var(--accent-teal); font-weight:600;">${emojiInst} ${instAsignado}</strong>
                                         </div>
                                         ${checklistRowHtml}
@@ -3787,7 +3787,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                 }).join('');
 
                 docContentHtml += `
-                    <div class="group-card-l2" style="border:1px solid #e2e8f0; border-radius:10px; margin-bottom:10px; background:#f8fafc; overflow:hidden;">
+                    <div class="group-card-l2" style="margin-bottom:10px; overflow:hidden;">
                         <div class="group-banner-l2" style="padding:8px 12px; background:#f1f5f9; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; cursor:pointer;" onclick="window.toggleGroupCollapsible('${subGroupId}-content', '${subGroupId}-icon')">
                             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                                 <span id="${subGroupId}-icon" style="font-size:10px; color:#64748b; transition:transform 0.2s;">▼</span>
@@ -3834,7 +3834,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                         : '';
 
                     return `
-                        <div class="row-item btn-editar-alumno" data-id="${al.id}" style="padding:7px 12px; margin-bottom:4px; border-radius:10px; border:1px solid var(--border-color); background:#fff; cursor:pointer;">
+                        <div class="row-item btn-editar-alumno" data-id="${al.id}" style="cursor:pointer;">
                             <div class="row-content-wrapper" style="display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%;">
                                 <!-- Columna 1: Alumno y Datos (Línea 1: Nombre • Edad • Nivel + Badge | Línea 2: Instrumento) -->
                                 <div class="row-header" style="display:flex; align-items:center; flex:1; gap:6px; min-width:0;">
@@ -3843,10 +3843,10 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                                         <div class="row-name" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; text-align:left;">
                                             <span style="font-weight:700; color:var(--text-main); font-size:14px;">${al.nombre}</span>
                                             ${al.edad ? `<span style="font-size:12px; color:var(--text-muted); font-weight:600;">• ${al.edad} años</span>` : ''}
-                                            ${al.nivel ? `<span style="display:inline-flex; align-items:center;">• <span class="match-student-tag nivel" style="font-size:10px; padding:1px 6px;">${al.nivel}</span></span>` : ''}
+                                            ${al.nivel ? `<span style="display:inline-flex; align-items:center;">• <span class="match-student-tag nivel">${al.nivel}</span></span>` : ''}
                                             ${badgeEstadoInd}
                                         </div>
-                                        <div class="row-sub-line" style="display:flex; align-items:center; gap:6px; font-size:12px; margin-top:1px;">
+                                        <div class="row-sub-line" style="display:flex; align-items:center; gap:6px; margin-top:1px;">
                                             <strong style="color:var(--accent-teal); font-weight:600;">${emojiInst} ${instAsignado}</strong>
                                         </div>
                                         ${checklistIndivHtml}
@@ -3870,12 +3870,12 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
             }
 
             html += `
-                <div class="group-card-l1" style="border:1px solid var(--border-color); border-radius:12px; margin-bottom:14px; width:100%; overflow:hidden; background:#fff;">
-                    <div class="group-banner-l1" style="background:#f8fafc; border-left:6px solid var(--accent-teal); color:var(--text-main); cursor:pointer; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;" onclick="window.toggleGroupCollapsible('${docGroupId}-content', '${docGroupId}-icon')" title="Clic para desplegar u ocultar">
+                <div class="group-card-l1" style="width:100%; overflow:hidden;">
+                    <div class="group-banner-l1" onclick="window.toggleGroupCollapsible('${docGroupId}-content', '${docGroupId}-icon')" title="Clic para desplegar u ocultar">
                         <div style="display:flex; align-items:center; gap:8px;">
                             <span id="${docGroupId}-icon" style="font-size:12px; transition:transform 0.2s;">▼</span>
-                            <span style="font-size:14px; font-weight:800; letter-spacing:-0.01em;">DOCENTE: ${profeNom.toUpperCase()}</span>
-                            <span style="background:var(--accent-teal); color:#ffffff; font-size:11px; font-weight:700; padding:2px 8px; border-radius:12px;">${alumnosDocente.length} ${alumnosDocente.length === 1 ? 'alumno' : 'alumnos'}</span>
+                            <span class="group-titulo">DOCENTE: ${profeNom.toUpperCase()}</span>
+                            <span class="group-contador">${alumnosDocente.length} ${alumnosDocente.length === 1 ? 'alumno' : 'alumnos'}</span>
                         </div>
                     </div>
                     <div id="${docGroupId}-content" style="padding:10px 12px; display:flex; flex-direction:column; gap:4px;">

@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.36";
+} from "./src/config/constants.js?v=7.40";
 
 import { 
     app, 
@@ -124,11 +124,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=7.36";
+} from "./src/modules/match.module.js?v=7.40";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=7.36";
+} from "./src/modules/profesor.module.js?v=7.40";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -157,14 +157,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=7.36";
+} from "./src/modules/altas.module.js?v=7.40";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=7.36";
+} from "./src/modules/dashboard.module.js?v=7.40";
 
 import {
     renderConfigHub,
@@ -173,23 +173,23 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.36";
+} from "./src/modules/abm.module.js?v=7.40";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.36";
+} from "./src/modules/inbox.module.js?v=7.40";
 
 // Íconos de línea automáticos en textos de la interfaz (solo presentación)
-import "./src/modules/iconos.module.js?v=7.36";
+import "./src/modules/iconos.module.js?v=7.40";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=7.36";
+} from "./src/modules/csv.module.js?v=7.40";
 
 import {
     inicializarMotorRecordatorios,
@@ -209,7 +209,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.36";
+} from "./src/modules/recordatorios.module.js?v=7.40";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -4571,7 +4571,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
 
     let nivelArray = Array.isArray(al.nivel) ? al.nivel : (al.nivel ? [al.nivel] : []);
     let nivelHtml = renderizarItemsConMax2(nivelArray, (niv) => {
-        return `<span class="match-student-tag nivel" style="font-size:10px; padding:2px 7px; white-space:nowrap;">${niv}</span>`;
+        return `<span class="match-student-tag nivel" style="white-space:nowrap;">${niv}</span>`;
 }, 'Niveles', id);
 
     let edad = al.edad ? al.edad + ' años' : '';
@@ -4587,9 +4587,9 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
         if (al.seguimiento?.activo === true) {
             tagSegUrgencia = info.badgePillHtml || `<span class="pill-urgencia pill-verde-plazo">🟢 En término</span>`;
 } else if (al.seguimiento?.finalizado === true) {
-            tagSegUrgencia = `<span class="badge-tag" style="background:#dbeafe; color:#1e40af; font-weight:700; font-size:10.5px; padding:2px 7px; border-radius:10px;">🔵 Finalizado</span>`;
+            tagSegUrgencia = `<span class="badge-tag" style="background:#dbeafe; color:#1e40af; font-weight:700;">🔵 Finalizado</span>`;
 } else {
-            tagSegUrgencia = `<span class="badge-tag" style="background:#fef3c7; color:#92400e; font-weight:700; font-size:10.5px; padding:2px 7px; border-radius:10px;">🟡 Pendiente</span>`;
+            tagSegUrgencia = `<span class="badge-tag" style="background:#fef3c7; color:#92400e; font-weight:700;">🟡 Pendiente</span>`;
 }
 }
     if (esSeg) {
@@ -4597,7 +4597,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
             ? al.seguimiento.historial.filter(c => c && c.tipo !== 'contacto_whatsapp' && c.tipo !== 'contacto_desmarcado').length 
             : 0;
         if (cantCtto > 0) {
-            tagFeedbacks = `<span class="badge-tag" style="background:#f1f5f9; color:#475569; font-size:10px; padding:1px 6px; border-radius:6px;" title="${cantCtto} feedback(s) registrado(s)">${cantCtto} fb</span>`;
+            tagFeedbacks = `<span class="badge-tag" style="background:#f1f5f9; color:#475569;" title="${cantCtto} feedback(s) registrado(s)">${cantCtto} fb</span>`;
 }
 }
 
@@ -4637,7 +4637,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
 
     // Línea 2: Instrumento Principal debajo (EXCLUSIVAMENTE instrumento)
     let filaDatosHtml = `
-        <div class="row-sub-line" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:12px; margin-top:2px;">
+        <div class="row-sub-line" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:2px;">
             ${instHtml ? `<span style="display:inline-flex; align-items:center;">${instHtml}</span>` : ''}
             ${(!esSimple && suscHtml) ? `<span style="display:inline-flex; align-items:center;">• ${suscHtml}</span>` : ''}
         </div>
@@ -4650,7 +4650,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
         const perfilArray = Array.isArray(al.perfil_psicologico) ? al.perfil_psicologico : [];
         if (perfilArray.length > 0) {
             tagsHtml = `<div class="row-sub-line" style="display:flex; flex-wrap:wrap; gap:4px; margin-top:2px;">` +
-                renderizarItemsConMax2(perfilArray, (t) => `<span class="profile-tag-badge" style="font-size:9.5px; padding:1px 6px; white-space:nowrap;">🧠 ${t}</span>`, 'Perfil Psicoemocional', id) +
+                renderizarItemsConMax2(perfilArray, (t) => `<span class="profile-tag-badge" style="white-space:nowrap;">🧠 ${t}</span>`, 'Perfil Psicoemocional', id) +
                 `</div>`;
 }
 }
@@ -4676,7 +4676,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
                 <span style="font-size:16px;" class="btn-row-action" onclick="event.stopPropagation(); window.abrirOpcionesKanban('${id}', this)">⋮</span>
             </div>
             <div class="kanban-card-sub">${edad || '-'} • <strong style="color:var(--accent-teal);">${instHtml || 'Sin inst.'}</strong></div>
-            ${al.nivel ? `<div style="font-size:11px; margin-top:2px;"><span class="match-student-tag nivel" style="font-size:10px; padding:2px 7px;">${al.nivel}</span></div>` : ''}
+            ${al.nivel ? `<div style="font-size:11px; margin-top:2px;"><span class="match-student-tag nivel">${al.nivel}</span></div>` : ''}
             ${tagsHtml}
             ${opcionesKanbanHtml}
             ${botonesVisibles ? `<div class="row-actions-group" style="margin-top:6px; justify-content:stretch;"><div class="row-quick-btns-col" style="width:100%;">${botonesVisibles}</div></div>` : ''}
@@ -6521,12 +6521,12 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
                 if (levelNumber === 1) {
                     const tema = obtenerTemaNivel1(clave, criterio);
                     outHtml += `
-                        <div class="group-card-l1" style="border-color:${tema.borderBox};">
-                            <div class="group-banner-l1" style="background:${tema.bg}; border-left:6px solid ${tema.border}; color:${tema.text};" onclick="window.toggleGroupCollapsible('${groupId}-content', '${groupId}-icon')" title="Clic para desplegar u ocultar">
+                        <div class="group-card-l1">
+                            <div class="group-banner-l1" style="border-left-color:${tema.border};" onclick="window.toggleGroupCollapsible('${groupId}-content', '${groupId}-icon')" title="Clic para desplegar u ocultar">
                                 <div style="display:flex; align-items:center; gap:10px;">
                                     <span id="${groupId}-icon" style="font-size:12px; transition:transform 0.2s;">▼</span>
-                                    <span style="font-size:15px; font-weight:800; letter-spacing:-0.01em;">${clave.toUpperCase()}</span>
-                                    <span style="background:${tema.badgeBg}; color:${tema.badgeText}; font-size:11.5px; font-weight:700; padding:2px 8px; border-radius:12px;">${alumnosSubgrupo.length} ${alumnosSubgrupo.length === 1 ? 'alumno' : 'alumnos'}</span>
+                                    <span class="group-titulo">${clave.toUpperCase()}</span>
+                                    <span class="group-contador" style="background:${tema.badgeBg}; color:${tema.badgeText};">${alumnosSubgrupo.length} ${alumnosSubgrupo.length === 1 ? 'alumno' : 'alumnos'}</span>
                                 </div>
                                 ${actionsHtml}
                             </div>
@@ -8946,7 +8946,7 @@ window.ejecutarBusquedaGlobal = ejecutarBusquedaGlobal;
 
 let guardRedireccionActivo = false;
 
-// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v7.36)
+// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v7.40)
 function tituloVista(seccion, sub = '') {
     const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
     return `<span>${esc(seccion)}</span>${sub ? `<span class="vista-titulo-sub">${esc(sub)}</span>` : ''}`;
@@ -11373,7 +11373,7 @@ document.addEventListener('click', async (e) => {
                 if (elEvalTop) elEvalTop.textContent = al.reserva_profe_nombre || al.informe_entrevista?.evaluador_nombre || '-';
 }
 
-            // Borrador (v7.36): solo en el flujo de admisión (primer informe, aún no finalizado)
+            // Borrador (v7.40): solo en el flujo de admisión (primer informe, aún no finalizado)
             const esFlujoAdmision = !esNuevoInformeAdicional && !(reportIndexAttr !== null && reportIndexAttr !== '' && !isNaN(parseInt(reportIndexAttr, 10))) && !al.informe_entrevista;
             const dr = (esFlujoAdmision && al.informe_borrador && al.informe_borrador.datos) ? al.informe_borrador.datos : null;
             if (dr) {
@@ -11667,7 +11667,7 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    // Guardar borrador del informe de clase de admisión (v7.36): sin validaciones, no cambia el estado del alumno
+    // Guardar borrador del informe de clase de admisión (v7.40): sin validaciones, no cambia el estado del alumno
     if (target.id === 'btn-guardar-borrador-informe' || target.closest('#btn-guardar-borrador-informe')) {
         const btnBor = document.getElementById('btn-guardar-borrador-informe');
         const id = document.getElementById('informe-final-alumno-id').value;

@@ -5020,20 +5020,20 @@ details.agenda-disp-desplegable[open] > summary::before { content: '▾ '; }
 
 /* =======================================================================
    FASE 3 (v7.28): molde común de las filas de lista (Inbox, Lista de Espera, Altas, Seguimientos,
-   Suspendidos, Bajas). Se ajusta con CSS; los !important se retiran en la Fase 5 al sacar los estilos en línea.
+   Suspendidos, Bajas). Desde la Fase 5 (v7.40) estas reglas ya no usan !important: las plantillas no llevan estilos en línea que las pisen.
    ======================================================================= */
 .lista-filas { gap: 8px; }
 .row-item { background: var(--surface); border-color: var(--line); border-radius: var(--r-md); padding: 10px 16px; box-shadow: var(--sh-1); }
 .row-item:hover { border-color: var(--line-2); box-shadow: var(--sh-2); }
 .row-item .row-name { font-size: 14px; color: var(--ink); }
-.row-item .row-name > span:first-child { font-size: 14px !important; color: var(--ink) !important; }
-.row-item .row-sub-line { font-size: 13px !important; }
+.row-item .row-name > span:first-child { font-size: 14px; color: var(--ink); }
+.row-item .row-sub-line { font-size: 13px; }
 /* Etiquetas de la fila con la forma del sistema (píldora, 12 px) */
-.row-item .match-student-tag { height: 20px; display: inline-flex; align-items: center; font-size: 12px !important; font-weight: 700; padding: 0 9px !important; border-radius: var(--r-pill); background: #f0ece4; color: var(--ink-2); }
+.row-item .match-student-tag { height: 20px; display: inline-flex; align-items: center; font-size: 12px; font-weight: 700; padding: 0 9px; border-radius: var(--r-pill); background: #f0ece4; color: var(--ink-2); }
 .row-item .match-student-tag.nivel { background: var(--info-bg); color: var(--info); }
 .row-item .match-student-tag.edad { background: #f0ece4; color: var(--ink-2); border: 0; }
-.row-item .profile-tag-badge { font-size: 12px !important; padding: 0 9px !important; height: 20px; display: inline-flex; align-items: center; border-radius: var(--r-pill); }
-.row-item .badge-tag { font-size: 12px !important; padding: 0 8px !important; height: 20px; display: inline-flex; align-items: center; border-radius: var(--r-pill) !important; }
+.row-item .profile-tag-badge { font-size: 12px; padding: 0 9px; height: 20px; display: inline-flex; align-items: center; border-radius: var(--r-pill); }
+.row-item .badge-tag { font-size: 12px; padding: 0 8px; height: 20px; display: inline-flex; align-items: center; border-radius: var(--r-pill); }
 /* Dato de fecha a la derecha de la fila */
 .ds-meta-label { font-size: 12px; color: var(--ink-3); font-weight: 700; text-transform: uppercase; letter-spacing: .03em; margin-bottom: 2px; }
 .ds-meta-val { font-size: 12.5px; color: var(--ink-2); font-weight: 600; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
@@ -5042,15 +5042,14 @@ details.agenda-disp-desplegable[open] > summary::before { content: '▾ '; }
    FASE 4a (v7.29): encabezados de agrupación con un solo molde en toda la app
    (Lista de Espera, Inbox, Altas, Seguimientos, Suspendidos, Bajas, Match).
    Punto intermedio: estructura idéntica; el color queda solo como acento (barra a la izquierda,
-   ícono y contador). Los !important se retiran en la Fase 5 al sacar los estilos en línea.
+   ícono y contador). Desde la Fase 5 el color del grupo llega solo como acento en línea (barra y contador).
    ======================================================================= */
-.group-card-l1 { border: 1px solid var(--line) !important; border-radius: var(--r-md) !important; background: var(--surface) !important; box-shadow: var(--sh-1); margin-top: 14px; margin-bottom: 8px !important; }
-.group-banner-l1 { background: var(--surface-2) !important; color: var(--ink) !important; border-left-width: 4px !important; padding: 12px 16px !important; border-radius: 9px 9px 0 0; border-bottom: 1px solid var(--line); }
-.group-banner-l1:hover { filter: none; background: #f5f1e9 !important; }
-.group-banner-l1 span[style*="font-weight:800"] { font-size: 14px !important; letter-spacing: 0 !important; }
-.group-banner-l1 span[style*="font-size:18px"], .group-banner-l1 span[style*="font-size:16px"] { font-size: 16px !important; }
-.group-banner-l1 span[style*="border-radius:12px"] { font-size: 12px !important; font-weight: 700 !important; padding: 0 9px !important; height: 20px; display: inline-flex; align-items: center; border-radius: var(--r-pill) !important; }
-.group-card-l2 { background: var(--surface) !important; border: 1px solid var(--line) !important; border-radius: var(--r-md) !important; }
+.group-card-l1 { border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); box-shadow: var(--sh-1); margin-top: 14px; margin-bottom: 8px; }
+.group-banner-l1 { display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: var(--surface-2); color: var(--ink); border-left: 4px solid var(--teal); padding: 12px 16px; border-radius: 9px 9px 0 0; border-bottom: 1px solid var(--line); }
+.group-banner-l1:hover { filter: none; background: #f5f1e9; }
+.group-titulo { font-size: 14px; font-weight: 800; letter-spacing: 0; }
+.group-contador { background: var(--teal); color: #fff; font-size: 12px; font-weight: 700; padding: 0 9px; height: 20px; display: inline-flex; align-items: center; border-radius: var(--r-pill); }
+.group-card-l2 { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); }
 
 
 /* =======================================================================
@@ -5060,17 +5059,17 @@ details.agenda-disp-desplegable[open] > summary::before { content: '▾ '; }
 .ico-linea { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
 
 /* --- Avisos (toasts) --- */
-.toast-notification { background: var(--surface) !important; color: var(--ink) !important; border: 1px solid var(--line) !important; border-left: 4px solid var(--teal) !important; border-radius: var(--r-md) !important; box-shadow: var(--sh-2) !important; padding: 11px 14px !important; font-size: 13px; font-weight: 600; line-height: 1.4; align-items: flex-start !important; gap: 10px !important; max-width: 420px; }
+.toast-notification { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-left: 4px solid var(--teal); border-radius: var(--r-md); box-shadow: var(--sh-2); padding: 11px 14px; font-size: 13px; font-weight: 600; line-height: 1.4; align-items: flex-start; gap: 10px; max-width: 420px; }
 .toast-notification .toast-ico { margin-top: 1px; color: var(--teal); }
 .toast-notification .toast-texto { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .toast-notification .toast-x { width: 14px; height: 14px; margin-top: 3px; color: var(--ink-3); }
-.toast-notification.toast-success { border-left-color: var(--ok) !important; background: var(--surface) !important; }
+.toast-notification.toast-success { border-left-color: var(--ok); background: var(--surface); }
 .toast-notification.toast-success .toast-ico { color: var(--ok); }
-.toast-notification.toast-error { border-left-color: var(--bad) !important; background: var(--surface) !important; }
+.toast-notification.toast-error { border-left-color: var(--bad); background: var(--surface); }
 .toast-notification.toast-error .toast-ico { color: var(--bad); }
-.toast-notification.toast-warning { border-left-color: #c98a1a !important; background: var(--surface) !important; }
+.toast-notification.toast-warning { border-left-color: #c98a1a; background: var(--surface); }
 .toast-notification.toast-warning .toast-ico { color: var(--warn); }
-.modal-toast-container .toast-notification { box-shadow: var(--sh-3) !important; }
+.modal-toast-container .toast-notification { box-shadow: var(--sh-3); }
 
 /* --- Botones de ventanas --- */
 .av-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 38px; padding: 0 14px; border-radius: var(--r-sm); border: 1px solid transparent; font: 700 13px var(--font); cursor: pointer; white-space: nowrap; transition: background .15s, border-color .15s; }
@@ -5084,7 +5083,7 @@ details.agenda-disp-desplegable[open] > summary::before { content: '▾ '; }
 .av-botones-der .av-btn { flex: 0 0 auto; }
 
 /* --- Confirmación --- */
-dialog.av-confirmar.modern-modal { max-width: 400px !important; width: 90% !important; padding: 0 !important; border: 1px solid var(--line) !important; border-radius: var(--r-lg) !important; box-shadow: var(--sh-3) !important; background: var(--surface); }
+dialog.av-confirmar.modern-modal { max-width: 400px; width: 90%; padding: 0; border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--sh-3); background: var(--surface); }
 .av-confirmar-cuerpo { padding: 22px 22px 18px; }
 .av-insignia { width: 44px; height: 44px; border-radius: var(--r-md); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; background: var(--teal-50); color: var(--teal); }
 .av-insignia .ico-linea { width: 22px; height: 22px; }
@@ -5098,16 +5097,16 @@ dialog.av-confirmar.modern-modal { max-width: 400px !important; width: 90% !impo
 .av-confirmar[data-tono="ok"] #confirmar-btn-ok:hover, .av-confirmar[data-tono="bad"] #confirmar-btn-ok:hover { filter: brightness(.92); }
 
 /* --- Pedir texto --- */
-dialog.av-pedir-texto.modern-modal { max-width: 440px !important; width: 92% !important; padding: 0 !important; border: 1px solid var(--line) !important; border-radius: var(--r-lg) !important; box-shadow: var(--sh-3) !important; background: var(--surface); overflow: hidden; }
+dialog.av-pedir-texto.modern-modal { max-width: 440px; width: 92%; padding: 0; border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--sh-3); background: var(--surface); overflow: hidden; }
 .av-pt-cuerpo { padding: 18px 20px; }
 .av-pt-titulo { margin: 0 0 4px; font-size: 16px; font-weight: 700; color: var(--ink); }
 .av-pt-desc { margin: 0 0 12px; font-size: 13px; color: var(--ink-2); line-height: 1.4; }
-.av-pt-campo { width: 100%; resize: vertical; font-family: inherit; font-size: 13.5px; padding: 10px; border: 1px solid var(--line-2) !important; border-radius: var(--r-sm) !important; background: #fff; }
-.av-pt-campo:focus { outline: none; border-color: var(--teal) !important; box-shadow: 0 0 0 3px var(--teal-50); }
+.av-pt-campo { width: 100%; resize: vertical; font-family: inherit; font-size: 13.5px; padding: 10px; border: 1px solid var(--line-2); border-radius: var(--r-sm); background: #fff; }
+.av-pt-campo:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-50); }
 .av-pt-error { color: var(--bad); font-size: 12px; font-weight: 600; margin-top: 6px; }
 
 /* --- Ventanas de decisión (Calendar) --- */
-dialog.av-ventana.modern-modal { max-width: 560px !important; width: 92% !important; padding: 0 !important; border: 1px solid var(--line) !important; border-radius: var(--r-lg) !important; box-shadow: var(--sh-3) !important; background: var(--surface); overflow: hidden; }
+dialog.av-ventana.modern-modal { max-width: 560px; width: 92%; padding: 0; border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--sh-3); background: var(--surface); overflow: hidden; }
 .av-v-cab { display: flex; align-items: center; gap: 12px; padding: 14px 18px; background: var(--surface-2); border-bottom: 1px solid var(--line); }
 .av-v-cab h3 { margin: 0; font-size: 15px; font-weight: 700; color: var(--ink); }
 .av-v-cab p { margin: 2px 0 0; font-size: 12px; color: var(--ink-2); }
@@ -5129,21 +5128,21 @@ dialog.av-ventana.modern-modal { max-width: 560px !important; width: 92% !import
 .av-der { text-align: right; }
 .av-aviso { display: flex; align-items: flex-start; gap: 8px; border-radius: var(--r-sm); padding: 9px 12px; margin-bottom: 12px; font-size: 12.5px; line-height: 1.4; }
 .av-aviso .ico-linea { width: 16px; height: 16px; margin-top: 1px; }
-.av-aviso-warn { background: var(--warn-bg) !important; color: var(--warn) !important; border: 0 !important; }
+.av-aviso-warn { background: var(--warn-bg); color: var(--warn); border: 0; }
 .av-opciones-1 { display: flex; flex-direction: column; gap: 8px; }
 .av-opciones-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 @media (max-width: 520px) { .av-opciones-2 { grid-template-columns: 1fr; } }
-.av-op { display: flex; align-items: center; gap: 12px; border: 1px solid var(--line-2) !important; background: var(--surface) !important; border-radius: var(--r-md) !important; padding: 11px 14px !important; cursor: pointer; transition: background .15s, border-color .15s !important; }
-.av-op:hover { background: var(--surface-2) !important; }
+.av-op { display: flex; align-items: center; gap: 12px; border: 1px solid var(--line-2); background: var(--surface); border-radius: var(--r-md); padding: 11px 14px; cursor: pointer; transition: background .15s, border-color .15s; }
+.av-op:hover { background: var(--surface-2); }
 .av-op-col { flex-direction: column; align-items: stretch; gap: 6px; }
 .av-op-fila { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .av-op-ico { width: 32px; height: 32px; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: var(--ok-bg); color: var(--ok); }
 .av-op-ico-neutro { background: var(--surface-2); color: var(--ink-2); }
-.av-op-rec { border-color: var(--ok) !important; }
-.av-op-peligro { border-color: #e3b7ae !important; }
+.av-op-rec { border-color: var(--ok); }
+.av-op-peligro { border-color: #e3b7ae; }
 .av-op-peligro .av-op-ico { background: var(--bad-bg); color: var(--bad); }
-.av-op-peligro:hover { background: var(--bad-bg) !important; }
-.av-op-rec:hover { background: var(--ok-bg) !important; }
+.av-op-peligro:hover { background: var(--bad-bg); }
+.av-op-rec:hover { background: var(--ok-bg); }
 .av-op-texto { flex: 1; min-width: 0; }
 .av-op-titulo { font-size: 13.5px; font-weight: 700; color: var(--ink); }
 .av-op-desc { font-size: 12px; color: var(--ink-2); line-height: 1.4; margin-top: 2px; }
@@ -5155,27 +5154,28 @@ dialog.av-ventana.modern-modal { max-width: 560px !important; width: 92% !import
 .av-pildora-neutra { background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--line); }
 
 /* --- Indicador "procesando" --- */
-.global-action-card { background: var(--surface) !important; color: var(--ink) !important; border: 1px solid var(--line) !important; box-shadow: var(--sh-3) !important; border-radius: var(--r-pill) !important; padding: 10px 20px 10px 14px !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
-.global-action-card .spinner-inline { width: 18px !important; height: 18px !important; border: 2px solid var(--teal-100) !important; border-top-color: var(--teal) !important; animation-duration: .8s !important; }
-#global-action-text { color: var(--ink) !important; font-size: 13.5px !important; font-weight: 600 !important; }
-#global-action-cerrar { background: var(--surface) !important; color: var(--ink) !important; border: 1px solid var(--line-2) !important; border-radius: var(--r-pill) !important; }
+.global-action-card { background: var(--surface); color: var(--ink); border: 1px solid var(--line); box-shadow: var(--sh-3); border-radius: var(--r-pill); padding: 10px 20px 10px 14px; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.global-action-card .spinner-inline { width: 18px; height: 18px; border: 2px solid var(--teal-100); border-top-color: var(--teal); animation-duration: .8s; }
+#global-action-text { color: var(--ink); font-size: 13.5px; font-weight: 600; }
+#global-action-cerrar { margin-left: 6px; padding: 3px 12px; font: 700 12px var(--font); cursor: pointer; background: var(--surface); color: var(--ink); border: 1px solid var(--line-2); border-radius: var(--r-pill); }
+.row-item.btn-editar-alumno:not(.swipe-content) { border: 1px solid var(--line); }
 
 
 /* =======================================================================
    FASE 4c — MENÚ DE TRES PUNTOS (⋮) y botones de acción: íconos de línea, acción principal y acciones de cierre al final
    ======================================================================= */
-.dropdown-menu { border-radius: var(--r-md) !important; box-shadow: var(--sh-3) !important; border: 1px solid var(--line) !important; padding: 6px !important; gap: 0 !important; }
-.dropdown-item { gap: 10px !important; padding: 8px 10px !important; border-radius: var(--r-sm) !important; font-size: 13px; font-weight: 600; color: var(--ink) !important; }
-.dropdown-item:hover { background: var(--surface-2) !important; color: var(--ink) !important; }
+.dropdown-menu { border-radius: var(--r-md); box-shadow: var(--sh-3); border: 1px solid var(--line); padding: 6px; gap: 0; }
+.dropdown-item { gap: 10px; padding: 8px 10px; border-radius: var(--r-sm); font-size: 13px; font-weight: 600; color: var(--ink); }
+.dropdown-item:hover { background: var(--surface-2); color: var(--ink); }
 .dropdown-item .ico-menu, .btn-action-primary .ico-menu, .btn-action-neutral .ico-menu { width: 16px; height: 16px; color: var(--ink-3); pointer-events: none; }
 .dropdown-item span, .btn-action-primary span, .btn-action-neutral span { pointer-events: none; }
-.av-menu-principal { color: var(--teal) !important; font-weight: 700 !important; background: var(--teal-50) !important; }
-.av-menu-principal .ico-menu { color: var(--teal) !important; }
-.av-menu-principal:hover { background: var(--teal-100) !important; }
+.av-menu-principal { color: var(--teal); font-weight: 700; background: var(--teal-50); }
+.av-menu-principal .ico-menu { color: var(--teal); }
+.av-menu-principal:hover { background: var(--teal-100); }
 .av-menu-sep { height: 1px; background: var(--line); margin: 5px 4px; flex-shrink: 0; }
-.av-menu-cierre, .av-menu-cierre .ico-menu { color: var(--bad) !important; }
-.av-menu-cierre { border: 0 !important; margin-top: 0 !important; font-weight: 600 !important; }
-.av-menu-cierre:hover { background: var(--bad-bg) !important; }
+.av-menu-cierre, .av-menu-cierre .ico-menu { color: var(--bad); }
+.av-menu-cierre { border: 0; margin-top: 0; font-weight: 600; }
+.av-menu-cierre:hover { background: var(--bad-bg); }
 .btn-action-neutral, .btn-action-primary { display: flex; align-items: center; gap: 8px; }
 .btn-row-actions-swipe .ico-linea { width: 16px; height: 16px; vertical-align: -3px; margin-right: 4px; }
 
@@ -5184,11 +5184,11 @@ dialog.av-ventana.modern-modal { max-width: 560px !important; width: 92% !import
    FASE 4d — ETIQUETAS "ESPERANDO" Y "CONTACTADO": chips con significado, 12 px, íconos de línea
    Esperando = neutra · Contactado = verde (≤3 días), ámbar (4-7), rojo (>7)
    ======================================================================= */
-.micro-chip-espera-neutro, .micro-chip-contacto { font-size: 12px !important; font-weight: 700 !important; padding: 3px 9px !important; border-radius: var(--r-pill) !important; gap: 6px !important; line-height: 1.2; }
-.micro-chip-espera-neutro { background: var(--surface-2) !important; border: 1px solid var(--line-2) !important; color: var(--ink-2) !important; }
-.micro-chip-contacto.verde { background: var(--ok-bg) !important; border: 1px solid #bfe0cd !important; color: var(--ok) !important; }
-.micro-chip-contacto.ambar { background: var(--warn-bg) !important; border: 1px solid #f0d9a8 !important; color: var(--warn) !important; }
-.micro-chip-contacto.rojo { background: var(--bad-bg) !important; border: 1px solid #efc4bb !important; color: var(--bad) !important; }
+.micro-chip-espera-neutro, .micro-chip-contacto { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: var(--r-pill); gap: 6px; line-height: 1.2; }
+.micro-chip-espera-neutro { background: var(--surface-2); border: 1px solid var(--line-2); color: var(--ink-2); }
+.micro-chip-contacto.verde { background: var(--ok-bg); border: 1px solid #bfe0cd; color: var(--ok); }
+.micro-chip-contacto.ambar { background: var(--warn-bg); border: 1px solid #f0d9a8; color: var(--warn); }
+.micro-chip-contacto.rojo { background: var(--bad-bg); border: 1px solid #efc4bb; color: var(--bad); }
 .ico-chip { width: 13px; height: 13px; stroke-width: 2.2; }
 .ico-chip-lapiz { margin-left: auto; opacity: .75; }
 .micro-chip-contacto.editable:hover { filter: none; box-shadow: var(--sh-1); }
@@ -5198,8 +5198,6 @@ dialog.av-ventana.modern-modal { max-width: 560px !important; width: 92% !import
 /* =======================================================================
    FASE 4e — ALTAS, SEGUIMIENTOS Y DASHBOARD: filas con el molde común, fechas con ícono de línea
    ======================================================================= */
-.row-item.btn-editar-alumno { padding: 10px 16px !important; margin-bottom: 0 !important; border-radius: var(--r-md) !important; border-color: var(--line) !important; background: var(--surface) !important; }
-.row-item.btn-editar-alumno .row-name > span:first-child { font-size: 14px !important; }
 .ico-chip { vertical-align: -2px; }
 .ds-meta-val .ico-chip { color: var(--ink-3); }
 .group-member-status-chip { display: inline-flex; align-items: center; gap: 4px; }
@@ -5218,5 +5216,5 @@ dialog.av-ventana.modern-modal { max-width: 560px !important; width: 92% !import
    El emoji original queda oculto en el texto (para copiar y para el código), no se ve.
    ======================================================================= */
 .ico-auto { width: 1.1em; height: 1.1em; min-width: 14px; min-height: 14px; vertical-align: -0.2em; margin-right: .3em; flex-shrink: 0; }
-.emoji-oculto { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+.emoji-oculto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
 button .ico-auto, .btn-app .ico-auto { margin-right: .35em; }
