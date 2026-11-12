@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.33";
+} from "./src/config/constants.js?v=7.34";
 
 import { 
     app, 
@@ -124,11 +124,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=7.33";
+} from "./src/modules/match.module.js?v=7.34";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=7.33";
+} from "./src/modules/profesor.module.js?v=7.34";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -157,14 +157,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=7.33";
+} from "./src/modules/altas.module.js?v=7.34";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=7.33";
+} from "./src/modules/dashboard.module.js?v=7.34";
 
 import {
     renderConfigHub,
@@ -173,20 +173,20 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.33";
+} from "./src/modules/abm.module.js?v=7.34";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.33";
+} from "./src/modules/inbox.module.js?v=7.34";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=7.33";
+} from "./src/modules/csv.module.js?v=7.34";
 
 import {
     inicializarMotorRecordatorios,
@@ -206,7 +206,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.33";
+} from "./src/modules/recordatorios.module.js?v=7.34";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -1006,12 +1006,23 @@ const ICONOS_LINEA = {
     'bike': '<circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/><circle cx="15" cy="5" r="1"/>',
     'play': '<path d="m6 3 14 9-14 9z"/>',
     'card': '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>',
+    'user': '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+    'users': '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>',
+    'book': '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5V22h16"/>',
+    'trophy': '<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.7V17c0 .6-.5 1-1.2 1.2C7.8 18.7 7 20.2 7 22M14 14.7V17c0 .6.5 1 1.2 1.2 1 .5 1.8 2 1.8 3.8M18 2H6v7a6 6 0 0 0 12 0z"/>',
+    'sliders': '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
     'dot': '<circle cx="12" cy="12" r="6" fill="currentColor"/>',
     'dots': '<circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>'
 };
 const EMOJI_A_ICONO = { '✅': 'ok', '❌': 'err', '⚠️': 'warn', '⚠': 'warn', 'ℹ️': 'info', 'ℹ': 'info', '👁️': 'eye-off', '👁': 'eye-off', '🗑️': 'trash', '🗑': 'trash', '🚀': 'rocket', '🧩': 'puzzle', '📅': 'cal', '🛡️': 'shield', '➕': 'plus', '📋': 'copy', '💾': 'save', '📝': 'edit', '♻️': 'refresh', '🔒': 'lock' };
 window.iconoLinea = function(nombre, clase = '') {
     return `<svg class="ico-linea ${clase}" viewBox="0 0 24 24" aria-hidden="true">${ICONOS_LINEA[nombre] || ICONOS_LINEA.info}</svg>`;
+};
+// Para pestañas: emoji -> ícono de línea (si no hay equivalente, no muestra ícono ni emoji)
+const EMOJI_PESTANA = { '⏳': 'clock', '⏰': 'clock', '👨‍🏫': 'user', '🧑‍🎓': 'user', '👤': 'user', '👥': 'users', '✅': 'ok', '📝': 'edit', '🚀': 'rocket', '⚠️': 'warn', '⚠': 'warn', '🏆': 'trophy', '🎧': 'headset', '🏁': 'flag', '⏸️': 'pause', '⏸': 'pause', '💬': 'msg', '📋': 'clip', '🛑': 'ban', '🔍': 'search', '📩': 'msg', '⚙️': 'sliders', '⚙': 'sliders', '📚': 'book' };
+window.iconoPestana = function(emoji, clase = 'ico-tab') {
+    const n = EMOJI_PESTANA[String(emoji || '').trim()];
+    return n ? window.iconoLinea(n, clase) : '';
 };
 window.iconoDeEmoji = function(emoji, porDefecto = 'info') {
     return EMOJI_A_ICONO[String(emoji || '').trim()] || porDefecto;
@@ -7969,7 +7980,7 @@ function renderSegmentedTabs(vista) {
 }
         return `
             <button type="button" class="segmented-tab-btn ${isActive ? 'active' : ''}" data-vista="${tab.vista}">
-                <span>${tab.icon} ${tab.label}</span>
+                <span>${window.iconoPestana(tab.icon)} ${tab.label}</span>
                 ${badgeHtml}
             </button>
         `;
@@ -8899,7 +8910,7 @@ window.ejecutarBusquedaGlobal = ejecutarBusquedaGlobal;
 
 let guardRedireccionActivo = false;
 
-// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v7.33)
+// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v7.34)
 function tituloVista(seccion, sub = '') {
     const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
     return `<span>${esc(seccion)}</span>${sub ? `<span class="vista-titulo-sub">${esc(sub)}</span>` : ''}`;
@@ -11326,7 +11337,7 @@ document.addEventListener('click', async (e) => {
                 if (elEvalTop) elEvalTop.textContent = al.reserva_profe_nombre || al.informe_entrevista?.evaluador_nombre || '-';
 }
 
-            // Borrador (v7.33): solo en el flujo de admisión (primer informe, aún no finalizado)
+            // Borrador (v7.34): solo en el flujo de admisión (primer informe, aún no finalizado)
             const esFlujoAdmision = !esNuevoInformeAdicional && !(reportIndexAttr !== null && reportIndexAttr !== '' && !isNaN(parseInt(reportIndexAttr, 10))) && !al.informe_entrevista;
             const dr = (esFlujoAdmision && al.informe_borrador && al.informe_borrador.datos) ? al.informe_borrador.datos : null;
             if (dr) {
@@ -11620,7 +11631,7 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    // Guardar borrador del informe de clase de admisión (v7.33): sin validaciones, no cambia el estado del alumno
+    // Guardar borrador del informe de clase de admisión (v7.34): sin validaciones, no cambia el estado del alumno
     if (target.id === 'btn-guardar-borrador-informe' || target.closest('#btn-guardar-borrador-informe')) {
         const btnBor = document.getElementById('btn-guardar-borrador-informe');
         const id = document.getElementById('informe-final-alumno-id').value;
