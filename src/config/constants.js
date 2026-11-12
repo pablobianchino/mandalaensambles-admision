@@ -2,7 +2,7 @@
 // src/config/constants.js — Constantes globales del sistema
 // =======================================================================
 
-export const APP_VERSION = "v7.34";
+export const APP_VERSION = "v7.35";
 
 // Contraseña inicial que se asigna al crear cuentas de acceso. Se muestra únicamente en los avisos al administrador
 // (crear/restablecer usuario); no debe aparecer en pantallas ni mensajes visibles para el resto de los usuarios.

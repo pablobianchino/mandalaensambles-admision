@@ -5211,3 +5211,12 @@ dialog.av-ventana.modern-modal { max-width: 560px !important; width: 92% !import
 .ico-tab { width: 15px; height: 15px; vertical-align: -3px; margin-right: 2px; }
 .tab-btn, .segmented-tab-btn { display: inline-flex; align-items: center; gap: 5px; }
 .segmented-tab-btn > span { display: inline-flex; align-items: center; gap: 6px; }
+
+
+/* =======================================================================
+   FASE 4g — ÍCONOS AUTOMÁTICOS: el emoji inicial de botones, títulos y etiquetas se muestra como ícono de línea.
+   El emoji original queda oculto en el texto (para copiar y para el código), no se ve.
+   ======================================================================= */
+.ico-auto { width: 1.1em; height: 1.1em; min-width: 14px; min-height: 14px; vertical-align: -0.2em; margin-right: .3em; flex-shrink: 0; }
+.emoji-oculto { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+button .ico-auto, .btn-app .ico-auto { margin-right: .35em; }
