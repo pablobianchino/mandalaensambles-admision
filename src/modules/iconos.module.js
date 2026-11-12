@@ -19,12 +19,34 @@ const MAPA = {
     '📚': 'book', '📖': 'book', '🧪': 'flask', '🌙': 'moon', '📊': 'chart', '📈': 'chart', '💡': 'bulb',
     '📍': 'pin', '📌': 'pin', '📄': 'file', '📑': 'file', '📰': 'file', '📁': 'folder', '📂': 'folder',
     '🛡': 'shield', '🌐': 'globe', '❓': 'help', '🌱': 'leaf', '🌿': 'leaf', '🔥': 'flame', '🏷': 'tag',
-    '👤': 'user', '👥': 'users', '🔹': 'dot',
+    '👤': 'user', '👥': 'users', '🔹': 'dot', '🚪': 'logout',
+    '👨‍🏫': 'board', '👩‍🏫': 'board', '🧑‍🏫': 'board', '🧑‍🎓': 'cap', '👨‍🎓': 'cap', '👩‍🎓': 'cap',
+    // Instrumentos: el ícono depende del nombre que acompaña al emoji (guía EMOJIS_INSTRUMENTOS_A_ICONOS)
+    '🎸': 'inst', '🥁': 'inst', '🎹': 'inst', '🎤': 'inst', '🎺': 'inst', '🎻': 'inst', '🎷': 'inst', '🪘': 'inst',
+    '🪈': 'inst', '🪕': 'inst', '🔌': 'inst', '🎵': 'inst', '🎼': 'inst',
     '🟢': 'dot:var(--ok)', '🟡': 'dot:#c98a1a', '🔴': 'dot:var(--bad)', '🔵': 'dot:var(--info)',
     '🟠': 'dot:#d9731a', '⚪': 'dot:var(--ink-3)'
 };
-const RE_INICIO = /^(\s*)((?:[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B50}\u{23F3}\u{23F0}\u{23F8}\u{2190}-\u{21FF}\u{2705}\u{274C}\u{2753}])️?)/u;
-const EXCLUIR = '.row-name, .row-main-info, .group-banner-l1, .group-banner-l2, textarea, input, select, option, [contenteditable="true"], .ql-editor, pre, code, script, style, .emoji-oculto, .ico-linea, [data-keep-emoji]';
+function iconoInstrumento(nombre, emoji) {
+    const s = String(nombre || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+    if (s.includes('bater') || s.includes('drum')) return 'bateria';
+    if (s.includes('bajo') || s.includes('bass')) return 'bajo';
+    if (s.includes('guit') || s.includes('gtr')) return 'guitarra';
+    if (/cant|voz|vocal|coro|mic/.test(s)) return 'voz';
+    if (/tecl|pian|synth|sint|key/.test(s)) return 'teclado';
+    if (s.includes('sax') || s.includes('vient')) return 'saxo';
+    if (s.includes('viol')) return 'violin';
+    if (s.includes('perc') || s.includes('cajon')) return 'percusion';
+    if (s.includes('tromp')) return 'trompeta';
+    if (s.includes('flaut')) return 'flauta';
+    if (s.includes('ukel') || s.includes('ucu') || s.includes('charan')) return 'ukelele';
+    if (s.includes('linea') || s.includes('line')) return 'linea';
+    // Sin nombre reconocible: se usa el emoji original como pista
+    const porEmoji = { '🎸': 'guitarra', '🥁': 'bateria', '🎹': 'teclado', '🎤': 'voz', '🎺': 'trompeta', '🎻': 'violin', '🎷': 'saxo', '🪘': 'percusion', '🪈': 'flauta', '🪕': 'ukelele', '🔌': 'linea' };
+    return porEmoji[emoji] || 'otro';
+}
+const RE_INICIO = /^(\s*)((?:\u{1F468}‍\u{1F3EB}|\u{1F469}‍\u{1F3EB}|\u{1F9D1}‍\u{1F3EB}|\u{1F9D1}‍\u{1F393}|\u{1F468}‍\u{1F393}|\u{1F469}‍\u{1F393}|[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B50}\u{23F3}\u{23F0}\u{23F8}\u{2190}-\u{21FF}\u{2705}\u{274C}\u{2753}])️?)/u;
+const EXCLUIR = '.row-name, .group-banner-l1, .group-banner-l2, textarea, input, select, option, [contenteditable="true"], .ql-editor, pre, code, script, style, .emoji-oculto, .ico-linea, [data-keep-emoji]';
 
 function decorarTexto(nodo) {
     const padre = nodo.parentElement;
@@ -40,7 +62,12 @@ function decorarTexto(nodo) {
     const clave = emoji.replace(/️/g, '');
     const def = MAPA[clave];
     if (!def || typeof window.iconoLinea !== 'function') return;
-    const [nombre, color] = def.split(':');
+    let [nombre, color] = def.split(':');
+    if (nombre === 'inst') {
+        const base = ((padre.textContent || '').trim().length <= 4 && padre.parentElement) ? padre.parentElement : padre;
+        const texto = (base.textContent || '').replace(emoji, '').slice(0, 80);
+        nombre = 'inst-' + iconoInstrumento(texto, clave);
+    }
     const cont = document.createElement('span');
     cont.innerHTML = window.iconoLinea(nombre, 'ico-auto') + '<span class="emoji-oculto">' + emoji + '</span>';
     if (color) cont.firstChild.style.color = color;

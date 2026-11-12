@@ -3613,7 +3613,6 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                         <div class="group-banner-l1" style="background:#f8fafc; border-left:6px solid var(--accent-teal); color:var(--text-main); cursor:pointer; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;" onclick="window.toggleGroupCollapsible('${groupId}-content', '${groupId}-icon')" title="Clic para desplegar u ocultar">
                             <div style="display:flex; align-items:center; gap:8px;">
                                 <span id="${groupId}-icon" style="font-size:12px; transition:transform 0.2s;">▼</span>
-                                <span style="font-size:16px;">${iconBanner}</span>
                                 <span style="font-size:14px; font-weight:800; letter-spacing:-0.01em;">${headerTitulo.toUpperCase()}</span>
                                 <span style="background:var(--accent-teal); color:#ffffff; font-size:11px; font-weight:700; padding:2px 8px; border-radius:12px;">${alumnosSeg.length} ${alumnosSeg.length === 1 ? 'alumno' : 'alumnos'}</span>
                             </div>
@@ -3792,9 +3791,9 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                         <div class="group-banner-l2" style="padding:8px 12px; background:#f1f5f9; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; cursor:pointer;" onclick="window.toggleGroupCollapsible('${subGroupId}-content', '${subGroupId}-icon')">
                             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                                 <span id="${subGroupId}-icon" style="font-size:10px; color:#64748b; transition:transform 0.2s;">▼</span>
-                                <span style="font-size:13.5px; font-weight:800; color:var(--text-main);">🧩 ${nombreGrupo}</span>
+                                <span style="font-size:13.5px; font-weight:800; color:var(--text-main);">${nombreGrupo}</span>
                                 ${statusChipsHtml}
-                                <span style="font-size:11.5px; color:var(--text-muted);">• 📅 ${horario} • 🎸 ${modalidad}</span>
+                                <span style="font-size:11.5px; color:var(--text-muted);">• ${horario} • ${modalidad}</span>
                             </div>
                             <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;" onclick="event.stopPropagation();">
                                 ${headerActionsHtml}
@@ -3875,7 +3874,6 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                     <div class="group-banner-l1" style="background:#f8fafc; border-left:6px solid var(--accent-teal); color:var(--text-main); cursor:pointer; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;" onclick="window.toggleGroupCollapsible('${docGroupId}-content', '${docGroupId}-icon')" title="Clic para desplegar u ocultar">
                         <div style="display:flex; align-items:center; gap:8px;">
                             <span id="${docGroupId}-icon" style="font-size:12px; transition:transform 0.2s;">▼</span>
-                            <span style="font-size:16px;">👨‍🏫</span>
                             <span style="font-size:14px; font-weight:800; letter-spacing:-0.01em;">DOCENTE: ${profeNom.toUpperCase()}</span>
                             <span style="background:var(--accent-teal); color:#ffffff; font-size:11px; font-weight:700; padding:2px 8px; border-radius:12px;">${alumnosDocente.length} ${alumnosDocente.length === 1 ? 'alumno' : 'alumnos'}</span>
                         </div>
