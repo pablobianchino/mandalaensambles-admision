@@ -1785,19 +1785,17 @@ export function renderResultadosMatch() {
         const alumnosHtml = grupo.alumnos.map(al => {
             const instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || 'Sin inst.');
             const nivelStr = al.nivel || '';
-            const edadStr = al.edad ? `${al.edad}a` : '';
-            const tagsPsicoHtml = (Array.isArray(al.perfil_psicologico) && al.perfil_psicologico.length > 0)
-                ? al.perfil_psicologico.map(t => `<span class="profile-tag-badge" style="font-size:9.5px; padding:1px 6px;">🧠 ${t}</span>`).join('')
-                : '';
+            const edadStr = al.edad ? `${al.edad} años` : '';
+            // Nombre arriba; instrumento (con su ícono), nivel y edad como texto debajo. El perfil psicológico se ve en "Revisar" y en la ficha.
+            const iconoInst = typeof window.iconoInstrumentoHtml === 'function' ? window.iconoInstrumentoHtml(instStr, 'match-student-ico') : '';
+            const datosTxt = [nivelStr, edadStr].filter(Boolean).join(' · ');
 
             return `
                 <div class="match-student-row" style="cursor:pointer;" onclick="window.editarAlumnoModalDirecto('${al.id}')" title="Ver ficha y registro completo de ${al.nombre}">
-                    <span class="match-student-name" style="cursor:pointer;">👤 ${al.nombre}</span>
-                    <div class="match-student-tags">
-                        <span class="match-student-tag">${instStr}</span>
-                        ${nivelStr ? `<span class="match-student-tag nivel">${nivelStr}</span>` : ''}
-                        ${edadStr ? `<span class="match-student-tag edad">${edadStr}</span>` : ''}
-                        ${tagsPsicoHtml}
+                    ${iconoInst}
+                    <div class="match-student-info">
+                        <div class="match-student-name">${al.nombre}</div>
+                        <div class="match-student-datos"><b>${instStr}</b>${datosTxt ? ' · ' + datosTxt : ''}</div>
                     </div>
                 </div>
             `;

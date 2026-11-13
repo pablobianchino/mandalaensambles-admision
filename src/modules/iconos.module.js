@@ -45,6 +45,10 @@ function iconoInstrumento(nombre, emoji) {
     const porEmoji = { '🎸': 'guitarra', '🥁': 'bateria', '🎹': 'teclado', '🎤': 'voz', '🎺': 'trompeta', '🎻': 'violin', '🎷': 'saxo', '🪘': 'percusion', '🪈': 'flauta', '🪕': 'ukelele', '🔌': 'linea' };
     return porEmoji[emoji] || 'otro';
 }
+// Ícono de línea del instrumento a partir de su nombre (para plantillas que no empiezan con emoji)
+window.iconoInstrumentoHtml = function(nombre, clase) {
+    return typeof window.iconoLinea === 'function' ? window.iconoLinea('inst-' + iconoInstrumento(nombre, ''), clase || '') : '';
+};
 const RE_INICIO = /^(\s*)((?:\u{1F468}‍\u{1F3EB}|\u{1F469}‍\u{1F3EB}|\u{1F9D1}‍\u{1F3EB}|\u{1F9D1}‍\u{1F393}|\u{1F468}‍\u{1F393}|\u{1F469}‍\u{1F393}|[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B50}\u{23F3}\u{23F0}\u{23F8}\u{2190}-\u{21FF}\u{2705}\u{274C}\u{2753}])️?)/u;
 const EXCLUIR = '.row-name, .group-banner-l1, .group-banner-l2, textarea, input, select, option, [contenteditable="true"], .ql-editor, pre, code, script, style, .emoji-oculto, .ico-linea, [data-keep-emoji]';
 

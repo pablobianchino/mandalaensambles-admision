@@ -5348,3 +5348,14 @@ button.pend-kpi:hover { background: var(--surface-2); }
 .pend-vacio-ico .ico-linea { width: 36px; height: 36px; }
 .pend-vacio h4 { margin: 0 0 6px; font-size: 16px; font-weight: 800; color: var(--ink); }
 .pend-vacio p { margin: 0; font-size: 13px; }
+
+
+/* =======================================================================
+   FASE 11 (v7.51) — TARJETAS DE RESULTADOS DE MATCH: integrante en dos líneas (nombre arriba, datos abajo)
+   ======================================================================= */
+.match-student-row { align-items: flex-start; }
+.match-student-ico { width: 16px; height: 16px; margin-top: 2px; color: var(--teal); }
+.match-student-info { flex: 1; min-width: 0; }
+.match-student-info .match-student-name { white-space: normal; overflow-wrap: anywhere; }
+.match-student-datos { font-size: 12.5px; color: var(--ink-3); margin-top: 1px; }
+.match-student-datos b { color: var(--teal); font-weight: 700; }
