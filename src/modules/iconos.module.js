@@ -16,7 +16,7 @@ const MAPA = {
     '🚲': 'bike', '⚙': 'sliders', '🛠': 'sliders', '🔒': 'lock', '🔐': 'lock', '🔑': 'key', '🔔': 'bell',
     '✨': 'star', '⭐': 'star', '👑': 'star', '🎉': 'star', '📢': 'mega', '📣': 'mega',
     '💰': 'coin', '💵': 'coin', '💳': 'card', '🏦': 'coin', '📦': 'box', '🎯': 'target', '🏆': 'trophy',
-    '📚': 'book', '📖': 'book', '🧪': 'flask', '🌙': 'moon', '📊': 'chart', '📈': 'chart', '💡': 'bulb',
+    '📚': 'book', '📖': 'book', '📘': 'book', '📗': 'book', '📙': 'book', '📕': 'book', '📓': 'book', '📔': 'book', '📒': 'book', '🧪': 'flask', '🌙': 'moon', '📊': 'chart', '📈': 'chart', '💡': 'bulb',
     '📍': 'pin', '📌': 'pin', '📄': 'file', '📑': 'file', '📰': 'file', '📁': 'folder', '📂': 'folder',
     '🛡': 'shield', '🌐': 'globe', '❓': 'help', '🌱': 'leaf', '🌿': 'leaf', '🔥': 'flame', '🏷': 'tag',
     '👤': 'user', '👥': 'users', '🔹': 'dot', '🚪': 'logout',
