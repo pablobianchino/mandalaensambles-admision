@@ -5311,3 +5311,40 @@ button .ico-linea, button .ico-auto, button .emoji-oculto, a .ico-auto { pointer
 .dash-atencion-tarjetas .prio-proximos .dash-num { color: var(--warn); }
 .dash-atencion-tarjetas .btn-prio-filtro.active { background: var(--teal-50); border-color: var(--teal-100); border-left-color: var(--teal); box-shadow: none; }
 .dash-atencion-tarjetas .btn-prio-filtro.active .dash-etq { color: var(--teal-700); }
+
+
+/* =======================================================================
+   FASE 10 (v7.47) — MIS PENDIENTES: estructura nueva (barra, KPI en una fila, grupos con el molde común)
+   ======================================================================= */
+.pend { display: flex; flex-direction: column; gap: 16px; max-width: 980px; margin: 0 auto; padding-bottom: 40px; }
+.pend-barra { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+.pend-barra-txt { font-size: 13px; color: var(--ink-3); line-height: 1.4; flex: 1; min-width: 220px; }
+.pend-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.pend-kpi { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--acento, var(--ink-3)); border-radius: var(--r-md); box-shadow: var(--sh-1); font-family: var(--font); }
+button.pend-kpi { cursor: pointer; transition: background .15s; }
+button.pend-kpi:hover { background: var(--surface-2); }
+.pend-kpi-etq { font-size: 11.5px; font-weight: 700; color: var(--ink-2); text-transform: uppercase; letter-spacing: .04em; display: inline-flex; align-items: center; gap: 4px; }
+.pend-kpi-num { font-size: 26px; font-weight: 800; line-height: 1.1; color: var(--acento, var(--ink)); }
+.pend-kpi-desc { font-size: 12px; color: var(--ink-3); font-weight: 600; }
+.pend-grupos { display: flex; flex-direction: column; gap: 14px; }
+.pend-grupo { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); box-shadow: var(--sh-1); overflow: hidden; transition: box-shadow .3s; }
+.pend-grupo-destaca { box-shadow: 0 0 0 3px var(--teal-100); }
+.pend-grupo-cab { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: var(--surface-2); border-left: 4px solid var(--acento, var(--teal)); border-bottom: 1px solid var(--line); }
+.pend-grupo-tit { font-size: 14px; font-weight: 800; color: var(--ink); }
+.pend-grupo-cont { background: var(--acento, var(--teal)); color: #fff; font-size: 12px; font-weight: 700; padding: 0 9px; height: 20px; display: inline-flex; align-items: center; border-radius: var(--r-pill); }
+.pend-grupo-cuerpo { display: flex; flex-direction: column; }
+.pend-item { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.pend-item:last-child { border-bottom: 0; }
+.pend-item-info { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 240px; }
+.pend-item-nom { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 14px; font-weight: 700; color: var(--ink); }
+.pend-item-det { font-size: 12.5px; color: var(--ink-3); }
+.pend-item-acc { display: flex; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
+.pend-sev { font-size: 12px; font-weight: 700; padding: 0 9px; height: 20px; display: inline-flex; align-items: center; border-radius: var(--r-pill); }
+.pend-sev.sev-alta { background: var(--bad-bg); color: var(--bad); }
+.pend-sev.sev-media { background: var(--warn-bg); color: var(--warn); }
+.pend-sev.sev-baja { background: var(--info-bg); color: var(--info); }
+.pend-vacio { background: var(--surface); border: 1px dashed var(--line-2); border-radius: var(--r-md); padding: 36px 20px; text-align: center; color: var(--ink-3); }
+.pend-vacio-ico { color: var(--ok); margin-bottom: 8px; }
+.pend-vacio-ico .ico-linea { width: 36px; height: 36px; }
+.pend-vacio h4 { margin: 0 0 6px; font-size: 16px; font-weight: 800; color: var(--ink); }
+.pend-vacio p { margin: 0; font-size: 13px; }

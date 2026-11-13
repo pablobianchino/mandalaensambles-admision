@@ -1,6 +1,6 @@
 // =======================================================================
 // recordatorios.module.js - Motor Inteligente de Recordatorios y Alertas
-// Mandala Admision v7.46
+// Mandala Admision v7.48
 // =======================================================================
 
 import { 
@@ -1208,9 +1208,8 @@ export function irAVistaDePendiente(alumnoId, cat) {
 window.irAVistaDePendiente = irAVistaDePendiente;
 
 function generarBotonRedireccionPendiente(alumnoId, cat, esPopup = false) {
-    const pad = esPopup ? 'padding:5px 9px; font-size:12px;' : 'padding:6px 12px; font-size:12px;';
     const def = CATEGORIAS_RECORDATORIO[cat]?.boton || { txt: 'Ver en Ficha', title: 'Abrir la ficha del alumno' };
-    return `<button type="button" class="btn-app btn-secondary" onclick="window.irAVistaDePendiente('${alumnoId}', '${cat}')" style="${pad} font-weight:600; border-radius:6px; cursor:pointer;" title="${def.title}">${def.txt}</button>`;
+    return `<button type="button" class="btn-app btn-sm btn-secondary" onclick="window.irAVistaDePendiente('${alumnoId}', '${cat}')" title="${def.title}">${def.txt}</button>`;
 }
 
 // =======================================================================
@@ -1588,130 +1587,88 @@ export function renderizarVistaMisPendientes(container, fechaManual = null) {
         grupos[item.grp].push(item);
     });
 
+    const ACENTO_SEC = { inbox: 'var(--info)', altas: 'var(--ok)', entrevistas: 'var(--warn)', seguimientos: 'var(--violet)' };
+    const kpi = (sec, etq, num, desc) => `
+                <button type="button" class="pend-kpi" style="--acento:${ACENTO_SEC[sec] || 'var(--ink-3)'};" onclick="window.irASeccionPendientes('${sec}')" title="Ir a esta sección">
+                    <span class="pend-kpi-etq">${etq}</span>
+                    <span class="pend-kpi-num">${num}</span>
+                    <span class="pend-kpi-desc">${desc}</span>
+                </button>`;
+
     let html = `
-        <div class="vista-mis-pendientes" style="display:flex; flex-direction:column; gap:20px; max-width:980px; margin:0 auto; padding-bottom:40px;">
-            <!-- ENCABEZADO DE VISTA -->
-            <div style="background:#ffffff; border:1px solid var(--border-color); border-radius:14px; padding:20px 24px; box-shadow:0 1px 3px rgba(0,0,0,0.03); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-                <div>
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <span style="font-size:26px;">🔔</span>
-                        <h2 style="margin:0; font-size:20px; font-weight:800; color:var(--text-main);">Mis Pendientes y Recordatorios Operativos</h2>
-                    </div>
-                    <p style="margin:6px 0 0 0; font-size:13px; color:var(--text-muted); line-height:1.45;">
-                        Panel de control centralizado de ingresos sin agendar, altas pendientes, clases de admisión clave y seguimientos críticos.
-                    </p>
-                </div>
-                <div style="display:flex; gap:10px; align-items:center;">
-                    <button type="button" class="btn-app btn-primary" onclick="window.abrirModalRecordatorios(true)" style="display:inline-flex;">
-                        <span>⏰</span> Abrir Popup de Alertas
-                    </button>
-                </div>
+        <div class="vista-mis-pendientes pend">
+            <!-- BARRA SUPERIOR: el título ya lo da la página; acá solo la acción de la vista -->
+            <div class="pend-barra">
+                <span class="pend-barra-txt">Ingresos sin agendar, altas pendientes, clases de admisión y seguimientos que requieren tu atención.</span>
+                <button type="button" class="btn-app btn-sm btn-secondary" onclick="window.abrirModalRecordatorios(true)">
+                    <span>⏰</span> Abrir popup de alertas
+                </button>
             </div>
 
-            <!-- TARJETAS DE MÉTRICAS KPI -->
-            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px;">
-                <div style="background:#ffffff; border:1px solid var(--border-color); border-radius:12px; padding:14px 18px; display:flex; flex-direction:column; gap:4px; box-shadow:0 1px 2px rgba(0,0,0,0.02);">
-                    <span style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.4px;">Total Pendientes</span>
-                    <div style="display:flex; align-items:baseline; gap:8px;">
-                        <span style="font-size:28px; font-weight:900; color:${out.length > 0 ? '#dc2626' : '#16a34a'};">${out.length}</span>
-                        <span style="font-size:12px; color:var(--text-muted); font-weight:600;">asuntos activos</span>
-                    </div>
+            <!-- TARJETAS KPI: una sola fila; tocar una lleva a su sección -->
+            <div class="pend-kpis">
+                <div class="pend-kpi pend-kpi-total" style="--acento:${out.length > 0 ? 'var(--bad)' : 'var(--ok)'};">
+                    <span class="pend-kpi-etq">Total pendientes</span>
+                    <span class="pend-kpi-num">${out.length}</span>
+                    <span class="pend-kpi-desc">asuntos activos</span>
                 </div>
-
-                ${verSinAgendar ? `
-                <div style="background:#ffffff; border:1px solid var(--border-color); border-radius:12px; padding:14px 18px; display:flex; flex-direction:column; gap:4px; box-shadow:0 1px 2px rgba(0,0,0,0.02);">
-                    <span style="font-size:12px; font-weight:700; color:#0369a1; text-transform:uppercase; letter-spacing:0.4px;">📥 Sin Agendar</span>
-                    <div style="display:flex; align-items:baseline; gap:8px;">
-                        <span style="font-size:28px; font-weight:900; color:#0284c7;">${sinAgendarCount}</span>
-                        <span style="font-size:12px; color:var(--text-muted); font-weight:600;">ingresos Inbox</span>
-                    </div>
-                </div>
-                ` : ''}
-
-                ${verAltasYValidaciones ? `
-                <div style="background:#ffffff; border:1px solid var(--border-color); border-radius:12px; padding:14px 18px; display:flex; flex-direction:column; gap:4px; box-shadow:0 1px 2px rgba(0,0,0,0.02);">
-                    <span style="font-size:12px; font-weight:700; color:#15803d; text-transform:uppercase; letter-spacing:0.4px;">🚀 Altas en Curso</span>
-                    <div style="display:flex; align-items:baseline; gap:8px;">
-                        <span style="font-size:28px; font-weight:900; color:#16a34a;">${altasCount}</span>
-                        <span style="font-size:12px; color:var(--text-muted); font-weight:600;">pagos & checklist</span>
-                    </div>
-                </div>
-                ` : ''}
-
-                ${(verEntrevistas || verAltasYValidaciones) ? `
-                <div style="background:#ffffff; border:1px solid var(--border-color); border-radius:12px; padding:14px 18px; display:flex; flex-direction:column; gap:4px; box-shadow:0 1px 2px rgba(0,0,0,0.02);">
-                    <span style="font-size:12px; font-weight:700; color:#854d0e; text-transform:uppercase; letter-spacing:0.4px;">🗓️ Clases de admisión</span>
-                    <div style="display:flex; align-items:baseline; gap:8px;">
-                        <span style="font-size:28px; font-weight:900; color:#d97706;">${entrevistasCount}</span>
-                        <span style="font-size:12px; color:var(--text-muted); font-weight:600;">hoy / pend. informe</span>
-                    </div>
-                </div>
-                ` : ''}
-
-                ${verSeguimientos ? `
-                <div style="background:#ffffff; border:1px solid var(--border-color); border-radius:12px; padding:14px 18px; display:flex; flex-direction:column; gap:4px; box-shadow:0 1px 2px rgba(0,0,0,0.02);">
-                    <span style="font-size:12px; font-weight:700; color:#6d28d9; text-transform:uppercase; letter-spacing:0.4px;">📞 Seguimientos</span>
-                    <div style="display:flex; align-items:baseline; gap:8px;">
-                        <span style="font-size:28px; font-weight:900; color:#7c3aed;">${segCount}</span>
-                        <span style="font-size:12px; color:var(--text-muted); font-weight:600;">vencidos / por contactar</span>
-                    </div>
-                </div>
-                ` : ''}
+                ${verSinAgendar ? kpi('inbox', '<span>📥</span> Sin agendar', sinAgendarCount, 'ingresos Inbox') : ''}
+                ${verAltasYValidaciones ? kpi('altas', '<span>🚀</span> Altas en curso', altasCount, 'pagos y checklist') : ''}
+                ${(verEntrevistas || verAltasYValidaciones) ? kpi('entrevistas', '<span>🗓️</span> Clases de admisión', entrevistasCount, 'hoy / pend. informe') : ''}
+                ${verSeguimientos ? kpi('seguimientos', '<span>📞</span> Seguimientos', segCount, 'vencidos / por contactar') : ''}
             </div>
+
             <!-- LISTADO DE GRUPOS DE PENDIENTES -->
-            <div style="display:flex; flex-direction:column; gap:16px;">
+            <div class="pend-grupos">
     `;
 
     if (out.length === 0) {
         html += `
-            <div style="background:#ffffff; border:1px dashed var(--border-color); border-radius:14px; padding:40px 20px; text-align:center; color:var(--text-muted);">
-                <div style="font-size:40px; margin-bottom:10px;">🎉</div>
-                <h4 style="margin:0 0 6px 0; font-size:17px; font-weight:800; color:var(--text-main);">No tenés pendientes asignados para esta fecha</h4>
-                <p style="margin:0; font-size:13px;">Todo tu flujo operativo asignado se encuentra al día. Podés usar el simulador superior para evaluar otras fechas o roles.</p>
+            <div class="pend-vacio">
+                <div class="pend-vacio-ico">${typeof window.iconoLinea === 'function' ? window.iconoLinea('ok') : ''}</div>
+                <h4>No tenés pendientes asignados para esta fecha</h4>
+                <p>Todo tu flujo operativo asignado se encuentra al día. Podés usar el simulador superior para evaluar otras fechas o roles.</p>
             </div>
         `;
     } else {
         Object.keys(grupos).forEach(grpNom => {
             const items = grupos[grpNom];
+            const secGrupo = seccionDeCategoria(items[0].cat);
             html += `
-                <div style="background:#ffffff; border:1px solid var(--border-color); border-radius:14px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
-                    <div style="padding:12px 18px; background:#f8fafc; border-bottom:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <span style="font-size:14px; font-weight:800; color:#1e293b;">${grpNom}</span>
-                            <span style="background:#e2ded4; color:#334155; font-size:11px; font-weight:800; padding:2px 8px; border-radius:999px;">${items.length}</span>
-                        </div>
+                <section class="pend-grupo" data-sec="${secGrupo}" style="--acento:${ACENTO_SEC[secGrupo] || 'var(--ink-3)'};">
+                    <div class="pend-grupo-cab">
+                        <span class="pend-grupo-tit">${grpNom}</span>
+                        <span class="pend-grupo-cont">${items.length}</span>
                     </div>
-                    <div style="display:flex; flex-direction:column;">
+                    <div class="pend-grupo-cuerpo">
             `;
 
             items.forEach(it => {
-                const sevTag = it.sev >= 3 
-                    ? 'background:#fee2e2; color:#991b1b; border:1px solid #fecaca;' 
-                    : (it.sev === 2 ? 'background:#fef3c7; color:#92400e; border:1px solid #fde68a;' : 'background:#e0f2fe; color:#075985; border:1px solid #bae6fd;');
-                const sevLabel = it.sev >= 3 ? 'URGENTE' : (it.sev === 2 ? 'ATENCIÓN' : 'PRÓXIMO');
+                const sevClase = it.sev >= 3 ? 'sev-alta' : (it.sev === 2 ? 'sev-media' : 'sev-baja');
+                const sevLabel = it.sev >= 3 ? 'Urgente' : (it.sev === 2 ? 'Atención' : 'Próximo');
 
                 html += `
-                    <div style="display:flex; align-items:center; justify-content:space-between; gap:14px; padding:12px 18px; border-bottom:1px solid #f1f5f9; flex-wrap:wrap;">
-                        <div style="display:flex; flex-direction:column; gap:3px; flex:1; min-width:240px;">
-                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                                <span style="font-size:14px; font-weight:700; color:var(--text-main);">${escaparHtmlRecordatorio(it.nom)}</span>
-                                <span style="font-size:10px; font-weight:800; padding:2px 7px; border-radius:12px; ${sevTag}">${sevLabel}</span>
+                    <div class="pend-item">
+                        <div class="pend-item-info">
+                            <div class="pend-item-nom">
+                                <span>${escaparHtmlRecordatorio(it.nom)}</span>
+                                <span class="pend-sev ${sevClase}">${sevLabel}</span>
                             </div>
-                            <span style="font-size:12.5px; color:var(--text-muted);">${escaparHtmlRecordatorio(it.info)}</span>
+                            <span class="pend-item-det">${escaparHtmlRecordatorio(it.info)}</span>
                         </div>
-                        <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+                        <div class="pend-item-acc">
                             ${it.accion === 'consulte' ? `
-                                <button type="button" class="btn-app btn-primary" onclick="window.marcarPagoConsultadoYRefrescarVista('${it.alumnoId}')" title="Registrar que ya se consultó el pago y apagar este recordatorio">
+                                <button type="button" class="btn-app btn-sm btn-primary" onclick="window.marcarPagoConsultadoYRefrescarVista('${it.alumnoId}')" title="Registrar que ya se consultó el pago y apagar este recordatorio">
                                     Ya consulté
                                 </button>
                             ` : ''}
                             ${(it.cat === 'pago' || it.cat === 'gest' || it.cat === 'incompleta') ? `
-                                <button type="button" class="btn-app btn-secondary" onclick="window.abrirModalReprogramarFecha('${it.alumnoId}')" title="Reprogramar fecha de inicio de clases">
+                                <button type="button" class="btn-app btn-sm btn-secondary" onclick="window.abrirModalReprogramarFecha('${it.alumnoId}')" title="Reprogramar fecha de inicio de clases">
                                     📅 Reprogramar
                                 </button>
                             ` : ''}
                             ${generarBotonRedireccionPendiente(it.alumnoId, it.cat, false)}
-                            <button type="button" class="btn-app btn-secondary" onclick="window.posponerRecordatorioAlumnoManana('${it.alumnoId}', '${it.cat}')" title="Silenciar y recordar este alumno mañana">
+                            <button type="button" class="btn-app btn-sm btn-secondary" onclick="window.posponerRecordatorioAlumnoManana('${it.alumnoId}', '${it.cat}')" title="Silenciar y recordar este alumno mañana">
                                 🌙 Recordar mañana
                             </button>
                         </div>
@@ -1721,14 +1678,14 @@ export function renderizarVistaMisPendientes(container, fechaManual = null) {
 
             html += `
                     </div>
-                </div>
+                </section>
             `;
         });
     }
 
     if (faltantes && faltantes.length > 0) {
         html += `
-            <div style="background:#fffbeb; border:1px solid #fef3c7; border-radius:10px; padding:12px 16px; font-size:12.5px; color:#92400e; display:flex; align-items:flex-start; gap:8px;">
+            <div class="av-aviso av-aviso-warn">
                 <span>ℹ️</span>
                 <span><strong>${faltantes.length} alumno(s) en seguimiento</strong> no tienen cargada una fecha de próximo contacto (${faltantes.map(f => escaparHtmlRecordatorio(f)).join(', ')}). No se pueden controlar de forma automática.</span>
             </div>
@@ -1742,6 +1699,15 @@ export function renderizarVistaMisPendientes(container, fechaManual = null) {
     container.innerHTML = html;
 }
 window.renderizarVistaMisPendientes = renderizarVistaMisPendientes;
+
+// Desde una tarjeta KPI: lleva a la sección y la resalta un momento
+window.irASeccionPendientes = function(sec) {
+    const el = document.querySelector('.pend-grupo[data-sec="' + sec + '"]');
+    if (!el) return;
+    try { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) { el.scrollIntoView(); }
+    el.classList.add('pend-grupo-destaca');
+    setTimeout(() => el.classList.remove('pend-grupo-destaca'), 1400);
+};
 
 // =======================================================================
 // HERRAMIENTAS DEL SIMULADOR PARA PRUEBAS (ENTORNO LOCAL)
