@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.44";
+} from "./src/config/constants.js?v=7.46";
 
 import { 
     app, 
@@ -124,11 +124,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=7.44";
+} from "./src/modules/match.module.js?v=7.46";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=7.44";
+} from "./src/modules/profesor.module.js?v=7.46";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -157,14 +157,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=7.44";
+} from "./src/modules/altas.module.js?v=7.46";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=7.44";
+} from "./src/modules/dashboard.module.js?v=7.46";
 
 import {
     renderConfigHub,
@@ -173,23 +173,23 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.44";
+} from "./src/modules/abm.module.js?v=7.46";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.44";
+} from "./src/modules/inbox.module.js?v=7.46";
 
 // Íconos de línea automáticos en textos de la interfaz (solo presentación)
-import "./src/modules/iconos.module.js?v=7.44";
+import "./src/modules/iconos.module.js?v=7.46";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=7.44";
+} from "./src/modules/csv.module.js?v=7.46";
 
 import {
     inicializarMotorRecordatorios,
@@ -209,7 +209,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.44";
+} from "./src/modules/recordatorios.module.js?v=7.46";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -7081,8 +7081,26 @@ window.filtroPrioTabActual = window.filtroPrioTabActual || 'todos';
 window.filtroTipoEventoDashboard = window.filtroTipoEventoDashboard || 'todos';
 window.filtrosDashboardPopoverAbierto = false;
 
+// Dashboard resumido: el gráfico por etapa (que además lleva a cada etapa al hacer clic) queda cerrado hasta que se pida
+window.toggleGraficoDashboard = function() {
+    window.dashGraficoAbierto = !window.dashGraficoAbierto;
+    const box = document.getElementById('dashboard-flow-chart-container');
+    if (box) box.style.display = window.dashGraficoAbierto ? 'block' : 'none';
+    const btn = document.getElementById('btn-dash-toggle-grafico');
+    if (btn) btn.querySelector('span').textContent = window.dashGraficoAbierto ? 'Ocultar gráfico por etapa' : 'Ver gráfico por etapa';
+    if (window.dashGraficoAbierto && typeof chartFlowDashboardInst !== 'undefined' && chartFlowDashboardInst) { try { chartFlowDashboardInst.resize(); } catch (e) {} }
+};
+
 window.setFiltroPrioridadDashboard = function(tipo) {
-    window.filtroPrioTabActual = tipo;
+    // Dashboard resumido: la lista se abre al tocar una tarjeta y se cierra al volver a tocar la misma. Evaluadores: siempre abierta.
+    const esEvalDash = typeof esModoEvaluadorActivo === 'function' && esModoEvaluadorActivo();
+    const abiertaAhora = window.dashListaAbierta === undefined ? esEvalDash : window.dashListaAbierta;
+    if (!esEvalDash && abiertaAhora && window.filtroPrioTabActual === tipo) {
+        window.dashListaAbierta = false;
+    } else {
+        window.filtroPrioTabActual = tipo;
+        window.dashListaAbierta = true;
+    }
     if (window.cachedPoolUrgenciasDashboard) {
         renderDashboardPrioridades(window.cachedPoolUrgenciasDashboard, 'Dashboard');
 }
@@ -7450,39 +7468,17 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
         `;
 }
 
-    // Actualizar estilos activos de los chips temporales fijos
+    // Tarjetas de atención: la lista de abajo solo se ve si está abierta (evaluadores: siempre abierta)
     const tabActual = window.filtroPrioTabActual || 'todos';
+    const listaAbierta = window.dashListaAbierta === undefined ? esEval : window.dashListaAbierta;
+    cont.style.display = listaAbierta ? '' : 'none';
+    const wrapFiltroTipo = document.getElementById('dash-filtro-tipo-wrap');
+    if (wrapFiltroTipo) wrapFiltroTipo.style.display = listaAbierta ? 'block' : 'none';
+    const btnIrPend = document.getElementById('btn-dash-ir-pendientes');
+    if (btnIrPend) btnIrPend.style.display = esEval ? 'none' : '';
     document.querySelectorAll('.btn-prio-filtro').forEach(btn => {
-        const prio = btn.getAttribute('data-prio');
-        const isActive = prio === tabActual;
-        btn.classList.toggle('active', isActive);
-        if (prio === 'todos') {
-            btn.style.background = isActive ? '#1e293b' : '#ffffff';
-            btn.style.color = isActive ? '#ffffff' : '#334155';
-            btn.style.borderColor = isActive ? '#1e293b' : '#cbd5e1';
-            btn.style.boxShadow = isActive ? '0 2px 6px rgba(30,41,59,0.25)' : '0 1px 2px rgba(0,0,0,0.03)';
-} else if (prio === 'vencidos') {
-            btn.style.background = isActive ? '#dc2626' : '#ffffff';
-            btn.style.color = isActive ? '#ffffff' : '#b91c1c';
-            btn.style.borderColor = isActive ? '#ef4444' : '#fecaca';
-            btn.style.boxShadow = isActive ? '0 2px 6px rgba(239,68,68,0.2)' : '0 1px 2px rgba(0,0,0,0.03)';
-} else if (prio === 'urgentes') {
-            btn.style.background = isActive ? '#ea580c' : '#ffffff';
-            btn.style.color = isActive ? '#ffffff' : '#c2410c';
-            btn.style.borderColor = isActive ? '#f97316' : '#fed7aa';
-            btn.style.boxShadow = isActive ? '0 2px 6px rgba(249,115,22,0.2)' : '0 1px 2px rgba(0,0,0,0.03)';
-} else if (prio === 'proximos') {
-            btn.style.background = isActive ? '#ca8a04' : '#ffffff';
-            btn.style.color = isActive ? '#ffffff' : '#854d0e';
-            btn.style.borderColor = isActive ? '#eab308' : '#fef08a';
-            btn.style.boxShadow = isActive ? '0 2px 6px rgba(234,179,8,0.2)' : '0 1px 2px rgba(0,0,0,0.03)';
-} else if (prio === 'entermino') {
-            btn.style.background = isActive ? '#15803d' : '#ffffff';
-            btn.style.color = isActive ? '#ffffff' : '#15803d';
-            btn.style.borderColor = isActive ? '#16a34a' : '#86efac';
-            btn.style.boxShadow = isActive ? '0 2px 6px rgba(22,163,74,0.2)' : '0 1px 2px rgba(0,0,0,0.03)';
-}
-});
+        btn.classList.toggle('active', listaAbierta && btn.getAttribute('data-prio') === tabActual);
+    });
 
     if (totalGeneral === 0) {
         const msg = esEval
@@ -8946,7 +8942,7 @@ window.ejecutarBusquedaGlobal = ejecutarBusquedaGlobal;
 
 let guardRedireccionActivo = false;
 
-// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v7.44)
+// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v7.46)
 function tituloVista(seccion, sub = '') {
     const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
     return `<span>${esc(seccion)}</span>${sub ? `<span class="vista-titulo-sub">${esc(sub)}</span>` : ''}`;
@@ -9449,7 +9445,7 @@ export async function cargarVista(vista = 'Inbox - Pendientes', usarCache = fals
                 if (chartBox) chartBox.style.display = 'none';
                 if (chartFlowDashboardInst) { chartFlowDashboardInst.destroy(); chartFlowDashboardInst = null; }
 } else {
-                if (chartBox) chartBox.style.display = 'block';
+                if (chartBox) chartBox.style.display = window.dashGraficoAbierto ? 'block' : 'none';
 
                 let nodosGrafico = configNodosFlujo;
                 let datosGrafico = allData;
@@ -11373,7 +11369,7 @@ document.addEventListener('click', async (e) => {
                 if (elEvalTop) elEvalTop.textContent = al.reserva_profe_nombre || al.informe_entrevista?.evaluador_nombre || '-';
 }
 
-            // Borrador (v7.44): solo en el flujo de admisión (primer informe, aún no finalizado)
+            // Borrador (v7.46): solo en el flujo de admisión (primer informe, aún no finalizado)
             const esFlujoAdmision = !esNuevoInformeAdicional && !(reportIndexAttr !== null && reportIndexAttr !== '' && !isNaN(parseInt(reportIndexAttr, 10))) && !al.informe_entrevista;
             const dr = (esFlujoAdmision && al.informe_borrador && al.informe_borrador.datos) ? al.informe_borrador.datos : null;
             if (dr) {
@@ -11667,7 +11663,7 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    // Guardar borrador del informe de clase de admisión (v7.44): sin validaciones, no cambia el estado del alumno
+    // Guardar borrador del informe de clase de admisión (v7.46): sin validaciones, no cambia el estado del alumno
     if (target.id === 'btn-guardar-borrador-informe' || target.closest('#btn-guardar-borrador-informe')) {
         const btnBor = document.getElementById('btn-guardar-borrador-informe');
         const id = document.getElementById('informe-final-alumno-id').value;
