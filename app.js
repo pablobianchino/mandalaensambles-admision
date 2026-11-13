@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.43";
+} from "./src/config/constants.js?v=7.44";
 
 import { 
     app, 
@@ -124,11 +124,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=7.43";
+} from "./src/modules/match.module.js?v=7.44";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=7.43";
+} from "./src/modules/profesor.module.js?v=7.44";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -157,14 +157,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=7.43";
+} from "./src/modules/altas.module.js?v=7.44";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=7.43";
+} from "./src/modules/dashboard.module.js?v=7.44";
 
 import {
     renderConfigHub,
@@ -173,23 +173,23 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.43";
+} from "./src/modules/abm.module.js?v=7.44";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.43";
+} from "./src/modules/inbox.module.js?v=7.44";
 
 // Íconos de línea automáticos en textos de la interfaz (solo presentación)
-import "./src/modules/iconos.module.js?v=7.43";
+import "./src/modules/iconos.module.js?v=7.44";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=7.43";
+} from "./src/modules/csv.module.js?v=7.44";
 
 import {
     inicializarMotorRecordatorios,
@@ -209,7 +209,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.43";
+} from "./src/modules/recordatorios.module.js?v=7.44";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -438,7 +438,7 @@ function renderFiltrosChips() {
         activeBadgesHtml += `
             <span class="active-filter-badge tag-edad" style="background:#fef3c7; color:#92400e; border-color:#fde68a;">
                 <span>🎂 Edad: ${minTxt} - ${maxTxt}</span>
-                <button type="button" class="btn-remove-filter" data-type="edadRango" title="Quitar filtro">✕</button>
+                <button type="button" class="btn-remove-filter ds-icon-btn ds-cerrar" data-type="edadRango" title="Quitar filtro"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
             </span>`;
 }
 
@@ -446,7 +446,7 @@ function renderFiltrosChips() {
         activeBadgesHtml += `
             <span class="active-filter-badge" style="background:#fee2e2; color:#991b1b; border-color:#fca5a5;">
                 <span>📞 Sin contacto: &gt;${filtrosSeleccionados.diasSinContactoMin}d</span>
-                <button type="button" class="btn-remove-filter" data-type="diasContacto" title="Quitar filtro">✕</button>
+                <button type="button" class="btn-remove-filter ds-icon-btn ds-cerrar" data-type="diasContacto" title="Quitar filtro"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
             </span>`;
 }
 
@@ -472,7 +472,7 @@ function renderFiltrosChips() {
                     
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:8px;">
                         <span style="font-size:13px; font-weight:800; color:var(--text-main); text-transform:uppercase; letter-spacing:0.04em;">Filtrar Alumnos</span>
-                        <button type="button" id="btn-cerrar-filtros-popover" style="background:none; border:none; cursor:pointer; font-size:14px; color:var(--text-muted); font-weight:700; padding:2px 6px;">✕</button>
+                        <button class="ds-icon-btn ds-cerrar" type="button" id="btn-cerrar-filtros-popover"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
                     </div>
 
                     ${evaluadoresPresentes.length > 0 ? `
@@ -7430,7 +7430,7 @@ function renderDashboardPrioridades(poolAlumnos, vista) {
         popoverCont.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid #f1f5f9; padding-bottom:6px;">
                 <span style="font-size:12px; font-weight:800; color:var(--text-main); text-transform:uppercase; letter-spacing:0.04em;">Tipo de Evento</span>
-                <button type="button" onclick="window.toggleFiltrosDashboardPopover(event)" style="background:none; border:none; cursor:pointer; font-size:13px; color:var(--text-muted); font-weight:700;">✕</button>
+                <button class="ds-icon-btn ds-cerrar" type="button" onclick="window.toggleFiltrosDashboardPopover(event)"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
             </div>
             <div style="display:flex; flex-direction:column; gap:4px;">
                 <button type="button" onclick="window.setFiltroTipoDashboard('todos')" style="text-align:left; background:${tipoFiltroActual === 'todos' ? '#f1f5f9' : 'transparent'}; border:none; padding:8px 10px; border-radius:8px; cursor:pointer; font-size:13px; font-weight:${tipoFiltroActual === 'todos' ? '700' : '500'}; color:var(--text-main); display:flex; justify-content:space-between; align-items:center;">
@@ -8946,7 +8946,7 @@ window.ejecutarBusquedaGlobal = ejecutarBusquedaGlobal;
 
 let guardRedireccionActivo = false;
 
-// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v7.43)
+// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v7.44)
 function tituloVista(seccion, sub = '') {
     const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
     return `<span>${esc(seccion)}</span>${sub ? `<span class="vista-titulo-sub">${esc(sub)}</span>` : ''}`;
@@ -11373,7 +11373,7 @@ document.addEventListener('click', async (e) => {
                 if (elEvalTop) elEvalTop.textContent = al.reserva_profe_nombre || al.informe_entrevista?.evaluador_nombre || '-';
 }
 
-            // Borrador (v7.43): solo en el flujo de admisión (primer informe, aún no finalizado)
+            // Borrador (v7.44): solo en el flujo de admisión (primer informe, aún no finalizado)
             const esFlujoAdmision = !esNuevoInformeAdicional && !(reportIndexAttr !== null && reportIndexAttr !== '' && !isNaN(parseInt(reportIndexAttr, 10))) && !al.informe_entrevista;
             const dr = (esFlujoAdmision && al.informe_borrador && al.informe_borrador.datos) ? al.informe_borrador.datos : null;
             if (dr) {
@@ -11667,7 +11667,7 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    // Guardar borrador del informe de clase de admisión (v7.43): sin validaciones, no cambia el estado del alumno
+    // Guardar borrador del informe de clase de admisión (v7.44): sin validaciones, no cambia el estado del alumno
     if (target.id === 'btn-guardar-borrador-informe' || target.closest('#btn-guardar-borrador-informe')) {
         const btnBor = document.getElementById('btn-guardar-borrador-informe');
         const id = document.getElementById('informe-final-alumno-id').value;

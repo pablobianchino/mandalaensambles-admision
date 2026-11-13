@@ -45,7 +45,7 @@ export function crearFilaRangoHTML(diaId, inicio = '', fin = '', esProfe = false
             <input type="time" class="modern-input rango-inicio" value="${inicio}" style="width:auto; padding:5px 8px; font-size:12.5px;">
             <span style="font-size:12px; color:var(--text-muted);">a</span>
             <input type="time" class="modern-input rango-fin" value="${fin}" style="width:auto; padding:5px 8px; font-size:12.5px;">
-            <button type="button" class="btn-quitar-rango" data-dia="${diaId}" data-profe="${esProfe}" title="Eliminar este rango" style="background:none; border:none; cursor:pointer; font-size:1em; padding:2px 4px; ${index === 0 ? 'display:none;' : ''}">🗑️</button>
+            <button type="button" class="btn-quitar-rango ds-icon-btn sm peligro" data-dia="${diaId}" data-profe="${esProfe}" title="Eliminar este rango" style="${index === 0 ? 'display:none;' : ''}"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/></svg></button>
         </div>
     `;
 }
@@ -78,8 +78,8 @@ export function renderContenedorDisponibilidad(containerId, esProfe = false) {
                     </label>
                 </div>
                 <div style="display:flex; align-items:center; gap:6px; margin-left:auto;">
-                    <button type="button" class="${esProfe ? 'btn-copy-disp-p' : 'btn-copy-disp'}" data-dia="${dia.id}" title="Copiar horario" style="background:none; border:none; cursor:pointer; font-size:1.1em;">📋</button>
-                    <button type="button" class="${esProfe ? 'btn-paste-disp-p' : 'btn-paste-disp'}" data-dia="${dia.id}" title="Pegar horario" style="background:none; border:none; cursor:pointer; font-size:1.1em;">📥</button>
+                    <button type="button" class="${esProfe ? 'btn-copy-disp-p' : 'btn-copy-disp'} ds-icon-btn sm" data-dia="${dia.id}" title="Copiar horario"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>
+                    <button type="button" class="${esProfe ? 'btn-paste-disp-p' : 'btn-paste-disp'} ds-icon-btn sm" data-dia="${dia.id}" title="Pegar horario"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg></button>
                     <span class="estado-disp" style="width:75px; text-align:right; font-size:11.5px; font-weight:700;"></span>
                 </div>
             </div>
@@ -87,8 +87,8 @@ export function renderContenedorDisponibilidad(containerId, esProfe = false) {
                 ${crearFilaRangoHTML(dia.id, '', '', esProfe, 0)}
             </div>
             <div style="display:flex; justify-content:flex-start; align-items:center; margin-top:4px; flex-wrap:wrap; gap:8px;">
-                <button type="button" class="btn-agregar-rango" data-dia="${dia.id}" data-profe="${esProfe}" title="Añadir otro intervalo horario">⏱️ + Agregar Rango</button>
-                <button type="button" class="btn-obs-dia-disp" data-dia="${dia.id}" title="Añadir observación o aclaración para este día">💬 + Observación</button>
+                <button type="button" class="btn-agregar-rango" data-dia="${dia.id}" data-profe="${esProfe}" title="Añadir otro intervalo horario"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> + Agregar Rango</button>
+                <button type="button" class="btn-obs-dia-disp" data-dia="${dia.id}" title="Añadir observación o aclaración para este día"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> + Observación</button>
             </div>
         `;
         cont.appendChild(diaRow);

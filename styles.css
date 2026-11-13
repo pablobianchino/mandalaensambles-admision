@@ -4668,43 +4668,19 @@ button.btn-prio-filtro.prio-proximos.active,
 /* ==========================================================================
    OBSERVACIONES Y AGREGAR RANGOS EN DISPONIBILIDAD
    ========================================================================== */
+/* Botones pequeños de la grilla (tamaño "mini" de la escala): mismo borde y esquina que el resto, sin !important */
 .btn-agregar-rango,
 .btn-obs-dia-disp {
-    transition: all 0.2s ease;
-    background: #fff !important;
-    border: 1px dashed #cbd5e1 !important;
-    border-radius: 14px !important;
-    padding: 2px 10px !important;
-    font-size: 11px !important;
-    font-weight: 600 !important;
-    cursor: pointer !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 4px !important;
-    font-family: inherit !important;
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 26px; padding: 0 9px; border-radius: var(--r-sm);
+    background: var(--surface); border: 1px solid var(--line-2);
+    font: 700 12px var(--font); cursor: pointer; transition: background .15s, border-color .15s, color .15s;
 }
-
-.btn-agregar-rango {
-    color: var(--accent-teal, #007b8f) !important;
-}
-
-.btn-obs-dia-disp {
-    color: var(--text-muted, #64748b) !important;
-}
-
-.btn-agregar-rango:hover,
-.btn-obs-dia-disp:hover {
-    background: #f8fafc !important;
-    border-color: var(--accent-teal, #007b8f) !important;
-    color: var(--accent-teal, #007b8f) !important;
-}
-
-.btn-obs-dia-disp.has-obs {
-    background: #f0fdfa !important;
-    border: 1px solid rgba(0, 123, 143, 0.4) !important;
-    color: var(--accent-teal, #007b8f) !important;
-    box-shadow: 0 1px 2px rgba(0, 123, 143, 0.08);
-}
+.btn-agregar-rango { color: var(--teal); }
+.btn-obs-dia-disp { color: var(--ink-2); }
+.btn-agregar-rango .ico-linea, .btn-obs-dia-disp .ico-linea { width: 14px; height: 14px; }
+.btn-agregar-rango:hover, .btn-obs-dia-disp:hover { background: var(--teal-50); border-color: var(--teal-100); color: var(--teal); }
+.btn-obs-dia-disp.has-obs { background: var(--teal-50); border-color: var(--teal-100); color: var(--teal-700); }
 
 /* Selector Modo Feedback de Seguimiento (Actual vs Retroactivo) */
 .btn-modo-seg {
@@ -5285,3 +5261,25 @@ button .ico-linea, button .ico-auto, button .emoji-oculto, a .ico-auto { pointer
 .row-quick-btn.secondary { color: var(--ink-2); background: var(--surface); border-color: var(--line-2); }
 .row-quick-btn.danger { color: var(--bad); background: var(--surface); border-color: #e3b7ae; padding: 0 10px; }
 .row-quick-btn.danger:hover { background: var(--bad-bg); border-color: #e3b7ae; }
+
+
+/* =======================================================================
+   FASE 8 (v7.44) — CONTROLES CHICOS: botón de solo ícono (cerrar, copiar, pegar, quitar)
+   Documento: DEFINICION_controles_chicos_para_festivales.md
+   ======================================================================= */
+.ds-icon-btn {
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+    width: 30px; height: 30px; padding: 0; border-radius: var(--r-sm);
+    border: 1px solid transparent; background: transparent; color: var(--ink-3);
+    cursor: pointer; line-height: 1; transition: background .15s, color .15s;
+}
+.ds-icon-btn .ico-linea { width: 16px; height: 16px; }
+.ds-icon-btn:hover { background: var(--surface-2); color: var(--ink); border-color: transparent; }
+.ds-icon-btn:focus-visible { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-100); }
+.ds-icon-btn.sm { width: 26px; height: 26px; }
+.ds-icon-btn.sm .ico-linea { width: 14px; height: 14px; }
+.ds-icon-btn.ds-cerrar { width: 32px; height: 32px; }
+.ds-icon-btn.ds-cerrar.sm { width: 26px; height: 26px; }
+.ds-icon-btn.peligro:hover { background: var(--bad-bg); color: var(--bad); }
+.ds-icon-btn.borde { border-color: var(--line-2); background: var(--surface); }
+.ds-icon-btn.borde:hover { background: var(--surface-2); border-color: var(--line-2); }
