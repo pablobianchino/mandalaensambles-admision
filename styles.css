@@ -5218,3 +5218,31 @@ dialog.av-ventana.modern-modal { max-width: 560px; width: 92%; padding: 0; borde
 .ico-auto { width: 1.1em; height: 1.1em; min-width: 14px; min-height: 14px; vertical-align: -0.2em; margin-right: .3em; flex-shrink: 0; }
 .emoji-oculto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
 button .ico-auto, .btn-app .ico-auto { margin-right: .35em; }
+
+
+/* =======================================================================
+   FASE 6 (v7.41) — ESCALA ÚNICA DE BOTONES, pie de la ficha y nivel como texto
+   Documento: DEFINICION_botones_para_festivales.md
+   ======================================================================= */
+/* Los íconos dentro de botones no capturan el clic (los clics siguen llegando al botón) */
+button .ico-linea, button .ico-auto, button .emoji-oculto, a .ico-auto { pointer-events: none; }
+
+.ds-btn .ico-linea { width: 16px; height: 16px; }
+.ds-btn-secondary .ico-linea, .ds-btn-secondary .ico-auto { color: var(--ink-3); }
+.ds-btn-danger { background: var(--surface); color: var(--bad); border-color: #e3b7ae; }
+.ds-btn-danger:hover { background: var(--bad-bg); }
+.ds-btn-ok { background: var(--ok); color: #fff; }
+.ds-btn-ok:hover { filter: brightness(.92); }
+.ds-btn:focus-visible { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-100); }
+.ds-btn:disabled, .ds-btn.is-disabled { opacity: .5; cursor: not-allowed; pointer-events: none; }
+
+/* Pie de ventana: peligro a la izquierda, Cancelar y principal a la derecha */
+.ds-pie { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; width: 100%; }
+.ds-pie .grow { flex: 1; }
+.ds-pie-ficha { padding-top: 4px; }
+@media (max-width: 600px) { .ds-pie .grow { display: none; } .ds-pie .ds-btn { flex: 1 1 auto; } }
+/* Botones de apoyo dentro de un bloque (tamaño pequeño, a la derecha) */
+.ds-bloque-botones { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+
+/* Nivel del alumno como texto en las filas (igual que la edad) */
+.row-dato-texto { font-size: 12.5px; color: var(--text-muted); font-weight: 600; white-space: nowrap; }

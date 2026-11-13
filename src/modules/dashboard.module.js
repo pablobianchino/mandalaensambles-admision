@@ -93,7 +93,7 @@ export function renderTimelineUnificado(containerId, configNodos, datos, callbac
                         let instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : al.instrumento;
                         let instParts = [];
                         if(instStr) instParts.push(`<strong style="color:var(--accent-teal)">${instStr}</strong>`);
-                        if(al.nivel) instParts.push(`<span class="match-student-tag nivel">${al.nivel}</span>`);
+                        if(al.nivel) instParts.push(`<span class="row-dato-texto">${al.nivel}</span>`);
                         if(al.tipo_suscripcion) instParts.push(`<strong style="color:var(--accent-purple, #7d5ba6)">🧩 ${al.tipo_suscripcion}</strong>`);
                         if(instParts.length > 0) details.push(instParts.join(' '));
 

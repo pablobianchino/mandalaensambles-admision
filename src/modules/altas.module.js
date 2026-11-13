@@ -3542,7 +3542,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                                         <div class="row-name" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; text-align:left;">
                                             <span style="font-weight:700; color:var(--text-main); font-size:14px;">${al.nombre}</span>
                                             ${al.edad ? `<span style="font-size:12px; color:var(--text-muted); font-weight:600;">• ${al.edad} años</span>` : ''}
-                                            ${al.nivel ? `<span style="display:inline-flex; align-items:center;">• <span class="match-student-tag nivel">${al.nivel}</span></span>` : ''}
+                                            ${al.nivel ? `<span class="row-dato-texto">• ${al.nivel}</span>` : ''}
                                             ${badgeUrg}
                                             ${tagFeedbacks}
                                         </div>
@@ -3763,7 +3763,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                                         <div class="row-name" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; text-align:left;">
                                             <span style="font-weight:700; color:var(--text-main); font-size:14px;">${al.nombre}</span>
                                             ${al.edad ? `<span style="font-size:12px; color:var(--text-muted); font-weight:600;">• ${al.edad} años</span>` : ''}
-                                            ${al.nivel ? `<span style="display:inline-flex; align-items:center;">• <span class="match-student-tag nivel">${al.nivel}</span></span>` : ''}
+                                            ${al.nivel ? `<span class="row-dato-texto">• ${al.nivel}</span>` : ''}
                                             ${badgeEstado}
                                         </div>
                                         <div class="row-sub-line" style="display:flex; align-items:center; gap:6px; margin-top:1px;">
@@ -3843,7 +3843,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                                         <div class="row-name" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; text-align:left;">
                                             <span style="font-weight:700; color:var(--text-main); font-size:14px;">${al.nombre}</span>
                                             ${al.edad ? `<span style="font-size:12px; color:var(--text-muted); font-weight:600;">• ${al.edad} años</span>` : ''}
-                                            ${al.nivel ? `<span style="display:inline-flex; align-items:center;">• <span class="match-student-tag nivel">${al.nivel}</span></span>` : ''}
+                                            ${al.nivel ? `<span class="row-dato-texto">• ${al.nivel}</span>` : ''}
                                             ${badgeEstadoInd}
                                         </div>
                                         <div class="row-sub-line" style="display:flex; align-items:center; gap:6px; margin-top:1px;">
