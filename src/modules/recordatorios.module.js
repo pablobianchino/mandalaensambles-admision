@@ -1,6 +1,6 @@
 // =======================================================================
 // recordatorios.module.js - Motor Inteligente de Recordatorios y Alertas
-// Mandala Admision v8.4
+// Mandala Admision v8.5
 // =======================================================================
 
 import { 
@@ -11,7 +11,8 @@ import {
 
 import {
     esAlumnoAltaFinalizada,
-    esAlumnoAltaConfirmadaIncompleta
+    esAlumnoAltaConfirmadaIncompleta,
+    leerChecklistAlta
 } from "../config/constants.js";
 
 let timerIntervaloCheck = null;
@@ -222,6 +223,7 @@ export const CATEGORIAS_RECORDATORIO = {
     pago:        { seccion: 'altas',         boton: { txt: '🚀 Ver en Altas',        title: 'Ir a la vista Altas donde se encuentra este alumno' } },
     gest:        { seccion: 'altas',         boton: { txt: '🚀 Ver en Altas',        title: 'Ir a la vista Altas donde se encuentra este alumno' } },
     incompleta:  { seccion: 'altas',         boton: { txt: '🚀 Ver en Altas',        title: 'Ir a la vista Altas donde se encuentra este alumno' } },
+    validar:     { seccion: 'entrevistas',   boton: { txt: '✅ Ir a validar',          title: 'Ir a Inbox para validar la clase de admisión' } },
     conf:        { seccion: 'entrevistas',   boton: { txt: '🗓️ Ver en Agenda',       title: 'Ir al Dashboard / Agenda' } },
     hoy:         { seccion: 'entrevistas',   boton: { txt: '🗓️ Ver en Agenda',       title: 'Ir al Dashboard / Agenda' } },
     man:         { seccion: 'entrevistas',   boton: { txt: '🗓️ Ver en Agenda',       title: 'Ir al Dashboard / Agenda' } },
@@ -538,7 +540,22 @@ export function calcularPendientesRecordatorios(fechaHoyManual = null) {
                 const fechaCreacion = aFechaYMD(al.fecha_alta_iniciada || al.fecha_prealta || al.fecha_creacion || al.fecha_ingreso) || hoyYMD;
                 const tipoClase = al.tipo_suscripcion || al.instrumento_principal || 'Individual';
 
-                if (fechaAlta) {
+                if (esAltaIncompleta) {
+                    // Alta ya confirmada (el pago está hecho): no corresponde el aviso de pago; lo pendiente es el checklist
+                    const pasosHechos = leerChecklistAlta(al).filter(Boolean).length;
+                    const pasosFaltan = 4 - pasosHechos;
+                    out.push({
+                        id: al.id,
+                        cat: 'incompleta',
+                        grp: '🚀 Altas Pendientes y en Curso',
+                        nom: al.nombre.trim(),
+                        info: `${tipoClase} · Checklist de alta incompleto (${pasosHechos}/4): ${pasosFaltan === 1 ? 'falta 1 paso' : `faltan ${pasosFaltan} pasos`}`,
+                        sev: 2,
+                        popup: true,
+                        accion: 'ver',
+                        alumnoId: al.id
+                    });
+                } else if (fechaAlta) {
                     const diasFaltan = diffDiasCalendario(fechaAlta, hoyYMD);
                     const diffAltaCreacion = diffDiasCalendario(fechaAlta, fechaCreacion);
                     // "Ya consulté" silencia el aviso solo hasta el día anterior al inicio: el día del inicio (o después) vuelve a avisar.
@@ -593,18 +610,6 @@ export function calcularPendientesRecordatorios(fechaHoyManual = null) {
                         accion: 'ver',
                         alumnoId: al.id
                     });
-                } else if (esAltaIncompleta) {
-                    out.push({
-                        id: al.id,
-                        cat: 'incompleta',
-                        grp: '🚀 Altas Pendientes y en Curso',
-                        nom: al.nombre.trim(),
-                        info: `${tipoClase} · Falta checklist / matrícula`,
-                        sev: 2,
-                        popup: true,
-                        accion: 'ver',
-                        alumnoId: al.id
-                    });
                 }
             }
 
@@ -644,6 +649,30 @@ export function calcularPendientesRecordatorios(fechaHoyManual = null) {
 
             const st = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
             const esConfirmada = st === 'agenda confirmada' || st === 'entrevista confirmada' || st.startsWith('entrevista');
+
+            // El evaluador asignado recibe el aviso de que tiene que validar su clase de admisión (solo la suya)
+            if (st === 'pendiente validacion por profe' || st === 'pendiente validacion por evaluador') {
+                const esMiValidacion = typeof window.esEvaluadorDeAlumno === 'function'
+                    ? window.esEvaluadorDeAlumno(usuario, al)
+                    : (al.evaluador === usuario?.email || al.evaluador === usuario?.nombre || al.reserva_profe_id === usuario?.id);
+                if (esMiValidacion) {
+                    const fechaVal = aFechaYMD(al.reserva_inicio || al.reserva_fecha_texto || al.reserva_fecha);
+                    const difVal = fechaVal ? diffDiasCalendario(fechaVal, hoyYMD) : 999;
+                    out.push({
+                        id: al.id,
+                        cat: 'validar',
+                        grp: '🗓️ Clases de Admisión',
+                        nom: al.nombre.trim(),
+                        info: `Validar tu clase de admisión${fechaVal ? ` del ${formatoDiaMes(fechaVal)}` : ''}`,
+                        sev: difVal < 2 ? 3 : 2,
+                        popup: true,
+                        accion: 'ver',
+                        alumnoId: al.id
+                    });
+                }
+                return;
+            }
+
             if (!esConfirmada) return;
 
             const esMiEntrevista = typeof window.esEvaluadorDeAlumno === 'function' 
@@ -814,7 +843,7 @@ export function calcularPendientesRecordatorios(fechaHoyManual = null) {
             if (it.cat === 'venc' || it.cat === 'sinfb') {
                 return typeof window.esEvaluadorDeSeguimientoDelAlumno === 'function' && window.esEvaluadorDeSeguimientoDelAlumno(usuario, al) === true;
             }
-            if (it.cat === 'hoy' || it.cat === 'man' || it.cat === 'inf') {
+            if (it.cat === 'hoy' || it.cat === 'man' || it.cat === 'inf' || it.cat === 'validar') {
                 return typeof window.esEvaluadorDeAlumno === 'function' && window.esEvaluadorDeAlumno(usuario, al) === true;
             }
             return false;
@@ -1193,7 +1222,11 @@ export function irAVistaDePendiente(alumnoId, cat) {
         vistaDestino = stConf.includes('alumno') ? 'Inbox - Validar Alumno' : 'Inbox - Validar Evaluador';
     } else if (cat === 'sin_agendar_dummy') {
         vistaDestino = 'Inbox - Pendientes';
-    } else if (cat === 'pago' || cat === 'gest' || cat === 'incompleta') {
+    } else if (cat === 'validar') {
+        vistaDestino = 'Inbox - Validar Evaluador';
+    } else if (cat === 'incompleta') {
+        vistaDestino = 'Altas - Confirmadas';
+    } else if (cat === 'pago' || cat === 'gest') {
         vistaDestino = 'Altas - Pendientes';
     } else if (cat === 'hoy' || cat === 'man' || cat === 'inf') {
         const rEf = obtenerRolEfectivoRecordatorios();

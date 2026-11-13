@@ -2020,12 +2020,37 @@ export async function ejecutarConfirmarMatch(setBotonCargandoFn, cargarVistaFn) 
         }
     }
 
+    const yaEscritos = []; // para deshacer si algo falla a mitad del armado
     try {
+        // 1) Releer cada alumno y verificar que siga en Lista de espera (otro operador pudo haberlo asignado antes)
+        const previos = [];
+        const noDisponibles = [];
         for (const al of grupo.alumnos) {
             const alRef = doc(db, "alumnos", al.id);
             const alDoc = await getDoc(alRef);
-            const alData = alDoc.exists() ? alDoc.data() : {};
-            const hist = alData.historial || [];
+            if (!alDoc.exists()) {
+                noDisponibles.push(`${al.nombre || al.id} (ya no existe)`);
+                continue;
+            }
+            const alData = alDoc.data();
+            const estadoActual = (alData.estado_agenda || '').normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+            if (estadoActual !== 'lista de espera') {
+                noDisponibles.push(`${alData.nombre || al.nombre || al.id} (ahora: ${alData.estado_agenda || 'sin estado'})`);
+                continue;
+            }
+            previos.push({ al, alRef, alData });
+        }
+        if (noDisponibles.length > 0) {
+            alert(`⚠️ No se armó la propuesta: estos alumnos ya no están en Lista de Espera:\n• ${noDisponibles.join('\n• ')}\n\nVuelve a buscar para ver la lista actualizada.`);
+            if (typeof setBotonCargandoFn === 'function') setBotonCargandoFn(btnConfirm, false);
+            return;
+        }
+
+        // 2) Escribir; si una falla, se restauran los ya escritos
+        for (const { al, alRef, alData } of previos) {
+            const hist = Array.isArray(alData.historial) ? [...alData.historial] : [];
+
+            const instAsignado = al.instrumento_asignado || (Array.isArray(al.instrumento) ? (al.instrumento[0] || '') : (al.instrumento || ''));
 
             const textoHist = isInd
                 ? `Propuesta individual pre-armada con Profe ${grupo.profeNombre || 'a definir'} (${grupo.horario}). En espera de validacion con el alumno.`
@@ -2057,7 +2082,10 @@ export async function ejecutarConfirmarMatch(setBotonCargandoFn, cargarVistaFn) 
             if (typeof window.actualizarAlumnoEnMemoriaLocal === 'function') {
                 window.actualizarAlumnoEnMemoriaLocal(al.id, updatesMatch);
             }
+            const valoresPrevios = {};
+            Object.keys(updatesMatch).forEach(k => { valoresPrevios[k] = alData[k] !== undefined ? alData[k] : null; });
             await updateDoc(alRef, updatesMatch);
+            yaEscritos.push({ id: al.id, alRef, valoresPrevios });
         }
 
         document.getElementById('modal-confirmar-match')?.close();
@@ -2074,7 +2102,20 @@ export async function ejecutarConfirmarMatch(setBotonCargandoFn, cargarVistaFn) 
 
     } catch(err) {
         console.error("Error al confirmar match:", err);
-        alert("Error al confirmar: " + err.message);
+        let restaurados = 0;
+        for (const e of yaEscritos) {
+            try {
+                await updateDoc(e.alRef, e.valoresPrevios);
+                if (typeof window.actualizarAlumnoEnMemoriaLocal === 'function') window.actualizarAlumnoEnMemoriaLocal(e.id, e.valoresPrevios);
+                restaurados++;
+            } catch (errRest) {
+                console.error("No se pudo restaurar al alumno", e.id, errRest);
+            }
+        }
+        const detalleRest = yaEscritos.length > 0
+            ? `\n\nSe deshizo el armado de ${restaurados} de ${yaEscritos.length} alumno(s) ya guardados.${restaurados < yaEscritos.length ? ' Revisa los que no se pudieron deshacer en "Grupos en Validación".' : ''}`
+            : '';
+        alert("Error al confirmar: " + err.message + detalleRest);
     }
 
     if (typeof setBotonCargandoFn === 'function') setBotonCargandoFn(btnConfirm, false);
@@ -2132,13 +2173,15 @@ export async function renderMatchEnValidacion(container) {
 
         const gruposMap = {};
         alumnosEnValidacion.forEach(al => {
-            const grpNom = al.grupo_asignado || 'Clases Individuales';
+            // Cada clase individual es su propia tarjeta (cada una tiene su profe y horario); no se agrupan entre sí
+            const grpNom = al.grupo_asignado || `__ind__${al.id}`;
             if (!gruposMap[grpNom]) gruposMap[grpNom] = [];
             gruposMap[grpNom].push(al);
         });
 
         let html = '';
-        Object.entries(gruposMap).forEach(([nombreGrupo, integrantes]) => {
+        Object.entries(gruposMap).forEach(([claveGrupo, integrantes]) => {
+            const nombreGrupo = claveGrupo.startsWith('__ind__') ? 'Clase Individual' : claveGrupo;
             const primer = integrantes[0] || {};
             const horario = primer.horario_match || primer.reserva_fecha_texto || 'Horario a confirmar';
             const profeNom = primer.reserva_profe_nombre || 'Profe a definir';
@@ -3026,6 +3069,21 @@ window.aprobarAlumnoIndividualPrealta = async function(alumnoId) {
     }
 };
 
+// Datos de la propuesta de grupo que deben limpiarse cuando el alumno vuelve a Lista de Espera
+// (no se toca instrumento_asignado: puede venir de la carga original del alumno).
+const CAMPOS_PROPUESTA_MATCH_VACIOS = {
+    reserva_profe_id: '',
+    reserva_profe_nombre: '',
+    reserva_fecha_texto: '',
+    horario_match: '',
+    dia_match: '',
+    horario_inicio_match: '',
+    horario_fin_match: '',
+    aula_asignada: '',
+    fecha_sugerida_inicio: null,
+    fecha_inicio_clases: null
+};
+
 window.rechazarAlumnoGrupoYVolverEspera = async function(alumnoId) {
     try {
         const alDoc = await getDoc(doc(db, "alumnos", alumnoId));
@@ -3044,6 +3102,7 @@ window.rechazarAlumnoGrupoYVolverEspera = async function(alumnoId) {
                 estado_agenda: "Lista de espera",
                 grupo_asignado: "",
                 estado_validacion_alumno: null,
+                ...CAMPOS_PROPUESTA_MATCH_VACIOS,
                 historial: hist
             };
             if (typeof window.actualizarAlumnoEnMemoriaLocal === 'function') {
@@ -3066,6 +3125,10 @@ window.rechazarAlumnoGrupoYVolverEspera = async function(alumnoId) {
 };
 
 window.desarmarGrupoValidacion = async function(nombreGrupo) {
+    if (!nombreGrupo || nombreGrupo === 'Clases Individuales' || nombreGrupo === 'Clase Individual') {
+        alert('Las clases individuales no son un grupo: usa "Devolver a Lista de Espera" en cada alumno.');
+        return;
+    }
     if (!(await window.confirmar('Desarmar grupo', 'Todos los integrantes volverán a Lista de Espera.', 'Desarmar'))) return;
     if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(window.textoCarga('desarmandoGrupo', nombreGrupo));
     try {
@@ -3083,6 +3146,7 @@ window.desarmarGrupoValidacion = async function(nombreGrupo) {
                     estado_agenda: "Lista de espera",
                     grupo_asignado: "",
                     estado_validacion_alumno: null,
+                    ...CAMPOS_PROPUESTA_MATCH_VACIOS,
                     historial: hist
                 };
                 if (typeof window.actualizarAlumnoEnMemoriaLocal === 'function') {

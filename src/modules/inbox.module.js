@@ -329,7 +329,13 @@ function generarBotonesAccionBase(al, id, esModal = false, vista = '') {
     let html = '';
     const rawEst = al.estado_agenda || '';
     const est = rawEst.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-    const vistaActiva = vista || window.estadoActualVista || '';
+    // Las acciones SIEMPRE se corresponden con el estado real del alumno. La vista desde donde se abrió la ficha
+    // solo se usa como respaldo cuando el estado no es uno de los reconocidos (así, una ficha abierta desde otra
+    // pestaña no muestra, por ejemplo, "Iniciar Pre-Alta" a un alumno que ya tiene la pre-alta iniciada).
+    const ESTADOS_RECONOCIDOS = ['pendiente procesar', 'pendiente validacion por profe', 'pendiente validacion por evaluador', 'pendiente validacion por alumno',
+        'agenda confirmada', 'entrevista confirmada', 'lista de espera', 'espera', 'validando grupo', 'en validacion', 'pre-alta pendiente', 'pre-alta iniciada'];
+    const estadoReconocido = ESTADOS_RECONOCIDOS.includes(est) || est.startsWith('entrevista');
+    const vistaActiva = estadoReconocido ? '' : (vista || window.estadoActualVista || '');
     const esVistaSeguimiento = typeof vistaActiva === 'string' && (
         vistaActiva.toLowerCase().includes('seguimiento') ||
         vistaActiva === 'Altas - Seguimientos'

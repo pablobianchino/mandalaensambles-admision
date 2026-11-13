@@ -15,10 +15,12 @@ import {
     configNodosFlujoCoordinador,
     esAlumnoAltaFinalizada,
     esAlumnoAltaConfirmadaIncompleta,
+    leerChecklistAlta,
+    PASOS_CHECKLIST_ALTA,
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=8.4";
+} from "./src/config/constants.js?v=8.5";
 
 import { 
     app, 
@@ -124,11 +126,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=8.4";
+} from "./src/modules/match.module.js?v=8.5";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=8.4";
+} from "./src/modules/profesor.module.js?v=8.5";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -157,14 +159,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=8.4";
+} from "./src/modules/altas.module.js?v=8.5";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=8.4";
+} from "./src/modules/dashboard.module.js?v=8.5";
 
 import {
     renderConfigHub,
@@ -173,23 +175,23 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=8.4";
+} from "./src/modules/abm.module.js?v=8.5";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=8.4";
+} from "./src/modules/inbox.module.js?v=8.5";
 
 // Íconos de línea automáticos en textos de la interfaz (solo presentación)
-import "./src/modules/iconos.module.js?v=8.4";
+import "./src/modules/iconos.module.js?v=8.5";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=8.4";
+} from "./src/modules/csv.module.js?v=8.5";
 
 import {
     inicializarMotorRecordatorios,
@@ -209,7 +211,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=8.4";
+} from "./src/modules/recordatorios.module.js?v=8.5";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -223,6 +225,40 @@ window.irAVistaDePendiente = irAVistaDePendiente;
 
 window.generarBotonesPrincipalesVisibles = generarBotonesPrincipalesVisibles;
 window.generarBotonesAccion = generarBotonesAccion;
+
+// Auto-chequeo de un paso del checklist de altas confirmadas (0 Sistema, 1 Contabilidad, 2 Profesor, 3 Alumno).
+// Si la casilla está en pantalla se tilda y deja que el manejador normal guarde (y finalice el alta si era el último paso).
+// Si no está en pantalla (por ejemplo desde la ficha) se guarda directo, salvo que sea el último paso: ese se marca desde el checklist.
+window.marcarPasoChecklistAlta = async function(id, idx) {
+    try {
+        const ref = doc(db, "alumnos", id);
+        const snap = await getDoc(ref);
+        if (!snap.exists()) return;
+        const al = snap.data();
+        const st = (al.estado_agenda || '').normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+        if (st !== 'alta efectiva' && st !== 'alta ilegal' && st !== 'alta confirmada') return;
+        if (esAlumnoAltaFinalizada(al)) return;
+        const checks = leerChecklistAlta(al);
+        if (checks[idx]) return;
+        const chkInput = document.querySelector(`[data-id="${id}"][data-idx="${idx}"].chk-alta-paso`);
+        if (chkInput && !chkInput.disabled) {
+            chkInput.checked = true;
+            chkInput.dispatchEvent(new Event('change', { bubbles: true }));
+            return;
+        }
+        const faltantes = checks.filter(c => !c).length;
+        if (faltantes === 1) {
+            if (typeof window.mostrarToast === 'function') window.mostrarToast('Este es el último paso del checklist: márcalo desde el checklist del alta para finalizarla.', 'info');
+            return;
+        }
+        checks[idx] = true;
+        const upd = { checklist_alta: checks, checklist_alta_v: 2 };
+        if (typeof window.actualizarAlumnoEnMemoriaLocal === 'function') window.actualizarAlumnoEnMemoriaLocal(id, upd);
+        await updateDoc(ref, upd);
+    } catch (err) {
+        console.warn('No se pudo marcar el paso del checklist de alta:', err);
+    }
+};
 
 // Inicializar versión en el sidebar de inmediato para evitar números fantasmas
 const vLabelInit = document.getElementById('sidebar-version-label');
@@ -1012,14 +1048,14 @@ const ICONOS_LINEA = {
     'board': '<path d="M3 4h18v12H3zM12 16v4M8 20h8"/>',
     'cap': '<path d="M22 10 12 5 2 10l10 5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/>',
     'logout': '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
-    'inst-guitarra': '<circle cx="8" cy="16" r="4"/><circle cx="8" cy="16" r="1" fill="currentColor"/><path d="M11 13L19.5 4.5M17.5 3l3.5 3.5M16 8l1.5 1.5"/>',
-    'inst-bajo': '<path d="M5.5 14.5c1.5-.8 3.5-.5 4.5 1s.7 3.2-.6 4.2c-1.4 1-3.2.8-4.3-.3-1.2-1.2-1.3-3.5.4-4.9z"/><path d="M9.5 14.5L20 4M18 2.5l3.5 3.5M7.5 17.5l1.5 1.5"/>',
+    'inst-guitarra': '<path d="M10.5 1.8h3v3h-3zM11 4.8v6.2M13 4.8v6.2"/><path d="M12 10c-2.1 0-3.1 1.3-3.1 2.7 0 1 .6 1.6.6 2.3-.9.7-1.9 1.6-1.9 3.1 0 2 2 3.4 4.4 3.4s4.4-1.4 4.4-3.4c0-1.5-1-2.4-1.9-3.1 0-.7.6-1.3.6-2.3C15.1 11.3 14.1 10 12 10z"/><circle cx="12" cy="15.2" r="1.3"/><path d="M10.5 19.6h3"/>',
+    'inst-bajo': '<path d="M10 1.5h4v3.2h-4zM11 4.7v8M13 4.7v8"/><path d="M8.3 12.6c-.4-1.4.6-2.2 1.7-2.2h4c1.1 0 2.1.8 1.7 2.2-.3 1.1-.9 1.5-.9 2.4 0 .9.9 1.6 1.1 2.7.4 2.2-1.3 4.2-3.9 4.2s-4.3-2-3.9-4.2c.2-1.1 1.1-1.8 1.1-2.7 0-.9-.6-1.3-.9-2.4z"/><path d="M10.2 15h3.6M10.2 17.2h3.6M10.5 20h3"/>',
     'inst-bateria': '<ellipse cx="12" cy="13" rx="7" ry="2.5"/><path d="M5 13v4.5c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V13M3.5 4.5l6 6M20.5 4.5l-6 6"/>',
     'inst-teclado': '<rect x="3" y="6.5" width="18" height="11.5" rx="2"/><path d="M8 18v-5.5M12 18v-5.5M16 18v-5.5M3 12.5h18"/>',
     'inst-voz': '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/>',
     'inst-trompeta': '<path d="M3 11h9M3 14h9M3 11v3M12 8.5L20.5 5v14L12 15.5z"/><path d="M7 14v3M10 14v3"/>',
     'inst-violin': '<path d="M12 2.5v6.5"/><path d="M9.5 9c-1.8 0-2.8 1.8-1.8 3.2-1.8 1.2-1.8 4.3.2 5.8 1.2.9 2.5 1.5 4.1 1.5s2.9-.6 4.1-1.5c2-1.5 2-4.6.2-5.8 1-1.4 0-3.2-1.8-3.2-.9 0-1.4.5-2.5.5S10.4 9 9.5 9z"/><path d="M12 13v5M10 20.5h4"/>',
-    'inst-saxo': '<path d="M12 2.5h4M14 2.5V17a4.5 4.5 0 0 1-9 0v-1.5"/><path d="M5 15.5l-2.5 2M14 7h3M14 10.5h3"/>',
+    'inst-saxo': '<path d="M4.5 3.2l3.8 1.2c1.3.4 2 1.2 2 2.7V16c0 2.3 1.6 4 3.8 4s3.8-1.7 3.8-4v-4.5"/><path d="M15.3 9.5h5.4l-1 3.2h-3.4z"/>',
     'inst-percusion': '<ellipse cx="12" cy="6" rx="6.5" ry="2.2"/><path d="M5.5 6l2 12.5c.2 1.2 2.2 2 4.5 2s4.3-.8 4.5-2L18.5 6M7 11.5h10"/>',
     'inst-flauta': '<rect x="1.5" y="10" width="21" height="4" rx="2" transform="rotate(-35 12 12)"/><path d="M8.8 14.5h.01M11.8 12.4h.01M14.8 10.3h.01"/>',
     'inst-ukelele': '<path d="M14 10.5L20.5 4M18.5 2.5l3 3"/><path d="M11 8.5c-2-.5-3.5.9-3.2 2.6-2.1.3-3.7 2.1-3.5 4.2.3 2.3 2.5 3.9 4.8 3.6 2-.3 3.4-1.7 3.7-3.5 1.6-.4 2.5-1.8 2-3.3"/><circle cx="8.5" cy="14.5" r="1" fill="currentColor"/>',
@@ -4757,14 +4793,8 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
     const stAgenda = rawStAgenda;
     const esAltaConfirmadaIncompleta = (stAgenda === 'alta efectiva' || stAgenda === 'alta ilegal' || stAgenda === 'alta confirmada') && !esAlumnoAltaFinalizada(al) && stAgenda !== 'alta finalizada';
     if (esAltaConfirmadaIncompleta) {
-        let rawChecks = al.checklist_alta || [false, false, false, false];
-        let checks = rawChecks.length === 5 ? rawChecks.slice(1) : (rawChecks.length === 4 ? rawChecks : [false, false, false, false]);
-        const pasostitulos = [
-            '1. Carga en Sistema',
-            '2. Docente notificado',
-            '3. Bienvenida a alumno',
-            '4. Alumno en grupo WhatsApp'
-        ];
+        const checks = leerChecklistAlta(al);
+        const pasostitulos = PASOS_CHECKLIST_ALTA;
         const completados = checks.filter(Boolean).length;
         const porcentaje = Math.round((completados / 4) * 100);
         const barColor = completados === 4 ? 'var(--accent-teal)' : (completados >= 2 ? '#e5a93d' : 'var(--accent-red)');
@@ -8942,7 +8972,7 @@ window.ejecutarBusquedaGlobal = ejecutarBusquedaGlobal;
 
 let guardRedireccionActivo = false;
 
-// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v8.4)
+// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v8.5)
 function tituloVista(seccion, sub = '') {
     const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
     return `<span>${esc(seccion)}</span>${sub ? `<span class="vista-titulo-sub">${esc(sub)}</span>` : ''}`;
@@ -10117,7 +10147,9 @@ onAuthStateChanged(auth, async (user) => {
                 qSnap.forEach(d => { 
                     const dt = d.data();
                     if(dt.email && dt.email.toLowerCase() === user.email.toLowerCase()) {
-                        usuarioEncontrado = { id: d.id, ...dt };
+                        // Con documentos duplicados por email, prevalece el primero ACTIVO; si ninguno lo está, el último que coincide.
+                        const yaHayActivo = usuarioEncontrado && usuarioEncontrado.activo !== false;
+                        if (!yaHayActivo) usuarioEncontrado = { id: d.id, ...dt };
 }
 }); 
 }
@@ -10606,8 +10638,7 @@ document.addEventListener('change', async (e) => {
         const id = e.target.getAttribute('data-id'), idx = parseInt(e.target.getAttribute('data-idx'), 10);
         try {
             const docRef = doc(db, "alumnos", id), alDoc = await getDoc(docRef), al = alDoc.data();
-            let rawChecks = al.checklist_alta || [false, false, false, false];
-            let checks = rawChecks.length === 5 ? rawChecks.slice(1) : (rawChecks.length === 4 ? [...rawChecks] : [false, false, false, false]);
+            const checks = leerChecklistAlta(al);
             checks[idx] = e.target.checked;
             
             const completados = checks.filter(Boolean).length;
@@ -10659,8 +10690,9 @@ document.addEventListener('change', async (e) => {
                 const respNom = al.seguimiento_responsable_nombre || al.seguimiento?.responsable_nombre || '';
                 const respEmail = al.seguimiento_responsable_email || al.seguimiento?.responsable_email || '';
 
-                const updatesFinal = { 
+                const updatesFinal = {
                     checklist_alta: checks,
+                    checklist_alta_v: 2,
                     fecha_alta_finalizada: ahoraIso,
                     historial: hist
 };
@@ -10706,7 +10738,7 @@ document.addEventListener('change', async (e) => {
                 mostrarToast(`🏆 ¡Felicitaciones! Checklist completo. ${al.nombre || 'El alumno'} pasó a Altas Finalizadas.`, "success");
                 await cargarVista(estadoActualVista, false);
 } else {
-                const updatesPaso = { checklist_alta: checks };
+                const updatesPaso = { checklist_alta: checks, checklist_alta_v: 2 };
                 actualizarAlumnoEnMemoriaLocal(id, updatesPaso);
                 await updateDoc(docRef, updatesPaso);
                 mostrarToast(`✓ Paso ${e.target.checked ? 'marcado' : 'desmarcado'} (${completados}/4)`, "info");
@@ -11369,7 +11401,7 @@ document.addEventListener('click', async (e) => {
                 if (elEvalTop) elEvalTop.textContent = al.reserva_profe_nombre || al.informe_entrevista?.evaluador_nombre || '-';
 }
 
-            // Borrador (v8.4): solo en el flujo de admisión (primer informe, aún no finalizado)
+            // Borrador (v8.5): solo en el flujo de admisión (primer informe, aún no finalizado)
             const esFlujoAdmision = !esNuevoInformeAdicional && !(reportIndexAttr !== null && reportIndexAttr !== '' && !isNaN(parseInt(reportIndexAttr, 10))) && !al.informe_entrevista;
             const dr = (esFlujoAdmision && al.informe_borrador && al.informe_borrador.datos) ? al.informe_borrador.datos : null;
             if (dr) {
@@ -11663,7 +11695,7 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    // Guardar borrador del informe de clase de admisión (v8.4): sin validaciones, no cambia el estado del alumno
+    // Guardar borrador del informe de clase de admisión (v8.5): sin validaciones, no cambia el estado del alumno
     if (target.id === 'btn-guardar-borrador-informe' || target.closest('#btn-guardar-borrador-informe')) {
         const btnBor = document.getElementById('btn-guardar-borrador-informe');
         const id = document.getElementById('informe-final-alumno-id').value;
@@ -12115,16 +12147,6 @@ document.addEventListener('click', async (e) => {
 }
 
     // Botón Copiar Aviso para Admisor (Individual desde 3 puntos o modal)
-    // Botón Copiar Aviso para Admisor desde Inbox (Rol Atención al Cliente)
-    if (target.classList.contains('btn-avisar-admisor-inbox') || target.closest('.btn-avisar-admisor-inbox')) {
-        const btn = target.classList.contains('btn-avisar-admisor-inbox') ? target : target.closest('.btn-avisar-admisor-inbox');
-        const id = btn.getAttribute('data-id');
-        if (typeof window.copiarAvisoAdmisorInbox === 'function') {
-            await window.copiarAvisoAdmisorInbox(id);
-}
-        return;
-}
-
     if (target.classList.contains('btn-avisar-admisor-alumno') || target.closest('.btn-avisar-admisor-alumno')) {
         const btn = target.classList.contains('btn-avisar-admisor-alumno') ? target : target.closest('.btn-avisar-admisor-alumno');
         const id = btn.getAttribute('data-id');
@@ -12195,13 +12217,15 @@ document.addEventListener('click', async (e) => {
     if (target.classList.contains('btn-copiar-fila-excel-bd') || target.closest('.btn-copiar-fila-excel-bd')) {
         const btn = target.classList.contains('btn-copiar-fila-excel-bd') ? target : target.closest('.btn-copiar-fila-excel-bd');
         const id = btn.getAttribute('data-id');
-        await copiarFilaExcelBD(id);
+        // Paso 1 del checklist: Carga en Sistema
+        if (await copiarFilaExcelBD(id) === true) await window.marcarPasoChecklistAlta(id, 0);
         return;
 }
     if (target.classList.contains('btn-copiar-fila-excel-fact') || target.closest('.btn-copiar-fila-excel-fact')) {
         const btn = target.classList.contains('btn-copiar-fila-excel-fact') ? target : target.closest('.btn-copiar-fila-excel-fact');
         const id = btn.getAttribute('data-id');
-        await copiarFilaExcelFacturacion(id);
+        // Paso 2 del checklist: Carga en Contabilidad
+        if (await copiarFilaExcelFacturacion(id) === true) await window.marcarPasoChecklistAlta(id, 1);
         return;
 }
 
@@ -12432,35 +12456,14 @@ document.addEventListener('click', async (e) => {
         if (!alDoc.exists()) return alert("Alumno no encontrado.");
         const al = alDoc.data();
 
-        const tieneEvento = Boolean(al.id_evento_alta || al.id_evento_reserva || al.reserva_id_evento);
-        let decisionCal = { decision: 'mantener', tieneEvento: false };
-        
-        if (tieneEvento) {
-            decisionCal = await window.preguntarAccionCalendar({ al, accionTipo: 'espera' });
-            if (decisionCal.decision === 'cancelar') return;
-}
-
+        // Desde que el alumno está en Lista de Espera ya no se gestiona ni se sincroniza el calendario:
+        // no se pregunta por el evento ni se lo toca (queda tal cual en Google Calendar).
         const motivo = await window.pedirTexto('Devolver a Lista de Espera', '¿Cuál es el motivo?', { placeholder: 'Escribí el motivo', textoBoton: 'Devolver' });
         if (motivo !== null) {
             if (motivo.trim() === "") return alert("Debes ingresar un motivo.");
-            
-            if (tieneEvento && decisionCal.decision === 'eliminar') {
-                mostrarIndicadorCarga(window.textoCarga('eliminandoEventoYGuardando'));
-                try {
-                    if (al.id_evento_alta) await eliminarEventoAltaSeguro(al, configApp, { forzarEliminacionCalendar: true });
-                    if (al.id_evento_reserva || al.reserva_id_evento) await eliminarEventoSeguro(al, configApp);
-} catch(calErr) {
-                    console.warn("Aviso calendar al devolver a espera:", calErr);
-}
-} else if (tieneEvento) {
-                mostrarIndicadorCarga(window.textoCarga('guardando'));
-}
 
             const hist = al.historial || [];
-            const detalleCal = (tieneEvento && decisionCal.decision === 'mantener')
-                ? ' Evento en Google Calendar MANTENIDO para el docente.'
-                : (tieneEvento && decisionCal.decision === 'eliminar' ? ' Evento en Google Calendar ELIMINADO.' : '');
-            hist.push(crearEntradaHistorial(`Devuelto a Lista de Espera desde ${al.estado_agenda || 'Altas'}. Motivo: ${motivo.trim()}.${detalleCal}`, 'alta'));
+            hist.push(crearEntradaHistorial(`Devuelto a Lista de Espera desde ${al.estado_agenda || 'Altas'}. Motivo: ${motivo.trim()}.`, 'alta'));
             
             const updatesDevEsp = {
                 estado_agenda: "Lista de espera",
@@ -12484,12 +12487,8 @@ document.addEventListener('click', async (e) => {
             actualizarAlumnoEnMemoriaLocal(id, updatesDevEsp);
             await updateDoc(doc(db, "alumnos", id), updatesDevEsp);
 
-            if (tieneEvento) ocultarIndicadorCarga();
             removerFilaOptimista(id);
-            const mensajeFinal = (tieneEvento && decisionCal.decision === 'mantener')
-                ? "✅ Alumno devuelto a Lista de Espera.\nSe mantuvo el evento intacto en Google Calendar."
-                : (tieneEvento ? "✅ Alumno devuelto a Lista de Espera.\nSe eliminó la agenda asociada en Google Calendar." : "✅ Alumno devuelto a Lista de Espera.");
-            alert(mensajeFinal);
+            alert("✅ Alumno devuelto a Lista de Espera.");
             await cargarVista(estadoActualVista, false);
 }
         return;
@@ -13617,20 +13616,10 @@ document.addEventListener('click', async (e) => {
                     const hist = al.historial || [];
                     hist.push(crearEntradaHistorial("Aviso de alta confirmada y bienvenida copiado para el alumno.", 'alta'));
                     
-                    let rawChecks = al.checklist_alta || [false, false, false, false];
-                    let checks = rawChecks.length === 5 ? rawChecks.slice(1) : (rawChecks.length === 4 ? [...rawChecks] : [false, false, false, false]);
-                    let updates = { historial: hist };
-                    if (!checks[2]) {
-                        checks[2] = true;
-                        updates.checklist_alta = checks;
-                        const chkInput = document.querySelector(`[data-id="${id}"][data-idx="2"].chk-alta-paso`);
-                        if (chkInput) {
-                            chkInput.checked = true;
-                            chkInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    await updateDoc(doc(db, "alumnos", id), { historial: hist });
 }
-}
-                    await updateDoc(doc(db, "alumnos", id), updates);
-}
+                // Paso 4 del checklist: Alumno notificado
+                await window.marcarPasoChecklistAlta(id, 3);
 } catch(eHist) {
                 console.warn("No se pudo actualizar historial al copiar aviso alta alumno:", eHist);
 }
@@ -13649,6 +13638,8 @@ document.addEventListener('click', async (e) => {
             const data = await generarTextoConHistorial(id, 'texto_alta_confirmada');
             await navigator.clipboard.writeText(data.txt);
             mostrarToast("📢 Mensaje de Alta Confirmada para Docente copiado al portapapeles", "success");
+            // Paso 3 del checklist: Profesor notificado
+            await window.marcarPasoChecklistAlta(id, 2);
 } catch(e) {
             console.error("Error al copiar texto alta confirmada:", e);
             alert("❌ Error al copiar texto de alta: " + e.message);

@@ -2,7 +2,7 @@
 // src/config/constants.js — Constantes globales del sistema
 // =======================================================================
 
-export const APP_VERSION = "v8.4";
+export const APP_VERSION = "v8.5";
 
 // Contraseña inicial que se asigna al crear cuentas de acceso. Se muestra únicamente en los avisos al administrador
 // (crear/restablecer usuario); no debe aparecer en pantallas ni mensajes visibles para el resto de los usuarios.
@@ -108,6 +108,21 @@ export function esAlumnoAltaFinalizada(d) {
     if (!Array.isArray(checks) || checks.length === 0) return false;
     const completados = checks.filter(Boolean).length;
     return (checks.length === 5 && completados === 5) || (checks.length === 4 && completados === 4) || (completados >= 4);
+}
+
+// Checklist de altas confirmadas (versión 2, 13/11/2026): cada paso se auto-chequea con su acción.
+//   0 Carga en Sistema (Copiar Registro BD) · 1 Carga en Contabilidad (Copiar Facturación)
+//   2 Profesor notificado (Avisar Alta a Docente) · 3 Alumno notificado (Avisar Alta a Alumno)
+export const PASOS_CHECKLIST_ALTA = ['1. Carga en Sistema', '2. Carga en Contabilidad', '3. Profesor notificado', '4. Alumno notificado'];
+
+// Devuelve siempre 4 valores en el orden nuevo. Los alumnos con el checklist anterior
+// (sin la marca checklist_alta_v) tenían: [Sistema, Docente notificado, Bienvenida a alumno, Grupo WhatsApp]
+// y se pasan al orden nuevo: Contabilidad queda sin marcar y el grupo de WhatsApp se descarta.
+export function leerChecklistAlta(d) {
+    const raw = Array.isArray(d && d.checklist_alta) ? d.checklist_alta : [];
+    const base = raw.length === 5 ? raw.slice(1) : (raw.length === 4 ? [...raw] : [false, false, false, false]);
+    if (d && d.checklist_alta_v === 2) return base.map(Boolean);
+    return [Boolean(base[0]), false, Boolean(base[1]), Boolean(base[2])];
 }
 
 export function esAlumnoAltaConfirmadaIncompleta(d) {

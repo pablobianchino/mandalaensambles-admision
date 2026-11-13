@@ -2,7 +2,7 @@
 // src/modules/altas.module.js -- Modulo de Altas, Pre-altas, Calendar & Export
 // =======================================================================
 
-import { defaultCfg, esAlumnoAltaFinalizada, esAlumnoAltaConfirmadaIncompleta, normalizarAlumnoSeguimiento, calcularFechaSeguimiento72hs, calcularDiasHabilesTranscurridos } from "../config/constants.js";
+import { defaultCfg, esAlumnoAltaFinalizada, esAlumnoAltaConfirmadaIncompleta, normalizarAlumnoSeguimiento, calcularFechaSeguimiento72hs, calcularDiasHabilesTranscurridos, leerChecklistAlta, PASOS_CHECKLIST_ALTA } from "../config/constants.js?v=8.5";
 import { 
     db, 
     collection, 
@@ -2151,7 +2151,7 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
         }
 
         if (!al.fecha_prealta && !esPropuesta) updates.fecha_prealta = new Date().toISOString();
-        if (!al.checklist_alta && !esAltaPrevia && !esPropuesta) updates.checklist_alta = [false, false, false, false];
+        if (!al.checklist_alta && !esAltaPrevia && !esPropuesta) { updates.checklist_alta = [false, false, false, false]; updates.checklist_alta_v = 2; }
         
         const hist = al.historial || [];
         const fnHist = window.crearEntradaHistorial || ((txt, tipo) => ({ id: Date.now(), fecha: new Date().toLocaleDateString(), texto: txt, tipo: tipo || 'sistema' }));
@@ -2509,8 +2509,10 @@ export async function copiarFilaExcelBD(id) {
         const txt = generarFilaExcelBD(alDoc.data());
         await navigator.clipboard.writeText(txt);
         (window.mostrarToast || alert)("📋 Fila para BD copiada al portapapeles", "success");
+        return true;
     } catch(err) {
         alert("Error al copiar fila para BD: " + err.message);
+        return false;
     }
 }
 
@@ -2521,8 +2523,10 @@ export async function copiarFilaExcelFacturacion(id) {
         const txt = generarFilaExcelFacturacion(alDoc.data());
         await navigator.clipboard.writeText(txt);
         (window.mostrarToast || alert)("💰 Fila para Facturación copiada al portapapeles", "success");
+        return true;
     } catch(err) {
         alert("Error al copiar fila para Facturación: " + err.message);
+        return false;
     }
 }
 
@@ -3200,14 +3204,8 @@ export function generarChecklistAltaHtml(id, al) {
     if (esAlumnoAltaFinalizada(al)) return '';
     const stAgenda = (al.estado_agenda || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
     if (stAgenda === 'alta finalizada') return '';
-    let rawChecks = al.checklist_alta || [false, false, false, false];
-    let checks = rawChecks.length === 5 ? rawChecks.slice(1) : (rawChecks.length === 4 ? rawChecks : [false, false, false, false]);
-    const pasostitulos = [
-        '1. Carga en Sistema',
-        '2. Profesor notificado',
-        '3. Bienvenida a alumno',
-        '4. Alumno en grupo WhatsApp'
-    ];
+    const checks = leerChecklistAlta(al);
+    const pasostitulos = PASOS_CHECKLIST_ALTA;
     const completados = checks.filter(Boolean).length;
     const porcentaje = Math.round((completados / 4) * 100);
     const barColor = completados === 4 ? 'var(--accent-teal)' : (completados >= 2 ? '#e5a93d' : 'var(--accent-red)');
