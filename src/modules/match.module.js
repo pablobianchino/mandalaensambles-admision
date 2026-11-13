@@ -2252,7 +2252,7 @@ export async function renderMatchEnValidacion(container) {
                     <div class="group-box-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; padding-bottom:10px; border-bottom:1px dashed #e2e8f0; margin-bottom:10px;">
                         <div>
                             <div class="group-box-title" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                                <span style="font-size:15px; font-weight:800; color:#0f172a;">🧩 ${nombreGrupo}</span>
+                                <span style="font-size:15px; font-weight:800; color:#0f172a;">${nombreGrupo}</span>
                                 ${mostrarBadgeValidados ? `<span class="group-member-status-chip ${chipClass}">${chipTxt}</span>` : ''}
                             </div>
                             <div class="group-box-subtitle" style="font-size:12.5px; color:var(--text-muted); display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:4px;">

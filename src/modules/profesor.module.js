@@ -1223,7 +1223,7 @@ export async function renderPortalProfesor(cont, usuarioActual = {}, callbacks =
                         <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
                             <div>
                                 <div style="display:flex; align-items:center; gap:8px;">
-                                    <h3 style="margin:0; color:var(--text-main); font-size:16px;">🧩 ${grp.nombre}</h3>
+                                    <h3 style="margin:0; color:var(--text-main); font-size:16px;">${grp.nombre}</h3>
                                     <span class="status-val-ok" style="font-size:11px;">👥 ${grp.alumnos.length} Alumnos</span>
                                 </div>
                                 <div style="font-size:12.5px; color:var(--text-muted); font-weight:600; margin-top:4px;">
