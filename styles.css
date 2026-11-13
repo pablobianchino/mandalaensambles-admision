@@ -5246,3 +5246,42 @@ button .ico-linea, button .ico-auto, button .emoji-oculto, a .ico-auto { pointer
 
 /* Nivel del alumno como texto en las filas (igual que la edad) */
 .row-dato-texto { font-size: 12.5px; color: var(--text-muted); font-weight: 600; white-space: nowrap; }
+
+
+/* =======================================================================
+   FASE 7 (v7.42) — UN SOLO MOLDE PARA LOS BOTONES ANTIGUOS (btn-app, btn-primary, btn-secondary, btn-danger,
+   btn-success, btn-ghost, row-quick-btn). Misma escala que .ds-btn (ver DEFINICION_botones_para_festivales.md).
+   ======================================================================= */
+.btn-app, .btn-primary, .btn-secondary, .btn-danger, .btn-success, .btn-ghost {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    height: 36px; padding: 0 14px; border-radius: var(--r-sm);
+    font: 700 13px var(--font); box-shadow: none; box-sizing: border-box;
+}
+.btn-app.btn-sm { height: 30px; padding: 0 10px; font-size: 12px; border-radius: var(--r-sm); }
+.btn-app.btn-md { height: 36px; padding: 0 14px; font-size: 13px; border-radius: var(--r-sm); }
+.btn-app.btn-lg, .btn-lg { height: 42px; padding: 0 18px; font-size: 14px; border-radius: var(--r-sm); }
+
+.btn-primary, .btn-app.btn-primary { background: var(--teal); border-color: var(--teal); color: #fff; box-shadow: none; }
+.btn-primary:hover, .btn-app.btn-primary:hover { background: var(--teal-700); border-color: var(--teal-700); box-shadow: none; }
+.btn-secondary, .btn-app.btn-secondary { background: var(--surface); border-color: var(--line-2); color: var(--ink); box-shadow: none; }
+.btn-secondary:hover, .btn-app.btn-secondary:hover { background: var(--surface-2); border-color: var(--line-2); color: var(--ink); }
+.btn-danger, .btn-app.btn-danger { background: var(--surface); border-color: #e3b7ae; color: var(--bad); }
+.btn-danger:hover, .btn-app.btn-danger:hover { background: var(--bad-bg); border-color: #e3b7ae; color: var(--bad); }
+.btn-success, .btn-app.btn-success { background: var(--ok); border-color: var(--ok); color: #fff; box-shadow: none; }
+.btn-success:hover, .btn-app.btn-success:hover { background: var(--ok); border-color: var(--ok); filter: brightness(.92); box-shadow: none; }
+.btn-ghost, .btn-app.btn-ghost { background: transparent; border-color: transparent; color: var(--teal); }
+.btn-ghost:hover, .btn-app.btn-ghost:hover { background: var(--teal-50); color: var(--teal); }
+.btn-app:focus-visible, .btn-primary:focus-visible, .btn-secondary:focus-visible, .btn-danger:focus-visible, .btn-success:focus-visible { border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-100); }
+.btn-app .ico-linea, .btn-primary .ico-linea, .btn-secondary .ico-linea, .btn-danger .ico-linea, .btn-success .ico-linea { width: 16px; height: 16px; }
+.btn-secondary .ico-auto, .btn-app.btn-secondary .ico-auto { color: var(--ink-3); }
+
+/* Botones de acción rápida de las filas y tarjetas: tamaño pequeño, esquina del sistema */
+.row-quick-btn { height: 30px; padding: 0 10px; border-radius: var(--r-sm); font-size: 12px; font-weight: 700; gap: 6px; box-shadow: none; background: var(--surface); border-color: var(--line-2); color: var(--ink); }
+.row-quick-btn:hover { transform: none; box-shadow: none; background: var(--surface-2); border-color: var(--line-2); }
+.row-quick-btn.primary { color: var(--teal); background: var(--teal-50); border-color: var(--teal-100); }
+.row-quick-btn.primary:hover { background: var(--teal-100); border-color: var(--teal-100); }
+.row-quick-btn.success { color: var(--ok); background: var(--ok-bg); border-color: #bfe0cd; }
+.row-quick-btn.success:hover { background: #d9eee2; border-color: #bfe0cd; }
+.row-quick-btn.secondary { color: var(--ink-2); background: var(--surface); border-color: var(--line-2); }
+.row-quick-btn.danger { color: var(--bad); background: var(--surface); border-color: #e3b7ae; padding: 0 10px; }
+.row-quick-btn.danger:hover { background: var(--bad-bg); border-color: #e3b7ae; }

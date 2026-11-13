@@ -1,6 +1,6 @@
 // =======================================================================
 // recordatorios.module.js - Motor Inteligente de Recordatorios y Alertas
-// Mandala Admision v7.41
+// Mandala Admision v7.43
 // =======================================================================
 
 import { 
@@ -1395,17 +1395,17 @@ export function abrirModalRecordatorios(forzar = false) {
                     </div>
                     <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
                         ${it.accion === 'consulte' ? `
-                            <button type="button" class="btn-app btn-primary" onclick="window.marcarPagoConsultado('${it.alumnoId}')" style="padding:5px 10px; font-size:12px; font-weight:700; background:var(--accent-teal); border-radius:6px; border:none; cursor:pointer;" title="Registrar que ya se consultó el pago y apagar este aviso">
+                            <button type="button" class="btn-app btn-primary" onclick="window.marcarPagoConsultado('${it.alumnoId}')" title="Registrar que ya se consultó el pago y apagar este aviso">
                                 Ya consulté
                             </button>
                         ` : ''}
                         ${(it.cat === 'pago' || it.cat === 'gest' || it.cat === 'incompleta') ? `
-                            <button type="button" class="btn-app btn-secondary" onclick="window.abrirModalReprogramarFecha('${it.alumnoId}')" style="padding:5px 9px; font-size:12px; font-weight:600; border-radius:6px; cursor:pointer;" title="Reprogramar fecha de inicio de clases">
+                            <button type="button" class="btn-app btn-secondary" onclick="window.abrirModalReprogramarFecha('${it.alumnoId}')" title="Reprogramar fecha de inicio de clases">
                                 📅 Reprogramar
                             </button>
                         ` : ''}
                         ${generarBotonRedireccionPendiente(it.alumnoId, it.cat, true)}
-                        <button type="button" class="btn-app btn-secondary" onclick="window.posponerRecordatorioAlumnoManana('${it.alumnoId}', '${it.cat}')" style="padding:5px 8px; font-size:12px; font-weight:600; color:#475569; border-radius:6px; cursor:pointer;" title="Silenciar y recordar este alumno mañana">
+                        <button type="button" class="btn-app btn-secondary" onclick="window.posponerRecordatorioAlumnoManana('${it.alumnoId}', '${it.cat}')" title="Silenciar y recordar este alumno mañana">
                             🌙 Recordar mañana
                         </button>
                     </div>
@@ -1432,21 +1432,21 @@ export function abrirModalRecordatorios(forzar = false) {
         <div style="padding:14px 16px 16px; border-top:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; background:#ffffff;">
             <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
                 <span style="font-size:12px; font-weight:700; color:var(--text-muted); margin-right:2px;">⏱️ Recordar en:</span>
-                <button type="button" class="btn-app btn-secondary" onclick="window.cerrarModalRecordatorios(30)" style="padding:6px 10px; font-size:12px; font-weight:600; border-radius:6px; cursor:pointer;" title="Recordármelo en 30 minutos">
+                <button type="button" class="btn-app btn-secondary" onclick="window.cerrarModalRecordatorios(30)" title="Recordármelo en 30 minutos">
                     30 min
                 </button>
-                <button type="button" class="btn-app btn-secondary" onclick="window.cerrarModalRecordatorios(120)" style="padding:6px 10px; font-size:12px; font-weight:600; border-radius:6px; cursor:pointer;" title="Recordármelo en 2 horas">
+                <button type="button" class="btn-app btn-secondary" onclick="window.cerrarModalRecordatorios(120)" title="Recordármelo en 2 horas">
                     2 hs
                 </button>
-                <button type="button" class="btn-app btn-secondary" onclick="window.cerrarModalRecordatorios(240)" style="padding:6px 10px; font-size:12px; font-weight:600; border-radius:6px; cursor:pointer;" title="Recordármelo en 4 horas">
+                <button type="button" class="btn-app btn-secondary" onclick="window.cerrarModalRecordatorios(240)" title="Recordármelo en 4 horas">
                     4 hs
                 </button>
             </div>
             <div style="display:flex; align-items:center; gap:8px;">
-                <button type="button" class="btn-app btn-secondary" onclick="window.posponerPopupManana()" style="min-width:150px; padding:8px 18px; font-size:13px; font-weight:700; color:#0f172a; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:8px; cursor:pointer; white-space:nowrap; justify-content:center;" title="Silenciar alertas y recordar todo mañana">
+                <button type="button" class="btn-app btn-secondary" onclick="window.posponerPopupManana()" style="min-width:150px; white-space:nowrap;" title="Silenciar alertas y recordar todo mañana">
                     🌙 Recordar mañana
                 </button>
-                <button type="button" class="btn-app btn-primary" onclick="window.atenderRecordatoriosAhora()" style="min-width:150px; padding:8px 18px; font-size:13px; font-weight:700; background:#0f172a; color:#ffffff; border:1px solid #0f172a; border-radius:8px; cursor:pointer; white-space:nowrap; justify-content:center;">
+                <button type="button" class="btn-app btn-primary" onclick="window.atenderRecordatoriosAhora()" style="min-width:150px; white-space:nowrap;">
                     Atender ahora →
                 </button>
             </div>
@@ -1602,7 +1602,7 @@ export function renderizarVistaMisPendientes(container, fechaManual = null) {
                     </p>
                 </div>
                 <div style="display:flex; gap:10px; align-items:center;">
-                    <button type="button" class="btn-app btn-primary" onclick="window.abrirModalRecordatorios(true)" style="background:#0f172a; color:#fff; font-weight:700; font-size:13px; padding:8px 16px; border-radius:8px; display:inline-flex; align-items:center; gap:6px; border:none; cursor:pointer;">
+                    <button type="button" class="btn-app btn-primary" onclick="window.abrirModalRecordatorios(true)" style="display:inline-flex;">
                         <span>⏰</span> Abrir Popup de Alertas
                     </button>
                 </div>
@@ -1701,17 +1701,17 @@ export function renderizarVistaMisPendientes(container, fechaManual = null) {
                         </div>
                         <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
                             ${it.accion === 'consulte' ? `
-                                <button type="button" class="btn-app btn-primary" onclick="window.marcarPagoConsultadoYRefrescarVista('${it.alumnoId}')" style="padding:6px 12px; font-size:12px; font-weight:700; background:var(--accent-teal); border-radius:6px; border:none; cursor:pointer;" title="Registrar que ya se consultó el pago y apagar este recordatorio">
+                                <button type="button" class="btn-app btn-primary" onclick="window.marcarPagoConsultadoYRefrescarVista('${it.alumnoId}')" title="Registrar que ya se consultó el pago y apagar este recordatorio">
                                     Ya consulté
                                 </button>
                             ` : ''}
                             ${(it.cat === 'pago' || it.cat === 'gest' || it.cat === 'incompleta') ? `
-                                <button type="button" class="btn-app btn-secondary" onclick="window.abrirModalReprogramarFecha('${it.alumnoId}')" style="padding:6px 10px; font-size:12px; font-weight:600; border-radius:6px; cursor:pointer;" title="Reprogramar fecha de inicio de clases">
+                                <button type="button" class="btn-app btn-secondary" onclick="window.abrirModalReprogramarFecha('${it.alumnoId}')" title="Reprogramar fecha de inicio de clases">
                                     📅 Reprogramar
                                 </button>
                             ` : ''}
                             ${generarBotonRedireccionPendiente(it.alumnoId, it.cat, false)}
-                            <button type="button" class="btn-app btn-secondary" onclick="window.posponerRecordatorioAlumnoManana('${it.alumnoId}', '${it.cat}')" style="padding:6px 10px; font-size:12px; font-weight:600; color:#475569; border-radius:6px; cursor:pointer;" title="Silenciar y recordar este alumno mañana">
+                            <button type="button" class="btn-app btn-secondary" onclick="window.posponerRecordatorioAlumnoManana('${it.alumnoId}', '${it.cat}')" title="Silenciar y recordar este alumno mañana">
                                 🌙 Recordar mañana
                             </button>
                         </div>

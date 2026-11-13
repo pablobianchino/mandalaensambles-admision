@@ -211,7 +211,7 @@ export function generarBotonesPrincipalesVisibles(al, id) {
     if (al.seguimiento?.activo === true) {
         const esSuelta = String(al.modalidad_individual || '').toLowerCase() === 'suelta' || String(al.tipo_suscripcion || '').toLowerCase().includes('suelta') || String(al.tipo_suscripcion || '').toLowerCase().includes('puntual');
         if (esSuelta) {
-            html += `<button type="button" class="row-quick-btn primary btn-sumar-clase-suelta" data-id="${id}" style="background:#0f766e; border-color:#0f766e; color:#fff;" onclick="window.abrirModalSumarClaseSuelta && window.abrirModalSumarClaseSuelta('${id}')">➕ Sumar Clase</button>`;
+            html += `<button type="button" class="row-quick-btn primary btn-sumar-clase-suelta" data-id="${id}" onclick="window.abrirModalSumarClaseSuelta && window.abrirModalSumarClaseSuelta('${id}')">➕ Sumar Clase</button>`;
         }
         html += `<button type="button" class="row-quick-btn primary btn-seg-contactar" data-id="${id}" title="Registrar feedback de seguimiento">💬 Nuevo Feedback</button>`;
         html += `<button type="button" class="row-quick-btn secondary btn-seg-finalizar" data-id="${id}" title="Finalizar seguimiento">🏁 Finalizar</button>`;
@@ -257,7 +257,7 @@ export function generarBotonesPrincipalesVisibles(al, id) {
         }
         const esSuelta = String(al.modalidad_individual || '').toLowerCase() === 'suelta' || String(al.tipo_suscripcion || '').toLowerCase().includes('suelta') || String(al.tipo_suscripcion || '').toLowerCase().includes('puntual');
         if (esSuelta) {
-            html += `<button type="button" class="row-quick-btn primary btn-sumar-clase-suelta" data-id="${id}" style="background:#0f766e; border-color:#0f766e; color:#fff;" onclick="window.abrirModalSumarClaseSuelta && window.abrirModalSumarClaseSuelta('${id}')">➕ Sumar Clase</button>`;
+            html += `<button type="button" class="row-quick-btn primary btn-sumar-clase-suelta" data-id="${id}" onclick="window.abrirModalSumarClaseSuelta && window.abrirModalSumarClaseSuelta('${id}')">➕ Sumar Clase</button>`;
         }
         html += `<button type="button" class="row-quick-btn secondary btn-aviso-alta-alumno" data-id="${id}">💬 Avisar a Alumno</button>`;
         if (esFinalizada) {

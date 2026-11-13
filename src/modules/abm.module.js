@@ -2,7 +2,7 @@
 // src/modules/abm.module.js -- ABM Profesores, Instrumentos, Suscripciones, Usuarios y Config
 // =======================================================================
 
-import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO } from "../config/constants.js?v=7.41";
+import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO } from "../config/constants.js?v=7.43";
 import { formatearPrecioMoneda, TEXTO_AVISO_ADMISOR_INBOX_DEFAULT } from "./altas.module.js";
 import { 
     db, 
@@ -398,7 +398,7 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
                         <div id="cfg-tags-admin-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;"></div>
                         <div style="display:flex; gap:10px; max-width:420px;">
                             <input type="text" id="cfg-new-tag-input" class="modern-input" placeholder="Nueva etiqueta (ej: ⚡ Enérgico)...">
-                            <button type="button" id="btn-add-tag-cfg" class="btn-primary" style="white-space:nowrap; padding:0 16px;">+ Agregar</button>
+                            <button type="button" id="btn-add-tag-cfg" class="btn-primary" style="white-space:nowrap;">+ Agregar</button>
                         </div>
                     </div>
                 </div>
@@ -534,7 +534,7 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
                         <div style="font-size:12.5px; color:#0f766e; line-height:1.4;">
                             💡 <strong>Gestión Centralizada:</strong> Los aranceles están asociados y vinculados directamente a cada suscripción en <strong>Suscripciones y Aranceles</strong>.
                         </div>
-                        <button type="button" class="btn-app btn-secondary" style="font-size:12px; height:32px; padding:0 12px; font-weight:700; white-space:nowrap;" onclick="window.cargarVistaGlobal ? window.cargarVistaGlobal('ABM-Suscripciones') : null">
+                        <button type="button" class="btn-app btn-secondary" style="white-space:nowrap;" onclick="window.cargarVistaGlobal ? window.cargarVistaGlobal('ABM-Suscripciones') : null">
                             🎫 Ir a Suscripciones y Aranceles
                         </button>
                     </div>
@@ -609,7 +609,7 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
                     
                     <div style="display:flex; gap:10px; max-width:520px;">
                         <input type="text" id="cfg-new-motivo-input" class="modern-input" placeholder="Nuevo motivo de suspensión...">
-                        <button type="button" id="btn-add-motivo-cfg" class="btn-primary" style="white-space:nowrap; padding:0 16px;">+ Agregar</button>
+                        <button type="button" id="btn-add-motivo-cfg" class="btn-primary" style="white-space:nowrap;">+ Agregar</button>
                     </div>
                 </div>
             </div>
@@ -630,14 +630,14 @@ export async function renderConfig(cont, configApp = defaultCfg, callbacks = {})
 
                     <div style="display:flex; gap:10px; max-width:520px;">
                         <input type="text" id="cfg-new-motivo-canc-input" class="modern-input" placeholder="Nuevo motivo de cancelación...">
-                        <button type="button" id="btn-add-motivo-canc-cfg" class="btn-primary" style="white-space:nowrap; padding:0 16px;">+ Agregar</button>
+                        <button type="button" id="btn-add-motivo-canc-cfg" class="btn-primary" style="white-space:nowrap;">+ Agregar</button>
                     </div>
                 </div>
             </div>
 
             <!-- BOTÓN GUARDAR GLOBAL -->
             <div style="margin-top:10px;">
-                <button id="btn-guardar-cfg" class="btn-primary" style="width:100%; padding:14px; font-size:14px; font-weight:700;">💾 Guardar Ajustes Generales</button>
+                <button id="btn-guardar-cfg" class="btn-primary" style="width:100%;">💾 Guardar Ajustes Generales</button>
             </div>
 
         </div>`; 
@@ -986,7 +986,7 @@ export function renderConfigMatch(cont, configApp = defaultCfg, callbacks = {}) 
                 </div>
             </div>
 
-            <button id="btn-guardar-cfg-match" class="btn-primary" style="width:100%; padding:12px; font-size:14px; margin-top:10px;">Guardar Configuración de Match</button>
+            <button id="btn-guardar-cfg-match" class="btn-primary" style="width:100%; margin-top:10px;">Guardar Configuración de Match</button>
         </div>
     `;
 
@@ -1372,7 +1372,7 @@ export async function cargarABM(coleccion, titulo, cont) {
                                     <span class="profile-tag-badge" style="background:#e0f2fe; color:#0369a1; border-color:#bae6fd; font-size:11px;">Suscripción</span>
                                 </div>
                                 <div style="display:flex; gap:8px; align-items:center;">
-                                    <button type="button" class="btn-app btn-secondary" style="font-size:11.5px; height:28px; padding:0 10px; font-weight:600;" onclick="event.stopPropagation(); window.abrirEdicionABM('${d.id}', '${coleccion}', '${displayNom}')">✏️ Editar Aranceles</button>
+                                    <button type="button" class="btn-app btn-secondary" onclick="event.stopPropagation(); window.abrirEdicionABM('${d.id}', '${coleccion}', '${displayNom}')">✏️ Editar Aranceles</button>
                                     <button type="button" class="btn-row-action" title="Eliminar Suscripción" onclick="event.stopPropagation(); window.eliminarABM('${d.id}', '${coleccion}')">🗑️</button>
                                 </div>
                             </div>

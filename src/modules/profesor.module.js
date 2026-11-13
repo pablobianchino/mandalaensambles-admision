@@ -1210,7 +1210,7 @@ export async function renderPortalProfesor(cont, usuarioActual = {}, callbacks =
                                 ${tagPrealta}
                                 <span class="match-student-tag">${emojiInst} ${instStr}</span>
                                 ${al.nivel ? `<span class="match-student-tag nivel">${al.nivel}</span>` : ''}
-                                <button type="button" class="row-quick-btn secondary btn-ver-ficha-docente" data-id="${al.id}" style="font-size:11.5px; padding:3px 8px; margin-left:4px;" title="Ver ficha del alumno (Solo lectura)">
+                                <button type="button" class="row-quick-btn secondary btn-ver-ficha-docente" data-id="${al.id}" style="margin-left:4px;" title="Ver ficha del alumno (Solo lectura)">
                                     👁️ Ver Ficha
                                 </button>
                             </div>
@@ -1233,13 +1233,13 @@ export async function renderPortalProfesor(cont, usuarioActual = {}, callbacks =
                                 ${badgeReprogPuntual}
                             </div>
                             <div class="row-actions-group" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-left:auto; flex-shrink:0;">
-                                <button type="button" class="row-quick-btn secondary btn-reprogramar-grupo-docente" data-grupo="${grp.nombre}" data-horario="${grp.horario}" data-inicio="${grp.fechaInicio || ''}" style="font-size:12px;">
+                                <button type="button" class="row-quick-btn secondary btn-reprogramar-grupo-docente" data-grupo="${grp.nombre}" data-horario="${grp.horario}" data-inicio="${grp.fechaInicio || ''}">
                                     📅 Reprogramar Ensamble
                                 </button>
-                                <button type="button" class="row-quick-btn danger btn-cancelar-grupo-docente" data-grupo="${grp.nombre}" style="font-size:12px;">
+                                <button type="button" class="row-quick-btn danger btn-cancelar-grupo-docente" data-grupo="${grp.nombre}">
                                     🛑 Cancelar Clase
                                 </button>
-                                <button type="button" class="row-quick-btn primary btn-pedir-vacante-grupo" data-grupo="${grp.nombre}" data-horario="${grp.horario}" style="font-size:12px;">
+                                <button type="button" class="row-quick-btn primary btn-pedir-vacante-grupo" data-grupo="${grp.nombre}" data-horario="${grp.horario}">
                                     ➕ Pedir Vacante
                                 </button>
                             </div>
@@ -1307,13 +1307,13 @@ export async function renderPortalProfesor(cont, usuarioActual = {}, callbacks =
 
                             <!-- COLUMNA ACCIONES: A la derecha -->
                             <div class="row-actions-group" style="display:flex; gap:8px; align-items:center; flex-shrink:0; margin-left:auto;">
-                                <button type="button" class="row-quick-btn secondary btn-ver-ficha-docente" data-id="${al.id}" style="font-size:12px;" title="Ver ficha del alumno (Solo lectura)">
+                                <button type="button" class="row-quick-btn secondary btn-ver-ficha-docente" data-id="${al.id}" title="Ver ficha del alumno (Solo lectura)">
                                     👁️ Ver Ficha
                                 </button>
-                                <button type="button" class="row-quick-btn secondary btn-reprogramar-ind-docente" data-id="${al.id}" data-nombre="${al.nombre}" data-horario="${horarioStr}" data-inicio="${al.fecha_inicio_clases || ''}" style="font-size:12px;">
+                                <button type="button" class="row-quick-btn secondary btn-reprogramar-ind-docente" data-id="${al.id}" data-nombre="${al.nombre}" data-horario="${horarioStr}" data-inicio="${al.fecha_inicio_clases || ''}">
                                     📅 Reprogramar
                                 </button>
-                                <button type="button" class="row-quick-btn danger btn-cancelar-ind-docente" data-id="${al.id}" data-nombre="${al.nombre}" style="font-size:12px;">
+                                <button type="button" class="row-quick-btn danger btn-cancelar-ind-docente" data-id="${al.id}" data-nombre="${al.nombre}">
                                     🛑 Cancelar
                                 </button>
                             </div>
@@ -1427,13 +1427,13 @@ export async function renderPortalProfesor(cont, usuarioActual = {}, callbacks =
                         </div>
                     </div>
                     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                        <button type="button" id="btn-solicitar-vacante-general" class="btn-primary" style="padding:8px 14px; font-size:12.5px; display:flex; align-items:center; gap:6px;">
+                        <button type="button" id="btn-solicitar-vacante-general" class="btn-primary" style="display:flex;">
                             ➕ Solicitar Vacante
                         </button>
-                        <button type="button" id="btn-crear-casos-prueba-docente" class="row-quick-btn secondary" style="display:none; font-size:11.5px; padding:7px 11px;">
+                        <button type="button" id="btn-crear-casos-prueba-docente" class="row-quick-btn secondary" style="display:none;">
                             🧪 Crear Alumnos de Prueba
                         </button>
-                        <button type="button" id="btn-limpiar-casos-prueba-docente" class="row-quick-btn danger" style="display:none; font-size:11.5px; padding:7px 11px;">
+                        <button type="button" id="btn-limpiar-casos-prueba-docente" class="row-quick-btn danger" style="display:none;">
                             🗑️ Limpiar Pruebas
                         </button>
                     </div>

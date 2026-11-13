@@ -3692,7 +3692,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                         <button type="button" class="btn-action-highlight btn-avisar-admisor-grupo" data-grupo="${nombreGrupo}" data-ids="${idsParam}" style="padding:4px 10px; font-size:11.5px; color:var(--accent-teal); border:1.5px solid var(--accent-teal); background:#f0fdfa; border-radius:6px; font-weight:700; cursor:pointer;" title="Copiar aviso para el Admisor con los datos de este grupo">
                             📢 Avisar al Admisor
                         </button>
-                        <button type="button" class="btn-primary btn-iniciar-prealta-grupo-card" data-grupo="${nombreGrupo}" data-ids="${idsParam}" style="padding:4px 12px; font-size:11.5px; cursor:pointer;" title="Iniciar Pre-Alta de todo el grupo y agendar en Google Calendar">
+                        <button type="button" class="btn-primary btn-iniciar-prealta-grupo-card" data-grupo="${nombreGrupo}" data-ids="${idsParam}" title="Iniciar Pre-Alta de todo el grupo y agendar en Google Calendar">
                             ⚙️ Iniciar Pre-Alta Grupal
                         </button>
                         <button type="button" class="filter-chip btn-devolver-grupo-espera" data-grupo="${nombreGrupo}" data-ids="${idsParam}" style="padding:4px 9px; font-size:11px; color:var(--accent-red); border-color:rgba(194,86,59,0.3); cursor:pointer;" title="Devolver todo el grupo a Lista de Espera">
@@ -3705,7 +3705,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                         <button type="button" class="btn-action-highlight btn-avisar-coordinador-grupo" data-grupo="${nombreGrupo}" data-ids="${idsParam}" style="padding:4px 10px; font-size:11.5px; color:var(--accent-teal); border:1.5px solid var(--accent-teal); background:#f0fdfa; border-radius:6px; font-weight:700; cursor:pointer;" title="Copiar aviso para el Coordinador con los datos de este grupo">
                             📢 Avisar al Coordinador
                         </button>
-                        <button type="button" class="btn-primary btn-aprobar-todo-grupo" data-grupo="${nombreGrupo}" style="background:#16a34a; border-color:#16a34a; padding:4px 12px; font-size:11.5px; cursor:pointer;" title="Aprobar pago y alta de los integrantes pendientes">
+                        <button type="button" class="btn-success btn-aprobar-todo-grupo" data-grupo="${nombreGrupo}" title="Aprobar pago y alta de los integrantes pendientes">
                             ✅ Suscripción Abonada (${integrantesGrupo.length})
                         </button>
                         <button type="button" class="filter-chip btn-devolver-grupo-pendientes" data-grupo="${nombreGrupo}" data-ids="${idsParam}" style="padding:4px 9px; font-size:11px; color:var(--accent-teal); border-color:rgba(0,123,143,0.3); background:#f0fdfa; font-weight:600; cursor:pointer;" title="Devolver integrantes a Altas - Pendientes">
@@ -3718,7 +3718,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                 } else if (vista === 'Altas - Confirmadas') {
                     statusChipsHtml = `<span class="group-member-status-chip status-val-ok" style="font-size:11px;">🟢 ${integrantesGrupo.length} Confirmado(s)</span>`;
                     headerActionsHtml = `
-                        <button type="button" class="btn-primary btn-finalizar-todo-grupo" data-grupo="${nombreGrupo}" data-ids="${idsParam}" style="padding:4px 12px; font-size:11.5px; cursor:pointer;" title="Finalizar alta y cerrar ciclo para los integrantes confirmados">
+                        <button type="button" class="btn-primary btn-finalizar-todo-grupo" data-grupo="${nombreGrupo}" data-ids="${idsParam}" title="Finalizar alta y cerrar ciclo para los integrantes confirmados">
                             🏁 Finalizar Todo el Grupo (${integrantesGrupo.length})
                         </button>
                     `;

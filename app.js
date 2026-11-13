@@ -18,7 +18,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=7.41";
+} from "./src/config/constants.js?v=7.43";
 
 import { 
     app, 
@@ -124,11 +124,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=7.41";
+} from "./src/modules/match.module.js?v=7.43";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=7.41";
+} from "./src/modules/profesor.module.js?v=7.43";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -157,14 +157,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=7.41";
+} from "./src/modules/altas.module.js?v=7.43";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=7.41";
+} from "./src/modules/dashboard.module.js?v=7.43";
 
 import {
     renderConfigHub,
@@ -173,23 +173,23 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=7.41";
+} from "./src/modules/abm.module.js?v=7.43";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=7.41";
+} from "./src/modules/inbox.module.js?v=7.43";
 
 // Íconos de línea automáticos en textos de la interfaz (solo presentación)
-import "./src/modules/iconos.module.js?v=7.41";
+import "./src/modules/iconos.module.js?v=7.43";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=7.41";
+} from "./src/modules/csv.module.js?v=7.43";
 
 import {
     inicializarMotorRecordatorios,
@@ -209,7 +209,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=7.41";
+} from "./src/modules/recordatorios.module.js?v=7.43";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -495,7 +495,7 @@ function renderFiltrosChips() {
                             <span style="font-size:11.5px; color:var(--text-muted);">a</span>
                             <input type="number" id="filtro-edad-max-popover" class="modern-input" placeholder="Max" min="1" max="99" value="${filtrosSeleccionados.edadMax !== null ? filtrosSeleccionados.edadMax : ''}" style="width:65px; height:28px; font-size:12px; padding:2px 6px; text-align:center;">
                             <span style="font-size:11px; color:var(--text-muted);">años</span>
-                            <button type="button" id="btn-aplicar-edad-rango" class="btn-app btn-secondary" style="height:28px; font-size:11px; padding:0 8px; margin-left:auto;">OK</button>
+                            <button type="button" id="btn-aplicar-edad-rango" class="btn-app btn-secondary" style="margin-left:auto;">OK</button>
                         </div>
                         <div style="display:flex; flex-wrap:wrap; gap:6px;">
                             ${etapasEtariasConfig.map(e => `
@@ -545,7 +545,7 @@ function renderFiltrosChips() {
                             <span style="font-size:11.5px; color:var(--text-muted);">Más de</span>
                             <input type="number" id="filtro-dias-contacto-custom" class="modern-input" placeholder="Días" min="1" max="999" value="${filtrosSeleccionados.diasSinContactoMin !== null ? filtrosSeleccionados.diasSinContactoMin : ''}" style="width:70px; height:28px; font-size:12px; padding:2px 6px; text-align:center;">
                             <span style="font-size:11.5px; color:var(--text-muted);">días</span>
-                            <button type="button" id="btn-aplicar-dias-contacto" class="btn-app btn-secondary" style="height:28px; font-size:11px; padding:0 8px; margin-left:auto;">OK</button>
+                            <button type="button" id="btn-aplicar-dias-contacto" class="btn-app btn-secondary" style="margin-left:auto;">OK</button>
                         </div>
                         <div style="display:flex; flex-wrap:wrap; gap:6px;">
                             <button type="button" class="filter-chip ${filtrosSeleccionados.diasSinContactoMin === 15 ? 'active active-susc' : ''}" data-type="diasContactoPreset" data-val="15">🟡 &gt; 15 días</button>
@@ -6601,7 +6601,7 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
                             </div>
                             <div style="display:flex; align-items:center; gap:10px; margin-left:auto;">
                                 <span style="font-size:12px; color:#7e22ce; font-weight:600;">Alumnos en espera activa / postergados</span>
-                                <button type="button" onclick="window.hacerScrollArribaLista()" class="btn-app btn-secondary" style="font-size:11px; padding:3px 9px; border-radius:14px; display:inline-flex; align-items:center; gap:4px; border-color:#d8b4fe; color:#7e22ce; background:#ffffff; cursor:pointer;" title="Volver al inicio de la lista"><span>⬆️</span> Subir</button>
+                                <button type="button" onclick="window.hacerScrollArribaLista()" class="btn-app btn-secondary" style="display:inline-flex;" title="Volver al inicio de la lista"><span>⬆️</span> Subir</button>
                             </div>
                         </div>
                         <div class="panel-bicicletas-cards" style="display:flex; flex-direction:column; gap:4px;">
@@ -8946,7 +8946,7 @@ window.ejecutarBusquedaGlobal = ejecutarBusquedaGlobal;
 
 let guardRedireccionActivo = false;
 
-// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v7.41)
+// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v7.43)
 function tituloVista(seccion, sub = '') {
     const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
     return `<span>${esc(seccion)}</span>${sub ? `<span class="vista-titulo-sub">${esc(sub)}</span>` : ''}`;
@@ -11373,7 +11373,7 @@ document.addEventListener('click', async (e) => {
                 if (elEvalTop) elEvalTop.textContent = al.reserva_profe_nombre || al.informe_entrevista?.evaluador_nombre || '-';
 }
 
-            // Borrador (v7.41): solo en el flujo de admisión (primer informe, aún no finalizado)
+            // Borrador (v7.43): solo en el flujo de admisión (primer informe, aún no finalizado)
             const esFlujoAdmision = !esNuevoInformeAdicional && !(reportIndexAttr !== null && reportIndexAttr !== '' && !isNaN(parseInt(reportIndexAttr, 10))) && !al.informe_entrevista;
             const dr = (esFlujoAdmision && al.informe_borrador && al.informe_borrador.datos) ? al.informe_borrador.datos : null;
             if (dr) {
@@ -11667,7 +11667,7 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    // Guardar borrador del informe de clase de admisión (v7.41): sin validaciones, no cambia el estado del alumno
+    // Guardar borrador del informe de clase de admisión (v7.43): sin validaciones, no cambia el estado del alumno
     if (target.id === 'btn-guardar-borrador-informe' || target.closest('#btn-guardar-borrador-informe')) {
         const btnBor = document.getElementById('btn-guardar-borrador-informe');
         const id = document.getElementById('informe-final-alumno-id').value;
@@ -15367,7 +15367,7 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
 
                             ${puedeGestionarInforme ? `
                             <div style="display:flex; justify-content:flex-end; border-top:1px solid var(--border-color); padding-top:10px; margin-top:6px;">
-                                <button type="button" class="btn-app btn-secondary" onclick="window.editarInformeEspecifico('${id}', ${idx})" style="font-size:12px; font-weight:700; color:var(--accent-teal); border-color:var(--accent-teal); display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
+                                <button type="button" class="btn-app btn-secondary" onclick="window.editarInformeEspecifico('${id}', ${idx})" style="display:inline-flex;">
                                     ✏️ Editar / Actualizar Informe de Clase de Admisión
                                 </button>
                             </div>` : ''}
@@ -18141,8 +18141,8 @@ function poblarTabSeguimientoFicha(al, id) {
                 const cttoId = ctto.id || ctto.fecha;
                 const btnsAccion = tienePermiso ? `
                     <div style="display:inline-flex; align-items:center; gap:4px; margin-left:auto;">
-                        <button type="button" class="btn-app-icon" title="Editar este feedback" onclick="window.abrirModalEditarContactoSeguimiento('${id}', '${cttoId}')" style="background:transparent; border:none; cursor:pointer; font-size:13px; padding:2px 5px; color:#475569; border-radius:4px; line-height:1;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">✏️</button>
-                        <button type="button" class="btn-app-icon" title="Eliminar este feedback" onclick="window.eliminarContactoSeguimiento('${id}', '${cttoId}')" style="background:transparent; border:none; cursor:pointer; font-size:13px; padding:2px 5px; color:#ef4444; border-radius:4px; line-height:1;" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='transparent'">🗑️</button>
+                        <button type="button" class="btn-app-icon" title="Editar este feedback" onclick="window.abrirModalEditarContactoSeguimiento('${id}', '${cttoId}')" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">✏️</button>
+                        <button type="button" class="btn-app-icon" title="Eliminar este feedback" onclick="window.eliminarContactoSeguimiento('${id}', '${cttoId}')" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='transparent'">🗑️</button>
                     </div>
                 ` : '';
 

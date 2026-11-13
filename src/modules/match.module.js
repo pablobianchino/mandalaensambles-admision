@@ -1118,8 +1118,8 @@ export async function ejecutarBusquedaAlumnosOpcionA(solicitudesIds = [], setBot
                                 </div>
                             </div>
                             <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-color); padding-top:10px; gap:8px;">
-                                <button type="button" class="btn-app btn-secondary" onclick="window.editarAlumnoModalDirecto('${al.id}')" style="font-size:11px; height:30px; padding:0 10px;">👁️ Ver Ficha</button>
-                                <button type="button" class="btn-app btn-primary btn-iniciar-prealta-solicitud" data-al-id="${al.id}" data-sol-id="${sol.id}" style="font-size:11.5px; height:30px; padding:0 12px; background:var(--accent-teal); font-weight:700;">🚀 Iniciar Pre-Alta</button>
+                                <button type="button" class="btn-app btn-secondary" onclick="window.editarAlumnoModalDirecto('${al.id}')">👁️ Ver Ficha</button>
+                                <button type="button" class="btn-app btn-primary btn-iniciar-prealta-solicitud" data-al-id="${al.id}" data-sol-id="${sol.id}">🚀 Iniciar Pre-Alta</button>
                             </div>
                         </div>
                     `;
@@ -1505,8 +1505,8 @@ export function renderResultadosAlumnosMatch(candidatos = []) {
                 </div>
 
                 <div style="display:flex; align-items:center; justify-content:space-between; border-top:1px solid #f1f5f9; padding-top:10px; gap:8px;">
-                    <button type="button" class="btn-app btn-secondary" onclick="window.editarAlumnoModalDirecto('${al.id}')" style="font-size:11.5px; padding:4px 10px; height:30px;">👁️ Ver Ficha</button>
-                    <button type="button" class="btn-app btn-primary btn-iniciar-prealta-al" data-id="${al.id}" data-profe-id="${al.profeMatchAsignado ? al.profeMatchAsignado.id : ''}" style="font-size:11.5px; padding:4px 12px; height:30px; background:var(--accent-teal);">🧩 Armar Propuesta</button>
+                    <button type="button" class="btn-app btn-secondary" onclick="window.editarAlumnoModalDirecto('${al.id}')">👁️ Ver Ficha</button>
+                    <button type="button" class="btn-app btn-primary btn-iniciar-prealta-al" data-id="${al.id}" data-profe-id="${al.profeMatchAsignado ? al.profeMatchAsignado.id : ''}">🧩 Armar Propuesta</button>
                 </div>
             </div>
         `;
@@ -3234,7 +3234,7 @@ export async function renderMatchSolicitudesProfes(cont, configApp, callbacks = 
                         </div>
                     </div>
                     ${puedeBuscar ? `
-                        <button type="button" id="btn-coordinador-nueva-solicitud" class="btn-app btn-primary" style="font-size:12.5px; height:34px; padding:0 14px; font-weight:700; background:var(--accent-teal); color:#fff; display:inline-flex; align-items:center; gap:6px;">
+                        <button type="button" id="btn-coordinador-nueva-solicitud" class="btn-app btn-primary" style="display:inline-flex;">
                             <span>➕</span> Nueva Solicitud Docente
                         </button>
                     ` : ''}
@@ -3272,10 +3272,10 @@ export async function renderMatchSolicitudesProfes(cont, configApp, callbacks = 
                             Seleccionar todas (${pendientes.length})
                         </label>
                         <div style="display:flex; gap:10px; align-items:center;">
-                            <button type="button" id="btn-sol-buscar-seleccionadas" class="btn-app btn-secondary" style="font-size:12px; height:32px; padding:0 12px; font-weight:700; background:#fff; color:var(--accent-teal); border:1px solid var(--accent-teal);" disabled>
+                            <button type="button" id="btn-sol-buscar-seleccionadas" class="btn-app btn-secondary" disabled>
                                 🔍 Buscar Seleccionadas (<span id="sol-sel-count">0</span>)
                             </button>
-                            <button type="button" id="btn-sol-buscar-todas" class="btn-app btn-primary" style="font-size:12px; height:32px; padding:0 12px; font-weight:700; background:var(--accent-teal); color:#fff;">
+                            <button type="button" id="btn-sol-buscar-todas" class="btn-app btn-primary">
                                 🔍 Buscar Todas
                             </button>
                         </div>
@@ -3435,18 +3435,18 @@ export async function renderMatchSolicitudesProfes(cont, configApp, callbacks = 
                                 <!-- Footer con Botones de Acción -->
                                 <div style="display:flex; align-items:center; justify-content:space-between; border-top:1px solid #e2e8f0; padding-top:10px; gap:8px; margin-top:4px;">
                                     <div style="display:flex; gap:6px; align-items:center;">
-                                        <button type="button" class="btn-app btn-secondary btn-finalizar-sol-directo" data-id="${sol.id}" data-grupo="${sol.grupoNombre}" data-profe="${sol.profesorNombre || ''}" style="font-size:11.5px; padding:4px 8px; height:30px; color:#059669; border-color:#a7f3d0; background:#ecfdf5; font-weight:700;" title="Finalizar solicitud">
+                                        <button type="button" class="btn-app btn-secondary btn-finalizar-sol-directo" data-id="${sol.id}" data-grupo="${sol.grupoNombre}" data-profe="${sol.profesorNombre || ''}" title="Finalizar solicitud">
                                             🏁 Finalizar
                                         </button>
-                                        <button type="button" class="btn-app btn-secondary btn-editar-sol-directo" data-id="${sol.id}" style="font-size:11.5px; padding:4px 8px; height:30px;" title="Editar solicitud">
+                                        <button type="button" class="btn-app btn-secondary btn-editar-sol-directo" data-id="${sol.id}" title="Editar solicitud">
                                             ✏️ Editar
                                         </button>
-                                        <button type="button" class="btn-app btn-secondary btn-eliminar-sol-directo" data-id="${sol.id}" data-grupo="${sol.grupoNombre}" style="font-size:11.5px; padding:4px 8px; height:30px; color:var(--accent-red); border-color:#fca5a5;" title="Eliminar solicitud">
+                                        <button type="button" class="btn-app btn-danger btn-eliminar-sol-directo" data-id="${sol.id}" data-grupo="${sol.grupoNombre}" title="Eliminar solicitud">
                                             🗑️
                                         </button>
                                     </div>
                                     ${puedeBuscar ? `
-                                        <button type="button" class="btn-primary btn-buscar-matches-sol" data-id="${sol.id}" style="font-size:11.5px; padding:5px 12px; height:30px; font-weight:700;">
+                                        <button type="button" class="btn-primary btn-buscar-matches-sol" data-id="${sol.id}">
                                             🔍 Buscar Matches
                                         </button>
                                     ` : `
@@ -3562,10 +3562,10 @@ export async function renderMatchSolicitudesProfes(cont, configApp, callbacks = 
 
                         <!-- Footer Acciones de Cumplidas -->
                         <div style="display:flex; align-items:center; justify-content:space-between; border-top:1px solid #f1f5f9; padding-top:10px; gap:8px; margin-top:8px;">
-                            <button type="button" class="btn-app btn-secondary btn-reabrir-sol-directo" data-id="${sol.id}" data-grupo="${sol.grupoNombre}" style="font-size:11.5px; padding:4px 10px; height:30px; color:var(--accent-teal); border-color:var(--accent-teal); font-weight:600;" title="Reactivar y mover a Pendientes">
+                            <button type="button" class="btn-app btn-secondary btn-reabrir-sol-directo" data-id="${sol.id}" data-grupo="${sol.grupoNombre}" title="Reactivar y mover a Pendientes">
                                 🔄 Reabrir a Pendientes
                             </button>
-                            <button type="button" class="btn-app btn-secondary btn-eliminar-sol-directo" data-id="${sol.id}" data-grupo="${sol.grupoNombre}" style="font-size:11.5px; padding:4px 8px; height:30px; color:var(--accent-red); border-color:#fca5a5;" title="Eliminar del historial">
+                            <button type="button" class="btn-app btn-danger btn-eliminar-sol-directo" data-id="${sol.id}" data-grupo="${sol.grupoNombre}" title="Eliminar del historial">
                                 🗑️
                             </button>
                         </div>
