@@ -5359,3 +5359,16 @@ button.pend-kpi:hover { background: var(--surface-2); }
 .match-student-info .match-student-name { white-space: normal; overflow-wrap: anywhere; }
 .match-student-datos { font-size: 12.5px; color: var(--ink-3); margin-top: 1px; }
 .match-student-datos b { color: var(--teal); font-weight: 700; }
+
+
+/* =======================================================================
+   FASE 12 (v8.4) — POPUP DE RECORDATORIOS: mismo molde que Mis Pendientes; texto y botones se acomodan en pantallas angostas
+   ======================================================================= */
+.pend-item-popup { padding: 10px 12px; gap: 8px 12px; }
+.pend-item-popup .pend-item-info { flex: 1 1 200px; min-width: 0; }
+.pend-item-popup .pend-item-acc { flex: 0 1 auto; flex-shrink: 1; justify-content: flex-end; }
+.pend-item-popup .pend-item-nom { font-size: 13.5px; }
+@media (max-width: 620px) {
+    .pend-item-popup .pend-item-info { flex-basis: 100%; }
+    .pend-item-popup .pend-item-acc { flex-basis: 100%; justify-content: flex-start; }
+}

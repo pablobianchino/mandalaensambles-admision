@@ -1,6 +1,6 @@
 // =======================================================================
 // recordatorios.module.js - Motor Inteligente de Recordatorios y Alertas
-// Mandala Admision v8.3
+// Mandala Admision v8.4
 // =======================================================================
 
 import { 
@@ -559,14 +559,12 @@ export function calcularPendientesRecordatorios(fechaHoyManual = null) {
                         } else if (diasFaltan === 0) {
                             sev = 3;
                             txt = 'Inicio de clases HOY';
-                        } else if (diasHabiles <= 1) {
-                            sev = 2;
-                            txt = diasFaltan === 1
-                                ? 'Inicio de clases mañana (24 hs)'
-                                : `Inicio de clases el ${diaSemanaAlta} ${formatoDiaMes(fechaAlta)} (24 hs hábiles)`;
                         } else {
-                            sev = 1;
-                            txt = `Inicio ${diaSemanaAlta} ${formatoDiaMes(fechaAlta)} (48 hs${diasFaltan > 2 ? ' hábiles' : ''})`;
+                            // Texto con los días reales que faltan (corridos) y el día de la clase; la urgencia sigue la cuenta en días hábiles
+                            sev = diasHabiles <= 1 ? 2 : 1;
+                            txt = diasFaltan === 1
+                                ? 'Inicio de clases mañana'
+                                : `Inicio de clases en ${diasFaltan} días (${diaSemanaAlta} ${formatoDiaMes(fechaAlta)})`;
                         }
 
                         out.push({
@@ -1394,45 +1392,45 @@ export function abrirModalRecordatorios(forzar = false) {
         <div data-scroll-popup="1" style="padding:14px 16px; flex:1 1 auto; min-height:0; max-height:60vh; overflow-y:auto; display:flex; flex-direction:column; gap:12px; scrollbar-width:thin; scrollbar-color:#cbd5e1 #f8fafc;">
     `;
 
+    const ACENTO_POPUP = { inbox: 'var(--info)', altas: 'var(--ok)', entrevistas: 'var(--warn)', seguimientos: 'var(--violet)' };
     Object.keys(grupos).forEach(grpNom => {
+        const secGrupo = seccionDeCategoria(grupos[grpNom][0].cat);
         // flex-shrink:0 evita que las tarjetas se compriman (y oculten filas) cuando hay muchos ítems: el contenedor hace scroll
         html += `
-            <div style="flex-shrink:0; background:#faf9f6; border:1px solid var(--border-color); border-radius:10px; overflow:hidden;">
-                <div style="padding:8px 12px; font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:0.4px; color:#475569; background:#f1eee7; display:flex; justify-content:space-between; align-items:center;">
-                    <span>${grpNom}</span>
-                    <span style="background:#e2ded4; color:#334155; padding:1px 6px; border-radius:999px; font-size:11px;">${grupos[grpNom].length}</span>
+            <section class="pend-grupo" style="flex-shrink:0; --acento:${ACENTO_POPUP[secGrupo] || 'var(--ink-3)'};">
+                <div class="pend-grupo-cab">
+                    <span class="pend-grupo-tit">${grpNom}</span>
+                    <span class="pend-grupo-cont">${grupos[grpNom].length}</span>
                 </div>
-                <div style="display:flex; flex-direction:column;">
+                <div class="pend-grupo-cuerpo">
         `;
 
         grupos[grpNom].forEach(it => {
-            const sevTag = it.sev >= 3 
-                ? 'background:#fee2e2; color:#991b1b; border:1px solid #fecaca;' 
-                : (it.sev === 2 ? 'background:#fef3c7; color:#92400e; border:1px solid #fde68a;' : 'background:#e0f2fe; color:#075985; border:1px solid #bae6fd;');
-            const sevLabel = it.sev >= 3 ? 'URGENTE' : (it.sev === 2 ? 'ATENCIÓN' : 'PRÓXIMO');
+            const sevClase = it.sev >= 3 ? 'sev-alta' : (it.sev === 2 ? 'sev-media' : 'sev-baja');
+            const sevLabel = it.sev >= 3 ? 'Urgente' : (it.sev === 2 ? 'Atención' : 'Próximo');
 
             html += `
-                <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 12px; border-bottom:1px solid #ece8de; font-size:13px;">
-                    <div style="display:flex; flex-direction:column; gap:2px; flex:1; min-width:0;">
-                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                            <strong style="color:var(--text-main); font-size:13.5px;">${escaparHtmlRecordatorio(it.nom)}</strong>
-                            <span style="font-size:10px; font-weight:800; padding:2px 7px; border-radius:12px; ${sevTag}">${sevLabel}</span>
+                <div class="pend-item pend-item-popup">
+                    <div class="pend-item-info">
+                        <div class="pend-item-nom">
+                            <span>${escaparHtmlRecordatorio(it.nom)}</span>
+                            <span class="pend-sev ${sevClase}">${sevLabel}</span>
                         </div>
-                        <div style="color:var(--text-muted); font-size:12px;">${escaparHtmlRecordatorio(it.info)}</div>
+                        <span class="pend-item-det">${escaparHtmlRecordatorio(it.info)}</span>
                     </div>
-                    <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+                    <div class="pend-item-acc">
                         ${it.accion === 'consulte' ? `
-                            <button type="button" class="btn-app btn-primary" onclick="window.marcarPagoConsultado('${it.alumnoId}')" title="Registrar que ya se consultó el pago y apagar este aviso">
+                            <button type="button" class="btn-app btn-sm btn-primary" onclick="window.marcarPagoConsultado('${it.alumnoId}')" title="Registrar que ya se consultó el pago y apagar este aviso">
                                 Ya consulté
                             </button>
                         ` : ''}
                         ${(it.cat === 'pago' || it.cat === 'gest' || it.cat === 'incompleta') ? `
-                            <button type="button" class="btn-app btn-secondary" onclick="window.abrirModalReprogramarFecha('${it.alumnoId}')" title="Reprogramar fecha de inicio de clases">
+                            <button type="button" class="btn-app btn-sm btn-secondary" onclick="window.abrirModalReprogramarFecha('${it.alumnoId}')" title="Reprogramar fecha de inicio de clases">
                                 📅 Reprogramar
                             </button>
                         ` : ''}
                         ${generarBotonRedireccionPendiente(it.alumnoId, it.cat, true)}
-                        <button type="button" class="btn-app btn-secondary" onclick="window.posponerRecordatorioAlumnoManana('${it.alumnoId}', '${it.cat}')" title="Silenciar y recordar este alumno mañana">
+                        <button type="button" class="btn-app btn-sm btn-secondary" onclick="window.posponerRecordatorioAlumnoManana('${it.alumnoId}', '${it.cat}')" title="Silenciar y recordar este alumno mañana">
                             🌙 Recordar mañana
                         </button>
                     </div>
@@ -1442,7 +1440,7 @@ export function abrirModalRecordatorios(forzar = false) {
 
         html += `
                 </div>
-            </div>
+            </section>
         `;
     });
 
