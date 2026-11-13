@@ -1,6 +1,6 @@
 // =======================================================================
 // recordatorios.module.js - Motor Inteligente de Recordatorios y Alertas
-// Mandala Admision v8.2
+// Mandala Admision v8.3
 // =======================================================================
 
 import { 
@@ -179,6 +179,23 @@ export function diffDiasCalendario(ymd1, ymd2) {
     const t1 = Date.UTC(y1, m1 - 1, d1);
     const t2 = Date.UTC(y2, m2 - 1, d2);
     return Math.round((t1 - t2) / (1000 * 60 * 60 * 24));
+}
+
+// Días "hábiles" que faltan desde hoy hasta la fecha (sin contar sábados ni domingos).
+// Cuenta cada día posterior a hoy hasta la fecha inclusive; un sábado o domingo solo cuenta si es la fecha misma (la clase).
+// Ej.: de viernes a lunes = 1 (el sábado y el domingo no cuentan); de jueves a lunes = 2. Si la fecha ya pasó o es hoy, devuelve 0.
+export function contarDiasHabilesHasta(hoyYMD, fechaYMD) {
+    if (!hoyYMD || !fechaYMD) return 0;
+    const total = diffDiasCalendario(fechaYMD, hoyYMD);
+    if (total <= 0) return 0;
+    const [y, m, d] = hoyYMD.split('-').map(Number);
+    let cuenta = 0;
+    for (let i = 1; i <= total; i++) {
+        const dia = new Date(Date.UTC(y, m - 1, d + i)).getUTCDay(); // 0 = domingo, 6 = sábado
+        const esFinDeSemana = dia === 0 || dia === 6;
+        if (!esFinDeSemana || i === total) cuenta++;
+    }
+    return cuenta;
 }
 
 export function formatoDiaMes(ymd) {
@@ -524,23 +541,32 @@ export function calcularPendientesRecordatorios(fechaHoyManual = null) {
                 if (fechaAlta) {
                     const diasFaltan = diffDiasCalendario(fechaAlta, hoyYMD);
                     const diffAltaCreacion = diffDiasCalendario(fechaAlta, fechaCreacion);
-                    const aplicaAviso = (diffAltaCreacion > 1 || diasFaltan <= 0) && !al.pago_consultado;
+                    // "Ya consulté" silencia el aviso solo hasta el día anterior al inicio: el día del inicio (o después) vuelve a avisar.
+                    const silenciadoPorConsulta = Boolean(al.pago_consultado) && diasFaltan > 0;
+                    const aplicaAviso = (diffAltaCreacion > 1 || diasFaltan <= 0) && !silenciadoPorConsulta;
+                    // El aviso de 48 hs se cuenta en días hábiles: sábados y domingos no cuentan (de viernes a lunes falta 1 día hábil).
+                    const diasHabiles = contarDiasHabilesHasta(hoyYMD, fechaAlta);
 
-                    if (aplicaAviso && diasFaltan <= 2) {
+                    if (aplicaAviso && (diasFaltan <= 0 || diasHabiles <= 2)) {
                         let sev = 1;
                         let txt = '';
+                        const nombresDia = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+                        const [yA, mA, dA] = fechaAlta.split('-').map(Number);
+                        const diaSemanaAlta = nombresDia[new Date(Date.UTC(yA, mA - 1, dA)).getUTCDay()];
                         if (diasFaltan < 0) {
                             sev = 3;
                             txt = `Alta vencida (${textoDiasRelativo(diasFaltan)})`;
                         } else if (diasFaltan === 0) {
                             sev = 3;
                             txt = 'Inicio de clases HOY';
-                        } else if (diasFaltan === 1) {
+                        } else if (diasHabiles <= 1) {
                             sev = 2;
-                            txt = 'Inicio de clases mañana (24 hs)';
+                            txt = diasFaltan === 1
+                                ? 'Inicio de clases mañana (24 hs)'
+                                : `Inicio de clases el ${diaSemanaAlta} ${formatoDiaMes(fechaAlta)} (24 hs hábiles)`;
                         } else {
                             sev = 1;
-                            txt = `Inicio ${formatoDiaMes(fechaAlta)} (48 hs)`;
+                            txt = `Inicio ${diaSemanaAlta} ${formatoDiaMes(fechaAlta)} (48 hs${diasFaltan > 2 ? ' hábiles' : ''})`;
                         }
 
                         out.push({
