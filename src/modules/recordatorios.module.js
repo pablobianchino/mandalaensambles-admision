@@ -1,6 +1,6 @@
 // =======================================================================
 // recordatorios.module.js - Motor Inteligente de Recordatorios y Alertas
-// Mandala Admision v8.1
+// Mandala Admision v8.2
 // =======================================================================
 
 import { 
@@ -516,7 +516,9 @@ export function calcularPendientesRecordatorios(fechaHoyManual = null) {
 
             if (esPreAlta || esAltaIncompleta) {
                 const fechaAlta = aFechaYMD(al.fecha_inicio_clases || al.fecha_inicio || al.fecha_alta);
-                const fechaCreacion = aFechaYMD(al.fecha_alta_iniciada || al.fecha_creacion || al.fecha_ingreso) || hoyYMD;
+                // Fecha en que se armó la pre-alta: el campo real que guarda la app es "fecha_prealta" (los otros quedan como respaldo).
+                // Sin ella, el aviso de "mañana (24 hs)" nunca aparecía porque la "creación" se tomaba como hoy.
+                const fechaCreacion = aFechaYMD(al.fecha_alta_iniciada || al.fecha_prealta || al.fecha_creacion || al.fecha_ingreso) || hoyYMD;
                 const tipoClase = al.tipo_suscripcion || al.instrumento_principal || 'Individual';
 
                 if (fechaAlta) {
