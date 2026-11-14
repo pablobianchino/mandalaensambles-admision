@@ -20,7 +20,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=8.7";
+} from "./src/config/constants.js?v=8.8";
 
 import { 
     app, 
@@ -126,11 +126,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=8.7";
+} from "./src/modules/match.module.js?v=8.8";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=8.7";
+} from "./src/modules/profesor.module.js?v=8.8";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -159,14 +159,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=8.7";
+} from "./src/modules/altas.module.js?v=8.8";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=8.7";
+} from "./src/modules/dashboard.module.js?v=8.8";
 
 import {
     renderConfigHub,
@@ -175,23 +175,23 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=8.7";
+} from "./src/modules/abm.module.js?v=8.8";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=8.7";
+} from "./src/modules/inbox.module.js?v=8.8";
 
 // Íconos de línea automáticos en textos de la interfaz (solo presentación)
-import "./src/modules/iconos.module.js?v=8.7";
+import "./src/modules/iconos.module.js?v=8.8";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=8.7";
+} from "./src/modules/csv.module.js?v=8.8";
 
 import {
     inicializarMotorRecordatorios,
@@ -211,7 +211,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=8.7";
+} from "./src/modules/recordatorios.module.js?v=8.8";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -997,7 +997,11 @@ function syncSelectToChips(selectId, containerId) {
 window.syncSelectToChips = syncSelectToChips;
 
 async function conectarGoogle() { 
-    try { await signInWithPopup(auth, provider); } catch (err) { alert("Error al intentar iniciar sesión."); } 
+    try {
+        await signInWithPopup(auth, provider);
+        // Ingreso correcto: misma pantalla de carga con logo del arranque hasta que la app termine de cargar
+        window.mostrarSplashInicial && window.mostrarSplashInicial();
+    } catch (err) { alert("Error al intentar iniciar sesión."); }
 }
 
 export function mostrarToast(msg, tipo = '') {
@@ -8972,7 +8976,7 @@ window.ejecutarBusquedaGlobal = ejecutarBusquedaGlobal;
 
 let guardRedireccionActivo = false;
 
-// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v8.7)
+// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v8.8)
 function tituloVista(seccion, sub = '') {
     const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
     return `<span>${esc(seccion)}</span>${sub ? `<span class="vista-titulo-sub">${esc(sub)}</span>` : ''}`;
@@ -9850,6 +9854,8 @@ async function conectarEmailPassword(email, password) {
 
     try {
         await signInWithEmailAndPassword(auth, emailNorm, password);
+        // Ingreso correcto: se muestra la misma pantalla de carga con logo del arranque hasta que la app termine de cargar
+        window.mostrarSplashInicial && window.mostrarSplashInicial();
 } catch (err) {
         console.warn("Intento de login con Email/Password:", err.code, err.message);
 
@@ -9858,6 +9864,7 @@ async function conectarEmailPassword(email, password) {
             try {
                 await createUserWithEmailAndPassword(auth, emailNorm, CLAVE_INICIAL_DEFECTO);
                 console.log(`[Auth] Usuario ${emailNorm} auto-creado en Firebase Auth con la clave inicial`);
+                window.mostrarSplashInicial && window.mostrarSplashInicial();
                 return; // onAuthStateChanged completará el inicio de sesión
 } catch (autoErr) {
                 console.warn("[Auth] No se pudo auto-crear usuario en Firebase Auth:", autoErr.code, autoErr.message);
@@ -10260,7 +10267,7 @@ onAuthStateChanged(auth, async (user) => {
 
             // Quien solo es Gestor de Festivales no tiene nada para hacer en Admisión: se lo deriva a su app
             if ((esGestorFestivales || esSonidistaFestivales) && rolesArr.length === 0) {
-                ocultarIndicadorCarga();
+                ocultarIndicadorCarga(); window.ocultarSplashInicial && window.ocultarSplashInicial();
                 alert(`🎪 Tu perfil es ${esGestorFestivales ? 'Gestor de Festivales' : 'Sonidista'}.\n\nNo tenés acceso a Mandala Admisión. Ingresá a Mandala Festivales:\n${URL_APP_FESTIVALES}`);
                 await signOut(auth);
                 document.getElementById('login-container').style.display = 'flex';
@@ -11421,7 +11428,7 @@ document.addEventListener('click', async (e) => {
                 if (elEvalTop) elEvalTop.textContent = al.reserva_profe_nombre || al.informe_entrevista?.evaluador_nombre || '-';
 }
 
-            // Borrador (v8.7): solo en el flujo de admisión (primer informe, aún no finalizado)
+            // Borrador (v8.8): solo en el flujo de admisión (primer informe, aún no finalizado)
             const esFlujoAdmision = !esNuevoInformeAdicional && !(reportIndexAttr !== null && reportIndexAttr !== '' && !isNaN(parseInt(reportIndexAttr, 10))) && !al.informe_entrevista;
             const dr = (esFlujoAdmision && al.informe_borrador && al.informe_borrador.datos) ? al.informe_borrador.datos : null;
             if (dr) {
@@ -11715,7 +11722,7 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    // Guardar borrador del informe de clase de admisión (v8.7): sin validaciones, no cambia el estado del alumno
+    // Guardar borrador del informe de clase de admisión (v8.8): sin validaciones, no cambia el estado del alumno
     if (target.id === 'btn-guardar-borrador-informe' || target.closest('#btn-guardar-borrador-informe')) {
         const btnBor = document.getElementById('btn-guardar-borrador-informe');
         const id = document.getElementById('informe-final-alumno-id').value;
@@ -12485,14 +12492,35 @@ document.addEventListener('click', async (e) => {
         if (!alDoc.exists()) return alert("Alumno no encontrado.");
         const al = alDoc.data();
 
-        // Desde que el alumno está en Lista de Espera ya no se gestiona ni se sincroniza el calendario:
-        // no se pregunta por el evento ni se lo toca (queda tal cual en Google Calendar).
+        // El calendario solo se gestiona en la admisión. La única excepción es el evento de "alta confirmada" (recordatorio aislado
+        // para el evaluador): si el alumno tiene uno asociado se avisa para decidir si se borra o se deja. Los eventos de la admisión no se consultan.
+        const tieneEventoAlta = Boolean(al.id_evento_alta);
+        let decisionCal = { decision: 'mantener', tieneEvento: false };
+        if (tieneEventoAlta) {
+            decisionCal = await window.preguntarAccionCalendar({ al, accionTipo: 'espera' });
+            if (decisionCal.decision === 'cancelar') return;
+        }
+
         const motivo = await window.pedirTexto('Devolver a Lista de Espera', '¿Cuál es el motivo?', { placeholder: 'Escribí el motivo', textoBoton: 'Devolver' });
         if (motivo !== null) {
             if (motivo.trim() === "") return alert("Debes ingresar un motivo.");
 
+            if (tieneEventoAlta && decisionCal.decision === 'eliminar') {
+                mostrarIndicadorCarga(window.textoCarga('eliminandoEventoYGuardando'));
+                try {
+                    await eliminarEventoAltaSeguro(al, configApp, { forzarEliminacionCalendar: true });
+                } catch (calErr) {
+                    console.warn("Aviso calendar al devolver a espera:", calErr);
+                }
+            } else if (tieneEventoAlta) {
+                mostrarIndicadorCarga(window.textoCarga('guardando'));
+            }
+
             const hist = al.historial || [];
-            hist.push(crearEntradaHistorial(`Devuelto a Lista de Espera desde ${al.estado_agenda || 'Altas'}. Motivo: ${motivo.trim()}.`, 'alta'));
+            const detalleCal = tieneEventoAlta
+                ? (decisionCal.decision === 'eliminar' ? ' Evento de alta en Google Calendar ELIMINADO.' : ' Evento de alta en Google Calendar MANTENIDO.')
+                : '';
+            hist.push(crearEntradaHistorial(`Devuelto a Lista de Espera desde ${al.estado_agenda || 'Altas'}. Motivo: ${motivo.trim()}.${detalleCal}`, 'alta'));
             
             const updatesDevEsp = {
                 estado_agenda: "Lista de espera",
@@ -12516,8 +12544,11 @@ document.addEventListener('click', async (e) => {
             actualizarAlumnoEnMemoriaLocal(id, updatesDevEsp);
             await updateDoc(doc(db, "alumnos", id), updatesDevEsp);
 
+            if (tieneEventoAlta) ocultarIndicadorCarga();
             removerFilaOptimista(id);
-            alert("✅ Alumno devuelto a Lista de Espera.");
+            alert(tieneEventoAlta
+                ? `✅ Alumno devuelto a Lista de Espera.\n${decisionCal.decision === 'eliminar' ? 'Se eliminó el evento de alta en Google Calendar.' : 'El evento de alta quedó en Google Calendar.'}`
+                : "✅ Alumno devuelto a Lista de Espera.");
             await cargarVista(estadoActualVista, false);
 }
         return;
@@ -14060,9 +14091,9 @@ document.addEventListener('click', async (e) => {
             const fechaPrevTexto = al.reserva_fecha_texto || (al.fecha_inicio_clases ? formatearFechaAmi(al.fecha_inicio_clases) : null);
 
             let decisionCal = { decision: 'mantener', tieneEvento: false };
-            // Solo se consulta por el calendario si la ENTREVISTA sigue pendiente (origen Inbox).
-            // Desde Lista de Espera / Altas el evento queda siempre en el calendario del docente.
-            if (origen === 'inbox' && teniaReserva && (al.id_evento_alta || al.id_evento_reserva)) {
+            // Se consulta por el calendario si la ENTREVISTA sigue pendiente (origen Inbox) o, desde cualquier etapa,
+            // si el alumno tiene un evento de "alta confirmada" asociado (recordatorio del evaluador): se decide si se borra o se deja.
+            if ((origen === 'inbox' && teniaReserva && (al.id_evento_alta || al.id_evento_reserva)) || al.id_evento_alta) {
                 document.getElementById('modal-suspender')?.close();
                 decisionCal = await window.preguntarAccionCalendar({ al, accionTipo: 'suspender' });
                 if (decisionCal.decision === 'cancelar') {

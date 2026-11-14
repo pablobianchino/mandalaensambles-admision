@@ -10,7 +10,7 @@
     <meta http-equiv="Expires" content="0">
     
     <link rel="icon" href="logo.png" type="image/png">
-    <link rel="manifest" href="manifest.json?v=8.7">
+    <link rel="manifest" href="manifest.json?v=8.8">
     <meta name="theme-color" content="#fbfaf8">
     <meta name="apple-mobile-web-app-title" content="MDL Admisi&oacute;n">
     <meta name="application-name" content="MDL Admisi&oacute;n">
@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=8.7">
+    <link rel="stylesheet" href="styles.css?v=8.8">
 
     <style>
         /* Estilos Críticos de Widget de Perfil y Popover Google-Style */
@@ -370,10 +370,38 @@
     </div>
     <script>
         (function () {
-            var t0 = Date.now(), texto = document.getElementById('splash-texto'), btn = document.getElementById('splash-reintentar');
-            // Si el arranque tarda más de 10 s, se avisa y se ofrece reintentar (la pantalla no se cierra sola)
-            var lenta = setTimeout(function () { if (texto) texto.textContent = 'Está tardando más de lo normal…'; if (btn) btn.style.display = 'inline-flex'; }, 10000);
-            if (btn) btn.onclick = function () { location.reload(); };
+            var t0 = Date.now(), lenta = null;
+            var INTERIOR = '<div class="splash-logo"><svg class="splash-anillo" viewBox="0 0 112 112" aria-hidden="true"><circle cx="56" cy="56" r="54"/></svg><img src="logo.png" alt=""></div>'
+                + '<div id="splash-texto" class="splash-texto">Cargando</div>'
+                + '<button type="button" id="splash-reintentar" class="splash-reintentar" style="display:none;">Reintentar</button>';
+            // Si tarda más de 10 s, se avisa y se ofrece reintentar (la pantalla no se cierra sola)
+            function armarTemporizador() {
+                t0 = Date.now();
+                clearTimeout(lenta);
+                var btn = document.getElementById('splash-reintentar');
+                if (btn) btn.onclick = function () { location.reload(); };
+                lenta = setTimeout(function () {
+                    var texto = document.getElementById('splash-texto'), b = document.getElementById('splash-reintentar');
+                    if (texto) texto.textContent = 'Está tardando más de lo normal…';
+                    if (b) b.style.display = 'inline-flex';
+                }, 10000);
+            }
+            armarTemporizador();
+            // Vuelve a mostrar la pantalla de carga (por ejemplo al iniciar sesión): la misma del arranque, con el logo
+            window.mostrarSplashInicial = function () {
+                var el = document.getElementById('splash-inicial');
+                if (el && !el.getAttribute('data-oculto')) return; // ya se está mostrando
+                if (el && el.parentNode) el.parentNode.removeChild(el); // el anterior terminaba de desvanecerse
+                el = document.createElement('div');
+                el.id = 'splash-inicial';
+                el.setAttribute('role', 'status');
+                el.setAttribute('aria-live', 'polite');
+                el.setAttribute('aria-label', 'Cargando');
+                el.style.cssText = 'position:fixed; inset:0; background:#fbfaf8; z-index:2147483600;';
+                el.innerHTML = INTERIOR;
+                document.body.insertBefore(el, document.body.firstChild);
+                armarTemporizador();
+            };
             // Se muestra al menos 0,6 s (sin parpadeo) y sale con un desvanecido de 0,35 s
             window.ocultarSplashInicial = function () {
                 var el = document.getElementById('splash-inicial');
@@ -4061,12 +4089,12 @@
         })();
     </script>
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=8.7"></script>
+    <script type="module" src="app.js?v=8.8"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=8.7').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=8.8').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {
