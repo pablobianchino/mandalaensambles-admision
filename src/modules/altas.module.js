@@ -2,7 +2,7 @@
 // src/modules/altas.module.js -- Modulo de Altas, Pre-altas, Calendar & Export
 // =======================================================================
 
-import { defaultCfg, esAlumnoAltaFinalizada, esAlumnoAltaConfirmadaIncompleta, normalizarAlumnoSeguimiento, calcularFechaSeguimiento72hs, calcularDiasHabilesTranscurridos, leerChecklistAlta, PASOS_CHECKLIST_ALTA } from "../config/constants.js?v=8.5";
+import { defaultCfg, esAlumnoAltaFinalizada, esAlumnoAltaConfirmadaIncompleta, normalizarAlumnoSeguimiento, calcularFechaSeguimiento72hs, calcularDiasHabilesTranscurridos, leerChecklistAlta, PASOS_CHECKLIST_ALTA } from "../config/constants.js?v=8.6";
 import { 
     db, 
     collection, 
@@ -702,7 +702,9 @@ export async function poblarEvaluadoresPrealta(profesorExcluidoId = '', evaluado
             const u = { id: d.id, ...d.data() };
             if (u.activo === false) return;
             const rolesArr = Array.isArray(u.roles) ? u.roles : [u.rol || ''];
-            if (!rolesArr.includes('evaluador')) return;
+            // Pueden ser responsables de seguimiento: el rol evaluador (histórico) o quien tenga la aptitud "Apto Seguimientos"
+            const aptoSeguimientos = u.seguimientos === true || u.apto_seguimientos === true;
+            if (!rolesArr.includes('evaluador') && !aptoSeguimientos) return;
             evaluadores.push(u);
         });
 

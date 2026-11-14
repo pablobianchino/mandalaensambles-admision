@@ -74,6 +74,18 @@ export function formatearHoraParaNombreGrupo(horaStr) {
     return (m === 0) ? `${h}` : `${h}.${partes[1]}`;
 }
 
+// Nombre del docente para el nombre sugerido del grupo: solo el nombre de pila ("M19 Juan"). Si otro docente tiene el mismo
+// nombre de pila, se agrega la inicial del apellido ("M19 Juan P.") para que dos grupos distintos no se llamen igual.
+export function nombreCortoDocente(pr) {
+    const normTxt = (s) => (s || '').normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+    const partes = String(pr && pr.nombre || '').trim().split(/\s+/).filter(Boolean);
+    const pila = partes[0] || '';
+    if (!pila) return '';
+    const hayOtroConMismaPila = (matchProfesores || []).some(p => p && p.id !== pr.id && normTxt(String(p.nombre || '').trim().split(/\s+/)[0]) === normTxt(pila));
+    if (hayOtroConMismaPila && partes.length > 1) return `${pila} ${partes[1].charAt(0).toUpperCase()}.`;
+    return pila;
+}
+
 export function setMatchCantidadActual(val) {
     matchCantidadActual = val;
 }
@@ -710,6 +722,54 @@ export function sonEdadesCompatibles(edades, cfg = defaultCfg) {
     return diffEdad <= tolerancia;
 }
 
+// Clases que cada docente ya tiene armadas (propuestas en validación, pre-altas y altas), para no sugerir horarios que chocan.
+// Se carga al iniciar una búsqueda de Match (cargarOcupacionDocentes) y la usa buscarHuecosComunes.
+let ocupacionDocentes = new Map();
+
+export async function cargarOcupacionDocentes() {
+    ocupacionDocentes = new Map();
+    try {
+        const snap = await getDocs(collection(db, "alumnos"));
+        const vistos = new Set();
+        snap.forEach(d => {
+            const a = d.data();
+            const st = (a.estado_agenda || '').normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+            const claseVigente = st === 'validando grupo' || st.startsWith('pre-alta') || (st.startsWith('alta') && !st.includes('suspendid'));
+            if (!claseVigente || a.es_baja || a.suspendido) return;
+            if (!a.reserva_profe_id || !a.dia_match || !a.horario_inicio_match) return;
+            const iniMin = convertirHoraAMinutos(a.horario_inicio_match);
+            let finMin = a.horario_fin_match ? convertirHoraAMinutos(a.horario_fin_match) : iniMin + 60;
+            if (finMin <= iniMin) finMin = iniMin + 60;
+            const clave = `${a.reserva_profe_id}|${a.dia_match}|${iniMin}|${finMin}`;
+            if (vistos.has(clave)) return;
+            vistos.add(clave);
+            if (!ocupacionDocentes.has(a.reserva_profe_id)) ocupacionDocentes.set(a.reserva_profe_id, []);
+            ocupacionDocentes.get(a.reserva_profe_id).push({ dia: a.dia_match, iniMin, finMin });
+        });
+    } catch (err) {
+        console.warn("No se pudieron cargar las clases existentes de los docentes:", err);
+    }
+}
+
+// Combinaciones de k elementos con tope de cantidad, para que la búsqueda no cuelgue el navegador con muchos candidatos.
+export function generarCombinacionesLimitadas(arr, k, presupuesto) {
+    const res = [];
+    const n = arr.length;
+    if (k < 1 || k > n) return res;
+    const idx = Array.from({ length: k }, (_, i) => i);
+    while (true) {
+        if (presupuesto.resto <= 0) { presupuesto.agotado = true; break; }
+        res.push(idx.map(i => arr[i]));
+        presupuesto.resto--;
+        let i = k - 1;
+        while (i >= 0 && idx[i] === n - k + i) i--;
+        if (i < 0) break;
+        idx[i]++;
+        for (let j = i + 1; j < k; j++) idx[j] = idx[j - 1] + 1;
+    }
+    return res;
+}
+
 export function buscarHuecosComunes(alumnos, profe, diasFiltro, horaDesde, horaHasta) {
     const slots = [];
     const diasEvaluar = diasFiltro && diasFiltro.length > 0
@@ -764,16 +824,24 @@ export function buscarHuecosComunes(alumnos, profe, diasFiltro, horaDesde, horaH
             }
 
             if (iniComun >= 0 && finComun - iniComun >= 60) {
-                const horaIniStr = minutosAHora(iniComun);
-                const horaFinStr = minutosAHora(iniComun + 60);
+                // Si el docente ya tiene una clase armada que choca, se corre el inicio dentro de la franja libre (de a 30 min)
+                const ocupadas = (profe.id && ocupacionDocentes.get(profe.id)) || [];
+                let inicioFinal = iniComun;
+                if (ocupadas.length > 0) {
+                    const choca = (s) => ocupadas.some(o => o.dia === diaId && s < o.finMin && s + 60 > o.iniMin);
+                    while (inicioFinal + 60 <= finComun && choca(inicioFinal)) inicioFinal += 30;
+                    if (inicioFinal + 60 > finComun) return;
+                }
+                const horaIniStr = minutosAHora(inicioFinal);
+                const horaFinStr = minutosAHora(inicioFinal + 60);
                 slots.push({
                     diaId,
                     diaNombre: mapaDiasCodigos[diaId] || diaId,
                     inicio: horaIniStr,
                     fin: horaFinStr,
-                    inicioMin: iniComun,
+                    inicioMin: inicioFinal,
                     finMin: finComun,
-                    duracionTotalMin: finComun - iniComun
+                    duracionTotalMin: finComun - inicioFinal
                 });
             }
         });
@@ -937,7 +1005,8 @@ export async function ejecutarBusquedaAlumnosOpcionA(solicitudesIds = [], setBot
         // 2. Obtener alumnos en Lista de Espera
         const alSnap = await getDocs(query(collection(db, "alumnos"), where("estado_agenda", "==", "Lista de espera")));
         const alumnosEspera = [];
-        alSnap.forEach(d => alumnosEspera.push({ id: d.id, ...d.data() }));
+        // Los alumnos marcados como Bicicleta están estacionados: no se ofrecen para armar grupos
+        alSnap.forEach(d => { if (!d.data().es_bicicleta) alumnosEspera.push({ id: d.id, ...d.data() }); });
 
         if (alumnosEspera.length === 0) {
             if (noRes) noRes.textContent = 'No hay alumnos en Lista de Espera actualmente.';
@@ -1264,6 +1333,7 @@ export async function ejecutarBusquedaAlumnosMatch(setBotonCargandoFn) {
 
         qSnap.forEach(d => {
             const al = { id: d.id, ...d.data() };
+            if (al.es_bicicleta) return; // Bicicleta: estacionado, no se ofrece
             if (susc && al.tipo_suscripcion !== susc) return;
 
             const hayRangoEdad = edadDesde !== null || edadHasta !== null;
@@ -1475,7 +1545,7 @@ export function renderResultadosAlumnosMatch(candidatos = []) {
             : 'Sin franjas registradas';
 
         const matchProfeTag = al.profeMatchAsignado
-            ? `<span class="match-chip" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px;">🧑‍🏫 Match Profe: ${al.profeMatchAsignado.nombre}</span>`
+            ? `<span class="match-chip" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px;">🧑‍🏫 Docente: ${al.profeMatchAsignado.nombre}</span>`
             : '';
 
         return `
@@ -1581,6 +1651,7 @@ export async function ejecutarBusquedaMatch(setBotonCargandoFn) {
 
         qSnap.forEach(d => {
             const al = { id: d.id, ...d.data() };
+            if (al.es_bicicleta) return; // Bicicleta: estacionado, no se ofrece
             if (al.tipo_suscripcion !== susc) return;
 
             const hayRangoEdad = edadDesde !== null || edadHasta !== null;
@@ -1636,6 +1707,9 @@ export async function ejecutarBusquedaMatch(setBotonCargandoFn) {
         const configActiva = defaultCfg;
         const minIntegrantes = configActiva.grupo_min_integrantes || 2;
 
+        // Clases que cada docente ya tiene armadas: las sugerencias evitan esos horarios
+        await cargarOcupacionDocentes();
+
         if (!esGrupal) {
             candidatos.forEach(al => {
                 const insts = Array.isArray(al.instrumento) ? al.instrumento : [al.instrumento];
@@ -1650,7 +1724,7 @@ export async function ejecutarBusquedaMatch(setBotonCargandoFn) {
                     huecos.forEach(slot => {
                         const { porcentaje, desglose } = calcularScoreCompatibilidad([al], pr, slot, false, false);
                         const horaCorta = formatearHoraParaNombreGrupo(slot.inicio);
-                        const nombreSugerido = `${slot.diaId}${horaCorta} ${pr.nombre.split(' ')[0]}`;
+                        const nombreSugerido = `${slot.diaId}${horaCorta} ${nombreCortoDocente(pr)}`;
 
                         const alConInst = { ...al, instrumento_asignado: instElegido };
 
@@ -1671,14 +1745,21 @@ export async function ejecutarBusquedaMatch(setBotonCargandoFn) {
                 });
             });
         } else {
-            const tamanoMaximo = Math.min(cantidadDeseada, candidatos.length);
+            // Solo entran a las combinaciones quienes tienen al menos un horario posible con algún docente evaluado
+            const candidatosConHorario = candidatos.filter(al =>
+                profesAEvaluar.some(pr => buscarHuecosComunes([al], pr, diasSeleccionados, horaDesde, horaHasta).length > 0));
+
+            const tamanoMaximo = Math.min(cantidadDeseada, candidatosConHorario.length);
             const tamanos = [];
             for (let t = tamanoMaximo; t >= minIntegrantes; t--) {
                 tamanos.push(t);
             }
 
+            // Tope de combinaciones analizadas para que el navegador no se cuelgue con muchos candidatos
+            const presupuestoCombinaciones = { resto: 60000, agotado: false };
+
             for (let tam of tamanos) {
-                const combinaciones = generarCombinaciones(candidatos, tam);
+                const combinaciones = generarCombinacionesLimitadas(candidatosConHorario, tam, presupuestoCombinaciones);
 
                 for (let grupoAlumnos of combinaciones) {
                     const nivelesGrupo = grupoAlumnos.map(a => a.nivel);
@@ -1704,7 +1785,7 @@ export async function ejecutarBusquedaMatch(setBotonCargandoFn) {
                         huecos.forEach(slot => {
                             const { porcentaje, desglose } = calcularScoreCompatibilidad(grupoAlumnos, pr, slot, esCanto, true);
                             const horaCorta = formatearHoraParaNombreGrupo(slot.inicio);
-                            const nombreSugerido = `${slot.diaId}${horaCorta} ${pr.nombre.split(' ')[0]}`;
+                            const nombreSugerido = `${slot.diaId}${horaCorta} ${nombreCortoDocente(pr)}`;
 
                             sugerencias.push({
                                 tipo: esCanto ? 'Grupal Canto' : 'Ensamble',
@@ -1723,6 +1804,10 @@ export async function ejecutarBusquedaMatch(setBotonCargandoFn) {
                     });
                 }
             }
+        }
+
+        if (esGrupal && typeof presupuestoCombinaciones !== 'undefined' && presupuestoCombinaciones.agotado && typeof window.mostrarToast === 'function') {
+            window.mostrarToast('Hay muchos alumnos candidatos: se analizó solo una parte de las combinaciones. Acota la búsqueda (días, horario, instrumento o edad) para ver más opciones.', 'info');
         }
 
         sugerencias.sort((a, b) => {
@@ -1803,7 +1888,7 @@ export function renderResultadosMatch() {
 
             const cardTitulo = isInd ? `👤 ${grupo.alumnos[0].nombre}` : grupo.nombreSugerido;
             const cardSubtitulo = isInd ? `Clase Individual con ${grupo.profeNombre}` : `${grupo.tipo} • ${grupo.alumnos.length} integrantes`;
-            const btnAccionTxt = isInd ? '👤 Asignar Profe' : '🧩 Confirmar';
+            const btnAccionTxt = isInd ? '👤 Asignar docente' : '🧩 Confirmar';
 
             return `
             <div class="match-result-card ${isBest ? 'best-match' : ''}">
@@ -1831,7 +1916,7 @@ export function renderResultadosMatch() {
 
                 <div class="match-card-footer">
                     <div>📅 <strong>${grupo.horario}</strong></div>
-                    <div>👨‍🏫 Profesor: <strong>${grupo.profeNombre}</strong></div>
+                    <div>👨‍🏫 Docente: <strong>${grupo.profeNombre}</strong></div>
                 </div>
 
                 <div class="match-card-actions">
@@ -1898,7 +1983,7 @@ export function renderResultadosMatch() {
         if (infoCont) {
             infoCont.innerHTML = `
             <div>📅 <strong>Horario:</strong> ${grupo.horario}</div>
-            <div>👨‍🏫 <strong>Profesor Asignado:</strong> ${grupo.profeNombre}</div>
+            <div>👨‍🏫 <strong>Docente asignado:</strong> ${grupo.profeNombre}</div>
         `;
         }
 
@@ -1912,9 +1997,9 @@ export function renderResultadosMatch() {
         const wrapperNombre = document.getElementById('match-confirm-nombre-grupo-wrapper');
         const btnEjecutar = document.getElementById('btn-ejecutar-confirmar-match');
 
-        if (modalTitulo) modalTitulo.textContent = isInd ? '👤 Asignar Profesor a Alumno' : '🧩 Confirmar Match de Grupo';
+        if (modalTitulo) modalTitulo.textContent = isInd ? '👤 Asignar docente a alumno' : '🧩 Confirmar Match de Grupo';
         if (wrapperNombre) wrapperNombre.style.display = isInd ? 'none' : 'block';
-        if (btnEjecutar) btnEjecutar.textContent = isInd ? '✅ Asignar Profesor' : '✅ Confirmar y Asignar';
+        if (btnEjecutar) btnEjecutar.textContent = isInd ? '✅ Asignar docente' : '✅ Confirmar y Asignar';
 
         const nombreGrpInput = document.getElementById('match-confirm-nombre-grupo');
         if (nombreGrpInput) nombreGrpInput.value = nombreSugerido;
@@ -1923,7 +2008,7 @@ export function renderResultadosMatch() {
         if (resCont) {
             resCont.innerHTML = `
             <div>📅 <strong>${grupo.horario || 'Horario por definir'}</strong></div>
-            <div>👨‍🏫 Profesor: <strong>${grupo.profeNombre || 'Sin asignar'}</strong></div>
+            <div>👨‍🏫 Docente: <strong>${grupo.profeNombre || 'Sin asignar'}</strong></div>
         `;
         }
 
@@ -1932,7 +2017,7 @@ export function renderResultadosMatch() {
             intCont.innerHTML = (grupo.alumnos || []).map(al =>
                 `<div class="match-confirm-row">
                 <span class="match-confirm-row-name">👤 ${al.nombre}</span>
-                <span class="match-confirm-row-info">${(al.instrumento || []).join(', ')} • ${al.nivel || '-'} • ${al.edad ? al.edad + 'a' : '-'}</span>
+                <span class="match-confirm-row-info">${Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || '-')} • ${al.nivel || '-'} • ${al.edad ? al.edad + 'a' : '-'}</span>
             </div>`
             ).join('');
         }
@@ -2022,6 +2107,44 @@ export async function ejecutarConfirmarMatch(setBotonCargandoFn, cargarVistaFn) 
 
     const yaEscritos = []; // para deshacer si algo falla a mitad del armado
     try {
+        // 0) Nombre de grupo repetido y choque de horario del docente con clases ya armadas
+        {
+            const normTxt = (s) => (s || '').normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+            const snapTodos = await getDocs(collection(db, "alumnos"));
+            const idsGrupo = new Set((grupo.alumnos || []).map(a => a.id));
+            const iniNuevo = convertirHoraAMinutos(horaInicio);
+            let finNuevo = grupo.slot?.fin ? convertirHoraAMinutos(grupo.slot.fin) : iniNuevo + 60;
+            if (finNuevo <= iniNuevo) finNuevo = iniNuevo + 60;
+            let nombreRepetido = '';
+            const choques = new Set();
+            snapTodos.forEach(d => {
+                if (idsGrupo.has(d.id)) return;
+                const a = d.data();
+                const st = normTxt(a.estado_agenda);
+                const claseVigente = st === 'validando grupo' || st.startsWith('pre-alta') || (st.startsWith('alta') && !st.includes('suspendid'));
+                if (!claseVigente || a.es_baja || a.suspendido) return;
+                if (!isInd && a.grupo_asignado && normTxt(a.grupo_asignado) === normTxt(nombreGrupo)) nombreRepetido = a.grupo_asignado;
+                if (grupo.profeId && a.reserva_profe_id === grupo.profeId && a.dia_match === diaId && a.horario_inicio_match) {
+                    const iniEx = convertirHoraAMinutos(a.horario_inicio_match);
+                    let finEx = a.horario_fin_match ? convertirHoraAMinutos(a.horario_fin_match) : iniEx + 60;
+                    if (finEx <= iniEx) finEx = iniEx + 60;
+                    if (iniNuevo < finEx && finNuevo > iniEx) choques.add(`${a.grupo_asignado || 'Clase Individual'} (${a.horario_inicio_match} a ${a.horario_fin_match || minutosAHora(iniEx + 60)})`);
+                }
+            });
+            if (nombreRepetido) {
+                alert(`Ya existe un grupo con el nombre "${nombreRepetido}" (en validación, pre-alta o alta). Cambia el nombre del grupo para distinguirlos y vuelve a confirmar.`);
+                if (typeof setBotonCargandoFn === 'function') setBotonCargandoFn(btnConfirm, false);
+                return;
+            }
+            if (choques.size > 0) {
+                const seguir = await window.confirmar('El docente ya tiene una clase en ese horario', `${grupo.profeNombre || 'El docente'} ya tiene armado: ${[...choques].join(', ')}.\n\nUn docente no puede dar dos clases a la vez. ¿Confirmar igual?`, 'Confirmar igual', '⚠️');
+                if (!seguir) {
+                    if (typeof setBotonCargandoFn === 'function') setBotonCargandoFn(btnConfirm, false);
+                    return;
+                }
+            }
+        }
+
         // 1) Releer cada alumno y verificar que siga en Lista de espera (otro operador pudo haberlo asignado antes)
         const previos = [];
         const noDisponibles = [];
@@ -2053,8 +2176,8 @@ export async function ejecutarConfirmarMatch(setBotonCargandoFn, cargarVistaFn) 
             const instAsignado = al.instrumento_asignado || (Array.isArray(al.instrumento) ? (al.instrumento[0] || '') : (al.instrumento || ''));
 
             const textoHist = isInd
-                ? `Propuesta individual pre-armada con Profe ${grupo.profeNombre || 'a definir'} (${grupo.horario}). En espera de validacion con el alumno.`
-                : `Match pre-armado: Asignado al grupo "${nombreGrupo}" (${grupo.horario}) con Profe ${grupo.profeNombre || 'a definir'}. En espera de validacion con el alumno.`;
+                ? `Propuesta individual pre-armada con docente ${grupo.profeNombre || 'a definir'} (${grupo.horario}). En espera de validacion con el alumno.`
+                : `Match pre-armado: Asignado al grupo "${nombreGrupo}" (${grupo.horario}) con docente ${grupo.profeNombre || 'a definir'}. En espera de validacion con el alumno.`;
 
             hist.push({
                 id: Date.now() + Math.floor(Math.random() * 1000),
@@ -2184,7 +2307,7 @@ export async function renderMatchEnValidacion(container) {
             const nombreGrupo = claveGrupo.startsWith('__ind__') ? 'Clase Individual' : claveGrupo;
             const primer = integrantes[0] || {};
             const horario = primer.horario_match || primer.reserva_fecha_texto || 'Horario a confirmar';
-            const profeNom = primer.reserva_profe_nombre || 'Profe a definir';
+            const profeNom = primer.reserva_profe_nombre || 'Docente a definir';
             const confirmados = integrantes.filter(i => i.estado_validacion_alumno === 'confirmado').length;
             const total = integrantes.length;
             const todosConfirmados = confirmados === total;
@@ -2299,7 +2422,7 @@ export async function renderMatchEnValidacion(container) {
                             <div class="group-box-subtitle" style="font-size:12.5px; color:var(--text-muted); display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:4px;">
                                 <span>📅 <strong>${horario}</strong></span>
                                 <span>•</span>
-                                <span>👨‍🏫 Profe: <strong>${profeNom}</strong></span>
+                                <span>👨‍🏫 Docente: <strong>${profeNom}</strong></span>
                             </div>
                         </div>
                         ${accionesGrupoHtml}
@@ -2655,7 +2778,7 @@ window.abrirModalNotaValidacionAlumno = async function(alumnoId, nuevoEstado) {
                 <div style="font-weight:700; font-size:13.5px; color:var(--text-main); margin-bottom:3px;">👤 ${al.nombre}</div>
                 <div style="font-size:11.5px; color:var(--text-muted);">
                     🧩 <strong>${grpNom}</strong> • ${emojiInst} ${instAsignado}<br>
-                    📅 Horario: <strong>${hor}</strong> • 👨‍🏫 Profe: <strong>${profeNom}</strong>
+                    📅 Horario: <strong>${hor}</strong> • 👨‍🏫 Docente: <strong>${profeNom}</strong>
                 </div>
             `;
         }
@@ -2832,7 +2955,9 @@ window.abrirModalAprobacionMatchSeguimiento = async function(alumnosList, nombre
             const u = { id: d.id, ...d.data() };
             if (u.activo === false) return;
             const rolesArr = Array.isArray(u.roles) ? u.roles : [u.rol || ''];
-            if (!rolesArr.includes('evaluador')) return;
+            // Pueden ser responsables de seguimiento: el rol evaluador (histórico) o quien tenga la aptitud "Apto Seguimientos"
+            const aptoSeguimientos = u.seguimientos === true || u.apto_seguimientos === true;
+            if (!rolesArr.includes('evaluador') && !aptoSeguimientos) return;
             evaluadores.push(u);
         });
         evaluadores.sort((a, b) => (a.nombre || a.email || '').localeCompare(b.nombre || b.email || ''));
@@ -2954,7 +3079,29 @@ window.abrirModalAprobacionMatchSeguimiento = async function(alumnosList, nombre
                 });
             }
 
+            // Verificar en la base que cada alumno siga en validación (otro operador pudo haber desarmado o aprobado el grupo)
             btnConfirmar.disabled = true;
+            try {
+                const yaNoEnValidacion = [];
+                for (const it of asignaciones) {
+                    const s = await getDoc(doc(db, "alumnos", it.al.id));
+                    const stActual = norm(s.exists() ? s.data().estado_agenda : '');
+                    if (stActual !== 'validando grupo') yaNoEnValidacion.push(`${it.al.nombre || it.al.id} (${s.exists() ? (s.data().estado_agenda || 'sin estado') : 'ya no existe'})`);
+                }
+                if (yaNoEnValidacion.length > 0) {
+                    btnConfirmar.disabled = false;
+                    if (alertaEl) {
+                        alertaEl.style.display = 'block';
+                        alertaEl.textContent = `⚠️ Estos alumnos ya no están en validación: ${yaNoEnValidacion.join(', ')}. Cierra esta ventana y revisa la lista actualizada.`;
+                    }
+                    return;
+                }
+            } catch (errVerif) {
+                btnConfirmar.disabled = false;
+                alert('No se pudo verificar el estado de los alumnos: ' + errVerif.message);
+                return;
+            }
+
             if (typeof window.mostrarIndicadorCarga === 'function') {
                 window.mostrarIndicadorCarga(window.textoCarga('aprobandoValidacion', alumnosList.length));
             }
@@ -3423,7 +3570,7 @@ export async function renderMatchSolicitudesProfes(cont, configApp, callbacks = 
                     <div class="profe-group-block" style="border:1px solid var(--border-color); border-radius:12px; background:#ffffff; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.02);">
                         <div class="profe-group-header" style="background:linear-gradient(90deg, #f0fdfa 0%, #ffffff 100%); padding:12px 18px; border-bottom:1px solid #ccfbf1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
                             <div style="font-size:14.5px; font-weight:800; color:var(--accent-teal); display:flex; align-items:center; gap:8px;">
-                                <span>👨‍🏫</span> Profesor: <strong style="color:var(--text-main);">${profe}</strong>
+                                <span>👨‍🏫</span> Docente: <strong style="color:var(--text-main);">${profe}</strong>
                                 <span style="background:var(--accent-teal); color:#fff; font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px;">${sols.length} solicitud${sols.length > 1 ? 'es' : ''}</span>
                             </div>
                             <span style="font-size:12px; color:var(--text-muted); font-weight:600;">Ordenadas cronológicamente por día y hora</span>
@@ -3571,7 +3718,7 @@ export async function renderMatchSolicitudesProfes(cont, configApp, callbacks = 
                                 <div>
                                     <div style="font-family:monospace; font-size:15.5px; font-weight:800; color:var(--text-main); line-height:1.2;">${sol.grupoNombre}</div>
                                     <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">
-                                        👨‍🏫 Profe: <strong style="color:var(--text-main);">${sol.profesorNombre || 'Docente'}</strong>
+                                        👨‍🏫 Docente: <strong style="color:var(--text-main);">${sol.profesorNombre || 'Docente'}</strong>
                                     </div>
                                 </div>
                                 ${badgeEstado}

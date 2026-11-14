@@ -10,7 +10,7 @@
     <meta http-equiv="Expires" content="0">
     
     <link rel="icon" href="logo.png" type="image/png">
-    <link rel="manifest" href="manifest.json?v=8.5">
+    <link rel="manifest" href="manifest.json?v=8.6">
     <meta name="theme-color" content="#fbfaf8">
     <meta name="apple-mobile-web-app-title" content="MDL Admisi&oacute;n">
     <meta name="application-name" content="MDL Admisi&oacute;n">
@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=8.5">
+    <link rel="stylesheet" href="styles.css?v=8.6">
 
     <style>
         /* Estilos Críticos de Widget de Perfil y Popover Google-Style */
@@ -2884,6 +2884,9 @@
                         <label style="display:inline-flex; align-items:center; gap:6px; font-size:12.5px; margin:0; cursor:pointer; font-weight:700; text-transform:none;" title="Acceso a la app Mandala Festivales. No da acceso a Admisión.">
                             <input type="checkbox" class="chk-user-rol" value="gestor_festivales" style="accent-color:var(--accent-teal); width:16px; height:16px;"> 🎪 Gestor de Festivales
                         </label>
+                        <label style="display:inline-flex; align-items:center; gap:6px; font-size:12.5px; margin:0; cursor:pointer; font-weight:700; text-transform:none;" title="Acceso reducido a Mandala Festivales (rider técnico y REC). No da acceso a Admisión. Se da de alta desde la sección Sonidistas de Festivales.">
+                            <input type="checkbox" class="chk-user-rol" value="sonidista_festivales" style="accent-color:var(--accent-teal); width:16px; height:16px;"> 🎚️ Sonidista
+                        </label>
                     </div>
                 </div>
 
@@ -4058,12 +4061,12 @@
         })();
     </script>
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=8.5"></script>
+    <script type="module" src="app.js?v=8.6"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=8.5').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=8.6').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {

@@ -20,7 +20,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=8.5";
+} from "./src/config/constants.js?v=8.6";
 
 import { 
     app, 
@@ -126,11 +126,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=8.5";
+} from "./src/modules/match.module.js?v=8.6";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=8.5";
+} from "./src/modules/profesor.module.js?v=8.6";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -159,14 +159,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=8.5";
+} from "./src/modules/altas.module.js?v=8.6";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=8.5";
+} from "./src/modules/dashboard.module.js?v=8.6";
 
 import {
     renderConfigHub,
@@ -175,23 +175,23 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=8.5";
+} from "./src/modules/abm.module.js?v=8.6";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=8.5";
+} from "./src/modules/inbox.module.js?v=8.6";
 
 // Íconos de línea automáticos en textos de la interfaz (solo presentación)
-import "./src/modules/iconos.module.js?v=8.5";
+import "./src/modules/iconos.module.js?v=8.6";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=8.5";
+} from "./src/modules/csv.module.js?v=8.6";
 
 import {
     inicializarMotorRecordatorios,
@@ -211,7 +211,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=8.5";
+} from "./src/modules/recordatorios.module.js?v=8.6";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -8972,7 +8972,7 @@ window.ejecutarBusquedaGlobal = ejecutarBusquedaGlobal;
 
 let guardRedireccionActivo = false;
 
-// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v8.5)
+// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v8.6)
 function tituloVista(seccion, sub = '') {
     const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
     return `<span>${esc(seccion)}</span>${sub ? `<span class="vista-titulo-sub">${esc(sub)}</span>` : ''}`;
@@ -10194,6 +10194,8 @@ onAuthStateChanged(auth, async (user) => {
             const teniaRolEvaluadorLegacy = rolesOriginales.includes('evaluador');
             // "gestor_festivales" es un rol de la app Mandala Festivales: Admisión lo ignora para todo lo demás
             const esGestorFestivales = rolesOriginales.some(r => String(r || '').toLowerCase().trim() === 'gestor_festivales');
+            // "sonidista_festivales" también es de Mandala Festivales (acceso reducido): Admisión lo ignora y no deja entrar a quien solo es sonidista
+            const esSonidistaFestivales = rolesOriginales.some(r => String(r || '').toLowerCase().trim() === 'sonidista_festivales');
 
             // Normalizar roles: profesor y evaluador -> docente
             const rolesArr = [...new Set(rolesOriginales.map(r => {
@@ -10202,7 +10204,7 @@ onAuthStateChanged(auth, async (user) => {
                 if (clean === 'coordinador') return 'coordinador_grupos';
                 if (clean === 'admisiones') return 'admisor';
                 return clean;
-            }))].filter(r => Boolean(r) && r !== 'gestor_festivales');
+            }))].filter(r => Boolean(r) && r !== 'gestor_festivales' && r !== 'sonidista_festivales');
 
             const rol = rolesArr[0] || 'admisor';
 
@@ -10257,9 +10259,9 @@ onAuthStateChanged(auth, async (user) => {
             }
 
             // Quien solo es Gestor de Festivales no tiene nada para hacer en Admisión: se lo deriva a su app
-            if (esGestorFestivales && rolesArr.length === 0) {
+            if ((esGestorFestivales || esSonidistaFestivales) && rolesArr.length === 0) {
                 ocultarIndicadorCarga();
-                alert(`🎪 Tu perfil es Gestor de Festivales.\n\nNo tenés acceso a Mandala Admisión. Ingresá a Mandala Festivales:\n${URL_APP_FESTIVALES}`);
+                alert(`🎪 Tu perfil es ${esGestorFestivales ? 'Gestor de Festivales' : 'Sonidista'}.\n\nNo tenés acceso a Mandala Admisión. Ingresá a Mandala Festivales:\n${URL_APP_FESTIVALES}`);
                 await signOut(auth);
                 document.getElementById('login-container').style.display = 'flex';
                 document.getElementById('app-container').style.display = 'none';
@@ -10286,9 +10288,27 @@ onAuthStateChanged(auth, async (user) => {
                 ensambles: ensamblesFinal,
                 modulos_habilitados: modulos
 };
-} catch(e) { 
+} catch(e) {
             ocultarIndicadorCarga(); window.ocultarSplashInicial && window.ocultarSplashInicial();
-            return alert("Error al validar permisos de usuario: " + e.message); 
+            // Un sonidista (acceso reducido) no puede leer la colección entera de usuarios: se lo reconoce por su propio documento
+            if (e && e.code === 'permission-denied') {
+                try {
+                    const propio = await getDocs(query(collection(db, "usuarios_sistema"), where("email", "==", String(user.email || '').toLowerCase())));
+                    const esSonidistaSolo = propio.docs.some(d => {
+                        const dt = d.data();
+                        const rs = Array.isArray(dt.roles) && dt.roles.length > 0 ? dt.roles : [dt.rol || ''];
+                        return rs.includes('sonidista_festivales');
+                    });
+                    if (esSonidistaSolo) {
+                        alert(`🎚️ Tu perfil es Sonidista.\n\nNo tenés acceso a Mandala Admisión. Ingresá a Mandala Festivales:\n${URL_APP_FESTIVALES}`);
+                        await signOut(auth);
+                        document.getElementById('login-container').style.display = 'flex';
+                        document.getElementById('app-container').style.display = 'none';
+                        return;
+                    }
+                } catch (e2) { /* se muestra el error original */ }
+            }
+            return alert("Error al validar permisos de usuario: " + e.message);
 }
 
         document.getElementById('login-container').style.display = 'none'; 
@@ -11401,7 +11421,7 @@ document.addEventListener('click', async (e) => {
                 if (elEvalTop) elEvalTop.textContent = al.reserva_profe_nombre || al.informe_entrevista?.evaluador_nombre || '-';
 }
 
-            // Borrador (v8.5): solo en el flujo de admisión (primer informe, aún no finalizado)
+            // Borrador (v8.6): solo en el flujo de admisión (primer informe, aún no finalizado)
             const esFlujoAdmision = !esNuevoInformeAdicional && !(reportIndexAttr !== null && reportIndexAttr !== '' && !isNaN(parseInt(reportIndexAttr, 10))) && !al.informe_entrevista;
             const dr = (esFlujoAdmision && al.informe_borrador && al.informe_borrador.datos) ? al.informe_borrador.datos : null;
             if (dr) {
@@ -11695,7 +11715,7 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    // Guardar borrador del informe de clase de admisión (v8.5): sin validaciones, no cambia el estado del alumno
+    // Guardar borrador del informe de clase de admisión (v8.6): sin validaciones, no cambia el estado del alumno
     if (target.id === 'btn-guardar-borrador-informe' || target.closest('#btn-guardar-borrador-informe')) {
         const btnBor = document.getElementById('btn-guardar-borrador-informe');
         const id = document.getElementById('informe-final-alumno-id').value;
@@ -17289,7 +17309,7 @@ document.getElementById('btn-guardar-contacto')?.addEventListener('click', async
 }
 }
 
-        const esEspera = (alData.estado_agenda || '') === 'Lista de espera';
+        const esEspera = (alData.estado_agenda || '').normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim() === 'lista de espera';
         const prefijoNota = esEspera ? '☎️ [Recall]' : '💬 [Feedback]';
         const entradaHist = crearEntradaHistorial(`${prefijoNota}: ${texto}`, 'contacto', autor);
         entradaHist.fecha_iso = fechaContactoIso;
@@ -17314,8 +17334,9 @@ document.getElementById('btn-guardar-contacto')?.addEventListener('click', async
             updatePayload.dias_contacto_manual = null;
 }
 
-        // Si tiene seguimiento activo, registrar también en el historial de seguimiento
-        if (alData.seguimiento) {
+        // Si tiene seguimiento, registrar también en el historial de seguimiento. El Recall de Lista de Espera
+        // (informar al alumno cómo va su espera) NO se escribe en el seguimiento: eso es solo del "Nuevo Feedback".
+        if (!esEspera && alData.seguimiento) {
             const histSeg = Array.isArray(alData.seguimiento.historial) ? [...alData.seguimiento.historial] : [];
             histSeg.push({
                 id: 'ctto_' + Date.now(),
