@@ -2,7 +2,7 @@
 // src/modules/altas.module.js -- Modulo de Altas, Pre-altas, Calendar & Export
 // =======================================================================
 
-import { defaultCfg, esAlumnoAltaFinalizada, esAlumnoAltaConfirmadaIncompleta, normalizarAlumnoSeguimiento, calcularFechaSeguimiento72hs, calcularDiasHabilesTranscurridos, leerChecklistAlta, PASOS_CHECKLIST_ALTA } from "../config/constants.js?v=8.6";
+import { defaultCfg, esAlumnoAltaFinalizada, esAlumnoAltaConfirmadaIncompleta, normalizarAlumnoSeguimiento, calcularFechaSeguimiento72hs, calcularDiasHabilesTranscurridos, leerChecklistAlta, PASOS_CHECKLIST_ALTA } from "../config/constants.js?v=8.7";
 import { 
     db, 
     collection, 
@@ -31,6 +31,16 @@ import { calcularProximaFechaDiaHora } from "./match.module.js";
 import { parsearNomenclaturaGrupoOClase } from "./profesor.module.js";
 
 const mapaDiasCodigos = { 'D': 'Domingo', 'L': 'Lunes', 'M': 'Martes', 'X': 'Miércoles', 'J': 'Jueves', 'V': 'Viernes', 'S': 'Sábado' };
+
+// ¿Cuenta como integrante vigente de un grupo? Se compara normalizado (el estado guardado al suspender es "Alta suspendida",
+// con minúscula) y se excluyen bajas y suspendidos, que conservan su grupo_asignado en la ficha.
+function esMiembroActivoDeGrupo(data, incluirFinalizados = false) {
+    if (!data || data.es_baja || data.suspendido) return false;
+    const st = (data.estado_agenda || '').normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+    if (st === 'inactivo' || st === 'baja' || st.includes('suspendid')) return false;
+    if (st === 'alta finalizada' && !incluirFinalizados) return false;
+    return true;
+}
 
 function isoToDatetimeLocal(isoStr) {
     if (!isoStr) return '';
@@ -1959,7 +1969,7 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
             const grpSnap = await getDocs(query(collection(db, "alumnos"), where("grupo_asignado", "==", grp)));
             grpSnap.forEach(d => {
                 const data = d.data();
-                if (!['Alta Finalizada', 'Alta Suspendida', 'Agenda suspendida', 'Inactivo'].includes(data.estado_agenda)) {
+                if (esMiembroActivoDeGrupo(data)) {
                     alumnosDelGrupo.push({ id: d.id, ...data });
                 }
             });
@@ -2943,7 +2953,7 @@ export async function aprobarTodoGrupoAction(grupoNombre, vista, callbacks = {})
         const miembros = [];
         qSnap.forEach(d => {
             const data = d.data();
-            if (!['Alta Finalizada', 'Alta Suspendida', 'Agenda suspendida', 'Inactivo'].includes(data.estado_agenda)) {
+            if (esMiembroActivoDeGrupo(data)) {
                 miembros.push({ id: d.id, ...data });
             }
         });
@@ -2999,7 +3009,7 @@ export async function aprobarTodoGrupoAction(grupoNombre, vista, callbacks = {})
         const miembrosActualizados = [];
         freshSnap.forEach(d => {
             const data = d.data();
-            if (!['Alta Finalizada', 'Alta Suspendida', 'Agenda suspendida', 'Inactivo'].includes(data.estado_agenda)) {
+            if (esMiembroActivoDeGrupo(data)) {
                 miembrosActualizados.push({ id: d.id, ...data });
             }
         });
@@ -3039,7 +3049,7 @@ export async function confirmarInicioGrupoAction(grupoNombre, vista, callbacks =
         const miembros = [];
         qSnap.forEach(d => {
             const data = d.data();
-            if (!['Alta Finalizada', 'Alta Suspendida', 'Agenda suspendida', 'Inactivo'].includes(data.estado_agenda)) {
+            if (esMiembroActivoDeGrupo(data)) {
                 miembros.push({ id: d.id, ...data });
             }
         });
@@ -3113,18 +3123,30 @@ export async function confirmarInicioGrupoAction(grupoNombre, vista, callbacks =
 
 export async function confirmarAlumnoAltaAction(alumnoId, alumnoNombre, grupoNombre, vista, callbacks = {}) {
     try {
-        const confirmarFn = window.confirmar || ((t, d, b, i) => Promise.resolve(confirm(`${t}\n\n${d}`)));
-        const okConf = await confirmarFn(
-            'Confirmar Pago y Cursada Activa',
-            `¿Confirmar que ${alumnoNombre} abonó su arancel e inicia su cursada en ${grupoNombre || 'su clase individual'}?`,
-            '✅ Confirmar Alta',
-            '✅'
-        );
-        if (!okConf) return;
-
+        // La confirmación masiva ya pidió permiso una vez (omitirConfirmacion) y no pasa nombre ni grupo: se toman de la ficha
         const dSnap = await getDoc(doc(db, "alumnos", alumnoId));
         if (!dSnap.exists()) return;
         const al = dSnap.data();
+        alumnoNombre = alumnoNombre || al.nombre || 'El alumno';
+        grupoNombre = grupoNombre || al.grupo_asignado || '';
+
+        if (!(callbacks && callbacks.omitirConfirmacion === true)) {
+            const confirmarFn = window.confirmar || ((t, d, b, i) => Promise.resolve(confirm(`${t}\n\n${d}`)));
+            const okConf = await confirmarFn(
+                'Confirmar Pago y Cursada Activa',
+                `¿Confirmar que ${alumnoNombre} abonó su arancel e inicia su cursada en ${grupoNombre || 'su clase individual'}?`,
+                '✅ Confirmar Alta',
+                '✅'
+            );
+            if (!okConf) return;
+        }
+
+        // Verificar el estado real: otro operador pudo haberlo confirmado, suspendido o dado de baja mientras tanto
+        const stReal = (al.estado_agenda || '').normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+        if (!stReal.startsWith('pre-alta')) {
+            alert(`${alumnoNombre || 'El alumno'} ya no está en pre-alta (estado actual: ${al.estado_agenda || 'sin estado'}). No se confirmó nada; actualiza la lista.`);
+            return;
+        }
 
         // Sincronizar Calendar
         const cfg = callbacks.configApp || defaultCfg;
@@ -3158,7 +3180,7 @@ export async function confirmarAlumnoAltaAction(alumnoId, alumnoNombre, grupoNom
             const grpSnap = await getDocs(query(collection(db, "alumnos"), where("grupo_asignado", "==", grupoNombre)));
             grpSnap.forEach(d => {
                 const data = d.data();
-                if (!['Alta Finalizada', 'Alta Suspendida', 'Agenda suspendida', 'Inactivo'].includes(data.estado_agenda)) {
+                if (esMiembroActivoDeGrupo(data)) {
                     todosMiembrosGrupo.push({ id: d.id, ...data });
                 }
             });
@@ -4944,6 +4966,7 @@ window.copiarFilaExcelFacturacion = copiarFilaExcelFacturacion;
 window.copiarSeleccionExcelBD = copiarSeleccionExcelBD;
 window.copiarSeleccionExcelFacturacion = copiarSeleccionExcelFacturacion;
 window.renderAltasAgrupadas = renderAltasAgrupadas;
+window.esMiembroActivoDeGrupo = esMiembroActivoDeGrupo;
 window.aprobarTodoGrupoAction = aprobarTodoGrupoAction;
 window.confirmarInicioGrupoAction = confirmarInicioGrupoAction;
 window.confirmarAlumnoAltaAction = confirmarAlumnoAltaAction;

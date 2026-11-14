@@ -20,7 +20,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=8.6";
+} from "./src/config/constants.js?v=8.7";
 
 import { 
     app, 
@@ -126,11 +126,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=8.6";
+} from "./src/modules/match.module.js?v=8.7";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=8.6";
+} from "./src/modules/profesor.module.js?v=8.7";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -159,14 +159,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=8.6";
+} from "./src/modules/altas.module.js?v=8.7";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=8.6";
+} from "./src/modules/dashboard.module.js?v=8.7";
 
 import {
     renderConfigHub,
@@ -175,23 +175,23 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=8.6";
+} from "./src/modules/abm.module.js?v=8.7";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=8.6";
+} from "./src/modules/inbox.module.js?v=8.7";
 
 // Íconos de línea automáticos en textos de la interfaz (solo presentación)
-import "./src/modules/iconos.module.js?v=8.6";
+import "./src/modules/iconos.module.js?v=8.7";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=8.6";
+} from "./src/modules/csv.module.js?v=8.7";
 
 import {
     inicializarMotorRecordatorios,
@@ -211,7 +211,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=8.6";
+} from "./src/modules/recordatorios.module.js?v=8.7";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -5436,7 +5436,7 @@ document.getElementById('btn-bulk-suscripcion-abonada')?.addEventListener('click
     for (let id of idsToProcess) {
         try {
             if (typeof window.confirmarAlumnoAltaAction === 'function') {
-                await window.confirmarAlumnoAltaAction(id);
+                await window.confirmarAlumnoAltaAction(id, '', '', estadoActualVista, { omitirConfirmacion: true, configApp });
 }
 } catch(e) {
             console.error("Error al confirmar alta bulk:", id, e);
@@ -8972,7 +8972,7 @@ window.ejecutarBusquedaGlobal = ejecutarBusquedaGlobal;
 
 let guardRedireccionActivo = false;
 
-// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v8.6)
+// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v8.7)
 function tituloVista(seccion, sub = '') {
     const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
     return `<span>${esc(seccion)}</span>${sub ? `<span class="vista-titulo-sub">${esc(sub)}</span>` : ''}`;
@@ -11421,7 +11421,7 @@ document.addEventListener('click', async (e) => {
                 if (elEvalTop) elEvalTop.textContent = al.reserva_profe_nombre || al.informe_entrevista?.evaluador_nombre || '-';
 }
 
-            // Borrador (v8.6): solo en el flujo de admisión (primer informe, aún no finalizado)
+            // Borrador (v8.7): solo en el flujo de admisión (primer informe, aún no finalizado)
             const esFlujoAdmision = !esNuevoInformeAdicional && !(reportIndexAttr !== null && reportIndexAttr !== '' && !isNaN(parseInt(reportIndexAttr, 10))) && !al.informe_entrevista;
             const dr = (esFlujoAdmision && al.informe_borrador && al.informe_borrador.datos) ? al.informe_borrador.datos : null;
             if (dr) {
@@ -11715,7 +11715,7 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    // Guardar borrador del informe de clase de admisión (v8.6): sin validaciones, no cambia el estado del alumno
+    // Guardar borrador del informe de clase de admisión (v8.7): sin validaciones, no cambia el estado del alumno
     if (target.id === 'btn-guardar-borrador-informe' || target.closest('#btn-guardar-borrador-informe')) {
         const btnBor = document.getElementById('btn-guardar-borrador-informe');
         const id = document.getElementById('informe-final-alumno-id').value;
@@ -12300,7 +12300,7 @@ document.addEventListener('click', async (e) => {
         if (!esIndividual && al.grupo_asignado) {
             try {
                 const grpSnap = await getDocs(query(collection(db, "alumnos"), where("grupo_asignado", "==", al.grupo_asignado)));
-                grpSnap.forEach(d => alumnosDelGrupo.push({ id: d.id, ...d.data() }));
+                grpSnap.forEach(d => { if (typeof window.esMiembroActivoDeGrupo !== 'function' || window.esMiembroActivoDeGrupo(d.data(), true)) alumnosDelGrupo.push({ id: d.id, ...d.data() }); });
 } catch(e) {}
 }
         const evSync = await sincronizarEventoAltaConfirmadaCalendar({ id, ...al }, esIndividual, alumnosDelGrupo, configApp);
@@ -12350,8 +12350,16 @@ document.addEventListener('click', async (e) => {
                 let alumnosDelGrupo = [];
                 if (!esInd && al.grupo_asignado) {
                     const gSnap = await getDocs(query(collection(db, "alumnos"), where("grupo_asignado", "==", al.grupo_asignado)));
-                    gSnap.forEach(d => alumnosDelGrupo.push({ id: d.id, ...d.data() }));
+                    gSnap.forEach(d => { if (typeof window.esMiembroActivoDeGrupo !== 'function' || window.esMiembroActivoDeGrupo(d.data(), true)) alumnosDelGrupo.push({ id: d.id, ...d.data() }); });
 }
+                // Actualizar el evento de Google Calendar (si falla, igual se guarda la finalización del alta).
+                // Esta llamada se había perdido en la v6.10.24: sin ella, "evFin" no existía, el bloque fallaba y no se guardaba nada.
+                let evFin = null;
+                try {
+                    evFin = await sincronizarEventoAltaConfirmadaCalendar({ id, ...al }, esInd, alumnosDelGrupo, configApp);
+                } catch (errSyncFin) {
+                    console.warn("No se pudo actualizar el evento de Calendar al finalizar el alta:", errSyncFin);
+                }
                 const ahoraIso = new Date().toISOString();
                 const respId = al.seguimiento_responsable_id || al.seguimiento?.responsable_id || '';
                 const respNom = al.seguimiento_responsable_nombre || al.seguimiento?.responsable_nombre || '';
@@ -12360,6 +12368,7 @@ document.addEventListener('click', async (e) => {
                 const updatesFin = {
                     estado_agenda: "Alta Finalizada",
                     checklist_alta: [true, true, true, true],
+                    checklist_alta_v: 2,
                     fecha_alta_finalizada: ahoraIso,
                     historial: hist
 };
