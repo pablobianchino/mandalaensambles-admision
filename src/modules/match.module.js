@@ -2955,9 +2955,9 @@ window.abrirModalAprobacionMatchSeguimiento = async function(alumnosList, nombre
             const u = { id: d.id, ...d.data() };
             if (u.activo === false) return;
             const rolesArr = Array.isArray(u.roles) ? u.roles : [u.rol || ''];
-            // Pueden ser responsables de seguimiento: el rol evaluador (histórico) o quien tenga la aptitud "Apto Seguimientos"
+            // Pueden ser responsables de seguimiento solo quienes tengan la aptitud "Apto Seguimientos"
             const aptoSeguimientos = u.seguimientos === true || u.apto_seguimientos === true;
-            if (!rolesArr.includes('evaluador') && !aptoSeguimientos) return;
+            if (!aptoSeguimientos) return;
             evaluadores.push(u);
         });
         evaluadores.sort((a, b) => (a.nombre || a.email || '').localeCompare(b.nombre || b.email || ''));

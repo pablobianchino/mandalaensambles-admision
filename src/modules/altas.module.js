@@ -2,7 +2,7 @@
 // src/modules/altas.module.js -- Modulo de Altas, Pre-altas, Calendar & Export
 // =======================================================================
 
-import { defaultCfg, esAlumnoAltaFinalizada, esAlumnoAltaConfirmadaIncompleta, normalizarAlumnoSeguimiento, calcularFechaSeguimiento72hs, calcularDiasHabilesTranscurridos, leerChecklistAlta, PASOS_CHECKLIST_ALTA } from "../config/constants.js?v=8.9";
+import { defaultCfg, esAlumnoAltaFinalizada, esAlumnoAltaConfirmadaIncompleta, normalizarAlumnoSeguimiento, calcularFechaSeguimiento72hs, calcularDiasHabilesTranscurridos, leerChecklistAlta, PASOS_CHECKLIST_ALTA } from "../config/constants.js?v=8.10";
 import { 
     db, 
     collection, 
@@ -713,9 +713,9 @@ export async function poblarEvaluadoresPrealta(profesorExcluidoId = '', evaluado
             const u = { id: d.id, ...d.data() };
             if (u.activo === false) return;
             const rolesArr = Array.isArray(u.roles) ? u.roles : [u.rol || ''];
-            // Pueden ser responsables de seguimiento: el rol evaluador (histórico) o quien tenga la aptitud "Apto Seguimientos"
+            // Pueden ser responsables de seguimiento solo quienes tengan la aptitud "Apto Seguimientos"
             const aptoSeguimientos = u.seguimientos === true || u.apto_seguimientos === true;
-            if (!rolesArr.includes('evaluador') && !aptoSeguimientos) return;
+            if (!aptoSeguimientos) return;
             evaluadores.push(u);
         });
 
@@ -3302,12 +3302,19 @@ export function getSeguimientoBadgeStatus(al) {
         const prox = seg.fecha_proximo_seguimiento;
         if (prox) {
             const parts = prox.split('-');
-            const dSeg = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 20, 0, 0);
-            const diffHs = (dSeg - new Date()) / (1000 * 60 * 60);
             const pTxt = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : prox;
-            if (diffHs < 0) {
-                const diasVenc = Math.abs(Math.round(diffHs / 24));
-                return `<span class="pill-urgencia pill-vencida" style="font-size:11px; padding:2px 8px; border-radius:12px; font-weight:700;">🔴 Seguimiento vencido (${diasVenc >= 1 ? diasVenc + 'd' : Math.abs(Math.round(diffHs)) + 'hs'} - Venció: ${pTxt})</span>`;
+            // Mismo criterio que la vista Seguimientos: vence hoy, retraso leve a 1 día y vencido desde 2 días
+            const hoyIni = new Date(); hoyIni.setHours(0, 0, 0, 0);
+            const fPautada = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+            const diffDias = Math.round((hoyIni.getTime() - fPautada.getTime()) / (24 * 60 * 60 * 1000));
+            if (diffDias >= 2) {
+                return `<span class="pill-urgencia pill-vencida" style="font-size:11px; padding:2px 8px; border-radius:12px; font-weight:700;">🔴 Seguimiento vencido (${diffDias}d - Venció: ${pTxt})</span>`;
+            }
+            if (diffDias === 1) {
+                return `<span class="pill-urgencia pill-naranja-retraso" style="font-size:11px; padding:2px 8px; border-radius:12px; font-weight:700;">🟠 Retraso leve (Pactado: ${pTxt})</span>`;
+            }
+            if (diffDias === 0) {
+                return `<span class="pill-urgencia pill-amarillo-hoy" style="font-size:11px; padding:2px 8px; border-radius:12px; font-weight:700;">🟡 Vence hoy (${pTxt})</span>`;
             }
             return `<span class="group-member-status-chip status-val-ok" style="background:#dcfce7; color:#166534; font-weight:700; font-size:11px; padding:2px 8px; border-radius:12px;">🟢 Seguimiento en curso (Próx: ${pTxt})</span>`;
         }

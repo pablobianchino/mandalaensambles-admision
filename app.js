@@ -20,7 +20,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=8.9";
+} from "./src/config/constants.js?v=8.10";
 
 import { 
     app, 
@@ -126,11 +126,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=8.9";
+} from "./src/modules/match.module.js?v=8.10";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=8.9";
+} from "./src/modules/profesor.module.js?v=8.10";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -159,14 +159,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=8.9";
+} from "./src/modules/altas.module.js?v=8.10";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=8.9";
+} from "./src/modules/dashboard.module.js?v=8.10";
 
 import {
     renderConfigHub,
@@ -175,23 +175,23 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=8.9";
+} from "./src/modules/abm.module.js?v=8.10";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=8.9";
+} from "./src/modules/inbox.module.js?v=8.10";
 
 // Íconos de línea automáticos en textos de la interfaz (solo presentación)
-import "./src/modules/iconos.module.js?v=8.9";
+import "./src/modules/iconos.module.js?v=8.10";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=8.9";
+} from "./src/modules/csv.module.js?v=8.10";
 
 import {
     inicializarMotorRecordatorios,
@@ -211,7 +211,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=8.9";
+} from "./src/modules/recordatorios.module.js?v=8.10";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -6904,35 +6904,6 @@ export function esEvaluadorDeSeguimientoDelAlumno(u, al) {
 }
 window.esEvaluadorDeSeguimientoDelAlumno = esEvaluadorDeSeguimientoDelAlumno;
 
-export async function resetearSeguimientoAlumnoIndividual(alumnoId) {
-    if (!alumnoId) return;
-    try {
-        await updateDoc(doc(db, "alumnos", alumnoId), {
-            seguimiento: {
-                activo: false,
-                responsable_id: null,
-                responsable_nombre: null,
-                responsable_email: null,
-                fecha_proximo_seguimiento: null,
-                fecha_inicio_seguimiento: null,
-                fecha_finalizacion: null,
-                motivo_finalizacion: null,
-                dias_sin_contacto: 0,
-                ultimo_contacto: null,
-                historial: []
-},
-            seguimiento_responsable_id: null,
-            seguimiento_responsable_nombre: null,
-            seguimiento_responsable_email: null,
-            fecha_proximo_seguimiento: null
-});
-        console.log(`[SeguimientoReset] Alumno ${alumnoId} restablecido en Firestore.`);
-} catch(e) {
-        console.warn("Error al resetear seguimiento:", e);
-}
-}
-window.resetearSeguimientoAlumnoIndividual = resetearSeguimientoAlumnoIndividual;
-
 export async function sanearDatosCasosPuntuales(alumnos) {
     if (!Array.isArray(alumnos)) return;
     for (const al of alumnos) {
@@ -9011,7 +8982,7 @@ window.ejecutarBusquedaGlobal = ejecutarBusquedaGlobal;
 
 let guardRedireccionActivo = false;
 
-// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v8.9)
+// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v8.10)
 function tituloVista(seccion, sub = '') {
     const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
     return `<span>${esc(seccion)}</span>${sub ? `<span class="vista-titulo-sub">${esc(sub)}</span>` : ''}`;
@@ -11463,7 +11434,7 @@ document.addEventListener('click', async (e) => {
                 if (elEvalTop) elEvalTop.textContent = al.reserva_profe_nombre || al.informe_entrevista?.evaluador_nombre || '-';
 }
 
-            // Borrador (v8.9): solo en el flujo de admisión (primer informe, aún no finalizado)
+            // Borrador (v8.10): solo en el flujo de admisión (primer informe, aún no finalizado)
             const esFlujoAdmision = !esNuevoInformeAdicional && !(reportIndexAttr !== null && reportIndexAttr !== '' && !isNaN(parseInt(reportIndexAttr, 10))) && !al.informe_entrevista;
             const dr = (esFlujoAdmision && al.informe_borrador && al.informe_borrador.datos) ? al.informe_borrador.datos : null;
             if (dr) {
@@ -11757,7 +11728,7 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    // Guardar borrador del informe de clase de admisión (v8.9): sin validaciones, no cambia el estado del alumno
+    // Guardar borrador del informe de clase de admisión (v8.10): sin validaciones, no cambia el estado del alumno
     if (target.id === 'btn-guardar-borrador-informe' || target.closest('#btn-guardar-borrador-informe')) {
         const btnBor = document.getElementById('btn-guardar-borrador-informe');
         const id = document.getElementById('informe-final-alumno-id').value;
@@ -18059,7 +18030,7 @@ const escapeHtmlSeg = (str) => String(str || '').replace(/[&<>"']/g, m => ({ '&'
 function puedeEditarContactoSeguimiento(al, ctto) {
     const u = window.usuarioActual || {};
     const roles = Array.isArray(u.roles) ? u.roles.map(r => String(r).toLowerCase().trim()) : [String(u.rol || '').toLowerCase().trim()];
-    const esPrivilegiado = roles.includes('admin') || roles.includes('coordinador') || roles.includes('admisor');
+    const esPrivilegiado = roles.includes('admin') || roles.includes('coordinador') || roles.includes('coordinador_grupos') || roles.includes('admisor') || roles.includes('admisiones');
     if (esPrivilegiado) return true;
 
     const respId = al?.seguimiento?.responsable_id || al?.seguimiento_responsable_id || '';
@@ -18213,7 +18184,7 @@ function poblarTabSeguimientoFicha(al, id) {
                             <div style="display:flex; align-items:center; gap:6px;">
                                 <span style="font-size:14px;">${icono}</span>
                                 <strong style="font-size:13px; color:var(--text-main);">${tituloTipo}</strong>
-                                <span style="font-size:11px; padding:2px 7px; border-radius:10px; background:${tagBg}; color:${tagColor}; font-weight:700;">${ctto.evaluador_nombre || 'Evaluador'}</span>
+                                <span style="font-size:11px; padding:2px 7px; border-radius:10px; background:${tagBg}; color:${tagColor}; font-weight:700;">${ctto.evaluador_nombre || 'Responsable'}</span>
                             </div>
                             <div style="display:flex; align-items:center; gap:8px;">
                                 <span style="font-size:11.5px; color:var(--text-muted); font-weight:500;">${fTxt}</span>
@@ -18721,7 +18692,12 @@ window.toggleSeguimientoContactado = async function(id, isChecked, fechaContacto
         const fechaCttoVal = isChecked ? (fechaContactoElegida || _getHoyDateStrSeg()) : null;
         const fVisual = fechaCttoVal ? _formatearFechaSegVisual(fechaCttoVal) : '';
 
-        const alMem = (Array.isArray(cachedAlumnosData) ? cachedAlumnosData : (allData || [])).find(a => a.id === id);
+        let alMem = (Array.isArray(cachedAlumnosData) ? cachedAlumnosData : (allData || [])).find(a => a.id === id);
+        // Se lee el historial de seguimiento actual desde la base para no pisar feedbacks cargados por otra persona
+        try {
+            const snapFresco = await getDoc(doc(db, "alumnos", id));
+            if (snapFresco.exists()) alMem = { id, ...snapFresco.data() };
+        } catch (eFresco) { /* si falla, se usa la copia en memoria */ }
         const nomAl = alMem?.nombre || 'Alumno';
 
         const updatePayload = {
@@ -18770,7 +18746,8 @@ window.toggleSeguimientoContactado = async function(id, isChecked, fechaContacto
 
         // Sincronizar ficha si está abierta
         if (window._fichaAlumnoActualId === id) {
-            window.poblarTabSeguimientoFicha(id);
+            const alActualizado = (Array.isArray(cachedAlumnosData) ? cachedAlumnosData : (allData || [])).find(a => a.id === id) || alMem;
+            window.poblarTabSeguimientoFicha(alActualizado, id);
 }
 
         // Recargar vista actual si estamos en Seguimientos o Dashboard
@@ -18875,6 +18852,11 @@ window.confirmarFinSeguimiento = async function() {
 
 
 
+// Un responsable de seguimiento debe ser un usuario activo con Apto Seguimientos (el docente del alumno se excluye aparte)
+function esUsuarioAptoResponsableSeg(u) {
+    return Boolean(u) && u.activo !== false && (u.seguimientos === true || u.apto_seguimientos === true);
+}
+
 function obtenerDatosDocenteAlumnoSeg(al) {
     const profeNom = (al.profesor_asignado || al.profesor_nombre || al.reserva_profe_nombre || al.profesor || al.docente || '').trim();
     const profeId = (al.profesor_id || al.reserva_profe_id || '').trim();
@@ -18931,7 +18913,7 @@ window.abrirModalSeguimientoMasivo = async function(idsOpcional) {
 
     const listaEl = document.getElementById('seg-masivo-lista-alumnos');
     if (listaEl) {
-        listaEl.innerHTML = `<div style="padding:20px; text-align:center; color:var(--text-muted);"><span class="spinner-border spinner-border-sm" role="status"></span> Cargando alumnos y evaluadores...</div>`;
+        listaEl.innerHTML = `<div style="padding:20px; text-align:center; color:var(--text-muted);"><span class="spinner-border spinner-border-sm" role="status"></span> Cargando alumnos y responsables...</div>`;
 }
 
     // Fecha defecto (+7 días hábiles)
@@ -18951,9 +18933,8 @@ window.abrirModalSeguimientoMasivo = async function(idsOpcional) {
         qSnap.forEach(d => {
             const u = { id: d.id, ...d.data() };
             const roles = Array.isArray(u.roles) ? u.roles : [u.rol || ''];
-            const rNorm = roles.map(r => (r || '').toLowerCase().trim());
-            const esAptoSeg = u.seguimientos === true || u.apto_seguimientos === true;
-            if (u.activo !== false && (rNorm.includes('evaluador') || rNorm.includes('admin') || rNorm.includes('coordinador') || rNorm.includes('coordinador_grupos') || esAptoSeg)) {
+            // Responsable de seguimiento: solo usuarios activos con Apto Seguimientos
+            if (esUsuarioAptoResponsableSeg(u)) {
                 evals.push(u);
 }
 });
@@ -19182,10 +19163,10 @@ document.getElementById('btn-seg-masivo-aplicar-todos')?.addEventListener('click
     const fechaGlobal = document.getElementById('seg-masivo-fecha-primer')?.value;
     const evalId = selGlobal?.value || '';
     const optGlobal = selGlobal?.selectedOptions[0];
-    const evalNom = optGlobal?.dataset.nombre || optGlobal?.textContent || 'el evaluador seleccionado';
+    const evalNom = optGlobal?.dataset.nombre || optGlobal?.textContent || 'el responsable seleccionado';
 
     if (!evalId && !fechaGlobal) {
-        alert("⚠️ Seleccioná un evaluador o una fecha en el bloque superior para aplicar.");
+        alert("⚠️ Seleccioná un responsable de seguimiento o una fecha en el bloque superior para aplicar.");
         return;
 }
 
@@ -19310,9 +19291,7 @@ window.abrirModalEditarSeguimiento = async function(id) {
                 qSnap.forEach(d => {
                     const u = { id: d.id, ...d.data() };
                     const roles = Array.isArray(u.roles) ? u.roles : [u.rol || ''];
-                    const rNorm = roles.map(r => (r || '').toLowerCase().trim());
-                    const esAptoSeg = u.seguimientos === true || u.apto_seguimientos === true;
-                    if (u.activo !== false && (rNorm.includes('evaluador') || rNorm.includes('admin') || rNorm.includes('coordinador') || rNorm.includes('coordinador_grupos') || rNorm.includes('admisor') || esAptoSeg)) {
+                    if (esUsuarioAptoResponsableSeg(u)) {
                         evals.push(u);
 }
 });
@@ -19323,7 +19302,17 @@ window.abrirModalEditarSeguimiento = async function(id) {
 }
 }
 
-        const evalsPermitidos = evals.filter(ev => {
+        // Si el alumno ya tiene un responsable asignado que hoy no cumple la regla, se conserva en la lista para no dejarlo en blanco
+        const respAsignadoId = al.seguimiento?.responsable_id || al.seguimiento_responsable_id || '';
+        let evalsParaEditar = evals;
+        if (respAsignadoId && !evals.some(ev => ev.id === respAsignadoId)) {
+            evalsParaEditar = [...evals, {
+                id: respAsignadoId,
+                nombre: al.seguimiento?.responsable_nombre || al.seguimiento_responsable_nombre || 'Responsable actual',
+                email: al.seguimiento?.responsable_email || al.seguimiento_responsable_email || ''
+            }];
+        }
+        const evalsPermitidos = evalsParaEditar.filter(ev => {
             if (typeof esDocenteDelAlumnoSeg === 'function') {
                 return !esDocenteDelAlumnoSeg(ev, al);
 }
@@ -19502,7 +19491,7 @@ window.abrirModalEditarContactoSeguimiento = async function(alumnoId, contactoId
 
     const infoEl = document.getElementById('edit-ctto-seg-info');
     if (infoEl) {
-        infoEl.innerHTML = `Alumno: <strong>${escapeHtmlSeg(al.nombre || '-')}</strong> • Autor: <strong>${escapeHtmlSeg(ctto.evaluador_nombre || 'Evaluador')}</strong><br><span style="font-size:11px; opacity:0.85;">Fecha original: ${fTxt}</span>`;
+        infoEl.innerHTML = `Alumno: <strong>${escapeHtmlSeg(al.nombre || '-')}</strong> • Autor: <strong>${escapeHtmlSeg(ctto.evaluador_nombre || 'Responsable')}</strong><br><span style="font-size:11px; opacity:0.85;">Fecha original: ${fTxt}</span>`;
 }
 
     const txtConversado = document.getElementById('edit-ctto-seg-conversado');
@@ -19554,15 +19543,22 @@ window.guardarEdicionContactoSeguimiento = async function() {
         const idx = histSeg.findIndex(c => String(c.id || '') === String(contactoId) || String(c.fecha || '') === String(contactoId));
         if (idx === -1) throw new Error("Feedback no encontrado en el historial.");
 
+        const cttoPrevio = histSeg[idx];
         histSeg[idx] = {
             ...histSeg[idx],
             conversado: conversado,
             proxima_fecha_pautada: fechaProx
 };
 
+        // El historial conserva lo que decía antes de la edición para poder seguir el caso
+        const resumirTxt = (t) => { const s = String(t || '').replace(/\s+/g, ' ').trim(); return s.length > 160 ? s.slice(0, 160) + '…' : s; };
+        const cambios = [];
+        if ((cttoPrevio.conversado || cttoPrevio.motivo || '') !== conversado) cambios.push(`texto anterior: "${resumirTxt(cttoPrevio.conversado || cttoPrevio.motivo)}"`);
+        if ((cttoPrevio.proxima_fecha_pautada || null) !== fechaProx) cambios.push(`próxima fecha: ${cttoPrevio.proxima_fecha_pautada || 'sin fecha'} → ${fechaProx || 'sin fecha'}`);
+
         const u = window.usuarioActual || {};
         const hist = aData.historial || [];
-        hist.push(crearEntradaHistorial(`Registro de feedback de seguimiento editado por ${u.nombre || 'Usuario'}.`, 'seguimiento'));
+        hist.push(crearEntradaHistorial(`Registro de feedback de seguimiento editado por ${u.nombre || 'Usuario'}.${cambios.length ? ' Cambios: ' + cambios.join('; ') + '.' : ''}`, 'seguimiento'));
 
         const updates = {
             'seguimiento.historial': histSeg,
@@ -19646,12 +19642,20 @@ window.eliminarContactoSeguimiento = async function(alumnoId, contactoId) {
         histSeg = histSeg.filter(c => String(c.id || '') !== String(contactoId) && String(c.fecha || '') !== String(contactoId));
 
         // Recalcular último contacto
-        const contactosValidos = histSeg.filter(c => c.fecha).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+        // (solo cuentan los feedbacks; las marcas de WhatsApp enviado/desmarcado no son un contacto con el alumno)
+        const contactosValidos = histSeg.filter(c => c.fecha && c.tipo !== 'contacto_whatsapp' && c.tipo !== 'contacto_desmarcado').sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
         const ultimoContacto = contactosValidos.length > 0 ? contactosValidos[0].fecha : null;
 
         const u = window.usuarioActual || {};
         const hist = aData.historial || [];
-        hist.push(crearEntradaHistorial(`Registro de feedback de seguimiento eliminado por ${u.nombre || 'Usuario'}.`, 'seguimiento'));
+        let detalleEliminado = '';
+        if (cttoAEliminar) {
+            const fE = parsearFechaCualquierOrigen(cttoAEliminar.fecha) || new Date(cttoAEliminar.fecha || 0);
+            const fETxt = fE && !isNaN(fE.getTime()) ? formatearSoloFecha(fE) : '';
+            const tE = String(cttoAEliminar.conversado || cttoAEliminar.motivo || '').replace(/\s+/g, ' ').trim();
+            detalleEliminado = ` Registro eliminado${fETxt ? ' del ' + fETxt : ''}${cttoAEliminar.evaluador_nombre ? ' (autor: ' + cttoAEliminar.evaluador_nombre + ')' : ''}: "${tE.length > 160 ? tE.slice(0, 160) + '…' : tE}".`;
+        }
+        hist.push(crearEntradaHistorial(`Registro de feedback de seguimiento eliminado por ${u.nombre || 'Usuario'}.${detalleEliminado}`, 'seguimiento'));
 
         const updates = {
             'seguimiento.historial': histSeg,
