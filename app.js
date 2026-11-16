@@ -20,7 +20,7 @@ import {
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=8.8";
+} from "./src/config/constants.js?v=8.9";
 
 import { 
     app, 
@@ -126,11 +126,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=8.8";
+} from "./src/modules/match.module.js?v=8.9";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=8.8";
+} from "./src/modules/profesor.module.js?v=8.9";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -159,14 +159,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=8.8";
+} from "./src/modules/altas.module.js?v=8.9";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=8.8";
+} from "./src/modules/dashboard.module.js?v=8.9";
 
 import {
     renderConfigHub,
@@ -175,23 +175,23 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=8.8";
+} from "./src/modules/abm.module.js?v=8.9";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=8.8";
+} from "./src/modules/inbox.module.js?v=8.9";
 
 // Íconos de línea automáticos en textos de la interfaz (solo presentación)
-import "./src/modules/iconos.module.js?v=8.8";
+import "./src/modules/iconos.module.js?v=8.9";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=8.8";
+} from "./src/modules/csv.module.js?v=8.9";
 
 import {
     inicializarMotorRecordatorios,
@@ -211,7 +211,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=8.8";
+} from "./src/modules/recordatorios.module.js?v=8.9";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -225,6 +225,41 @@ window.irAVistaDePendiente = irAVistaDePendiente;
 
 window.generarBotonesPrincipalesVisibles = generarBotonesPrincipalesVisibles;
 window.generarBotonesAccion = generarBotonesAccion;
+
+// Al reactivar un alumno (suspendido o de baja) se limpian los datos del caso anterior para que no queden
+// como restos en la ficha; lo limpiado se resume en el historial (resumenCasoPrevio) para no perder el seguimiento.
+function camposLimpiezaReactivacion() {
+    return {
+        suspendido: false,
+        es_baja: false,
+        motivo_suspension: null,
+        motivo_suspension_cat: null,
+        origen_suspension: null,
+        detalle_suspension: null,
+        fecha_suspension: null,
+        estado_previo_suspension: null,
+        motivo_baja: null,
+        detalle_baja: null,
+        fecha_baja: null
+    };
+}
+
+function resumenCasoPrevio(al) {
+    const fmt = (v) => {
+        if (!v) return '';
+        const d = (typeof v.toDate === 'function') ? v.toDate() : new Date(v);
+        return isNaN(d.getTime()) ? String(v) : `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+    };
+    const partes = [];
+    if (al.fecha_suspension || al.motivo_suspension || al.detalle_suspension || al.origen_suspension) {
+        const det = al.detalle_suspension || al.motivo_suspension || al.motivo_suspension_cat || '';
+        partes.push(`Suspensión${al.fecha_suspension ? ' del ' + fmt(al.fecha_suspension) : ''}${det ? ': ' + det : ''}${al.estado_previo_suspension ? ' (estado previo: ' + al.estado_previo_suspension + ')' : ''}`);
+    }
+    if (al.fecha_baja || al.motivo_baja || al.detalle_baja) {
+        partes.push(`Baja${al.fecha_baja ? ' del ' + fmt(al.fecha_baja) : ''}${(al.detalle_baja || al.motivo_baja) ? ': ' + (al.detalle_baja || al.motivo_baja) : ''}`);
+    }
+    return partes.length ? ` Datos del caso anterior: ${partes.join(' | ')}.` : '';
+}
 
 // Auto-chequeo de un paso del checklist de altas confirmadas (0 Sistema, 1 Contabilidad, 2 Profesor, 3 Alumno).
 // Si la casilla está en pantalla se tilda y deja que el manejador normal guarde (y finalice el alta si era el último paso).
@@ -8976,7 +9011,7 @@ window.ejecutarBusquedaGlobal = ejecutarBusquedaGlobal;
 
 let guardRedireccionActivo = false;
 
-// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v8.8)
+// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v8.9)
 function tituloVista(seccion, sub = '') {
     const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
     return `<span>${esc(seccion)}</span>${sub ? `<span class="vista-titulo-sub">${esc(sub)}</span>` : ''}`;
@@ -11428,7 +11463,7 @@ document.addEventListener('click', async (e) => {
                 if (elEvalTop) elEvalTop.textContent = al.reserva_profe_nombre || al.informe_entrevista?.evaluador_nombre || '-';
 }
 
-            // Borrador (v8.8): solo en el flujo de admisión (primer informe, aún no finalizado)
+            // Borrador (v8.9): solo en el flujo de admisión (primer informe, aún no finalizado)
             const esFlujoAdmision = !esNuevoInformeAdicional && !(reportIndexAttr !== null && reportIndexAttr !== '' && !isNaN(parseInt(reportIndexAttr, 10))) && !al.informe_entrevista;
             const dr = (esFlujoAdmision && al.informe_borrador && al.informe_borrador.datos) ? al.informe_borrador.datos : null;
             if (dr) {
@@ -11722,7 +11757,7 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    // Guardar borrador del informe de clase de admisión (v8.8): sin validaciones, no cambia el estado del alumno
+    // Guardar borrador del informe de clase de admisión (v8.9): sin validaciones, no cambia el estado del alumno
     if (target.id === 'btn-guardar-borrador-informe' || target.closest('#btn-guardar-borrador-informe')) {
         const btnBor = document.getElementById('btn-guardar-borrador-informe');
         const id = document.getElementById('informe-final-alumno-id').value;
@@ -14253,20 +14288,13 @@ document.addEventListener('click', async (e) => {
             setBotonCargando(btn, true, 'Reactivando...');
             const ahoraIso = new Date().toISOString();
             const hist = al.historial || [];
-            hist.push(crearEntradaHistorial(`Alumno reactivado desde Suspendidos hacia Inbox (Sin Agendar).`, 'sistema'));
+            hist.push(crearEntradaHistorial(`Alumno reactivado desde Suspendidos hacia Inbox (Sin Agendar).${resumenCasoPrevio(al)}`, 'sistema'));
 
-            const updateData = { 
-                estado_agenda: "Pendiente procesar", 
+            const updateData = {
+                estado_agenda: "Pendiente procesar",
                 fecha_reingreso: ahoraIso,
-                suspendido: false,
-                es_baja: false,
-                motivo_suspension: null,
-                motivo_suspension_cat: null,
-                origen_suspension: null,
-                detalle_suspension: null,
+                ...camposLimpiezaReactivacion(),
                 // Se limpian los datos de la agenda anterior (la reactivación empieza de cero en Sin Agendar)
-                estado_previo_suspension: null,
-                fecha_suspension: null,
                 reserva_profe_id_previo: null,
                 reserva_profe_nombre_previo: null,
                 reserva_fecha_texto_previo: null,
@@ -14305,18 +14333,13 @@ document.addEventListener('click', async (e) => {
             setBotonCargando(btn, true, 'Reactivando...');
             const ahoraIso = new Date().toISOString();
             const hist = al.historial || [];
-            hist.push(crearEntradaHistorial(`Alumno reactivado desde Suspendidos hacia Lista de Espera.`, 'sistema'));
+            hist.push(crearEntradaHistorial(`Alumno reactivado desde Suspendidos hacia Lista de Espera.${resumenCasoPrevio(al)}`, 'sistema'));
 
-            const updateData = { 
-                estado_agenda: "Lista de espera", 
+            const updateData = {
+                estado_agenda: "Lista de espera",
                 fecha_ingreso_espera: ahoraIso,
                 fecha_reingreso: ahoraIso,
-                suspendido: false,
-                es_baja: false,
-                motivo_suspension: null,
-                motivo_suspension_cat: null,
-                origen_suspension: null,
-                detalle_suspension: null,
+                ...camposLimpiezaReactivacion(),
                 historial: hist
 };
 
@@ -14537,30 +14560,20 @@ document.getElementById('btn-confirmar-reingreso')?.addEventListener('click', as
 
         let updateData = {};
         if (destino === 'espera') {
-            hist.push(crearEntradaHistorial(`Alumno reingresado a la escuela desde Bajas/Suspendidos hacia Lista de Espera.`, 'sistema', autor));
+            hist.push(crearEntradaHistorial(`Alumno reingresado a la escuela desde Bajas/Suspendidos hacia Lista de Espera.${resumenCasoPrevio(al)}`, 'sistema', autor));
             updateData = {
                 estado_agenda: "Lista de espera",
                 fecha_ingreso_espera: ahoraIso,
                 fecha_reingreso: ahoraIso,
-                suspendido: false,
-                es_baja: false,
-                motivo_suspension: null,
-                motivo_suspension_cat: null,
-                origen_suspension: null,
-                detalle_suspension: null,
+                ...camposLimpiezaReactivacion(),
                 historial: hist
 };
 } else {
-            hist.push(crearEntradaHistorial(`Alumno reingresado a la escuela desde Bajas/Suspendidos hacia Inbox (Sin Agendar).`, 'sistema', autor));
+            hist.push(crearEntradaHistorial(`Alumno reingresado a la escuela desde Bajas/Suspendidos hacia Inbox (Sin Agendar).${resumenCasoPrevio(al)}`, 'sistema', autor));
             updateData = {
                 estado_agenda: "Pendiente procesar",
                 fecha_reingreso: ahoraIso,
-                suspendido: false,
-                es_baja: false,
-                motivo_suspension: null,
-                motivo_suspension_cat: null,
-                origen_suspension: null,
-                detalle_suspension: null,
+                ...camposLimpiezaReactivacion(),
                 historial: hist
 };
 }

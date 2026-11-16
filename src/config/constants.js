@@ -2,7 +2,7 @@
 // src/config/constants.js — Constantes globales del sistema
 // =======================================================================
 
-export const APP_VERSION = "v8.8";
+export const APP_VERSION = "v8.9";
 
 // Contraseña inicial que se asigna al crear cuentas de acceso. Se muestra únicamente en los avisos al administrador
 // (crear/restablecer usuario); no debe aparecer en pantallas ni mensajes visibles para el resto de los usuarios.
@@ -54,10 +54,10 @@ export const defaultCfg = {
     texto_conf_alumno: "Genial Gracias!\nTe esperamos!\n\n🧩 Suscripción: {suscripcion} {emojiinstrumento} {instrumento}\n🧩 Día y horario: {fecha_hora}\n🧩 Profe: {profe}\n📍*Dirección:* Av. Cabildo 2970, Piso 1, Depto C.", 
     texto_conf_profe: "*✅ CLASE DE ADMISIÓN CONFIRMADA Y ABONADA POR ALUMNO*\n*El alumno ya pagó y completó el formulario*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Contacto: {número_contacto_alumno}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Clase: {suscripcion}\n\n*📰 La información del alumno se encuentra adjunta en la descripción del evento del calendario*", 
     texto_cancela_alumno: "*❗ PRE CHECK - CLASE DE ADMISIÓN*\n*❌ RESERVA CANCELADA*\n\n📅 *FECHA: {fecha_hora}*\n\n*👥 DATOS DEL ALUMNO:*\n🔹 Nombre: {nombre}\n🔹 Edad: {edad}\n🔹 Instrumento: {instrumento}\n🔹 Suscripción: {suscripcion}\n\n*MOTIVO:* {motivo_detalles}", 
-    texto_aviso_admisor_prealta: "*🤘🪁 LISTO PARA INICIAR PRE ALTA*\n\n*👥 DATOS DE LA SUSCRIPCIÓN:*\n🔹 Suscripción: {suscripcion} {emojiinstrumento} {instrumento}\n🔹 Inicio de clases: {fecha inicio clases}\n🔹 Nombre: {nombre}\n🔹 Grupo: {grupo}\n🔹 Profesor: {profe}",
-    texto_prealta: "*⚠ PRE ALTA INICIADA*\n\n*👥 DATOS DE LA SUSCRIPCIÓN:*\n🔹 Suscripción: {suscripcion} {emojiinstrumento} {instrumento}\n🔹 Inicio de clases: {fecha inicio clases}\n🔹 Nombre: {nombre}\n🔹 Grupo: {grupo}\n🔹 Profesor: {profe}", 
+    texto_aviso_admisor_prealta: "*🤘🪁 LISTO PARA INICIAR PRE ALTA*\n\n*👥 DATOS DE LA SUSCRIPCIÓN:*\n🔹 Suscripción: {suscripcion} {emojiinstrumento} {instrumento}\n🔹 Inicio de clases: {fecha inicio clases}\n🔹 Nombre: {nombre}\n🔹 Grupo: {grupo}\n🔹 Docente: {profe}",
+    texto_prealta: "*⚠ PRE ALTA INICIADA*\n\n*👥 DATOS DE LA SUSCRIPCIÓN:*\n🔹 Suscripción: {suscripcion} {emojiinstrumento} {instrumento}\n🔹 Inicio de clases: {fecha inicio clases}\n🔹 Nombre: {nombre}\n🔹 Grupo: {grupo}\n🔹 Docente: {profe}", 
     texto_prealta_alumno: "Hola {nombre}! Cómo estás? 👋\n\nTe cuento que ya tenemos todo listo para que te sumes a Mandala Ensambles! 🤟\n\n*⚠️ IMPORTANTE:* Tenés tiempo de abonar hasta el *{fecha_hora_limite}*. Pasado ese plazo, la primera clase se reprogramaría para la próxima semana.\n\n🧩 Suscripción: {suscripcion}\n\n👥 Grupo: {grupo}\n\n🧩 Día y horario de cursada: {horario_cursada}\n\n🧩 Fecha de inicio de clases: {fecha_inicio_clases}\n\n🧩 Profe: {profe}\n\n🧩 Arancel: {valor_arancel}\n\n🧩 Alias a transferir: {alias_profe}",
-    texto_alta_confirmada: "*✅ NUEVA ALTA CONFIRMADA*\n\n*👥 DATOS DE LA SUSCRIPCIÓN:*\n🔹 Suscripción: {suscripcion}\n🔹 Nombre de alumno: {nombre}\n🔹 Instrumento: {instrumento}\n🔹 Grupo: {grupo}\n🔹 Profesor: {profe}\n🔹 Inicio de clases: {fecha inicio clases}",
+    texto_alta_confirmada: "*✅ NUEVA ALTA CONFIRMADA*\n\n*👥 DATOS DE LA SUSCRIPCIÓN:*\n🔹 Suscripción: {suscripcion}\n🔹 Nombre de alumno: {nombre}\n🔹 Instrumento: {instrumento}\n🔹 Grupo: {grupo}\n🔹 Docente: {profe}\n🔹 Inicio de clases: {fecha inicio clases}",
     texto_alta_alumno: "Hola {nombre}! Muchas gracias!\n*Te confirmamos que ya está todo listo para tu inicio de clases!* Te esperamos! 🤟🎉\n\n🧩 *Suscripción*: {suscripcion} {emojiinstrumento} {instrumento}\n📅 *Cursada*: {horario_cursada}\n🚀 *Inicio de clases*: {fecha inicio clases}\n👨🏫 *Profe*: {profe}\n📍 *Dirección*: Av. Cabildo 2970, Piso 1, Depto C.\n\nEn el próximo mensaje te dejo algunas consideraciones a tener en cuenta. Cualquier duda me avisas. Éxitos ⚡",
     arancel_individual_suelta: '',
     arancel_individual_quincenal: '',
@@ -113,7 +113,7 @@ export function esAlumnoAltaFinalizada(d) {
 // Checklist de altas confirmadas (versión 2, 13/11/2026): cada paso se auto-chequea con su acción.
 //   0 Carga en Sistema (Copiar Registro BD) · 1 Carga en Contabilidad (Copiar Facturación)
 //   2 Profesor notificado (Avisar Alta a Docente) · 3 Alumno notificado (Avisar Alta a Alumno)
-export const PASOS_CHECKLIST_ALTA = ['1. Carga en Sistema', '2. Carga en Contabilidad', '3. Profesor notificado', '4. Alumno notificado'];
+export const PASOS_CHECKLIST_ALTA = ['1. Carga en Sistema', '2. Carga en Contabilidad', '3. Docente notificado', '4. Alumno notificado'];
 
 // Devuelve siempre 4 valores en el orden nuevo. Los alumnos con el checklist anterior
 // (sin la marca checklist_alta_v) tenían: [Sistema, Docente notificado, Bienvenida a alumno, Grupo WhatsApp]

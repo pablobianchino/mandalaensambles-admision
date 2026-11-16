@@ -1025,7 +1025,7 @@ export async function renderPortalProfesor(cont, usuarioActual = {}, callbacks =
 
     try {
         let profesorId = usuarioActual.profesor_id || '';
-        let profesorNombre = usuarioActual.nombre || usuarioActual.email || 'Profesor';
+        let profesorNombre = usuarioActual.nombre || usuarioActual.email || 'Docente';
         let profesorEmail = (usuarioActual.email || '').toLowerCase();
         let profDocData = null;
 
@@ -1089,7 +1089,7 @@ export async function renderPortalProfesor(cont, usuarioActual = {}, callbacks =
             profesorEmail = obtenerEmailHumanoDocente(profeSeleccionado, profesorEmail);
             profDocData = profeSeleccionado;
         } else if (puedeCambiarDocente && !filtroProfeId) {
-            profesorNombre = "Todos los Profesores";
+            profesorNombre = "Todos los Docentes";
             profesorEmail = "Vista Global";
             profDocData = null;
         } else if (!puedeCambiarDocente) {
@@ -1419,7 +1419,7 @@ export async function renderPortalProfesor(cont, usuarioActual = {}, callbacks =
                                 <div style="display:inline-flex; align-items:center; gap:6px; margin-left:8px; background:var(--hover-bg); padding:3px 8px; border-radius:8px; border:1px solid var(--border-color);">
                                     <span style="font-size:11px; font-weight:700; color:var(--accent-teal);">Ver Docente:</span>
                                     <select id="select-filtro-docente-portal" style="border:none; background:transparent; font-size:12px; font-weight:700; color:var(--text-main); cursor:pointer; outline:none;">
-                                        <option value="" ${!filtroProfeId ? 'selected' : ''}>🌐 Todos los Profesores</option>
+                                        <option value="" ${!filtroProfeId ? 'selected' : ''}>🌐 Todos los Docentes</option>
                                         ${todosLosProfes.map(p => `<option value="${p.id}" ${p.id === filtroProfeId ? 'selected' : ''}>👨‍🏫 ${p.nombre}</option>`).join('')}
                                     </select>
                                 </div>

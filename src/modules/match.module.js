@@ -3386,13 +3386,32 @@ export function buscarAlumnosCandidatosParaSolicitud(solicitud, alumnosEspera) {
         }
 
         // 3. Coincidencia de Disponibilidad Horaria en el día del grupo
-        const diaSol = (solicitud.dia || '').trim().toUpperCase();
-        const dispDia = alumno.disponibilidad && (alumno.disponibilidad[diaSol] || alumno.disponibilidad[solicitud.dia]);
+        const durMinSol = solicitud.duracionMinutos || (solicitud.tipoGrupo === 'Ensamble Mandalorian' ? 90 : 60);
+        const parsedSol = parsearNomenclaturaGrupoOClase(solicitud.grupoNombre, durMinSol);
+        const diaSol = String((parsedSol ? parsedSol.diaCod : (solicitud.diaCod || solicitud.dia)) || '').trim().toUpperCase();
+        const horaIniSol = parsedSol ? parsedSol.horaInicio : solicitud.horaInicio;
+        const horaFinSol = parsedSol ? parsedSol.horaFin : solicitud.horaFin;
+        const dispDia = alumno.disponibilidad && alumno.disponibilidad[diaSol];
         if (Array.isArray(dispDia) && dispDia.length > 0) {
-            score += 30;
-            motivos.push(`Disponible día ${solicitud.dia || diaSol}`);
+            let cubreHorario = null; // null = la solicitud no trae horario para comparar
+            if (horaIniSol && horaFinSol) {
+                const sIni = convertirHoraAMinutos(horaIniSol);
+                const sFin = convertirHoraAMinutos(horaFinSol);
+                cubreHorario = dispDia.some(r => {
+                    const rIni = normalizarHoraLocal(typeof r === 'object' ? r.inicio : (typeof r === 'string' ? r.split(/[-a]/)[0] : '09:00'), '09:00');
+                    const rFin = normalizarHoraLocal(typeof r === 'object' ? r.fin : (typeof r === 'string' ? (r.split(/[-a]/)[1] || r.split(/[-a]/)[0]) : '22:00'), '22:00');
+                    return convertirHoraAMinutos(rIni) <= sIni && convertirHoraAMinutos(rFin) >= sFin;
+                });
+            }
+            if (cubreHorario === false) {
+                score += 10;
+                alertas.push(`Disponible el ${diaSol} pero no cubre ${horaIniSol} a ${horaFinSol}`);
+            } else {
+                score += 30;
+                motivos.push(`Disponible ${diaSol}${cubreHorario ? ` ${horaIniSol} a ${horaFinSol}` : ''}`);
+            }
         } else {
-            alertas.push(`Sin disponibilidad declarada día ${solicitud.dia || diaSol}`);
+            alertas.push(`Sin disponibilidad declarada día ${diaSol}`);
         }
 
         return {

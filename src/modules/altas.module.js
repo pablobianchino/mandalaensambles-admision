@@ -2,7 +2,7 @@
 // src/modules/altas.module.js -- Modulo de Altas, Pre-altas, Calendar & Export
 // =======================================================================
 
-import { defaultCfg, esAlumnoAltaFinalizada, esAlumnoAltaConfirmadaIncompleta, normalizarAlumnoSeguimiento, calcularFechaSeguimiento72hs, calcularDiasHabilesTranscurridos, leerChecklistAlta, PASOS_CHECKLIST_ALTA } from "../config/constants.js?v=8.8";
+import { defaultCfg, esAlumnoAltaFinalizada, esAlumnoAltaConfirmadaIncompleta, normalizarAlumnoSeguimiento, calcularFechaSeguimiento72hs, calcularDiasHabilesTranscurridos, leerChecklistAlta, PASOS_CHECKLIST_ALTA } from "../config/constants.js?v=8.9";
 import { 
     db, 
     collection, 
@@ -1193,6 +1193,8 @@ export function calcularSlotsComunesAlumnos(alumnosList = [], duracionMinutos = 
         // Evaluar desde las 09:00 (540 mins) hasta hMax en bloques de 30 mins
         for (let slotIni = 540; slotIni + duracionMinutos <= dia.hMax; slotIni += 30) {
             const slotFin = slotIni + duracionMinutos;
+            // No sugerir horarios que ya pasaron (semana en curso)
+            if (new Date(dSlot.getFullYear(), dSlot.getMonth(), dSlot.getDate(), 0, slotIni) < hoy) continue;
             const hIniStr = minutosAHora(slotIni);
             const hFinStr = minutosAHora(slotFin);
 
@@ -1769,6 +1771,24 @@ export async function guardarPreAlta(btnTargetOrOptions, maybeCallbacks = {}) {
         if (!esIndividual && !grp) {
             if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
             return alert("Por favor ingresa el nombre del grupo.");
+        }
+
+        // Un nombre de grupo no puede pertenecer a dos docentes distintos (se mezclarian en Altas)
+        if (!esIndividual && grp && profeId) {
+            const idsLote = new Set(ids);
+            const snapGrp = await getDocs(query(collection(db, "alumnos"), where("grupo_asignado", "==", grp)));
+            let otroDocente = '';
+            snapGrp.forEach(d => {
+                if (otroDocente || idsLote.has(d.id)) return;
+                const x = d.data();
+                if (!window.esMiembroActivoDeGrupo(x, true)) return;
+                const idOtro = x.profesor_id || x.reserva_profe_id || '';
+                if (idOtro && idOtro !== profeId) otroDocente = x.profesor_asignado || x.reserva_profe_nombre || 'otro docente';
+            });
+            if (otroDocente) {
+                if (typeof setBotonCargando === 'function') setBotonCargando(btnTarget, false);
+                return alert(`Ya existe un grupo llamado "${grp}" con ${otroDocente}. Cambia el nombre del grupo (por ejemplo, con la inicial del apellido del docente) para que no se mezclen.`);
+            }
         }
 
         const durMin = obtenerDuracionPrealtaMinutos();
@@ -2471,6 +2491,11 @@ function resolverPrecioSuscripcion(al) {
     return valor ? formatearPrecioMoneda(valor) : '';
 }
 
+// Nombre de grupo para planillas: solo "DHH Docente" (se quita lo que figure entre parentesis)
+function nombreGrupoParaPlanilla(nombre) {
+    return String(nombre || '').replace(/\s*\([^)]*\)?/g, '').replace(/\s+/g, ' ').trim();
+}
+
 export function generarFilaExcelBD(al) {
     const instFinal = al.instrumento_asignado || (Array.isArray(al.instrumento) ? al.instrumento[0] : (al.instrumento || ''));
     const { suscripcion, tipo } = resolverSuscripcionYTipoExcel(al);
@@ -2483,7 +2508,7 @@ export function generarFilaExcelBD(al) {
         al.nombre || '',                                       // 1. Alumno
         al.profesor_asignado || al.reserva_profe_nombre || '',  // 2. Profesor
         diaNum,                                                // 3. Día (1 a 7)
-        al.grupo_asignado || al.clase_asignada || 'Individual', // 4. Ensamble / Clase
+        nombreGrupoParaPlanilla(al.grupo_asignado || al.clase_asignada) || 'Individual', // 4. Ensamble / Clase (DHH Docente)
         al.nivel_grupo || al.nivel || al.nivel_sugerido || '', // 5. Nivel del Ensamble / Clase
         instFinal,                                             // 6. Instrumento
         suscripcion,                                           // 7. Suscripción
@@ -2501,16 +2526,20 @@ export function generarFilaExcelFacturacion(al) {
     const precio = resolverPrecioSuscripcion(al);
     const detalleAlta = formatearDetalleAltaInicio(al);
 
+    // En clases sueltas el docente es el de la última clase registrada (puede cambiar de una clase a otra)
+    const detSuelta = Array.isArray(al.clases_sueltas_detalle) ? al.clases_sueltas_detalle : [];
+    const docenteUltimaSuelta = detSuelta.length > 0 ? (detSuelta[detSuelta.length - 1].docente || '') : '';
+
     const cols = [
         al.nombre || '',          // 1
-        al.profesor_asignado || al.reserva_profe_nombre || '', // 2
-        al.grupo_asignado || 'Individual', // 3
-        precio,                   // 4 cuota esperada
-        precio,                   // 5 valor de pago
-        '',                       // 6 vacío
-        '',                       // 7 vacío
-        '',                       // 8 vacío (NUEVO)
-        detalleAlta               // 9 ALTA: Inicio DD/MM
+        docenteUltimaSuelta || al.profesor_asignado || al.reserva_profe_nombre || '', // 2
+        nombreGrupoParaPlanilla(al.grupo_asignado) || 'Individual', // 3 Clase (DHH Docente)
+        'Normal',                 // 4 Tipo de Tarifa
+        precio,                   // 5 Cuota esperada
+        precio,                   // 6 Pago real
+        '',                       // 7 Descuento
+        '',                       // 8 Proporción
+        detalleAlta               // 9 Observación (ALTA: Inicio DD/MM)
     ];
     return cols.join('\t');
 }
@@ -2571,20 +2600,18 @@ export function generarFilaExcelFacturacionAdmision(al, cfg = defaultCfg) {
         fechaStr = `${String(hoy.getDate()).padStart(2, '0')}/${String(hoy.getMonth() + 1).padStart(2, '0')}/${String(hoy.getFullYear()).slice(-2)}`;
     }
 
+    const montoFmt = formatearPrecioMoneda(monto);
+
     const cols = [
         al.nombre || '', // 1. Alumno
-        evaluador,       // 2. Evaluador
-        '',              // 3. vacío
-        '',              // 4. vacío
-        '',              // 5. vacío
-        '',              // 6. vacío
-        '',              // 7. vacío
-        monto,           // 8. monto del pago
-        '',              // 9. vacío
-        '',              // 10. vacío
-        '',              // 11. vacío
-        '',              // 12. vacío
-        fechaStr         // 13. fecha de entrevista/agenda (dd/mm/aa)
+        evaluador,       // 2. Profe (evaluador)
+        'Entrevista',    // 3. Clase
+        'Normal',        // 4. Tipo de Tarifa
+        montoFmt,        // 5. Cuota esperada
+        montoFmt,        // 6. Pago real
+        '',              // 7. Descuento
+        '',              // 8. Proporción
+        fechaStr         // 9. Observación (fecha de la entrevista dd/mm/aa)
     ];
     return cols.join('\t');
 }
@@ -3328,6 +3355,19 @@ function construirAccionesFilaAlta(al, id, vista, isConfirmed, nombreGrupo, call
     `;
 }
 
+// Al devolver un grupo completo: si algun integrante tiene el evento de alta en Calendar,
+// se pregunta una sola vez si se conserva o se elimina (misma regla que al devolver un alumno).
+async function decidirCalendarDevolucionGrupo(ids) {
+    for (const id of ids) {
+        const s = await getDoc(doc(db, "alumnos", id));
+        if (s.exists() && s.data().id_evento_alta && typeof window.preguntarAccionCalendar === 'function') {
+            if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
+            return window.preguntarAccionCalendar({ al: { id, ...s.data() }, accionTipo: 'espera' });
+        }
+    }
+    return { decision: 'mantener', tieneEvento: false };
+}
+
 export async function renderAltasAgrupadas(container, dataFiltrada, vista, callbacks = {}) {
     if (!container) return;
     container.style.display = 'flex';
@@ -3365,6 +3405,7 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
             const u = window.usuarioActual || {};
             const esEval = typeof window.esModoEvaluadorActivo === 'function' ? window.esModoEvaluadorActivo() : false;
             const esPendientes = (vista === 'Seguimientos - Pendientes');
+            const esFinalizados = (vista === 'Seguimientos - Finalizados');
 
             // Agrupar alumnos:
             // - Si es 'Seguimientos - Pendientes' -> Agrupar por DOCENTE
@@ -3936,11 +3977,15 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                 const confirmarFn = window.confirmar || ((t, d, b, i) => Promise.resolve(confirm(`${t}\n\n${d}`)));
                 const okDevolver = await confirmarFn(
                     'Devolver Grupo a Altas - Pendientes',
-                    `¿Deseas devolver los integrantes del grupo "${grupo}" a Altas - Pendientes?\n\n• Quedarán en Altas Pendientes para re-coordinar o re-agendar su inicio.\n• Se liberará el evento en Google Calendar.`,
+                    `¿Deseas devolver los integrantes del grupo "${grupo}" a Altas - Pendientes?\n\n• Quedarán en Altas Pendientes para re-coordinar o re-agendar su inicio.\n• Si el grupo tiene un evento de alta en Google Calendar, te voy a preguntar si lo conservas o lo eliminas.`,
                     '↩️ Devolver a Pendientes',
                     '⏳'
                 );
                 if (!okDevolver) return;
+
+                const decCalPend = await decidirCalendarDevolucionGrupo(ids);
+                if (decCalPend.decision === 'cancelar') return;
+                const eventosBorradosPend = new Set();
 
                 if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(window.textoCarga('devolviendoGrupoAPendientes', grupo));
                 try {
@@ -3965,7 +4010,12 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                                 window.actualizarAlumnoEnMemoriaLocal(id, updatesDevPend);
                             }
                             await updateDoc(doc(db, "alumnos", id), updatesDevPend);
-                            await eliminarEventoAltaSeguro({ id, ...al }, callbacks.configApp || defaultCfg);
+                            if (decCalPend.decision === 'eliminar' && al.id_evento_alta && !eventosBorradosPend.has(al.id_evento_alta)) {
+                                eventosBorradosPend.add(al.id_evento_alta);
+                                try {
+                                    await eliminarEventoAltaSeguro({ id, ...al }, callbacks.configApp || defaultCfg, { forzarEliminacionCalendar: true, ignorarMiembrosGrupo: true });
+                                } catch (calErr) { console.warn("Aviso calendar al devolver grupo a pendientes:", calErr); }
+                            }
                         }
                     }
                     if (typeof callbacks.cargarVista === 'function') await callbacks.cargarVista(vista);
@@ -3996,11 +4046,15 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                 const confirmarFn = window.confirmar || ((t, d, b, i) => Promise.resolve(confirm(`${t}\n\n${d}`)));
                 const okDevolver = await confirmarFn(
                     'Devolver Grupo a Lista de Espera',
-                    `¿Deseas devolver los integrantes del grupo "${grupo}" a Lista de Espera? Se desvincularán del grupo y se actualizará Google Calendar.`,
+                    `¿Deseas devolver los integrantes del grupo "${grupo}" a Lista de Espera? Se desvincularán del grupo. Si el grupo tiene un evento de alta en Google Calendar, te voy a preguntar si lo conservas o lo eliminas.`,
                     '🛋️ Devolver a Espera',
                     '⚠️'
                 );
                 if (!okDevolver) return;
+
+                const decCalEsp = await decidirCalendarDevolucionGrupo(ids);
+                if (decCalEsp.decision === 'cancelar') return;
+                const eventosBorradosEsp = new Set();
 
                 if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(window.textoCarga('devolviendoGrupoAEspera', grupo));
                 try {
@@ -4029,7 +4083,12 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                                 window.actualizarAlumnoEnMemoriaLocal(id, payloadDev);
                             }
                             await updateDoc(doc(db, "alumnos", id), payloadDev);
-                            await eliminarEventoAltaSeguro({ id, ...al }, callbacks.configApp || defaultCfg);
+                            if (decCalEsp.decision === 'eliminar' && al.id_evento_alta && !eventosBorradosEsp.has(al.id_evento_alta)) {
+                                eventosBorradosEsp.add(al.id_evento_alta);
+                                try {
+                                    await eliminarEventoAltaSeguro({ id, ...al }, callbacks.configApp || defaultCfg, { forzarEliminacionCalendar: true, ignorarMiembrosGrupo: true });
+                                } catch (calErr) { console.warn("Aviso calendar al devolver grupo a espera:", calErr); }
+                            }
                         }
                     }
                     if (typeof callbacks.cargarVista === 'function') await callbacks.cargarVista(vista);
@@ -4082,9 +4141,11 @@ export async function renderAltasAgrupadas(container, dataFiltrada, vista, callb
                         if (dSnap.exists()) {
                             const al = dSnap.data();
                             const hist = al.historial || [];
+                            hist.push(fnHist(`Alta finalizada junto con todo el grupo "${grupo}" (checklist completo).`, 'alta'));
                             const updateData = {
                                 estado_agenda: "Alta Finalizada",
                                 checklist_alta: [true, true, true, true],
+                                checklist_alta_v: 2,
                                 fecha_alta_finalizada: ahoraIso,
                                 historial: hist
                             };
@@ -4291,7 +4352,7 @@ export function generarTextoAvisoAdmisorPrealta(params = {}) {
 🔹 Inicio de clases: {fecha inicio clases}
 🔹 Nombre: {nombre}
 🔹 Grupo: {grupo}
-🔹 Profesor: {profe}`;
+🔹 Docente: {profe}`;
 
     const esGrupo = list.length > 1 || (nombreGrupo && nombreGrupo !== 'Clase Individual' && nombreGrupo !== 'Individual');
     const grpNom = (nombreGrupo && nombreGrupo !== 'Clase Individual') ? nombreGrupo : (primer.grupo_asignado || (esGrupo ? 'Grupo' : 'Clase Individual'));
@@ -4360,10 +4421,10 @@ export async function copiarAvisoAdmisorGrupo(nombreGrupo, alumnosArrOIds) {
             }
         } else if (nombreGrupo) {
             const pool = Array.isArray(window.allData) ? window.allData : (Array.isArray(window.ultimosAlumnosCargados) ? window.ultimosAlumnosCargados : []);
-            miembros = pool.filter(a => (a.grupo_asignado || '').trim() === nombreGrupo.trim());
+            miembros = pool.filter(a => (a.grupo_asignado || '').trim() === nombreGrupo.trim() && esMiembroActivoDeGrupo(a, true));
             if (miembros.length === 0) {
                 const qSnap = await getDocs(query(collection(db, "alumnos"), where("grupo_asignado", "==", nombreGrupo)));
-                qSnap.forEach(d => miembros.push({ id: d.id, ...d.data() }));
+                qSnap.forEach(d => { if (esMiembroActivoDeGrupo(d.data(), true)) miembros.push({ id: d.id, ...d.data() }); });
             }
         }
 
@@ -4561,7 +4622,7 @@ export function generarTextoAvisoCoordinadorPrealta(params = {}) {
 🔹 Inicio de clases: {fecha inicio clases}
 🔹 Nombre: {nombre}
 🔹 Grupo: {grupo}
-🔹 Profesor: {profe}`;
+🔹 Docente: {profe}`;
 
     const esGrupo = list.length > 1 || (nombreGrupo && nombreGrupo !== 'Clase Individual' && nombreGrupo !== 'Individual');
     const grpNom = (nombreGrupo && nombreGrupo !== 'Clase Individual') ? nombreGrupo : (primer.grupo_asignado || (esGrupo ? 'Grupo' : 'Clase Individual'));
@@ -4630,10 +4691,10 @@ export async function copiarAvisoCoordinadorGrupo(nombreGrupo, alumnosArrOIds) {
             }
         } else if (nombreGrupo) {
             const pool = Array.isArray(window.allData) ? window.allData : (Array.isArray(window.ultimosAlumnosCargados) ? window.ultimosAlumnosCargados : []);
-            miembros = pool.filter(a => (a.grupo_asignado || '').trim() === nombreGrupo.trim());
+            miembros = pool.filter(a => (a.grupo_asignado || '').trim() === nombreGrupo.trim() && esMiembroActivoDeGrupo(a, true));
             if (miembros.length === 0) {
                 const qSnap = await getDocs(query(collection(db, "alumnos"), where("grupo_asignado", "==", nombreGrupo)));
-                qSnap.forEach(d => miembros.push({ id: d.id, ...d.data() }));
+                qSnap.forEach(d => { if (esMiembroActivoDeGrupo(d.data(), true)) miembros.push({ id: d.id, ...d.data() }); });
             }
         }
 
@@ -4831,13 +4892,22 @@ export async function guardarNuevaClaseSuelta(e) {
         const al = alSnap.data();
 
         const cantPrevia = Math.max(1, parseInt(al.cantidad_clases_sueltas || 1, 10));
-        const nuevaCant = cantPrevia + 1;
 
         let fechas = Array.isArray(al.fechas_clases_sueltas) ? [...al.fechas_clases_sueltas] : [];
         if (fechas.length === 0 && al.fecha_inicio_clases) {
             fechas.push(al.fecha_inicio_clases);
         }
         fechas.push(fechaVal);
+        // El contador es la cantidad de fechas registradas (nunca menos que lo que ya figuraba)
+        const nuevaCant = Math.max(fechas.length, cantPrevia + 1);
+
+        // Cada clase guarda su propio docente; las anteriores sin dato quedan con el docente principal
+        const docentePrincipal = al.profesor_asignado || al.reserva_profe_nombre || '';
+        let detalle = Array.isArray(al.clases_sueltas_detalle) ? [...al.clases_sueltas_detalle] : [];
+        for (let i = detalle.length; i < fechas.length - 1; i++) {
+            detalle.push({ fecha: fechas[i], docente: docentePrincipal });
+        }
+        detalle.push({ fecha: fechaVal, docente: profeNombre || docentePrincipal });
 
         const fD = new Date(fechaVal);
         const fStr = !isNaN(fD.getTime())
@@ -4846,12 +4916,13 @@ export async function guardarNuevaClaseSuelta(e) {
 
         const histNota = `Se registró la Clase Suelta N° ${nuevaCant} para el ${fStr} con ${profeNombre || 'docente'}.${notaTexto ? ` (Nota: ${notaTexto})` : ''}`;
         
-        const nowISO = new Date().toISOString();
-        const histEntry = {
+        // Mismo formato que el resto del historial (fecha legible y texto con la fecha adelante)
+        const histEntry = (typeof window.crearEntradaHistorial === 'function'
+            ? window.crearEntradaHistorial(histNota, 'sistema')
+            : null) || {
             id: 'suelta_' + Date.now(),
-            fecha: nowISO,
-            tipo: 'Clase Suelta',
-            titulo: `Clase Suelta N° ${nuevaCant}`,
+            fecha: new Date().toLocaleString('es-AR'),
+            tipo: 'sistema',
             texto: histNota,
             autor: window.usuarioActual?.nombre || window.usuarioActual?.email || 'Administración'
         };
@@ -4859,13 +4930,11 @@ export async function guardarNuevaClaseSuelta(e) {
         const updatePayload = {
             cantidad_clases_sueltas: nuevaCant,
             fechas_clases_sueltas: fechas,
+            clases_sueltas_detalle: detalle,
             modalidad_individual: 'suelta',
             historial: Array.isArray(al.historial) ? [...al.historial, histEntry] : [histEntry]
         };
-
-        if (profeNombre) {
-            updatePayload.profesor_asignado = profeNombre;
-        }
+        // El docente principal de la ficha no se modifica: el docente de esta clase queda en el detalle
 
         await updateDoc(doc(db, "alumnos", alumnoId), updatePayload);
 
@@ -4926,29 +4995,70 @@ export async function cambiarContadorClasesSueltas(alumnoId, delta) {
         if (!alSnap.exists()) return;
         const al = alSnap.data();
 
-        const cantPrevia = Math.max(1, parseInt(al.cantidad_clases_sueltas || 1, 10));
-        const nuevaCant = Math.max(1, cantPrevia + delta);
-        if (nuevaCant === cantPrevia) return;
+        // El contador es la cantidad de fechas registradas: sumar = registrar una clase con su fecha
+        if (delta > 0) {
+            return abrirModalSumarClaseSuelta(id);
+        }
 
-        await updateDoc(doc(db, "alumnos", id), {
+        let fechas = Array.isArray(al.fechas_clases_sueltas) ? [...al.fechas_clases_sueltas] : [];
+        if (fechas.length === 0 && al.fecha_inicio_clases) fechas.push(al.fecha_inicio_clases);
+        if (fechas.length <= 1) {
+            (window.mostrarToast || alert)('Tiene una sola clase registrada: no se puede quitar.', 'info');
+            return;
+        }
+
+        const ultima = fechas[fechas.length - 1];
+        const fU = (typeof ultima?.toDate === 'function') ? ultima.toDate() : new Date(ultima);
+        const txtU = !isNaN(fU.getTime())
+            ? `${fU.getDate()}/${fU.getMonth() + 1}/${fU.getFullYear()} ${String(fU.getHours()).padStart(2, '0')}:${String(fU.getMinutes()).padStart(2, '0')}`
+            : String(ultima);
+        const confirmarFn = window.confirmar || ((t, d) => Promise.resolve(confirm(`${t}\n\n${d}`)));
+        const okQuitar = await confirmarFn(
+            'Quitar clase suelta',
+            `¿Quitar la última clase registrada (${txtU})? El contador baja a ${fechas.length - 1}.`,
+            'Quitar clase',
+            '🗑️'
+        );
+        if (!okQuitar) return;
+
+        fechas.pop();
+        const nuevaCant = fechas.length;
+        const cantPrevia = nuevaCant + 1;
+        const detalle = (Array.isArray(al.clases_sueltas_detalle) ? al.clases_sueltas_detalle : []).slice(0, nuevaCant);
+
+        // Todo movimiento queda en el historial para poder seguir el caso
+        const histEntry = typeof window.crearEntradaHistorial === 'function'
+            ? window.crearEntradaHistorial(`Se quitó la clase suelta del ${txtU}. Clases sueltas: de ${cantPrevia} a ${nuevaCant}.`, 'sistema')
+            : null;
+        const payloadContador = {
             cantidad_clases_sueltas: nuevaCant,
+            fechas_clases_sueltas: fechas,
+            clases_sueltas_detalle: detalle,
             modalidad_individual: 'suelta'
-        });
+        };
+        if (histEntry) payloadContador.historial = [...(Array.isArray(al.historial) ? al.historial : []), histEntry];
+
+        await updateDoc(doc(db, "alumnos", id), payloadContador);
 
         if (typeof window.actualizarAlumnoEnMemoriaLocal === 'function') {
-            window.actualizarAlumnoEnMemoriaLocal(id, {
-                cantidad_clases_sueltas: nuevaCant,
-                modalidad_individual: 'suelta'
-            });
+            window.actualizarAlumnoEnMemoriaLocal(id, payloadContador);
         }
 
         const numVal = document.getElementById('modal-alta-suelta-num-val');
         const cantLbl = document.getElementById('modal-alta-suelta-cant-label');
+        const listaFechas = document.getElementById('modal-alta-suelta-fechas-list');
         if (numVal) numVal.textContent = nuevaCant;
         if (cantLbl) cantLbl.textContent = `${nuevaCant} ${nuevaCant === 1 ? 'clase registrada' : 'clases registradas'}`;
+        if (listaFechas) {
+            listaFechas.innerHTML = fechas.map((f, i) => {
+                const fd = new Date(f);
+                const txt = !isNaN(fd.getTime()) ? `${fd.getDate()}/${fd.getMonth() + 1}` : f;
+                return `<span class="badge" style="background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:4px; font-weight:700;">Clase ${i+1}: ${txt}</span>`;
+            }).join('');
+        }
 
         if (typeof window.mostrarToast === 'function') {
-            window.mostrarToast(`Contador actualizado a ${nuevaCant} clases sueltas`, 'info');
+            window.mostrarToast(`Clase quitada. Clases sueltas: ${nuevaCant}`, 'info');
         }
 
         if (typeof window.cargarVista === 'function' && window.estadoActualVista) {

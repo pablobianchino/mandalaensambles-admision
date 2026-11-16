@@ -706,7 +706,7 @@ export async function sincronizarEventoAltaConfirmadaCalendar(al, esIndividual, 
     return null;
 }
 
-export async function eliminarEventoAltaSeguro(al, cfg = defaultCfg, { forzarEliminacionCalendar = false } = {}) {
+export async function eliminarEventoAltaSeguro(al, cfg = defaultCfg, { forzarEliminacionCalendar = false, ignorarMiembrosGrupo = false } = {}) {
     let evId = al.id_evento_alta || al.id_evento_reserva || al.reserva_id_evento;
     
     // PROTECCIÓN CRÍTICA DE EVENTO PREEXISTENTE:
@@ -731,7 +731,10 @@ export async function eliminarEventoAltaSeguro(al, cfg = defaultCfg, { forzarEli
             const grpSnap = await getDocs(query(collection(db, "alumnos"), where("grupo_asignado", "==", al.grupo_asignado)));
             grpSnap.forEach(d => {
                 const data = d.data();
-                if (d.id !== al.id && !['Alta Finalizada', 'Alta Suspendida', 'Agenda suspendida', 'Inactivo'].includes(data.estado_agenda)) {
+                // Alta Finalizada sigue cursando (cuenta para el cupo); solo quedan fuera suspendidos, bajas e inactivos
+                const estNorm = (data.estado_agenda || '').normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+                const fueraDelGrupo = ['alta suspendida', 'agenda suspendida', 'inactivo', 'baja'].includes(estNorm) || estNorm.includes('suspendid') || data.baja === true;
+                if (d.id !== al.id && !fueraDelGrupo) {
                     otrosMiembrosActivos.push({ id: d.id, ...data });
                 }
                 if (data.id_evento_alta && !evId) evId = data.id_evento_alta;
@@ -743,7 +746,8 @@ export async function eliminarEventoAltaSeguro(al, cfg = defaultCfg, { forzarEli
 
     // PROTECCIÓN CRÍTICA: Si quedan otros compañeros cursando en el grupo,
     // NUNCA borrar el evento de Google Calendar!
-    if (otrosMiembrosActivos.length > 0) {
+    // (salvo que se devuelva el grupo completo: ahi ya se decidio sobre el evento de todo el grupo)
+    if (otrosMiembrosActivos.length > 0 && !ignorarMiembrosGrupo) {
         console.log(`Evento de grupo ${al.grupo_asignado} preservado para los restantes ${otrosMiembrosActivos.length} alumnos.`);
         return false;
     }
