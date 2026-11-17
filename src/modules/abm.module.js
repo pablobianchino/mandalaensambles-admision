@@ -2,7 +2,7 @@
 // src/modules/abm.module.js -- ABM Profesores, Instrumentos, Suscripciones, Usuarios y Config
 // =======================================================================
 
-import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO } from "../config/constants.js?v=8.11";
+import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO } from "../config/constants.js?v=8.12";
 import { formatearPrecioMoneda, TEXTO_AVISO_ADMISOR_INBOX_DEFAULT } from "./altas.module.js";
 import { 
     db, 
@@ -17,7 +17,8 @@ import {
     initializeApp,
     getAuth,
     createUserWithEmailAndPassword,
-    signOut
+    signOut,
+    auth
 } from "../config/firebase.js";
 import {
     poblarDisponibilidadMultiRango,
@@ -2212,10 +2213,10 @@ window.restablecerPasswordUsuarioSistema = async function() {
         alert("⚠️ Seleccioná primero un usuario guardado para restablecer su contraseña.");
         return;
     }
-    const ok = typeof window.confirmar === 'function' 
+    const ok = typeof window.confirmar === 'function'
         ? await window.confirmar(
             "¿Restablecer contraseña?",
-            `Se marcará el acceso de ${emailInput || 'este usuario'} para que cambie su contraseña en el próximo ingreso.`,
+            `Se generará una contraseña temporal nueva para ${emailInput || 'este usuario'}. Su contraseña actual dejará de funcionar y deberá cambiar la temporal en su próximo ingreso. La temporal se muestra una sola vez.`,
             "🔄 Restablecer",
             "question"
         )
@@ -2224,18 +2225,61 @@ window.restablecerPasswordUsuarioSistema = async function() {
 
     try {
         if (typeof window.mostrarIndicadorCarga === 'function') window.mostrarIndicadorCarga(window.textoCarga('restableciendoClave'));
-        await updateDoc(doc(db, "usuarios_sistema", editId), {
-            password_modificada: false,
-            password_inicial_asignada: true,
-            fecha_reset_password: new Date().toISOString()
+        const idToken = await auth.currentUser?.getIdToken();
+        if (!idToken) throw new Error('No hay sesión activa. Volvé a iniciar sesión.');
+        // El cambio real de la clave lo hace el servidor (api/restablecer-clave.js): el navegador no puede cambiar la clave de otra persona.
+        const r = await fetch('/api/restablecer-clave', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idToken, usuarioId: editId })
         });
+        let resp = null;
+        try { resp = await r.json(); } catch (eJson) { /* sin cuerpo */ }
         if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
-        // Aviso solo para quien administra. Ojo: desde el navegador no se puede cambiar la clave real de otra persona en Firebase.
-        alert(`✅ Restablecimiento registrado para ${emailInput}.\n\nSe le pedirá cambiar su contraseña en el próximo ingreso con correo y contraseña.\n\nImportante: este botón NO modifica la contraseña real en Firebase. Si la persona nunca la cambió, su clave sigue siendo la inicial: ${CLAVE_INICIAL_DEFECTO}. Si ya la cambió y la olvidó, esa clave nueva no se recupera con este botón.`);
+        if (!r.ok || !resp?.ok || !resp.clave) {
+            throw new Error(resp?.error || (r.status === 404 ? 'El servicio de restablecimiento no está disponible en este servidor.' : 'Respuesta inesperada del servidor (' + r.status + ').'));
+        }
+        mostrarClaveTemporalUnaVez(resp.email || emailInput, resp.clave, resp);
     } catch (e) {
         if (typeof window.ocultarIndicadorCarga === 'function') window.ocultarIndicadorCarga();
         alert("❌ Error al restablecer contraseña: " + e.message);
     }
 };
+
+// Muestra la contraseña temporal UNA sola vez, con botón para copiarla. Al cerrar se elimina del DOM y no queda en ningún lado.
+function mostrarClaveTemporalUnaVez(email, clave, info = {}) {
+    const dlg = document.createElement('dialog');
+    dlg.className = 'modal-app';
+    dlg.style.cssText = 'max-width:420px; width:calc(100% - 32px); border:none; border-radius:14px; padding:22px; box-shadow:0 20px 50px rgba(0,0,0,.25);';
+    const extra = [
+        info.cuentaCreada ? 'No tenía cuenta de acceso: se creó con esta contraseña.' : '',
+        info.fichaMarcada === false ? 'Atención: la contraseña se cambió, pero no se pudo marcar la ficha para exigir el cambio al ingresar.' : ''
+    ].filter(Boolean);
+    dlg.innerHTML = `
+        <h3 style="margin:0 0 6px; font-size:17px;">Contraseña temporal</h3>
+        <p style="margin:0 0 14px; font-size:13px; line-height:1.45; color:#475569;">Para <strong class="js-email"></strong>. Copiala y enviásela a la persona: <strong>no se vuelve a mostrar</strong>. Al ingresar con correo y contraseña se le pedirá elegir una nueva.</p>
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:12px;">
+            <input type="text" readonly class="js-clave" style="flex:1; min-width:0; font-family:monospace; font-size:18px; letter-spacing:1px; padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; background:#f8fafc;">
+            <button type="button" class="btn-app btn-primary js-copiar">Copiar</button>
+        </div>
+        <p class="js-extra" style="margin:0 0 12px; font-size:12.5px; color:#92400e; display:none;"></p>
+        <div style="display:flex; justify-content:flex-end;"><button type="button" class="btn-app btn-secondary js-cerrar">Listo, ya la copié</button></div>`;
+    dlg.querySelector('.js-email').textContent = email || '';
+    const campo = dlg.querySelector('.js-clave');
+    campo.value = clave;
+    if (extra.length) { const p = dlg.querySelector('.js-extra'); p.textContent = extra.join(' '); p.style.display = 'block'; }
+    const btnCopiar = dlg.querySelector('.js-copiar');
+    btnCopiar.addEventListener('click', async () => {
+        try { await navigator.clipboard.writeText(clave); }
+        catch (e) { campo.select(); try { document.execCommand('copy'); } catch (e2) { /* se copia a mano */ } }
+        btnCopiar.textContent = 'Copiada';
+    });
+    const cerrar = () => { campo.value = ''; dlg.close(); dlg.remove(); };
+    dlg.querySelector('.js-cerrar').addEventListener('click', cerrar);
+    dlg.addEventListener('cancel', (ev) => { ev.preventDefault(); cerrar(); });
+    document.body.appendChild(dlg);
+    dlg.showModal();
+    campo.select();
+}
 window.eliminarABM = eliminarABM;
 window.cargarABM = cargarABM;
