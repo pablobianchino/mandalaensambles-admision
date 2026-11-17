@@ -1,6 +1,6 @@
 // =======================================================================
 // recordatorios.module.js - Motor Inteligente de Recordatorios y Alertas
-// Mandala Admision v8.10
+// Mandala Admision v8.11
 // =======================================================================
 
 import { 
@@ -12,7 +12,8 @@ import {
 import {
     esAlumnoAltaFinalizada,
     esAlumnoAltaConfirmadaIncompleta,
-    leerChecklistAlta
+    leerChecklistAlta,
+    ADMIN_EMERGENCIA_EMAIL
 } from "../config/constants.js";
 
 let timerIntervaloCheck = null;
@@ -248,7 +249,7 @@ export function obtenerPermisosRecordatorios(usuario, rolEfectivo) {
     const esRolDocenteEfectivo = rolEfectivo === 'profesor' || rolEfectivo === 'docente';
 
     const email = (usuario.email || '').toLowerCase().trim();
-    const esAdminPerfil = roles.includes('admin') || roles.includes('superadmin') || usuario.rol === 'admin' || email === 'productora.mandalahouse@gmail.com';
+    const esAdminPerfil = roles.includes('admin') || roles.includes('superadmin') || usuario.rol === 'admin' || email === ADMIN_EMERGENCIA_EMAIL;
     const esModoAdminGlobal = rolEfectivo === 'admin' || (rolEfectivo === 'multi' && esAdminPerfil);
     const esCoordGlobal = rolEfectivo === 'coordinador' || rolEfectivo === 'coordinador_grupos' || (rolEfectivo === 'multi' && (roles.includes('coordinador') || roles.includes('coordinador_grupos')));
 

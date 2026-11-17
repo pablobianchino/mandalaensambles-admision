@@ -2,11 +2,16 @@
 // src/config/constants.js — Constantes globales del sistema
 // =======================================================================
 
-export const APP_VERSION = "v8.10";
+export const APP_VERSION = "v8.11";
 
 // Contraseña inicial que se asigna al crear cuentas de acceso. Se muestra únicamente en los avisos al administrador
 // (crear/restablecer usuario); no debe aparecer en pantallas ni mensajes visibles para el resto de los usuarios.
 export const CLAVE_INICIAL_DEFECTO = "mandala333";
+
+// Cuenta de emergencia: siempre tiene acceso de administrador (las reglas de Firestore la repiten por separado).
+export const ADMIN_EMERGENCIA_EMAIL = 'productora.mandalahouse@gmail.com';
+// Calendario que se usa cuando la configuración no define uno propio.
+export const CALENDARIO_PRINCIPAL_DEFECTO = ADMIN_EMERGENCIA_EMAIL;
 
 export const SCRIPT_URL ="https://script.google.com/macros/s/AKfycbx033Es_BuZJk5x0MmyV-u8foA58ENNl1K3Cv-BE6ZeguXCG62UIQl5H4v94EB7MT0/exec";
 export const SCRIPT_API_KEY = "mandala-seg-2026";
@@ -35,7 +40,7 @@ export const diasSemana = [
 export const defaultCfg = { 
     hora_apertura: '09:00', 
     hora_cierre: '22:00', 
-    calendario_por_defecto: 'productora.mandalahouse@gmail.com', 
+    calendario_por_defecto: CALENDARIO_PRINCIPAL_DEFECTO,
     identificador_bateria: '🥁', 
     emoji_guitarra: '🎸', 
     emoji_cajon: '📦', 

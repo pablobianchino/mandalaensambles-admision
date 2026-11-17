@@ -19,8 +19,10 @@ import {
     PASOS_CHECKLIST_ALTA,
     normalizarAlumnoSeguimiento,
     calcularFechaSeguimiento72hs,
-    CLAVE_INICIAL_DEFECTO
-} from "./src/config/constants.js?v=8.10";
+    CLAVE_INICIAL_DEFECTO,
+    ADMIN_EMERGENCIA_EMAIL,
+    CALENDARIO_PRINCIPAL_DEFECTO
+} from "./src/config/constants.js?v=8.11";
 
 import { 
     app, 
@@ -93,7 +95,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=6.10.22";
+} from "./src/services/calendar.service.js?v=8.11";
 
 import {
     matchCantidadActual,
@@ -126,11 +128,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=8.10";
+} from "./src/modules/match.module.js?v=8.11";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=8.10";
+} from "./src/modules/profesor.module.js?v=8.11";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -159,14 +161,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=8.10";
+} from "./src/modules/altas.module.js?v=8.11";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=8.10";
+} from "./src/modules/dashboard.module.js?v=8.11";
 
 import {
     renderConfigHub,
@@ -175,23 +177,23 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=8.10";
+} from "./src/modules/abm.module.js?v=8.11";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=8.10";
+} from "./src/modules/inbox.module.js?v=8.11";
 
 // Íconos de línea automáticos en textos de la interfaz (solo presentación)
-import "./src/modules/iconos.module.js?v=8.10";
+import "./src/modules/iconos.module.js?v=8.11";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=8.10";
+} from "./src/modules/csv.module.js?v=8.11";
 
 import {
     inicializarMotorRecordatorios,
@@ -211,7 +213,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=8.10";
+} from "./src/modules/recordatorios.module.js?v=8.11";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -2819,12 +2821,16 @@ export async function subirAudioEntrevistaADrive(blob, evaluadorNombre, alumnoNo
     reader.readAsDataURL(blob);
     const base64Data = await base64Promise;
 
+    let tokenSesionAudio = '';
+    try { tokenSesionAudio = (await auth.currentUser?.getIdToken()) || ''; } catch (eTokA) { /* el script decide si lo exige */ }
+
     try {
         const resp = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({
                 action: 'subirAudioEntrevista',
                 apiKey: SCRIPT_API_KEY,
+                idToken: tokenSesionAudio,
                 folderId: DRIVE_FOLDER_ENTREVISTAS_ID,
                 evaluador: evaluadorCarpeta,
                 nombreArchivo: nombreArchivoFinal,
@@ -5245,7 +5251,7 @@ export function esUsuarioAdministrador() {
     const u = window.usuarioActual || {};
     const roles = Array.isArray(u.roles) ? u.roles : [u.rol || ''];
     const email = (u.email || '').toLowerCase().trim();
-    const tienePermisoAdmin = roles.includes('admin') || u.rol === 'admin' || email === 'productora.mandalahouse@gmail.com';
+    const tienePermisoAdmin = roles.includes('admin') || u.rol === 'admin' || email === ADMIN_EMERGENCIA_EMAIL;
     if (!tienePermisoAdmin) return false;
 
     // Si la cuenta tiene privilegios admin pero el usuario cambió expresamente a un rol operativo en el selector:
@@ -6725,7 +6731,7 @@ window.esModoDocenteActivo = esModoDocenteActivo;
 export function debeFiltrarPorEvaluador() {
     const u = window.usuarioActual || {};
     const roles = Array.isArray(u.roles) && u.roles.length > 0 ? u.roles : [u.rol || 'admisor'];
-    const esAdmin = roles.includes('admin') || u.rol === 'admin' || u.email?.toLowerCase() === 'productora.mandalahouse@gmail.com';
+    const esAdmin = roles.includes('admin') || u.rol === 'admin' || u.email?.toLowerCase() === ADMIN_EMERGENCIA_EMAIL;
     const esAdmisor = roles.includes('admisiones') || roles.includes('admisor') || u.rol === 'admisiones' || u.rol === 'admisor';
     const modo = window.modoRolActivo;
 
@@ -8098,7 +8104,7 @@ export function obtenerRolesDisponibles(usuario = window.usuarioActual) {
     const rolesArr = Array.isArray(usuario.roles) && usuario.roles.length > 0 ? usuario.roles : [usuario.rol || 'admisor'];
     
     // Si es administrador o admin, puede ver todo o simular cualquier rol
-    if (rolesArr.includes('admin') || usuario.rol === 'admin' || usuario.email?.toLowerCase() === 'productora.mandalahouse@gmail.com') {
+    if (rolesArr.includes('admin') || usuario.rol === 'admin' || usuario.email?.toLowerCase() === ADMIN_EMERGENCIA_EMAIL) {
         return ['multi', 'admin', 'admisor', 'coordinador_grupos', 'docente', 'atencion_cliente'];
 }
 
@@ -8126,7 +8132,7 @@ export function obtenerModulosPermitidosModoActivo() {
     const usuario = window.usuarioActual || {};
     const rolesArr = Array.isArray(usuario.roles) && usuario.roles.length > 0 ? usuario.roles : [usuario.rol || 'admisor'];
 
-    const esAdmin = rolesArr.includes('admin') || usuario.rol === 'admin' || usuario.email?.toLowerCase() === 'productora.mandalahouse@gmail.com';
+    const esAdmin = rolesArr.includes('admin') || usuario.rol === 'admin' || usuario.email?.toLowerCase() === ADMIN_EMERGENCIA_EMAIL;
 
     // Para administradores: acceso irrestricto y soporte completo para cambiar de vista de rol
     if (esAdmin) {
@@ -8405,7 +8411,7 @@ export function configurarHeaderUsuarioYRoles() {
     const linkConfig = document.getElementById('popover-link-config');
     if (linkConfig) {
         const modo = (window.modoRolActivo || '').toLowerCase().trim();
-        const esAdmin = u.rol === 'admin' || (Array.isArray(u.roles) && u.roles.includes('admin')) || u.email?.toLowerCase() === 'productora.mandalahouse@gmail.com';
+        const esAdmin = u.rol === 'admin' || (Array.isArray(u.roles) && u.roles.includes('admin')) || u.email?.toLowerCase() === ADMIN_EMERGENCIA_EMAIL;
         const rolesArr = Array.isArray(u.roles) && u.roles.length > 0 ? u.roles : [u.rol || ''];
         const esCoord = modo === 'coordinador' || modo === 'coordinador_grupos' || rolesArr.includes('coordinador') || rolesArr.includes('coordinador_grupos') || rolesArr.some(r => (r || '').toLowerCase().includes('coord'));
         const mods = typeof obtenerModulosPermitidosModoActivo === 'function' ? obtenerModulosPermitidosModoActivo() : [];
@@ -8982,7 +8988,7 @@ window.ejecutarBusquedaGlobal = ejecutarBusquedaGlobal;
 
 let guardRedireccionActivo = false;
 
-// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v8.10)
+// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v8.11)
 function tituloVista(seccion, sub = '') {
     const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
     return `<span>${esc(seccion)}</span>${sub ? `<span class="vista-titulo-sub">${esc(sub)}</span>` : ''}`;
@@ -9865,30 +9871,8 @@ async function conectarEmailPassword(email, password) {
 } catch (err) {
         console.warn("Intento de login con Email/Password:", err.code, err.message);
 
-        // Si intenta ingresar con la clave inicial y no existe usuario con password, intentar crearlo
-        if (password === CLAVE_INICIAL_DEFECTO && (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential')) {
-            try {
-                await createUserWithEmailAndPassword(auth, emailNorm, CLAVE_INICIAL_DEFECTO);
-                console.log(`[Auth] Usuario ${emailNorm} auto-creado en Firebase Auth con la clave inicial`);
-                window.mostrarSplashInicial && window.mostrarSplashInicial();
-                return; // onAuthStateChanged completará el inicio de sesión
-} catch (autoErr) {
-                console.warn("[Auth] No se pudo auto-crear usuario en Firebase Auth:", autoErr.code, autoErr.message);
-                if (autoErr.code === 'auth/email-already-in-use') {
-                    if (errorBox) {
-                        errorBox.innerHTML = 'Tu cuenta fue registrada originalmente con Google.<br><strong>Iniciá sesión con el botón de Google</strong>, o pedile al administrador que te restablezca el acceso.';
-                        errorBox.style.display = 'block';
-}
-                    return;
-} else if (autoErr.code === 'auth/operation-not-allowed') {
-                    if (errorBox) {
-                        errorBox.innerHTML = '⚠️ El método de acceso por Correo/Contraseña no está habilitado en Firebase.<br>Debe activarse en Firebase Console: <em>Authentication &gt; Sign-in method &gt; Correo electrónico/contraseña</em>.';
-                        errorBox.style.display = 'block';
-}
-                    return;
-}
-}
-}
+        // Ya no se crean cuentas al ingresar: las cuentas las crea el administrador desde Configuración > Usuarios.
+        // (Antes, quien conociera la clave inicial podía crear la cuenta de cualquier correo autorizado que nunca hubiera ingresado.)
 
         let msg = 'Error al iniciar sesión. Verificá tu correo y contraseña.';
         if (err.code === 'auth/operation-not-allowed') {
@@ -10167,7 +10151,7 @@ onAuthStateChanged(auth, async (user) => {
 }); 
 }
 
-            if (!usuarioEncontrado && user.email.toLowerCase() === 'productora.mandalahouse@gmail.com') {
+            if (!usuarioEncontrado && user.email.toLowerCase() === ADMIN_EMERGENCIA_EMAIL) {
                 const adminData = { 
                     email: user.email.toLowerCase(), 
                     nombre: 'Mandala House Productora', 
@@ -10222,7 +10206,7 @@ onAuthStateChanged(auth, async (user) => {
             const rol = rolesArr[0] || 'admisor';
 
             let modulos = [];
-            if (rolesArr.includes('admin') || user.email.toLowerCase() === 'productora.mandalahouse@gmail.com') {
+            if (rolesArr.includes('admin') || user.email.toLowerCase() === ADMIN_EMERGENCIA_EMAIL) {
                 modulos = [...ROLES_MODULOS_DEFAULT.admin];
 } else if (Array.isArray(usuarioEncontrado.modulos_habilitados)) {
                 // Prevalece la configuración granular explícita de Firestore
@@ -11434,7 +11418,7 @@ document.addEventListener('click', async (e) => {
                 if (elEvalTop) elEvalTop.textContent = al.reserva_profe_nombre || al.informe_entrevista?.evaluador_nombre || '-';
 }
 
-            // Borrador (v8.10): solo en el flujo de admisión (primer informe, aún no finalizado)
+            // Borrador (v8.11): solo en el flujo de admisión (primer informe, aún no finalizado)
             const esFlujoAdmision = !esNuevoInformeAdicional && !(reportIndexAttr !== null && reportIndexAttr !== '' && !isNaN(parseInt(reportIndexAttr, 10))) && !al.informe_entrevista;
             const dr = (esFlujoAdmision && al.informe_borrador && al.informe_borrador.datos) ? al.informe_borrador.datos : null;
             if (dr) {
@@ -11728,7 +11712,7 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    // Guardar borrador del informe de clase de admisión (v8.10): sin validaciones, no cambia el estado del alumno
+    // Guardar borrador del informe de clase de admisión (v8.11): sin validaciones, no cambia el estado del alumno
     if (target.id === 'btn-guardar-borrador-informe' || target.closest('#btn-guardar-borrador-informe')) {
         const btnBor = document.getElementById('btn-guardar-borrador-informe');
         const id = document.getElementById('informe-final-alumno-id').value;
@@ -12916,7 +12900,7 @@ document.addEventListener('click', async (e) => {
                 return resDiv.innerHTML = '<p>No hay profes seleccionados con este instrumento.</p>'; 
 } 
             // Obtener eventos de Google Calendar deduplicando llamadas por calId único (incluyendo calendario general por defecto)
-            const calDefecto = configApp.calendario_por_defecto || 'productora.mandalahouse@gmail.com';
+            const calDefecto = configApp.calendario_por_defecto || CALENDARIO_PRINCIPAL_DEFECTO;
             const calExcluidosAulas = new Set(['pablobianchino@gmail.com']);
             const calendariosUnicos = [...new Set([
                 ...todosLosProfes.map(p => p.calId).filter(c => !calExcluidosAulas.has((c || '').toLowerCase().trim())),
@@ -15537,7 +15521,7 @@ async function llenarFormularioAlumno(id, modoLectura = false) {
     const rolesUser = Array.isArray(uActual.roles) && uActual.roles.length > 0
         ? uActual.roles
         : [uActual.rol || 'admisor'];
-    const esAdmin = rolesUser.includes('admin') || uActual.rol === 'admin' || uActual.email?.toLowerCase() === 'productora.mandalahouse@gmail.com' || window.modoRolActivo === 'admin';
+    const esAdmin = rolesUser.includes('admin') || uActual.rol === 'admin' || uActual.email?.toLowerCase() === ADMIN_EMERGENCIA_EMAIL || window.modoRolActivo === 'admin';
     const esCoordinador = rolesUser.includes('coordinador') || rolesUser.includes('coordinador_grupos') || uActual.rol === 'coordinador' || window.modoRolActivo === 'coordinador';
     const esAdminOCoordinador = esAdmin || esCoordinador;
 
@@ -16595,7 +16579,7 @@ export const USUARIOS_TEST_PERMITIDOS = [
     'nfchelli@gmail.com',
     'ggkerpel@gmail.com',
     'pablobianchino@gmail.com',
-    'productora.mandalahouse@gmail.com'
+    ADMIN_EMERGENCIA_EMAIL
 ];
 
 export async function generarCasosPruebaEvaluador(emailOverride = null) {
@@ -16762,7 +16746,7 @@ export async function limpiarCasosPrueba() {
                 // Solo borrar si pertenece al usuario logueado o si es admin y no tiene owner asignado
                 const owner = (data.test_owner || '').toLowerCase().trim();
                 const calId = (data.reserva_cal_id || '').toLowerCase().trim();
-                const esPropio = (owner && owner === email) || (calId && calId === email) || (!owner && (email === 'pablobianchino@gmail.com' || email === 'productora.mandalahouse@gmail.com'));
+                const esPropio = (owner && owner === email) || (calId && calId === email) || (!owner && (email === 'pablobianchino@gmail.com' || email === ADMIN_EMERGENCIA_EMAIL));
 
                 if (esPropio) {
                     await deleteDoc(doc(db, "alumnos", d.id));
@@ -17002,7 +16986,7 @@ export async function verificarAlertasDiarias09hs(forzar = false) {
             return;
         }
 
-        const esAdmin = roles.includes('admin') || u.rol === 'admin' || u.email?.toLowerCase() === 'productora.mandalahouse@gmail.com';
+        const esAdmin = roles.includes('admin') || u.rol === 'admin' || u.email?.toLowerCase() === ADMIN_EMERGENCIA_EMAIL;
         const esAdmisor = rolActivo === 'admisor' || rolActivo === 'admisiones' || (rolActivo === 'multi' && (roles.includes('admisor') || roles.includes('admisiones')));
         const esEvaluador = rolActivo === 'evaluador' || (rolActivo === 'multi' && roles.includes('evaluador'));
         const esCoordinador = rolActivo === 'coordinador' || rolActivo === 'coordinador_grupos' || (rolActivo === 'multi' && (roles.includes('coordinador') || roles.includes('coordinador_grupos')));
@@ -18275,8 +18259,8 @@ window._modoFeedbackSeguimientoActual = 'actual';
 
 window.setModoFeedbackSeguimiento = function(modo = 'actual') {
     window._modoFeedbackSeguimientoActual = modo;
-    const btnActual = document.getElementById('btn-modo-seg-actual');
-    const btnRetro = document.getElementById('btn-modo-seg-retroactivo');
+    const chkRetro = document.getElementById('chk-seg-retroactivo');
+    if (chkRetro) chkRetro.checked = (modo === 'retroactivo');
     const inputFechaReal = document.getElementById('seg-ctto-fecha-real');
     const hintFecha = document.getElementById('seg-ctto-fecha-real-hint');
     const wrapActualBox = document.getElementById('wrap-seg-actual-box');
@@ -18288,43 +18272,27 @@ window.setModoFeedbackSeguimiento = function(modo = 'actual') {
     const dd = String(hoy.getDate()).padStart(2, '0');
     const hoyStr = `${yyyy}-${mm}-${dd}`;
 
+    // Ayer (la carga retroactiva solo admite fechas pasadas)
+    const ayerD = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - 1);
+    const ayerStr = `${ayerD.getFullYear()}-${String(ayerD.getMonth() + 1).padStart(2, '0')}-${String(ayerD.getDate()).padStart(2, '0')}`;
+
+    if (inputFechaReal) {
+        // Retroactiva: hasta ayer. Normal: hasta hoy.
+        inputFechaReal.max = (modo === 'retroactivo') ? ayerStr : hoyStr;
+        // Al abrir el modal siempre arranca en hoy; al tildar o destildar se conserva la fecha elegida
+        if (!inputFechaReal.value) inputFechaReal.value = hoyStr;
+        // Si se tilda la carga retroactiva con hoy (o una fecha futura), se pasa a ayer: debe ser una fecha pasada
+        if (modo === 'retroactivo' && inputFechaReal.value >= hoyStr) inputFechaReal.value = ayerStr;
+    }
+
     if (modo === 'retroactivo') {
-        if (btnActual) {
-            btnActual.classList.remove('active');
-            btnActual.style.background = '#fff';
-            btnActual.style.color = '#475569';
-            btnActual.style.borderColor = '#cbd5e1';
-}
-        if (btnRetro) {
-            btnRetro.classList.add('active');
-            btnRetro.style.background = '#475569';
-            btnRetro.style.color = '#fff';
-            btnRetro.style.borderColor = '#475569';
-}
-        if (hintFecha) hintFecha.textContent = '(Seleccioná la fecha pasada en que ocurrió)';
-        if (inputFechaReal) {
-            inputFechaReal.max = hoyStr;
-}
+        if (hintFecha) hintFecha.textContent = '(Fecha pasada en que ocurrió)';
         if (wrapActualBox) wrapActualBox.style.display = 'none';
         if (wrapRetroInfo) wrapRetroInfo.style.display = 'block';
 } else {
-        if (btnActual) {
-            btnActual.classList.add('active');
-            btnActual.style.background = 'var(--accent-teal)';
-            btnActual.style.color = '#fff';
-            btnActual.style.borderColor = 'var(--accent-teal)';
-}
-        if (btnRetro) {
-            btnRetro.classList.remove('active');
-            btnRetro.style.background = '#fff';
-            btnRetro.style.color = '#475569';
-            btnRetro.style.borderColor = '#cbd5e1';
-}
-        if (hintFecha) hintFecha.textContent = '(Hoy)';
-        if (inputFechaReal) {
-            inputFechaReal.value = hoyStr;
-            inputFechaReal.max = hoyStr;
-}
+        if (hintFecha) hintFecha.textContent = (inputFechaReal && inputFechaReal.value && inputFechaReal.value < hoyStr)
+            ? '(Se cargó tarde: queda con esa fecha y reinicia el próximo seguimiento)'
+            : '(Hoy)';
         if (wrapActualBox) wrapActualBox.style.display = 'block';
         if (wrapRetroInfo) wrapRetroInfo.style.display = 'none';
 }
@@ -18362,7 +18330,9 @@ window.abrirModalRegistrarSeguimiento = async function(id) {
     const fIni = al.fecha_inicio_clases || al.fecha_sugerida_inicio || '-';
     document.getElementById('seg-ctto-sub-info').textContent = `Docente: ${prof} • Inicio clases: ${fIni}`;
 
-    // Resetear a modo Actual por defecto
+    // Resetear a modo Actual por defecto (fecha de hoy, sin carga retroactiva)
+    const inpFechaRealAbrir = document.getElementById('seg-ctto-fecha-real');
+    if (inpFechaRealAbrir) inpFechaRealAbrir.value = '';
     window.setModoFeedbackSeguimiento('actual');
 
     document.getElementById('seg-ctto-conversado').value = '';
@@ -18409,7 +18379,15 @@ window.guardarContactoSeguimiento = async function() {
     const hoyStr = `${yyyy}-${mm}-${dd}`;
 
     const fechaRealVal = document.getElementById('seg-ctto-fecha-real')?.value || hoyStr;
-    const esRetroactivo = window._modoFeedbackSeguimientoActual === 'retroactivo' || (fechaRealVal < hoyStr);
+    // Carga retroactiva: solo si se eligió manualmente ese modo. Una fecha pasada en modo "Actual" es un feedback cargado tarde.
+    const esRetroactivo = window._modoFeedbackSeguimientoActual === 'retroactivo';
+    const cargadoTarde = !esRetroactivo && fechaRealVal < hoyStr;
+
+    if (esRetroactivo && fechaRealVal >= hoyStr) {
+        alert("⚠️ En la carga retroactiva la fecha debe ser anterior a hoy. Si el feedback es de hoy, destildá la carga retroactiva.");
+        document.getElementById('seg-ctto-fecha-real')?.focus();
+        return;
+    }
 
     const continua = esRetroactivo ? true : (document.getElementById('chk-seg-continuar')?.checked === true);
     let fechaProx = (document.getElementById('input-seg-fecha-manual')?.value || '').trim();
@@ -18444,7 +18422,8 @@ window.guardarContactoSeguimiento = async function() {
             conversado: conversado,
             continua_seguimiento: continua,
             proxima_fecha_pautada: (!esRetroactivo && continua) ? fechaProx : null,
-            es_retroactivo: esRetroactivo
+            es_retroactivo: esRetroactivo,
+            fecha_carga: new Date().toISOString() // cuándo se cargó realmente (puede ser distinta de la fecha del contacto)
 };
 
         const alDoc = await getDoc(doc(db, "alumnos", id));
@@ -18484,9 +18463,10 @@ window.guardarContactoSeguimiento = async function() {
 
         const hist = Array.isArray(al.historial) ? [...al.historial] : [];
         const labelTipoHist = esRetroactivo ? 'Feedback Retroactivo' : 'Feedback';
+        const avisoTarde = cargadoTarde ? ` Cargado tarde: el contacto fue el ${formatearSoloFecha(new Date(fechaContactoIso))} y se registró el ${formatearSoloFecha(new Date())}.` : '';
         const txtHist = (!esRetroactivo && !continua)
-            ? `Seguimiento Finalizado por ${u.nombre || 'Responsable de Seguimiento'}. Motivo: ${conversado}`
-            : `Seguimiento: ${labelTipoHist} (${formatearSoloFecha(new Date(fechaContactoIso))}) registrado por ${u.nombre || 'Responsable de Seguimiento'}.${(!esRetroactivo && fechaProx) ? ' Próxima fecha: ' + fechaProx + '.' : ''}`;
+            ? `Seguimiento Finalizado por ${u.nombre || 'Responsable de Seguimiento'}. Motivo: ${conversado}${avisoTarde}`
+            : `Seguimiento: ${labelTipoHist} (${formatearSoloFecha(new Date(fechaContactoIso))}) registrado por ${u.nombre || 'Responsable de Seguimiento'}.${(!esRetroactivo && fechaProx) ? ' Próxima fecha: ' + fechaProx + '.' : ''}${avisoTarde}`;
         
         const entradaH = crearEntradaHistorial(txtHist, 'seguimiento');
         entradaH.fecha_iso = fechaContactoIso;
@@ -19212,13 +19192,9 @@ document.getElementById('chk-seg-continuar')?.addEventListener('change', (e) => 
     if (wrapAviso) wrapAviso.style.display = continuar ? 'none' : 'block';
 });
 
-// Listeners para conmutar entre Feedback Actual y Carga Retroactiva
-document.getElementById('btn-modo-seg-actual')?.addEventListener('click', () => {
-    window.setModoFeedbackSeguimiento('actual');
-});
-
-document.getElementById('btn-modo-seg-retroactivo')?.addEventListener('click', () => {
-    window.setModoFeedbackSeguimiento('retroactivo');
+// Casilla "Carga retroactiva": solo para registrar un feedback pasado sin tocar el seguimiento actual
+document.getElementById('chk-seg-retroactivo')?.addEventListener('change', (e) => {
+    window.setModoFeedbackSeguimiento(e.target.checked ? 'retroactivo' : 'actual');
 });
 
 document.getElementById('seg-ctto-fecha-real')?.addEventListener('change', (e) => {
@@ -19229,11 +19205,14 @@ document.getElementById('seg-ctto-fecha-real')?.addEventListener('change', (e) =
     const dd = String(hoy.getDate()).padStart(2, '0');
     const hoyStr = `${yyyy}-${mm}-${dd}`;
     
-    if (val && val < hoyStr) {
-        window.setModoFeedbackSeguimiento('retroactivo');
-} else if (val && val === hoyStr) {
-        window.setModoFeedbackSeguimiento('actual');
-}
+    // La carga retroactiva se elige SOLO con su botón. En modo "Actual" se puede poner una fecha pasada
+    // (feedback que se cargó tarde): se guarda con esa fecha y reinicia el próximo seguimiento como cualquier feedback.
+    if (window._modoFeedbackSeguimientoActual !== 'retroactivo') {
+        const hint = document.getElementById('seg-ctto-fecha-real-hint');
+        if (hint) hint.textContent = (val && val < hoyStr)
+            ? '(Se cargó tarde: queda con esa fecha y reinicia el próximo seguimiento)'
+            : '(Hoy)';
+    }
 });
 
 // =======================================================================

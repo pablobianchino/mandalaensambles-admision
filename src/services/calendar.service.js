@@ -2,8 +2,8 @@
 // src/services/calendar.service.js — Servicios e integraciones con Google Calendar
 // =======================================================================
 
-import { SCRIPT_URL, SCRIPT_API_KEY, defaultCfg } from "../config/constants.js";
-import { db, doc, getDoc, collection, getDocs, query, where, updateDoc } from "../config/firebase.js";
+import { SCRIPT_URL, SCRIPT_API_KEY, defaultCfg, CALENDARIO_PRINCIPAL_DEFECTO } from "../config/constants.js";
+import { db, auth, doc, getDoc, collection, getDocs, query, where, updateDoc } from "../config/firebase.js";
 
 export function getEmojiInstrumento(instrumentoInput, cfg, al = null) {
     let instRef = '';
@@ -155,7 +155,12 @@ export function formatearFechaAmi(fechaIsoStr) {
 export async function fetchCalendarAPI(action, payload = {}) {
     payload.action = action; 
     payload.apiKey = SCRIPT_API_KEY;
-    
+    // Token de la sesión de Firebase: el script de Google lo usa para comprobar quién hace el pedido
+    try {
+        const tokenSesion = await auth.currentUser?.getIdToken();
+        if (tokenSesion) payload.idToken = tokenSesion;
+    } catch (eTok) { console.warn('[Calendar] No se pudo obtener el token de sesión:', eTok.message); }
+
     // Validación previa de parámetros críticos para evitar excepciones no controladas en Google Apps Script
     if (action === 'updateEvent' || action === 'deleteEvent') {
         const evId = payload.eventId;
@@ -398,7 +403,7 @@ export async function getCalendarIdParaAlumno(al, cfg = defaultCfg) {
             if (!pQ.empty && pQ.docs[0].data().correo_calendario) return pQ.docs[0].data().correo_calendario; 
         } catch(e) {}
     }
-    return cfg.calendario_por_defecto || 'productora.mandalahouse@gmail.com';
+    return cfg.calendario_por_defecto || CALENDARIO_PRINCIPAL_DEFECTO;
 }
 
 export async function crearEventoSeguro(al, titulos, inicio, fin, cfg = defaultCfg) {
@@ -432,7 +437,7 @@ export async function actualizarEventoSeguro(al, titulos, desc, cfg = defaultCfg
     const cleanEvId = evId.trim();
     let calGrabado = al.calendario_evento_reserva;
     let primaryCalId = await getCalendarIdParaAlumno(al, cfg);
-    let fallbackCalId = cfg.calendario_por_defecto || 'productora.mandalahouse@gmail.com';
+    let fallbackCalId = cfg.calendario_por_defecto || CALENDARIO_PRINCIPAL_DEFECTO;
     let candidatos = [];
     if (calGrabado) candidatos.push(calGrabado); 
     if (primaryCalId && !candidatos.includes(primaryCalId)) candidatos.push(primaryCalId); 
@@ -462,7 +467,7 @@ export async function eliminarEventoSeguro(al, cfg = defaultCfg) {
     const cleanEvId = evId.trim();
     let calGrabado = al.calendario_evento_reserva;
     let primaryCalId = await getCalendarIdParaAlumno(al, cfg);
-    let fallbackCalId = cfg.calendario_por_defecto || 'productora.mandalahouse@gmail.com';
+    let fallbackCalId = cfg.calendario_por_defecto || CALENDARIO_PRINCIPAL_DEFECTO;
     let candidatos = [];
     if (calGrabado) candidatos.push(calGrabado); 
     if (primaryCalId && !candidatos.includes(primaryCalId)) candidatos.push(primaryCalId); 
@@ -637,7 +642,7 @@ export async function sincronizarEventoAltaConfirmadaCalendar(al, esIndividual, 
 
         // Calendarios candidatos para actualización o creación
         const primaryCalId = await getCalendarIdParaAlumno(al, cfg);
-        const fallbackCalId = cfg.calendario_por_defecto || 'productora.mandalahouse@gmail.com';
+        const fallbackCalId = cfg.calendario_por_defecto || CALENDARIO_PRINCIPAL_DEFECTO;
         const candidatosCal = [];
         if (targetCalId && !candidatosCal.includes(targetCalId)) candidatosCal.push(targetCalId);
         if (primaryCalId && !candidatosCal.includes(primaryCalId)) candidatosCal.push(primaryCalId);
@@ -760,7 +765,7 @@ export async function eliminarEventoAltaSeguro(al, cfg = defaultCfg, { forzarEli
 
     let calGrabado = al.calendario_evento_alta || al.calendario_evento_reserva || al.reserva_cal_id;
     let primaryCalId = await getCalendarIdParaAlumno(al, cfg);
-    let fallbackCalId = cfg.calendario_por_defecto || 'productora.mandalahouse@gmail.com';
+    let fallbackCalId = cfg.calendario_por_defecto || CALENDARIO_PRINCIPAL_DEFECTO;
     let candidatos = [];
     if (calGrabado && !candidatos.includes(calGrabado)) candidatos.push(calGrabado);
     if (primaryCalId && !candidatos.includes(primaryCalId)) candidatos.push(primaryCalId);
@@ -999,7 +1004,7 @@ export async function recrearEventoFaltanteCalendar(al, cfg = defaultCfg) {
         else if (al.reserva_inicio) dStart = new Date(al.reserva_inicio);
     }
     
-    if (!targetCalId) targetCalId = cfg.calendario_por_defecto || 'productora.mandalahouse@gmail.com';
+    if (!targetCalId) targetCalId = cfg.calendario_por_defecto || CALENDARIO_PRINCIPAL_DEFECTO;
 
     if (!dStart || isNaN(dStart.getTime())) {
         throw new Error("El alumno no tiene una fecha/hora de inicio válida para agendar el evento.");
@@ -1058,7 +1063,7 @@ export async function alinearEventoHaciaCalendar(al, cfg = defaultCfg) {
         else if (al.reserva_inicio) dStart = new Date(al.reserva_inicio);
     }
 
-    if (!targetCalId) targetCalId = cfg.calendario_por_defecto || 'productora.mandalahouse@gmail.com';
+    if (!targetCalId) targetCalId = cfg.calendario_por_defecto || CALENDARIO_PRINCIPAL_DEFECTO;
 
     if (!dStart || isNaN(dStart.getTime())) {
         throw new Error("El alumno no tiene fecha de inicio válida en el sistema.");
@@ -1158,7 +1163,7 @@ export async function validarConflictoCalendarEnVivo({
     const cantAulas = parseInt(configApp.cantidad_aulas, 10) || 3;
     const cantBat = parseInt(configApp.cantidad_baterias, 10) || 2;
     const emojiBat = configApp.identificador_bateria || '🥁';
-    const mainCal = configApp.calendario_por_defecto || 'productora.mandalahouse@gmail.com';
+    const mainCal = configApp.calendario_por_defecto || CALENDARIO_PRINCIPAL_DEFECTO;
     const calExcluidos = new Set(['pablobianchino@gmail.com']);
 
     const calIds = new Set([mainCal]);
@@ -1323,7 +1328,7 @@ export async function obtenerEventosProfesoresParaSlot({ inicioISO, finISO, conf
     const cantAulas = parseInt(configApp.cantidad_aulas, 10) || 3;
     const cantBat = parseInt(configApp.cantidad_baterias, 10) || 2;
     const emojiBat = configApp.identificador_bateria || '🥁';
-    const mainCal = configApp.calendario_por_defecto || 'productora.mandalahouse@gmail.com';
+    const mainCal = configApp.calendario_por_defecto || CALENDARIO_PRINCIPAL_DEFECTO;
     const calExcluidos = new Set(['pablobianchino@gmail.com']);
 
     const calIds = new Set([mainCal]);
