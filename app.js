@@ -22,7 +22,7 @@ import {
     CLAVE_INICIAL_DEFECTO,
     ADMIN_EMERGENCIA_EMAIL,
     CALENDARIO_PRINCIPAL_DEFECTO
-} from "./src/config/constants.js?v=8.13";
+} from "./src/config/constants.js?v=8.14";
 
 import { 
     app, 
@@ -95,7 +95,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=8.13";
+} from "./src/services/calendar.service.js?v=8.14";
 
 import {
     matchCantidadActual,
@@ -128,11 +128,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=8.13";
+} from "./src/modules/match.module.js?v=8.14";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=8.13";
+} from "./src/modules/profesor.module.js?v=8.14";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -161,14 +161,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=8.13";
+} from "./src/modules/altas.module.js?v=8.14";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=8.13";
+} from "./src/modules/dashboard.module.js?v=8.14";
 
 import {
     renderConfigHub,
@@ -177,23 +177,23 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=8.13";
+} from "./src/modules/abm.module.js?v=8.14";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=8.13";
+} from "./src/modules/inbox.module.js?v=8.14";
 
 // Íconos de línea automáticos en textos de la interfaz (solo presentación)
-import "./src/modules/iconos.module.js?v=8.13";
+import "./src/modules/iconos.module.js?v=8.14";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=8.13";
+} from "./src/modules/csv.module.js?v=8.14";
 
 import {
     inicializarMotorRecordatorios,
@@ -213,7 +213,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=8.13";
+} from "./src/modules/recordatorios.module.js?v=8.14";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -12719,76 +12719,28 @@ document.addEventListener('click', async (e) => {
                 return [String(rangos)];
 }
 
-            function renderResumenAlumnoAgenda(profeMatchData = null) {
+            const escAg = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+            // v8.14: cabecera del alumno (nombre, edad/nivel, instrumento y suscripción). La semana va en la tabla única de abajo.
+            function renderResumenAlumnoAgenda() {
                 if (!infoAlumnoBox) return;
                 infoAlumnoBox.style.display = 'block';
                 const nombre = al.nombre || 'Alumno';
                 const iniciales = nombre.split(' ').filter(p => p).slice(0, 2).map(p => p[0].toUpperCase()).join('') || 'AL';
                 const edadStr = al.edad ? `${al.edad} años` : '';
                 const nivelStr = al.nivel || '';
-                const subInfo = [edadStr, nivelStr].filter(x => x).join(' • ') || 'Sin nivel asignado';
-                const instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || 'Sin Instrumento');
+                const subInfo = [edadStr, nivelStr].filter(x => x).join(' · ') || 'Sin nivel asignado';
+                const instStr = Array.isArray(al.instrumento) ? al.instrumento.join(', ') : (al.instrumento || 'Sin instrumento');
                 const suscStr = al.tipo_suscripcion || 'Ensamble';
+                infoAlumnoBox.innerHTML =
+                    '<div class="agenda-al-head">' +
+                        '<span class="agenda-al-av">' + escAg(iniciales) + '</span>' +
+                        '<div style="min-width:0;"><div class="agenda-al-nom">' + escAg(nombre) + '</div><div class="agenda-al-sub">' + escAg(subInfo) + '</div></div>' +
+                        '<div class="agenda-al-tags"><span class="agenda-al-tag">' + escAg(instStr) + '</span><span class="agenda-al-tag">' + escAg(suscStr) + '</span></div>' +
+                    '</div>';
+            }
 
-                let gridHtml = '';
-                const profesArray = Array.isArray(profeMatchData) ? profeMatchData : (profeMatchData ? [profeMatchData] : []);
-                diasOrdenAgenda.forEach(d => {
-                    const rangos = normalizarRangosTexto(disp[d.key]);
-                    const hasDisp = rangos.length > 0;
-                    
-                    let isMatch = false;
-                    if (hasDisp && profesArray.length > 0) {
-                        isMatch = profesArray.some(pr => pr.disponibilidad && normalizarRangosTexto(pr.disponibilidad[d.key]).length > 0);
-}
-
-                    let cls = 'disp-day-agenda-card';
-                    if (isMatch) cls += ' match-highlight';
-                    else if (hasDisp) cls += ' has-disp';
-
-                    gridHtml += `
-                        <div class="${cls}">
-                            <div class="day-agenda-label">${d.label}</div>
-                            ${hasDisp ? `
-                                <div class="day-agenda-hours">${rangos.join('<br>')}</div>
-                            ` : `
-                                <div style="font-size:10px; color:#cbd5e1;">-</div>
-                            `}
-                        </div>
-                    `;
-});
-
-                infoAlumnoBox.innerHTML = `
-                    <div class="card-alumno-disp-agenda">
-                        <div class="alumno-agenda-header">
-                            <div class="alumno-agenda-meta">
-                                <div class="alumno-agenda-avatar">${iniciales}</div>
-                                <div>
-                                    <div class="alumno-agenda-name">${nombre}</div>
-                                    <div style="font-size:11.5px; color:var(--text-muted);">${subInfo}</div>
-                                </div>
-                            </div>
-                            <div style="display:flex; gap:6px; align-items:center;">
-                                <span class="pill-mini pill-instrumento" style="font-size:11px; font-weight:700; padding:2px 7px; border-radius:6px; background:#fdf2f8; color:#be185d; border:1px solid #fbcfe8;">${instStr}</span>
-                                <span class="pill-mini" style="font-size:11px; font-weight:700; padding:2px 7px; border-radius:6px; background:#f1f5f9; color:#475569;">${suscStr}</span>
-                            </div>
-                        </div>
-
-                        <div>
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                                <span style="font-size:10.5px; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.03em;">
-                                    📅 Disponibilidad Semanal del Alumno:
-                                </span>
-                                <span style="font-size:10px; color:var(--accent-green); font-weight:700;">● Días disponibles</span>
-                            </div>
-                            <div class="disp-grid-agenda-resumen">
-                                ${gridHtml}
-                            </div>
-                        </div>
-                    </div>
-                `;
-}
-
-            renderResumenAlumnoAgenda(null);
+            renderResumenAlumnoAgenda();
 
             const insts = Array.isArray(al.instrumento) ? al.instrumento : (al.instrumento ? [al.instrumento] : []);
             const wrapInst = document.getElementById('agenda-instrumento-wrapper');
@@ -12805,63 +12757,59 @@ document.addEventListener('click', async (e) => {
 }
 }
 
-            // Disponibilidad habitual de los evaluadores: una tarjeta por evaluador con su semana (igual que la del alumno).
-            // Los días en que el alumno también puede se resaltan. Va dentro de un desplegable cerrado.
+            // v8.14: semana habitual en UNA tabla: una fila para el alumno y una por cada evaluador elegido.
+            // Las celdas donde el evaluador puede el mismo día que el alumno se resaltan, y abajo va el resumen de coincidencias.
             function formatearRangoEvaluadorAgenda(txt) {
                 const t = String(txt || '').trim();
                 if (t === 'Libre') return 'Todo el día';
                 if (t === 'Flex') return 'Flexible';
-                return t.replace(/\s*-\s*/g, '–').replace(/(^|–)0(\d:)/g, (m0, a, b) => (b === '0:' && a === '–') ? m0 : a + b);
+                // "09:00-13:00" -> "9–13" ; "18:30-21:00" -> "18:30–21"
+                return t.replace(/\s*-\s*/g, '–').replace(/(^|–)0(\d)/g, '$1$2').replace(/:00(?=–|$)/g, '');
             }
 
             function actualizarPanelProfeAgenda() {
                 const box = document.getElementById('agenda-profe-schedule-box');
                 if (!box) return;
                 const selectProfe = document.getElementById('agenda-profe-filtro');
-                if (!selectProfe) return;
-
-                const selectedIds = Array.from(selectProfe.selectedOptions).map(o => o.value).filter(v => v);
-                const profesSeleccionados = selectedIds.map(pId => window._mapaProfesoresAgenda?.[pId]).filter(p => p && p.disponibilidad);
-
-                if (profesSeleccionados.length === 0) {
-                    box.style.display = 'none';
-                    profesorSeleccionadoActivo = null;
-                    renderResumenAlumnoAgenda(null);
-                    return;
-                }
-
+                const selectedIds = selectProfe ? Array.from(selectProfe.selectedOptions).map(o => o.value).filter(v => v) : [];
+                const profesSeleccionados = selectedIds.map(pId => window._mapaProfesoresAgenda?.[pId]).filter(p => p);
                 profesorSeleccionadoActivo = profesSeleccionados.length === 1 ? profesSeleccionados[0] : null;
-                box.style.display = 'flex';
-                box.className = 'profe-schedule-agenda-box';
 
-                const escDisp = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
-                const tarjetas = profesSeleccionados.map(profe => {
+                const celdaRangos = rangos => rangos.length
+                    ? rangos.map(r => '<span class="h">' + escAg(formatearRangoEvaluadorAgenda(r)) + '</span>').join('')
+                    : '—';
+                const cab = '<tr><th class="quien"></th>' + diasOrdenAgenda.map(d => '<th>' + d.label + '</th>').join('') + '</tr>';
+                const filaAlumno = '<tr class="alumno"><th class="quien">Alumno</th>' + diasOrdenAgenda.map(d => {
+                    const r = normalizarRangosTexto(disp[d.key]);
+                    return '<td class="' + (r.length ? 'on' : 'vacio') + '">' + celdaRangos(r) + '</td>';
+                }).join('') + '</tr>';
+
+                const coincidencias = [];
+                const filasProfes = profesSeleccionados.map(profe => {
                     const pDisp = profe.disponibilidad || {};
-                    const diasMatch = [];
+                    const diasCo = [];
                     const celdas = diasOrdenAgenda.map(d => {
-                        const pRangos = normalizarRangosTexto(pDisp[d.key]).map(formatearRangoEvaluadorAgenda);
-                        const alTieneDia = normalizarRangosTexto(disp[d.key]).length > 0;
-                        const coincide = alTieneDia && pRangos.length > 0;
-                        if (coincide) diasMatch.push(d.label);
-                        return '<div class="eval-dia' + (pRangos.length ? ' on' : '') + (coincide ? ' match' : '') + '">' +
-                            '<b>' + d.label + '</b>' +
-                            (pRangos.length ? pRangos.map(r => '<span>' + escDisp(r) + '</span>').join('') : '<span class="vacio">—</span>') +
-                            '</div>';
+                        const r = normalizarRangosTexto(pDisp[d.key]);
+                        const co = r.length > 0 && normalizarRangosTexto(disp[d.key]).length > 0;
+                        if (co) diasCo.push(d.label.toLowerCase());
+                        return '<td class="' + (co ? 'co' : (r.length ? '' : 'vacio')) + '">' + celdaRangos(r) + '</td>';
                     }).join('');
-                    return '<div class="eval-tarjeta">' +
-                        '<div class="eval-tarjeta-head"><strong>' + escDisp(profe.nombre) + '</strong>' +
-                        '<span>' + (diasMatch.length ? 'Coincide con el alumno: <b>' + diasMatch.join(', ') + '</b>' : '<b style="color:#b91c1c;">Sin días en común con el alumno</b>') + '</span></div>' +
-                        '<div class="eval-semana">' + celdas + '</div></div>';
+                    const nombreP = profe.nombre || 'Evaluador';
+                    coincidencias.push(diasCo.length
+                        ? '<b>' + escAg(nombreP) + '</b> ' + diasCo.join(' y ').replace(/ y (?=.* y )/g, ', ')
+                        : '<b>' + escAg(nombreP) + '</b> <span class="sin">sin días en común</span>');
+                    return '<tr><th class="quien" title="' + escAg(nombreP) + '">' + escAg(nombreP) + '</th>' + celdas + '</tr>';
                 }).join('');
 
-                const titulo = profesSeleccionados.length === 1
-                    ? 'Disponibilidad habitual de ' + escDisp(profesSeleccionados[0].nombre)
-                    : 'Disponibilidad habitual de los ' + profesSeleccionados.length + ' evaluadores';
-                box.innerHTML = '<details class="agenda-disp-desplegable" style="width:100%;"><summary>' + titulo + '</summary>' +
-                    '<div style="margin-top:8px;">' + tarjetas +
-                    '<div class="eval-leyenda"><i></i>Día en que el alumno también puede</div></div></details>';
+                const leyenda = '<span class="ley"><span><i class="l-al"></i>Alumno</span>' + (profesSeleccionados.length ? '<span><i class="l-co"></i>Coincide</span>' : '') + '</span>';
+                const pie = profesSeleccionados.length
+                    ? '<div class="agenda-semana-coincide">Coinciden con el alumno: ' + coincidencias.join(' · ') + '</div>'
+                    : '<div class="agenda-semana-coincide">Elegí evaluadores en "Cambiar" para comparar su semana con la del alumno.</div>';
 
-                renderResumenAlumnoAgenda(profesSeleccionados.length === 1 ? profesSeleccionados[0] : profesSeleccionados);
+                box.className = 'agenda-semana';
+                box.style.display = 'block';
+                box.innerHTML = '<div class="agenda-semana-tit"><span>Semana habitual</span>' + leyenda + '</div>' +
+                    '<table class="agenda-semana-tabla"><thead>' + cab + '</thead><tbody>' + filaAlumno + filasProfes + '</tbody></table>' + pie;
             }
 
             async function refrescarProfesoresEntrevista(instrumentoSeleccionado) {

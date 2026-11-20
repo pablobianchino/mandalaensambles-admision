@@ -4746,6 +4746,35 @@ button.btn-prio-filtro.prio-proximos.active,
 .agenda-panel-filtros[hidden] { display: none; }
 .agenda-filtro-lbl { font-size: 11px; font-weight: 700; color: var(--ink-3, #8a9097); text-transform: uppercase; letter-spacing: .04em; display: block; margin: 0 0 5px; }
 .agenda-rangos-rapidos { display: flex; gap: 8px; flex-wrap: wrap; }
+/* v8.14: cabecera del alumno y semana habitual en una sola tabla */
+#info-alumno-agenda { margin-bottom: 12px; }
+.agenda-al-head { display: flex; align-items: center; gap: 10px; }
+.agenda-al-av { width: 36px; height: 36px; border-radius: 50%; background: var(--teal-50, #e8f4f6); color: var(--teal-700, #006173); display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; flex-shrink: 0; }
+.agenda-al-nom { font-weight: 800; font-size: 14.5px; color: var(--ink, #1c1f22); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agenda-al-sub { font-size: 12px; color: var(--ink-3, #8a9097); }
+.agenda-al-tags { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.agenda-al-tag { font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--surface-2, #faf8f3); border: 1px solid var(--line, #ece6dc); color: var(--ink-2, #4b5159); white-space: nowrap; }
+.agenda-semana { border: 1px solid var(--line, #ece6dc); border-radius: 10px; overflow: hidden; background: var(--surface, #fff); }
+.agenda-semana-tit { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 12px; background: var(--surface-2, #faf8f3); border-bottom: 1px solid var(--line, #ece6dc); font-size: 11px; font-weight: 700; color: var(--ink-3, #8a9097); text-transform: uppercase; letter-spacing: .04em; }
+.agenda-semana-tit .ley { text-transform: none; letter-spacing: 0; font-weight: 600; display: flex; gap: 10px; }
+.agenda-semana-tit .ley i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; }
+.agenda-semana-tit .l-al { background: var(--surface-2, #faf8f3); border: 1px solid var(--line-2, #ddd5c8); }
+.agenda-semana-tit .l-co { background: var(--teal-50, #e8f4f6); border: 1px solid var(--teal, #007b8f); }
+table.agenda-semana-tabla { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 11.5px; margin: 0; }
+.agenda-semana-tabla th, .agenda-semana-tabla td { border-bottom: 1px solid var(--line, #ece6dc); padding: 6px 3px; text-align: center; vertical-align: top; }
+.agenda-semana-tabla tbody tr:last-child td, .agenda-semana-tabla tbody tr:last-child th { border-bottom: none; }
+.agenda-semana-tabla thead th { font-size: 11px; color: var(--ink-3, #8a9097); font-weight: 700; background: var(--surface, #fff); }
+.agenda-semana-tabla th.quien { width: 74px; text-align: left; padding-left: 10px; font-size: 12px; color: var(--ink, #1c1f22); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.agenda-semana-tabla td .h { display: block; line-height: 1.35; color: var(--ink-2, #4b5159); }
+.agenda-semana-tabla td.vacio { color: var(--line-2, #ddd5c8); }
+.agenda-semana-tabla tr.alumno td.on { background: var(--surface-2, #faf8f3); }
+.agenda-semana-tabla tr.alumno td.on .h { color: var(--ink, #1c1f22); font-weight: 600; }
+.agenda-semana-tabla td.co { background: var(--teal-50, #e8f4f6); box-shadow: inset 0 0 0 1.5px var(--teal, #007b8f); border-radius: 6px; }
+.agenda-semana-tabla td.co .h { color: var(--teal-700, #006173); font-weight: 700; }
+.agenda-semana-coincide { padding: 8px 12px; font-size: 12.5px; color: var(--ink-2, #4b5159); border-top: 1px solid var(--line, #ece6dc); }
+.agenda-semana-coincide b { color: var(--teal-700, #006173); }
+.agenda-semana-coincide .sin { color: var(--bad, #b2402b); font-weight: 700; }
+@media (max-width: 420px) { .agenda-semana-tabla th.quien { width: 56px; padding-left: 6px; } .agenda-semana-tabla { font-size: 10.5px; } }
 .agenda-rango-chip { border: 1.5px solid var(--border-color); background: #fff; color: var(--text-main); border-radius: 20px; padding: 6px 13px; font-weight: 700; font-size: 12.5px; cursor: pointer; font-family: inherit; }
 .agenda-rango-chip.on { background: var(--accent-teal); border-color: var(--accent-teal); color: #fff; }
 .agenda-footer-fijo { position: sticky; bottom: -22px; background: #fff; border-top: 1px solid var(--border-color); padding: 10px 0 14px; margin: 0 -2px; z-index: 5; }
