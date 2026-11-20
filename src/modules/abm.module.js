@@ -2,7 +2,7 @@
 // src/modules/abm.module.js -- ABM Profesores, Instrumentos, Suscripciones, Usuarios y Config
 // =======================================================================
 
-import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO } from "../config/constants.js?v=8.12";
+import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO } from "../config/constants.js?v=8.13";
 import { formatearPrecioMoneda, TEXTO_AVISO_ADMISOR_INBOX_DEFAULT } from "./altas.module.js";
 import { 
     db, 
@@ -38,6 +38,7 @@ export async function sincronizarListaAcceso() {
     const admins = new Set();
     const festivales = new Set(); // quienes pueden usar Mandala Festivales: admins y Gestores de Festivales
     const sonidistas = new Set(); // personas de sonido de Mandala Festivales (acceso reducido, solo `festivales_sonido`)
+    const coordinadores = new Set(); // coordinadores: las reglas les permiten editar perfil, aptitudes y disponibilidad de otros usuarios
     snap.forEach(d => {
         const u = d.data();
         const e = (u.email || '').toLowerCase().trim();
@@ -51,15 +52,17 @@ export async function sincronizarListaAcceso() {
         const esAdminU = roles.includes('admin') || u.rol === 'admin';
         if (esAdminU) admins.add(e);
         if (esAdminU || roles.includes('gestor_festivales')) festivales.add(e);
+        if (roles.includes('coordinador') || roles.includes('coordinador_grupos') || u.rol === 'coordinador' || u.rol === 'coordinador_grupos') coordinadores.add(e);
     });
     await setDoc(doc(db, "acceso", "lista"), {
         emails: [...emails].sort(),
         admins: [...admins].sort(),
         festivales: [...festivales].sort(),
         sonidistas: [...sonidistas].sort(),
+        coordinadores: [...coordinadores].sort(),
         actualizado: new Date().toISOString()
     });
-    return { emails: emails.size, admins: admins.size, festivales: festivales.size, sonidistas: sonidistas.size };
+    return { emails: emails.size, admins: admins.size, festivales: festivales.size, sonidistas: sonidistas.size, coordinadores: coordinadores.size };
 }
 window.sincronizarListaAcceso = sincronizarListaAcceso;
 

@@ -10,7 +10,6 @@
 const crypto = require('crypto');
 
 const PROYECTO = 'priel-mdl-seguimientos';
-const WEB_API_KEY = 'AIzaSyCgAg2EwTJh4zbMdpkqG3VKTGfDeofblyg'; // clave pública de la app web (la misma de constants.js)
 const ADMIN_EMERGENCIA_EMAIL = 'productora.mandalahouse@gmail.com';
 const ALFABETO = 'abcdefghijkmnpqrstuvwxyz23456789'; // sin letras ni números que se confunden (l, o, 0, 1)
 
@@ -33,6 +32,28 @@ async function pedirJson(url, opciones) {
     let json = null;
     try { json = await r.json(); } catch (e) { /* respuesta sin cuerpo */ }
     return { status: r.status, json };
+}
+
+// Verifica el token de sesión de Firebase con los certificados públicos de Google (sin usar la API key web,
+// así la key puede quedar restringida por sitio). Devuelve el correo si es válido; si no, ''.
+async function correoDeToken(idToken) {
+    const partes = idToken.split('.');
+    if (partes.length !== 3) return '';
+    let cab, carga;
+    try {
+        cab = JSON.parse(Buffer.from(partes[0], 'base64url').toString('utf8'));
+        carga = JSON.parse(Buffer.from(partes[1], 'base64url').toString('utf8'));
+    } catch (e) { return ''; }
+    if (cab.alg !== 'RS256' || !cab.kid) return '';
+    const ahora = Math.floor(Date.now() / 1000);
+    if (carga.aud !== PROYECTO || carga.iss !== 'https://securetoken.google.com/' + PROYECTO) return '';
+    if (!carga.sub || typeof carga.exp !== 'number' || carga.exp <= ahora || (carga.iat || 0) > ahora + 300) return '';
+    const certs = await pedirJson('https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com', {});
+    const pem = certs.json && certs.json[cab.kid];
+    if (!pem) return '';
+    const valido = crypto.verify('RSA-SHA256', Buffer.from(partes[0] + '.' + partes[1]), pem, Buffer.from(partes[2], 'base64url'));
+    if (!valido || !carga.email) return '';
+    return String(carga.email).toLowerCase();
 }
 
 // Token de acceso de la cuenta de servicio (OAuth con JWT firmado)
@@ -96,13 +117,9 @@ module.exports = async function handler(req, res) {
     }
 
     try {
-        // 1. Sesión de quien pide: Firebase valida el token y devuelve su correo
-        const ses = await pedirJson('https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=' + WEB_API_KEY, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken })
-        });
-        const yo = ses.json && ses.json.users && ses.json.users[0];
-        const miCorreo = yo && yo.email ? String(yo.email).toLowerCase() : '';
-        if (ses.status !== 200 || !miCorreo) return responder(res, 401, { error: 'Sesión no válida. Volvé a iniciar sesión.' });
+        // 1. Sesión de quien pide: se verifica la firma del token y se toma su correo
+        const miCorreo = await correoDeToken(idToken);
+        if (!miCorreo) return responder(res, 401, { error: 'Sesión no válida. Volvé a iniciar sesión.' });
 
         const token = await tokenServicio(sa);
         const H = { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' };

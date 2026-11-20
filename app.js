@@ -22,7 +22,7 @@ import {
     CLAVE_INICIAL_DEFECTO,
     ADMIN_EMERGENCIA_EMAIL,
     CALENDARIO_PRINCIPAL_DEFECTO
-} from "./src/config/constants.js?v=8.12";
+} from "./src/config/constants.js?v=8.13";
 
 import { 
     app, 
@@ -95,7 +95,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=8.12";
+} from "./src/services/calendar.service.js?v=8.13";
 
 import {
     matchCantidadActual,
@@ -128,11 +128,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=8.12";
+} from "./src/modules/match.module.js?v=8.13";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=8.12";
+} from "./src/modules/profesor.module.js?v=8.13";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -161,14 +161,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=8.12";
+} from "./src/modules/altas.module.js?v=8.13";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=8.12";
+} from "./src/modules/dashboard.module.js?v=8.13";
 
 import {
     renderConfigHub,
@@ -177,23 +177,23 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=8.12";
+} from "./src/modules/abm.module.js?v=8.13";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=8.12";
+} from "./src/modules/inbox.module.js?v=8.13";
 
 // Íconos de línea automáticos en textos de la interfaz (solo presentación)
-import "./src/modules/iconos.module.js?v=8.12";
+import "./src/modules/iconos.module.js?v=8.13";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=8.12";
+} from "./src/modules/csv.module.js?v=8.13";
 
 import {
     inicializarMotorRecordatorios,
@@ -213,7 +213,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=8.12";
+} from "./src/modules/recordatorios.module.js?v=8.13";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -976,6 +976,37 @@ export function setBotonCargando(btn, cargando, textoCustom = null) {
 }
 }
 window.setBotonCargando = setBotonCargando;
+
+// Buscador de agenda (v8.13): texto del resumen de filtros (rango, fechas, evaluadores e instrumento)
+function actualizarResumenFiltrosAgenda() {
+    const caja = document.getElementById('agenda-filtros-texto');
+    if (!caja) return;
+    const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const desde = document.getElementById('agenda-start')?.value || '';
+    const hasta = document.getElementById('agenda-end')?.value || '';
+    const ddmm = iso => iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) : '';
+    const chip = document.querySelector('#agenda-rangos-rapidos .agenda-rango-chip.on');
+    let linea1 = 'Elegí las fechas';
+    if (desde && hasta) {
+        const dias = Math.round((new Date(hasta + 'T12:00:00') - new Date(desde + 'T12:00:00')) / 86400000) + 1;
+        linea1 = (chip ? 'Próximos ' + chip.getAttribute('data-dias') + ' días' : dias + (dias === 1 ? ' día' : ' días')) + ' · ' + ddmm(desde) + ' al ' + ddmm(hasta);
+    }
+    const sel = document.getElementById('agenda-profe-filtro');
+    const nombres = sel ? Array.from(sel.selectedOptions).filter(o => o.value).map(o => o.textContent) : [];
+    const wrapInst = document.getElementById('agenda-instrumento-wrapper');
+    const inst = wrapInst && wrapInst.style.display !== 'none' ? (document.getElementById('agenda-instrumento-select')?.value || '') : '';
+    const linea2 = (nombres.length ? nombres.join(', ') : 'Todos los evaluadores') + (inst ? ' · ' + inst : '');
+    caja.innerHTML = '<b>' + esc(linea1) + '</b><small>' + esc(linea2) + '</small>';
+}
+// Muestra u oculta el panel de filtros del buscador de agenda
+function mostrarFiltrosAgenda(mostrar) {
+    const panel = document.getElementById('agenda-panel-filtros');
+    const btn = document.getElementById('btn-agenda-toggle-filtros');
+    if (panel) panel.hidden = !mostrar;
+    if (btn) { btn.textContent = mostrar ? 'Ocultar' : 'Cambiar'; btn.setAttribute('aria-expanded', mostrar ? 'true' : 'false'); }
+}
+window.actualizarResumenFiltrosAgenda = actualizarResumenFiltrosAgenda;
+window.mostrarFiltrosAgenda = mostrarFiltrosAgenda;
 
 function syncSelectToChips(selectId, containerId) {
     const select = document.getElementById(selectId);
@@ -8988,7 +9019,7 @@ window.ejecutarBusquedaGlobal = ejecutarBusquedaGlobal;
 
 let guardRedireccionActivo = false;
 
-// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v8.12)
+// Título de página con un solo formato en todas las secciones: sección + subsección atenuada (Fase 2, v8.13)
 function tituloVista(seccion, sub = '') {
     const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
     return `<span>${esc(seccion)}</span>${sub ? `<span class="vista-titulo-sub">${esc(sub)}</span>` : ''}`;
@@ -11418,7 +11449,7 @@ document.addEventListener('click', async (e) => {
                 if (elEvalTop) elEvalTop.textContent = al.reserva_profe_nombre || al.informe_entrevista?.evaluador_nombre || '-';
 }
 
-            // Borrador (v8.12): solo en el flujo de admisión (primer informe, aún no finalizado)
+            // Borrador (v8.13): solo en el flujo de admisión (primer informe, aún no finalizado)
             const esFlujoAdmision = !esNuevoInformeAdicional && !(reportIndexAttr !== null && reportIndexAttr !== '' && !isNaN(parseInt(reportIndexAttr, 10))) && !al.informe_entrevista;
             const dr = (esFlujoAdmision && al.informe_borrador && al.informe_borrador.datos) ? al.informe_borrador.datos : null;
             if (dr) {
@@ -11712,7 +11743,7 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    // Guardar borrador del informe de clase de admisión (v8.12): sin validaciones, no cambia el estado del alumno
+    // Guardar borrador del informe de clase de admisión (v8.13): sin validaciones, no cambia el estado del alumno
     if (target.id === 'btn-guardar-borrador-informe' || target.closest('#btn-guardar-borrador-informe')) {
         const btnBor = document.getElementById('btn-guardar-borrador-informe');
         const id = document.getElementById('informe-final-alumno-id').value;
@@ -12636,6 +12667,15 @@ document.addEventListener('click', async (e) => {
                 base.setDate(base.getDate() + dias);
                 if (endInput) endInput.value = formatoLocalISO(base).split('T')[0];
                 document.querySelectorAll('#agenda-rangos-rapidos .agenda-rango-chip').forEach(x => x.classList.toggle('on', x === ch));
+                actualizarResumenFiltrosAgenda();
+            };
+        });
+        // Si se cambian las fechas a mano, ya no corresponde a un rango rápido
+        [startInput, endInput].forEach(inp => {
+            if (!inp) return;
+            inp.onchange = () => {
+                document.querySelectorAll('#agenda-rangos-rapidos .agenda-rango-chip').forEach(x => x.classList.remove('on'));
+                actualizarResumenFiltrosAgenda();
             };
         });
         document.getElementById('btn-procesar-seleccion-agenda').style.display = 'none';
@@ -12847,8 +12887,9 @@ document.addEventListener('click', async (e) => {
                     syncSelectToChips('agenda-profe-filtro', 'chips-profesores');
 
                     // Añadir evento al cambio de profesores para actualizar la comparativa en vivo
-                    selectProfe.onchange = () => actualizarPanelProfeAgenda();
+                    selectProfe.onchange = () => { actualizarPanelProfeAgenda(); actualizarResumenFiltrosAgenda(); };
                     actualizarPanelProfeAgenda();
+                    actualizarResumenFiltrosAgenda();
 } catch(e) {
                     console.error("Error al refrescar profesores de entrevista:", e);
 }
@@ -12859,17 +12900,25 @@ document.addEventListener('click', async (e) => {
 }
 
             await refrescarProfesoresEntrevista(instActual);
-            resDiv.innerHTML = '<p style="color:var(--text-muted); font-size:13px;">Selecciona el rango y haz clic en Buscar Agenda.</p>'; 
-            modal.showModal(); 
+            resDiv.innerHTML = '<p style="color:var(--text-muted); font-size:13px;">Elegí el rango y los evaluadores, y tocá la lupa para buscar horarios.</p>';
+            mostrarFiltrosAgenda(true);
+            actualizarResumenFiltrosAgenda();
+            modal.showModal();
 } catch(err) {
             console.error("Error al abrir modal de agenda:", err);
             alert("❌ Error al abrir agenda: " + (err.message || err));
 } 
         return; 
 }
-    if (target.id === 'btn-ejecutar-busqueda') { 
-        const resDiv = document.getElementById('resultados-agenda'), dStrStart = document.getElementById('agenda-start').value, dStrEnd = document.getElementById('agenda-end').value; 
-        if(!dStrStart || !dStrEnd) return alert("Fechas inválidas."); 
+    if (target.id === 'btn-agenda-toggle-filtros') {
+        const panelF = document.getElementById('agenda-panel-filtros');
+        mostrarFiltrosAgenda(Boolean(panelF && panelF.hidden));
+        return;
+    }
+    if (target.id === 'btn-ejecutar-busqueda') {
+        const resDiv = document.getElementById('resultados-agenda'), dStrStart = document.getElementById('agenda-start').value, dStrEnd = document.getElementById('agenda-end').value;
+        if(!dStrStart || !dStrEnd) { mostrarFiltrosAgenda(true); return alert("Fechas inválidas."); }
+        mostrarFiltrosAgenda(false); // los filtros se pliegan para dejar lugar a los resultados ("Cambiar" los vuelve a abrir)
         const selProfe = document.getElementById('agenda-profe-filtro'), fProfs = Array.from(selProfe.selectedOptions).map(o => o.value), searchAll = fProfs.length === 0 || fProfs.includes(""); 
         resDiv.innerHTML = ''; 
         document.getElementById('btn-procesar-seleccion-agenda').style.display = 'none'; 
@@ -13121,7 +13170,7 @@ document.addEventListener('click', async (e) => {
             const msgErr = String((e && e.message) || e || 'causa desconocida');
             const sinConexion = /offline|network|failed to fetch|unavailable|ERR_INTERNET|ERR_NAME/i.test(msgErr) || navigator.onLine === false;
             resDiv.innerHTML = sinConexion
-                ? '<p style="color:#b91c1c; font-weight:700;">📡 Sin conexión a Internet. No se pudo buscar la agenda. Verificá tu conexión y volvé a tocar "Buscar Agenda".</p>'
+                ? '<p style="color:#b91c1c; font-weight:700;">📡 Sin conexión a Internet. No se pudo buscar la agenda. Verificá tu conexión y volvé a tocar la lupa para buscar.</p>'
                 : `<p style="color:#b91c1c;">❌ Error en la búsqueda de agenda: ${msgErr.replace(/</g, '&lt;')}. Probá de nuevo; si persiste, avisá a soporte con este mensaje.</p>`;
 } 
         setBotonCargando(target, false); 
