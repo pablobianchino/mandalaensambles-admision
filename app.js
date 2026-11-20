@@ -22,7 +22,7 @@ import {
     CLAVE_INICIAL_DEFECTO,
     ADMIN_EMERGENCIA_EMAIL,
     CALENDARIO_PRINCIPAL_DEFECTO
-} from "./src/config/constants.js?v=8.16";
+} from "./src/config/constants.js?v=8.17";
 
 import { 
     app, 
@@ -95,7 +95,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=8.16";
+} from "./src/services/calendar.service.js?v=8.17";
 
 import {
     matchCantidadActual,
@@ -128,11 +128,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=8.16";
+} from "./src/modules/match.module.js?v=8.17";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=8.16";
+} from "./src/modules/profesor.module.js?v=8.17";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -161,14 +161,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=8.16";
+} from "./src/modules/altas.module.js?v=8.17";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=8.16";
+} from "./src/modules/dashboard.module.js?v=8.17";
 
 import {
     renderConfigHub,
@@ -177,23 +177,23 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=8.16";
+} from "./src/modules/abm.module.js?v=8.17";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=8.16";
+} from "./src/modules/inbox.module.js?v=8.17";
 
 // Íconos de línea automáticos en textos de la interfaz (solo presentación)
-import "./src/modules/iconos.module.js?v=8.16";
+import "./src/modules/iconos.module.js?v=8.17";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=8.16";
+} from "./src/modules/csv.module.js?v=8.17";
 
 import {
     inicializarMotorRecordatorios,
@@ -213,7 +213,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=8.16";
+} from "./src/modules/recordatorios.module.js?v=8.17";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -9961,31 +9961,10 @@ async function autoAprovisionarUsuariosSistemaDefault() {
             const userEmail = (dt.email || '').toLowerCase().trim();
             if (!userEmail) continue;
 
-            // Auto-aprovisionar cuenta en Firebase Auth si aún no fue creada
-            if (dt.auth_cuenta_creada !== true) {
-                try {
-                    const secApp = initializeApp(firebaseConfig, `AutoProv_${d.id}_${Date.now()}`);
-                    const secAuth = getAuth(secApp);
-                    await createUserWithEmailAndPassword(secAuth, userEmail, CLAVE_INICIAL_DEFECTO);
-                    await signOut(secAuth);
-                    console.log(`[AUTH-PROVISION] Cuenta Firebase Auth creada para: ${userEmail}`);
-} catch (provErr) {
-                    if (provErr.code === 'auth/email-already-in-use') {
-                        // El correo ya existe en Firebase Auth
-} else {
-                        console.warn(`[AUTH-PROVISION] Aviso con ${userEmail}:`, provErr.code);
-}
-}
-}
-
-            if (dt.password_inicial_asignada !== true || dt.auth_cuenta_creada !== true) {
-                await updateDoc(doc(db, "usuarios_sistema", d.id), {
-                    password_inicial_asignada: true,
-                    password_modificada: false,
-                    auth_email: userEmail,
-                    auth_cuenta_creada: true
-}).catch(() => {});
-}
+            // v8.17: se quitó el auto-aprovisionamiento de cuentas de acceso. Corría en cada inicio de sesión y creaba
+            // cuentas con la clave inicial (pública en el repo) para toda ficha sin la marca `auth_cuenta_creada`,
+            // y marcaba esas fichas para cambio de clave. Las cuentas se crean al dar de alta el usuario en Usuarios y
+            // permisos, y el botón "Restablecer" crea la cuenta (con clave aleatoria) si no existe.
 
             // Auto-heal de permisos para coordinadores: asegurar 'configuracion' en Firestore
             const rolesUser = Array.isArray(dt.roles) && dt.roles.length > 0 ? dt.roles : [dt.rol || ''];
@@ -10150,6 +10129,26 @@ const ROLES_MODULOS_DEFAULT = {
 
 const URL_APP_FESTIVALES = 'https://mandalaensambles-festival.vercel.app';
 
+// v8.17: con varias fichas para el mismo correo se elige la más completa (activa, con ficha docente, roles y calendario)
+// y se avisa en la consola con los ids, para detectarlo a tiempo.
+function elegirFichaUsuarioSistema(candidatos, email) {
+    if (!Array.isArray(candidatos) || candidatos.length === 0) return null;
+    if (candidatos.length === 1) return candidatos[0];
+    const puntaje = u => (u.activo !== false ? 100 : 0)
+        + (u.profesor_id ? 10 : 0)
+        + (Array.isArray(u.roles) && u.roles.length ? 5 : 0)
+        + (u.correo_calendario ? 2 : 0)
+        + (u.creado_automaticamente ? -1 : 0);
+    const ordenados = [...candidatos].sort((a, b) => {
+        const d = puntaje(b) - puntaje(a);
+        if (d !== 0) return d;
+        return String(a.fecha_creacion || '').localeCompare(String(b.fecha_creacion || '')); // a igualdad, la más antigua
+    });
+    console.warn('[Usuarios] Hay ' + candidatos.length + ' fichas con el correo ' + email + ': ' + candidatos.map(c => c.id).join(', ') + '. Se usa ' + ordenados[0].id + '. Revisá Usuarios y permisos.');
+    return ordenados[0];
+}
+window.elegirFichaUsuarioSistema = elegirFichaUsuarioSistema;
+
 onAuthStateChanged(auth, async (user) => { 
     if (user) { 
         // El arranque se muestra con la pantalla de carga inicial (splash); ya no se abre el aviso "Cargando..."
@@ -10158,42 +10157,42 @@ onAuthStateChanged(auth, async (user) => {
             return;
 }
         try {
-            const qSnap = await getDocs(collection(db, "usuarios_sistema")); 
-            let usuarioEncontrado = null;
-            if (qSnap.empty) { 
-                const adminData = { 
-                    email: user.email.toLowerCase(), 
-                    nombre: user.displayName || user.email.split('@')[0], 
-                    rol: 'admin', 
-                    activo: true, 
-                    modulos_habilitados: ROLES_MODULOS_DEFAULT.admin,
-                    fecha_creacion: new Date().toISOString() 
-};
-                const newDoc = await addDoc(collection(db, "usuarios_sistema"), adminData); 
-                usuarioEncontrado = { id: newDoc.id, ...adminData };
-} else { 
-                qSnap.forEach(d => { 
-                    const dt = d.data();
-                    if(dt.email && dt.email.toLowerCase() === user.email.toLowerCase()) {
-                        // Con documentos duplicados por email, prevalece el primero ACTIVO; si ninguno lo está, el último que coincide.
-                        const yaHayActivo = usuarioEncontrado && usuarioEncontrado.activo !== false;
-                        if (!yaHayActivo) usuarioEncontrado = { id: d.id, ...dt };
-}
-}); 
-}
+            // v8.17: nunca se crea un usuario si ese correo ya existe (antes, una lectura vacía de la colección
+            // creaba un admin nuevo: así aparecieron 3 fichas duplicadas de la cuenta de emergencia).
+            const emailNorm = user.email.toLowerCase().trim();
+            const qSnap = await getDocs(collection(db, "usuarios_sistema"));
+            let candidatosUsuario = qSnap.docs
+                .filter(d => String(d.data().email || '').toLowerCase().trim() === emailNorm)
+                .map(d => ({ id: d.id, ...d.data() }));
+            let qEmail = null;
+            if (candidatosUsuario.length === 0) {
+                // Consulta directa por correo (no depende de que la lectura de toda la colección haya venido completa)
+                qEmail = await getDocs(query(collection(db, "usuarios_sistema"), where("email", "==", emailNorm)));
+                candidatosUsuario = qEmail.docs.map(d => ({ id: d.id, ...d.data() }));
+            }
+            let usuarioEncontrado = elegirFichaUsuarioSistema(candidatosUsuario, emailNorm);
 
-            if (!usuarioEncontrado && user.email.toLowerCase() === ADMIN_EMERGENCIA_EMAIL) {
-                const adminData = { 
-                    email: user.email.toLowerCase(), 
-                    nombre: 'Mandala House Productora', 
-                    rol: 'admin', 
-                    activo: true, 
+            // Solo la cuenta de emergencia puede crearse sola, y solo si ambas lecturas vinieron del servidor y no encontraron nada
+            if (!usuarioEncontrado && emailNorm === ADMIN_EMERGENCIA_EMAIL) {
+                const lecturasDelServidor = qSnap.metadata && qSnap.metadata.fromCache === false && qEmail && qEmail.metadata && qEmail.metadata.fromCache === false;
+                if (!lecturasDelServidor) {
+                    ocultarIndicadorCarga(); window.ocultarSplashInicial && window.ocultarSplashInicial();
+                    alert('⚠️ No se pudo leer tu usuario desde el servidor.\n\nRevisá la conexión y recargá la página. No se creó ningún usuario nuevo.');
+                    return;
+                }
+                const adminData = {
+                    email: emailNorm,
+                    nombre: 'Mandala House Productora',
+                    rol: 'admin',
+                    activo: true,
                     modulos_habilitados: ROLES_MODULOS_DEFAULT.admin,
-                    fecha_creacion: new Date().toISOString() 
-};
-                const newDoc = await addDoc(collection(db, "usuarios_sistema"), adminData); 
+                    fecha_creacion: new Date().toISOString(),
+                    creado_automaticamente: true
+                };
+                const newDoc = await addDoc(collection(db, "usuarios_sistema"), adminData);
                 usuarioEncontrado = { id: newDoc.id, ...adminData };
-}
+                console.warn('[Usuarios] Se creó la ficha de la cuenta de emergencia porque no existía ninguna con ese correo:', newDoc.id);
+            }
 
             if (!usuarioEncontrado) { 
                 ocultarIndicadorCarga(); window.ocultarSplashInicial && window.ocultarSplashInicial();

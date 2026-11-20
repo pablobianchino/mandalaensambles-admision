@@ -2,7 +2,7 @@
 // src/modules/altas.module.js -- Modulo de Altas, Pre-altas, Calendar & Export
 // =======================================================================
 
-import { defaultCfg, esAlumnoAltaFinalizada, esAlumnoAltaConfirmadaIncompleta, normalizarAlumnoSeguimiento, calcularFechaSeguimiento72hs, calcularDiasHabilesTranscurridos, leerChecklistAlta, PASOS_CHECKLIST_ALTA } from "../config/constants.js?v=8.16";
+import { defaultCfg, esAlumnoAltaFinalizada, esAlumnoAltaConfirmadaIncompleta, normalizarAlumnoSeguimiento, calcularFechaSeguimiento72hs, calcularDiasHabilesTranscurridos, leerChecklistAlta, PASOS_CHECKLIST_ALTA } from "../config/constants.js?v=8.17";
 import { 
     db, 
     collection, 
@@ -26,7 +26,7 @@ import {
     validarConflictoCalendarEnVivo,
     obtenerEventosProfesoresParaSlot,
     buscarEventoExistenteEnHorario
-} from "../services/calendar.service.js?v=8.16";
+} from "../services/calendar.service.js?v=8.17";
 import { calcularProximaFechaDiaHora } from "./match.module.js";
 import { parsearNomenclaturaGrupoOClase } from "./profesor.module.js";
 

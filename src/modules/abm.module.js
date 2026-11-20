@@ -2,7 +2,7 @@
 // src/modules/abm.module.js -- ABM Profesores, Instrumentos, Suscripciones, Usuarios y Config
 // =======================================================================
 
-import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO } from "../config/constants.js?v=8.16";
+import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO } from "../config/constants.js?v=8.17";
 import { formatearPrecioMoneda, TEXTO_AVISO_ADMISOR_INBOX_DEFAULT } from "./altas.module.js";
 import { 
     db, 
@@ -18,7 +18,9 @@ import {
     getAuth,
     createUserWithEmailAndPassword,
     signOut,
-    auth
+    auth,
+    query,
+    where
 } from "../config/firebase.js";
 import {
     poblarDisponibilidadMultiRango,
@@ -1198,8 +1200,20 @@ export async function cargarABM(coleccion, titulo, cont) {
                     if (dt.correo_calendario) profsByEmail[dt.correo_calendario.toLowerCase()] = { id: d.id, ...dt };
                 });
 
+                // v8.17: fichas que comparten el mismo correo (no debería pasar): se marcan con "Correo repetido"
+                const cuentaPorEmail = {};
+                qS.forEach(d => {
+                    const e = String(d.data().email || '').toLowerCase().trim();
+                    if (e) cuentaPorEmail[e] = (cuentaPorEmail[e] || 0) + 1;
+                });
+                const repetidos = Object.keys(cuentaPorEmail).filter(e => cuentaPorEmail[e] > 1);
+                if (repetidos.length) {
+                    h += `<div style="margin-bottom:14px; padding:10px 14px; border-radius:10px; background:var(--warn-bg, #fdf3e0); color:var(--warn, #9a5b00); font-size:13px; font-weight:600;">Hay más de una ficha con el mismo correo (${repetidos.join(', ')}). La app usa la más completa al ingresar; conviene eliminar las que sobran.</div>`;
+                }
+
                 qS.forEach(d => {
                     const u = d.data();
+                    const esCorreoRepetido = cuentaPorEmail[String(u.email || '').toLowerCase().trim()] > 1;
                     const rolesArr = Array.isArray(u.roles) && u.roles.length > 0 ? u.roles : (u.rol ? [u.rol] : ['admisor']);
                     const esActivo = u.activo !== false;
                     const mods = Array.isArray(u.modulos_habilitados) ? u.modulos_habilitados : (ROLES_MODULOS[rolesArr[0]] || []);
@@ -1271,6 +1285,7 @@ export async function cargarABM(coleccion, titulo, cont) {
                                     <span style="color:var(--text-muted); font-size:13px; font-weight:500;">(${u.email})</span>
                                     ${badgesRoles}
                                     ${badgeActivo}
+                                    ${esCorreoRepetido ? `<span class="profile-tag-badge" style="background:var(--warn-bg, #fdf3e0); color:var(--warn, #9a5b00); border-color:#f2d9a6;" title="Otra ficha tiene el mismo correo (id ${d.id})">Correo repetido</span>` : ''}
                                 </div>
 
                                 <!-- Nivel 2: Información Personal (Celular y Alias CBU/CVU) -->
@@ -2052,6 +2067,14 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
             if (id) {
                 await updateDoc(doc(db, "usuarios_sistema", id), userData);
             } else {
+                // v8.17: no se crea una segunda ficha con un correo que ya existe
+                const yaExiste = await getDocs(query(collection(db, "usuarios_sistema"), where("email", "==", email)));
+                if (!yaExiste.empty) {
+                    alert(`⚠️ Ya existe un usuario con el correo ${email}.\n\nAbrí esa ficha desde la lista para editarla. No se creó un usuario nuevo.`);
+                    btn.disabled = false;
+                    btn.textContent = 'Guardar';
+                    return;
+                }
                 userData.fecha_creacion = new Date().toISOString();
                 userData.password_inicial_asignada = true;
                 userData.password_modificada = false;
