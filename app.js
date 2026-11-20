@@ -22,7 +22,7 @@ import {
     CLAVE_INICIAL_DEFECTO,
     ADMIN_EMERGENCIA_EMAIL,
     CALENDARIO_PRINCIPAL_DEFECTO
-} from "./src/config/constants.js?v=8.14";
+} from "./src/config/constants.js?v=8.15";
 
 import { 
     app, 
@@ -95,7 +95,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=8.14";
+} from "./src/services/calendar.service.js?v=8.15";
 
 import {
     matchCantidadActual,
@@ -128,11 +128,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=8.14";
+} from "./src/modules/match.module.js?v=8.15";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=8.14";
+} from "./src/modules/profesor.module.js?v=8.15";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -161,14 +161,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=8.14";
+} from "./src/modules/altas.module.js?v=8.15";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=8.14";
+} from "./src/modules/dashboard.module.js?v=8.15";
 
 import {
     renderConfigHub,
@@ -177,23 +177,23 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=8.14";
+} from "./src/modules/abm.module.js?v=8.15";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=8.14";
+} from "./src/modules/inbox.module.js?v=8.15";
 
 // Íconos de línea automáticos en textos de la interfaz (solo presentación)
-import "./src/modules/iconos.module.js?v=8.14";
+import "./src/modules/iconos.module.js?v=8.15";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=8.14";
+} from "./src/modules/csv.module.js?v=8.15";
 
 import {
     inicializarMotorRecordatorios,
@@ -213,7 +213,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=8.14";
+} from "./src/modules/recordatorios.module.js?v=8.15";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -13032,39 +13032,105 @@ document.addEventListener('click', async (e) => {
                 const idsProfesAg = [...new Set(opts.map(o => o.profeId || o.profeNombre))].sort();
                 const colorProfeAg = pid => paletaAg[Math.max(0, idsProfesAg.indexOf(pid)) % paletaAg.length];
                 const pad2Ag = n => String(n).padStart(2, '0');
-                const gruposAg = new Map();
-                opts.forEach(op => {
+                // v8.15: arriba solo los recomendados (por día, con el evaluador en cada horario). El resto queda en
+                // "Ver otros N horarios": con varios evaluadores, una fila plegable por evaluador (se abre uno a la vez);
+                // con uno solo, por día. Si no hay recomendados, se muestra el resto directamente.
+                const flechaAg = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" style="pointer-events:none;"><path d="m6 9 6 6 6-6"/></svg>';
+                const slotHtmlAg = op => {
                     const d = new Date(op.inicioData);
-                    const k = isNaN(d) ? 'otro' : d.toDateString();
-                    if (!gruposAg.has(k)) gruposAg.set(k, { fecha: d, ops: [] });
-                    gruposAg.get(k).ops.push(op);
-                });
-                const totalRecom = opts.filter(o => o.pegado).length;
-                let html = totalRecom > 0
-                    ? '<div class="agenda-leyenda">⭐ Recomendado (queda pegado a otra clase). Tocá uno o varios horarios <strong>de un mismo evaluador</strong>.</div>'
-                    : '<div class="agenda-leyenda">Tocá uno o varios horarios <strong>de un mismo evaluador</strong>.</div>';
-                gruposAg.forEach(g => {
-                    let titulo = 'Otros horarios';
-                    if (!isNaN(g.fecha)) {
-                        titulo = g.fecha.toLocaleDateString('es-AR', { weekday: 'long', day: '2-digit', month: '2-digit' });
-                        titulo = titulo.charAt(0).toUpperCase() + titulo.slice(1);
-                    }
-                    html += '<div class="agenda-dia-titulo">' + escAg(titulo) + '<span>' + g.ops.length + (g.ops.length === 1 ? ' horario' : ' horarios') + '</span></div><div class="agenda-slots">';
-                    g.ops.forEach(op => {
+                    const hora = isNaN(d) ? escAg(op.fechaTextoAmi) : (pad2Ag(d.getHours()) + ':' + pad2Ag(d.getMinutes()));
+                    const pid = op.profeId || op.profeNombre;
+                    return '<label class="agenda-slot' + (op.pegado ? ' recomendado' : '') + '" data-profeid="' + escAg(pid) + '">' +
+                        '<input type="checkbox" class="chk-agenda-opt" data-calid="' + op.calId + '" data-profe="' + escAg(op.profeNombre) + '" data-profeid="' + op.profeId + '" data-start="' + op.inicioData + '" data-end="' + op.finData + '" data-fechatxt="' + op.fechaTextoAmi + '">' +
+                        '<span class="agenda-slot-dot" style="background:' + colorProfeAg(pid) + '"></span>' +
+                        '<span class="agenda-slot-txt"><span class="agenda-slot-hora">' + hora + '</span><span class="agenda-slot-eval">' + escAg(op.profeNombre) + '</span>' +
+                        (op.choquePosible ? '<span class="agenda-slot-choque" title="Un evento del calendario general menciona a este docente en ese horario. Verificalo antes de confirmar.">⚠️ posible choque con «' + escAg(op.choquePosible) + '»</span>' : '') +
+                        '</span>' + (op.pegado ? '<span class="agenda-slot-star" title="Recomendado: queda pegado a otra clase">★</span>' : '') +
+                        '</label>';
+                };
+                const porDiaHtmlAg = lista => {
+                    const grupos = new Map();
+                    lista.forEach(op => {
                         const d = new Date(op.inicioData);
-                        const hora = isNaN(d) ? escAg(op.fechaTextoAmi) : (pad2Ag(d.getHours()) + ':' + pad2Ag(d.getMinutes()));
-                        const pid = op.profeId || op.profeNombre;
-                        html += '<label class="agenda-slot' + (op.pegado ? ' recomendado' : '') + '" data-profeid="' + escAg(pid) + '">' +
-                            '<input type="checkbox" class="chk-agenda-opt" data-calid="' + op.calId + '" data-profe="' + escAg(op.profeNombre) + '" data-profeid="' + op.profeId + '" data-start="' + op.inicioData + '" data-end="' + op.finData + '" data-fechatxt="' + op.fechaTextoAmi + '">' +
-                            '<span class="agenda-slot-dot" style="background:' + colorProfeAg(pid) + '"></span>' +
-                            '<span class="agenda-slot-txt"><span class="agenda-slot-hora">' + hora + '</span><span class="agenda-slot-eval">' + escAg(op.profeNombre) + '</span>' +
-                            (op.choquePosible ? '<span class="agenda-slot-choque" title="Un evento del calendario general menciona a este docente en ese horario. Verificalo antes de confirmar.">⚠️ posible choque con «' + escAg(op.choquePosible) + '»</span>' : '') +
-                            '</span>' + (op.pegado ? '<span class="agenda-slot-star" title="Recomendado: queda pegado a otra clase">⭐</span>' : '') +
-                            '</label>';
+                        const k = isNaN(d) ? 'otro' : d.toDateString();
+                        if (!grupos.has(k)) grupos.set(k, { fecha: d, ops: [] });
+                        grupos.get(k).ops.push(op);
                     });
-                    html += '</div>';
-                });
+                    let h = '';
+                    grupos.forEach(g => {
+                        let titulo = 'Otros horarios';
+                        if (!isNaN(g.fecha)) {
+                            titulo = g.fecha.toLocaleDateString('es-AR', { weekday: 'long', day: '2-digit', month: '2-digit' });
+                            titulo = titulo.charAt(0).toUpperCase() + titulo.slice(1);
+                        }
+                        h += '<div class="agenda-dia-titulo">' + escAg(titulo) + '<span>' + g.ops.length + (g.ops.length === 1 ? ' horario' : ' horarios') + '</span></div>' +
+                            '<div class="agenda-slots">' + g.ops.map(slotHtmlAg).join('') + '</div>';
+                    });
+                    return h;
+                };
+                const recomAg = opts.filter(o => o.pegado);
+                const otrosAg = opts.filter(o => !o.pegado);
+                const evalsOtrosAg = [...new Set(otrosAg.map(o => o.profeId || o.profeNombre))]
+                    .sort((a, b) => {
+                        const nA = (otrosAg.find(o => (o.profeId || o.profeNombre) === a) || {}).profeNombre || '';
+                        const nB = (otrosAg.find(o => (o.profeId || o.profeNombre) === b) || {}).profeNombre || '';
+                        return nA.localeCompare(nB);
+                    });
+                const leyendaSel = 'Tocá uno o varios horarios <strong>de un mismo evaluador</strong>.';
+                let html = '';
+                if (recomAg.length) {
+                    html += '<div class="agenda-bloque-tit"><h4><span class="agenda-star-ico">★</span> Recomendados</h4><span>' + recomAg.length + (recomAg.length === 1 ? ' horario' : ' horarios') + '</span></div>' +
+                        '<div class="agenda-leyenda">Quedan pegados a otra clase del evaluador. ' + leyendaSel + '</div>' + porDiaHtmlAg(recomAg);
+                } else {
+                    html += '<div class="agenda-aviso-sin-rec">No hay horarios recomendados en este rango. Se muestran todos.</div><div class="agenda-leyenda">' + leyendaSel + '</div>';
+                }
+                if (otrosAg.length) {
+                    let otrosHtml;
+                    if (evalsOtrosAg.length > 1) {
+                        otrosHtml = evalsOtrosAg.map(pid => {
+                            const ops = otrosAg.filter(o => (o.profeId || o.profeNombre) === pid);
+                            const nombre = ops[0].profeNombre || 'Evaluador';
+                            const dias = [...new Set(ops.map(o => {
+                                const d = new Date(o.inicioData);
+                                return isNaN(d) ? '' : d.toLocaleDateString('es-AR', { weekday: 'short' }).replace('.', '');
+                            }).filter(Boolean))].join(', ');
+                            return '<div class="agenda-ev" data-profeid="' + escAg(String(ops[0].profeId)) + '">' +
+                                '<button type="button" class="agenda-ev-cab" aria-expanded="false">' +
+                                    '<span class="agenda-slot-dot" style="background:' + colorProfeAg(pid) + '"></span>' +
+                                    '<span class="nom">' + escAg(nombre) + '</span><span class="det">' + escAg(dias) + '</span>' +
+                                    '<span class="badge">' + ops.length + (ops.length === 1 ? ' horario' : ' horarios') + '</span>' + flechaAg +
+                                '</button>' +
+                                '<div class="agenda-ev-cuerpo" hidden>' + porDiaHtmlAg(ops) + '</div></div>';
+                        }).join('');
+                    } else {
+                        otrosHtml = porDiaHtmlAg(otrosAg);
+                    }
+                    html += recomAg.length
+                        ? '<button type="button" class="agenda-ver-otros" aria-expanded="false" data-total="' + otrosAg.length + '"><span class="lbl">Ver otros ' + otrosAg.length + (otrosAg.length === 1 ? ' horario' : ' horarios') + '</span>' + flechaAg + '</button>' +
+                          '<div class="agenda-otros" hidden>' + otrosHtml + '</div>'
+                        : '<div class="agenda-otros">' + otrosHtml + '</div>';
+                }
                 resDiv.innerHTML = avisoCalFallidos + html;
+
+                const btnOtrosAg = resDiv.querySelector('.agenda-ver-otros');
+                if (btnOtrosAg) btnOtrosAg.onclick = () => {
+                    const caja = resDiv.querySelector('.agenda-otros');
+                    if (!caja) return;
+                    const abrir = caja.hidden;
+                    caja.hidden = !abrir;
+                    btnOtrosAg.setAttribute('aria-expanded', String(abrir));
+                    const n = parseInt(btnOtrosAg.dataset.total, 10) || 0;
+                    btnOtrosAg.querySelector('.lbl').textContent = abrir ? 'Ocultar otros horarios' : 'Ver otros ' + n + (n === 1 ? ' horario' : ' horarios');
+                };
+                resDiv.querySelectorAll('.agenda-ev-cab').forEach(cab => {
+                    cab.onclick = () => {
+                        const cuerpo = cab.nextElementSibling;
+                        const abrir = cuerpo.hidden;
+                        resDiv.querySelectorAll('.agenda-ev-cuerpo').forEach(c => { c.hidden = true; c.previousElementSibling.setAttribute('aria-expanded', 'false'); });
+                        cuerpo.hidden = !abrir;
+                        cab.setAttribute('aria-expanded', String(abrir));
+                    };
+                });
 
                 const sincronizarBotonesModalAgenda = () => {
                     const chks = resDiv.querySelectorAll('.chk-agenda-opt:checked');
@@ -13082,6 +13148,8 @@ document.addEventListener('click', async (e) => {
                         inp.disabled = otro;
                         lb.title = otro ? 'Una propuesta se envía a un solo evaluador' : '';
                     });
+                    // Filas de evaluador en "Ver otros horarios": se atenúan las de los demás evaluadores
+                    resDiv.querySelectorAll('.agenda-ev').forEach(ev => ev.classList.toggle('off', pidSel !== null && ev.getAttribute('data-profeid') !== pidSel));
                     const nomSel = chks.length ? (chks[0].getAttribute('data-profe') || 'evaluador') : '';
                     if (resumen) {
                         resumen.textContent = chks.length === 0

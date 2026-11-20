@@ -4792,7 +4792,28 @@ table.agenda-semana-tabla { width: 100%; border-collapse: collapse; table-layout
 .agenda-slot-txt { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
 .agenda-slot-hora { font-size: 15px; font-weight: 800; color: var(--text-main); }
 .agenda-slot-eval { font-size: 12px; color: var(--text-muted); font-weight: 600; }
-.agenda-slot-star { margin-left: auto; font-size: 13px; }
+.agenda-slot-star { margin-left: auto; font-size: 14px; color: var(--teal, #007b8f); }
+/* v8.15: recomendados arriba y "Ver otros horarios" (por evaluador si hay varios) */
+.agenda-bloque-tit { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 2px; }
+.agenda-bloque-tit h4 { margin: 0; font-size: 13.5px; font-weight: 800; display: flex; align-items: center; gap: 6px; color: var(--ink, #1c1f22); }
+.agenda-bloque-tit > span { font-size: 12px; color: var(--ink-3, #8a9097); font-weight: 600; }
+.agenda-star-ico { color: var(--teal, #007b8f); }
+.agenda-aviso-sin-rec { font-size: 12.5px; background: var(--warn-bg, #fdf3e0); color: var(--warn, #9a5b00); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; font-weight: 600; }
+.agenda-ver-otros { margin-top: 14px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--surface-2, #faf8f3); border: 1px dashed var(--line-2, #ddd5c8); border-radius: 10px; padding: 10px; font: inherit; font-size: 13.5px; font-weight: 700; color: var(--teal-700, #006173); cursor: pointer; }
+.agenda-ver-otros:hover { background: var(--teal-50, #e8f4f6); border-color: var(--teal-100, #cfe8ec); }
+.agenda-ver-otros svg, .agenda-ev-cab svg { transition: transform .2s; flex-shrink: 0; }
+.agenda-ver-otros[aria-expanded="true"] svg, .agenda-ev-cab[aria-expanded="true"] svg { transform: rotate(180deg); }
+.agenda-otros { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.agenda-otros[hidden] { display: none; }
+.agenda-ev { border: 1px solid var(--line, #ece6dc); border-radius: 10px; background: var(--surface, #fff); overflow: hidden; }
+.agenda-ev.off { opacity: .45; }
+.agenda-ev-cab { width: 100%; display: flex; align-items: center; gap: 10px; padding: 11px 12px; background: none; border: none; font: inherit; text-align: left; cursor: pointer; color: var(--ink, #1c1f22); }
+.agenda-ev-cab:hover { background: var(--surface-2, #faf8f3); }
+.agenda-ev-cab .nom { font-weight: 800; font-size: 14px; }
+.agenda-ev-cab .det { flex: 1; min-width: 0; font-size: 12.5px; color: var(--ink-3, #8a9097); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.agenda-ev-cab .badge { font-size: 11.5px; font-weight: 700; color: var(--teal-700, #006173); background: var(--teal-50, #e8f4f6); border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
+.agenda-ev-cuerpo { padding: 0 12px 12px; border-top: 1px solid var(--line, #ece6dc); }
+.agenda-ev-cuerpo[hidden] { display: none; }
 .agenda-slot-choque { margin-top: 3px; font-size: 10.5px; font-weight: 700; background: #fffbeb; color: #92400e; border: 1px solid #fcd34d; border-radius: 8px; padding: 1px 6px; }
 details.agenda-disp-desplegable > summary { cursor: pointer; font-weight: 700; font-size: 12.5px; color: var(--accent-teal); list-style: none; }
 details.agenda-disp-desplegable > summary::-webkit-details-marker { display: none; }
@@ -5341,6 +5362,22 @@ button .ico-linea, button .ico-auto, button .emoji-oculto, a .ico-auto { pointer
 .dash-atencion-tarjetas .prio-proximos .dash-num { color: var(--warn); }
 .dash-atencion-tarjetas .btn-prio-filtro.active { background: var(--teal-50); border-color: var(--teal-100); border-left-color: var(--teal); box-shadow: none; }
 .dash-atencion-tarjetas .btn-prio-filtro.active .dash-etq { color: var(--teal-700); }
+/* v8.15: las reglas viejas de los filtros (con !important, más arriba) pisaban las tarjetas del Dashboard:
+   "Todos" seleccionado quedaba azul oscuro con el número y el texto oscuros. Se fija el aspecto de las tarjetas. */
+.dash-atencion-tarjetas button.btn-prio-filtro {
+    display: flex !important; flex-direction: column !important; align-items: flex-start !important; gap: 2px !important;
+    padding: 12px 14px !important; margin: 0 !important; border-radius: var(--r-md) !important;
+    border: 1px solid var(--line) !important; border-left: 4px solid var(--ink-3) !important;
+    background: var(--surface) !important; color: var(--ink) !important; box-shadow: var(--sh-1) !important; transform: none !important;
+}
+.dash-atencion-tarjetas button.btn-prio-filtro:hover { background: var(--surface-2) !important; }
+.dash-atencion-tarjetas button.btn-prio-filtro.prio-vencidos { border-left-color: var(--bad) !important; }
+.dash-atencion-tarjetas button.btn-prio-filtro.prio-urgentes { border-left-color: #d9731a !important; }
+.dash-atencion-tarjetas button.btn-prio-filtro.prio-proximos { border-left-color: #c98a1a !important; }
+.dash-atencion-tarjetas button.btn-prio-filtro.active {
+    background: var(--teal-50) !important; border-color: var(--teal-100) !important; border-left-color: var(--teal) !important;
+    box-shadow: none !important; color: var(--ink) !important;
+}
 
 
 /* =======================================================================
