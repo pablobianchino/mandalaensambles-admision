@@ -104,7 +104,7 @@ export function setMatchModoBusqueda(val) {
 
 export async function cargarProfesoresMatch() {
     const selProfe = document.getElementById('match-profe');
-    if (selProfe) selProfe.innerHTML = '<option value="">Cualquier profesor disponible</option>';
+    if (selProfe) selProfe.innerHTML = '<option value="">Cualquier docente disponible</option>';
     matchProfesores = [];
     try {
         const profSnap = await getDocs(collection(db, "profesores"));
@@ -168,7 +168,7 @@ export function filtrarProfesoresMatch() {
     if (!selProfe) return;
     const valActual = selProfe.value;
 
-    selProfe.innerHTML = '<option value="">Cualquier profesor disponible</option>';
+    selProfe.innerHTML = '<option value="">Cualquier docente disponible</option>';
 
     const profesFiltrados = matchProfesores.filter(pr => {
         const skills = (pr.skills || []).map(s => s.toLowerCase().trim());
@@ -262,7 +262,7 @@ export async function cargarSolicitudesEnSelectorMatch(solicitudIdPreseleccionad
         const sols = [];
         snap.forEach(d => sols.push({ id: d.id, ...d.data() }));
 
-        let html = '<option value="">-- Selecciona una solicitud para autocompletar o buscar --</option>';
+        let html = '<option value="">-- Elegí una solicitud para completar los criterios --</option>';
         if (sols.length > 1) {
             html += '<option value="todas">⚡ [TODAS LAS SOLICITUDES ACTIVAS] (Buscar Bloques por Solicitud)</option>';
         }
@@ -370,30 +370,25 @@ export function actualizarModoBusquedaUI(solicitudIdOpcional = null) {
     const btnModoAlumnos = document.getElementById('match-tab-modo-alumnos');
     const btnBuscar = document.getElementById('match-btn-buscar');
     const secSol = document.getElementById('match-solicitudes-profes-container');
-    if (matchModoBusqueda === 'grupos') {
-        if (btnModoGrupos) {
-            btnModoGrupos.className = 'btn-app btn-primary';
-            btnModoGrupos.style.cssText = 'height:32px; font-size:12px; font-weight:700; padding:0 14px; border-radius:7px; cursor:pointer; background:var(--accent-teal); color:#ffffff; border:1px solid var(--accent-teal);';
-        }
-        if (btnModoAlumnos) {
-            btnModoAlumnos.className = 'btn-app btn-secondary';
-            btnModoAlumnos.style.cssText = 'height:32px; font-size:12px; font-weight:700; padding:0 14px; border-radius:7px; cursor:pointer; background:transparent; color:var(--text-main); border:1px solid transparent;';
-        }
-        if (btnBuscar) btnBuscar.innerHTML = '🔍 Buscar Matches';
+    // v8.16: selector deslizante Grupos | Alumnos y botón de búsqueda con ícono de línea (sin emojis)
+    const esGrupos = matchModoBusqueda === 'grupos';
+    const sw = document.getElementById('match-switch-modo');
+    if (sw) sw.dataset.modo = esGrupos ? 'grupos' : 'alumnos';
+    if (btnModoGrupos) btnModoGrupos.setAttribute('aria-checked', esGrupos ? 'true' : 'false');
+    if (btnModoAlumnos) btnModoAlumnos.setAttribute('aria-checked', esGrupos ? 'false' : 'true');
+    const ayuda = document.getElementById('match-switch-ayuda');
+    if (ayuda) ayuda.textContent = esGrupos
+        ? 'Arma grupos posibles con docente y horario.'
+        : 'Busca alumnos en espera que encajan con los criterios o con una solicitud de un docente.';
+    const icoBuscar = typeof window.iconoLinea === 'function' ? window.iconoLinea('search') + ' ' : '';
+    if (btnBuscar) btnBuscar.innerHTML = icoBuscar + (esGrupos ? 'Buscar grupos' : 'Buscar alumnos');
+    if (esGrupos) {
         if (secSol) secSol.style.display = 'none';
     } else {
-        if (btnModoAlumnos) {
-            btnModoAlumnos.className = 'btn-app btn-primary';
-            btnModoAlumnos.style.cssText = 'height:32px; font-size:12px; font-weight:700; padding:0 14px; border-radius:7px; cursor:pointer; background:var(--accent-teal); color:#ffffff; border:1px solid var(--accent-teal);';
-        }
-        if (btnModoGrupos) {
-            btnModoGrupos.className = 'btn-app btn-secondary';
-            btnModoGrupos.style.cssText = 'height:32px; font-size:12px; font-weight:700; padding:0 14px; border-radius:7px; cursor:pointer; background:transparent; color:var(--text-main); border:1px solid transparent;';
-        }
-        if (btnBuscar) btnBuscar.innerHTML = '🔍 Buscar Alumnos';
         if (secSol) secSol.style.display = 'block';
         cargarSolicitudesEnSelectorMatch(solicitudIdOpcional);
     }
+    actualizarResumenCriteriosMatch();
 }
 
 export async function activarBusquedaMatchPorSolicitudDirecta(solicitudId, callbacks = {}) {
@@ -430,6 +425,8 @@ export async function activarBusquedaMatchPorSolicitudDirecta(solicitudId, callb
         await ejecutarBusquedaAlumnosMatch(fnSetBotonCargando);
     }
 
+    plegarCriteriosSiHayResultados();
+
     // 5. Scroll suave hacia los resultados
     setTimeout(() => {
         const resSec = document.getElementById('match-resultados');
@@ -440,13 +437,59 @@ export async function activarBusquedaMatchPorSolicitudDirecta(solicitudId, callb
 }
 window.activarBusquedaMatchPorSolicitudDirecta = activarBusquedaMatchPorSolicitudDirecta;
 
+// v8.16: resumen de los criterios elegidos (se ve con el panel plegado)
+export function actualizarResumenCriteriosMatch() {
+    const caja = document.getElementById('match-criterios-resumen');
+    if (!caja) return;
+    const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const val = id => (document.getElementById(id)?.value || '').trim();
+    const textoSel = id => { const s = document.getElementById(id); return s && s.value ? (s.options[s.selectedIndex]?.text || '').trim() : ''; };
+    const modo = matchModoBusqueda === 'alumnos' ? 'Alumnos' : 'Grupos';
+    const susc = textoSel('match-suscripcion');
+    const visible = id => { const el = document.getElementById(id); return el && el.style.display !== 'none'; };
+    const p1 = [];
+    p1.push(susc || 'Sin suscripción elegida');
+    if (visible('match-cantidad-wrapper')) p1.push(matchCantidadActual + ' integrantes');
+    const eD = val('match-edad-desde'), eH = val('match-edad-hasta');
+    if (eD || eH) p1.push(eD && eH ? eD + ' a ' + eH + ' años' : (eD ? 'desde ' + eD + ' años' : 'hasta ' + eH + ' años'));
+    const p2 = [];
+    const niveles = Array.from(document.querySelectorAll('input[name="match-nivel"]:checked')).map(c => c.value);
+    if (niveles.length && visible('match-nivel-wrapper')) p2.push(niveles.join(', '));
+    const dias = Array.from(document.querySelectorAll('.match-day-pill.active')).map(p => p.textContent.trim());
+    const hD = val('match-hora-desde'), hH = val('match-hora-hasta');
+    if (dias.length || hD || hH) p2.push((dias.length ? dias.join(', ') : 'Cualquier día') + (hD || hH ? ' de ' + (hD || '…') + ' a ' + (hH || '…') : ''));
+    p2.push(textoSel('match-profe') || 'Cualquier docente');
+    const inst = textoSel('match-instrumento-filtro');
+    if (inst && visible('match-instrumento-wrapper')) p2.push(inst);
+    const excl = Array.from(document.getElementById('match-excluir-instrumentos')?.selectedOptions || []).map(o => o.text).filter(Boolean);
+    if (excl.length && visible('match-opciones-grupales')) p2.push('sin ' + excl.join(', ').toLowerCase());
+    caja.innerHTML = '<span class="match-crit-modo">' + modo + '</span><span class="match-crit-txt"><b>' + esc(p1.join(' · ')) + '</b><small>' + esc(p2.join(' · ')) + '</small></span>';
+}
+window.actualizarResumenCriteriosMatch = actualizarResumenCriteriosMatch;
+
+export function plegarCriteriosMatch(plegar) {
+    const panel = document.getElementById('match-criterios-panel');
+    if (!panel) return;
+    if (plegar) actualizarResumenCriteriosMatch();
+    panel.classList.toggle('collapsed', !!plegar);
+    const acc = document.getElementById('match-criterios-accion');
+    if (acc) acc.textContent = plegar ? 'Cambiar' : 'Ocultar';
+}
+
+function plegarCriteriosSiHayResultados() {
+    const res = document.getElementById('match-resultados');
+    const grid = document.getElementById('match-resultados-grid');
+    if (res && res.style.display !== 'none' && grid && grid.children.length > 0) plegarCriteriosMatch(true);
+}
+
 export function initMatchFormListeners(cfgMin = 2, cfgMax = 6, callbacks = {}) {
     const { setBotonCargando, syncSelectToChips, cargarVista } = callbacks;
     window.syncSelectToChipsGlobal = syncSelectToChips;
 
-    // Panel colapsable
+    // Panel colapsable (v8.16: plegado muestra el resumen de lo elegido)
     document.getElementById('match-criterios-toggle')?.addEventListener('click', () => {
-        document.getElementById('match-criterios-panel')?.classList.toggle('collapsed');
+        const panel = document.getElementById('match-criterios-panel');
+        plegarCriteriosMatch(!(panel && panel.classList.contains('collapsed')));
     });
 
     // Segmented control: Buscar Grupos vs Buscar Alumnos (limpieza automática de filtros previos)
@@ -470,19 +513,10 @@ export function initMatchFormListeners(cfgMin = 2, cfgMax = 6, callbacks = {}) {
     }
 
     // Selector de Solicitudes de Profesores en Modo Alumnos
+    // Al elegir una solicitud se completan los criterios (v8.16: se quitó el botón "Cargar Criterios", que repetía lo mismo)
     const selSolMatch = document.getElementById('match-sel-solicitud-cargada');
-    const btnCargarSolMatch = document.getElementById('btn-match-cargar-solicitud');
-
     selSolMatch?.addEventListener('change', (e) => {
         aplicarSolicitudEnFiltrosMatch(e.target.value);
-    });
-
-    btnCargarSolMatch?.addEventListener('click', () => {
-        if (selSolMatch?.value) {
-            aplicarSolicitudEnFiltrosMatch(selSolMatch.value);
-        } else {
-            alert("Por favor selecciona una solicitud de la lista.");
-        }
     });
 
     // Si había una solicitud pre-seleccionada desde otra vista
@@ -567,14 +601,16 @@ export function initMatchFormListeners(cfgMin = 2, cfgMax = 6, callbacks = {}) {
         }
     });
 
-    // Buscar matches o alumnos según el selector activo
-    document.getElementById('match-btn-buscar')?.addEventListener('click', () => {
+    // Buscar matches o alumnos según el selector activo. Si hay resultados, los criterios se pliegan (queda el resumen).
+    document.getElementById('match-btn-buscar')?.addEventListener('click', async () => {
         if (matchModoBusqueda === 'alumnos') {
-            ejecutarBusquedaAlumnosMatch(setBotonCargando);
+            await ejecutarBusquedaAlumnosMatch(setBotonCargando);
         } else {
-            ejecutarBusquedaMatch(setBotonCargando);
+            await ejecutarBusquedaMatch(setBotonCargando);
         }
+        plegarCriteriosSiHayResultados();
     });
+    actualizarResumenCriteriosMatch();
 
     // Confirmar desde modal de confirmacion
     document.getElementById('btn-ejecutar-confirmar-match')?.addEventListener('click', () => ejecutarConfirmarMatch(setBotonCargando, cargarVista));
@@ -1537,12 +1573,37 @@ export function renderResultadosAlumnosMatch(candidatos = []) {
         const edad = al.edad ? `${al.edad} años` : 'Edad s/d';
         const evalTxt = typeof window.obtenerEvaluadorAlumno === 'function' ? window.obtenerEvaluadorAlumno(al) : ((al.informe_entrevista && al.informe_entrevista.evaluador_nombre) || al.evaluador_nombre || al.reserva_profe_nombre || '');
 
-        // Resumen de disponibilidad
+        // v8.16: disponibilidad como mini semana (L a S). Si hay un docente asignado o elegido, se resaltan los días en común.
         const disp = al.disponibilidad || {};
-        const diasConDisp = Object.keys(disp).filter(k => Array.isArray(disp[k]) && disp[k].length > 0);
-        const dispResumen = diasConDisp.length > 0 
-            ? diasConDisp.map(d => `${d}: ${disp[d].map(r => typeof r === 'string' ? r : `${r.inicio || '09:00'}-${r.fin || '22:00'}`).join(', ')}`).join(' • ')
-            : 'Sin franjas registradas';
+        const profeIdSem = (al.profeMatchAsignado && al.profeMatchAsignado.id) || document.getElementById('match-profe')?.value || '';
+        const profeSem = profeIdSem ? matchProfesores.find(p => p.id === profeIdSem) : null;
+        const dispProfeSem = (profeSem && profeSem.disponibilidad) || null;
+        const nombreProfeSem = (al.profeMatchAsignado && al.profeMatchAsignado.nombre) || (profeSem && profeSem.nombre) || '';
+        const rangosDe = (d, k) => (d && Array.isArray(d[k])) ? d[k] : [];
+        const fmtRangoSem = r => {
+            if (typeof r !== 'string') {
+                if (r && (r.flex === true || r.tipo === 'flex')) return 'Flex';
+                r = (r && (r.inicio || r.start || '09:00')) + '-' + (r && (r.fin || r.end || '22:00'));
+            }
+            if (r === 'Libre' || r === '09:00-22:00') return 'Todo';
+            if (r === 'Flex') return 'Flex';
+            return r.replace(/\s*-\s*/g, '–').replace(/(^|–)0(\d)/g, '$1$2').replace(/:00(?=–|$)/g, '');
+        };
+        const diasSem = [['L', 'L'], ['M', 'M'], ['X', 'X'], ['J', 'J'], ['V', 'V'], ['S', 'S']];
+        const diasCo = [];
+        const semHtml = diasSem.map(([k, lbl]) => {
+            const r = rangosDe(disp, k);
+            const co = r.length > 0 && dispProfeSem && rangosDe(dispProfeSem, k).length > 0;
+            if (co) diasCo.push(k);
+            return '<div class="' + (co ? 'co' : (r.length ? 'on' : '')) + '"><b>' + lbl + '</b>' + (r.length ? r.map(fmtRangoSem).join('<br>') : '—') + '</div>';
+        }).join('');
+        const nombresDiaSem = { L: 'lun', M: 'mar', X: 'mié', J: 'jue', V: 'vie', S: 'sáb' };
+        const coincideSem = dispProfeSem
+            ? (diasCo.length
+                ? '<div class="match-sem-co">Coincide con <b>' + nombreProfeSem.replace(/</g, '&lt;') + '</b>: ' + diasCo.map(k => nombresDiaSem[k]).join(', ') + '</div>'
+                : '<div class="match-sem-co sin">Sin días en común con ' + nombreProfeSem.replace(/</g, '&lt;') + '</div>')
+            : '';
+        const sinFranjas = !diasSem.some(([k]) => rangosDe(disp, k).length);
 
         const matchProfeTag = al.profeMatchAsignado
             ? `<span class="match-chip" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px;">🧑‍🏫 Docente: ${al.profeMatchAsignado.nombre}</span>`
@@ -1568,9 +1629,10 @@ export function renderResultadosAlumnosMatch(candidatos = []) {
                         ${evalTxt ? `<span class="match-chip" style="background:#f1f5f9; color:#475569; font-size:11px; padding:2px 8px; border-radius:6px;">🧑‍🏫 Eval: ${evalTxt}</span>` : ''}
                     </div>
 
-                    <div style="background:#f8fafc; border-radius:8px; padding:8px 10px; font-size:11.5px; color:var(--text-muted); margin-bottom:12px;">
-                        <div style="font-weight:700; color:var(--text-main); margin-bottom:2px;">🕒 Disponibilidad Declarada:</div>
-                        <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${dispResumen}">${dispResumen}</div>
+                    <div style="margin-bottom:12px;">
+                        ${sinFranjas
+                            ? '<div style="font-size:12px; color:var(--text-muted);">Sin franjas de disponibilidad cargadas</div>'
+                            : '<div class="match-sem">' + semHtml + '</div>' + coincideSem}
                     </div>
                 </div>
 
@@ -1858,13 +1920,48 @@ export function renderResultadosMatch() {
     const esIndividual = matchGruposSugeridos.length > 0 && matchGruposSugeridos[0].tipo === 'Individual';
     badge.textContent = esIndividual ? `${matchGruposSugeridos.length} opciones sugeridas` : `${matchGruposSugeridos.length} grupos sugeridos`;
 
-    grid.innerHTML = matchGruposSugeridos.map((grupo, idx) => {
-        const pct = grupo.compatibilidad || 80;
-        let barClass = 'high';
-        if (pct < 60) barClass = 'low';
-        else if (pct < 80) barClass = 'medium';
+    // v8.16: arriba las mejores opciones (85% o más, hasta 3); el resto en "Ver otras N opciones", con una fila
+    // plegable por docente (una abierta a la vez) si hay más de uno. Cada docente tiene su color (como en el buscador de agenda).
+    const escM = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    const paletaM = ['#2563eb', '#c026d3', '#ea580c', '#0f766e', '#7c3aed', '#b45309'];
+    const claveProfe = g => String(g.profeId || g.profeNombre || '');
+    const idsProfesM = [...new Set(matchGruposSugeridos.map(claveProfe))].sort();
+    const colorProfeM = g => paletaM[Math.max(0, idsProfesM.indexOf(claveProfe(g))) % paletaM.length];
+    const flechaM = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" style="pointer-events:none;"><path d="m6 9 6 6 6-6"/></svg>';
+    const indices = matchGruposSugeridos.map((g, i) => i);
+    const mejores = indices.filter(i => (matchGruposSugeridos[i].compatibilidad || 80) >= 85).slice(0, 3);
+    const resto = indices.filter(i => !mejores.includes(i));
+    const tarjetas = lista => lista.map(i => tarjetaMatchHtml(matchGruposSugeridos[i], i, mejores.includes(i))).join('');
+    const restoHtml = () => {
+        const profes = [...new Set(resto.map(i => claveProfe(matchGruposSugeridos[i])))];
+        if (profes.length <= 1) return '<div class="match-results-grid match-subgrid">' + tarjetas(resto) + '</div>';
+        profes.sort((a, b) => {
+            const nA = matchGruposSugeridos[resto.find(i => claveProfe(matchGruposSugeridos[i]) === a)].profeNombre || '';
+            const nB = matchGruposSugeridos[resto.find(i => claveProfe(matchGruposSugeridos[i]) === b)].profeNombre || '';
+            return nA.localeCompare(nB);
+        });
+        return profes.map(pk => {
+            const idxs = resto.filter(i => claveProfe(matchGruposSugeridos[i]) === pk);
+            const g0 = matchGruposSugeridos[idxs[0]];
+            const pcts = idxs.map(i => matchGruposSugeridos[i].compatibilidad || 80);
+            const rango = Math.min(...pcts) === Math.max(...pcts) ? Math.max(...pcts) + '%' : Math.min(...pcts) + '% a ' + Math.max(...pcts) + '%';
+            const dias = [...new Set(idxs.map(i => (matchGruposSugeridos[i].horario || '').split(' ')[0].slice(0, 3).toLowerCase()).filter(Boolean))].join(', ');
+            const unidad = g0.tipo === 'Individual' ? (idxs.length === 1 ? ' opción' : ' opciones') : (idxs.length === 1 ? ' grupo' : ' grupos');
+            return '<div class="agenda-ev match-ev">' +
+                '<button type="button" class="agenda-ev-cab" aria-expanded="false">' +
+                    '<span class="agenda-slot-dot" style="background:' + colorProfeM(g0) + '"></span>' +
+                    '<span class="nom">' + escM(g0.profeNombre || 'Docente') + '</span>' +
+                    '<span class="det">' + escM([dias, rango].filter(Boolean).join(' · ')) + '</span>' +
+                    '<span class="badge">' + idxs.length + unidad + '</span>' + flechaM +
+                '</button>' +
+                '<div class="agenda-ev-cuerpo" hidden><div class="match-results-grid match-subgrid">' + tarjetas(idxs) + '</div></div></div>';
+        }).join('');
+    };
 
-        const isBest = idx === 0 && pct >= 85;
+    function tarjetaMatchHtml(grupo, idx, esTop) {
+        const pct = grupo.compatibilidad || 80;
+        const pctClase = pct >= 85 ? 'alta' : (pct >= 70 ? 'media' : 'baja');
+        const isBest = esTop;
         const isInd = grupo.tipo === 'Individual';
 
         const alumnosHtml = grupo.alumnos.map(al => {
@@ -1897,26 +1994,16 @@ export function renderResultadosMatch() {
                         <h4 class="match-card-title">${cardTitulo}</h4>
                         <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${cardSubtitulo}</div>
                     </div>
-                    ${isBest ? `<span class="status-badge bg-teal" style="font-size:10px;">⭐ Mejor Match</span>` : ''}
+                    <span class="match-pct ${pctClase}" title="Compatibilidad">${pct}%</span>
                 </div>
 
-                <div class="match-compat-bar-wrapper">
-                    <div class="match-compat-label">
-                        <span style="font-size:11px; font-weight:700; color:var(--text-muted);">COMPATIBILIDAD</span>
-                        <span class="match-compat-pct" style="color:var(--accent-teal);">${pct}%</span>
-                    </div>
-                    <div class="match-compat-bar-track">
-                        <div class="match-compat-bar ${barClass}" style="width:${pct}%;"></div>
-                    </div>
+                <div class="match-card-meta">
+                    <span><span class="agenda-slot-dot" style="background:${colorProfeM(grupo)}"></span> <strong>${escM(grupo.profeNombre)}</strong></span>
+                    <span>📅 <strong>${escM(grupo.horario)}</strong></span>
                 </div>
 
                 <div style="display:flex; flex-direction:column; gap:6px;">
                     ${alumnosHtml}
-                </div>
-
-                <div class="match-card-footer">
-                    <div>📅 <strong>${grupo.horario}</strong></div>
-                    <div>👨‍🏫 Docente: <strong>${grupo.profeNombre}</strong></div>
                 </div>
 
                 <div class="match-card-actions">
@@ -1925,7 +2012,40 @@ export function renderResultadosMatch() {
                 </div>
             </div>
         `;
-        }).join('');
+    }
+
+    const unidadTot = esIndividual ? 'opciones' : 'opciones';
+    let html = '';
+    if (mejores.length) {
+        html += '<div class="match-res-tit"><h4><span class="agenda-star-ico">★</span> Mejores opciones</h4><span>' + mejores.length + (mejores.length === 1 ? ' opción' : ' ' + unidadTot) + ' con 85% o más</span></div>' + tarjetas(mejores);
+        if (resto.length) {
+            html += '<button type="button" class="agenda-ver-otros match-ver-otros" aria-expanded="false" data-total="' + resto.length + '"><span class="lbl">Ver otras ' + resto.length + (resto.length === 1 ? ' opción' : ' opciones') + '</span>' + flechaM + '</button>' +
+                '<div class="agenda-otros match-otros" hidden>' + restoHtml() + '</div>';
+        }
+    } else {
+        html += '<div class="match-otros match-otros-directo">' + restoHtml() + '</div>';
+    }
+    grid.innerHTML = html;
+
+    const btnOtrosM = grid.querySelector('.match-ver-otros');
+    if (btnOtrosM) btnOtrosM.onclick = () => {
+        const caja = grid.querySelector('.match-otros');
+        if (!caja) return;
+        const abrir = caja.hidden;
+        caja.hidden = !abrir;
+        btnOtrosM.setAttribute('aria-expanded', String(abrir));
+        const n = parseInt(btnOtrosM.dataset.total, 10) || 0;
+        btnOtrosM.querySelector('.lbl').textContent = abrir ? 'Ocultar otras opciones' : 'Ver otras ' + n + (n === 1 ? ' opción' : ' opciones');
+    };
+    grid.querySelectorAll('.match-ev .agenda-ev-cab').forEach(cab => {
+        cab.onclick = () => {
+            const cuerpo = cab.nextElementSibling;
+            const abrir = cuerpo.hidden;
+            grid.querySelectorAll('.match-ev .agenda-ev-cuerpo').forEach(c => { c.hidden = true; c.previousElementSibling.setAttribute('aria-expanded', 'false'); });
+            cuerpo.hidden = !abrir;
+            cab.setAttribute('aria-expanded', String(abrir));
+        };
+    });
     }
 
     export function abrirModalDetalleGrupo(idx) {
