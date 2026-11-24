@@ -2,7 +2,7 @@
 // src/modules/abm.module.js -- ABM Profesores, Instrumentos, Suscripciones, Usuarios y Config
 // =======================================================================
 
-import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO } from "../config/constants.js?v=8.18";
+import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO } from "../config/constants.js?v=8.19";
 import { formatearPrecioMoneda, TEXTO_AVISO_ADMISOR_INBOX_DEFAULT } from "./altas.module.js";
 import { 
     db, 
@@ -1177,6 +1177,98 @@ function extraerDisponibilidadLocal(containerRef = 'contenedor-disponibilidad-us
     return {};
 }
 
+// -----------------------------------------------------------------------
+// v8.19: lista de usuarios como tabla de permisos (mockup_abm_usuarios.html, opción A)
+// Una fila por persona y una columna por rol (Admisión | Festivales). "Ver" cambia a Aptitudes o Instrumentos.
+// -----------------------------------------------------------------------
+const TABLA_ROLES_ADM = [['admin', 'Admin.', 'Administrador'], ['admisor', 'Admisor', 'Admisor'], ['coordinador_grupos', 'Coord.', 'Coordinador de grupos'], ['docente', 'Docente', 'Docente'], ['atencion_cliente', 'Atención', 'Atención al cliente']];
+const TABLA_ROLES_FEST = [['gestor_festivales', 'Gestor', 'Gestor de Festivales'], ['sonidista_festivales', 'Sonido', 'Sonidista'], ['planificador_clases', 'Planif.', 'Planificador de clases']];
+const TABLA_APTITUDES = [['eval', 'Evaluaciones'], ['seg', 'Seguimientos'], ['grup', 'Grupales'], ['ens', 'Ensambles']];
+const TABLA_FILTROS = [['', 'Todos'], ['docente', 'Docentes'], ['coordinador_grupos', 'Coordinadores'], ['fest', 'Festivales'], ['inactivo', 'Inactivos']];
+const SVG_TILDE = '<svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>';
+const escTabla = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function filasUsuariosFiltradas() {
+    const st = window.__abmUsuarios || { filas: [] };
+    const q = (st.q || '').toLowerCase().trim();
+    return st.filas.filter(u => {
+        if (q && !(u.nombre + ' ' + u.email).toLowerCase().includes(q)) return false;
+        if (st.filtro === 'inactivo') return !u.activo;
+        if (st.filtro === 'fest') return u.roles.some(r => TABLA_ROLES_FEST.some(f => f[0] === r));
+        if (st.filtro) return u.roles.includes(st.filtro);
+        return true;
+    });
+}
+
+function celdaTilde(si, fest, sep, titulo) {
+    return `<td class="${sep ? 'sep' : ''}">${si ? `<span class="abm-tilde ${fest ? 'fest' : ''}" title="${escTabla(titulo)}">${SVG_TILDE}</span>` : '<span class="abm-no">·</span>'}</td>`;
+}
+
+function htmlCuerpoTablaUsuarios() {
+    const st = window.__abmUsuarios || { filas: [], vista: 'roles' };
+    let L = filasUsuariosFiltradas();
+    if (st.vista !== 'roles') L = L.filter(u => u.esDocente);
+    const iconoBorrar = typeof window.iconoLinea === 'function' ? window.iconoLinea('trash') : '';
+    const celdaQuien = (u) => {
+        const ini = u.nombre.split(/[\s._-]+/).filter(Boolean).slice(0, 2).map(p => p[0]).join('').toUpperCase() || '?';
+        return `<td class="q"><div class="abm-quien"><span class="abm-av">${escTabla(ini)}</span><div><b>${escTabla(u.nombre)}</b><small>${escTabla(u.email)}${u.repetido ? ' <em class="abm-rep" title="Otra ficha tiene el mismo correo (id ' + escTabla(u.id) + ')">Correo repetido</em>' : ''}</small></div></div></td>`;
+    };
+    const celdaFin = (u) => `<td class="sep fin"><span class="abm-est ${u.activo ? '' : 'off'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>` +
+        `<td class="acc">${st.esSoloCoord ? '' : `<button type="button" class="ds-icon-btn sm" title="Revocar acceso / eliminar" onclick="event.stopPropagation(); window.eliminarABM('${u.id}', 'usuarios_sistema')">${iconoBorrar}</button>`}</td>`;
+
+    let cab1 = '';
+    let cab2 = '';
+    let filas = '';
+    if (st.vista === 'roles') {
+        cab1 = `<tr><th class="q"></th><th class="grp sep" colspan="${TABLA_ROLES_ADM.length}">Admisión</th><th class="grp fest sep" colspan="${TABLA_ROLES_FEST.length}">Festivales</th><th class="sep"></th><th></th></tr>`;
+        cab2 = `<tr><th class="q">Usuario</th>${TABLA_ROLES_ADM.map((r, k) => `<th class="${k === 0 ? 'sep' : ''}" title="${r[2]}">${r[1]}</th>`).join('')}${TABLA_ROLES_FEST.map((r, k) => `<th class="${k === 0 ? 'sep' : ''}" title="${r[2]}">${r[1]}</th>`).join('')}<th class="sep">Estado</th><th></th></tr>`;
+        filas = L.map(u => `<tr class="${u.activo ? '' : 'off'}" onclick="window.abrirEdicionABM('${u.id}', 'usuarios_sistema', '${escTabla(u.email)}')">${celdaQuien(u)}` +
+            TABLA_ROLES_ADM.map((r, k) => celdaTilde(u.roles.includes(r[0]), false, k === 0, r[2])).join('') +
+            TABLA_ROLES_FEST.map((r, k) => celdaTilde(u.roles.includes(r[0]), true, k === 0, r[2])).join('') +
+            `${celdaFin(u)}</tr>`).join('');
+    } else if (st.vista === 'apt') {
+        cab2 = `<tr><th class="q">Docente</th>${TABLA_APTITUDES.map((a, k) => `<th class="${k === 0 ? 'sep' : ''}">${a[1]}</th>`).join('')}<th class="sep">Estado</th><th></th></tr>`;
+        filas = L.map(u => `<tr class="${u.activo ? '' : 'off'}" onclick="window.abrirEdicionABM('${u.id}', 'usuarios_sistema', '${escTabla(u.email)}')">${celdaQuien(u)}` +
+            TABLA_APTITUDES.map((a, k) => celdaTilde(u.aptitudes.includes(a[0]), false, k === 0, a[1])).join('') + `${celdaFin(u)}</tr>`).join('');
+    } else {
+        const inst = [...new Set(L.flatMap(u => u.skills))].sort((a, b) => a.localeCompare(b, 'es'));
+        cab2 = `<tr><th class="q">Docente</th>${inst.map((i, k) => `<th class="${k === 0 ? 'sep' : ''}">${escTabla(i)}</th>`).join('')}<th class="sep">Estado</th><th></th></tr>`;
+        filas = L.map(u => `<tr class="${u.activo ? '' : 'off'}" onclick="window.abrirEdicionABM('${u.id}', 'usuarios_sistema', '${escTabla(u.email)}')">${celdaQuien(u)}` +
+            inst.map((i, k) => celdaTilde(u.skills.includes(i), false, k === 0, i)).join('') + `${celdaFin(u)}</tr>`).join('');
+    }
+    const vacio = L.length === 0 ? `<div class="abm-vacio">No hay usuarios con ese filtro.</div>` : '';
+    return `<div class="abm-tabla-info">${L.length} ${L.length === 1 ? 'usuario' : 'usuarios'}</div>` +
+        `<div class="abm-tabla-scroll"><table class="abm-tabla"><thead>${cab1}${cab2}</thead><tbody>${filas}</tbody></table>${vacio}</div>`;
+}
+
+function htmlTablaUsuarios() {
+    const st = window.__abmUsuarios || { vista: 'roles', filtro: '' };
+    const iconoBuscar = typeof window.iconoLinea === 'function' ? window.iconoLinea('search') : '';
+    return `
+        <div class="abm-tabla-barra">
+            <label class="abm-buscar">${iconoBuscar}<input type="search" placeholder="Buscar por nombre o correo" value="${escTabla(st.q || '')}" oninput="window.abmUsuariosBuscar(this.value)"></label>
+            <div class="abm-filtros">${TABLA_FILTROS.map(f => `<button type="button" data-f="${f[0]}" class="${st.filtro === f[0] ? 'on' : ''}" onclick="window.abmUsuariosFiltrar('${f[0]}')">${f[1]}</button>`).join('')}</div>
+        </div>
+        <div class="abm-tabla-barra">
+            <span class="abm-ver">Ver</span>
+            <div class="abm-seg">${[['roles', 'Roles'], ['apt', 'Aptitudes'], ['inst', 'Instrumentos']].map(v => `<button type="button" data-v="${v[0]}" class="${st.vista === v[0] ? 'on' : ''}" onclick="window.abmUsuariosVista('${v[0]}')">${v[1]}</button>`).join('')}</div>
+        </div>
+        <div class="abm-tabla-panel" id="abm-usuarios-cuerpo">${htmlCuerpoTablaUsuarios()}</div>`;
+}
+
+function refrescarCuerpoTablaUsuarios() {
+    const st = window.__abmUsuarios;
+    const cuerpo = document.getElementById('abm-usuarios-cuerpo');
+    if (!st || !cuerpo) return;
+    cuerpo.innerHTML = htmlCuerpoTablaUsuarios();
+    document.querySelectorAll('#abm-usuarios-tabla .abm-filtros button').forEach(b => b.classList.toggle('on', b.dataset.f === st.filtro));
+    document.querySelectorAll('#abm-usuarios-tabla .abm-seg button').forEach(b => b.classList.toggle('on', b.dataset.v === st.vista));
+}
+
+window.abmUsuariosBuscar = (q) => { if (window.__abmUsuarios) { window.__abmUsuarios.q = q; refrescarCuerpoTablaUsuarios(); } };
+window.abmUsuariosFiltrar = (f) => { if (window.__abmUsuarios) { window.__abmUsuarios.filtro = f; refrescarCuerpoTablaUsuarios(); } };
+window.abmUsuariosVista = (v) => { if (window.__abmUsuarios) { window.__abmUsuarios.vista = v; refrescarCuerpoTablaUsuarios(); } };
+
 export async function cargarABM(coleccion, titulo, cont) { 
     window.coleccionABMActual = coleccion; 
     window.tituloABMActual = titulo; 
@@ -1216,99 +1308,42 @@ export async function cargarABM(coleccion, titulo, cont) {
                     h += `<div style="margin-bottom:14px; padding:10px 14px; border-radius:10px; background:var(--warn-bg, #fdf3e0); color:var(--warn, #9a5b00); font-size:13px; font-weight:600;">Hay más de una ficha con el mismo correo (${repetidos.join(', ')}). La app usa la más completa al ingresar; conviene eliminar las que sobran.</div>`;
                 }
 
+                // v8.19: lista de usuarios como tabla de permisos (Roles · Aptitudes · Instrumentos), con buscador y filtros
+                const filasUsuarios = [];
                 qS.forEach(d => {
                     const u = d.data();
-                    const esCorreoRepetido = cuentaPorEmail[String(u.email || '').toLowerCase().trim()] > 1;
+                    const email = String(u.email || '');
                     const rolesArr = Array.isArray(u.roles) && u.roles.length > 0 ? u.roles : (u.rol ? [u.rol] : ['admisor']);
-                    const esActivo = u.activo !== false;
-                    const mods = Array.isArray(u.modulos_habilitados) ? u.modulos_habilitados : (ROLES_MODULOS[rolesArr[0]] || []);
-                    const pDoc = profsMap[u.profesor_id] || (u.email ? profsByEmail[u.email.toLowerCase()] : null);
-                    
-                    const rolesNormalizados = [...new Set(rolesArr.map(r => (r === 'profesor' || r === 'evaluador') ? 'docente' : r))];
-                    const badgesRoles = rolesNormalizados.map(r => {
-                        if (r === 'admin') return '<span class="profile-tag-badge" style="background:#fef5e7; color:#d35400; border-color:#fad7a0;">👑 Administrador</span>';
-                        if (r === 'admisor' || r === 'admisiones') return '<span class="profile-tag-badge" style="background:#e8f4fd; color:#2980b9; border-color:#beddf3;">📥 Admisor</span>';
-                        if (r === 'coordinador_grupos' || r === 'coordinador') return '<span class="profile-tag-badge" style="background:#faf5ff; color:#6d28d9; border-color:#c4b5fd;">🧩 Coordinador</span>';
-                        if (r === 'atencion_cliente') return '<span class="profile-tag-badge" style="background:#fff7ed; color:#c2410c; border-color:#fed7aa;">☎️ Atención al Cliente</span>';
-                        if (r === 'docente' || r === 'profesor' || r === 'evaluador') return '<span class="profile-tag-badge" style="background:#eafaf1; color:#27ae60; border-color:#a9dfbf;">👨‍🏫 Docente</span>';
-                        if (r === 'gestor_festivales') return '<span class="profile-tag-badge" style="background:#fdf2f8; color:#be185d; border-color:#fbcfe8;">🎪 Gestor de Festivales</span>';
-                        if (r === 'planificador_clases') return '<span class="profile-tag-badge" style="background:#f1ebf8; color:#6d4b9b; border-color:#dccff0;">📅 Planificador de clases</span>';
-                        if (r === 'sonidista_festivales') return '<span class="profile-tag-badge" style="background:#ecfeff; color:#0e7490; border-color:#a5f3fc;">🎚️ Sonidista</span>';
-                        if (r === 'personalizado') return '<span class="profile-tag-badge" style="background:#f4ecf7; color:#8e44ad; border-color:#d2b4de;">🛠️ Personalizado</span>';
-                        return '<span class="profile-tag-badge" style="background:#e8f4fd; color:#2980b9; border-color:#beddf3;">📥 Admisor</span>';
-                    }).join(' ');
-
-                    const badgeActivo = esActivo 
-                        ? '<span class="status-val-ok">🟢 Activo</span>'
-                        : '<span class="status-val-reject">🔴 Inactivo</span>';
-
-                    const esDocente = rolesArr.includes('docente') || rolesArr.includes('profesor') || rolesArr.includes('evaluador') || !!pDoc;
-
-                    const celular = u.celular || pDoc?.celular || '';
-                    const alias = u.alias_transferencia || pDoc?.alias_transferencia || '';
-                    let detalles = [];
-                    if (celular) detalles.push(`📱 <strong>${celular}</strong>`);
-                    if (alias) detalles.push(`🏦 Alias: <strong>${alias}</strong>`);
-                    if (!esDocente) detalles.push(`<span style="opacity:0.85;">(${mods.length} módulos autorizados)</span>`);
-                    const detallesHtml = detalles.length > 0 
-                        ? `<div style="display:flex; align-items:center; gap:14px; font-size:12.5px; color:var(--text-muted); margin-top:5px; flex-wrap:wrap;">${detalles.join('<span style="opacity:0.4;">•</span>')}</div>` 
-                        : '';
-
-                    let aptitudesHtml = '';
-                    let skillsHtml = '';
-                    if (esDocente) {
-                        let aptitudes = [];
-                        if (pDoc?.entrevista || u.entrevista || u.apto_evaluaciones || rolesArr.includes('evaluador')) aptitudes.push('<span class="tag-chip" style="background:#e0f2fe; color:#0369a1; font-size:11px; padding:2px 7px; font-weight:600;">🎧 Apto Evaluaciones</span>');
-                        if (pDoc?.seguimientos || u.seguimientos || u.apto_seguimientos) aptitudes.push('<span class="tag-chip" style="background:#fdf2f8; color:#be185d; font-size:11px; padding:2px 7px; font-weight:600;">📞 Apto Seguimientos</span>');
-                        if (pDoc?.grupales || u.grupales) aptitudes.push('<span class="tag-chip" style="background:#dcfce7; color:#15803d; font-size:11px; padding:2px 7px; font-weight:600;">👥 Grupales</span>');
-                        if (pDoc?.ensambles || u.ensambles) aptitudes.push('<span class="tag-chip" style="background:#fef3c7; color:#b45309; font-size:11px; padding:2px 7px; font-weight:600;">🎵 Ensambles</span>');
-                        if (aptitudes.length > 0) {
-                            aptitudesHtml = `
-                                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:6px;">
-                                    <span style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">Aptitudes:</span>
-                                    ${aptitudes.join('')}
-                                </div>`;
-                        }
-
-                        const skills = pDoc?.skills || u.skills || [];
-                        if (skills.length > 0) {
-                            skillsHtml = `
-                                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:5px;">
-                                    <span style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">Instrumentos:</span>
-                                    ${skills.map(s => `<span class="profile-tag-badge" style="background:#f0fdfa; color:#0f766e; border-color:#99f6e4; font-size:11.5px; padding:2px 8px; font-weight:600;">${getEmojiParaInstrumento(s)} ${s}</span>`).join('')}
-                                </div>`;
-                        }
-                    }
-
-                    const displayNombre = u.nombre || pDoc?.nombre || u.email.split('@')[0];
-
-                    h += `
-                        <div class="row-item abm-row" style="padding:15px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:10px; cursor:pointer;" onclick="window.abrirEdicionABM('${d.id}', 'usuarios_sistema', '${u.email}')">
-                            <div style="flex:1; min-width:240px;">
-                                <!-- Nivel 1: Nombre, Correo, Roles del Sistema y Estado -->
-                                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                                    <strong style="color:var(--text-main); font-size:15.5px;">${displayNombre}</strong>
-                                    <span style="color:var(--text-muted); font-size:13px; font-weight:500;">(${u.email})</span>
-                                    ${badgesRoles}
-                                    ${badgeActivo}
-                                    ${esCorreoRepetido ? `<span class="profile-tag-badge" style="background:var(--warn-bg, #fdf3e0); color:var(--warn, #9a5b00); border-color:#f2d9a6;" title="Otra ficha tiene el mismo correo (id ${d.id})">Correo repetido</span>` : ''}
-                                </div>
-
-                                <!-- Nivel 2: Información Personal (Celular y Alias CBU/CVU) -->
-                                ${detallesHtml}
-
-                                <!-- Nivel 3: Aptitudes Docentes -->
-                                ${aptitudesHtml}
-
-                                <!-- Nivel 4: Skills e Instrumentos -->
-                                ${skillsHtml}
-                            </div>
-                            <div style="display:flex; gap:8px; align-items:center;">
-                                ${esSoloCoord ? '<span style="font-size:12px; color:var(--accent-teal); font-weight:600; padding:4px 8px; background:var(--hover-bg); border-radius:6px;">✏️ Editar</span>' : `<button type="button" class="btn-row-action" title="Revocar Acceso / Eliminar" onclick="event.stopPropagation(); window.eliminarABM('${d.id}', 'usuarios_sistema')">🗑️</button>`}
-                            </div>
-                        </div>
-                    `;
+                    const roles = [...new Set(rolesArr.map(r => {
+                        const c = String(r || '').toLowerCase().trim();
+                        if (c === 'profesor' || c === 'evaluador') return 'docente';
+                        if (c === 'coordinador') return 'coordinador_grupos';
+                        if (c === 'admisiones') return 'admisor';
+                        return c;
+                    }).filter(Boolean))];
+                    const pDoc = profsMap[u.profesor_id] || (email ? profsByEmail[email.toLowerCase()] : null);
+                    const esDocente = roles.includes('docente') || !!pDoc;
+                    const aptitudes = [];
+                    if (pDoc?.entrevista || u.entrevista || u.apto_evaluaciones || rolesArr.includes('evaluador')) aptitudes.push('eval');
+                    if (pDoc?.seguimientos || u.seguimientos || u.apto_seguimientos) aptitudes.push('seg');
+                    if (pDoc?.grupales || u.grupales) aptitudes.push('grup');
+                    if (pDoc?.ensambles || u.ensambles) aptitudes.push('ens');
+                    filasUsuarios.push({
+                        id: d.id,
+                        email,
+                        nombre: u.nombre || pDoc?.nombre || email.split('@')[0] || '(sin nombre)',
+                        roles,
+                        activo: u.activo !== false,
+                        esDocente,
+                        aptitudes,
+                        skills: Array.isArray(pDoc?.skills) ? pDoc.skills : (Array.isArray(u.skills) ? u.skills : []),
+                        repetido: cuentaPorEmail[email.toLowerCase().trim()] > 1
+                    });
                 });
+                // Activos primero y por nombre
+                filasUsuarios.sort((a, b) => (a.activo === b.activo ? 0 : a.activo ? -1 : 1) || a.nombre.localeCompare(b.nombre, 'es'));
+                window.__abmUsuarios = { filas: filasUsuarios, vista: window.__abmUsuarios?.vista || 'roles', filtro: '', q: '', esSoloCoord };
+                h += `<div id="abm-usuarios-tabla">${htmlTablaUsuarios()}</div>`;
             } else if (coleccion === 'profesores') {
                 qS.forEach(d => { 
                     const dt = d.data(); 
