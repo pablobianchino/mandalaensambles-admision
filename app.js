@@ -22,7 +22,7 @@ import {
     CLAVE_INICIAL_DEFECTO,
     ADMIN_EMERGENCIA_EMAIL,
     CALENDARIO_PRINCIPAL_DEFECTO
-} from "./src/config/constants.js?v=8.17";
+} from "./src/config/constants.js?v=8.18";
 
 import { 
     app, 
@@ -95,7 +95,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=8.17";
+} from "./src/services/calendar.service.js?v=8.18";
 
 import {
     matchCantidadActual,
@@ -128,11 +128,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=8.17";
+} from "./src/modules/match.module.js?v=8.18";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=8.17";
+} from "./src/modules/profesor.module.js?v=8.18";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -161,14 +161,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=8.17";
+} from "./src/modules/altas.module.js?v=8.18";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=8.17";
+} from "./src/modules/dashboard.module.js?v=8.18";
 
 import {
     renderConfigHub,
@@ -177,23 +177,23 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=8.17";
+} from "./src/modules/abm.module.js?v=8.18";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=8.17";
+} from "./src/modules/inbox.module.js?v=8.18";
 
 // Íconos de línea automáticos en textos de la interfaz (solo presentación)
-import "./src/modules/iconos.module.js?v=8.17";
+import "./src/modules/iconos.module.js?v=8.18";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=8.17";
+} from "./src/modules/csv.module.js?v=8.18";
 
 import {
     inicializarMotorRecordatorios,
@@ -213,7 +213,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=8.17";
+} from "./src/modules/recordatorios.module.js?v=8.18";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -10122,6 +10122,7 @@ const ROLES_MODULOS_DEFAULT = {
     evaluador: ['dashboard', 'inbox', 'seguimientos'],
     atencion_cliente: ['inbox'],
     gestor_festivales: [], // rol de la app Mandala Festivales: no da módulos en Admisión
+    planificador_clases: [], // rol de Mandala Festivales: no da módulos en Admisión
     docente: ['portal_profesor'],
     profesor: ['portal_profesor'],
     personalizado: []
@@ -10231,7 +10232,7 @@ onAuthStateChanged(auth, async (user) => {
                 if (clean === 'coordinador') return 'coordinador_grupos';
                 if (clean === 'admisiones') return 'admisor';
                 return clean;
-            }))].filter(r => Boolean(r) && r !== 'gestor_festivales' && r !== 'sonidista_festivales');
+            }))].filter(r => Boolean(r) && r !== 'gestor_festivales' && r !== 'sonidista_festivales' && r !== 'planificador_clases');
 
             const rol = rolesArr[0] || 'admisor';
 
@@ -10321,13 +10322,14 @@ onAuthStateChanged(auth, async (user) => {
             if (e && e.code === 'permission-denied') {
                 try {
                     const propio = await getDocs(query(collection(db, "usuarios_sistema"), where("email", "==", String(user.email || '').toLowerCase())));
-                    const esSonidistaSolo = propio.docs.some(d => {
+                    const rolesPropios = propio.docs.flatMap(d => {
                         const dt = d.data();
-                        const rs = Array.isArray(dt.roles) && dt.roles.length > 0 ? dt.roles : [dt.rol || ''];
-                        return rs.includes('sonidista_festivales');
+                        return Array.isArray(dt.roles) && dt.roles.length > 0 ? dt.roles : [dt.rol || ''];
                     });
-                    if (esSonidistaSolo) {
-                        alert(`🎚️ Tu perfil es Sonidista.\n\nNo tenés acceso a Mandala Admisión. Ingresá a Mandala Festivales:\n${URL_APP_FESTIVALES}`);
+                    const esSonidistaSolo = rolesPropios.includes('sonidista_festivales');
+                    const esPlanificadorSolo = !esSonidistaSolo && rolesPropios.includes('planificador_clases');
+                    if (esSonidistaSolo || esPlanificadorSolo) {
+                        alert(`${esSonidistaSolo ? '🎚️ Tu perfil es Sonidista.' : '📅 Tu perfil es Planificador de clases.'}\n\nNo tenés acceso a Mandala Admisión. Ingresá a Mandala Festivales:\n${URL_APP_FESTIVALES}`);
                         await signOut(auth);
                         document.getElementById('login-container').style.display = 'flex';
                         document.getElementById('app-container').style.display = 'none';

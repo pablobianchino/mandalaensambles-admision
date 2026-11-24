@@ -2,7 +2,7 @@
 // src/modules/abm.module.js -- ABM Profesores, Instrumentos, Suscripciones, Usuarios y Config
 // =======================================================================
 
-import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO } from "../config/constants.js?v=8.17";
+import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO } from "../config/constants.js?v=8.18";
 import { formatearPrecioMoneda, TEXTO_AVISO_ADMISOR_INBOX_DEFAULT } from "./altas.module.js";
 import { 
     db, 
@@ -40,6 +40,7 @@ export async function sincronizarListaAcceso() {
     const admins = new Set();
     const festivales = new Set(); // quienes pueden usar Mandala Festivales: admins y Gestores de Festivales
     const sonidistas = new Set(); // personas de sonido de Mandala Festivales (acceso reducido, solo `festivales_sonido`)
+    const planificadores = new Set(); // planificadores de clases de Mandala Festivales (acceso reducido, ven clases y marcan reprogramaciones)
     const coordinadores = new Set(); // coordinadores: las reglas les permiten editar perfil, aptitudes y disponibilidad de otros usuarios
     snap.forEach(d => {
         const u = d.data();
@@ -47,10 +48,12 @@ export async function sincronizarListaAcceso() {
         if (!e || u.activo === false) return;
         const roles = Array.isArray(u.roles) && u.roles.length > 0 ? u.roles : [u.rol || ''];
         const esSonidistaU = roles.includes('sonidista_festivales');
-        const soloSonidistaU = esSonidistaU && roles.every(r => !r || r === 'sonidista_festivales');
+        const esPlanificadorU = roles.includes('planificador_clases');
+        const soloFestivalesU = (esSonidistaU || esPlanificadorU) && roles.every(r => !r || r === 'sonidista_festivales' || r === 'planificador_clases');
         if (esSonidistaU) sonidistas.add(e);
-        // Quien es solo sonidista NO entra en `emails`: esa lista da lectura de alumnos y otros datos de Admisión
-        if (!soloSonidistaU) emails.add(e);
+        if (esPlanificadorU) planificadores.add(e);
+        // Quien tiene solo roles reducidos de Festivales (sonidista, planificador) NO entra en `emails`: esa lista da lectura de alumnos y otros datos de Admisión
+        if (!soloFestivalesU) emails.add(e);
         const esAdminU = roles.includes('admin') || u.rol === 'admin';
         if (esAdminU) admins.add(e);
         if (esAdminU || roles.includes('gestor_festivales')) festivales.add(e);
@@ -61,10 +64,11 @@ export async function sincronizarListaAcceso() {
         admins: [...admins].sort(),
         festivales: [...festivales].sort(),
         sonidistas: [...sonidistas].sort(),
+        planificadores: [...planificadores].sort(),
         coordinadores: [...coordinadores].sort(),
         actualizado: new Date().toISOString()
     });
-    return { emails: emails.size, admins: admins.size, festivales: festivales.size, sonidistas: sonidistas.size, coordinadores: coordinadores.size };
+    return { emails: emails.size, admins: admins.size, festivales: festivales.size, sonidistas: sonidistas.size, planificadores: planificadores.size, coordinadores: coordinadores.size };
 }
 window.sincronizarListaAcceso = sincronizarListaAcceso;
 
@@ -1081,6 +1085,7 @@ const ROLES_MODULOS = {
     atencion_cliente: ['inbox'],
     gestor_festivales: [], // rol de la app Mandala Festivales: no da módulos en Admisión
     sonidista_festivales: [], // rol de sonidista de Mandala Festivales: no da módulos en Admisión (y no entra en la lista de autorizados)
+    planificador_clases: [], // rol de Mandala Festivales: no da módulos en Admisión
     docente: ['portal_profesor'],
     profesor: ['portal_profesor'],
     personalizado: []
@@ -1227,6 +1232,7 @@ export async function cargarABM(coleccion, titulo, cont) {
                         if (r === 'atencion_cliente') return '<span class="profile-tag-badge" style="background:#fff7ed; color:#c2410c; border-color:#fed7aa;">☎️ Atención al Cliente</span>';
                         if (r === 'docente' || r === 'profesor' || r === 'evaluador') return '<span class="profile-tag-badge" style="background:#eafaf1; color:#27ae60; border-color:#a9dfbf;">👨‍🏫 Docente</span>';
                         if (r === 'gestor_festivales') return '<span class="profile-tag-badge" style="background:#fdf2f8; color:#be185d; border-color:#fbcfe8;">🎪 Gestor de Festivales</span>';
+                        if (r === 'planificador_clases') return '<span class="profile-tag-badge" style="background:#f1ebf8; color:#6d4b9b; border-color:#dccff0;">📅 Planificador de clases</span>';
                         if (r === 'sonidista_festivales') return '<span class="profile-tag-badge" style="background:#ecfeff; color:#0e7490; border-color:#a5f3fc;">🎚️ Sonidista</span>';
                         if (r === 'personalizado') return '<span class="profile-tag-badge" style="background:#f4ecf7; color:#8e44ad; border-color:#d2b4de;">🛠️ Personalizado</span>';
                         return '<span class="profile-tag-badge" style="background:#e8f4fd; color:#2980b9; border-color:#beddf3;">📥 Admisor</span>';
@@ -1426,9 +1432,139 @@ export async function cargarABM(coleccion, titulo, cont) {
     cont.innerHTML = h; 
 }
 
-export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali = '', callbacks = {}) { 
+// -----------------------------------------------------------------------
+// v8.18: ventana de usuario en pestañas (Datos y cuenta · Roles y módulos · Perfil docente · Disponibilidad)
+// -----------------------------------------------------------------------
+const ROLES_FESTIVALES = ['gestor_festivales', 'sonidista_festivales', 'planificador_clases'];
+const ETIQUETA_ROL_CAB = {
+    admin: 'Administrador', admisor: 'Admisor', coordinador_grupos: 'Coordinador de grupos', docente: 'Docente',
+    atencion_cliente: 'Atención al cliente', gestor_festivales: 'Gestor de Festivales', sonidista_festivales: 'Sonidista',
+    planificador_clases: 'Planificador de clases'
+};
+const escHtmlCab = (s) => String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function rolesMarcadosUsuario() {
+    return [...document.querySelectorAll('.chk-user-rol:checked')].map(c => c.value);
+}
+
+function modulosSegunRoles(roles) {
+    const s = new Set();
+    roles.forEach(r => (ROLES_MODULOS[r] || []).forEach(m => s.add(m)));
+    return s;
+}
+
+function activarPestanaUsuario(tab) {
+    const dlg = document.getElementById('modal-abm-edit');
+    if (!dlg) return;
+    const btn = dlg.querySelector(`#abm-user-tabs button[data-tab="${tab}"]`);
+    if (!btn || btn.disabled) tab = 'datos';
+    dlg.dataset.tab = tab;
+    dlg.querySelectorAll('#abm-user-tabs button').forEach(b => {
+        const on = b.dataset.tab === tab;
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    dlg.querySelectorAll('#div-abm-edit-usuario .abm-user-sec').forEach(s => s.classList.toggle('on', s.dataset.tab === tab));
+    const cuerpo = dlg.querySelector('.abm-edit-cuerpo');
+    if (cuerpo) cuerpo.scrollTop = 0;
+}
+
+// Las pestañas docentes solo se habilitan con el rol Docente (o si quien edita es coordinador)
+function habilitarPestanasDocente(habilitar) {
+    const dlg = document.getElementById('modal-abm-edit');
+    if (!dlg) return;
+    ['docente', 'disp'].forEach(t => {
+        const b = dlg.querySelector(`#abm-user-tabs button[data-tab="${t}"]`);
+        if (!b) return;
+        b.disabled = !habilitar;
+        b.title = habilitar ? '' : 'Requiere el rol Docente';
+    });
+    if (!habilitar && (dlg.dataset.tab === 'docente' || dlg.dataset.tab === 'disp')) activarPestanaUsuario('roles');
+}
+
+function marcarModoModulos(modo) {
+    document.querySelectorAll('#abm-user-modo-modulos button').forEach(b => b.classList.toggle('on', b.dataset.modo === modo));
+}
+
+function modoModulosActual() {
+    return document.querySelector('#abm-user-modo-modulos button.on')?.dataset.modo || 'roles';
+}
+
+// Si los módulos marcados coinciden con los de los roles: "Según los roles"; si no, "Personalizado"
+function detectarModoModulos() {
+    const esperados = modulosSegunRoles(rolesMarcadosUsuario());
+    const marcados = new Set([...document.querySelectorAll('.chk-user-modulo:checked')].map(c => c.value));
+    const iguales = esperados.size === marcados.size && [...esperados].every(m => marcados.has(m));
+    marcarModoModulos(iguales ? 'roles' : 'personalizado');
+}
+
+function refrescarCabeceraUsuario() {
+    const nombre = (document.getElementById('abm-user-nombre')?.value || '').trim();
+    const email = (document.getElementById('abm-edit-nombre')?.value || '').trim();
+    const id = document.getElementById('abm-edit-id')?.value || '';
+    const elNom = document.getElementById('abm-user-cab-nombre');
+    const elMail = document.getElementById('abm-user-cab-email');
+    const elAv = document.getElementById('abm-user-cab-avatar');
+    const elChips = document.getElementById('abm-user-cab-chips');
+    if (elNom) elNom.textContent = nombre || email || (id ? 'Usuario' : 'Nuevo usuario');
+    if (elMail) elMail.textContent = nombre ? email : (id ? '' : 'Completá el correo y los roles');
+    if (elAv) {
+        const base = nombre || email.split('@')[0] || '';
+        const ini = base.split(/[\s._-]+/).filter(Boolean).slice(0, 2).map(p => p[0]).join('').toUpperCase();
+        elAv.textContent = ini || '+';
+    }
+    if (elChips) {
+        const activo = document.getElementById('abm-user-activo')?.checked !== false;
+        const roles = rolesMarcadosUsuario();
+        elChips.innerHTML = `<span class="abm-chip ${activo ? 'ok' : 'bad'}">${activo ? 'Activo' : 'Inactivo'}</span>` +
+            roles.map(r => `<span class="abm-chip ${ROLES_FESTIVALES.includes(r) ? 'fest' : ''}">${escHtmlCab(ETIQUETA_ROL_CAB[r] || r)}</span>`).join('');
+    }
+}
+
+function marcarCambiosUsuario(hay) {
+    const el = document.getElementById('abm-edit-estado-cambios');
+    if (!el) return;
+    el.innerHTML = hay && typeof window.iconoLinea === 'function' ? window.iconoLinea('info') + 'Cambios sin guardar' : (hay ? 'Cambios sin guardar' : '');
+}
+
+// Se conecta una sola vez: pestañas, selector de módulos, cabecera y aviso de cambios
+function prepararPestanasUsuario() {
+    const dlg = document.getElementById('modal-abm-edit');
+    if (!dlg || dlg.dataset.pestanasListas === '1') return;
+    dlg.dataset.pestanasListas = '1';
+    document.getElementById('abm-user-tabs')?.addEventListener('click', (ev) => {
+        const b = ev.target.closest('button[data-tab]');
+        if (b && !b.disabled) activarPestanaUsuario(b.dataset.tab);
+    });
+    document.getElementById('abm-user-modo-modulos')?.addEventListener('click', (ev) => {
+        const b = ev.target.closest('button[data-modo]');
+        if (!b || b.disabled) return;
+        marcarModoModulos(b.dataset.modo);
+        if (b.dataset.modo === 'roles') {
+            const esperados = modulosSegunRoles(rolesMarcadosUsuario());
+            document.querySelectorAll('.chk-user-modulo').forEach(chk => { chk.checked = esperados.has(chk.value); });
+        }
+        marcarCambiosUsuario(true);
+    });
+    const alCambiar = (ev) => {
+        if (!dlg.classList.contains('modo-usuario')) return;
+        if (ev.target.classList?.contains('chk-user-modulo')) detectarModoModulos();
+        refrescarCabeceraUsuario();
+        marcarCambiosUsuario(true);
+    };
+    dlg.addEventListener('input', alCambiar);
+    dlg.addEventListener('change', alCambiar);
+    // Los chips de instrumentos se marcan con clic (no disparan change)
+    document.getElementById('chips-abm-user-skills')?.addEventListener('click', () => {
+        if (dlg.classList.contains('modo-usuario')) marcarCambiosUsuario(true);
+    });
+}
+
+export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali = '', callbacks = {}) {
     const { syncSelectToChips, poblarDisponibilidadMultiRango } = callbacks;
     const esSoloCoord = verificarEsSoloCoordinador();
+    const dlgAbm = document.getElementById('modal-abm-edit');
+    if (dlgAbm) dlgAbm.classList.toggle('modo-usuario', col === 'usuarios_sistema');
     document.getElementById('abm-edit-id').value = id || ''; 
     document.getElementById('abm-edit-coleccion').value = col; 
     document.getElementById('label-abm-edit-nombre').innerHTML = col === 'usuarios_sistema' 
@@ -1453,6 +1589,10 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
         if (divUser) divUser.style.display = 'block';
         if (divProfe) divProfe.style.display = 'none';
         if (divSusc) divSusc.style.display = 'none';
+        prepararPestanasUsuario();
+        activarPestanaUsuario('datos');
+        marcarCambiosUsuario(false);
+        document.querySelectorAll('#abm-user-modo-modulos button').forEach(b => { b.disabled = esSoloCoord; });
 
         // Banner informativo para coordinador
         let bannerCoord = document.getElementById('banner-abm-coord-info');
@@ -1525,25 +1665,24 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
             } catch(e) {}
         }
 
+        // v8.18: el perfil docente y la disponibilidad son pestañas; se habilitan solo con el rol Docente
         const toggleSeccionDocente = () => {
             if (esSoloCoord) {
-                const secDoc = document.getElementById('abm-user-seccion-docente');
-                if (secDoc) secDoc.style.display = 'block';
+                habilitarPestanasDocente(true);
                 return;
             }
-            const rolesSeleccionados = [];
-            document.querySelectorAll('.chk-user-rol:checked').forEach(c => rolesSeleccionados.push(c.value));
+            const rolesSeleccionados = rolesMarcadosUsuario();
             const esDocente = rolesSeleccionados.includes('docente') || rolesSeleccionados.includes('profesor') || rolesSeleccionados.includes('evaluador');
-            const secDoc = document.getElementById('abm-user-seccion-docente');
-            if (secDoc) secDoc.style.display = esDocente ? 'block' : 'none';
+            habilitarPestanasDocente(esDocente);
         };
 
         const aplicarPlantillaRoles = () => {
-            const rolesSeleccionados = [];
-            document.querySelectorAll('.chk-user-rol:checked').forEach(c => rolesSeleccionados.push(c.value));
+            const rolesSeleccionados = rolesMarcadosUsuario();
             toggleSeccionDocente();
-            
-            if (rolesSeleccionados.length === 0) return;
+            refrescarCabeceraUsuario();
+
+            // Con "Personalizado" los módulos no se tocan al cambiar los roles
+            if (rolesSeleccionados.length === 0 || modoModulosActual() === 'personalizado') return;
 
             const modulosUnion = new Set();
             rolesSeleccionados.forEach(r => {
@@ -1659,9 +1798,11 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
                     }
 
                     toggleSeccionDocente();
+                    detectarModoModulos();
                 }
             } catch(e) {}
         } else {
+            marcarModoModulos('roles');
             document.getElementById('abm-user-nombre').value = '';
             document.getElementById('abm-user-celular').value = '';
             document.getElementById('abm-user-alias').value = '';
@@ -1689,8 +1830,10 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
                 }
             }
         }
+        refrescarCabeceraUsuario();
+        marcarCambiosUsuario(false);
 
-    } else if (col === 'profesores') { 
+    } else if (col === 'profesores') {
         if (divUser) divUser.style.display = 'none';
         if (divProfe) divProfe.style.display = 'block';
         if (divSusc) divSusc.style.display = 'none';
@@ -1950,8 +2093,8 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
             const rolesChecked = [];
             document.querySelectorAll('.chk-user-rol:checked').forEach(c => rolesChecked.push(c.value));
             if (rolesChecked.length === 0) rolesChecked.push('personalizado');
-            // Los roles "gestor_festivales" y "sonidista_festivales" son de otra app: nunca deben quedar como rol principal si hay otro
-            const rolPrincipal = rolesChecked.find(r => r !== 'gestor_festivales' && r !== 'sonidista_festivales') || rolesChecked[0] || 'admisor';
+            // Los roles "gestor_festivales", "sonidista_festivales" y "planificador_clases" son de otra app: nunca deben quedar como rol principal si hay otro
+            const rolPrincipal = rolesChecked.find(r => r !== 'gestor_festivales' && r !== 'sonidista_festivales' && r !== 'planificador_clases') || rolesChecked[0] || 'admisor';
 
             const activo = document.getElementById('abm-user-activo')?.checked !== false;
             

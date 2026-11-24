@@ -10,7 +10,7 @@
     <meta http-equiv="Expires" content="0">
     
     <link rel="icon" href="logo.png" type="image/png">
-    <link rel="manifest" href="manifest.json?v=8.17">
+    <link rel="manifest" href="manifest.json?v=8.18">
     <meta name="theme-color" content="#fbfaf8">
     <meta name="apple-mobile-web-app-title" content="MDL Admisi&oacute;n">
     <meta name="application-name" content="MDL Admisi&oacute;n">
@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=8.17">
+    <link rel="stylesheet" href="styles.css?v=8.18">
 
     <style>
         /* Estilos Críticos de Widget de Perfil y Popover Google-Style */
@@ -600,8 +600,9 @@
                     </div>
 
                                         <!-- BOTÓN RECORDATORIOS / ALERTAS HEADER -->
-                    <button type="button" id="btn-recordatorios-header" class="btn-recordatorios-header" title="Ver recordatorios pendientes" style="display:none;" onclick="window.abrirModalRecordatorios(true)">
-                        <span style="font-size:15px; line-height:1;">&#128276;</span>
+                    <!-- v8.18: solo en celular (en computadora el aviso está en el menú lateral); lleva a Mis Pendientes -->
+                    <button type="button" id="btn-recordatorios-header" class="btn-recordatorios-header" title="Ver mis pendientes" style="display:none;" onclick="window.cargarVistaGlobal('Mis Pendientes')">
+                        <svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
                         <span id="badge-recordatorios-header" class="badge-recordatorios-count">0</span>
                     </button>
 
@@ -2750,10 +2751,29 @@
     </dialog>
 
     <dialog id="modal-abm-edit" class="modern-modal" style="width: 90%; max-width: 580px; overflow: hidden;">
-        <div style="padding:24px; max-height:min(85vh, calc(100vh - 48px)); overflow-y:auto; box-sizing:border-box;">
+        <div class="abm-edit-scroll" style="padding:24px; max-height:min(85vh, calc(100vh - 48px)); overflow-y:auto; box-sizing:border-box;">
+            <div class="abm-edit-cabecera">
             <div class="modal-drag-pill"></div>
             <h3 style="margin:0 0 15px 0; color:var(--text-main);">Editar Elemento</h3>
+            <!-- v8.18: cabecera fija y pestañas (solo para usuarios del sistema) -->
+            <div class="abm-user-cab">
+                <div class="abm-user-avatar" id="abm-user-cab-avatar">?</div>
+                <div class="abm-user-cab-tx">
+                    <div class="abm-user-cab-nom" id="abm-user-cab-nombre">Nuevo usuario</div>
+                    <div class="abm-user-cab-mail" id="abm-user-cab-email"></div>
+                    <div class="abm-user-cab-chips" id="abm-user-cab-chips"></div>
+                </div>
+                <button type="button" class="btn-cerrar-modal ds-icon-btn ds-cerrar" data-modal="modal-abm-edit" aria-label="Cerrar"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+            </div>
+            <div class="abm-user-tabs" id="abm-user-tabs" role="tablist">
+                <button type="button" role="tab" data-tab="datos" class="on"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span class="tab-largo">Datos y cuenta</span><span class="tab-corto">Datos</span></button>
+                <button type="button" role="tab" data-tab="roles"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg><span class="tab-largo">Roles y módulos</span><span class="tab-corto">Roles</span></button>
+                <button type="button" role="tab" data-tab="docente"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg><span class="tab-largo">Perfil docente</span><span class="tab-corto">Docente</span></button>
+                <button type="button" role="tab" data-tab="disp"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><span class="tab-largo">Disponibilidad</span><span class="tab-corto">Horarios</span></button>
+            </div>
+            </div>
             <input type="hidden" id="abm-edit-id"><input type="hidden" id="abm-edit-coleccion">
+            <div class="abm-edit-cuerpo">
             <label id="label-abm-edit-nombre">Nombre: <input type="text" id="abm-edit-nombre" class="modern-input" required></label>
             
             <div id="div-abm-edit-profe" style="display:none; margin-top:10px;">
@@ -2840,134 +2860,111 @@
                 </div>
             </div>
 
-            <!-- SECCIÓN UNIFICADA RBAC Y DATOS DOCENTES PARA USUARIOS DEL SISTEMA -->
-            <div id="div-abm-edit-usuario" style="display:none; margin-top:10px;">
-                <!-- 1. Datos Personales y de Cuenta -->
-                <div style="display:flex; flex-direction:column; gap:10px;">
-                    <label>Nombre Completo / Referencia:
-                        <input type="text" id="abm-user-nombre" class="modern-input" placeholder="Ej: Martín Gómez">
-                    </label>
-
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-                        <label>📱 Celular (WhatsApp):
+            <!-- SECCIÓN UNIFICADA RBAC Y DATOS DOCENTES PARA USUARIOS DEL SISTEMA (v8.18: en pestañas) -->
+            <div id="div-abm-edit-usuario" style="display:none;">
+                <!-- Pestaña 1: Datos y cuenta -->
+                <div class="abm-user-sec" data-tab="datos">
+                    <p class="abm-user-st"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Datos personales</p>
+                    <div class="abm-user-grid2">
+                        <label class="abm-user-campo abm-user-full">Nombre completo / referencia
+                            <input type="text" id="abm-user-nombre" class="modern-input" placeholder="Ej: Martín Gómez">
+                        </label>
+                        <label class="abm-user-campo">Celular (WhatsApp)
                             <input type="text" id="abm-user-celular" class="modern-input" placeholder="Ej: +54 9 11 1234-5678">
                         </label>
-                        <label>🏦 Alias / CBU:
+                        <label class="abm-user-campo">Alias / CBU
                             <input type="text" id="abm-user-alias" class="modern-input" placeholder="Ej: martin.gomez.mp">
                         </label>
-                    </div>
-
-                    <label>📅 ID / Correo de Calendario de Google:
-                        <input type="text" id="abm-user-correo-calendario" class="modern-input" placeholder="Ej: usuario@gmail.com o xxx@group.calendar.google.com">
-                        <small style="color:var(--text-muted); font-size:11px; display:block; margin-top:2px;">ID del calendario de Google donde se sincronizan sus clases y entrevistas.</small>
-                    </label>
-
-                    <div style="padding:10px 12px; background:var(--hover-bg); border-radius:8px; border:1px solid var(--border-color); display:flex; align-items:center; justify-content:space-between;">
-                        <span style="font-weight:700; font-size:13px; color:var(--text-main);">Estado de la Cuenta:</span>
-                        <label style="display:flex; align-items:center; gap:8px; margin:0; cursor:pointer; font-weight:700; color:var(--accent-teal);">
-                            <input type="checkbox" id="abm-user-activo" checked style="width:18px; height:18px; accent-color:var(--accent-teal);">
-                            <span id="abm-user-activo-label">Activo</span>
+                        <label class="abm-user-campo abm-user-full">Calendario de Google
+                            <input type="text" id="abm-user-correo-calendario" class="modern-input" placeholder="Ej: usuario@gmail.com o xxx@group.calendar.google.com">
+                            <small class="abm-user-nota">Donde se sincronizan sus clases y entrevistas.</small>
                         </label>
                     </div>
 
-                    <div class="abm-credentials-box" style="padding:10px 14px; background:#f0fdfa; border:1px solid #99f6e4; border-radius:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-                        <div>
-                            <div style="font-size:12px; font-weight:800; color:#0f766e;">🔑 Acceso Propio al Sistema</div>
-                            <div style="font-size:11px; color:#115e59; margin-top:2px;">La contraseña inicial se te informa al crear o restablecer el usuario.</div>
-                        </div>
+                    <p class="abm-user-st"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/></svg>Cuenta</p>
+                    <div class="abm-user-fila">
+                        <div class="abm-user-fila-tx"><b>Estado: <span id="abm-user-activo-label">Activo</span></b><small>Si se desactiva, no puede ingresar a ninguna app.</small></div>
+                        <label class="abm-switch" title="Cuenta activa"><input type="checkbox" id="abm-user-activo" checked><span></span></label>
+                    </div>
+                    <div class="abm-user-fila abm-credentials-box">
+                        <div class="abm-user-fila-tx"><b>Contraseña</b><small>Genera una clave temporal que se muestra una sola vez.</small></div>
                         <button type="button" id="btn-abm-reset-pass" class="btn-app btn-secondary" onclick="if (typeof window.restablecerPasswordUsuarioSistema === 'function') window.restablecerPasswordUsuarioSistema();">
-                            🔄 Restablecer contraseña
+                            <svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 0 0-15-6.7L3 8M3 3v5h5M3 12a9 9 0 0 0 15 6.7L21 16M16 16h5v5"/></svg> Restablecer
                         </button>
                     </div>
                 </div>
-                
-                <!-- 2. Roles Asignados -->
-                <div style="margin-top:14px;">
-                    <strong style="font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:8px;">Roles Asignados (Permite Múltiples):</strong>
-                    <div id="abm-user-roles-grid" style="display:flex; flex-wrap:wrap; gap:8px 14px; background:var(--hover-bg); padding:10px 12px; border-radius:8px; border:1px solid var(--border-color);">
-                        <label style="display:inline-flex; align-items:center; gap:6px; font-size:12.5px; margin:0; cursor:pointer; font-weight:700; text-transform:none;">
-                            <input type="checkbox" class="chk-user-rol" value="admin" style="accent-color:var(--accent-teal); width:16px; height:16px;"> 👑 Administrador
-                        </label>
-                        <label style="display:inline-flex; align-items:center; gap:6px; font-size:12.5px; margin:0; cursor:pointer; font-weight:700; text-transform:none;">
-                            <input type="checkbox" class="chk-user-rol" value="admisor" style="accent-color:var(--accent-teal); width:16px; height:16px;"> 📥 Admisor
-                        </label>
-                        <label style="display:inline-flex; align-items:center; gap:6px; font-size:12.5px; margin:0; cursor:pointer; font-weight:700; text-transform:none;">
-                            <input type="checkbox" class="chk-user-rol" value="coordinador_grupos" style="accent-color:var(--accent-teal); width:16px; height:16px;"> 🧩 Coordinador de grupos
-                        </label>
-                        <label style="display:inline-flex; align-items:center; gap:6px; font-size:12.5px; margin:0; cursor:pointer; font-weight:700; text-transform:none;">
-                            <input type="checkbox" class="chk-user-rol" value="docente" style="accent-color:var(--accent-teal); width:16px; height:16px;"> 👨‍🏫 Docente
-                        </label>
-                        <label style="display:inline-flex; align-items:center; gap:6px; font-size:12.5px; margin:0; cursor:pointer; font-weight:700; text-transform:none;">
-                            <input type="checkbox" class="chk-user-rol" value="atencion_cliente" style="accent-color:var(--accent-teal); width:16px; height:16px;"> ☎️ Atención al Cliente
-                        </label>
-                        <label style="display:inline-flex; align-items:center; gap:6px; font-size:12.5px; margin:0; cursor:pointer; font-weight:700; text-transform:none;" title="Acceso a la app Mandala Festivales. No da acceso a Admisión.">
-                            <input type="checkbox" class="chk-user-rol" value="gestor_festivales" style="accent-color:var(--accent-teal); width:16px; height:16px;"> 🎪 Gestor de Festivales
-                        </label>
-                        <label style="display:inline-flex; align-items:center; gap:6px; font-size:12.5px; margin:0; cursor:pointer; font-weight:700; text-transform:none;" title="Acceso reducido a Mandala Festivales (rider técnico y REC). No da acceso a Admisión. Se da de alta desde la sección Sonidistas de Festivales.">
-                            <input type="checkbox" class="chk-user-rol" value="sonidista_festivales" style="accent-color:var(--accent-teal); width:16px; height:16px;"> 🎚️ Sonidista
-                        </label>
+
+                <!-- Pestaña 2: Roles y módulos -->
+                <div class="abm-user-sec" data-tab="roles">
+                    <p class="abm-user-st"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>Roles</p>
+                    <p class="abm-user-ayuda">Puede tener varios. Al cambiar los roles, los módulos de Admisión se marcan solos.</p>
+                    <div class="abm-user-grupo-app"><span class="abm-user-app">Mandala Admisión</span><i></i></div>
+                    <div id="abm-user-roles-grid" class="abm-user-roles">
+                        <label class="abm-rol"><input type="checkbox" class="chk-user-rol" value="admin"><span><b>Administrador</b><small>Acceso total, usuarios y configuración.</small></span></label>
+                        <label class="abm-rol"><input type="checkbox" class="chk-user-rol" value="admisor"><span><b>Admisor</b><small>Inbox, lista de espera, Match, altas, seguimientos y métricas.</small></span></label>
+                        <label class="abm-rol"><input type="checkbox" class="chk-user-rol" value="coordinador_grupos"><span><b>Coordinador de grupos</b><small>Match, altas y seguimientos. Edita perfil y disponibilidad de otros.</small></span></label>
+                        <label class="abm-rol"><input type="checkbox" class="chk-user-rol" value="docente"><span><b>Docente</b><small>Portal docente. Habilita el perfil docente y la disponibilidad.</small></span></label>
+                        <label class="abm-rol"><input type="checkbox" class="chk-user-rol" value="atencion_cliente"><span><b>Atención al cliente</b><small>Solo Inbox.</small></span></label>
+                    </div>
+                    <div class="abm-user-grupo-app"><span class="abm-user-app fest">Mandala Festivales</span><i></i><small>No dan acceso a Admisión</small></div>
+                    <div class="abm-user-roles fest">
+                        <label class="abm-rol"><input type="checkbox" class="chk-user-rol" value="gestor_festivales"><span><b>Gestor de Festivales</b><small>Acceso completo a Festivales.</small></span></label>
+                        <label class="abm-rol"><input type="checkbox" class="chk-user-rol" value="sonidista_festivales"><span><b>Sonidista</b><small>Rider técnico y REC. Se da de alta desde Festivales.</small></span></label>
+                        <label class="abm-rol"><input type="checkbox" class="chk-user-rol" value="planificador_clases"><span><b>Planificador de clases</b><small>Eventos en lectura y Planificación de clases.</small></span></label>
+                    </div>
+
+                    <div class="abm-user-mods-cab">
+                        <p class="abm-user-st"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>Módulos de Admisión</p>
+                        <div class="abm-user-seg" id="abm-user-modo-modulos" role="group" aria-label="Origen de los módulos">
+                            <button type="button" data-modo="roles" class="on">Según los roles</button>
+                            <button type="button" data-modo="personalizado">Personalizado</button>
+                        </div>
+                    </div>
+                    <div id="abm-user-modulos-grid" class="abm-user-mods">
+                        <label><input type="checkbox" class="chk-user-modulo" value="dashboard" checked> Dashboard / Resumen</label>
+                        <label><input type="checkbox" class="chk-user-modulo" value="inbox" checked> Inbox (flujo de entrevistas)</label>
+                        <label><input type="checkbox" class="chk-user-modulo" value="espera" checked> Lista de espera</label>
+                        <label><input type="checkbox" class="chk-user-modulo" value="match" checked> Match (nuevos grupos y solicitudes)</label>
+                        <label><input type="checkbox" class="chk-user-modulo" value="match_etapa4" checked> Match etapa 4 (sumar a existentes)</label>
+                        <label><input type="checkbox" class="chk-user-modulo" value="altas" checked> Altas (pre-alta, curso, confirmadas)</label>
+                        <label><input type="checkbox" class="chk-user-modulo" value="seguimientos" checked> Seguimientos de alumnos</label>
+                        <label><input type="checkbox" class="chk-user-modulo" value="suspendidos" checked> Alumnos suspendidos</label>
+                        <label><input type="checkbox" class="chk-user-modulo" value="metricas" checked> Métricas y estadísticas</label>
+                        <label><input type="checkbox" class="chk-user-modulo" value="portal_profesor"> Portal docente</label>
+                        <label><input type="checkbox" class="chk-user-modulo" value="configuracion"> Configuración del sistema</label>
+                        <label><input type="checkbox" class="chk-user-modulo" value="permisos"> Usuarios y permisos</label>
                     </div>
                 </div>
 
+                <!-- Vínculo legado con ficha docente (oculto, lo usa el guardado) -->
                 <div id="abm-user-profesor-link-wrapper" style="display:none;">
                     <select id="abm-user-profesor-id" style="display:none;"></select>
                 </div>
 
-                <!-- 3. Sección Dinámica: Datos Docentes (Solo si es Profesor o Evaluador) -->
-                <div id="abm-user-seccion-docente" style="display:none; margin-top:14px; border:1.5px solid rgba(0, 123, 143, 0.25); background:rgba(0, 123, 143, 0.02); border-radius:10px; padding:14px;">
-                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
-                        <span style="font-size:1.1em;">🎸</span>
-                        <strong style="color:var(--text-main); font-size:13.5px;">Perfil Docente y Disponibilidad:</strong>
+                <!-- Pestaña 3: Perfil docente (solo con el rol Docente) -->
+                <div id="abm-user-seccion-docente" class="abm-user-sec" data-tab="docente">
+                    <p class="abm-user-st"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></svg>Aptitudes</p>
+                    <div class="abm-user-apt">
+                        <label><span>Apto evaluaciones</span><span class="abm-switch"><input type="checkbox" id="abm-user-entrevista"><span></span></span></label>
+                        <label><span>Apto seguimientos</span><span class="abm-switch"><input type="checkbox" id="abm-user-seguimientos"><span></span></span></label>
+                        <label><span>Apto clases grupales</span><span class="abm-switch"><input type="checkbox" id="abm-user-grupales"><span></span></span></label>
+                        <label><span>Apto ensambles</span><span class="abm-switch"><input type="checkbox" id="abm-user-ensambles"><span></span></span></label>
                     </div>
-
-                    <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:12px; padding:10px; background:#fff; border-radius:8px; border:1px solid var(--border-color);">
-                        <label style="cursor:pointer; font-weight:600; display:flex; align-items:center; gap:6px; font-size:12px; text-transform:none; margin:0;">
-                            <input type="checkbox" id="abm-user-entrevista" style="width:16px; height:16px; accent-color:var(--accent-teal);"> 🎧 Apto Evaluaciones
-                        </label>
-                        <label style="cursor:pointer; font-weight:600; display:flex; align-items:center; gap:6px; font-size:12px; text-transform:none; margin:0;">
-                            <input type="checkbox" id="abm-user-seguimientos" style="width:16px; height:16px; accent-color:var(--accent-teal);"> 📞 Apto Seguimientos
-                        </label>
-                        <label style="cursor:pointer; font-weight:600; display:flex; align-items:center; gap:6px; font-size:12px; text-transform:none; margin:0;">
-                            <input type="checkbox" id="abm-user-grupales" style="width:16px; height:16px; accent-color:var(--accent-teal);"> 👥 Apto Clases Grupales
-                        </label>
-                        <label style="cursor:pointer; font-weight:600; display:flex; align-items:center; gap:6px; font-size:12px; text-transform:none; margin:0;">
-                            <input type="checkbox" id="abm-user-ensambles" style="width:16px; height:16px; accent-color:var(--accent-teal);"> 🎵 Apto Ensambles
-                        </label>
-                    </div>
-
-                    <div style="margin-bottom:12px;">
-                        <label style="margin-bottom:6px; font-weight:700; font-size:12.5px; display:block;">Skills (Instrumentos que enseña / evalúa):</label>
-                        <select id="abm-user-skills" multiple style="display:none;"></select>
-                        <div id="chips-abm-user-skills" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;"></div>
-                    </div>
-
-                    <div style="margin-top:14px; border-top:1px solid var(--border-color); padding-top:12px;">
-                        <strong style="display:block; margin-bottom:8px; color:var(--text-main); font-size:13px; font-weight:700;">⏰ Disponibilidad Horaria Semanal:</strong>
-                        <div id="contenedor-disponibilidad-user-profe" style="display:flex; flex-direction:column; gap:8px;"></div>
-                    </div>
+                    <p class="abm-user-st"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg>Instrumentos que enseña / evalúa</p>
+                    <select id="abm-user-skills" multiple style="display:none;"></select>
+                    <div id="chips-abm-user-skills" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
                 </div>
 
-                <!-- 4. Permisos Granulares de Módulos -->
-                <div style="margin-top:14px;">
-                    <strong style="font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:8px;">Módulos Habilitados (Permisos Granulares):</strong>
-                    <div id="abm-user-modulos-grid" style="display:flex; flex-direction:column; gap:8px; background:var(--hover-bg); padding:12px; border-radius:8px; border:1px solid var(--border-color);">
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="dashboard" checked> 📊 Dashboard / Resumen</label>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="inbox" checked> 📥 Inbox (Flujo de Entrevistas)</label>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="espera" checked> 🛋️ Lista de Espera</label>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="match" checked> 🧩 Match (Nuevos Grupos & Solicitudes)</label>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="match_etapa4" checked> 👥 Match Etapa 4 (Sumar a Existentes)</label>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="altas" checked> 🚀 Altas (Pre-alta, Curso, Confirmadas)</label>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="seguimientos" checked> 🎧 Seguimientos de Alumnos</label>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="suspendidos" checked> ⏸️ Alumnos Suspendidos</label>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="metricas" checked> 📈 Métricas y Estadísticas</label>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="portal_profesor"> 👨‍🏫 Portal Docente (Mis Alumnos y Ensambles)</label>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="configuracion"> ⚙️ Configuración del Sistema</label>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin:0; cursor:pointer; text-transform:none;"><input type="checkbox" class="chk-user-modulo" value="permisos"> 🔐 Gestión de Usuarios y Permisos</label>
-                    </div>
+                <!-- Pestaña 4: Disponibilidad (solo con el rol Docente) -->
+                <div id="abm-user-seccion-disponibilidad" class="abm-user-sec" data-tab="disp">
+                    <p class="abm-user-st"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Disponibilidad horaria semanal</p>
+                    <div id="contenedor-disponibilidad-user-profe" style="display:flex; flex-direction:column; gap:8px;"></div>
                 </div>
             </div>
+            </div><!-- /abm-edit-cuerpo -->
 
-            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
+            <div class="abm-edit-pie">
+                <span class="abm-edit-estado" id="abm-edit-estado-cambios"></span>
                 <button type="button" class="btn-cerrar-modal btn-secondary" data-modal="modal-abm-edit">Cancelar</button>
                 <button id="btn-guardar-abm-edit" class="btn-primary">Guardar Cambios</button>
             </div>
@@ -4080,12 +4077,12 @@
         })();
     </script>
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=8.17"></script>
+    <script type="module" src="app.js?v=8.18"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=8.17').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=8.18').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {
