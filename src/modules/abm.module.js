@@ -2,7 +2,7 @@
 // src/modules/abm.module.js -- ABM Profesores, Instrumentos, Suscripciones, Usuarios y Config
 // =======================================================================
 
-import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO } from "../config/constants.js?v=8.20";
+import { defaultCfg, firebaseConfig, CLAVE_INICIAL_DEFECTO, URL_USUARIOS_CORE, tieneAccesoAdmision } from "../config/constants.js?v=8.21";
 import { formatearPrecioMoneda, TEXTO_AVISO_ADMISOR_INBOX_DEFAULT } from "./altas.module.js";
 import { 
     db, 
@@ -1182,9 +1182,10 @@ function extraerDisponibilidadLocal(containerRef = 'contenedor-disponibilidad-us
 // Una fila por persona y una columna por rol (Admisión | Festivales). "Ver" cambia a Aptitudes o Instrumentos.
 // -----------------------------------------------------------------------
 const TABLA_ROLES_ADM = [['admin', 'Admin.', 'Administrador'], ['admisor', 'Admisor', 'Admisor'], ['coordinador_grupos', 'Coord.', 'Coordinador de grupos'], ['docente', 'Docente', 'Docente'], ['atencion_cliente', 'Atención', 'Atención al cliente']];
-const TABLA_ROLES_FEST = [['gestor_festivales', 'Gestor', 'Gestor de Festivales'], ['sonidista_festivales', 'Sonido', 'Sonidista'], ['planificador_clases', 'Planif.', 'Planificador de clases']];
+// v8.21: las columnas y el filtro de Festivales se sacaron (el acceso a Festivales se maneja en Core)
 const TABLA_APTITUDES = [['eval', 'Evaluaciones'], ['seg', 'Seguimientos'], ['grup', 'Grupales'], ['ens', 'Ensambles']];
-const TABLA_FILTROS = [['', 'Todos'], ['docente', 'Docentes'], ['coordinador_grupos', 'Coordinadores'], ['fest', 'Festivales'], ['inactivo', 'Inactivos']];
+const TABLA_FILTROS = [['', 'Todos'], ['docente', 'Docentes'], ['coordinador_grupos', 'Coordinadores'], ['inactivo', 'Inactivos']];
+const SVG_ENLACE_EXTERNO = '<svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>';
 const SVG_TILDE = '<svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>';
 const escTabla = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -1194,7 +1195,6 @@ function filasUsuariosFiltradas() {
     return st.filas.filter(u => {
         if (q && !(u.nombre + ' ' + u.email).toLowerCase().includes(q)) return false;
         if (st.filtro === 'inactivo') return !u.activo;
-        if (st.filtro === 'fest') return u.roles.some(r => TABLA_ROLES_FEST.some(f => f[0] === r));
         if (st.filtro) return u.roles.includes(st.filtro);
         return true;
     });
@@ -1208,31 +1208,29 @@ function htmlCuerpoTablaUsuarios() {
     const st = window.__abmUsuarios || { filas: [], vista: 'roles' };
     let L = filasUsuariosFiltradas();
     if (st.vista !== 'roles') L = L.filter(u => u.esDocente);
-    const iconoBorrar = typeof window.iconoLinea === 'function' ? window.iconoLinea('trash') : '';
     const celdaQuien = (u) => {
         const ini = u.nombre.split(/[\s._-]+/).filter(Boolean).slice(0, 2).map(p => p[0]).join('').toUpperCase() || '?';
         return `<td class="q"><div class="abm-quien"><span class="abm-av">${escTabla(ini)}</span><div><b>${escTabla(u.nombre)}</b><small>${escTabla(u.email)}${u.repetido ? ' <em class="abm-rep" title="Otra ficha tiene el mismo correo (id ' + escTabla(u.id) + ')">Correo repetido</em>' : ''}</small></div></div></td>`;
     };
-    const celdaFin = (u) => `<td class="sep fin"><span class="abm-est ${u.activo ? '' : 'off'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>` +
-        `<td class="acc">${st.esSoloCoord ? '' : `<button type="button" class="ds-icon-btn sm" title="Revocar acceso / eliminar" onclick="event.stopPropagation(); window.eliminarABM('${u.id}', 'usuarios_sistema')">${iconoBorrar}</button>`}</td>`;
+    // v8.21: sin tacho (desactivar un usuario se hace en Core)
+    const celdaFin = (u) => `<td class="sep fin"><span class="abm-est ${u.activo ? '' : 'off'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>`;
 
     let cab1 = '';
     let cab2 = '';
     let filas = '';
     if (st.vista === 'roles') {
-        cab1 = `<tr><th class="q"></th><th class="grp sep" colspan="${TABLA_ROLES_ADM.length}">Admisión</th><th class="grp fest sep" colspan="${TABLA_ROLES_FEST.length}">Festivales</th><th class="sep"></th><th></th></tr>`;
-        cab2 = `<tr><th class="q">Usuario</th>${TABLA_ROLES_ADM.map((r, k) => `<th class="${k === 0 ? 'sep' : ''}" title="${r[2]}">${r[1]}</th>`).join('')}${TABLA_ROLES_FEST.map((r, k) => `<th class="${k === 0 ? 'sep' : ''}" title="${r[2]}">${r[1]}</th>`).join('')}<th class="sep">Estado</th><th></th></tr>`;
+        cab1 = `<tr><th class="q"></th><th class="grp sep" colspan="${TABLA_ROLES_ADM.length}">Admisión</th><th class="sep"></th></tr>`;
+        cab2 = `<tr><th class="q">Usuario</th>${TABLA_ROLES_ADM.map((r, k) => `<th class="${k === 0 ? 'sep' : ''}" title="${r[2]}">${r[1]}</th>`).join('')}<th class="sep">Estado</th></tr>`;
         filas = L.map(u => `<tr class="${u.activo ? '' : 'off'}" onclick="window.abrirEdicionABM('${u.id}', 'usuarios_sistema', '${escTabla(u.email)}')">${celdaQuien(u)}` +
             TABLA_ROLES_ADM.map((r, k) => celdaTilde(u.roles.includes(r[0]), false, k === 0, r[2])).join('') +
-            TABLA_ROLES_FEST.map((r, k) => celdaTilde(u.roles.includes(r[0]), true, k === 0, r[2])).join('') +
             `${celdaFin(u)}</tr>`).join('');
     } else if (st.vista === 'apt') {
-        cab2 = `<tr><th class="q">Docente</th>${TABLA_APTITUDES.map((a, k) => `<th class="${k === 0 ? 'sep' : ''}">${a[1]}</th>`).join('')}<th class="sep">Estado</th><th></th></tr>`;
+        cab2 = `<tr><th class="q">Docente</th>${TABLA_APTITUDES.map((a, k) => `<th class="${k === 0 ? 'sep' : ''}">${a[1]}</th>`).join('')}<th class="sep">Estado</th></tr>`;
         filas = L.map(u => `<tr class="${u.activo ? '' : 'off'}" onclick="window.abrirEdicionABM('${u.id}', 'usuarios_sistema', '${escTabla(u.email)}')">${celdaQuien(u)}` +
             TABLA_APTITUDES.map((a, k) => celdaTilde(u.aptitudes.includes(a[0]), false, k === 0, a[1])).join('') + `${celdaFin(u)}</tr>`).join('');
     } else {
         const inst = [...new Set(L.flatMap(u => u.skills))].sort((a, b) => a.localeCompare(b, 'es'));
-        cab2 = `<tr><th class="q">Docente</th>${inst.map((i, k) => `<th class="${k === 0 ? 'sep' : ''}">${escTabla(i)}</th>`).join('')}<th class="sep">Estado</th><th></th></tr>`;
+        cab2 = `<tr><th class="q">Docente</th>${inst.map((i, k) => `<th class="${k === 0 ? 'sep' : ''}">${escTabla(i)}</th>`).join('')}<th class="sep">Estado</th></tr>`;
         filas = L.map(u => `<tr class="${u.activo ? '' : 'off'}" onclick="window.abrirEdicionABM('${u.id}', 'usuarios_sistema', '${escTabla(u.email)}')">${celdaQuien(u)}` +
             inst.map((i, k) => celdaTilde(u.skills.includes(i), false, k === 0, i)).join('') + `${celdaFin(u)}</tr>`).join('');
     }
@@ -1278,9 +1276,13 @@ export async function cargarABM(coleccion, titulo, cont) {
     <div style="margin-bottom:20px; font-size:0.9em; color:var(--text-muted);">
         <span style="cursor:pointer; color:var(--accent-teal);" onclick="window.cargarVistaGlobal('Configuración')">Configuración</span> &gt; <strong style="color:var(--text-main);">${titulo}</strong>
     </div>
-    ${esSoloCoord ? '' : `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; width:100%;">
+    ${coleccion === 'usuarios_sistema' ? `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; width:100%;">
+        <a class="btn-primary abm-btn-core" href="${URL_USUARIOS_CORE}" target="_blank" rel="noopener">${SVG_ENLACE_EXTERNO} Gestionar en Core</a>
+    </div>
+    <div class="abm-aviso-core">Los accesos y roles se asignan en el Portal Central (Core). Acá ajustás lo propio de Admisión: módulos, aptitudes, instrumentos y disponibilidad.</div>`
+    : (esSoloCoord ? '' : `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; width:100%;">
         <button class="btn-primary" onclick="window.abrirEdicionABM(null, '${coleccion}')">➕ Agregar ${titulo}</button>
-    </div>`}`; 
+    </div>`)}`;
 
     try { 
         const qS = await getDocs(collection(db, coleccion)); 
@@ -1313,6 +1315,8 @@ export async function cargarABM(coleccion, titulo, cont) {
                 qS.forEach(d => {
                     const u = d.data();
                     const email = String(u.email || '');
+                    // v8.21: solo quienes tienen acceso a Admisión (los inactivos con acceso también, en gris)
+                    if (!tieneAccesoAdmision([{ ...u, activo: true }], email)) return;
                     const rolesArr = Array.isArray(u.roles) && u.roles.length > 0 ? u.roles : (u.rol ? [u.rol] : ['admisor']);
                     const roles = [...new Set(rolesArr.map(r => {
                         const c = String(r || '').toLowerCase().trim();
@@ -1549,7 +1553,8 @@ function refrescarCabeceraUsuario() {
         elAv.textContent = ini || '+';
     }
     if (elChips) {
-        const activo = document.getElementById('abm-user-activo')?.checked !== false;
+        // v8.21: el estado se maneja en Core; se muestra el de la ficha
+        const activo = document.getElementById('modal-abm-edit')?.dataset.activo !== 'false';
         const roles = rolesMarcadosUsuario();
         elChips.innerHTML = `<span class="abm-chip ${activo ? 'ok' : 'bad'}">${activo ? 'Activo' : 'Inactivo'}</span>` +
             roles.map(r => `<span class="abm-chip ${ROLES_FESTIVALES.includes(r) ? 'fest' : ''}">${escHtmlCab(ETIQUETA_ROL_CAB[r] || r)}</span>`).join('');
@@ -1597,16 +1602,33 @@ function prepararPestanasUsuario() {
 
 export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali = '', callbacks = {}) {
     const { syncSelectToChips, poblarDisponibilidadMultiRango } = callbacks;
+    // v8.21: los usuarios nuevos se crean en el Portal Central (Core)
+    if (col === 'usuarios_sistema' && !id) {
+        if (await window.confirmar('Los usuarios nuevos se crean desde el Portal Central', '¿Abrir la gestión de usuarios de Core en otra pestaña?', 'Abrir Core')) {
+            window.open(URL_USUARIOS_CORE, '_blank', 'noopener');
+        }
+        return;
+    }
     const esSoloCoord = verificarEsSoloCoordinador();
     const dlgAbm = document.getElementById('modal-abm-edit');
     if (dlgAbm) dlgAbm.classList.toggle('modo-usuario', col === 'usuarios_sistema');
     document.getElementById('abm-edit-id').value = id || ''; 
     document.getElementById('abm-edit-coleccion').value = col; 
     document.getElementById('label-abm-edit-nombre').innerHTML = col === 'usuarios_sistema' 
-        ? `Correo Electrónico (Google Auth) *: <input type="email" id="abm-edit-nombre" class="modern-input" placeholder="usuario@gmail.com" required>` 
+        ? `Correo electrónico <span class="abm-solo-core"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Se edita en Core</span><input type="email" id="abm-edit-nombre" class="modern-input" placeholder="usuario@gmail.com" disabled>`
         : `Nombre *: <input type="text" id="abm-edit-nombre" class="modern-input" required>`; 
     document.getElementById('abm-edit-nombre').value = nom || '';
-    
+    // v8.21: en usuarios, el correo va junto al nombre (debajo del aviso de Core); en el resto de los ABM vuelve a su lugar
+    {
+        const lblCorreo = document.getElementById('label-abm-edit-nombre');
+        const slotCorreo = document.getElementById('abm-user-slot-correo');
+        const ancla = document.getElementById('abm-edit-nombre-ancla');
+        if (lblCorreo && slotCorreo && ancla) {
+            if (col === 'usuarios_sistema') { if (lblCorreo.parentElement !== slotCorreo) slotCorreo.appendChild(lblCorreo); }
+            else if (lblCorreo.previousElementSibling !== ancla) ancla.after(lblCorreo);
+        }
+    }
+
     const tituloModal = document.querySelector('#modal-abm-edit h3');
     if (tituloModal) {
         let nombreEntidad = col === 'usuarios_sistema' ? 'Usuario y Permisos' : (col === 'profesores' ? 'Docente' : (col === 'instrumentos' ? 'Instrumento' : 'Suscripción'));
@@ -1636,7 +1658,7 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
                 bannerCoord = document.createElement('div');
                 bannerCoord.id = 'banner-abm-coord-info';
                 bannerCoord.style.cssText = 'background:#e0f2fe; border:1px solid #bae6fd; color:#0369a1; padding:10px 14px; border-radius:10px; margin-bottom:14px; font-size:12.5px; line-height:1.4; display:flex; align-items:flex-start; gap:8px;';
-                bannerCoord.innerHTML = '<span style="font-size:16px;">ℹ️</span><div><strong>Modo Coordinador:</strong> Puedes editar el <strong>perfil</strong> (nombre, celular, alias), los <strong>instrumentos</strong> y la <strong>disponibilidad horaria</strong>. El acceso, roles, módulos y calendario permanecen bloqueados.</div>';
+                bannerCoord.innerHTML = '<div><strong>Modo Coordinador:</strong> podés editar <strong>celular y alias</strong>, las <strong>aptitudes</strong>, los <strong>instrumentos</strong> y la <strong>disponibilidad horaria</strong>. El calendario y los módulos los ajusta un administrador.</div>';
                 divUser.insertBefore(bannerCoord, divUser.firstChild);
             } else {
                 bannerCoord.style.display = 'flex';
@@ -1646,29 +1668,19 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
         }
 
         // Restricción / Habilitación de campos según rol
+        // v8.21: el correo y el nombre se editan en Core (siempre en solo lectura acá)
         const inpEmail = document.getElementById('abm-edit-nombre');
-        if (inpEmail) {
-            inpEmail.disabled = esSoloCoord;
-            inpEmail.style.background = esSoloCoord ? '#f1f5f9' : '';
-            inpEmail.style.cursor = esSoloCoord ? 'not-allowed' : '';
-        }
+        if (inpEmail) inpEmail.disabled = true;
         const inpCal = document.getElementById('abm-user-correo-calendario');
         if (inpCal) {
             inpCal.disabled = esSoloCoord;
             inpCal.style.background = esSoloCoord ? '#f1f5f9' : '';
             inpCal.style.cursor = esSoloCoord ? 'not-allowed' : '';
         }
-        const chkActivoEl = document.getElementById('abm-user-activo');
-        if (chkActivoEl) {
-            chkActivoEl.disabled = esSoloCoord;
-            chkActivoEl.style.cursor = esSoloCoord ? 'not-allowed' : '';
-        }
-        const boxCred = document.querySelector('.abm-credentials-box');
-        if (boxCred) boxCred.style.display = esSoloCoord ? 'none' : 'flex';
-
+        // v8.21: los roles se asignan en Core: se ven, pero no se editan
         document.querySelectorAll('.chk-user-rol').forEach(chk => {
-            chk.disabled = esSoloCoord;
-            chk.style.cursor = esSoloCoord ? 'not-allowed' : '';
+            chk.disabled = true;
+            chk.style.cursor = 'not-allowed';
         });
         document.querySelectorAll('.chk-user-modulo').forEach(chk => {
             chk.disabled = esSoloCoord;
@@ -1683,7 +1695,7 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
         });
 
         // Asegurar que los campos editables por el coordinador estén habilitados
-        if (document.getElementById('abm-user-nombre')) document.getElementById('abm-user-nombre').disabled = false;
+        if (document.getElementById('abm-user-nombre')) document.getElementById('abm-user-nombre').disabled = true; // v8.21: se edita en Core
         if (document.getElementById('abm-user-celular')) document.getElementById('abm-user-celular').disabled = false;
         if (document.getElementById('abm-user-alias')) document.getElementById('abm-user-alias').disabled = false;
 
@@ -1748,6 +1760,7 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
                 const uDoc = await getDoc(doc(db, "usuarios_sistema", id));
                 if (uDoc.exists()) {
                     const uData = uDoc.data();
+                    if (dlgAbm) dlgAbm.dataset.activo = String(uData.activo !== false);
                     document.getElementById('abm-edit-nombre').value = uData.email || '';
                     document.getElementById('abm-user-nombre').value = uData.nombre || '';
                     document.getElementById('abm-user-celular').value = uData.celular || '';
@@ -2009,8 +2022,13 @@ export async function abrirEdicionABM(id, col, nom = '', cor = '', cel = '', ali
     document.getElementById('modal-abm-edit')?.showModal(); 
 }
 
-export async function eliminarABM(id, col, callbacks = {}) { 
+export async function eliminarABM(id, col, callbacks = {}) {
     const { cargarVista } = callbacks;
+    // v8.21: los usuarios ya no se eliminan desde Admisión
+    if (col === 'usuarios_sistema') {
+        alert('Los usuarios se desactivan desde el Portal Central (Core).');
+        return;
+    }
     const msg = col === 'usuarios_sistema' 
         ? '¿Revocar acceso y eliminar a este usuario del sistema?'
         : '¿Eliminar registro? Esta acción no se puede deshacer.';
@@ -2040,37 +2058,41 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
 
     try {
         if (col === 'usuarios_sistema') {
+            // v8.21 (etapa 3): email, nombre, roles, rol, activo y apps_habilitadas los maneja el Portal Central (Core).
+            // Acá solo se escribe lo propio de Admisión, siempre con updateDoc sobre una ficha que ya existe.
+            if (!id) {
+                alert('Los usuarios nuevos se crean desde el Portal Central (Core).');
+                btn.disabled = false;
+                btn.textContent = 'Guardar';
+                return;
+            }
             const esSoloCoord = verificarEsSoloCoordinador();
-            if (esSoloCoord) {
-                if (!id) {
-                    alert('⚠️ Los coordinadores no pueden crear nuevos usuarios en el sistema.');
-                    btn.disabled = false;
-                    btn.textContent = 'Guardar';
-                    return;
-                }
-                const uDocSnap = await getDoc(doc(db, "usuarios_sistema", id));
-                if (!uDocSnap.exists()) {
-                    alert('Usuario no encontrado.');
-                    btn.disabled = false;
-                    btn.textContent = 'Guardar';
-                    return;
-                }
-                const orig = uDocSnap.data();
-                const nombre = (document.getElementById('abm-user-nombre')?.value || '').trim() || orig.nombre || orig.email.split('@')[0];
-                const celular = (document.getElementById('abm-user-celular')?.value || '').trim();
-                const alias = (document.getElementById('abm-user-alias')?.value || '').trim();
-                const selSkills = document.getElementById('abm-user-skills');
-                const skillsArr = selSkills ? Array.from(selSkills.selectedOptions).map(o => o.value) : (orig.skills || []);
-                const dispProfe = extraerDisponibilidadLocal('contenedor-disponibilidad-user-profe');
+            const uDocSnap = await getDoc(doc(db, "usuarios_sistema", id));
+            if (!uDocSnap.exists()) {
+                alert('Usuario no encontrado.');
+                btn.disabled = false;
+                btn.textContent = 'Guardar';
+                return;
+            }
+            const orig = uDocSnap.data();
+            const email = String(orig.email || nomVal || '').toLowerCase().trim();
+            const nombreFicha = orig.nombre || email.split('@')[0];
+            const rolesFicha = Array.isArray(orig.roles) && orig.roles.length ? orig.roles : (orig.rol ? [orig.rol] : []);
+            const activoFicha = orig.activo !== false;
+            const celular = (document.getElementById('abm-user-celular')?.value || '').trim();
+            const alias = (document.getElementById('abm-user-alias')?.value || '').trim();
+            const selSkills = document.getElementById('abm-user-skills');
+            const skillsArr = selSkills ? Array.from(selSkills.selectedOptions).map(o => o.value) : (orig.skills || []);
+            const dispProfe = extraerDisponibilidadLocal('contenedor-disponibilidad-user-profe');
 
+            if (esSoloCoord) {
                 const aptoEvalCoord = Boolean(document.getElementById('abm-user-entrevista')?.checked);
                 const aptoSegCoord = Boolean(document.getElementById('abm-user-seguimientos')?.checked);
                 const grupalesCoord = Boolean(document.getElementById('abm-user-grupales')?.checked);
                 const ensamblesCoord = Boolean(document.getElementById('abm-user-ensambles')?.checked);
 
-                // Actualizar perfil, skills, aptitudes y disponibilidad en usuarios_sistema
+                // Celular, alias, skills, aptitudes y disponibilidad (lo que las reglas permiten al coordinador)
                 await updateDoc(doc(db, "usuarios_sistema", id), {
-                    nombre,
                     celular,
                     alias_transferencia: alias,
                     skills: skillsArr,
@@ -2084,7 +2106,7 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
                     fecha_actualizacion: new Date().toISOString()
                 });
 
-                // Sincronizar en colección profesores si existe ficha asociada
+                // Sincronizar en colección profesores si existe ficha asociada (nombre tal como está en la ficha)
                 let profesor_id = orig.profesor_id || '';
                 if (!profesor_id) {
                     const pQ = await getDocs(collection(db, "profesores"));
@@ -2097,7 +2119,7 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
                 }
                 if (profesor_id) {
                     await updateDoc(doc(db, "profesores", profesor_id), {
-                        nombre,
+                        nombre: nombreFicha,
                         celular,
                         alias_transferencia: alias,
                         skills: skillsArr,
@@ -2110,7 +2132,7 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
                 }
 
                 document.getElementById('modal-abm-edit')?.close();
-                alert('✅ Datos del usuario guardados correctamente.');
+                alert('✅ Usuario guardado');
                 if (typeof window.cargarVistaGlobal === 'function') {
                     window.cargarVistaGlobal('ABM-Usuarios');
                 }
@@ -2119,49 +2141,27 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
                 return;
             }
 
-            const email = nomVal.toLowerCase();
-            const nombre = (document.getElementById('abm-user-nombre')?.value || '').trim();
-            const celular = (document.getElementById('abm-user-celular')?.value || '').trim();
-            const alias = (document.getElementById('abm-user-alias')?.value || '').trim();
             const calIdVal = (document.getElementById('abm-user-correo-calendario')?.value || '').trim() || email;
-            
-            const rolesChecked = [];
-            document.querySelectorAll('.chk-user-rol:checked').forEach(c => rolesChecked.push(c.value));
-            if (rolesChecked.length === 0) rolesChecked.push('personalizado');
-            // Los roles "gestor_festivales", "sonidista_festivales" y "planificador_clases" son de otra app: nunca deben quedar como rol principal si hay otro
-            const rolPrincipal = rolesChecked.find(r => r !== 'gestor_festivales' && r !== 'sonidista_festivales' && r !== 'planificador_clases') || rolesChecked[0] || 'admisor';
-
-            const activo = document.getElementById('abm-user-activo')?.checked !== false;
-            
             const modulosChecked = [];
             document.querySelectorAll('.chk-user-modulo:checked').forEach(c => modulosChecked.push(c.value));
 
-            const esDocente = rolesChecked.includes('docente') || rolesChecked.includes('profesor') || rolesChecked.includes('evaluador');
+            const esDocente = rolesFicha.some(r => ['docente', 'profesor', 'evaluador'].includes(String(r || '').toLowerCase()));
             const aptoEval = esDocente && Boolean(document.getElementById('abm-user-entrevista')?.checked);
             const aptoSeg = esDocente && Boolean(document.getElementById('abm-user-seguimientos')?.checked);
             const grupales = esDocente && Boolean(document.getElementById('abm-user-grupales')?.checked);
             const ensambles = esDocente && Boolean(document.getElementById('abm-user-ensambles')?.checked);
 
-            let profesor_id = '';
-            if (id) {
-                try {
-                    const uDoc = await getDoc(doc(db, "usuarios_sistema", id));
-                    if (uDoc.exists()) profesor_id = uDoc.data().profesor_id || '';
-                } catch(e) {}
-            }
+            let profesor_id = orig.profesor_id || '';
 
-            // Si es docente o ya tenía ficha de profesor, sincronizar en la colección profesores
+            // Si es docente o ya tenía ficha de profesor, sincronizar en la colección profesores.
+            // `nombre` y `activo` se toman de la ficha (los maneja Core); el resto, del formulario.
             if (esDocente || profesor_id) {
-                const selSkills = document.getElementById('abm-user-skills');
-                const skillsArr = selSkills ? Array.from(selSkills.selectedOptions).map(o => o.value) : [];
-                const dispProfe = extraerDisponibilidadLocal('contenedor-disponibilidad-user-profe');
-                
                 const dataProfe = {
-                    nombre: nombre || email.split('@')[0],
+                    nombre: nombreFicha,
                     correo_calendario: calIdVal,
                     celular: celular,
                     alias_transferencia: alias,
-                    activo: activo,
+                    activo: activoFicha,
                     entrevista: aptoEval,
                     apto_evaluaciones: aptoEval,
                     seguimientos: aptoSeg,
@@ -2172,7 +2172,7 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
                     disponibilidad: dispProfe
                 };
 
-                if (!activo) {
+                if (!activoFicha) {
                     try {
                         const allUsersSnap = await getDocs(collection(db, "usuarios_sistema"));
                         let otroActivo = false;
@@ -2181,14 +2181,12 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
                                 const ud = uDocCheck.data();
                                 if (ud.activo !== false) {
                                     if (ud.profesor_id && profesor_id && ud.profesor_id === profesor_id) otroActivo = true;
-                                    if (ud.nombre && nombre && ud.nombre.toLowerCase().trim() === nombre.toLowerCase().trim()) otroActivo = true;
+                                    if (ud.nombre && nombreFicha && ud.nombre.toLowerCase().trim() === nombreFicha.toLowerCase().trim()) otroActivo = true;
                                     if (ud.correo_calendario && calIdVal && ud.correo_calendario.toLowerCase().trim() === calIdVal.toLowerCase().trim()) otroActivo = true;
                                 }
                             }
                         });
-                        if (otroActivo) {
-                            dataProfe.activo = true;
-                        }
+                        if (otroActivo) dataProfe.activo = true;
                     } catch(e) {}
                 }
 
@@ -2206,7 +2204,7 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
                     pQ.forEach(docP => {
                         const dtP = docP.data();
                         const matchMail = dtP.correo_calendario && (dtP.correo_calendario.toLowerCase() === email || dtP.correo_calendario.toLowerCase() === calIdVal.toLowerCase());
-                        const matchNom = dtP.nombre && nombre && dtP.nombre.toLowerCase().trim() === nombre.toLowerCase().trim();
+                        const matchNom = dtP.nombre && nombreFicha && dtP.nombre.toLowerCase().trim() === nombreFicha.toLowerCase().trim();
                         if (matchMail || matchNom) {
                             profEncontradoId = docP.id;
                         }
@@ -2222,16 +2220,12 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
                 }
             }
 
+            // Sin email, nombre, roles, rol, activo ni apps_habilitadas (los maneja Core)
             const userData = {
-                email,
-                nombre: nombre || email.split('@')[0],
                 celular,
                 alias_transferencia: alias,
                 correo_calendario: calIdVal,
-                roles: rolesChecked,
-                rol: rolPrincipal,
                 profesor_id: profesor_id || '',
-                activo,
                 entrevista: aptoEval,
                 apto_evaluaciones: aptoEval,
                 seguimientos: aptoSeg,
@@ -2241,40 +2235,9 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
                 modulos_habilitados: modulosChecked,
                 fecha_actualizacion: new Date().toISOString()
             };
-
-            if (id) {
-                await updateDoc(doc(db, "usuarios_sistema", id), userData);
-            } else {
-                // v8.17: no se crea una segunda ficha con un correo que ya existe
-                const yaExiste = await getDocs(query(collection(db, "usuarios_sistema"), where("email", "==", email)));
-                if (!yaExiste.empty) {
-                    alert(`⚠️ Ya existe un usuario con el correo ${email}.\n\nAbrí esa ficha desde la lista para editarla. No se creó un usuario nuevo.`);
-                    btn.disabled = false;
-                    btn.textContent = 'Guardar';
-                    return;
-                }
-                userData.fecha_creacion = new Date().toISOString();
-                userData.password_inicial_asignada = true;
-                userData.password_modificada = false;
-                await addDoc(collection(db, "usuarios_sistema"), userData);
-
-                // Auto-aprovisionar cuenta en Firebase Auth de forma aislada sin afectar la sesión actual
-                try {
-                    const secApp = initializeApp(firebaseConfig, `ABM_Provision_${Date.now()}`);
-                    const secAuth = getAuth(secApp);
-                    await createUserWithEmailAndPassword(secAuth, email, CLAVE_INICIAL_DEFECTO);
-                    await signOut(secAuth);
-                    console.log(`[ABM] Usuario ${email} aprovisionado en Firebase Auth con la clave inicial`);
-                } catch (secErr) {
-                    if (secErr.code !== 'auth/email-already-in-use') {
-                        console.warn("[ABM] Aviso al crear credenciales en Firebase Auth:", secErr.code, secErr.message);
-                    }
-                }
-            }
+            await updateDoc(doc(db, "usuarios_sistema", id), userData);
 
             if (window.usuarioActual && (window.usuarioActual.id === id || window.usuarioActual.email?.toLowerCase() === email)) {
-                window.usuarioActual.roles = rolesChecked;
-                window.usuarioActual.rol = rolPrincipal;
                 window.usuarioActual.entrevista = aptoEval;
                 window.usuarioActual.apto_evaluaciones = aptoEval;
                 window.usuarioActual.seguimientos = aptoSeg;
@@ -2286,13 +2249,10 @@ document.getElementById('btn-guardar-abm-edit')?.addEventListener('click', async
                 if (typeof window.configurarSidebarPorPermisos === 'function') window.configurarSidebarPorPermisos();
             }
 
-            // Mantener al día la lista de acceso (no bloquea el guardado si falla)
+            // Mantener al día la lista de acceso (da el mismo resultado que Core; no bloquea el guardado si falla)
             try { await sincronizarListaAcceso(); } catch (e) { console.warn('[ABM] No se pudo actualizar la lista de acceso:', e); }
 
-            // Aviso solo para quien administra: informa la contraseña inicial de las cuentas nuevas
-            alert(id
-                ? `✅ Usuario "${nombre || email}" guardado correctamente.`
-                : `✅ Usuario "${nombre || email}" creado correctamente.\n\nContraseña inicial: ${CLAVE_INICIAL_DEFECTO}\nLa persona deberá cambiarla en su primer ingreso con correo y contraseña.`);
+            alert('✅ Usuario guardado');
 
         } else if (col === 'profesores') {
             const selSkills = document.getElementById('abm-edit-skills');

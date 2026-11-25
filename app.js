@@ -21,8 +21,11 @@ import {
     calcularFechaSeguimiento72hs,
     CLAVE_INICIAL_DEFECTO,
     ADMIN_EMERGENCIA_EMAIL,
-    CALENDARIO_PRINCIPAL_DEFECTO
-} from "./src/config/constants.js?v=8.20";
+    CALENDARIO_PRINCIPAL_DEFECTO,
+    URL_PORTAL_CORE,
+    tieneAccesoAdmision,
+    appsHabilitadasDeFichas
+} from "./src/config/constants.js?v=8.21";
 
 import { 
     app, 
@@ -95,7 +98,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=8.20";
+} from "./src/services/calendar.service.js?v=8.21";
 
 import {
     matchCantidadActual,
@@ -128,11 +131,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=8.20";
+} from "./src/modules/match.module.js?v=8.21";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=8.20";
+} from "./src/modules/profesor.module.js?v=8.21";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -161,14 +164,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=8.20";
+} from "./src/modules/altas.module.js?v=8.21";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=8.20";
+} from "./src/modules/dashboard.module.js?v=8.21";
 
 import {
     renderConfigHub,
@@ -177,23 +180,23 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=8.20";
+} from "./src/modules/abm.module.js?v=8.21";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=8.20";
+} from "./src/modules/inbox.module.js?v=8.21";
 
 // Íconos de línea automáticos en textos de la interfaz (solo presentación)
-import "./src/modules/iconos.module.js?v=8.20";
+import "./src/modules/iconos.module.js?v=8.21";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=8.20";
+} from "./src/modules/csv.module.js?v=8.21";
 
 import {
     inicializarMotorRecordatorios,
@@ -213,7 +216,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=8.20";
+} from "./src/modules/recordatorios.module.js?v=8.21";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -10133,7 +10136,6 @@ const ROLES_MODULOS_DEFAULT = {
     personalizado: []
 };
 
-const URL_APP_FESTIVALES = 'https://mandalaensambles-festival.vercel.app';
 
 // v8.17: con varias fichas para el mismo correo se elige la más completa (activa, con ficha docente, roles y calendario)
 // y se avisa en la consola con los ids, para detectarlo a tiempo.
@@ -10155,7 +10157,63 @@ function elegirFichaUsuarioSistema(candidatos, email) {
 }
 window.elegirFichaUsuarioSistema = elegirFichaUsuarioSistema;
 
-onAuthStateChanged(auth, async (user) => { 
+// v8.21: pantalla "sin acceso" dentro de la tarjeta del login (reemplaza los alert de acceso denegado)
+const NOMBRES_APPS = { admision: 'Admisión', festival: 'Festivales', festivales: 'Festivales', core: 'Portal Central' };
+async function mostrarPantallaSinAcceso(motivo, email, fichas = []) {
+    ocultarIndicadorCarga(); window.ocultarSplashInicial && window.ocultarSplashInicial();
+    const titulos = {
+        sin_ficha: 'Tu correo no está dado de alta',
+        inactivo: 'Tu usuario está inactivo',
+        sin_acceso: 'No tenés acceso a Admisión'
+    };
+    const textos = {
+        sin_ficha: `Tu correo (${email}) no está dado de alta en Mandala Ensambles. Si necesitás entrar, pedile acceso al administrador.`,
+        inactivo: `Tu usuario (${email}) está desactivado. Si necesitás entrar, pedile al administrador que lo reactive.`,
+        sin_acceso: `Tu usuario (${email}) no tiene habilitada esta aplicación. Si la necesitás, pedile acceso al administrador.`
+    };
+    const elT = document.getElementById('login-sin-acceso-titulo');
+    const elP = document.getElementById('login-sin-acceso-texto');
+    const elA = document.getElementById('login-sin-acceso-apps');
+    const elPortal = document.getElementById('login-sin-acceso-portal');
+    if (elT) elT.textContent = titulos[motivo] || titulos.sin_acceso;
+    if (elP) elP.textContent = textos[motivo] || textos.sin_acceso;
+    if (elPortal) elPortal.href = URL_PORTAL_CORE;
+    if (elA) {
+        const apps = motivo === 'sin_acceso' ? (appsHabilitadasDeFichas(fichas) || []).filter(a => a !== 'admision') : [];
+        elA.innerHTML = '';
+        if (apps.length) {
+            const lbl = document.createElement('span');
+            lbl.className = 'aviso-acceso-lbl';
+            lbl.textContent = 'Tenés acceso a:';
+            elA.appendChild(lbl);
+            apps.forEach(a => {
+                const s = document.createElement('span');
+                s.className = 'app-pill' + (a.startsWith('festival') ? ' fest' : ' gen');
+                s.textContent = NOMBRES_APPS[a] || (a.charAt(0).toUpperCase() + a.slice(1));
+                elA.appendChild(s);
+            });
+        }
+        elA.style.display = apps.length ? 'flex' : 'none';
+    }
+    const salir = document.getElementById('login-sin-acceso-salir');
+    if (salir) salir.onclick = () => ocultarPantallaSinAcceso();
+    document.getElementById('login-form-area')?.style.setProperty('display', 'none');
+    document.getElementById('login-sin-acceso')?.style.setProperty('display', 'flex');
+    try {
+        localStorage.removeItem('mandala_has_session');
+        document.documentElement.classList.remove('user-has-session');
+    } catch (e) {}
+    try { await signOut(auth); } catch (e) { /* la pantalla queda igual */ }
+    document.getElementById('login-container').style.display = 'flex';
+    document.getElementById('app-container').style.display = 'none';
+}
+function ocultarPantallaSinAcceso() {
+    document.getElementById('login-sin-acceso')?.style.setProperty('display', 'none');
+    document.getElementById('login-form-area')?.style.setProperty('display', 'flex');
+}
+window.ocultarPantallaSinAcceso = ocultarPantallaSinAcceso;
+
+onAuthStateChanged(auth, async (user) => {
     if (user) { 
         // El arranque se muestra con la pantalla de carga inicial (splash); ya no se abre el aviso "Cargando..."
         const actualizo = await chequearActualizacionVersionPreventivo();
@@ -10200,23 +10258,23 @@ onAuthStateChanged(auth, async (user) => {
                 console.warn('[Usuarios] Se creó la ficha de la cuenta de emergencia porque no existía ninguna con ese correo:', newDoc.id);
             }
 
-            if (!usuarioEncontrado) { 
-                ocultarIndicadorCarga(); window.ocultarSplashInicial && window.ocultarSplashInicial();
-                alert(`⛔ Acceso Denegado:\nTu cuenta (${user.email}) no está autorizada para ingresar a este sistema.`); 
-                await signOut(auth); 
-                document.getElementById('login-container').style.display = 'flex'; 
-                document.getElementById('app-container').style.display = 'none';
-                return; 
+            if (!usuarioEncontrado) {
+                await mostrarPantallaSinAcceso('sin_ficha', user.email);
+                return;
 }
 
             if (usuarioEncontrado.activo === false) {
-                ocultarIndicadorCarga(); window.ocultarSplashInicial && window.ocultarSplashInicial();
-                alert(`⛔ Cuenta Inactiva:\nTu usuario (${user.email}) ha sido desactivado por el administrador.`);
-                await signOut(auth);
-                document.getElementById('login-container').style.display = 'flex';
-                document.getElementById('app-container').style.display = 'none';
+                await mostrarPantallaSinAcceso('inactivo', user.email);
                 return;
 }
+
+            // v8.21 (etapa 3): el acceso a cada app se asigna en el Portal Central (`apps_habilitadas`).
+            // Con fichas duplicadas se unen las apps de todas las activas del mismo correo.
+            if (!tieneAccesoAdmision(candidatosUsuario.length ? candidatosUsuario : [usuarioEncontrado], emailNorm)) {
+                await mostrarPantallaSinAcceso('sin_acceso', user.email, candidatosUsuario.length ? candidatosUsuario : [usuarioEncontrado]);
+                return;
+}
+            ocultarPantallaSinAcceso();
 
             // (Seguridad) Ya no se vincula automáticamente la clave inicial por defecto a quien ingresa con Google:
             // dejaba una contraseña conocida (y pública en el código) en cuentas que nunca la usan.
@@ -10225,10 +10283,8 @@ onAuthStateChanged(auth, async (user) => {
                 ? usuarioEncontrado.roles
                 : (usuarioEncontrado.rol ? [usuarioEncontrado.rol] : ['admisor']);
             const teniaRolEvaluadorLegacy = rolesOriginales.includes('evaluador');
-            // "gestor_festivales" es un rol de la app Mandala Festivales: Admisión lo ignora para todo lo demás
-            const esGestorFestivales = rolesOriginales.some(r => String(r || '').toLowerCase().trim() === 'gestor_festivales');
-            // "sonidista_festivales" también es de Mandala Festivales (acceso reducido): Admisión lo ignora y no deja entrar a quien solo es sonidista
-            const esSonidistaFestivales = rolesOriginales.some(r => String(r || '').toLowerCase().trim() === 'sonidista_festivales');
+            // Los roles de Festivales (gestor, sonidista, planificador) no dan nada en Admisión: se ignoran.
+            // Quién entra lo decide el acceso del Portal Central (control de arriba).
 
             // Normalizar roles: profesor y evaluador -> docente
             const rolesArr = [...new Set(rolesOriginales.map(r => {
@@ -10270,7 +10326,8 @@ onAuthStateChanged(auth, async (user) => {
                     const pDoc = await getDoc(doc(db, "profesores", profesorId));
                     if (pDoc.exists()) {
                         pDocData = pDoc.data();
-                        if (pDocData.nombre) nombreDocente = pDocData.nombre;
+                        // v8.21: el nombre de la ficha (lo maneja Core) manda; el del docente solo si la ficha no tiene
+                        if (!nombreDocente && pDocData.nombre) nombreDocente = pDocData.nombre;
                     }
 } catch(e) {}
 } else {
@@ -10281,7 +10338,7 @@ onAuthStateChanged(auth, async (user) => {
                         if (dt.correo_calendario && dt.correo_calendario.toLowerCase() === user.email.toLowerCase()) {
                             profesorId = d.id;
                             pDocData = dt;
-                            nombreDocente = dt.nombre || nombreDocente;
+                            nombreDocente = nombreDocente || dt.nombre;
 }
 });
 } catch(e) {}
@@ -10289,16 +10346,6 @@ onAuthStateChanged(auth, async (user) => {
 
             if (profesorId && !rolesArr.includes('docente')) {
                 rolesArr.push('docente');
-            }
-
-            // Quien solo es Gestor de Festivales no tiene nada para hacer en Admisión: se lo deriva a su app
-            if ((esGestorFestivales || esSonidistaFestivales) && rolesArr.length === 0) {
-                ocultarIndicadorCarga(); window.ocultarSplashInicial && window.ocultarSplashInicial();
-                alert(`🎪 Tu perfil es ${esGestorFestivales ? 'Gestor de Festivales' : 'Sonidista'}.\n\nNo tenés acceso a Mandala Admisión. Ingresá a Mandala Festivales:\n${URL_APP_FESTIVALES}`);
-                await signOut(auth);
-                document.getElementById('login-container').style.display = 'flex';
-                document.getElementById('app-container').style.display = 'none';
-                return;
             }
 
             const aptoEvalFinal = Boolean(pDocData?.entrevista || usuarioEncontrado.entrevista || usuarioEncontrado.apto_evaluaciones || teniaRolEvaluadorLegacy);
@@ -10323,23 +10370,15 @@ onAuthStateChanged(auth, async (user) => {
 };
 } catch(e) {
             ocultarIndicadorCarga(); window.ocultarSplashInicial && window.ocultarSplashInicial();
-            // Un sonidista (acceso reducido) no puede leer la colección entera de usuarios: se lo reconoce por su propio documento
+            // Quien no está en la lista de Admisión (por ejemplo, solo Festivales) no puede leer la colección entera:
+            // se lo reconoce por su propia ficha y se muestra la pantalla "sin acceso" con el motivo.
             if (e && e.code === 'permission-denied') {
                 try {
                     const propio = await getDocs(query(collection(db, "usuarios_sistema"), where("email", "==", String(user.email || '').toLowerCase())));
-                    const rolesPropios = propio.docs.flatMap(d => {
-                        const dt = d.data();
-                        return Array.isArray(dt.roles) && dt.roles.length > 0 ? dt.roles : [dt.rol || ''];
-                    });
-                    const esSonidistaSolo = rolesPropios.includes('sonidista_festivales');
-                    const esPlanificadorSolo = !esSonidistaSolo && rolesPropios.includes('planificador_clases');
-                    if (esSonidistaSolo || esPlanificadorSolo) {
-                        alert(`${esSonidistaSolo ? '🎚️ Tu perfil es Sonidista.' : '📅 Tu perfil es Planificador de clases.'}\n\nNo tenés acceso a Mandala Admisión. Ingresá a Mandala Festivales:\n${URL_APP_FESTIVALES}`);
-                        await signOut(auth);
-                        document.getElementById('login-container').style.display = 'flex';
-                        document.getElementById('app-container').style.display = 'none';
-                        return;
-                    }
+                    const fichasPropias = propio.docs.map(d => ({ id: d.id, ...d.data() }));
+                    if (!fichasPropias.length) { await mostrarPantallaSinAcceso('sin_ficha', user.email); return; }
+                    if (fichasPropias.every(f => f.activo === false)) { await mostrarPantallaSinAcceso('inactivo', user.email); return; }
+                    if (!tieneAccesoAdmision(fichasPropias, user.email)) { await mostrarPantallaSinAcceso('sin_acceso', user.email, fichasPropias); return; }
                 } catch (e2) { /* se muestra el error original */ }
             }
             return alert("Error al validar permisos de usuario: " + e.message);

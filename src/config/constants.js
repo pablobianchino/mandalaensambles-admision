@@ -2,7 +2,7 @@
 // src/config/constants.js — Constantes globales del sistema
 // =======================================================================
 
-export const APP_VERSION = "v8.20";
+export const APP_VERSION = "v8.21";
 
 // Contraseña inicial que se asigna al crear cuentas de acceso. Se muestra únicamente en los avisos al administrador
 // (crear/restablecer usuario); no debe aparecer en pantallas ni mensajes visibles para el resto de los usuarios.
@@ -12,6 +12,43 @@ export const CLAVE_INICIAL_DEFECTO = "mandala333";
 export const ADMIN_EMERGENCIA_EMAIL = 'productora.mandalahouse@gmail.com';
 // Calendario que se usa cuando la configuración no define uno propio.
 export const CALENDARIO_PRINCIPAL_DEFECTO = ADMIN_EMERGENCIA_EMAIL;
+
+// v8.21 (etapa 3): los usuarios, sus roles y el acceso a cada app se manejan en el Portal Central (Core).
+export const URL_PORTAL_CORE = "https://mandalaensambles-core.vercel.app";
+// La gestión de usuarios de Core se abre en `${URL_PORTAL_CORE}/#usuarios`
+export const URL_USUARIOS_CORE = URL_PORTAL_CORE + "/#usuarios";
+
+// Roles que dan acceso a Admisión en fichas viejas sin `apps_habilitadas` (respaldo). Debe coincidir con Core (permisos.js).
+const ROLES_ACCESO_ADMISION = ['admisor', 'admisiones', 'coordinador_grupos', 'coordinador', 'evaluador', 'atencion_cliente', 'docente', 'profesor'];
+
+function rolesDeFicha(u) {
+    const r = Array.isArray(u?.roles) && u.roles.length ? u.roles : [u?.rol || ''];
+    return r.map(x => String(x || '').toLowerCase().trim()).filter(Boolean);
+}
+
+// Apps habilitadas (unión de las fichas activas del mismo correo, igual que Core y Festivales). null = ninguna ficha tiene el campo.
+export function appsHabilitadasDeFichas(fichas) {
+    const activas = (fichas || []).filter(u => u && u.activo !== false);
+    const conCampo = activas.filter(u => Array.isArray(u.apps_habilitadas));
+    if (!conCampo.length) return null;
+    return [...new Set(conCampo.flatMap(u => u.apps_habilitadas.map(a => String(a || '').toLowerCase().trim()).filter(Boolean)))];
+}
+
+// ¿Entra a Admisión? Admin o cuenta de emergencia siempre; con `apps_habilitadas`, solo si incluye 'admision';
+// sin el campo (fichas viejas), si tiene algún rol de Admisión o "personalizado" con módulos.
+export function tieneAccesoAdmision(fichas, email = '') {
+    const activas = (fichas || []).filter(u => u && u.activo !== false);
+    if (String(email || '').toLowerCase().trim() === ADMIN_EMERGENCIA_EMAIL) return true;
+    if (!activas.length) return false;
+    if (activas.some(u => rolesDeFicha(u).includes('admin'))) return true;
+    const apps = appsHabilitadasDeFichas(activas);
+    if (apps) return apps.includes('admision');
+    return activas.some(u => {
+        const roles = rolesDeFicha(u);
+        if (roles.some(r => ROLES_ACCESO_ADMISION.includes(r))) return true;
+        return roles.includes('personalizado') && Array.isArray(u.modulos_habilitados) && u.modulos_habilitados.length > 0;
+    });
+}
 
 export const SCRIPT_URL ="https://script.google.com/macros/s/AKfycbx033Es_BuZJk5x0MmyV-u8foA58ENNl1K3Cv-BE6ZeguXCG62UIQl5H4v94EB7MT0/exec";
 export const SCRIPT_API_KEY = "mandala-seg-2026";

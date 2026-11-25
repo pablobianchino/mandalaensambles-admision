@@ -10,7 +10,7 @@
     <meta http-equiv="Expires" content="0">
     
     <link rel="icon" href="logo.png" type="image/png">
-    <link rel="manifest" href="manifest.json?v=8.20">
+    <link rel="manifest" href="manifest.json?v=8.21">
     <meta name="theme-color" content="#fbfaf8">
     <meta name="apple-mobile-web-app-title" content="MDL Admisi&oacute;n">
     <meta name="application-name" content="MDL Admisi&oacute;n">
@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=8.20">
+    <link rel="stylesheet" href="styles.css?v=8.21">
 
     <style>
         /* Estilos Críticos de Widget de Perfil y Popover Google-Style */
@@ -418,7 +418,20 @@
             <img src="logo.png" alt="Mandala Ensambles" style="width: 64px; height: 64px; object-fit: contain; margin-bottom: 12px;">
             <h2 style="font-size:1.45em; font-weight:800; margin:0 0 2px 0; color:#1f5491; letter-spacing:-0.02em;">Mandala Ensambles</h2>
             <div style="font-size:1em; color:#9a9388; font-weight:700; margin-bottom: 20px;">Admisión de Alumnos</div>
-            
+
+            <!-- v8.21: pantalla "sin acceso" (sin ficha, ficha inactiva o sin acceso a Admisión en el Portal Central) -->
+            <div id="login-sin-acceso" class="login-sin-acceso" style="display:none;">
+                <div class="aviso-acceso">
+                    <b id="login-sin-acceso-titulo">No tenés acceso a Admisión</b>
+                    <p id="login-sin-acceso-texto"></p>
+                    <div class="aviso-acceso-apps" id="login-sin-acceso-apps"></div>
+                </div>
+                <a class="ds-btn ds-btn-primary" id="login-sin-acceso-portal" href="https://mandalaensambles-core.vercel.app">Ir al Portal Central</a>
+                <button type="button" class="ds-btn ds-btn-secondary" id="login-sin-acceso-salir">Cerrar sesión</button>
+                <div class="login-sin-acceso-pie">Desde el Portal ves todas tus aplicaciones.</div>
+            </div>
+
+            <div id="login-form-area" class="login-form-area">
             <!-- FORMULARIO DE ACCESO CON CORREO Y CONTRASEÑA -->
             <form id="form-login-email" style="width:100%; display:flex; flex-direction:column; gap:12px; margin-bottom:16px;">
                 <div style="text-align:left;">
@@ -462,6 +475,7 @@
                 ¿Olvidaste tu contraseña?<br>
                 Contactá al administrador para restablecerla.
             </div>
+            </div><!-- /login-form-area -->
         </div>
     </div>
 
@@ -2774,6 +2788,7 @@
             </div>
             <input type="hidden" id="abm-edit-id"><input type="hidden" id="abm-edit-coleccion">
             <div class="abm-edit-cuerpo">
+            <span id="abm-edit-nombre-ancla" hidden></span>
             <label id="label-abm-edit-nombre">Nombre: <input type="text" id="abm-edit-nombre" class="modern-input" required></label>
             
             <div id="div-abm-edit-profe" style="display:none; margin-top:10px;">
@@ -2864,11 +2879,15 @@
             <div id="div-abm-edit-usuario" style="display:none;">
                 <!-- Pestaña 1: Datos y cuenta -->
                 <div class="abm-user-sec" data-tab="datos">
+                    <!-- v8.21: nombre, correo, estado y contraseña se manejan en el Portal Central (Core) -->
+                    <div class="abm-aviso-core abm-aviso-core-modal"><span>Nombre, correo, estado y contraseña se manejan en Core.</span><a class="ds-btn ds-btn-secondary sm abm-abrir-core" href="https://mandalaensambles-core.vercel.app/#usuarios" target="_blank" rel="noopener">Abrir en Core</a></div>
                     <p class="abm-user-st"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Datos personales</p>
                     <div class="abm-user-grid2">
-                        <label class="abm-user-campo abm-user-full">Nombre completo / referencia
-                            <input type="text" id="abm-user-nombre" class="modern-input" placeholder="Ej: Martín Gómez">
+                        <label class="abm-user-campo abm-user-full">Nombre completo / referencia <span class="abm-solo-core"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Se edita en Core</span>
+                            <input type="text" id="abm-user-nombre" class="modern-input" placeholder="Ej: Martín Gómez" disabled>
                         </label>
+                        <!-- v8.21: acá se mueve el campo de correo (#label-abm-edit-nombre) al abrir un usuario -->
+                        <div id="abm-user-slot-correo" class="abm-user-full"></div>
                         <label class="abm-user-campo">Celular (WhatsApp)
                             <input type="text" id="abm-user-celular" class="modern-input" placeholder="Ej: +54 9 11 1234-5678">
                         </label>
@@ -2880,37 +2899,20 @@
                             <small class="abm-user-nota">Donde se sincronizan sus clases y entrevistas.</small>
                         </label>
                     </div>
-
-                    <p class="abm-user-st"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/></svg>Cuenta</p>
-                    <div class="abm-user-fila">
-                        <div class="abm-user-fila-tx"><b>Estado: <span id="abm-user-activo-label">Activo</span></b><small>Si se desactiva, no puede ingresar a ninguna app.</small></div>
-                        <label class="abm-switch" title="Cuenta activa"><input type="checkbox" id="abm-user-activo" checked><span></span></label>
-                    </div>
-                    <div class="abm-user-fila abm-credentials-box">
-                        <div class="abm-user-fila-tx"><b>Contraseña</b><small>Genera una clave temporal que se muestra una sola vez.</small></div>
-                        <button type="button" id="btn-abm-reset-pass" class="btn-app btn-secondary" onclick="if (typeof window.restablecerPasswordUsuarioSistema === 'function') window.restablecerPasswordUsuarioSistema();">
-                            <svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 0 0-15-6.7L3 8M3 3v5h5M3 12a9 9 0 0 0 15 6.7L21 16M16 16h5v5"/></svg> Restablecer
-                        </button>
-                    </div>
+                    <!-- v8.21: Estado y Restablecer contraseña pasaron a Core (la función de Vercel api/restablecer-clave.js sigue, la usa Core) -->
                 </div>
 
                 <!-- Pestaña 2: Roles y módulos -->
                 <div class="abm-user-sec" data-tab="roles">
                     <p class="abm-user-st"><svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>Roles</p>
-                    <p class="abm-user-ayuda">Puede tener varios. Al cambiar los roles, los módulos de Admisión se marcan solos.</p>
-                    <div class="abm-user-grupo-app"><span class="abm-user-app">Mandala Admisión</span><i></i></div>
+                    <div class="abm-aviso-core abm-aviso-core-modal"><span>El acceso a Admisión y los roles se asignan en Core. Si cambian los roles, los módulos "según los roles" se actualizan solos.</span><a class="ds-btn ds-btn-secondary sm abm-abrir-core" href="https://mandalaensambles-core.vercel.app/#usuarios" target="_blank" rel="noopener">Abrir en Core</a></div>
+                    <div class="abm-user-grupo-app"><span class="abm-user-app">Mandala Admisión</span><i></i><small class="abm-solo-lectura">Solo lectura</small></div>
                     <div id="abm-user-roles-grid" class="abm-user-roles">
                         <label class="abm-rol"><input type="checkbox" class="chk-user-rol" value="admin"><span><b>Administrador</b><small>Acceso total, usuarios y configuración.</small></span></label>
                         <label class="abm-rol"><input type="checkbox" class="chk-user-rol" value="admisor"><span><b>Admisor</b><small>Inbox, lista de espera, Match, altas, seguimientos y métricas.</small></span></label>
                         <label class="abm-rol"><input type="checkbox" class="chk-user-rol" value="coordinador_grupos"><span><b>Coordinador de grupos</b><small>Match, altas y seguimientos. Edita perfil y disponibilidad de otros.</small></span></label>
                         <label class="abm-rol"><input type="checkbox" class="chk-user-rol" value="docente"><span><b>Docente</b><small>Portal docente. Habilita el perfil docente y la disponibilidad.</small></span></label>
                         <label class="abm-rol"><input type="checkbox" class="chk-user-rol" value="atencion_cliente"><span><b>Atención al cliente</b><small>Solo Inbox.</small></span></label>
-                    </div>
-                    <div class="abm-user-grupo-app"><span class="abm-user-app fest">Mandala Festivales</span><i></i><small>No dan acceso a Admisión</small></div>
-                    <div class="abm-user-roles fest">
-                        <label class="abm-rol"><input type="checkbox" class="chk-user-rol" value="gestor_festivales"><span><b>Gestor de Festivales</b><small>Acceso completo a Festivales.</small></span></label>
-                        <label class="abm-rol"><input type="checkbox" class="chk-user-rol" value="sonidista_festivales"><span><b>Sonidista</b><small>Rider técnico y REC. Se da de alta desde Festivales.</small></span></label>
-                        <label class="abm-rol"><input type="checkbox" class="chk-user-rol" value="planificador_clases"><span><b>Planificador de clases</b><small>Eventos en lectura y Planificación de clases.</small></span></label>
                     </div>
 
                     <div class="abm-user-mods-cab">
@@ -4077,12 +4079,12 @@
         })();
     </script>
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-    <script type="module" src="app.js?v=8.20"></script>
+    <script type="module" src="app.js?v=8.21"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=8.20').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=8.21').then(reg => {
                     reg.update();
                     console.log('PWA Service Worker Registrado');
                 }).catch(err => {
