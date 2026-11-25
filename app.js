@@ -22,7 +22,7 @@ import {
     CLAVE_INICIAL_DEFECTO,
     ADMIN_EMERGENCIA_EMAIL,
     CALENDARIO_PRINCIPAL_DEFECTO
-} from "./src/config/constants.js?v=8.19";
+} from "./src/config/constants.js?v=8.20";
 
 import { 
     app, 
@@ -95,7 +95,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=8.19";
+} from "./src/services/calendar.service.js?v=8.20";
 
 import {
     matchCantidadActual,
@@ -128,11 +128,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=8.19";
+} from "./src/modules/match.module.js?v=8.20";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=8.19";
+} from "./src/modules/profesor.module.js?v=8.20";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -161,14 +161,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=8.19";
+} from "./src/modules/altas.module.js?v=8.20";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=8.19";
+} from "./src/modules/dashboard.module.js?v=8.20";
 
 import {
     renderConfigHub,
@@ -177,23 +177,23 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=8.19";
+} from "./src/modules/abm.module.js?v=8.20";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=8.19";
+} from "./src/modules/inbox.module.js?v=8.20";
 
 // Íconos de línea automáticos en textos de la interfaz (solo presentación)
-import "./src/modules/iconos.module.js?v=8.19";
+import "./src/modules/iconos.module.js?v=8.20";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=8.19";
+} from "./src/modules/csv.module.js?v=8.20";
 
 import {
     inicializarMotorRecordatorios,
@@ -213,7 +213,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=8.19";
+} from "./src/modules/recordatorios.module.js?v=8.20";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -4815,6 +4815,7 @@ function generarFilaAlumno(al, id, vista, isKanban = false) {
     const esBiciRow = !!al.es_bicicleta;
     let menuAcciones = `
         <div class="row-actions-group">
+            ${htmlBotonRevisadoEspera(al, id)}
             ${htmlBotonOjoEspera(al, id)}
             ${botonesVisibles ? `<div class="row-quick-btns-col">${botonesVisibles}</div>` : ''}
             ${(!esBiciRow && tieneSecundarios) ? `
@@ -6687,13 +6688,17 @@ function renderListaFilas(containerId, datos, estadoId, configNodos) {
 
         let html = '';
         if (estadoActualVista === 'Lista de Espera') {
-            const alumnosNormales = filtrados.filter(a => !a.es_bicicleta);
+            const alumnosNormalesTodos = filtrados.filter(a => !a.es_bicicleta);
             const alumnosBicis = filtrados.filter(a => !!a.es_bicicleta);
+            // v8.20: los últimos ingresos sin revisar van en un apartado arriba (solo visual) y no se repiten abajo
+            const nuevosEspera = alumnosNormalesTodos.filter(a => esIngresoNuevoEspera(a));
+            const alumnosNormales = alumnosNormalesTodos.filter(a => !esIngresoNuevoEspera(a));
+            html = htmlApartadoUltimosIngresos(nuevosEspera, (al) => obtenerClaveAgrupador(al, 'suscripcion'));
 
             if (nivelesActivos.length === 0) {
-                html = alumnosNormales.map(a => generarFilaAlumno(a, a.id, estadoActualVista)).join('');
+                html += alumnosNormales.map(a => generarFilaAlumno(a, a.id, estadoActualVista)).join('');
 } else {
-                html = renderNivelAgrupado(alumnosNormales, 0);
+                html += renderNivelAgrupado(alumnosNormales, 0);
 }
 
             if (alumnosBicis.length > 0) {
@@ -17677,6 +17682,157 @@ async function _refrescarListaEsperaConScroll() {
     await cargarVista(estadoActualVista, true);
     if (main) main.scrollTop = top;
 }
+// =======================================================================
+// v8.20: "Últimos ingresos" en Lista de Espera (mockup_ultimos_ingresos_espera.html, opción A v3)
+// Es SOLO visual: los alumnos siguen en "Lista de espera" para Match, armado de grupos, filtros y contadores.
+// Un alumno es "nuevo" si entró a la lista desde la fecha de arranque y nadie lo marcó
+// como revisado después de ese ingreso. Si vuelve a entrar más adelante, la fecha nueva lo hace aparecer otra vez.
+// =======================================================================
+const FECHA_INICIO_ULTIMOS_INGRESOS = new Date(2026, 9, 24); // 24/10/2026: al publicar se toma el último mes
+
+// Fecha de ingreso REAL a la lista: el campo explícito o, en fichas viejas sin ese campo, la nota de ingreso
+// del historial o la fecha de la entrevista. Las vueltas desde Match/Altas (propuesta desarmada, devolución) no cuentan.
+function fechaIngresoRealEspera(al) {
+    const valida = (v) => { const p = v ? parsearFechaCualquierOrigen(v) : null; return p && !isNaN(p.getTime()) ? p : null; };
+    const fCampo = valida(al.fecha_ingreso_espera);
+    if (fCampo) return fCampo;
+    if (Array.isArray(al.historial)) {
+        for (let i = al.historial.length - 1; i >= 0; i--) {
+            const h = al.historial[i];
+            if (!h || typeof h !== 'object') continue;
+            const t = String(h.texto || '').toLowerCase();
+            const esVuelta = h.tipo === 'match' || h.tipo === 'devolucion_espera' || t.includes('propuesta') || t.includes('devuelto') || t.includes('vuelve a lista');
+            const esIngreso = !esVuelta && t.includes('lista de espera') && (t.includes('ingreso') || t.includes('derivado') || t.includes('reactivado') || t.includes('reingresado'));
+            if (esIngreso) {
+                const f = valida(h.fecha_iso || h.fecha) || (typeof h.id === 'number' ? valida(h.id) : null);
+                if (f) return f;
+            }
+        }
+    }
+    return valida(al.informe_entrevista?.fecha_evaluacion) || valida(al.informe_entrevista?.fecha_actualizacion) || valida(al.fecha_admision_finalizada);
+}
+
+// Los que están hoy en un grupo de Match tienen estado "Validando Grupo" y no llegan acá: quedan afuera solos.
+function esIngresoNuevoEspera(al) {
+    if (!al || al.estado_agenda !== 'Lista de espera' || al.es_bicicleta) return false;
+    const fIng = fechaIngresoRealEspera(al);
+    if (!fIng || fIng.getTime() < FECHA_INICIO_ULTIMOS_INGRESOS.getTime()) return false;
+    const fRev = al.revision_espera?.fecha_iso ? parsearFechaCualquierOrigen(al.revision_espera.fecha_iso) : null;
+    return !(fRev && !isNaN(fRev.getTime()) && fRev.getTime() >= fIng.getTime());
+}
+window.esIngresoNuevoEspera = esIngresoNuevoEspera;
+
+function puedeMarcarRevisadoEspera() {
+    const u = window.usuarioActual;
+    if (!u) return false;
+    const roles = Array.isArray(u.roles) ? u.roles : [u.rol];
+    return roles.some(r => ['admin', 'admisor', 'coordinador_grupos', 'coordinador'].includes(r));
+}
+
+const SVG_TILDE_REVISADO = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>';
+
+function htmlBotonRevisadoEspera(al, id) {
+    if (typeof estadoActualVista === 'undefined' || estadoActualVista !== 'Lista de Espera') return '';
+    if (!esIngresoNuevoEspera(al) || !puedeMarcarRevisadoEspera()) return '';
+    return `<button type="button" class="btn-revisado-espera" onclick="event.stopPropagation(); window.marcarRevisadoEspera('${id}');" title="Marcar como revisado (pasa a su grupo de la lista)">${SVG_TILDE_REVISADO}</button>`;
+}
+
+// Apartado de arriba, agrupado por suscripción como la lista
+function htmlApartadoUltimosIngresos(nuevos, claveSuscripcion) {
+    if (!Array.isArray(nuevos) || nuevos.length === 0) return '';
+    const grupos = {};
+    nuevos.forEach(al => {
+        const clave = claveSuscripcion(al) || 'Sin clasificar';
+        if (!grupos[clave]) grupos[clave] = [];
+        grupos[clave].push(al);
+    });
+    const entradas = ordenarEntradasAgrupadorEspera(Object.entries(grupos), 'suscripcion');
+    const plegado = window._ultimosIngresosPlegado === true;
+    const ids = nuevos.map(a => a.id).join(',');
+    const icoEstrella = typeof window.iconoLinea === 'function' ? window.iconoLinea('star') : '';
+    const icoFlecha = '<svg class="ico-linea" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+    const cuerpo = entradas.map(([clave, als]) => `
+        <div class="ult-ingresos-subgrupo"><span>${String(clave).toUpperCase().replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))}</span><span class="ult-ingresos-subcnt">${als.length}</span></div>
+        ${als.map(a => generarFilaAlumno(a, a.id, estadoActualVista)).join('')}`).join('');
+    return `
+        <section class="ult-ingresos ${plegado ? 'plegado' : ''}" id="ult-ingresos-espera">
+            <div class="ult-ingresos-cab" onclick="window.toggleUltimosIngresosEspera()" title="Clic para desplegar u ocultar">
+                <span class="ult-ingresos-tit">${icoEstrella}Últimos ingresos</span>
+                <span class="ult-ingresos-cnt">${nuevos.length}</span>
+                <span class="ult-ingresos-der">
+                    ${nuevos.length > 1 && puedeMarcarRevisadoEspera() ? `<button type="button" class="ult-ingresos-lnk" onclick="event.stopPropagation(); window.marcarRevisadoEspera('${ids}');">Marcar todos</button>` : ''}
+                    <span class="ult-ingresos-flecha">${icoFlecha}</span>
+                </span>
+            </div>
+            <div class="ult-ingresos-cuerpo">${cuerpo}</div>
+        </section>`;
+}
+
+window.toggleUltimosIngresosEspera = function() {
+    window._ultimosIngresosPlegado = !window._ultimosIngresosPlegado;
+    document.getElementById('ult-ingresos-espera')?.classList.toggle('plegado', window._ultimosIngresosPlegado);
+};
+
+function mostrarAvisoDeshacerEspera(texto, alDeshacer) {
+    let t = document.getElementById('toast-deshacer-espera');
+    if (!t) {
+        t = document.createElement('div');
+        t.id = 'toast-deshacer-espera';
+        t.className = 'toast-deshacer';
+        t.setAttribute('role', 'status');
+        document.body.appendChild(t);
+    }
+    t.innerHTML = `<span></span><button type="button">Deshacer</button>`;
+    t.querySelector('span').textContent = texto;
+    t.querySelector('button').onclick = async () => { t.classList.remove('on'); clearTimeout(t._timer); await alDeshacer(); };
+    t.classList.add('on');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('on'), 6000);
+}
+
+// Marca uno o varios alumnos como revisados: salen del apartado y pasan a su grupo. Queda en el historial.
+window.marcarRevisadoEspera = async function(idsTexto) {
+    const ids = String(idsTexto || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (!ids.length || !puedeMarcarRevisadoEspera()) return;
+    const pool = Array.isArray(cachedAlumnosData) && cachedAlumnosData.length ? cachedAlumnosData : (window.allData || []);
+    const ahoraIso = new Date().toISOString();
+    const quien = window.usuarioActual?.nombre || window.usuarioActual?.email || 'Operador';
+    const previos = [];
+    try {
+        for (const id of ids) {
+            const al = pool.find(a => a.id === id);
+            if (!al || !esIngresoNuevoEspera(al)) continue;
+            const histPrevio = Array.isArray(al.historial) ? [...al.historial] : [];
+            const entrada = crearEntradaHistorial('Revisado en Lista de Espera (últimos ingresos).', 'sistema');
+            const updates = {
+                revision_espera: { fecha_iso: ahoraIso, por: quien, por_email: window.usuarioActual?.email || '' },
+                historial: entrada ? [...histPrevio, entrada] : histPrevio
+            };
+            await updateDoc(doc(db, "alumnos", id), updates);
+            actualizarAlumnoEnMemoriaLocal(id, updates);
+            previos.push({ id, nombre: al.nombre || 'Alumno', revision_espera: al.revision_espera || null, historial: histPrevio });
+        }
+    } catch (e) {
+        console.error('No se pudo marcar como revisado:', e);
+        alert('No se pudo marcar como revisado: ' + (e.message || e));
+    }
+    if (!previos.length) return;
+    await _refrescarListaEsperaConScroll();
+    const texto = previos.length === 1 ? `${previos[0].nombre}: revisado, pasó a la lista` : `${previos.length} alumnos revisados, pasaron a la lista`;
+    mostrarAvisoDeshacerEspera(texto, async () => {
+        try {
+            for (const p of previos) {
+                const updates = { revision_espera: p.revision_espera, historial: p.historial };
+                await updateDoc(doc(db, "alumnos", p.id), updates);
+                actualizarAlumnoEnMemoriaLocal(p.id, updates);
+            }
+            await _refrescarListaEsperaConScroll();
+        } catch (e) {
+            alert('No se pudo deshacer: ' + (e.message || e));
+        }
+    });
+};
+
 window.toggleOcultoEspera = async function(id) {
     if (!id) return;
     const s = leerOcultosEspera();
