@@ -25,7 +25,7 @@ import {
     URL_PORTAL_CORE,
     tieneAccesoAdmision,
     appsHabilitadasDeFichas
-} from "./src/config/constants.js?v=8.22";
+} from "./src/config/constants.js?v=8.23";
 
 import { 
     app, 
@@ -99,7 +99,8 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=8.22";
+} from "./src/services/calendar.service.js?v=8.23";
+import { usarPaseDeCore } from "./src/services/pase.js?v=8.23";
 
 import {
     matchCantidadActual,
@@ -132,11 +133,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=8.22";
+} from "./src/modules/match.module.js?v=8.23";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=8.22";
+} from "./src/modules/profesor.module.js?v=8.23";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -165,14 +166,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=8.22";
+} from "./src/modules/altas.module.js?v=8.23";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=8.22";
+} from "./src/modules/dashboard.module.js?v=8.23";
 
 import {
     renderConfigHub,
@@ -181,23 +182,23 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=8.22";
+} from "./src/modules/abm.module.js?v=8.23";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=8.22";
+} from "./src/modules/inbox.module.js?v=8.23";
 
 // Íconos de línea automáticos en textos de la interfaz (solo presentación)
-import "./src/modules/iconos.module.js?v=8.22";
+import "./src/modules/iconos.module.js?v=8.23";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=8.22";
+} from "./src/modules/csv.module.js?v=8.23";
 
 import {
     inicializarMotorRecordatorios,
@@ -217,7 +218,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=8.22";
+} from "./src/modules/recordatorios.module.js?v=8.23";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -10213,6 +10214,18 @@ function ocultarPantallaSinAcceso() {
     document.getElementById('login-form-area')?.style.setProperty('display', 'flex');
 }
 window.ocultarPantallaSinAcceso = ocultarPantallaSinAcceso;
+
+// v8.23 (etapa 4): si se abrió desde Core con un pase (#pase=...), entrar con ese usuario ANTES de escuchar la sesión.
+// Reemplaza cualquier sesión que hubiera quedado guardada. Sin pase no hace nada; si falla, sigue el arranque normal.
+const resultadoPase = await usarPaseDeCore(auth, 'admision');
+if (resultadoPase.error) {
+    window.__avisoPaseCore = resultadoPase.error;
+    const errLogin = document.getElementById('login-error-msg');
+    if (errLogin) {
+        errLogin.textContent = 'No se pudo usar el ingreso desde el Portal Central. Ingresá con tu usuario.';
+        errLogin.style.display = 'block';
+    }
+}
 
 onAuthStateChanged(auth, async (user) => {
     if (user) { 
