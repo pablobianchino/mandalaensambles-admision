@@ -21,7 +21,8 @@ import {
     eliminarEventoAltaSeguro,
     eliminarEventoSeguro,
     formatearFechaAmi,
-    formatoLocalISO
+    formatoLocalISO,
+    esClaseAnulada
 } from "../services/calendar.service.js";
 import {
     renderContenedorDisponibilidad,
@@ -117,7 +118,7 @@ export async function obtenerHorariosLibresDocente(profesorDoc, duracionMinutos 
             dEnd.setDate(dEnd.getDate() + 14); // 2 semanas
             const evData = await getEventosCalendario(profesorDoc.correo_calendario, dStart.toISOString(), dEnd.toISOString());
             if (evData && Array.isArray(evData.items)) {
-                eventosAPI = evData.items;
+                eventosAPI = evData.items.filter(ev => !esClaseAnulada(ev)); // v8.22: las clases anuladas por suplencia no ocupan al docente
             }
         } catch(e) {
             console.warn("No se pudieron cargar eventos de Google Calendar:", e);

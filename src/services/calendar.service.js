@@ -254,8 +254,14 @@ export async function fetchCalendarAPI(action, payload = {}) {
     throw lastError || new Error("No se pudo completar la operación en Google Calendar.");
 }
 
-export async function getEventosCalendario(calendarId, timeMin, timeMax) { 
-    return await fetchCalendarAPI('getEvents', { calendarId, timeMin, timeMax }); 
+export async function getEventosCalendario(calendarId, timeMin, timeMax) {
+    return await fetchCalendarAPI('getEvents', { calendarId, timeMin, timeMax });
+}
+
+/* v8.22: clase anulada por una suplencia confirmada desde el Portal Docentes: el título empieza con "❌".
+   No ocupa aula, batería ni docente. Solo se usa para contar ocupación, no para buscar eventos propios. */
+export function esClaseAnulada(ev) {
+    return String((ev && ev.summary) || '').trim().startsWith('❌');
 }
 
 export async function crearEventoCalendario(calendarId, titulo, inicioStr, finStr, descripcion = "") { 
@@ -1202,7 +1208,7 @@ export async function validarConflictoCalendarEnVivo({
             try {
                 const evs = await getEventosCalendario(cId, dayStart.toISOString(), dayEnd.toISOString());
                 const items = Array.isArray(evs) ? evs : (evs && Array.isArray(evs.items) ? evs.items : []);
-                items.forEach(e => { e.calIdSource = cId; allEvents.push(e); });
+                items.forEach(e => { if (esClaseAnulada(e)) return; e.calIdSource = cId; allEvents.push(e); }); // v8.22: sin clases anuladas
             } catch(err) {
                 console.warn(`No se pudieron consultar eventos de ${cId}:`, err.message || err);
             }
@@ -1367,7 +1373,7 @@ export async function obtenerEventosProfesoresParaSlot({ inicioISO, finISO, conf
             try {
                 const evs = await getEventosCalendario(cId, dayStart.toISOString(), dayEnd.toISOString());
                 const items = Array.isArray(evs) ? evs : (evs && Array.isArray(evs.items) ? evs.items : []);
-                items.forEach(e => { e.calIdSource = cId; allEvents.push(e); });
+                items.forEach(e => { if (esClaseAnulada(e)) return; e.calIdSource = cId; allEvents.push(e); }); // v8.22: sin clases anuladas
             } catch(err) {
                 console.warn(`No se pudieron consultar eventos de ${cId}:`, err.message || err);
             }

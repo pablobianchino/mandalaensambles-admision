@@ -25,7 +25,7 @@ import {
     URL_PORTAL_CORE,
     tieneAccesoAdmision,
     appsHabilitadasDeFichas
-} from "./src/config/constants.js?v=8.21";
+} from "./src/config/constants.js?v=8.22";
 
 import { 
     app, 
@@ -79,6 +79,7 @@ import {
     calcularFechaLimitePago,
     fetchCalendarAPI,
     getEventosCalendario,
+    esClaseAnulada,
     crearEventoCalendario,
     actualizarEventoCalendario,
     eliminarEventoCalendario,
@@ -98,7 +99,7 @@ import {
     recrearEventoFaltanteCalendar,
     alinearEventoHaciaCalendar,
     alinearSistemaDesdeCalendar
-} from "./src/services/calendar.service.js?v=8.21";
+} from "./src/services/calendar.service.js?v=8.22";
 
 import {
     matchCantidadActual,
@@ -131,11 +132,11 @@ import {
     generarAlumnosPruebaMatch,
     generarAlumnosIndividualesPruebaMatch,
     limpiarAlumnosPruebaMatch
-} from "./src/modules/match.module.js?v=8.21";
+} from "./src/modules/match.module.js?v=8.22";
 
 import {
     renderPortalProfesor
-} from "./src/modules/profesor.module.js?v=8.21";
+} from "./src/modules/profesor.module.js?v=8.22";
 
 import {
     renderListaInstrumentosAlumnos,
@@ -164,14 +165,14 @@ import {
     generarTextoAvisoCoordinadorPrealta,
     copiarAvisoCoordinadorGrupo,
     copiarAvisoCoordinadorAlumno
-} from "./src/modules/altas.module.js?v=8.21";
+} from "./src/modules/altas.module.js?v=8.22";
 
 import {
     renderTimelineUnificado,
     renderCharts,
     extraerInstrumentos,
     extraerSuscripcion
-} from "./src/modules/dashboard.module.js?v=8.21";
+} from "./src/modules/dashboard.module.js?v=8.22";
 
 import {
     renderConfigHub,
@@ -180,23 +181,23 @@ import {
     cargarABM,
     abrirEdicionABM,
     eliminarABM
-} from "./src/modules/abm.module.js?v=8.21";
+} from "./src/modules/abm.module.js?v=8.22";
 
 import {
     getEstadoYBadge,
     generarBotonesPrincipalesVisibles,
     generarBotonesAccion
-} from "./src/modules/inbox.module.js?v=8.21";
+} from "./src/modules/inbox.module.js?v=8.22";
 
 // Íconos de línea automáticos en textos de la interfaz (solo presentación)
-import "./src/modules/iconos.module.js?v=8.21";
+import "./src/modules/iconos.module.js?v=8.22";
 
 import {
     parseCSV,
     procesarFilasCSV,
     mostrarModalPreviewCSV,
     ejecutarImportacionMasiva
-} from "./src/modules/csv.module.js?v=8.21";
+} from "./src/modules/csv.module.js?v=8.22";
 
 import {
     inicializarMotorRecordatorios,
@@ -216,7 +217,7 @@ import {
     reprogramarFechaInicioClases,
     posponerRecordatorioAlumnoManana,
     posponerPopupManana
-} from "./src/modules/recordatorios.module.js?v=8.21";
+} from "./src/modules/recordatorios.module.js?v=8.22";
 
 window.posponerRecordatorioAlumnoManana = posponerRecordatorioAlumnoManana;
 window.posponerPopupManana = posponerPopupManana;
@@ -12953,7 +12954,8 @@ document.addEventListener('click', async (e) => {
             for(const cId of calendariosUnicos) {
                 try {
                     const data = await getEventosCalendario(cId, dS.toISOString(), dE.toISOString());
-                    eventosPorCalId[cId] = data.items || [];
+                    // v8.22: las clases anuladas por suplencia (título con ❌) no ocupan aula, batería ni docente
+                    eventosPorCalId[cId] = (data.items || []).filter(ev => !esClaseAnulada(ev));
 } catch(e) {
                     console.warn('[Agenda] No se pudo leer el calendario', cId, e);
                     eventosPorCalId[cId] = [];
